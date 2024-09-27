@@ -1,6 +1,4 @@
-use core::time;
 use std::collections::HashMap;
-use std::thread;
 
 use godot::classes::{
     Button, Control, ENetMultiplayerPeer, IControl, LineEdit, MultiplayerApi, RichTextLabel,
@@ -14,11 +12,6 @@ use crate::NetworkId;
 
 const LOCALHOST: &str = "127.0.0.1";
 const PORT: i32 = 8910;
-#[derive(GodotClass, Clone)]
-#[class(init)]
-pub struct PlayerData {
-    pub name: GString,
-}
 
 #[derive(GodotClass)]
 #[class(base=Control)]
@@ -27,8 +20,8 @@ pub struct MultiplayerController {
     address: GString,
     port: i32,
     #[export]
-    game_scene: Gd<PackedScene>,
-    player_database: HashMap<NetworkId, PlayerData>,
+    game_scene: Option<Gd<PackedScene>>,
+    player_database: HashMap<NetworkId, GString>,
     number_of_players_loaded: u32,
     multiplayer: OnReady<Gd<MultiplayerApi>>,
     base: Base<Control>,
@@ -76,9 +69,8 @@ impl MultiplayerController {
 
     // utility function that converts our player database hashmap to a string
     fn player_database_to_string(&self) -> String {
-        let mut string = String::from("");
-        for (network_id, data) in self.player_database.iter() {
-            let username = &data.name;
+        let mut string = String::default();
+        for (network_id, username) in self.player_database.iter() {
             string.push_str(&format!(
                 "network_id: {network_id}, username: {username} \n"
             ));
@@ -94,7 +86,7 @@ impl MultiplayerController {
         // insert new player data with network_id if it doesn't already exist
         self.player_database
             .entry(network_id)
-            .or_insert(PlayerData { name });
+            .or_insert(name);
 
         // print player information onto multiplayer log
         let mut multiplayer_log = self
@@ -103,9 +95,8 @@ impl MultiplayerController {
         multiplayer_log.set_text(self.player_database_to_string().into());
 
         if self.multiplayer.is_server() {
-            for (id, data) in self.player_database.clone().into_iter() {
+            for (id, username) in self.player_database.clone().into_iter() {
                 godot_print!("sending player {id} data");
-                let username = data.name;
                 self.base_mut().rpc(
                     "send_player_information".into(),
                     &[Variant::from(username), Variant::from(id)],
@@ -117,8 +108,9 @@ impl MultiplayerController {
     #[rpc(any_peer, call_local, reliable)]
     fn load_game(&mut self) {
         // start up game scene
-        let mut scene = self.game_scene.instantiate_as::<SceneManager>();
-        // have to put this into a block to avoid borrowing self as immutable when its already mutable
+        let mut scene = self.game_scene.as_mut().unwrap().instantiate_as::<SceneManager>();
+        // have to put this into its own scope to avoid borrowing self as immutable when its already mutable
+        // note: you could also use drop(..) to drop reference to base
         {
             let mut base = self.base_mut();
             base.get_tree()
@@ -132,8 +124,8 @@ impl MultiplayerController {
 
         // add players to scene
         let mut player_ids = Vec::<NetworkId>::new();
-        for (&network_id, data) in &self.player_database {
-            scene.bind_mut().add_player(network_id, data.name.clone());
+        for (&network_id, username) in &self.player_database {
+            scene.bind_mut().add_player(network_id, username.clone());
             player_ids.push(network_id);
         }
 
@@ -245,7 +237,7 @@ impl IControl for MultiplayerController {
         Self {
             address: LOCALHOST.into(),
             port: PORT,
-            game_scene: PackedScene::new_gd(),
+            game_scene: None,
             player_database: HashMap::new(),
             number_of_players_loaded: 0,
             multiplayer: OnReady::from_base_fn(|base| base.get_multiplayer().unwrap()),
@@ -271,7 +263,11 @@ impl IControl for MultiplayerController {
             self.base().callable("on_start_button_down"),
         );
 
-        // make clone to avoid borrowing errors
+        // make clone to avoid following borrowing error:
+        // cannot move out of `self.multiplayer` which is behind a mutable reference
+        // move occurs because `self.multiplayer` has type `godot::prelude::OnReady<godot::prelude::Gd<MultiplayerApi>>`, 
+        // which does not implement the `Copy` trait
+
         let mut multiplayer = self.multiplayer.clone();
 
         // setup multiplayer signal callbacks

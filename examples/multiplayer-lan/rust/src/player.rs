@@ -121,7 +121,7 @@ impl ICharacterBody2D for Player {
             ProjectSettings::singleton()
                 .get_setting("physics/2d/default_gravity".into())
                 .try_to::<f64>(),
-            "default setting in Godot",
+            "not able to cast default setting in Godot to float",
         );
         Self {
             speed: 300.0,

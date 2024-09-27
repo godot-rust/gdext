@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use godot::{
-    classes::{RandomNumberGenerator, RichTextLabel},
+    classes::RichTextLabel,
     prelude::*,
 };
 
 use crate::{
-    multiplayer_controller::{self, MultiplayerController},
+    multiplayer_controller::MultiplayerController,
     player::Player,
     NetworkId,
 };
@@ -140,9 +140,9 @@ impl INode2D for SceneManager {
         multiplayer_controller.rpc_id(1, "load_in_player".into(), &[]);
     }
 
-    fn process(&mut self, delta: f64) {
+    fn process(&mut self, _delta: f64) {
         let mut string = String::from("");
-        for (_, player) in self.player_list.iter() {
+        for player in self.player_list.values_mut() { 
             let player_bind = player.bind();
             let username = &player_bind.username;
             let position = player.get_global_position();

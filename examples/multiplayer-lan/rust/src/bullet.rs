@@ -1,4 +1,4 @@
-use godot::classes::{CharacterBody2D, ICharacterBody2D, ProjectSettings};
+use godot::classes::{CharacterBody2D, ICharacterBody2D, SceneTreeTimer};
 use godot::prelude::*;
 
 use crate::NetworkId;
@@ -9,31 +9,24 @@ const LIFETIME: f64 = 2.0;
 #[derive(GodotClass)]
 #[class(base=CharacterBody2D)]
 pub struct Bullet {
-    gravity: f64,
     direction: Vector2,
     // who shot the bullet
     #[var]
     pub network_id: NetworkId,
     // dont want the bullets to live forever
-    time_left: f64,
+    timer: OnReady<Gd<SceneTreeTimer>>,
     base: Base<CharacterBody2D>,
 }
 
 #[godot_api]
 impl ICharacterBody2D for Bullet {
     fn init(base: Base<CharacterBody2D>) -> Self {
-        let gravity: f64 = Result::expect(
-            ProjectSettings::singleton()
-                .get_setting("physics/2d/default_gravity".into())
-                .try_to::<f64>(),
-            "default setting in Godot",
-        );
-
         Self {
-            gravity,
             direction: Vector2::new(1., 0.),
             network_id: 1,
-            time_left: LIFETIME,
+            timer: OnReady::from_base_fn(|base| {
+                base.get_tree().unwrap().create_timer(LIFETIME).unwrap()
+            }),
             base,
         }
     }
@@ -44,15 +37,10 @@ impl ICharacterBody2D for Bullet {
         self.base_mut().set_velocity(velocity);
     }
 
-    fn physics_process(&mut self, delta: f64) {
+    fn physics_process(&mut self, _delta: f64) {
         // delete bullet once LIFETIME seconds have passed
-        self.time_left -= delta;
-        if self.time_left <= 0.0 {
+        if self.timer.get_time_left() <= 0. {
             self.base_mut().queue_free();
-        }
-        // have bullet fall down while flying
-        if !self.base().is_on_floor() {
-            self.base_mut().get_velocity().x += (self.gravity * 1. * delta) as f32;
         }
 
         self.base_mut().move_and_slide();

@@ -1,5 +1,4 @@
 use godot::prelude::*;
-use player::Player;
 
 type NetworkId = i32;
 
