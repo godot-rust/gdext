@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use godot::classes::{
-    Button, Control, ENetMultiplayerPeer, IControl, LineEdit, MultiplayerApi, RichTextLabel,
+    Button, Control, ENetMultiplayerPeer, IControl, LineEdit, MultiplayerApi, MultiplayerPeer,
+    RichTextLabel,
 };
 use godot::global::Error;
 use godot::obj::WithBaseField;
@@ -53,9 +54,9 @@ impl MultiplayerController {
             .get_node_as::<LineEdit>("UsernameLineEdit")
             .get_text();
         let network_id = self.multiplayer.get_unique_id();
-        // server always has peer id of 1
+        // server always has peer id of TARGET_PEER_SERVER (1)
         self.base_mut().rpc_id(
-            1,
+            MultiplayerPeer::TARGET_PEER_SERVER.into(),
             "send_player_information".into(),
             &[Variant::from(username), Variant::from(network_id)],
         );
@@ -134,7 +135,7 @@ impl MultiplayerController {
         if self.multiplayer.is_server() {
             for id in player_ids {
                 // don't call rpc on server
-                if id == 1 {
+                if id == MultiplayerPeer::TARGET_PEER_SERVER {
                     continue;
                 }
                 // force other clients to also load the game up
@@ -229,7 +230,11 @@ impl MultiplayerController {
     #[func]
     fn on_start_button_down(&mut self) {
         // have client call server to start up game
-        self.base_mut().rpc_id(1, "load_game".into(), &[]);
+        self.base_mut().rpc_id(
+            MultiplayerPeer::TARGET_PEER_SERVER.into(),
+            "load_game".into(),
+            &[],
+        );
     }
 }
 

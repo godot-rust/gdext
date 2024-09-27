@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use godot::{classes::RichTextLabel, prelude::*};
+use godot::{
+    classes::{MultiplayerPeer, RichTextLabel},
+    prelude::*,
+};
 
 use crate::{multiplayer_controller::MultiplayerController, player::Player, NetworkId};
 
@@ -130,7 +133,11 @@ impl INode2D for SceneManager {
                 .unwrap()
                 .get_node_as::<MultiplayerController>("MultiplayerController");
         // Tell the server that this peer has loaded in.
-        multiplayer_controller.rpc_id(1, "load_in_player".into(), &[]);
+        multiplayer_controller.rpc_id(
+            MultiplayerPeer::TARGET_PEER_SERVER.into(),
+            "load_in_player".into(),
+            &[],
+        );
     }
 
     fn process(&mut self, _delta: f64) {

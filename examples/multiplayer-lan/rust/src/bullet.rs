@@ -1,4 +1,4 @@
-use godot::classes::{CharacterBody2D, ICharacterBody2D, SceneTreeTimer};
+use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerPeer, SceneTreeTimer};
 use godot::prelude::*;
 
 use crate::NetworkId;
@@ -23,7 +23,7 @@ impl ICharacterBody2D for Bullet {
     fn init(base: Base<CharacterBody2D>) -> Self {
         Self {
             direction: Vector2::new(1., 0.),
-            network_id: 1,
+            network_id: MultiplayerPeer::TARGET_PEER_SERVER,
             timer: OnReady::from_base_fn(|base| {
                 base.get_tree().unwrap().create_timer(LIFETIME).unwrap()
             }),

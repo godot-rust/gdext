@@ -1,6 +1,6 @@
 use godot::classes::{
-    Area2D, CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, PhysicsBody2D,
-    ProjectSettings,
+    Area2D, CharacterBody2D, ICharacterBody2D, MultiplayerPeer, MultiplayerSynchronizer,
+    PhysicsBody2D, ProjectSettings,
 };
 use godot::global::move_toward;
 use godot::obj::WithBaseField;
@@ -130,7 +130,7 @@ impl ICharacterBody2D for Player {
             health: MAX_HEALTH,
             bullet_scene: PackedScene::new_gd(),
             multiplayer_synchronizer: OnReady::node("MultiplayerSynchronizer"),
-            network_id: 1,
+            network_id: MultiplayerPeer::TARGET_PEER_SERVER,
             username: "Player".into(),
             sync_position: Vector2::new(0., 0.),
             sync_rotation: 0.,
