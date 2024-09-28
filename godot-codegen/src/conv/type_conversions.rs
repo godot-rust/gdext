@@ -13,7 +13,7 @@ use std::fmt;
 
 use crate::context::Context;
 use crate::conv;
-use crate::models::domain::{GodotTy, ModName, RustTy, TyName};
+use crate::models::domain::{ArgPassing, GodotTy, ModName, RustTy, TyName};
 use crate::special_cases::is_builtin_type_scalar;
 use crate::util::ident;
 
@@ -98,22 +98,22 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> (RustTy, bool) {
             RustTy::RawPointer {
                 inner: Box::new(RustTy::BuiltinIdent {
                     ty: ident("c_void"),
-                    is_copy: true,
+                    arg_passing: ArgPassing::ByValue,
                 }),
                 is_const: false,
             }
         }
         "int" => RustTy::BuiltinIdent {
             ty: ident("i32"),
-            is_copy: true,
+            arg_passing: ArgPassing::ByValue,
         },
         "float" => RustTy::BuiltinIdent {
             ty: ident("f32"),
-            is_copy: true,
+            arg_passing: ArgPassing::ByValue,
         },
         "double" => RustTy::BuiltinIdent {
             ty: ident("f64"),
-            is_copy: true,
+            arg_passing: ArgPassing::ByValue,
         },
         _ => to_rust_type(ty, None, ctx),
     };
@@ -179,7 +179,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
             return RustTy::BuiltinIdent {
                 ty: ident(hardcoded),
-                is_copy: ctx.is_builtin_copy(hardcoded),
+                arg_passing: ctx.get_builtin_arg_passing(hardcoded),
             };
         }
     }
@@ -201,7 +201,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         if packed_arr_ty.ends_with("Array") {
             return RustTy::BuiltinIdent {
                 ty: rustify_ty(ty),
-                is_copy: false, // Packed arrays are not Copy.
+                arg_passing: ArgPassing::ByRef, // Packed arrays are passed by-ref.
             };
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
@@ -224,7 +224,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         // Native structures might not all be Copy, but they should have value semantics.
         RustTy::BuiltinIdent {
             ty: rustify_ty(ty),
-            is_copy: ctx.is_builtin_copy(ty),
+            arg_passing: ctx.get_builtin_arg_passing(ty),
         }
     } else {
         let ty = rustify_ty(ty);
@@ -461,25 +461,25 @@ fn gdscript_to_rust_expr() {
 
     let ty_int = RustTy::BuiltinIdent {
         ty: ident("i64"),
-        is_copy: true,
+        arg_passing: ArgPassing::ByValue,
     };
     let ty_int = Some(&ty_int);
 
     let ty_int_u16 = RustTy::BuiltinIdent {
         ty: ident("u16"),
-        is_copy: true,
+        arg_passing: ArgPassing::ByValue,
     };
     let ty_int_u16 = Some(&ty_int_u16);
 
     let ty_float = RustTy::BuiltinIdent {
         ty: ident("f64"),
-        is_copy: true,
+        arg_passing: ArgPassing::ByValue,
     };
     let ty_float = Some(&ty_float);
 
     let ty_float_f32 = RustTy::BuiltinIdent {
         ty: ident("f32"),
-        is_copy: true,
+        arg_passing: ArgPassing::ByValue,
     };
     let ty_float_f32 = Some(&ty_float_f32);
 
@@ -499,7 +499,7 @@ fn gdscript_to_rust_expr() {
 
     let ty_variant = RustTy::BuiltinIdent {
         ty: ident("Variant"),
-        is_copy: false,
+        arg_passing: ArgPassing::ByRef,
     };
     let ty_variant = Some(&ty_variant);
 
@@ -511,19 +511,19 @@ fn gdscript_to_rust_expr() {
 
     let ty_string = RustTy::BuiltinIdent {
         ty: ident("GString"),
-        is_copy: true,
+        arg_passing: ArgPassing::ImplAsArg,
     };
     let ty_string = Some(&ty_string);
 
     let ty_stringname = RustTy::BuiltinIdent {
         ty: ident("StringName"),
-        is_copy: true,
+        arg_passing: ArgPassing::ImplAsArg,
     };
     let ty_stringname = Some(&ty_stringname);
 
     let ty_nodepath = RustTy::BuiltinIdent {
         ty: ident("NodePath"),
-        is_copy: true,
+        arg_passing: ArgPassing::ImplAsArg,
     };
     let ty_nodepath = Some(&ty_nodepath);
 
