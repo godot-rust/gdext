@@ -6,11 +6,12 @@
  */
 
 use godot::builtin::{
-    array, dict, Array, Dictionary, GString, Variant, VariantArray, Vector2, Vector2Axis,
+    array, dict, Array, Dictionary, GString, NodePath, StringName, Variant, VariantArray, Vector2,
+    Vector2Axis,
 };
 use godot::classes::{Node, Resource};
 use godot::meta::error::ConvertError;
-use godot::meta::{FromGodot, GodotConvert, ToGodot};
+use godot::meta::{AsArg, FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Gd, NewAlloc};
 
 use crate::framework::itest;
@@ -323,4 +324,34 @@ fn slice_to_array() {
     let from = &[1, 2, 3];
     let to = from.to_variant().try_to::<Array<f32>>();
     assert!(to.is_err());
+}
+
+fn as_gstring_arg<T: AsArg<GString>>(t: T) -> GString {
+    t.as_arg()
+}
+
+fn as_sname_arg<T: AsArg<StringName>>(t: T) -> StringName {
+    t.as_arg()
+}
+
+fn as_npath_arg<T: AsArg<NodePath>>(t: T) -> NodePath {
+    t.as_arg()
+}
+
+#[itest(focus)]
+fn strings_as_arg() {
+    let str = "GodotRocks";
+    let cstr = c"GodotRocks";
+    let gstring = GString::from("GodotRocks");
+    let sname = StringName::from("GodotRocks");
+    let npath = NodePath::from("GodotRocks");
+
+    assert_eq!(as_gstring_arg(str), gstring);
+    assert_eq!(as_gstring_arg(&gstring), gstring);
+
+    assert_eq!(as_sname_arg(str), sname);
+    assert_eq!(as_sname_arg(cstr), sname);
+
+    assert_eq!(as_npath_arg(str), npath);
+    assert_eq!(as_npath_arg(&npath), npath);
 }

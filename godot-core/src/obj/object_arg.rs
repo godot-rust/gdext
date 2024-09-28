@@ -25,6 +25,10 @@ use std::ptr;
 /// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
 /// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
 /// </div>
+
+#[diagnostic::on_unimplemented(
+    message = "The provided argument of type `{Self}` cannot be converted to a `Gd<{T}>` parameter"
+)]
 pub trait AsObjectArg<T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
