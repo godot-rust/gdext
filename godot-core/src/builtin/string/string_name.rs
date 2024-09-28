@@ -78,6 +78,22 @@ impl StringName {
             .expect("Godot hashes are uint32_t")
     }
 
+    /// Convert to `GString`.
+    ///
+    /// Equivalent to [`GString::from(self)`](struct.GString.html#impl-From%3C%26StringName%3E-for-GString) or `self.into()`,
+    /// but the latter cannot be type-inferred.
+    pub fn to_gstring(&self) -> GString {
+        GString::from(self)
+    }
+
+    /// Convert to `NodePath`.
+    ///
+    /// Equivalent to [`NodePath::from(self)`](struct.NodePath.html#impl-From%3C%26String%3E-for-NodePath) or `self.into()`,
+    /// but the latter cannot be type-inferred.
+    pub fn to_node_path(&self) -> NodePath {
+        NodePath::from(self)
+    }
+
     /// O(1), non-lexicographic, non-stable ordering relation.
     ///
     /// The result of the comparison is **not** lexicographic and **not** stable across multiple runs of your application.
@@ -248,6 +264,7 @@ impl From<&String> for StringName {
 }
 
 impl From<&GString> for StringName {
+    /// See also [`GString::to_string_name()`].
     fn from(string: &GString) -> Self {
         unsafe {
             Self::new_with_uninit(|self_ptr| {
