@@ -1,3 +1,4 @@
+/* 
 use std::collections::HashMap;
 
 use godot::{
@@ -154,3 +155,4 @@ impl INode2D for SceneManager {
         self.text_log.set_text(GString::from(string));
     }
 }
+ */

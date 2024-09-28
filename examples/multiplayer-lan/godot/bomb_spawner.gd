@@ -5,6 +5,7 @@ func _init():
 
 
 func _spawn_bomb(data):
+	print(data)
 	if data.size() != 2 or typeof(data[0]) != TYPE_VECTOR2 or typeof(data[1]) != TYPE_INT:
 		return null
 	var bomb = preload("res://bomb.tscn").instantiate()

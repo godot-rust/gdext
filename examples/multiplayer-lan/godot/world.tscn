@@ -1,10 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://by3f5o7dyoqx4"]
+[gd_scene load_steps=5 format=3 uid="uid://by3f5o7dyoqx4"]
 
 [ext_resource type="TileSet" uid="uid://do2l6lpuotti8" path="res://tileset.tres" id="1"]
 [ext_resource type="PackedScene" uid="uid://bao3yernlglws" path="res://rock.tscn" id="2"]
 [ext_resource type="Script" path="res://score.gd" id="3"]
 [ext_resource type="FontFile" uid="uid://knb8u535cfkw" path="res://montserrat.otf" id="4"]
-[ext_resource type="Script" path="res://bomb_spawner.gd" id="6_ac5ja"]
 
 [node name="World" type="Node2D"]
 
@@ -303,8 +302,7 @@ offset = Vector2(512, 300)
 _spawnable_scenes = PackedStringArray("res://player.tscn")
 spawn_path = NodePath("../Players")
 
-[node name="BombSpawner" type="MultiplayerSpawner" parent="."]
+[node name="BombSpawner" type="BombSpawner" parent="."]
 spawn_path = NodePath("..")
-script = ExtResource("6_ac5ja")
 
 [connection signal="pressed" from="Winner/ExitGame" to="Score" method="_on_exit_game_pressed"]
