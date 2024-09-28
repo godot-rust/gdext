@@ -7,7 +7,7 @@
 
 use crate::generator::method_tables::MethodTableKey;
 use crate::generator::notifications;
-use crate::models::domain::{GodotTy, RustTy, TyName};
+use crate::models::domain::{ArgPassing, GodotTy, RustTy, TyName};
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
 };
@@ -243,10 +243,16 @@ impl<'a> Context<'a> {
         self.builtin_types.contains(ty_name)
     }
 
-    pub fn is_builtin_copy(&self, ty_name: &str) -> bool {
-        debug_assert!(!ty_name.starts_with("Packed")); // Already handled separately.
+    pub fn get_builtin_arg_passing(&self, ty_name: &str) -> ArgPassing {
+        // Already handled separately.
+        debug_assert!(!ty_name.starts_with("Packed"));
 
-        !matches!(ty_name, "Variant" | "VariantArray" | "Dictionary")
+        // Arrays are also handled separately, and use ByRef.
+        match ty_name {
+            "Variant" | "VariantArray" | "Dictionary" => ArgPassing::ByRef,
+            "GString" | "NodePath" | "StringName" => ArgPassing::ImplAsArg,
+            _ => ArgPassing::ByValue,
+        }
     }
 
     pub fn is_native_structure(&self, ty_name: &str) -> bool {

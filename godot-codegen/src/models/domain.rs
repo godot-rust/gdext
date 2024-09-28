@@ -599,8 +599,8 @@ pub struct GodotTy {
 
 #[derive(Clone, Debug)]
 pub enum RustTy {
-    /// `bool`, `Vector3i`, `Array`
-    BuiltinIdent { ty: Ident, is_copy: bool },
+    /// `bool`, `Vector3i`, `Array`, `GString`
+    BuiltinIdent { ty: Ident, arg_passing: ArgPassing },
 
     /// `Array<i32>`
     ///
@@ -667,8 +667,10 @@ impl RustTy {
     pub fn is_pass_by_ref(&self) -> bool {
         matches!(
             self,
-            RustTy::BuiltinIdent { is_copy: false, .. }
-                | RustTy::BuiltinArray { .. }
+            RustTy::BuiltinIdent {
+                arg_passing: ArgPassing::ByRef,
+                ..
+            } | RustTy::BuiltinArray { .. }
                 | RustTy::EngineArray { .. }
         )
     }
@@ -699,6 +701,15 @@ impl fmt::Display for RustTy {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_token_stream().to_string().replace(" ", ""))
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ArgPassing {
+    ByValue,
+    ByRef,
+    ImplAsArg,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
