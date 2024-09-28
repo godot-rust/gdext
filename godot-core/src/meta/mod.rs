@@ -35,6 +35,7 @@
 //! [`try_cast()`][crate::obj::Gd::try_cast] and [`upcast()`][crate::obj::Gd::upcast]. Upcasts are infallible.
 
 mod array_type_info;
+mod as_arg;
 mod class_name;
 mod godot_convert;
 mod method_info;
@@ -48,6 +49,8 @@ mod signature;
 mod traits;
 
 pub mod error;
+
+pub use as_arg::*;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 #[cfg(feature = "codegen-full")]
