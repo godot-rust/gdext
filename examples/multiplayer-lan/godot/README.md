@@ -1,17 +1,15 @@
-# Multiplayer Lan Example
+# Multiplayer Bomber
 
-This is a sample multiplayer example showing off how to set up a lobby + dedicated server with godot-rust.
+A multiplayer implementation of the classic bomberman game.
+One of the players should press **Host**, while other player(s)
+should type in the host's IP address and press **Join**.
 
+Language: GDScript
 
+Renderer: Compatibility
 
-Largely adapted from FinePointCGI's Godot multiplayer tutorial:
+Check out this demo on the asset library: https://godotengine.org/asset-library/asset/139
 
-[Basics Of Multiplayer In Godot 4! - YouTube](https://youtu.be/e0JLO_5UgQo?si=mHYry88uC8j4r2DM)
+## Screenshots
 
-
-
-To run as dedicated server, run the exported version of this game from the command line with the arguments ``--headless --server``
-
-
-
-
+![Screenshot](screenshots/bomber.png)
