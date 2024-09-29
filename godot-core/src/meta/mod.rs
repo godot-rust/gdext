@@ -42,6 +42,7 @@ mod method_info;
 mod property_info;
 mod ref_arg;
 // RpcConfig uses MultiplayerPeer::TransferMode and MultiplayerApi::RpcMode, which are only enabled in `codegen-full` feature.
+mod cow_arg;
 #[cfg(feature = "codegen-full")]
 mod rpc_config;
 mod sealed;
@@ -63,6 +64,8 @@ pub(crate) use traits::{GodotFfiVariant, GodotNullableFfi};
 
 use crate::registry::method::MethodParamOrReturnInfo;
 
+#[doc(hidden)]
+pub use cow_arg::*;
 #[doc(hidden)]
 pub use ref_arg::*;
 #[doc(hidden)]
