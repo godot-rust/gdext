@@ -338,7 +338,7 @@ fn as_npath_arg<T: AsArg<NodePath>>(t: T) -> NodePath {
     t.as_arg()
 }
 
-#[itest(focus)]
+#[itest]
 fn strings_as_arg() {
     let str = "GodotRocks";
     let cstr = c"GodotRocks";
