@@ -185,8 +185,6 @@ macro_rules! impl_godot_scalar {
 
         // For integer types, we can validate the conversion.
         impl ArrayElement for $T {
-            type ArgType<'r> = Self;
-
             fn debug_validate_elements(array: &Array<Self>) -> Result<(), ConvertError> {
                 array.debug_validate_elements()
             }
@@ -216,9 +214,7 @@ macro_rules! impl_godot_scalar {
         }
 
         // For f32, conversion from f64 is lossy but will always succeed. Thus no debug validation needed.
-        impl ArrayElement for $T {
-            type ArgType<'r> = Self;
-        }
+        impl ArrayElement for $T {}
 
         impl_godot_scalar!(@shared_traits; $T);
     };
@@ -251,6 +247,8 @@ macro_rules! impl_godot_scalar {
                 Ok(via)
             }
         }
+
+        impl
     };
 }
 

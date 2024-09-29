@@ -6,8 +6,11 @@
  */
 
 use crate::builtin::{GString, NodePath, StringName};
-use crate::meta::{CowArg, RefArg, ToGodot};
+use crate::meta::{CowArg, GodotType, RefArg, ToGodot};
 use std::ffi::CStr;
+
+/// Shorthand to determine how a type is passed as an argument to Godot APIs.
+pub type Arg<'r, T> = <T as AsArg<T>>::ArgType<'r>;
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///
@@ -32,44 +35,86 @@ pub trait AsArg<T: ToGodot>
 where
     Self: Sized,
 {
+    /// Target type, either `T` or `&T`.
+    ///
+    /// The general rule is that `Copy` types are passed by value, while the rest is passed by reference. The type alias [`Arg<T>`] is a
+    /// shorthand for `<T as AsArg>::Type`.
+    ///
+    /// This associated may be merged with [`ToGodot::ToVia<'v>`] in the future.
+    type ArgType<'v>: GodotType
+    where
+        Self: 'v;
+
     #[doc(hidden)]
-    fn as_arg(&self) -> T::ToVia<'_>;
+    fn as_arg(&self) -> Self::ArgType<'_> {
+        self
+    }
 
     #[doc(hidden)]
     fn consume_arg<'r>(self) -> CowArg<'r, T>
     where
         Self: 'r,
     {
-        todo!()
+        panic!("Direct call by user is an error; this is a private function. Overridden where necessary.")
     }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Blanket impls
 
-impl<'a, T: ToGodot> AsArg<T> for &'a T {
-    fn as_arg(&self) -> T::ToVia<'_> {
-        self.to_godot()
-    }
+macro_rules! impl_asarg_for_references {
+    ($T:ty) => {
+        impl<'a, T, U> AsArg<T> for &'a $T
+        where
+            T: AsArg<U>,
+        {
+            type ArgType<'v> = T::ArgType<'v>;
 
-    fn consume_arg<'r>(self) -> CowArg<'a, T>
-    where
-        Self: 'r,
-    {
-        CowArg::Borrowed(RefArg::new(self))
-    }
+            fn as_arg(&self) -> Self::ArgType<'_> {
+                self.to_godot()
+            }
+
+            fn consume_arg<'r>(self) -> CowArg<'r, T>
+            where
+                Self: 'r,
+            {
+                CowArg::Borrowed(RefArg::new(self))
+            }
+        }
+    };
 }
+
+macro_rules! impl_asarg_by_value {
+    ($T:ty) => {
+        impl AsArg<$T> for $T {
+            type ArgType<'a> = Self;
+
+            fn as_arg(&self) -> Self::ArgType<'_> {
+                // Require Copy.
+                *self
+            }
+        }
+    };
+}
+
+impl_asarg_for_references!(GString);
+impl_asarg_for_references!(NodePath);
+impl_asarg_for_references!(StringName);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GString
 
 impl AsArg<GString> for &str {
+    type ArgType<'v> = GString;
+
     fn as_arg(&self) -> GString {
         GString::from(*self)
     }
 }
 
 impl AsArg<GString> for GString {
+    type ArgType<'v> = GString;
+
     fn as_arg(&self) -> GString {
         self.clone()
     }
@@ -86,12 +131,16 @@ impl AsArg<GString> for GString {
 // StringName
 
 impl AsArg<StringName> for &str {
+    type ArgType<'v> = StringName;
+
     fn as_arg(&self) -> StringName {
         StringName::from(*self)
     }
 }
 
 impl AsArg<StringName> for &'static CStr {
+    type ArgType<'v> = StringName;
+
     fn as_arg(&self) -> StringName {
         StringName::from(*self)
     }
@@ -101,6 +150,8 @@ impl AsArg<StringName> for &'static CStr {
 // NodePath
 
 impl AsArg<NodePath> for &str {
+    type ArgType<'v> = NodePath;
+
     fn as_arg(&self) -> NodePath {
         NodePath::from(*self)
     }

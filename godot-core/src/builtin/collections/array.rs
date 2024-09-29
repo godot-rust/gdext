@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 use crate::builtin::*;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
+    ArrayElement, ArrayTypeInfo, AsArg, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
     PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::registry::property::{Export, Var};
@@ -899,8 +899,14 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 }
 
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
-impl ArrayElement for VariantArray {
-    type ArgType<'r> = &'r Self;
+impl ArrayElement for VariantArray {}
+
+impl<T: ArrayElement> AsArg<T> for Array<T> {
+    type ArgType<'v> = &'v Self;
+
+    fn as_arg(&self) -> Self::ArgType<'_> {
+        self
+    }
 }
 
 impl<T: ArrayElement> GodotConvert for Array<T> {

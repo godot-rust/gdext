@@ -9,7 +9,7 @@ use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
 use crate::meta::error::ConvertError;
-use crate::meta::{ArrayElement, FromGodot, ToGodot};
+use crate::meta::{ArrayElement, AsArg, FromGodot, ToGodot};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -389,8 +389,12 @@ impl Variant {
     }
 }
 
-impl ArrayElement for Variant {
-    type ArgType<'r> = &'r Self;
+impl ArrayElement for Variant {}
+
+impl<'t> AsArg<Variant> for &'t Variant {
+    fn as_arg(&self) -> Variant {
+        self.clone()
+    }
 }
 
 // SAFETY:

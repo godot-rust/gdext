@@ -163,13 +163,6 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     label = "has invalid element type"
 )]
 pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed {
-    /// Type for passing arguments in array and packed array APIs.
-    ///
-    /// Typically, this is either `Self` (for `Copy` types) or `&Self`.
-    ///
-    /// This may be changed in the future to use `ToGodot::ToVia<'a>`, or something more flexible like `impl AsArg`.
-    type ArgType<'r> : std::borrow::Borrow<Self>;
-
     /// Returns the representation of this type as a type string.
     ///
     /// Used for elements in arrays (the latter despite `ArrayElement` not having a direct relation).
@@ -214,6 +207,4 @@ impl PackedArrayElement for builtin::Vector4 {}
 impl PackedArrayElement for builtin::Color {}
 impl PackedArrayElement for builtin::GString {}
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub type ByValueOrRef<'r, T> = <T as ArrayElement>::ArgType<'r>;

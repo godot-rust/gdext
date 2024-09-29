@@ -81,8 +81,10 @@ macro_rules! impl_ffi_variant {
             impl_ffi_variant!(@godot_type_name $T $(, $GodotTy)?);
         }
 
-        impl ArrayElement for $T {
-            impl_ffi_variant!(@arg_input_type $by_ref_or_val);
+        impl ArrayElement for $T {}
+
+        impl AsArg<$T> for $T {
+            impl_ffi_variant!(@as_arg $by_ref_or_val);
         }
     };
 
@@ -114,12 +116,21 @@ macro_rules! impl_ffi_variant {
         }
     };
 
-    (@arg_input_type by_ref) => {
+    (@as_arg by_ref) => {
         type ArgType<'a> = &'a Self;
+
+        fn as_arg(&self) -> Self::ArgType<'_> {
+            self
+        }
     };
 
-    (@arg_input_type by_val) => {
+    (@as_arg by_val) => {
         type ArgType<'a> = Self;
+
+        fn as_arg(&self) -> Self::ArgType<'_> {
+            // Require Copy.
+            *self
+        }
     };
 }
 

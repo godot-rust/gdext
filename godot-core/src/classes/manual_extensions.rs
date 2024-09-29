@@ -16,12 +16,11 @@ impl Node {
     ///
     /// # Panics
     /// If the node is not found, or if it does not have type `T` or inherited.
-    pub fn get_node_as<T>(&self, path: impl Into<NodePath>) -> Gd<T>
+    pub fn get_node_as<T>(&self, path: impl AsArg<NodePath>) -> Gd<T>
     where
         T: Inherits<Node>,
     {
-        let path = path.into();
-        let copy = path.clone(); // TODO avoid copy
+        let copy = path.as_arg();
 
         self.try_get_node_as(path).unwrap_or_else(|| {
             panic!(
