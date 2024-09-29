@@ -389,7 +389,9 @@ impl Variant {
     }
 }
 
-impl ArrayElement for Variant {}
+impl ArrayElement for Variant {
+    type ArgType<'r> = &'r Self;
+}
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.

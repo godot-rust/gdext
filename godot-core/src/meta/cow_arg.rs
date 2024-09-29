@@ -26,6 +26,14 @@ impl<'r, T> CowArg<'r, T> {
             CowArg::Borrowed(r) => r.as_ref(),
         }
     }
+
+    /// Returns the actual argument to be passed to function calls.
+    ///
+    /// [`CowArg`] does not implement [`AsArg<T>`] because a differently-named method is more explicit (fewer errors in codegen),
+    /// and because [`AsArg::consume_arg()`] is not meaningful.
+    pub fn cow_as_arg(&self) -> &T {
+        self.as_ref()
+    }
 }
 
 macro_rules! wrong_direction {

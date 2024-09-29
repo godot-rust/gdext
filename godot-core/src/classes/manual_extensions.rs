@@ -7,6 +7,7 @@
 
 use crate::builtin::NodePath;
 use crate::classes::{Node, PackedScene};
+use crate::meta::AsArg;
 use crate::obj::{Gd, Inherits};
 
 /// Manual extensions for the `Node` class.
@@ -34,11 +35,11 @@ impl Node {
     ///
     /// If the node is not found, or if it does not have type `T` or inherited,
     /// `None` will be returned.
-    pub fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
+    pub fn try_get_node_as<T>(&self, path: impl AsArg<NodePath>) -> Option<Gd<T>>
     where
         T: Inherits<Node>,
     {
-        let path = path.into();
+        let path = path.as_arg();
 
         // TODO differentiate errors (not found, bad type) with Result
         self.get_node_or_null(path)

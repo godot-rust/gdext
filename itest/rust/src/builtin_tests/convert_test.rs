@@ -355,9 +355,9 @@ fn strings_as_arg() {
     assert_eq!(as_npath_arg(str), npath);
     assert_eq!(as_npath_arg(&npath), npath);
 
-    let cow = (&gstring).consume_object();
+    let cow = (&gstring).consume_arg();
     assert_eq!(cow.as_ref(), &GString::from("GodotRocks"));
 
-    let cow = gstring.consume_object();
+    let cow = gstring.consume_arg();
     assert_eq!(cow.as_ref(), &GString::from("GodotRocks"));
 }

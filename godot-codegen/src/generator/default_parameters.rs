@@ -7,7 +7,7 @@
 
 use crate::generator::functions_common;
 use crate::generator::functions_common::{FnCode, FnParamTokens};
-use crate::models::domain::{FnParam, FnQualifier, Function, RustTy, TyName};
+use crate::models::domain::{ArgPassing, FnParam, FnQualifier, Function, RustTy, TyName};
 use crate::util::{ident, safe_ident};
 use crate::{conv, special_cases};
 use proc_macro2::{Ident, TokenStream};
@@ -197,13 +197,18 @@ enum ExtenderFieldConversion {
     /// Regular type.
     None,
 
-    /// Object argument.
+    /// Object argument (`impl AsObjectArg`).
     ObjectArg,
+
+    /// Builtin argument (`impl AsArg`).
+    BuiltinArg,
 
     /// Pass-by-ref type.
     Reference,
 
     /// Pass-by-ref type, but a default param means a value needs to be stored.
+    ///
+    /// Can also be a type which uses `AsArg` (e.g. `GString`) but is now passed as reference.
     ReferenceWithDefault,
 }
 
@@ -289,7 +294,7 @@ fn make_extender(
     // If builder is a method with a receiver OR any *required* parameter is by-ref, use lifetime.
     // Default parameters cannot be by-ref, since they need to store a default value. Potential optimization later.
     let lifetime = if receiver_param.is_some() // !sig.qualifier().is_static_or_global()
-        || required_params.iter().any(|p| p.type_.is_pass_by_ref())
+        || required_params.iter().any(|p| p.type_.needs_lifetime())
     {
         Some(quote! { <'a> })
     } else {
@@ -324,6 +329,7 @@ fn make_extender(
         let builder_arg = match conversion {
             ExtenderFieldConversion::None => quote! { self.#name },
             ExtenderFieldConversion::ObjectArg => quote! { self.#name.cow_as_object_arg() },
+            ExtenderFieldConversion::BuiltinArg => quote! { self.#name.cow_as_arg() },
 
             // Two cases:
             // * Param is required  ->  field type RefArg<'a, T>  ->  pass as-is.
@@ -372,6 +378,20 @@ fn default_extender_field_decl(
             (cow_tokens, ExtenderFieldConversion::ObjectArg)
         }
 
+        RustTy::BuiltinIdent {
+            ty,
+            arg_passing: ArgPassing::ImplAsArg,
+            ..
+        } => {
+            if is_default_param {
+                let ref_tokens = quote! { #ty };
+                (ref_tokens, ExtenderFieldConversion::ReferenceWithDefault)
+            } else {
+                let cow_tokens = quote! { CowArg<'a, #ty> };
+                (cow_tokens, ExtenderFieldConversion::BuiltinArg)
+            }
+        }
+
         // Default parameters cannot be stored by reference, as they would need a backing storage. Alternative: Cow.
         ty if ty.is_pass_by_ref() => {
             if is_default_param {
@@ -396,8 +416,8 @@ fn make_field_init(
     type Conv = ExtenderFieldConversion;
 
     match (conversion, expr) {
-        (Conv::ObjectArg, Some(expr)) => quote! { #name: #expr.consume_object() },
-        (Conv::ObjectArg, None) /*.             */ => quote! { #name: #name.consume_object() },
+        (Conv::ObjectArg | Conv::BuiltinArg, Some(expr)) => quote! { #name: #expr.consume_arg() },
+        (Conv::ObjectArg | Conv::BuiltinArg, None) /* */ => quote! { #name: #name.consume_arg() },
 
         // Currently no differentiation between None|Reference|ReferenceWithDefault; this may change...
         (Conv::None | Conv::Reference | Conv::ReferenceWithDefault, Some(expr)) => quote! { #name: #expr },

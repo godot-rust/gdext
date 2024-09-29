@@ -899,7 +899,9 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 }
 
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
-impl ArrayElement for VariantArray {}
+impl ArrayElement for VariantArray {
+    type ArgType<'r> = &'r Self;
+}
 
 impl<T: ArrayElement> GodotConvert for Array<T> {
     type Via = Self;

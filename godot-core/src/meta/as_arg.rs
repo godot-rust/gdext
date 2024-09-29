@@ -36,7 +36,7 @@ where
     fn as_arg(&self) -> T::ToVia<'_>;
 
     #[doc(hidden)]
-    fn consume_object<'r>(self) -> CowArg<'r, T>
+    fn consume_arg<'r>(self) -> CowArg<'r, T>
     where
         Self: 'r,
     {
@@ -52,7 +52,7 @@ impl<'a, T: ToGodot> AsArg<T> for &'a T {
         self.to_godot()
     }
 
-    fn consume_object<'r>(self) -> CowArg<'a, T>
+    fn consume_arg<'r>(self) -> CowArg<'a, T>
     where
         Self: 'r,
     {
@@ -74,7 +74,7 @@ impl AsArg<GString> for GString {
         self.clone()
     }
 
-    fn consume_object<'r>(self) -> CowArg<'r, GString>
+    fn consume_arg<'r>(self) -> CowArg<'r, GString>
     where
         Self: 'r,
     {

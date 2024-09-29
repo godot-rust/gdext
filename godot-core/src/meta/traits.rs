@@ -7,7 +7,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{Array, StringName, Variant};
+use crate::builtin::Variant;
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{
@@ -16,6 +16,7 @@ use crate::meta::{
 use crate::registry::method::MethodParamOrReturnInfo;
 
 // Re-export sys traits in this module, so all are in one place.
+use crate::builtin;
 use crate::registry::property::builtin_type_string;
 pub use sys::{GodotFfi, GodotNullableFfi};
 
@@ -91,7 +92,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
         PropertyInfo {
             variant_type: Self::Ffi::variant_type(),
             class_name: Self::class_name(),
-            property_name: StringName::from(property_name),
+            property_name: builtin::StringName::from(property_name),
             hint_info: Self::property_hint_info(),
             usage: PropertyUsageFlags::DEFAULT,
         }
@@ -162,6 +163,13 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     label = "has invalid element type"
 )]
 pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed {
+    /// Type for passing arguments in array and packed array APIs.
+    ///
+    /// Typically, this is either `Self` (for `Copy` types) or `&Self`.
+    ///
+    /// This may be changed in the future to use `ToGodot::ToVia<'a>`, or something more flexible like `impl AsArg`.
+    type ArgType<'r> : std::borrow::Borrow<Self>;
+
     /// Returns the representation of this type as a type string.
     ///
     /// Used for elements in arrays (the latter despite `ArrayElement` not having a direct relation).
@@ -174,7 +182,7 @@ pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed {
         builtin_type_string::<Self>()
     }
 
-    fn debug_validate_elements(_array: &Array<Self>) -> Result<(), ConvertError> {
+    fn debug_validate_elements(_array: &builtin::Array<Self>) -> Result<(), ConvertError> {
         // No-op for most element types.
         Ok(())
     }
@@ -199,9 +207,13 @@ impl PackedArrayElement for i32 {}
 impl PackedArrayElement for i64 {}
 impl PackedArrayElement for f32 {}
 impl PackedArrayElement for f64 {}
-impl PackedArrayElement for crate::builtin::Vector2 {}
-impl PackedArrayElement for crate::builtin::Vector3 {}
+impl PackedArrayElement for builtin::Vector2 {}
+impl PackedArrayElement for builtin::Vector3 {}
 #[cfg(since_api = "4.3")]
-impl PackedArrayElement for crate::builtin::Vector4 {}
-impl PackedArrayElement for crate::builtin::Color {}
-impl PackedArrayElement for crate::builtin::GString {}
+impl PackedArrayElement for builtin::Vector4 {}
+impl PackedArrayElement for builtin::Color {}
+impl PackedArrayElement for builtin::GString {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub type ByValueOrRef<'r, T> = <T as ArrayElement>::ArgType<'r>;

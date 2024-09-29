@@ -81,7 +81,9 @@ macro_rules! impl_ffi_variant {
             impl_ffi_variant!(@godot_type_name $T $(, $GodotTy)?);
         }
 
-        impl ArrayElement for $T {}
+        impl ArrayElement for $T {
+            impl_ffi_variant!(@arg_input_type $by_ref_or_val);
+        }
     };
 
     (@godot_type_name $T:ty) => {
@@ -110,6 +112,14 @@ macro_rules! impl_ffi_variant {
         fn to_ffi(&self) -> Self::ToFfi<'_> {
             self.clone()
         }
+    };
+
+    (@arg_input_type by_ref) => {
+        type ArgType<'a> = &'a Self;
+    };
+
+    (@arg_input_type by_val) => {
+        type ArgType<'a> = Self;
     };
 }
 

@@ -40,7 +40,13 @@ pub trait GodotConvert {
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 pub trait ToGodot: Sized + GodotConvert {
-    /// Target type of [`to_godot()`](ToGodot::to_godot), which differs from [`Via`](GodotConvert::Via) for pass-by-reference types.
+    /// Target type of [`to_godot()`](ToGodot::to_godot), which can differ from  for pass-by-reference types.
+    ///
+    /// Note that currently, this only differs from [`Via`](GodotConvert::Via) when `Self` is [`RefArg<'r, T>`][crate::meta::RefArg], which is
+    /// used inside generated code of  engine methods. Other uses of `to_godot()`, such as return types in `#[func]`, still use value types.
+    /// This may change in future versions.
+    ///
+    /// See also [`AsArg<T>`](crate::meta::AsArg) used as the "front-end" in Godot API parameters.
     type ToVia<'v>: GodotType
     where
         Self: 'v;

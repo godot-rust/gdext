@@ -432,7 +432,8 @@ pub(crate) fn make_params_exprs<'a>(
             }
 
             // Arrays and non-Copy builtins: pass by ref.
-            ty if ty.is_pass_by_ref() => {
+            // ty if ty.is_pass_by_ref() => {
+            ty if ty.needs_lifetime() => {
                 ret.push_regular(
                     param_name,
                     param_ty,

@@ -740,6 +740,8 @@ impl<T: GodotClass> GodotType for Gd<T> {
 }
 
 impl<T: GodotClass> ArrayElement for Gd<T> {
+    type ArgType<'r> = &'r Self;
+
     fn element_type_string() -> String {
         // See also impl Export for Gd<T>.
 
@@ -767,6 +769,8 @@ impl<T: GodotClass> ArrayElement for Gd<T> {
 }
 
 impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
+    type ArgType<'r> = &'r Self;
+
     fn element_type_string() -> String {
         Gd::<T>::element_type_string()
     }
