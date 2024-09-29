@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::{GString, NodePath, StringName};
-use crate::meta::ToGodot;
+use crate::meta::{CowArg, RefArg, ToGodot};
 use std::ffi::CStr;
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -28,8 +28,20 @@ use std::ffi::CStr;
     note = "GString/StringName aren't implicitly convertible for performance reasons; use their dedicated `to_*` conversion methods.",
     note = "See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
 )]
-pub trait AsArg<T: ToGodot> {
+pub trait AsArg<T: ToGodot>
+where
+    Self: Sized,
+{
+    #[doc(hidden)]
     fn as_arg(&self) -> T::ToVia<'_>;
+
+    #[doc(hidden)]
+    fn consume_object<'r>(self) -> CowArg<'r, T>
+    where
+        Self: 'r,
+    {
+        todo!()
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -39,6 +51,13 @@ impl<'a, T: ToGodot> AsArg<T> for &'a T {
     fn as_arg(&self) -> T::ToVia<'_> {
         self.to_godot()
     }
+
+    fn consume_object<'r>(self) -> CowArg<'a, T>
+    where
+        Self: 'r,
+    {
+        CowArg::Borrowed(RefArg::new(self))
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -47,6 +66,19 @@ impl<'a, T: ToGodot> AsArg<T> for &'a T {
 impl AsArg<GString> for &str {
     fn as_arg(&self) -> GString {
         GString::from(*self)
+    }
+}
+
+impl AsArg<GString> for GString {
+    fn as_arg(&self) -> GString {
+        self.clone()
+    }
+
+    fn consume_object<'r>(self) -> CowArg<'r, GString>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(self)
     }
 }
 
