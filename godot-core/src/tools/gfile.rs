@@ -10,6 +10,7 @@ use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::classes::FileAccess;
 use crate::global::Error;
 use crate::meta::error::IoError;
+use crate::meta::AsArg;
 use crate::obj::Gd;
 
 use std::cmp;
@@ -101,15 +102,13 @@ impl GFile {
     ///
     /// Opens a file located at `path`, creating new [`GFile`] object. For [`ModeFlags`] description check the [`GFile`]
     /// documentation.
-    pub fn open(path: impl Into<GString>, flags: ModeFlags) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa = FileAccess::open(path.clone(), flags).ok_or_else(|| {
+    pub fn open(path: impl AsArg<GString>, flags: ModeFlags) -> std::io::Result<Self> {
+        let path = path.consume_arg().as_ref();
+        let fa = FileAccess::open(path, flags).ok_or_else(|| {
             std::io::Error::new(
                 ErrorKind::Other,
                 format!(
-                    "can't open file {} in mode {:?}; GodotError: {:?}",
-                    &path,
-                    flags,
+                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
                     FileAccess::get_open_error()
                 ),
             )
@@ -123,21 +122,19 @@ impl GFile {
     /// Opens a compressed file located at `path`, creating new [`GFile`] object. Can read only files compressed by
     /// Godot compression formats. For [`ModeFlags`] description check the [`GFile`] documentation.
     pub fn open_compressed(
-        path: impl Into<GString>,
+        path: impl AsArg<GString>,
         flags: ModeFlags,
         compression_mode: CompressionMode,
     ) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa = FileAccess::open_compressed_ex(path.clone(), flags)
+        let path = path.consume_arg().as_ref();
+        let fa = FileAccess::open_compressed_ex(path, flags)
             .compression_mode(compression_mode)
             .done()
             .ok_or_else(|| {
                 std::io::Error::new(
                     ErrorKind::Other,
                     format!(
-                        "can't open file {} in mode {:?}; GodotError: {:?}",
-                        &path,
-                        flags,
+                        "can't open file {path} in mode {flags:?}; GodotError: {:?}",
                         FileAccess::get_open_error()
                     ),
                 )
@@ -151,18 +148,16 @@ impl GFile {
     /// Opens a file encrypted by 32-byte long [`PackedByteArray`] located at `path`, creating new [`GFile`] object.
     /// For [`ModeFlags`] description check the [`GFile`] documentation.
     pub fn open_encrypted(
-        path: impl Into<GString>,
+        path: impl AsArg<GString>,
         flags: ModeFlags,
         key: &PackedByteArray,
     ) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa = FileAccess::open_encrypted(path.clone(), flags, key).ok_or_else(|| {
+        let path = path.consume_arg().as_ref();
+        let fa = FileAccess::open_encrypted(path, flags, key).ok_or_else(|| {
             std::io::Error::new(
                 ErrorKind::Other,
                 format!(
-                    "can't open file {} in mode {:?}; GodotError: {:?}",
-                    &path,
-                    flags,
+                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
                     FileAccess::get_open_error()
                 ),
             )
@@ -173,26 +168,25 @@ impl GFile {
 
     /// Open a file encrypted by password.
     ///
-    /// Opens a file encrypted by a `pass` located at `path`, creating new [`GFile`] object. For [`ModeFlags`]
+    /// Opens a file encrypted by a `password` located at `path`, creating new [`GFile`] object. For [`ModeFlags`]
     /// description check the [`GFile`] documentation.
     pub fn open_encrypted_with_pass(
-        path: impl Into<GString>,
+        path: impl AsArg<GString>,
         flags: ModeFlags,
-        pass: GString,
+        password: impl AsArg<GString>,
     ) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa =
-            FileAccess::open_encrypted_with_pass(path.clone(), flags, pass).ok_or_else(|| {
-                std::io::Error::new(
-                    ErrorKind::Other,
-                    format!(
-                        "can't open file {} in mode {:?}; GodotError: {:?}",
-                        &path,
-                        flags,
-                        FileAccess::get_open_error()
-                    ),
-                )
-            })?;
+        let path = path.consume_arg().as_ref();
+        let password = password.consume_arg().as_ref();
+
+        let fa = FileAccess::open_encrypted_with_pass(path, flags, password).ok_or_else(|| {
+            std::io::Error::new(
+                ErrorKind::Other,
+                format!(
+                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
+                    FileAccess::get_open_error()
+                ),
+            )
+        })?;
         Ok(Self::from_inner(fa))
     }
 
@@ -222,8 +216,8 @@ impl GFile {
 
     /// Get last modified time as a Unix timestamp.
     #[doc(alias = "get_modified_time")]
-    pub fn modified_time(path: impl Into<GString>) -> std::io::Result<u64> {
-        let modified_time = FileAccess::get_modified_time(path.into());
+    pub fn modified_time(path: impl AsArg<GString>) -> std::io::Result<u64> {
+        let modified_time = FileAccess::get_modified_time(path.consume_arg().as_ref());
 
         if modified_time == 0 {
             Err(std::io::Error::new(
@@ -237,8 +231,8 @@ impl GFile {
 
     /// Calculates the MD5 checksum of the file at the given path.
     #[doc(alias = "get_md5")]
-    pub fn md5(path: impl Into<GString>) -> std::io::Result<GString> {
-        let md5 = FileAccess::get_md5(path.into());
+    pub fn md5(path: impl AsArg<GString>) -> std::io::Result<GString> {
+        let md5 = FileAccess::get_md5(path.consume_arg().as_ref());
         if md5.is_empty() {
             Err(std::io::Error::new(
                 ErrorKind::Other,
@@ -251,8 +245,8 @@ impl GFile {
 
     /// Calculates the SHA-256 checksum of the file at the given path.
     #[doc(alias = "get_sha256")]
-    pub fn sha256(path: impl Into<GString>) -> std::io::Result<GString> {
-        let sha256 = FileAccess::get_sha256(path.into());
+    pub fn sha256(path: impl AsArg<GString>) -> std::io::Result<GString> {
+        let sha256 = FileAccess::get_sha256(path.consume_arg().as_ref());
 
         if sha256.is_empty() {
             Err(std::io::Error::new(

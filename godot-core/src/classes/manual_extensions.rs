@@ -20,7 +20,7 @@ impl Node {
     where
         T: Inherits<Node>,
     {
-        let copy = path.as_arg();
+        let copy = path.consume_arg().as_ref();
 
         self.try_get_node_as(path).unwrap_or_else(|| {
             panic!(
@@ -38,7 +38,7 @@ impl Node {
     where
         T: Inherits<Node>,
     {
-        let path = path.as_arg();
+        let path = path.consume_arg().as_ref();
 
         // TODO differentiate errors (not found, bad type) with Result
         self.get_node_or_null(path)

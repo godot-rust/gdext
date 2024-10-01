@@ -95,7 +95,8 @@ impl Color {
     ///
     /// Returns `None` if the format is invalid.
     pub fn from_html<S: AsArg<GString>>(html: S) -> Option<Self> {
-        let html = html.as_arg();
+        let html = html.consume_arg();
+        let html = html.as_ref();
         InnerColor::html_is_valid(html).then(|| InnerColor::html(html))
     }
 
@@ -114,9 +115,10 @@ impl Color {
     /// [color_constants]: https://docs.godotengine.org/en/latest/classes/class_color.html#constants
     /// [cheat_sheet]: https://raw.githubusercontent.com/godotengine/godot-docs/master/img/color_constants.png
     pub fn from_string<S: AsArg<GString>>(string: S) -> Option<Self> {
-        let string = string.as_arg();
+        let string = string.consume_arg().as_ref();
+
         let color = InnerColor::from_string(
-            &string,
+            string,
             Self::from_rgba(f32::NAN, f32::NAN, f32::NAN, f32::NAN),
         );
 

@@ -123,7 +123,7 @@ impl<T: GodotClass> RawGd<T> {
 
         // SAFETY: Object is always a base class.
         let cast_is_valid = unsafe { as_obj.as_upcast_ref::<classes::Object>() }
-            .is_class(U::class_name().to_gstring());
+            .is_class(&U::class_name().to_gstring());
 
         std::mem::forget(as_obj);
         cast_is_valid

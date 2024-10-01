@@ -781,7 +781,7 @@ impl<T: GodotClass> AsArg<Gd<T>> for Gd<T> {
     }
 }
 
-impl<T: GodotClass> AsArg<Option<Gd<T>>> for Gd<T> {
+impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<Gd<T>> {
     type ArgType<'v> = &'v Option<Gd<T>>
         where Self: 'v;
 
