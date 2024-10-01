@@ -84,6 +84,7 @@ macro_rules! impl_asarg_for_references {
     };
 }
 
+#[macro_export]
 macro_rules! impl_asarg_by_value {
     ($T:ty) => {
         impl AsArg<$T> for $T {
@@ -92,6 +93,19 @@ macro_rules! impl_asarg_by_value {
             fn as_arg(&self) -> Self::ArgType<'_> {
                 // Require Copy.
                 *self
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_asarg_by_ref {
+    ($T:ty) => {
+        impl<'a> AsArg<$T> for &'a $T {
+            type ArgType<'v> = $T;
+
+            fn as_arg(&self) -> Self::ArgType<'_> {
+                self.clone()
             }
         }
     };
