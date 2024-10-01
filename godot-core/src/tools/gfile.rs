@@ -356,9 +356,12 @@ impl GFile {
     #[doc(alias = "get_csv_line")]
     pub fn read_csv_line(
         &mut self,
-        delim: impl Into<GString>,
+        delim: impl AsArg<GString>,
     ) -> std::io::Result<PackedStringArray> {
-        let val = self.fa.get_csv_line_ex().delim(delim.into()).done();
+        let delim = delim.consume_arg().into_owned();
+
+        // FIXME: pass by-ref
+        let val = self.fa.get_csv_line_ex().delim(delim).done();
         self.check_error()?;
         Ok(val)
     }
@@ -539,8 +542,8 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-string).
     #[doc(alias = "store_string")]
-    pub fn write_gstring(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
-        self.fa.store_string(value.into());
+    pub fn write_gstring(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+        self.fa.store_string(value.consume_arg().as_ref());
         self.clear_file_length();
         self.check_error()?;
         Ok(())
@@ -557,8 +560,8 @@ impl GFile {
     /// - [Wikipedia article](https://en.wikipedia.org/wiki/String_(computer_science)#Length-prefixed)
     /// - [Godot `FileAccess::store_pascal_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-pascal-string)
     #[doc(alias = "store_pascal_string")]
-    pub fn write_pascal_string(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
-        self.fa.store_pascal_string(value.into());
+    pub fn write_pascal_string(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+        self.fa.store_pascal_string(value.consume_arg().as_ref());
         self.clear_file_length();
         self.check_error()?;
         Ok(())
@@ -569,8 +572,8 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_line`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-line).
     #[doc(alias = "store_line")]
-    pub fn write_gstring_line(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
-        self.fa.store_line(value.into());
+    pub fn write_gstring_line(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+        self.fa.store_line(value.consume_arg().as_ref());
         self.clear_file_length();
         self.check_error()?;
         Ok(())
@@ -586,9 +589,11 @@ impl GFile {
     pub fn write_csv_line(
         &mut self,
         values: &PackedStringArray,
-        delim: impl Into<GString>,
+        delim: impl AsArg<GString>,
     ) -> std::io::Result<()> {
-        self.fa.store_csv_line_ex(values).delim(delim.into()).done();
+        let delim = delim.consume_arg().into_owned();
+
+        self.fa.store_csv_line_ex(values).delim(delim).done();
         self.clear_file_length();
         self.check_error()?;
         Ok(())

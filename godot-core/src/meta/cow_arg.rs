@@ -27,6 +27,16 @@ impl<'r, T> CowArg<'r, T> {
         }
     }
 
+    pub fn into_owned(self) -> T
+    where
+        T: Clone,
+    {
+        match self {
+            CowArg::Owned(v) => v,
+            CowArg::Borrowed(r) => r.to_owned(),
+        }
+    }
+
     /// Returns the actual argument to be passed to function calls.
     ///
     /// [`CowArg`] does not implement [`AsArg<T>`] because a differently-named method is more explicit (fewer errors in codegen),

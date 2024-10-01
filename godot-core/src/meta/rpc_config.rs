@@ -36,7 +36,7 @@ impl Default for RpcConfig {
 
 impl RpcConfig {
     /// Register `method` as a remote procedure call on `node`.
-    pub fn configure_node(self, node: &mut Node, method_name: impl Into<StringName>) {
+    pub fn configure_node(self, node: &mut Node, method_name: impl AsArg<StringName>) {
         node.rpc_config(method_name.into(), &self.to_dictionary().to_variant());
     }
 

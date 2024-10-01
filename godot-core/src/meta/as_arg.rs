@@ -102,10 +102,11 @@ macro_rules! impl_asarg_by_value {
 macro_rules! impl_asarg_by_ref {
     ($T:ty) => {
         impl<'a> AsArg<$T> for &'a $T {
-            type ArgType<'v> = $T;
+            type ArgType<'v> = &'v $T
+                where Self: 'v;
 
             fn as_arg(&self) -> Self::ArgType<'_> {
-                self.clone()
+                self
             }
         }
     };

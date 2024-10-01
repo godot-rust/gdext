@@ -115,11 +115,11 @@ impl Variant {
     /// * If the method does not exist or the signature is not compatible with the passed arguments.
     /// * If the call causes an error.
     #[inline]
-    pub fn call(&self, method: impl Into<StringName>, args: &[Variant]) -> Variant {
-        self.call_inner(method.into(), args)
+    pub fn call(&self, method: impl AsArg<StringName>, args: &[Variant]) -> Variant {
+        self.call_inner(method.consume_arg().as_ref(), args)
     }
 
-    fn call_inner(&self, method: StringName, args: &[Variant]) -> Variant {
+    fn call_inner(&self, method: &StringName, args: &[Variant]) -> Variant {
         let args_sys: Vec<_> = args.iter().map(|v| v.var_sys()).collect();
         let mut error = sys::default_call_error();
 
@@ -391,7 +391,7 @@ impl Variant {
 
 impl ArrayElement for Variant {}
 
-crate::impl_asarg_by_value!(Variant);
+crate::impl_asarg_by_ref!(Variant);
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
