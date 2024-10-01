@@ -8,7 +8,7 @@
 use crate::builtin::{Array, Variant};
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
+    ArrayElement, AsArg, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
     PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;

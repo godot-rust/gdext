@@ -96,7 +96,7 @@ impl Color {
     /// Returns `None` if the format is invalid.
     pub fn from_html<S: AsArg<GString>>(html: S) -> Option<Self> {
         let html = html.as_arg();
-        InnerColor::html_is_valid(&html).then(|| InnerColor::html(&html))
+        InnerColor::html_is_valid(html).then(|| InnerColor::html(html))
     }
 
     /// Constructs a `Color` from a string, which can be either:

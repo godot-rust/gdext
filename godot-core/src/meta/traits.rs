@@ -206,5 +206,3 @@ impl PackedArrayElement for builtin::Vector3 {}
 impl PackedArrayElement for builtin::Vector4 {}
 impl PackedArrayElement for builtin::Color {}
 impl PackedArrayElement for builtin::GString {}
-
-

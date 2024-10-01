@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::{GString, NodePath, StringName};
-use crate::meta::{CowArg, GodotType, RefArg, ToGodot};
+use crate::meta::{CowArg, ToGodot};
 use std::ffi::CStr;
 
 /// Shorthand to determine how a type is passed as an argument to Godot APIs.
@@ -38,17 +38,16 @@ where
     /// Target type, either `T` or `&T`.
     ///
     /// The general rule is that `Copy` types are passed by value, while the rest is passed by reference. The type alias [`Arg<T>`] is a
-    /// shorthand for `<T as AsArg>::Type`.
+    /// shorthand for `<T as AsArg<T>>::Type`.
     ///
     /// This associated may be merged with [`ToGodot::ToVia<'v>`] in the future.
-    type ArgType<'v>: GodotType
+    type ArgType<'v>
+    //: GodotType
     where
         Self: 'v;
 
     #[doc(hidden)]
-    fn as_arg(&self) -> Self::ArgType<'_> {
-        self
-    }
+    fn as_arg(&self) -> Self::ArgType<'_>;
 
     #[doc(hidden)]
     fn consume_arg<'r>(self) -> CowArg<'r, T>
@@ -62,6 +61,7 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Blanket impls
 
+#[allow(unused_macros)]
 macro_rules! impl_asarg_for_references {
     ($T:ty) => {
         impl<'a, T, U> AsArg<T> for &'a $T
@@ -111,15 +111,16 @@ macro_rules! impl_asarg_by_ref {
     };
 }
 
-impl_asarg_for_references!(GString);
-impl_asarg_for_references!(NodePath);
-impl_asarg_for_references!(StringName);
+// impl_asarg_for_references!(GString);
+// impl_asarg_for_references!(NodePath);
+// impl_asarg_for_references!(StringName);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GString
 
 impl AsArg<GString> for &str {
-    type ArgType<'v> = GString;
+    type ArgType<'v> = GString
+    where Self: 'v;
 
     fn as_arg(&self) -> GString {
         GString::from(*self)
@@ -145,7 +146,8 @@ impl AsArg<GString> for GString {
 // StringName
 
 impl AsArg<StringName> for &str {
-    type ArgType<'v> = StringName;
+    type ArgType<'v> = StringName
+        where Self: 'v;
 
     fn as_arg(&self) -> StringName {
         StringName::from(*self)
@@ -164,7 +166,8 @@ impl AsArg<StringName> for &'static CStr {
 // NodePath
 
 impl AsArg<NodePath> for &str {
-    type ArgType<'v> = NodePath;
+    type ArgType<'v> = NodePath
+        where Self: 'v;
 
     fn as_arg(&self) -> NodePath {
         NodePath::from(*self)

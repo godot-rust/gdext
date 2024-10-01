@@ -83,9 +83,7 @@ macro_rules! impl_ffi_variant {
 
         impl ArrayElement for $T {}
 
-        impl AsArg<$T> for $T {
-            impl_ffi_variant!(@as_arg $by_ref_or_val);
-        }
+        impl_ffi_variant!(@as_arg $by_ref_or_val $T);
     };
 
     (@godot_type_name $T:ty) => {
@@ -116,20 +114,25 @@ macro_rules! impl_ffi_variant {
         }
     };
 
-    (@as_arg by_ref) => {
-        type ArgType<'a> = &'a Self;
+    (@as_arg by_ref $T:ty) => {
+        impl<'a> AsArg<$T> for &'a $T {
+            type ArgType<'v> = Self
+                where Self: 'v;
 
-        fn as_arg(&self) -> Self::ArgType<'_> {
-            self
+            fn as_arg(&self) -> Self::ArgType<'_> {
+                self
+            }
         }
     };
 
-    (@as_arg by_val) => {
-        type ArgType<'a> = Self;
+    (@as_arg by_val $T:ty) => {
+        impl AsArg<$T> for $T {
+            type ArgType<'v> = Self;
 
-        fn as_arg(&self) -> Self::ArgType<'_> {
-            // Require Copy.
-            *self
+            fn as_arg(&self) -> Self::ArgType<'_> {
+                // Require Copy.
+                *self
+            }
         }
     };
 }
@@ -157,9 +160,9 @@ mod impls {
     impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
     impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
-    impl_ffi_variant!(GString, string_to_variant, string_from_variant; String);
-    impl_ffi_variant!(StringName, string_name_to_variant, string_name_from_variant);
-    impl_ffi_variant!(NodePath, node_path_to_variant, node_path_from_variant);
+    impl_ffi_variant!(ref GString, string_to_variant, string_from_variant; String);
+    impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
+    impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
     impl_ffi_variant!(ref PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant);
     impl_ffi_variant!(ref PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant);
     impl_ffi_variant!(ref PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant);

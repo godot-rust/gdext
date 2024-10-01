@@ -391,11 +391,7 @@ impl Variant {
 
 impl ArrayElement for Variant {}
 
-impl<'t> AsArg<Variant> for &'t Variant {
-    fn as_arg(&self) -> Variant {
-        self.clone()
-    }
-}
+crate::impl_asarg_by_value!(Variant);
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.

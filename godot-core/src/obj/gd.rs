@@ -15,7 +15,10 @@ use sys::{static_assert_eq_size_align, VariantType};
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
-use crate::meta::{ArrayElement, AsArg, CallContext, ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg, ToGodot};
+use crate::meta::{
+    ArrayElement, AsArg, CallContext, ClassName, FromGodot, GodotConvert, GodotType,
+    PropertyHintInfo, RefArg, ToGodot,
+};
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
     RawGd,
@@ -770,9 +773,21 @@ impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
 }
 
 impl<T: GodotClass> AsArg<Gd<T>> for Gd<T> {
-    type ArgType<'v> = 
-    where
-        Self: 'v;
+    type ArgType<'v> = &'v Gd<T>
+        where Self: 'v;
+
+    fn as_arg(&self) -> Self::ArgType<'_> {
+        self
+    }
+}
+
+impl<T: GodotClass> AsArg<Option<Gd<T>>> for Gd<T> {
+    type ArgType<'v> = &'v Option<Gd<T>>
+        where Self: 'v;
+
+    fn as_arg(&self) -> Self::ArgType<'_> {
+        self
+    }
 }
 
 impl<T> Default for Gd<T>
