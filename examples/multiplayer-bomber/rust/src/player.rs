@@ -25,7 +25,7 @@ pub struct Player {
     #[export]
     pub synced_position: Vector2,
     #[export]
-    pub player_idx: i32,
+    pub player_id: i32,
     last_bomb_time: f64,
     #[init(val = OnReady::manual())]
     multiplayer: OnReady<Gd<MultiplayerApi>>,
@@ -39,12 +39,12 @@ impl ICharacterBody2D for Player {
         self.base_mut().set_position(pos);
         self.multiplayer
             .init(self.base().get_multiplayer().unwrap());
-        self.inputs_sync.set_multiplayer_authority(self.player_idx);
+        self.inputs_sync.set_multiplayer_authority(self.player_id);
     }
 
     fn physics_process(&mut self, delta: f64) {
         if self.multiplayer.get_multiplayer_peer().is_none()
-            || self.multiplayer.get_unique_id() == self.player_idx
+            || self.multiplayer.get_unique_id() == self.player_id
         {
             self.inputs.bind_mut().update();
         }
@@ -61,7 +61,7 @@ impl ICharacterBody2D for Player {
             {
                 self.last_bomb_time = 0.0;
                 let bomb_args =
-                    BombArgs::new(self.base().get_position(), self.player_idx as i64).to_variant();
+                    BombArgs::new(self.base().get_position(), self.player_id as i64).to_variant();
                 GameState::singleton().emit_signal("spawn_bomb".into(), &[bomb_args]);
             }
         } else {

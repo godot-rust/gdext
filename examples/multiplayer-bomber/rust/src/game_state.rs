@@ -182,7 +182,7 @@ impl GameState {
         let Some(world) = self.game_board.as_mut() else {
             panic!("no game board!")
         };
-        for (i, (player_idx, player_name)) in self.players.iter().enumerate() {
+        for (i, (player_id, player_name)) in self.players.iter().enumerate() {
             let spawn_marker = world
                 .bind_mut()
                 .spawn_points
@@ -197,8 +197,8 @@ impl GameState {
                 panic!("Couldn't instantiate player scene!")
             };
             player.bind_mut().synced_position = spawn_marker.get_position();
-            player.bind_mut().player_idx = *player_idx;
-            player.set_name(GString::from(player_idx.to_string()));
+            player.bind_mut().player_id = *player_id;
+            player.set_name(GString::from(player_id.to_string()));
             world.bind_mut().players.add_child(&player);
             player.bind_mut().label.set_text(player_name.clone());
         }
@@ -221,12 +221,12 @@ impl GameState {
             .unwrap()
             .add_child(&world);
 
-        for (player_idx, player_name) in self.players.iter() {
+        for (player_id, player_name) in self.players.iter() {
             world
                 .bind_mut()
                 .score
                 .bind_mut()
-                .add_player(*player_idx, player_name.clone());
+                .add_player(*player_id, player_name.clone());
         }
         self.game_board = Some(world);
         self.base().get_tree().unwrap().set_pause(false);

@@ -6,14 +6,14 @@ use godot::prelude::*;
 #[derive(Debug)]
 pub struct BombArgs {
     position: Vector2,
-    player_idx: i64,
+    player_id: i64,
 }
 
 impl BombArgs {
-    pub fn new(position: Vector2, player_idx: i64) -> Self {
+    pub fn new(position: Vector2, player_id: i64) -> Self {
         Self {
             position,
-            player_idx,
+            player_id,
         }
     }
 }
@@ -28,15 +28,13 @@ impl FromGodot for BombArgs {
             .get(0)
             .ok_or(ConvertError::new("couldn't find position for bomb spawn!"))?
             .try_to::<Vector2>()?;
-        let player_idx = via
+        let player_id = via
             .get(1)
-            .ok_or(ConvertError::new(
-                "couldn't find player idx for bomb spawn!",
-            ))?
+            .ok_or(ConvertError::new("couldn't find player id for bomb spawn!"))?
             .try_to::<i64>()?;
         Ok(Self {
             position,
-            player_idx,
+            player_id,
         })
     }
 }
@@ -45,7 +43,7 @@ impl ToGodot for BombArgs {
     type ToVia<'v> = VariantArray where Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
-        varray![self.position.to_variant(), self.player_idx.to_variant()]
+        varray![self.position.to_variant(), self.player_id.to_variant()]
     }
 }
 
@@ -79,7 +77,7 @@ impl BombSpawner {
             panic!("couldn't instantiate bomb scene!")
         };
         bomb.set_position(args.position);
-        bomb.bind_mut().from_player = args.player_idx;
+        bomb.bind_mut().from_player = args.player_id;
         bomb
     }
 }
