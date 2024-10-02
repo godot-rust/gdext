@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3 uid="uid://b5ykvh0m3e5wn"]
+
+[ext_resource type="PackedScene" uid="uid://by3f5o7dyoqx4" path="res://src/game/world.tscn" id="1_d18ae"]
+[ext_resource type="PackedScene" uid="uid://dviwgv2ty8v6u" path="res://src/entities/player.tscn" id="2_yhn6u"]
+
+[node name="Gamestate" type="GameState"]
+world_scene = ExtResource("1_d18ae")
+player_scene = ExtResource("2_yhn6u")
