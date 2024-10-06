@@ -161,6 +161,9 @@ impl GameState {
             .done();
         self.multiplayer.set_multiplayer_peer(&peer);
         self.peer = Some(peer);
+        self.players
+            .entry(self.multiplayer.get_unique_id())
+            .or_insert(self.player_name.clone());
     }
 
     #[func]
@@ -170,6 +173,9 @@ impl GameState {
         peer.create_client(address, Self::DEFAULT_PORT);
         self.multiplayer.set_multiplayer_peer(&peer);
         self.peer = Some(peer);
+        self.players
+            .entry(self.multiplayer.get_unique_id())
+            .or_insert(self.player_name.clone());
     }
 
     #[func]
@@ -177,7 +183,6 @@ impl GameState {
         if !self.multiplayer.is_server() {
             panic!("Only server can start a game!")
         }
-        self.players.entry(1).or_insert(self.player_name.clone());
         self.base_mut().rpc("load_world".into(), &[]);
         let Some(world) = self.game_board.as_mut() else {
             panic!("no game board!")
@@ -239,11 +244,20 @@ impl GameState {
         }
         self.base_mut().emit_signal("game_ended".into(), &[]);
         self.players.clear();
+        if let Some(peer) = self.peer.as_mut() {
+            peer.close();
+        };
     }
 
     #[func]
     pub fn get_player_list(&self) -> Array<GString> {
         self.players.values().cloned().collect()
+    }
+}
+
+impl GameState {
+    pub fn get_players(&self) -> &HashMap<i32, GString> {
+        &self.players
     }
 }
 

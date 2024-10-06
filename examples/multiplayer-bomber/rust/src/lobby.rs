@@ -1,6 +1,6 @@
 use crate::game_state::{GameSingleton, GameState};
 use godot::classes::{
-    AcceptDialog, Button, Control, IControl, ItemList, Label, LineEdit, Os, Panel,
+    AcceptDialog, Button, Control, IControl, ItemList, Label, LineEdit, MultiplayerApi, Os, Panel,
 };
 use godot::prelude::*;
 
@@ -27,12 +27,16 @@ pub struct Lobby {
     start_button: OnReady<Gd<Button>>,
     #[init(node = "ErrorDialog")]
     error_dialog: OnReady<Gd<AcceptDialog>>,
+    #[init(val = OnReady::manual())]
+    multiplayer: OnReady<Gd<MultiplayerApi>>,
     base: Base<Control>,
 }
 
 #[godot_api]
 impl IControl for Lobby {
     fn ready(&mut self) {
+        self.multiplayer
+            .init(self.base().get_multiplayer().unwrap());
         let on_connection_failed = self.base().callable("on_connection_failed");
         GameState::singleton().connect("connection_failed".into(), on_connection_failed);
         let on_connection_success = self.base().callable("on_connection_success");
@@ -117,14 +121,21 @@ impl Lobby {
 
     #[func]
     fn refresh_lobby(&mut self) {
-        let mut players = GameState::singleton().bind().get_player_list();
-        players.sort_unstable();
+        // add current player at the top of the players list
         self.players_list.clear();
         self.players_list.add_item(GString::from(
             format! {"{} (You)", GameState::singleton().bind().player_name},
         ));
-        for player in players.iter_shared() {
-            self.players_list.add_item(player);
+
+        let game_state = GameState::singleton();
+        let binding = game_state.bind();
+        let other_players = binding
+            .get_players()
+            .iter()
+            .filter(|(player_id, _)| **player_id != self.multiplayer.get_unique_id());
+
+        for (_, player) in other_players {
+            self.players_list.add_item(player.clone());
         }
         let is_server = self.base().get_multiplayer().unwrap().is_server();
         self.start_button.set_disabled(!is_server);

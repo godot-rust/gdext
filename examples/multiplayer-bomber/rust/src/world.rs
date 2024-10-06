@@ -8,14 +8,14 @@ use godot::prelude::*;
 pub struct World {
     #[init(node = "Rocks")]
     pub rocks: OnReady<Gd<Node2D>>,
+    #[init(node = "Players")]
+    pub players: OnReady<Gd<Node2D>>,
     #[init(node = "Winner")]
     pub winner_label: OnReady<Gd<Label>>,
     #[init(node = "Score")]
     pub score: OnReady<Gd<ScoreBoard>>,
     #[init(node = "SpawnPoints")]
     pub spawn_points: OnReady<Gd<Node2D>>,
-    #[init(node = "Players")]
-    pub players: OnReady<Gd<Node2D>>,
     base: Base<Node2D>,
 }
 
@@ -39,7 +39,13 @@ impl World {
     }
 
     #[func]
-    fn on_exit_game_pressed(&self) {
+    fn on_exit_game_pressed(&mut self) {
+        self.base_mut().rpc("end_game".into(), &[]);
+    }
+
+    #[rpc(any_peer, call_local)]
+    #[func(gd_self)]
+    fn end_game(_this: Gd<Self>) {
         GameState::singleton().bind_mut().end_game();
     }
 }

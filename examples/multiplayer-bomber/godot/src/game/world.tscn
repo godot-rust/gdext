@@ -2,7 +2,7 @@
 
 [ext_resource type="TileSet" uid="uid://do2l6lpuotti8" path="res://src/tiles/tileset.tres" id="1"]
 [ext_resource type="PackedScene" uid="uid://ciqjnvw2opgvk" path="res://src/entities/rock.tscn" id="2"]
-[ext_resource type="FontFile" uid="uid://b1mhpw5ornbak" path="res://assets/montserrat.otf" id="4"]
+[ext_resource type="FontFile" uid="uid://dcgp8pqs7f2jv" path="res://assets/montserrat.otf" id="4"]
 [ext_resource type="PackedScene" uid="uid://enwoaqi0rnei" path="res://src/entities/bomb.tscn" id="4_f1bha"]
 
 [node name="World" type="World"]
