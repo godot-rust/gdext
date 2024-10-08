@@ -10,7 +10,7 @@ use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::classes::FileAccess;
 use crate::global::Error;
 use crate::meta::error::IoError;
-use crate::meta::AsArg;
+use crate::meta::{arg_into_ref, AsArg};
 use crate::obj::Gd;
 
 use std::cmp;
@@ -103,7 +103,8 @@ impl GFile {
     /// Opens a file located at `path`, creating new [`GFile`] object. For [`ModeFlags`] description check the [`GFile`]
     /// documentation.
     pub fn open(path: impl AsArg<GString>, flags: ModeFlags) -> std::io::Result<Self> {
-        let path = path.consume_arg().as_ref();
+        arg_into_ref!(path);
+
         let fa = FileAccess::open(path, flags).ok_or_else(|| {
             std::io::Error::new(
                 ErrorKind::Other,
@@ -126,7 +127,8 @@ impl GFile {
         flags: ModeFlags,
         compression_mode: CompressionMode,
     ) -> std::io::Result<Self> {
-        let path = path.consume_arg().as_ref();
+        arg_into_ref!(path);
+
         let fa = FileAccess::open_compressed_ex(path, flags)
             .compression_mode(compression_mode)
             .done()
@@ -152,7 +154,8 @@ impl GFile {
         flags: ModeFlags,
         key: &PackedByteArray,
     ) -> std::io::Result<Self> {
-        let path = path.consume_arg().as_ref();
+        arg_into_ref!(path);
+
         let fa = FileAccess::open_encrypted(path, flags, key).ok_or_else(|| {
             std::io::Error::new(
                 ErrorKind::Other,
@@ -175,8 +178,8 @@ impl GFile {
         flags: ModeFlags,
         password: impl AsArg<GString>,
     ) -> std::io::Result<Self> {
-        let path = path.consume_arg().as_ref();
-        let password = password.consume_arg().as_ref();
+        arg_into_ref!(path);
+        arg_into_ref!(password);
 
         let fa = FileAccess::open_encrypted_with_pass(path, flags, password).ok_or_else(|| {
             std::io::Error::new(

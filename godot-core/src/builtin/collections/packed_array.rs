@@ -360,8 +360,8 @@ macro_rules! impl_packed_array {
             }
 
             #[inline]
-            fn to_arg(e: Arg<$Element>) -> <$Element as PackedTraits>::ArgType<'_> {
-                std::borrow::Borrow::borrow(&e).to_arg()
+            fn to_arg<'r>(e: Arg<'r, $Element>) -> <$Element as PackedTraits>::ArgType<'r> {
+                e.to_arg()
             }
 
             #[doc(hidden)]

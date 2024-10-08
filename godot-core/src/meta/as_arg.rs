@@ -61,11 +61,27 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Blanket impls
 
+/// Converts `impl AsArg<T>` into a locally valid `&T`.
+///
+/// This cannot be done via function, since an intermediate variable (the Cow) is needed, which would go out of scope
+/// once the reference is returned. Could use more fancy syntax like `arg_into_ref { let path = ref; }`, but still
+/// isn't obvious enough to avoid doc lookup, so we might as well keep it short.
 #[macro_export]
 macro_rules! arg_into_ref {
     ($arg_variable:ident) => {
         let $arg_variable = $arg_variable.consume_arg();
         let $arg_variable = $arg_variable.as_ref();
+    };
+}
+
+/// Converts `impl AsArg<T>` into a locally valid `T`.
+///
+/// A macro for consistency with [`arg_into_ref`][crate::arg_into_ref].
+#[macro_export]
+macro_rules! arg_into_owned {
+    ($arg_variable:ident) => {
+        let $arg_variable = $arg_variable.consume_arg();
+        let $arg_variable = $arg_variable.into_owned();
     };
 }
 
@@ -83,6 +99,7 @@ macro_rules! impl_asarg_by_value {
     };
 }
 
+#[rustfmt::skip] // rustfmt doesn't converge; re-applies `where` indentation on each run.
 #[macro_export]
 macro_rules! impl_asarg_by_ref {
     ($T:ty) => {

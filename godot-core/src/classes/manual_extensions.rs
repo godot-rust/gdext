@@ -4,10 +4,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
 use crate::builtin::NodePath;
 use crate::classes::{Node, PackedScene};
-use crate::meta::AsArg;
+use crate::meta::{arg_into_ref, AsArg};
 use crate::obj::{Gd, Inherits};
 
 /// Manual extensions for the `Node` class.
@@ -20,11 +19,11 @@ impl Node {
     where
         T: Inherits<Node>,
     {
-        let copy = path.consume_arg().as_ref();
+        arg_into_ref!(path);
 
         self.try_get_node_as(path).unwrap_or_else(|| {
             panic!(
-                "There is no node of type {ty} at path `{copy}`",
+                "There is no node of type {ty} at path `{path}`",
                 ty = T::class_name()
             )
         })
@@ -38,7 +37,7 @@ impl Node {
     where
         T: Inherits<Node>,
     {
-        let path = path.consume_arg().as_ref();
+        arg_into_ref!(path);
 
         // TODO differentiate errors (not found, bad type) with Result
         self.get_node_or_null(path)

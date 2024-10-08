@@ -5,12 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::arg_into_ref;
 use crate::builtin::GString;
 use crate::classes::{Resource, ResourceLoader, ResourceSaver};
 use crate::global::Error as GodotError;
 use crate::meta::error::IoError;
-use crate::meta::AsArg;
+use crate::meta::{arg_into_ref, AsArg};
 use crate::obj::{Gd, Inherits};
 
 /// ⚠️ Loads a resource from the filesystem located at `path`, panicking on error.
@@ -93,7 +92,7 @@ pub fn save<T>(obj: Gd<T>, path: impl AsArg<GString>)
 where
     T: Inherits<Resource>,
 {
-    let path = path.consume_arg().as_ref();
+    arg_into_ref!(path);
 
     save_impl(obj, path)
         .unwrap_or_else(|err| panic!("failed to save resource at path '{}': {}", &path, err));

@@ -58,7 +58,7 @@ pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use rpc_config::RpcConfig;
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
-pub(crate) use crate::impl_godot_as_self;
+pub(crate) use crate::{arg_into_owned, arg_into_ref, impl_godot_as_self};
 pub(crate) use array_type_info::ArrayTypeInfo;
 pub(crate) use traits::{GodotFfiVariant, GodotNullableFfi};
 

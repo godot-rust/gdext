@@ -10,7 +10,7 @@ use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
 use crate::builtin::{ColorHsv, GString};
 
-use crate::meta::AsArg;
+use crate::meta::{arg_into_ref, AsArg};
 use godot_ffi as sys;
 use std::ops;
 use sys::{ffi_methods, GodotFfi};
@@ -114,8 +114,8 @@ impl Color {
     ///
     /// [color_constants]: https://docs.godotengine.org/en/latest/classes/class_color.html#constants
     /// [cheat_sheet]: https://raw.githubusercontent.com/godotengine/godot-docs/master/img/color_constants.png
-    pub fn from_string<S: AsArg<GString>>(string: S) -> Option<Self> {
-        let string = string.consume_arg().as_ref();
+    pub fn from_string(string: impl AsArg<GString>) -> Option<Self> {
+        arg_into_ref!(string);
 
         let color = InnerColor::from_string(
             string,
