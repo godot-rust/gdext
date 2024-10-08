@@ -391,7 +391,7 @@ impl Variant {
 
 impl ArrayElement for Variant {}
 
-crate::impl_asarg_by_ref!(Variant);
+crate::meta::impl_asarg_by_ref!(Variant);
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.

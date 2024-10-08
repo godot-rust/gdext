@@ -99,13 +99,16 @@ macro_rules! impl_asarg_by_value {
     };
 }
 
-#[rustfmt::skip] // rustfmt doesn't converge; re-applies `where` indentation on each run.
 #[macro_export]
 macro_rules! impl_asarg_by_ref {
     ($T:ty) => {
         impl<'a> AsArg<$T> for &'a $T {
-            type ArgType<'v> = &'v $T
-                where Self: 'v;
+            // 1 rustfmt + 1 rustc problems (bugs?) here:
+            // - formatting doesn't converge; `where` keeps being further indented on each run.
+            // - a #[rustfmt::skip] annotation over the macro causes a compile error when mentioning `crate::impl_asarg_by_ref`.
+            //   "macro-expanded `macro_export` macros from the current crate cannot be referred to by absolute paths"
+            // Thus, keep `where` on same line.
+            type ArgType<'v> = &'v $T where Self: 'v;
 
             fn as_arg(&self) -> Self::ArgType<'_> {
                 self

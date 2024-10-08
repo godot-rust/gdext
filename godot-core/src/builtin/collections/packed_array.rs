@@ -34,7 +34,7 @@ macro_rules! impl_packed_array {
         opaque_type: $Opaque:ty,
         // Name of inner type, e.g. `InnerPackedByteArray`.
         inner_type: $Inner:ident,
-        // Name of type that represents elements in function call arguments, e.g. `i64`. See `Self::to_arg()`.
+        // Name of type that represents elements in function call arguments, e.g. `i64`. See `to_arg()`.
         argument_type: $Arg:ty,
         // Type that is returned from `$operator_index` and `$operator_index_const`.
         return_type: $IndexRetType:ty,
@@ -103,12 +103,12 @@ macro_rules! impl_packed_array {
             /// _Godot equivalent: `has`_
             #[doc(alias = "has")]
             pub fn contains(&self, value: Arg<$Element>) -> bool {
-                self.as_inner().has(Self::to_arg(value))
+                self.as_inner().has(value.to_arg())
             }
 
             /// Returns the number of times a value is in the array.
             pub fn count(&self, value: Arg<$Element>) -> usize {
-                to_usize(self.as_inner().count(Self::to_arg(value)))
+                to_usize(self.as_inner().count(value.to_arg()))
             }
 
             /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
@@ -131,7 +131,7 @@ macro_rules! impl_packed_array {
             #[doc(alias = "append")]
             #[doc(alias = "push_back")]
             pub fn push(&mut self, value: Arg<$Element>) {
-                self.as_inner().push_back(Self::to_arg(value));
+                self.as_inner().push_back(value.to_arg());
             }
 
             /// Inserts a new element at a given index in the array. The index must be valid, or at
@@ -146,7 +146,7 @@ macro_rules! impl_packed_array {
                     self.panic_out_of_bounds(index);
                 }
 
-                self.as_inner().insert(to_i64(index), Self::to_arg(value));
+                self.as_inner().insert(to_i64(index), value.to_arg());
             }
 
             /// Removes and returns the element at the specified index. Similar to `remove_at` in
@@ -171,7 +171,7 @@ macro_rules! impl_packed_array {
             /// Assigns the given value to all elements in the array. This can be used together
             /// with `resize` to create an array with a given size and initialized elements.
             pub fn fill(&mut self, value: Arg<$Element>) {
-                self.as_inner().fill(Self::to_arg(value));
+                self.as_inner().fill(value.to_arg());
             }
 
             /// Resizes the array to contain a different number of elements. If the new size is
@@ -264,7 +264,7 @@ macro_rules! impl_packed_array {
             /// entire array.
             pub fn find(&self, value: Arg<$Element>, from: Option<usize>) -> Option<usize> {
                 let from = to_i64(from.unwrap_or(0));
-                let index = self.as_inner().find(Self::to_arg(value), from);
+                let index = self.as_inner().find(value.to_arg(), from);
                 if index >= 0 {
                     Some(index.try_into().unwrap())
                 } else {
@@ -277,7 +277,7 @@ macro_rules! impl_packed_array {
             /// search the entire array.
             pub fn rfind(&self, value: Arg<$Element>, from: Option<usize>) -> Option<usize> {
                 let from = from.map(to_i64).unwrap_or(-1);
-                let index = self.as_inner().rfind(Self::to_arg(value), from);
+                let index = self.as_inner().rfind(value.to_arg(), from);
                 // It's not documented, but `rfind` returns -1 if not found.
                 if index >= 0 {
                     Some(to_usize(index))
@@ -292,7 +292,7 @@ macro_rules! impl_packed_array {
             ///
             /// Calling `bsearch()` on an unsorted array results in unspecified (but safe) behavior.
             pub fn bsearch(&self, value: Arg<$Element>) -> usize {
-                to_usize(self.as_inner().bsearch(Self::to_arg(value), true))
+                to_usize(self.as_inner().bsearch(value.to_arg(), true))
             }
 
             /// Reverses the order of the elements in the array.
@@ -359,10 +359,10 @@ macro_rules! impl_packed_array {
                 }
             }
 
-            #[inline]
-            fn to_arg<'r>(e: Arg<'r, $Element>) -> <$Element as PackedTraits>::ArgType<'r> {
-                e.to_arg()
-            }
+            // #[inline]
+            // fn to_arg<'r>(e: Arg<'r, $Element>) -> <$Element as PackedTraits>::ArgType<'r> {
+            //     e.to_arg()
+            // }
 
             #[doc(hidden)]
             pub fn as_inner(&self) -> inner::$Inner<'_> {
