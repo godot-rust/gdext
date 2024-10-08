@@ -72,7 +72,7 @@ fn callable_object_method() {
 
     assert_eq!(callable.object(), Some(obj.clone().upcast::<Object>()));
     assert_eq!(callable.object_id(), Some(obj.instance_id()));
-    assert_eq!(callable.method_name(), Some("foo".into()));
+    assert_eq!(callable.method_name(), Some("foo"));
 
     assert_eq!(Callable::invalid().object(), None);
     assert_eq!(Callable::invalid().object_id(), None);

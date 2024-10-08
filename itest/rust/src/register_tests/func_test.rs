@@ -181,10 +181,8 @@ impl GdSelfObj {
         // Since a self reference is held while the signal is emitted, when
         // GDScript tries to call update_internal(), there will be a failure due
         // to the double borrow and self.internal_value won't be changed.
-        self.base_mut().emit_signal(
-            "update_internal_signal".into(),
-            &[new_internal.to_variant()],
-        );
+        self.base_mut()
+            .emit_signal("update_internal_signal", &[new_internal.to_variant()]);
         self.internal_value
     }
 
@@ -192,10 +190,7 @@ impl GdSelfObj {
     fn succeed_at_updating_internal_value(mut this: Gd<Self>, new_internal: i32) -> i32 {
         // Since this isn't bound while the signal is emitted, GDScript will succeed at calling
         // update_internal() and self.internal_value will be changed.
-        this.emit_signal(
-            "update_internal_signal".into(),
-            &[new_internal.to_variant()],
-        );
+        this.emit_signal("update_internal_signal", &[new_internal.to_variant()]);
 
         this.bind().internal_value
     }

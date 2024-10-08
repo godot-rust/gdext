@@ -111,9 +111,7 @@ fn native_structure_parameter() {
 
     let ptr = ptr::addr_of!(caret);
     let mut object = NativeStructTests::new_gd();
-    let result: Dictionary = object
-        .call("pass_native_struct".into(), &[ptr.to_variant()])
-        .to();
+    let result: Dictionary = object.call("pass_native_struct", &[ptr.to_variant()]).to();
 
     assert_eq!(
         result.at("leading_caret").to::<Rect2>(),
@@ -137,7 +135,7 @@ fn native_structure_parameter() {
 fn native_structure_pointer_to_array_parameter() {
     // Instantiate a custom class.
     let mut object = NativeStructTests::new_gd();
-    let result_ptr: *const Glyph = object.call("native_struct_array_ret".into(), &[]).to();
+    let result_ptr: *const Glyph = object.call("native_struct_array_ret", &[]).to();
     let result = unsafe { std::slice::from_raw_parts(result_ptr, 2) };
 
     // Check the result array.
@@ -240,7 +238,7 @@ fn native_structure_refcounted_pointers() {
     assert_eq!(retrieved.instance_id(), id);
 
     // Manually decrement refcount (method unexposed).
-    //Gd::<RefCounted>::from_instance_id(id).call("unreference".into(), &[]);
+    //Gd::<RefCounted>::from_instance_id(id).call("unreference", &[]);
 
     // RefCounted, do NOT increment ref-count.
     let object = RefCounted::new_gd();

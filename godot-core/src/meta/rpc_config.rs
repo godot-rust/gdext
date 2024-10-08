@@ -9,8 +9,8 @@ use crate::builtin::{Dictionary, StringName};
 use crate::classes::multiplayer_api::RpcMode;
 use crate::classes::multiplayer_peer::TransferMode;
 use crate::classes::Node;
-use crate::{arg_into_ref, dict};
 use crate::meta::{AsArg, ToGodot};
+use crate::{arg_into_ref, dict};
 
 /// Configuration for a remote procedure call, typically used with `#[rpc(config = ...)]`.
 ///

@@ -220,7 +220,7 @@ impl GodotType for () {
     }
 
     fn godot_type_name() -> String {
-        "Variant".into()
+        "Variant".to_string()
     }
 }
 
@@ -265,6 +265,6 @@ impl GodotType for Variant {
     }
 
     fn godot_type_name() -> String {
-        "Variant".into()
+        "Variant".to_string()
     }
 }

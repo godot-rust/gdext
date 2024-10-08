@@ -239,7 +239,7 @@ fn dictionary_insert() {
             .iter_shared()
             .typed::<String, i64>()
             .collect::<HashMap<_, _>>(),
-        HashMap::from([("foo".into(), 0), ("bar".into(), 2)])
+        HashMap::from([("foo", 0), ("bar", 2)])
     );
     assert_eq!(dictionary.insert("baz", 3), None);
     assert_eq!(
@@ -247,7 +247,7 @@ fn dictionary_insert() {
             .iter_shared()
             .typed::<String, i64>()
             .collect::<HashMap<_, _>>(),
-        HashMap::from([("foo".into(), 0), ("bar".into(), 2), ("baz".into(), 3)])
+        HashMap::from([("foo", 0), ("bar", 2), ("baz", 3)])
     );
 }
 
@@ -389,10 +389,10 @@ fn dictionary_iter() {
     };
 
     let map = HashMap::<String, Variant>::from([
-        ("foo".into(), 0.to_variant()),
-        ("bar".into(), true.to_variant()),
-        ("baz".into(), "foobar".to_variant()),
-        ("nil".into(), Variant::nil()),
+        ("foo", 0.to_variant()),
+        ("bar", true.to_variant()),
+        ("baz", "foobar".to_variant()),
+        ("nil", Variant::nil()),
     ]);
 
     let map2: HashMap<String, Variant> = dictionary.iter_shared().typed().collect();

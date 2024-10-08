@@ -42,7 +42,7 @@ fn utilities_str() {
 
     let empty = str(&[]);
 
-    assert_eq!(concat, "12 is a true number".into());
+    assert_eq!(concat, "12 is a true number");
     assert_eq!(empty, GString::new());
 }
 

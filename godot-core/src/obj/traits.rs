@@ -368,7 +368,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[godot_api]
     /// impl INode for MyClass {
     ///     fn process(&mut self, _delta: f64) {
-    ///         self.base_mut().call("other_method".into(), &[]);
+    ///         self.base_mut().call("other_method", &[]);
     ///     }
     /// }
     ///

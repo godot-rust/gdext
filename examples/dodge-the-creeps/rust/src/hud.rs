@@ -23,16 +23,16 @@ impl Hud {
     }
 
     pub fn show_game_over(&self) {
-        self.show_message("Game Over".into());
+        self.show_message("Game Over");
 
         let mut timer = self.base().get_tree().unwrap().create_timer(2.0).unwrap();
-        timer.connect("timeout".into(), self.base().callable("show_start_button"));
+        timer.connect("timeout", self.base().callable("show_start_button"));
     }
 
     #[func]
     fn show_start_button(&mut self) {
         let mut message_label = self.base().get_node_as::<Label>("MessageLabel");
-        message_label.set_text("Dodge the\nCreeps!".into());
+        message_label.set_text("Dodge the\nCreeps!");
         message_label.show();
 
         let mut button = self.base().get_node_as::<Button>("StartButton");
@@ -55,7 +55,7 @@ impl Hud {
         // This method keeps a &mut Hud, and start_game calls Main::new_game(), which itself accesses this Hud
         // instance through Gd<Hud>::bind_mut(). It will try creating a 2nd &mut reference, and thus panic.
         // Deferring the signal is one option to work around it.
-        self.base_mut().emit_signal("start_game".into(), &[]);
+        self.base_mut().emit_signal("start_game", &[]);
     }
 
     #[func]

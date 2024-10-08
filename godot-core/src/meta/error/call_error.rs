@@ -55,7 +55,7 @@ use std::fmt;
 ///     let mut obj: Gd<MyClass> = MyClass::new_gd();
 ///
 ///     // Dynamic call. Note: forgot to pass the argument.
-///     let result: Result<Variant, CallError> = obj.try_call("my_method".into(), &[]);
+///     let result: Result<Variant, CallError> = obj.try_call("my_method", &[]);
 ///
 ///     // Get immediate and original errors.
 ///     // Note that source() can be None or of type ConvertError.

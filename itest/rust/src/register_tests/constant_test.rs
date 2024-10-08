@@ -142,9 +142,9 @@ impl godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
             ConstantKind::Enum {
                 name: Self::ENUM_NAME.into(),
                 enumerators: vec![
-                    IntegerConstant::new("ENUM_A".into(), Self::ENUM_A),
-                    IntegerConstant::new("ENUM_B".into(), Self::ENUM_B),
-                    IntegerConstant::new("ENUM_C".into(), Self::ENUM_C),
+                    IntegerConstant::new("ENUM_A", Self::ENUM_A),
+                    IntegerConstant::new("ENUM_B", Self::ENUM_B),
+                    IntegerConstant::new("ENUM_C", Self::ENUM_C),
                 ],
             },
         )
@@ -156,9 +156,9 @@ impl godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
             ConstantKind::Bitfield {
                 name: Self::BITFIELD_NAME.into(),
                 flags: vec![
-                    IntegerConstant::new("BITFIELD_A".into(), Self::BITFIELD_A),
-                    IntegerConstant::new("BITFIELD_B".into(), Self::BITFIELD_B),
-                    IntegerConstant::new("BITFIELD_C".into(), Self::BITFIELD_C),
+                    IntegerConstant::new("BITFIELD_A", Self::BITFIELD_A),
+                    IntegerConstant::new("BITFIELD_B", Self::BITFIELD_B),
+                    IntegerConstant::new("BITFIELD_C", Self::BITFIELD_C),
                 ],
             },
         )

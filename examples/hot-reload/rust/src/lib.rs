@@ -39,7 +39,7 @@ impl INode for Reloadable {
         // HOT-RELOAD: change values to initialize with different defaults.
         Self {
             favorite_planet: Planet::Earth,
-            //some_string: "Hello, world!".into(),
+            //some_string: "Hello, world!",
         }
     }
 }

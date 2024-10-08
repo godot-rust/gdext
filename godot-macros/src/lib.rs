@@ -658,7 +658,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// impl MyStruct {
 ///     #[func(virtual)]
 ///     fn language(&self) -> GString {
-///         "Rust".into()
+///         "Rust"
 ///     }
 /// }
 /// # }
@@ -722,7 +722,7 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 ///
 /// let obj = MyNewtype {
-///     string: "hello!".into(),
+///     string: "hello!",
 /// };
 /// assert_eq!(obj.to_godot(), GString::from("hello!"));
 /// ```

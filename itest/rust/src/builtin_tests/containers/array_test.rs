@@ -383,7 +383,7 @@ fn untyped_array_pass_to_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
 
     assert_eq!(
-        node.callv(StringName::from("has_signal"), &varray!["tree_entered"]),
+        node.callv("has_signal", &varray!["tree_entered"]),
         true.to_variant()
     );
 }
@@ -393,10 +393,10 @@ fn untyped_array_return_from_godot_func() {
     // There aren't many API functions that return an untyped array.
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
-    child.set_name("child_node".into());
+    child.set_name("child_node");
     node.add_child(&child);
     node.queue_free(); // Do not leak even if the test fails.
-    let result = node.get_node_and_resource("child_node".into());
+    let result = node.get_node_and_resource("child_node");
 
     assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
 }
@@ -430,7 +430,7 @@ fn typed_array_pass_to_godot_func() {
 fn typed_array_return_from_godot_func() {
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
-    child.set_name("child_node".into());
+    child.set_name("child_node");
     node.add_child(&child);
     node.queue_free(); // Do not leak even if the test fails.
     let children = node.get_children();

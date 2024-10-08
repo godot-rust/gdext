@@ -116,7 +116,7 @@ impl INode for FairlyDocumented {
             base,
             item: 883.0,
             item_2: 25,
-            item_xml: "".into(),
+            item_xml: "",
             _other_item: {},
         }
     }

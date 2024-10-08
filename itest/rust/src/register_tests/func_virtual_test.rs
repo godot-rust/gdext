@@ -60,7 +60,7 @@ fn func_virtual() {
     assert_eq!(object.bind().greet_lang(72), GString::from("GDScript#72"));
 
     // Dynamic call: "GDScript".
-    let result = object.call("_greet_lang".into(), &[72.to_variant()]);
+    let result = object.call("_greet_lang", &[72.to_variant()]);
     assert_eq!(result, "GDScript#72".to_variant());
 }
 
@@ -68,20 +68,14 @@ fn func_virtual() {
 fn func_virtual_renamed() {
     // Without script: "Rust".
     let mut object = VirtualScriptCalls::new_gd();
-    assert_eq!(
-        object.bind().gl2("Hello".into()),
-        GString::from("Hello Rust")
-    );
+    assert_eq!(object.bind().gl2("Hello"), GString::from("Hello Rust"));
 
     // With script: "GDScript".
     object.set_script(&make_script().to_variant());
-    assert_eq!(
-        object.bind().gl2("Hello".into()),
-        GString::from("Hello GDScript")
-    );
+    assert_eq!(object.bind().gl2("Hello"), GString::from("Hello GDScript"));
 
     // Dynamic call: "GDScript".
-    let result = object.call("greet_lang2".into(), &["Hello".to_variant()]);
+    let result = object.call("greet_lang2", &["Hello".to_variant()]);
     assert_eq!(result, "Hello GDScript".to_variant());
 }
 
@@ -90,19 +84,19 @@ fn func_virtual_gd_self() {
     // Without script: "Rust".
     let mut object = VirtualScriptCalls::new_gd();
     assert_eq!(
-        VirtualScriptCalls::greet_lang3(object.clone(), "Hoi".into()),
+        VirtualScriptCalls::greet_lang3(object.clone(), "Hoi"),
         GString::from("Hoi Rust")
     );
 
     // With script: "GDScript".
     object.set_script(&make_script().to_variant());
     assert_eq!(
-        VirtualScriptCalls::greet_lang3(object.clone(), "Hoi".into()),
+        VirtualScriptCalls::greet_lang3(object.clone(), "Hoi"),
         GString::from("Hoi GDScript")
     );
 
     // Dynamic call: "GDScript".
-    let result = object.call("_greet_lang3".into(), &["Hoi".to_variant()]);
+    let result = object.call("_greet_lang3", &["Hoi".to_variant()]);
     assert_eq!(result, "Hoi GDScript".to_variant());
 }
 
@@ -151,7 +145,7 @@ func _get_thing():
         .collect::<VariantArray>();
 
     // Ensure script has been parsed + compiled correctly.
-    assert_eq!(script.get_instance_base_type(), "VirtualScriptCalls".into());
+    assert_eq!(script.get_instance_base_type(), "VirtualScriptCalls");
     assert_eq!(
         methods,
         varray![

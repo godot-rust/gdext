@@ -26,14 +26,14 @@ impl ReentrantClass {
     #[func]
     fn first_calls(&mut self) {
         self.first_called_pre = true;
-        self.base_mut().call("second".into(), &[]);
+        self.base_mut().call("second", &[]);
         self.first_called_post = true;
     }
 
     #[func]
     fn first_signal(&mut self) {
         self.first_called_pre = true;
-        self.base_mut().emit_signal("some_signal".into(), &[]);
+        self.base_mut().emit_signal("some_signal", &[]);
         self.first_called_post = true;
     }
 
@@ -51,7 +51,7 @@ fn reentrant_call_succeeds() {
     assert!(!class.bind().first_called_post);
     assert!(!class.bind().second_called);
 
-    class.call("first_calls".into(), &[]);
+    class.call("first_calls", &[]);
 
     assert!(class.bind().first_called_pre);
     assert!(class.bind().first_called_post);
@@ -65,13 +65,13 @@ fn reentrant_emit_succeeds() {
     let mut class = ReentrantClass::new_alloc();
 
     let callable = class.callable("second");
-    class.connect("some_signal".into(), callable);
+    class.connect("some_signal", callable);
 
     assert!(!class.bind().first_called_pre);
     assert!(!class.bind().first_called_post);
     assert!(!class.bind().second_called);
 
-    class.call("first_signal".into(), &[]);
+    class.call("first_signal", &[]);
 
     assert!(class.bind().first_called_pre);
     assert!(class.bind().first_called_post);

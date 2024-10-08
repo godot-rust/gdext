@@ -32,11 +32,11 @@ fn packed_array_from_iterator() {
 
 #[itest]
 fn packed_array_from_vec_str() {
-    let string_array = PackedStringArray::from(vec!["hello".into(), "world".into()]);
+    let string_array = PackedStringArray::from(vec!["hello", "world"]);
 
     assert_eq!(string_array.len(), 2);
-    assert_eq!(string_array[0], "hello".into());
-    assert_eq!(string_array[1], "world".into());
+    assert_eq!(string_array[0], "hello");
+    assert_eq!(string_array[1], "world");
 }
 
 #[itest]
@@ -65,11 +65,11 @@ fn packed_array_from_vec_color() {
 
 #[itest]
 fn packed_array_from_array_str() {
-    let string_array = PackedStringArray::from(["hello".into(), "world".into()]);
+    let string_array = PackedStringArray::from(["hello", "world"]);
 
     assert_eq!(string_array.len(), 2);
-    assert_eq!(string_array[0], "hello".into());
-    assert_eq!(string_array[1], "world".into());
+    assert_eq!(string_array[0], "hello");
+    assert_eq!(string_array[1], "world");
 }
 
 #[itest]
@@ -205,14 +205,14 @@ fn packed_array_index() {
         let _ = array[0];
     });
 
-    array.push("first".into());
-    array.push("second".into());
+    array.push("first");
+    array.push("second");
 
-    assert_eq!(array[0], "first".into());
-    assert_eq!(array[1], "second".into());
+    assert_eq!(array[0], "first");
+    assert_eq!(array[1], "second");
 
-    array[0] = "begin".into();
-    assert_eq!(array[0], "begin".into());
+    array[0] = "begin";
+    assert_eq!(array[0], "begin");
 }
 
 #[itest]

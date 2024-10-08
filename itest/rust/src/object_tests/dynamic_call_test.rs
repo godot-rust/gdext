@@ -54,12 +54,12 @@ fn dynamic_call_with_too_few_args() {
 
     // Use panicking version.
     expect_panic("call with too few arguments", || {
-        obj.call("take_1_int".into(), &[]);
+        obj.call("take_1_int", &[]);
     });
 
     // Use Result-based version.
     let call_error = obj
-        .try_call("take_1_int".into(), &[])
+        .try_call("take_1_int", &[])
         .expect_err("expected failed call");
 
     // User-facing method to which error was propagated.
@@ -95,12 +95,12 @@ fn dynamic_call_with_too_many_args() {
 
     // Use panicking version.
     expect_panic("call with too many arguments", || {
-        obj.call("take_1_int".into(), &[42.to_variant(), 43.to_variant()]);
+        obj.call("take_1_int", &[42.to_variant(), 43.to_variant()]);
     });
 
     // Use Result-based version.
     let call_error = obj
-        .try_call("take_1_int".into(), &[42.to_variant(), 43.to_variant()])
+        .try_call("take_1_int", &[42.to_variant(), 43.to_variant()])
         .expect_err("expected failed call");
 
     assert_eq!(call_error.class_name(), Some("Object"));
@@ -121,12 +121,12 @@ fn dynamic_call_parameter_mismatch() {
 
     // Use panicking version.
     expect_panic("call with wrong argument type", || {
-        obj.call("take_1_int".into(), &["string".to_variant()]);
+        obj.call("take_1_int", &["string".to_variant()]);
     });
 
     // Use Result-based version.
     let call_error = obj
-        .try_call("take_1_int".into(), &["string".to_variant()])
+        .try_call("take_1_int", &["string".to_variant()])
         .expect_err("expected failed call");
 
     assert_eq!(call_error.class_name(), Some("Object"));
@@ -146,7 +146,7 @@ fn dynamic_call_parameter_mismatch() {
 fn dynamic_call_with_panic() {
     let mut obj = ObjPayload::new_alloc();
 
-    let result = obj.try_call("do_panic".into(), &[]);
+    let result = obj.try_call("do_panic", &[]);
     let call_error = result.expect_err("panic should cause a call error");
 
     assert_eq!(call_error.class_name(), Some("Object"));
@@ -176,12 +176,12 @@ fn dynamic_call_with_too_few_args_engine() {
 
     // Use panicking version.
     expect_panic("call with too few arguments", || {
-        node.call("rpc_config".into(), &["some_method".to_variant()]);
+        node.call("rpc_config", &["some_method".to_variant()]);
     });
 
     // Use Result-based version.
     let call_error = node
-        .try_call("rpc_config".into(), &["some_method".to_variant()])
+        .try_call("rpc_config", &["some_method".to_variant()])
         .expect_err("expected failed call");
 
     assert_eq!(call_error.class_name(), Some("Object"));
@@ -208,7 +208,7 @@ fn dynamic_call_with_too_many_args_engine() {
     // Use panicking version.
     expect_panic("call with too many arguments", || {
         node.call(
-            "rpc_config".into(),
+            "rpc_config",
             &["some_method".to_variant(), Variant::nil(), 123.to_variant()],
         );
     });
@@ -216,7 +216,7 @@ fn dynamic_call_with_too_many_args_engine() {
     // Use Result-based version.
     let call_error = node
         .try_call(
-            "rpc_config".into(),
+            "rpc_config",
             &["some_method".to_variant(), Variant::nil(), 123.to_variant()],
         )
         .expect_err("expected failed call");
@@ -243,12 +243,12 @@ fn dynamic_call_parameter_mismatch_engine() {
 
     // Use panicking version.
     expect_panic("call with wrong argument type", || {
-        node.call("set_name".into(), &[123.to_variant()]);
+        node.call("set_name", &[123.to_variant()]);
     });
 
     // Use Result-based version.
     let call_error = node
-        .try_call("set_name".into(), &[123.to_variant()])
+        .try_call("set_name", &[123.to_variant()])
         .expect_err("expected failed call");
 
     // Note: currently no mention of Node::set_name(). Not sure if easily possible to add.

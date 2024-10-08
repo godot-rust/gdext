@@ -32,7 +32,7 @@ pub fn initialize_init_level_test(level: InitLevel) {
 
         let mut some_object = SomeObject::new_alloc();
         // Need to go through Godot here as otherwise we bypass the failure.
-        some_object.call("set_has_run_true".into(), &[]);
+        some_object.call("set_has_run_true", &[]);
         some_object.free();
     }
 }

@@ -177,7 +177,7 @@ impl Export for SomeCStyleEnum {
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo {
             hint: PropertyHint::ENUM,
-            hint_string: "A,B,C".into(),
+            hint_string: "A,B,C",
         }
     }
 }
@@ -225,9 +225,9 @@ impl HasCustomProperty {
         use SomeCStyleEnum::*;
 
         match self.some_c_style_enum {
-            A => "A".into(),
-            B => "B".into(),
-            C => "C".into(),
+            A => "A",
+            B => "B",
+            C => "C",
         }
     }
 }

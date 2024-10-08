@@ -444,7 +444,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///         let node = Node::new_alloc();
     ///
     ///         // We can call back into `self` through Godot:
-    ///         this.base_mut().call("script_method".into(), &[]);
+    ///         this.base_mut().call("script_method", &[]);
     ///
     ///         Ok(Variant::nil())
     ///     }
