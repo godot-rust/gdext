@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::arg_into_ref;
 use crate::builtin::GString;
 use crate::classes::{Resource, ResourceLoader, ResourceSaver};
 use crate::global::Error as GodotError;
@@ -31,7 +32,7 @@ pub fn load<T>(path: impl AsArg<GString>) -> Gd<T>
 where
     T: Inherits<Resource>,
 {
-    let path = path.consume_arg().as_ref();
+    arg_into_ref!(path);
     load_impl(path).unwrap_or_else(|err| panic!("failed to load resource at '{path}': {err}"))
 }
 
@@ -69,7 +70,7 @@ pub fn try_load<T>(path: impl AsArg<GString>) -> Result<Gd<T>, IoError>
 where
     T: Inherits<Resource>,
 {
-    let path = path.consume_arg().as_ref();
+    arg_into_ref!(path);
     load_impl(path)
 }
 
@@ -129,7 +130,9 @@ pub fn try_save<T>(obj: Gd<T>, path: impl AsArg<GString>) -> Result<(), IoError>
 where
     T: Inherits<Resource>,
 {
-    save_impl(obj, &path.into())
+    arg_into_ref!(path);
+
+    save_impl(obj, path)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -143,7 +146,7 @@ where
 {
     // TODO unclone GString
     match ResourceLoader::singleton()
-        .load_ex(path.clone())
+        .load_ex(path)
         .type_hint(T::class_name().to_gstring())
         .done()
     {

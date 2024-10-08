@@ -61,26 +61,11 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Blanket impls
 
-#[allow(unused_macros)]
-macro_rules! impl_asarg_for_references {
-    ($T:ty) => {
-        impl<'a, T, U> AsArg<T> for &'a $T
-        where
-            T: AsArg<U>,
-        {
-            type ArgType<'v> = T::ArgType<'v>;
-
-            fn as_arg(&self) -> Self::ArgType<'_> {
-                self.to_godot()
-            }
-
-            fn consume_arg<'r>(self) -> CowArg<'r, T>
-            where
-                Self: 'r,
-            {
-                CowArg::Borrowed(RefArg::new(self))
-            }
-        }
+#[macro_export]
+macro_rules! arg_into_ref {
+    ($arg_variable:ident) => {
+        let $arg_variable = $arg_variable.consume_arg();
+        let $arg_variable = $arg_variable.as_ref();
     };
 }
 
