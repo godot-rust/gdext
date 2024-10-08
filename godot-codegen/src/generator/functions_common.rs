@@ -288,7 +288,7 @@ pub fn make_function_definition(
                 sig.params().iter(),
                 !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
                 false,               // or arg.as_object_arg() calls.
-                true,                // but we do need RefArg.
+                false,                // but we do need RefArg.
                 false,
             );
 
