@@ -205,8 +205,8 @@ impl Callable {
 
     /// Returns the object on which this callable is called.
     ///
-    /// Returns `None` when this callable doesn't have any target object to call a method on, regardless of
-    /// if the method exists for that target or not.
+    /// Returns `None` when this callable doesn't have any target object to call a method on (regardless of whether the method exists for that
+    /// target or not). Also returns `None` if the object is dead. You can differentiate these two cases using [`object_id()`][Self::object_id].
     ///
     /// _Godot equivalent: `get_object`_
     pub fn object(&self) -> Option<Gd<Object>> {
@@ -221,6 +221,8 @@ impl Callable {
     /// Returns the ID of this callable's object, see also [`Gd::instance_id`].
     ///
     /// Returns `None` when this callable doesn't have any target to call a method on.
+    ///
+    /// If the pointed-to object is dead, the ID will still be returned. Use [`object()`][Self::object] to check for liveness.
     ///
     /// _Godot equivalent: `get_object_id`_
     pub fn object_id(&self) -> Option<InstanceId> {
