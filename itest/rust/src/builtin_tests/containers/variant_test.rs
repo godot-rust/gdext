@@ -186,6 +186,27 @@ fn variant_get_type() {
     assert_eq!(variant.get_type(), VariantType::BASIS)
 }
 
+#[cfg(since_api = "4.4")]
+#[itest]
+fn variant_object_id() {
+    let variant = Variant::nil();
+    assert_eq!(variant.object_id(), None);
+
+    let variant = Variant::from(77);
+    assert_eq!(variant.object_id(), None);
+
+    let node = Node::new_alloc();
+    let id = node.instance_id();
+
+    let variant = node.to_variant();
+    assert_eq!(variant.object_id(), Some(id));
+
+    node.free();
+
+    // When freed, variant still returns the object ID.
+    assert_eq!(variant.object_id(), Some(id));
+}
+
 #[itest]
 fn variant_equal() {
     assert_eq!(Variant::nil(), ().to_variant());
