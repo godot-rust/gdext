@@ -49,7 +49,7 @@ To consult the API reference, have a look at the online [API Docs].
 Furthermore, we provide a small example game in the [`examples/dodge-the-creeps` directory][dodge-the-creeps].  
 The example [`examples/hot-reload`][hot-reload] demonstrates hot-reloading in the Godot editor.
 
-If you need help, join our [Discord] server and ask in the `#help-gdext` channel!
+If you need help, join our [Discord] server and ask in the `#help` channel!
 
 
 ## License
