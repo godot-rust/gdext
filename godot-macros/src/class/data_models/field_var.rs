@@ -202,7 +202,7 @@ impl GetterSetterImpl {
                 // Ideally, we'd be able to place #[cfg_attr] on #[var(get)] and #[var(set)] to be able to match a
                 // #[cfg()] (for instance) placed on the getter/setter function, but that is not currently supported.
                 external_attributes: Vec::new(),
-                rename: None,
+                registered_name: None,
                 is_script_virtual: false,
                 rpc_info: None,
             },
