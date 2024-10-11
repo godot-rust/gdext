@@ -196,8 +196,8 @@ fn process_godot_fns(
 
                 // For virtual methods, rename/mangle existing user method and create a new method with the original name,
                 // which performs a dynamic dispatch.
-                if func.is_virtual {
-                    add_virtual_script_call(
+                let registered_name = if func.is_virtual {
+                    let registered_name = add_virtual_script_call(
                         &mut virtual_functions,
                         function,
                         &signature_info,
@@ -205,12 +205,16 @@ fn process_godot_fns(
                         &func.rename,
                         gd_self_parameter,
                     );
+
+                    Some(registered_name)
+                } else {
+                    func.rename
                 };
 
                 func_definitions.push(FuncDefinition {
                     signature_info,
                     external_attributes,
-                    registered_name: func.rename,
+                    registered_name,
                     is_script_virtual: func.is_virtual,
                     rpc_info,
                 });
@@ -295,7 +299,7 @@ fn add_virtual_script_call(
     class_name: &Ident,
     rename: &Option<String>,
     gd_self_parameter: Option<Ident>,
-) {
+) -> String {
     assert!(cfg!(since_api = "4.3"));
 
     // Update parameter names, so they can be forwarded (e.g. a "_" declared by the user cannot).
@@ -363,6 +367,8 @@ fn add_virtual_script_call(
 
     std::mem::swap(&mut function.body, &mut early_bound_function.body);
     virtual_functions.push(early_bound_function);
+
+    method_name_str
 }
 
 fn extract_attributes<T>(item: &mut T) -> ParseResult<Option<ItemAttr>>
