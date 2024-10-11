@@ -6,7 +6,7 @@
  */
 
 use crate::generator::functions_common;
-use crate::generator::functions_common::{FnCode, FnParamTokens};
+use crate::generator::functions_common::{FnCode, FnParamPassing, FnParamTokens};
 use crate::models::domain::{ArgPassing, FnParam, FnQualifier, Function, RustTy, TyName};
 use crate::util::{ident, safe_ident};
 use crate::{conv, special_cases};
@@ -59,11 +59,9 @@ pub fn make_function_definition_with_defaults(
         ..
     } = functions_common::make_params_exprs(
         required_fn_params.iter().cloned(),
-        true,
-        true,
-        false,
-        true,
+        FnParamPassing::ExBuilderConstructor,
     );
+
     let required_params_builder_constructor = &required_params_class_methods;
 
     // Forwarded args by some_function() and some_function_ex().
@@ -72,10 +70,7 @@ pub fn make_function_definition_with_defaults(
         ..
     } = functions_common::make_params_exprs(
         required_fn_params.into_iter(),
-        false,
-        false,
-        false,
-        false,
+        FnParamPassing::DefaultSimpleOrEx,
     );
 
     let return_decl = &sig.return_value().decl;

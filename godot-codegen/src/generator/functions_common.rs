@@ -182,13 +182,13 @@ pub fn make_function_definition(
         make_params_exprs_virtual(sig.params().iter(), sig)
     } else {
         // primary_function() if not default-params, or full_function() otherwise.
-        make_params_exprs(
-            sig.params().iter(),
-            !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
-            !has_default_params, // or arg.as_object_arg() calls.
-            true,                // but we do need RefArg.
-            false,
-        )
+        let passing = if has_default_params {
+            FnParamPassing::DefaultFull
+        } else {
+            FnParamPassing::Regular
+        };
+
+        make_params_exprs(sig.params().iter(), passing)
     };
 
     let rust_function_name_str = sig.name();
@@ -284,13 +284,7 @@ pub fn make_function_definition(
             let FnParamTokens {
                 arg_names: arg_names_without_asarg,
                 ..
-            } = make_params_exprs(
-                sig.params().iter(),
-                !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
-                false,               // or arg.as_object_arg() calls.
-                false,               // but we do need RefArg.
-                false,
-            );
+            } = make_params_exprs(sig.params().iter(), FnParamPassing::DelegateTry);
 
             quote! {
                 /// # Panics
@@ -393,13 +387,27 @@ pub fn make_vis(is_private: bool) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
+pub(crate) enum FnParamPassing {
+    /// Most methods.
+    Regular,
+
+    /// For default args, the private `some_func_full()` variant.
+    DefaultFull,
+
+    /// `some_func()` and `some_func_ex()` forwarding their arguments to `some_func_full()`.
+    DefaultSimpleOrEx,
+
+    /// `call()` forwarding to `try_call()`.
+    DelegateTry,
+
+    /// Default extender `new()` function.
+    ExBuilderConstructor,
+}
+
 /// For non-virtual functions, returns the parameter declarations, type tokens, and names.
 pub(crate) fn make_params_exprs<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
-    param_is_impl_asarg: bool,
-    arg_is_asarg: bool,
-    arg_is_ref_arg: bool,
-    explicit_lifetimes: bool,
+    passing: FnParamPassing,
 ) -> FnParamTokens {
     let mut ret = FnParamTokens::default();
 
