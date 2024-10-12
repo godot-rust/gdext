@@ -145,7 +145,7 @@ fn make_rpc_registration(func_def: &FuncDefinition) -> Option<TokenStream> {
         }
     };
 
-    let method_name_str = if let Some(rename) = &func_def.rename {
+    let method_name_str = if let Some(rename) = &func_def.registered_name {
         rename.to_string()
     } else {
         func_def.signature_info.method_name.to_string()

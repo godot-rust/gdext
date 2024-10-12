@@ -9,7 +9,7 @@ use crate::class::{
     make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
     SignatureInfo, TransferMode,
 };
-use crate::util::{bail, ident, require_api_version, KvParser};
+use crate::util::{bail, c_str, ident, require_api_version, KvParser};
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
@@ -89,7 +89,7 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
     let method_registrations: Vec<TokenStream> = funcs
         .into_iter()
         .map(|func_def| make_method_registration(&class_name, func_def))
-        .collect::<ParseResult<Vec<TokenStream>>>()?; // <- FIXME transpose this
+        .collect::<ParseResult<Vec<TokenStream>>>()?;
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
@@ -196,8 +196,8 @@ fn process_godot_fns(
 
                 // For virtual methods, rename/mangle existing user method and create a new method with the original name,
                 // which performs a dynamic dispatch.
-                if func.is_virtual {
-                    add_virtual_script_call(
+                let registered_name = if func.is_virtual {
+                    let registered_name = add_virtual_script_call(
                         &mut virtual_functions,
                         function,
                         &signature_info,
@@ -205,12 +205,16 @@ fn process_godot_fns(
                         &func.rename,
                         gd_self_parameter,
                     );
+
+                    Some(registered_name)
+                } else {
+                    func.rename
                 };
 
                 func_definitions.push(FuncDefinition {
                     signature_info,
                     external_attributes,
-                    rename: func.rename,
+                    registered_name,
                     is_script_virtual: func.is_virtual,
                     rpc_info,
                 });
@@ -295,7 +299,7 @@ fn add_virtual_script_call(
     class_name: &Ident,
     rename: &Option<String>,
     gd_self_parameter: Option<Ident>,
-) {
+) -> String {
     assert!(cfg!(since_api = "4.3"));
 
     // Update parameter names, so they can be forwarded (e.g. a "_" declared by the user cannot).
@@ -311,9 +315,12 @@ fn add_virtual_script_call(
 
     let class_name_str = class_name.to_string();
     let early_bound_name = format_ident!("__earlybound_{}", &function.name);
-    let method_name_str = rename
-        .clone()
-        .unwrap_or_else(|| format!("_{}", function.name));
+
+    let method_name_str = match rename {
+        Some(rename) => rename.clone(),
+        None => format!("_{}", function.name),
+    };
+    let method_name_cstr = c_str(&method_name_str);
 
     let sig_tuple = signature_info.tuple_type();
     let arg_names = &signature_info.param_idents;
@@ -329,7 +336,7 @@ fn add_virtual_script_call(
 
     let code = quote! {
         let object_ptr = #object_ptr;
-        let method_sname = ::godot::builtin::StringName::from(#method_name_str);
+        let method_sname = ::godot::builtin::StringName::from(#method_name_cstr);
         let method_sname_ptr = method_sname.string_sys();
         let has_virtual_override = unsafe { ::godot::private::has_virtual_script_method(object_ptr, method_sname_ptr) };
 
@@ -360,6 +367,8 @@ fn add_virtual_script_call(
 
     std::mem::swap(&mut function.body, &mut early_bound_function.body);
     virtual_functions.push(early_bound_function);
+
+    method_name_str
 }
 
 fn extract_attributes<T>(item: &mut T) -> ParseResult<Option<ItemAttr>>
@@ -377,7 +386,7 @@ where
         index += 1;
 
         let Some(attr_name) = attr.get_single_path_segment() else {
-            // Attribute of the form #[segmented::path] can't be what we are looking for
+            // Attribute of the form #[segmented::path] can't be what we are looking for.
             continue;
         };
 
@@ -412,7 +421,7 @@ where
 
             // #[rpc]
             name if name == "rpc" => {
-                // Safe unwrap since #[rpc] must be present if we got to this point
+                // Safe unwrap, since #[rpc] must be present if we got to this point.
                 let mut parser = KvParser::parse(attributes, "rpc")?.unwrap();
 
                 let rpc_mode = handle_mutually_exclusive_keys(
@@ -445,9 +454,14 @@ where
                 let rpc_attr = match (config_expr, (&rpc_mode, &transfer_mode, &call_local, &channel)) {
 		            // Ok: Only `config = [expr]` is present.
 		            (Some(expr), (None, None, None, None)) => RpcAttr::Expression(expr),
+
 		            // Err: `config = [expr]` is present along other parameters, which is not allowed.
-		            (Some(_), _) => return bail!(&*item, "`#[rpc(config = ...)]` is mutually exclusive with any other parameters(`any_peer`, `reliable`, `call_local`, `channel = 0`)"),
-		            // Ok: `config` is not present, any combination of the other parameters is allowed..
+		            (Some(_), _) => return bail!(
+                        &*item,
+                        "`#[rpc(config = ...)]` is mutually exclusive with any other parameters(`any_peer`, `reliable`, `call_local`, `channel = 0`)"
+                    ),
+
+		            // Ok: `config` is not present, any combination of the other parameters is allowed.
 		            _ => RpcAttr::SeparatedArgs {
 			            rpc_mode,
 			            transfer_mode,
@@ -476,19 +490,21 @@ where
 
         let attr_name = attr_name.clone();
 
-        // Remaining code no longer has attribute -- rest stays
-        attributes.remove(index - 1); // -1 because we bumped the index at the beginning of the loop
+        // Remaining code no longer has attribute -- rest stays.
+        attributes.remove(index - 1); // -1 because we bumped the index at the beginning of the loop.
         index -= 1;
 
         let (new_name, new_attr) = match (found, parsed_attr) {
-            // First attribute
+            // First attribute.
             (None, parsed) => (attr_name, parsed),
+
             // Regardless of the order, if we found both `#[func]` and `#[rpc]`, we can just merge them.
             (Some((found_name, AttrParseResult::Func(func))), AttrParseResult::Rpc(rpc))
             | (Some((found_name, AttrParseResult::Rpc(rpc))), AttrParseResult::Func(func)) => (
                 ident(&format!("{found_name}_{attr_name}")),
                 AttrParseResult::FuncRpc(func, rpc),
             ),
+
             // We found two incompatible attributes.
             (Some((found_name, _)), _) => {
                 return bail!(&*item, "The attributes `{found_name}` and `{attr_name}` cannot be used in the same declaration")?;
