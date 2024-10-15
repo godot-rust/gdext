@@ -5,15 +5,32 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::{HashMap, HashSet};
 
 use crate::util::{KvParser, ListParser};
 use crate::ParseResult;
 
+pub struct FieldExport {
+    pub export_type: ExportType,
+    pub span: Span,
+}
+
+impl FieldExport {
+    pub(crate) fn new_from_kv(parser: &mut KvParser) -> ParseResult<Self> {
+        let span = parser.span();
+        let export_type = ExportType::new_from_kv(parser)?;
+        Ok(Self { export_type, span })
+    }
+
+    pub fn to_export_hint(&self) -> Option<TokenStream> {
+        self.export_type.to_export_hint()
+    }
+}
+
 /// Store info from `#[export]` attribute.
-pub enum FieldExport {
+pub enum ExportType {
     /// ### GDScript annotations
     /// - `@export`
     ///
@@ -121,7 +138,7 @@ pub enum FieldExport {
     ColorNoAlpha,
 }
 
-impl FieldExport {
+impl ExportType {
     /// Parse an `#[export(...)]` attribute.
     ///
     /// The translation from GDScript annotations to rust attributes is given by:
@@ -253,10 +270,10 @@ impl FieldExport {
             return Ok(Self::ColorNoAlpha);
         }
 
-        Ok(FieldExport::Default)
+        Ok(Self::Default)
     }
 
-    fn new_range_list(mut parser: ListParser) -> ParseResult<FieldExport> {
+    fn new_range_list(mut parser: ListParser) -> ParseResult<Self> {
         const FLAG_OPTIONS: [&str; 7] = [
             "or_greater",
             "or_less",
@@ -299,7 +316,7 @@ impl FieldExport {
 
         parser.finish()?;
 
-        Ok(FieldExport::Range {
+        Ok(Self::Range {
             min,
             max,
             step,
@@ -374,12 +391,12 @@ macro_rules! quote_export_func {
     }
 }
 
-impl FieldExport {
+impl ExportType {
     pub fn to_export_hint(&self) -> Option<TokenStream> {
         match self {
-            FieldExport::Default => None,
+            Self::Default => None,
 
-            FieldExport::Range {
+            Self::Range {
                 min,
                 max,
                 step,
@@ -416,7 +433,7 @@ impl FieldExport {
                 })
             }
 
-            FieldExport::Enum { variants } => {
+            Self::Enum { variants } => {
                 let variants = variants.iter().map(ValueWithKey::to_tuple_expression);
 
                 quote_export_func! {
@@ -424,14 +441,14 @@ impl FieldExport {
                 }
             }
 
-            FieldExport::ExpEasing {
+            Self::ExpEasing {
                 attenuation,
                 positive_only,
             } => quote_export_func! {
                     export_exp_easing(#attenuation, #positive_only)
             },
 
-            FieldExport::Flags { bits } => {
+            Self::Flags { bits } => {
                 let bits = bits.iter().map(ValueWithKey::to_tuple_expression);
 
                 quote_export_func! {
@@ -439,47 +456,47 @@ impl FieldExport {
                 }
             }
 
-            FieldExport::Layers {
+            Self::Layers {
                 dimension: LayerDimension::_2d,
                 kind: LayerKind::Physics,
             } => quote_export_func! { export_flags_2d_physics() },
 
-            FieldExport::Layers {
+            Self::Layers {
                 dimension: LayerDimension::_2d,
                 kind: LayerKind::Render,
             } => quote_export_func! { export_flags_2d_render() },
 
-            FieldExport::Layers {
+            Self::Layers {
                 dimension: LayerDimension::_2d,
                 kind: LayerKind::Navigation,
             } => quote_export_func! { export_flags_2d_navigation() },
 
-            FieldExport::Layers {
+            Self::Layers {
                 dimension: LayerDimension::_3d,
                 kind: LayerKind::Physics,
             } => quote_export_func! { export_flags_3d_physics() },
 
-            FieldExport::Layers {
+            Self::Layers {
                 dimension: LayerDimension::_3d,
                 kind: LayerKind::Render,
             } => quote_export_func! { export_flags_3d_render() },
 
-            FieldExport::Layers {
+            Self::Layers {
                 dimension: LayerDimension::_3d,
                 kind: LayerKind::Navigation,
             } => quote_export_func! { export_flags_3d_navigation() },
 
-            FieldExport::File {
+            Self::File {
                 global: false,
                 kind: FileKind::Dir,
             } => quote_export_func! { export_dir() },
 
-            FieldExport::File {
+            Self::File {
                 global: true,
                 kind: FileKind::Dir,
             } => quote_export_func! { export_global_dir() },
 
-            FieldExport::File {
+            Self::File {
                 global,
                 kind: FileKind::File { filter },
             } => {
@@ -488,12 +505,12 @@ impl FieldExport {
                 quote_export_func! { export_file_inner(#global, #filter) }
             }
 
-            FieldExport::Multiline => quote_export_func! { export_multiline() },
+            Self::Multiline => quote_export_func! { export_multiline() },
 
-            FieldExport::PlaceholderText { placeholder } => quote_export_func! {
+            Self::PlaceholderText { placeholder } => quote_export_func! {
                 export_placeholder(#placeholder)
             },
-            FieldExport::ColorNoAlpha => quote_export_func! { export_color_no_alpha() },
+            Self::ColorNoAlpha => quote_export_func! { export_color_no_alpha() },
         }
     }
 }
