@@ -6,13 +6,13 @@
  */
 
 use proc_macro2::{Ident, Punct, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 
 use crate::class::{
-    make_property_impl, make_virtual_callback, BeforeKind, Field, FieldExport, FieldVar, Fields,
-    SignatureInfo,
+    make_property_impl, make_virtual_callback, BeforeKind, Field, FieldDefault, FieldExport,
+    FieldVar, Fields, SignatureInfo,
 };
-use crate::util::{bail, ident, path_ends_with_complex, require_api_version, KvParser};
+use crate::util::{bail, error, ident, path_ends_with_complex, require_api_version, KvParser};
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
@@ -27,6 +27,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
     let mut deprecations = std::mem::take(&mut struct_cfg.deprecations);
     deprecations.append(&mut fields.deprecations);
+
+    let errors = fields.errors.iter().map(|error| error.to_compile_error());
 
     let class_name = &class.name;
     let class_name_str: String = struct_cfg
@@ -62,8 +64,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let godot_exports_impl = make_property_impl(class_name, &fields);
 
     let godot_withbase_impl = if let Some(Field { name, .. }) = &fields.base_field {
-        quote! {
-            impl ::godot::obj::WithBaseField for #class_name {
+        let implementation = if fields.well_formed_base {
+            quote! {
                 fn to_gd(&self) -> ::godot::obj::Gd<Self> {
                     self.#name.to_gd().cast()
                 }
@@ -71,6 +73,22 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                 fn base_field(&self) -> &::godot::obj::Base<<Self as ::godot::obj::GodotClass>::Base> {
                     &self.#name
                 }
+            }
+        } else {
+            quote! {
+                fn to_gd(&self) -> ::godot::obj::Gd<Self> {
+                    todo!()
+                }
+
+                fn base_field(&self) -> &::godot::obj::Base<<Self as ::godot::obj::GodotClass>::Base> {
+                    todo!()
+                }
+            }
+        };
+
+        quote! {
+            impl ::godot::obj::WithBaseField for #class_name {
+                #implementation
             }
         }
     } else {
@@ -148,6 +166,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #user_class_impl
         #init_expecter
         #( #deprecations )*
+        #( #errors )*
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
@@ -223,7 +242,13 @@ impl ClassAttributes {
 
 fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let base_init = if let Some(Field { name, .. }) = &fields.base_field {
-        quote! { #name: base, }
+        let base = if fields.well_formed_base {
+            quote! { base }
+        } else {
+            quote! { ::std::todo!("The base field is currently broken") }
+        };
+
+        quote! { #name: #base, }
     } else {
         TokenStream::new()
     };
@@ -233,14 +258,18 @@ fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let value_expr = field
             .default_val
             .clone()
-            .unwrap_or_else(|| quote! { ::std::default::Default::default() });
+            .map(|field| field.default_val)
+            // Use quote_spanned with the field's span so that errors show up on the field and not the derive macro.
+            .unwrap_or_else(|| quote_spanned! { field.span=> ::std::default::Default::default() });
 
-        quote! { #field_name: #value_expr, }
+        quote! {#field_name: #value_expr, }
     });
 
     quote! {
         impl ::godot::obj::cap::GodotDefault for #class_name {
             fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
+                // If the base field is broken then we may get unreachable code due to the `todo`.
+                #[allow(unreachable_code)]
                 Self {
                     #( #rest_init )*
                     #base_init
@@ -357,7 +386,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 
         // Deprecated #[class(editor_plugin)]
         if let Some(_attr_key) = parser.handle_alone_with_span("editor_plugin")? {
-            deprecations.push(quote! {
+            deprecations.push(quote_spanned! { _attr_key.span()=>
                 ::godot::__deprecated::emit_deprecated_warning!(class_editor_plugin);
             });
         }
@@ -373,11 +402,11 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         }
 
         // Deprecated #[class(hidden)]
-        if let Some(span) = parser.handle_alone_with_span("hidden")? {
-            require_api_version!("4.2", span, "#[class(hidden)]")?;
+        if let Some(ident) = parser.handle_alone_with_span("hidden")? {
+            require_api_version!("4.2", &ident, "#[class(hidden)]")?;
             is_internal = true;
 
-            deprecations.push(quote! {
+            deprecations.push(quote_spanned! { ident.span()=>
                 ::godot::__deprecated::emit_deprecated_warning!(class_hidden);
             });
         }
@@ -421,6 +450,9 @@ fn parse_fields(
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
     let mut deprecations = vec![];
+    let mut errors = vec![];
+    // Base field is either absent or exists and has no errors.
+    let mut well_formed_base = true;
 
     // Attributes on struct fields
     for (named_field, _punct) in named_fields {
@@ -449,7 +481,10 @@ fn parse_fields(
 
             // #[init(val = expr)]
             if let Some(default) = parser.handle_expr("val")? {
-                field.default_val = Some(default);
+                field.default_val = Some(FieldDefault {
+                    default_val: default,
+                    span: parser.span(),
+                });
             }
 
             // Deprecated #[init(default = expr)]
@@ -460,36 +495,49 @@ fn parse_fields(
                         "Cannot use both `val` and `default` keys in #[init]; prefer using `val`"
                     );
                 }
-                field.default_val = Some(default);
-                deprecations.push(quote! {
+                field.default_val = Some(FieldDefault {
+                    default_val: default,
+                    span: parser.span(),
+                });
+                deprecations.push(quote_spanned! { parser.span()=>
                     ::godot::__deprecated::emit_deprecated_warning!(init_default);
                 })
             }
 
             // #[init(node = "NodePath")]
             if let Some(node_path) = parser.handle_expr("node")? {
+                let mut is_well_formed = true;
                 if !field.is_onready {
-                    return bail!(
+                    is_well_formed = false;
+                    errors.push(error!(
                         parser.span(),
                         "The key `node` in attribute #[init] requires field of type `OnReady<T>`\n\
 				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
 				         #[init(val = OnReady::node(\"NodePath\"))], \
 				         which can only be assigned to fields of type `OnReady<T>`"
-                    );
+                    ));
                 }
 
                 if field.default_val.is_some() {
-                    return bail!(
+                    is_well_formed = false;
+                    errors.push(error!(
 				        parser.span(),
 				        "The key `node` in attribute #[init] is mutually exclusive with the key `default`\n\
 				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
 				         #[init(val = OnReady::node(\"NodePath\"))], \
 				         both aren't allowed since they would override each other"
-			        );
+			        ));
                 }
 
-                field.default_val = Some(quote! {
-                    OnReady::node(#node_path)
+                let default_val = if is_well_formed {
+                    quote! { OnReady::node(#node_path) }
+                } else {
+                    quote! { todo!() }
+                };
+
+                field.default_val = Some(FieldDefault {
+                    default_val,
+                    span: parser.span(),
                 });
             }
 
@@ -524,25 +572,46 @@ fn parse_fields(
 
         // Extra validation; eventually assign to base_fields or all_fields.
         if is_base {
-            if field.is_onready
-                || field.var.is_some()
-                || field.export.is_some()
-                || field.default_val.is_some()
-            {
-                return bail!(
-                    named_field,
-                    "base field cannot have type `OnReady<T>` or attributes #[var], #[export] or #[init]"
-                );
+            if field.is_onready {
+                well_formed_base = false;
+                errors.push(error!(
+                    field.ty.clone(),
+                    "base field cannot have type `OnReady<T>`"
+                ));
+            }
+
+            if let Some(var) = field.var.as_ref() {
+                well_formed_base = false;
+                errors.push(error!(
+                    var.span,
+                    "base field cannot have the attribute #[var]"
+                ));
+            }
+
+            if let Some(export) = field.export.as_ref() {
+                well_formed_base = false;
+                errors.push(error!(
+                    export.span,
+                    "base field cannot have the attribute #[export]"
+                ));
+            }
+
+            if let Some(default_val) = field.default_val.as_ref() {
+                well_formed_base = false;
+                errors.push(error!(
+                    default_val.span,
+                    "base field cannot have the attribute #[init]"
+                ));
             }
 
             if let Some(prev_base) = base_field.replace(field) {
+                well_formed_base = false;
                 // Ensure at most one Base<T>.
-                return bail!(
+                errors.push(error!(
                     // base_field.unwrap().name,
                     named_field,
-                    "at most 1 field can have type Base<T>; previous is `{}`",
-                    prev_base.name
-                );
+                    "at most 1 field can have type Base<T>; previous is `{}`", prev_base.name
+                ));
             }
         } else {
             all_fields.push(field);
@@ -552,7 +621,9 @@ fn parse_fields(
     Ok(Fields {
         all_fields,
         base_field,
+        well_formed_base,
         deprecations,
+        errors,
     })
 }
 
