@@ -63,32 +63,20 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let prv = quote! { ::godot::private };
     let godot_exports_impl = make_property_impl(class_name, &fields);
 
-    let godot_withbase_impl = if let Some(Field { name, .. }) = &fields.base_field {
-        let implementation = if fields.well_formed_base {
-            quote! {
-                fn to_gd(&self) -> ::godot::obj::Gd<Self> {
-                    self.#name.to_gd().cast()
+    let godot_withbase_impl = if let Some(Field { name, ty, .. }) = &fields.base_field {
+        // Apply the span of the field's type so that errors show up on the field's type.
+        quote_spanned! { ty.span()=>
+            impl ::godot::obj::WithBaseField for #class_name {
+                fn to_gd(&self) -> ::godot::obj::Gd<#class_name> {
+                    // By not referencing the base field directly here we ensure that the user only gets one error when the base
+                    // field's type is wrong.
+                    let base = <#class_name as ::godot::obj::WithBaseField>::base_field(self);
+                    base.to_gd().cast()
                 }
 
-                fn base_field(&self) -> &::godot::obj::Base<<Self as ::godot::obj::GodotClass>::Base> {
+                fn base_field(&self) -> &::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base> {
                     &self.#name
                 }
-            }
-        } else {
-            quote! {
-                fn to_gd(&self) -> ::godot::obj::Gd<Self> {
-                    todo!()
-                }
-
-                fn base_field(&self) -> &::godot::obj::Base<<Self as ::godot::obj::GodotClass>::Base> {
-                    todo!()
-                }
-            }
-        };
-
-        quote! {
-            impl ::godot::obj::WithBaseField for #class_name {
-                #implementation
             }
         }
     } else {
@@ -241,14 +229,15 @@ impl ClassAttributes {
 }
 
 fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
-    let base_init = if let Some(Field { name, .. }) = &fields.base_field {
-        let base = if fields.well_formed_base {
-            quote! { base }
-        } else {
-            quote! { ::std::todo!("The base field is currently broken") }
+    let base_init = if let Some(Field { name, ty, .. }) = &fields.base_field {
+        let base_type =
+            quote_spanned! { ty.span()=> <#class_name as ::godot::obj::GodotClass>::Base };
+        let base_field_type = quote_spanned! { ty.span()=> ::godot::obj::Base<#base_type> };
+        let base = quote_spanned! { ty.span()=>
+            <#base_field_type as ::godot::obj::IsBase<#base_type, #ty>>::conv(base)
         };
 
-        quote! { #name: #base, }
+        quote_spanned! { ty.span()=> #name: #base, }
     } else {
         TokenStream::new()
     };
@@ -267,9 +256,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
 
     quote! {
         impl ::godot::obj::cap::GodotDefault for #class_name {
-            fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
-                // If the base field is broken then we may get unreachable code due to the `todo`.
-                #[allow(unreachable_code)]
+            fn __godot_user_init(base: ::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base>) -> Self {
                 Self {
                     #( #rest_init )*
                     #base_init
@@ -451,8 +438,6 @@ fn parse_fields(
     let mut base_field = Option::<Field>::None;
     let mut deprecations = vec![];
     let mut errors = vec![];
-    // Base field is either absent or exists and has no errors.
-    let mut well_formed_base = true;
 
     // Attributes on struct fields
     for (named_field, _punct) in named_fields {
@@ -573,7 +558,6 @@ fn parse_fields(
         // Extra validation; eventually assign to base_fields or all_fields.
         if is_base {
             if field.is_onready {
-                well_formed_base = false;
                 errors.push(error!(
                     field.ty.clone(),
                     "base field cannot have type `OnReady<T>`"
@@ -581,7 +565,6 @@ fn parse_fields(
             }
 
             if let Some(var) = field.var.as_ref() {
-                well_formed_base = false;
                 errors.push(error!(
                     var.span,
                     "base field cannot have the attribute #[var]"
@@ -589,7 +572,6 @@ fn parse_fields(
             }
 
             if let Some(export) = field.export.as_ref() {
-                well_formed_base = false;
                 errors.push(error!(
                     export.span,
                     "base field cannot have the attribute #[export]"
@@ -597,7 +579,6 @@ fn parse_fields(
             }
 
             if let Some(default_val) = field.default_val.as_ref() {
-                well_formed_base = false;
                 errors.push(error!(
                     default_val.span,
                     "base field cannot have the attribute #[init]"
@@ -605,7 +586,6 @@ fn parse_fields(
             }
 
             if let Some(prev_base) = base_field.replace(field) {
-                well_formed_base = false;
                 // Ensure at most one Base<T>.
                 errors.push(error!(
                     // base_field.unwrap().name,
@@ -621,7 +601,6 @@ fn parse_fields(
     Ok(Fields {
         all_fields,
         base_field,
-        well_formed_base,
         deprecations,
         errors,
     })

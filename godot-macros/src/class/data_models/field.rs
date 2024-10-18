@@ -8,7 +8,6 @@
 use crate::class::{FieldExport, FieldVar};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use venial::Error;
 
 pub struct Field {
     pub name: Ident,
@@ -45,16 +44,11 @@ pub struct Fields {
     /// The field with type `Base<T>`, if available.
     pub base_field: Option<Field>,
 
-    /// The base field is either absent or is correctly formatted.
-    ///
-    /// When this is false, there will always be a compile error ensuring the program fails to compile.
-    pub well_formed_base: bool,
-
     /// Deprecation warnings.
     pub deprecations: Vec<TokenStream>,
 
     /// Errors during macro evaluation that shouldn't abort the execution of the macro.
-    pub errors: Vec<Error>,
+    pub errors: Vec<venial::Error>,
 }
 
 #[derive(Clone)]
