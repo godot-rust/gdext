@@ -148,12 +148,20 @@ fn dynamic_call_with_panic() {
 
     assert_eq!(call_error.class_name(), Some("Object"));
     assert_eq!(call_error.method_name(), "call");
-    assert_eq!(
-        call_error.to_string(),
+
+    #[cfg(target_os = "windows")]
+    let path = "itest\\rust\\src\\object_tests\\object_test.rs";
+    #[cfg(not(target_os = "windows"))]
+    let path = "itest/rust/src/object_tests/object_test.rs";
+
+    let expected_error_message = format!(
         "godot-rust function call failed: Object::call(&\"do_panic\")\
         \n  Source: ObjPayload::do_panic()\
-        \n    Reason: [panic]  do_panic exploded"
+        \n    Reason: [panic]  do_panic exploded\
+        \n  at {path}:893"
     );
+
+    assert_eq!(call_error.to_string(), expected_error_message);
 
     obj.free();
 }
