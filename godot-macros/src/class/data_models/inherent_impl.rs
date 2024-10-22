@@ -99,13 +99,13 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
     let trait_definition = quote! {
         /// Auto-implemented for `#[godot_api] impl MyClass` blocks
         #[doc(hidden)]
-        pub trait #trait_name: GodotClass {
+        pub trait #trait_name: ::godot::obj::GodotClass {
             #[doc(hidden)]
             fn __register_methods();
             #[doc(hidden)]
             fn __register_constants();
             #[doc(hidden)]
-            fn __register_rpcs(_: &mut dyn Any) {}
+            fn __register_rpcs(_: &mut dyn std::any::Any) {}
         }
     };
 
@@ -113,7 +113,7 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
     let register_user_rpcs_fn_name = format_ident!("register_user_rpcs{suffix}");
 
     let helper_definitions = quote! {
-        pub fn #register_user_methods_constants_fn_name<T: #trait_name>(_class_builder: &mut dyn Any) {
+        pub fn #register_user_methods_constants_fn_name<T: #trait_name>(_class_builder: &mut dyn std::any::Any) {
             // let class_builder = class_builder
             //     .downcast_mut::<ClassBuilder<T>>()
             //     .expect("bad type erasure");
@@ -123,7 +123,7 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
             T::__register_constants();
         }
         
-        pub fn #register_user_rpcs_fn_name<T: #trait_name>(object: &mut dyn Any) {
+        pub fn #register_user_rpcs_fn_name<T: #trait_name>(object: &mut dyn std::any::Any) {
             T::__register_rpcs(object);
         }
         
