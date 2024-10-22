@@ -93,10 +93,50 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
+    let suffix = &rand::random::<u32>().to_string();
+    let trait_name = format!("ImplementsGodotApi_{suffix}");
+
+    let trait_definition = quote! {
+        /// Auto-implemented for `#[godot_api] impl MyClass` blocks
+        #[doc(hidden)]
+        pub trait #trait_name: GodotClass {
+            #[doc(hidden)]
+            fn __register_methods();
+            #[doc(hidden)]
+            fn __register_constants();
+            #[doc(hidden)]
+            fn __register_rpcs(_: &mut dyn Any) {}
+        }
+    };
+
+    let register_user_methods_constants_fn_name = format!("register_user_methods_constants_{suffix}");
+    let register_user_rpcs_fn_name = format!("register_user_rpcs{suffix}");
+
+    let helper_definitions = quote! {
+        pub fn #register_user_methods_constants_fn_name<T: #trait_name>(_class_builder: &mut dyn Any) {
+            // let class_builder = class_builder
+            //     .downcast_mut::<ClassBuilder<T>>()
+            //     .expect("bad type erasure");
+        
+            //T::register_methods(class_builder);
+            T::__register_methods();
+            T::__register_constants();
+        }
+        
+        pub fn #register_user_rpcs_fn_name<T: #trait_name>>(object: &mut dyn Any) {
+            T::__register_rpcs(object);
+        }
+        
+    };
+
     let result = quote! {
         #impl_block
 
-        impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
+        #trait_definition
+
+        #helper_definitions
+
+        impl trait_name for #class_name {
             fn __register_methods() {
                 #( #method_registrations )*
                 #( #signal_registrations )*
@@ -113,10 +153,10 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
             class_name: #class_name_obj,
             item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
                 register_methods_constants_fn: #prv::ErasedRegisterFn {
-                    raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
+                    raw: #register_user_rpcs_fn_name::<#class_name>,
                 },
                 register_rpcs_fn: Some(#prv::ErasedRegisterRpcsFn {
-                    raw: #prv::callbacks::register_user_rpcs::<#class_name>,
+                    raw: #register_user_rpcs_fn_name::<#class_name>,
                 }),
                 #docs
             }),
