@@ -123,7 +123,7 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
             T::__register_constants();
         }
         
-        pub fn #register_user_rpcs_fn_name<T: #trait_name>>(object: &mut dyn Any) {
+        pub fn #register_user_rpcs_fn_name<T: #trait_name>(object: &mut dyn Any) {
             T::__register_rpcs(object);
         }
         
@@ -136,7 +136,7 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
 
         #helper_definitions
 
-        impl trait_name for #class_name {
+        impl #trait_name for #class_name {
             fn __register_methods() {
                 #( #method_registrations )*
                 #( #signal_registrations )*
