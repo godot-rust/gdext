@@ -94,7 +94,7 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
     let suffix = &rand::random::<u32>().to_string();
-    let trait_name = format!("ImplementsGodotApi_{suffix}");
+    let trait_name = format_ident!("ImplementsGodotApi_{suffix}");
 
     let trait_definition = quote! {
         /// Auto-implemented for `#[godot_api] impl MyClass` blocks
@@ -109,8 +109,8 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
         }
     };
 
-    let register_user_methods_constants_fn_name = format!("register_user_methods_constants_{suffix}");
-    let register_user_rpcs_fn_name = format!("register_user_rpcs{suffix}");
+    let register_user_methods_constants_fn_name = format_ident!("register_user_methods_constants_{suffix}");
+    let register_user_rpcs_fn_name = format_ident!("register_user_rpcs{suffix}");
 
     let helper_definitions = quote! {
         pub fn #register_user_methods_constants_fn_name<T: #trait_name>(_class_builder: &mut dyn Any) {
