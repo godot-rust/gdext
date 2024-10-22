@@ -21,7 +21,6 @@ mod util;
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
 
 use crate::util::{bail, ident, KvParser};
 
@@ -520,6 +519,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///   - [Virtual methods](#virtual-methods)
 ///   - [RPC attributes](#rpc-attributes)
 /// - [Constants and signals](#signals)
+/// - [Multiple inherent `impl` blocks](#multiple-inherent-impl-blocks)
 ///
 /// # Constructors
 ///
@@ -749,9 +749,35 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// # Constants and signals
 ///
 /// Please refer to [the book](https://godot-rust.github.io/book/register/constants.html).
+///
+/// # Multiple inherent `impl` blocks
+///
+/// Just like with regular structs, you can have multiple inherent `impl` blocks. This can be useful for code organization or when you want to generate code from a proc-macro.
+/// For implementation reasons, all but one `impl` blocks must have the key `secondary`. There is no difference between implementing all functions in one block or splitting them up between multiple blocks.
+/// ```no_run
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(init)]
+/// # struct MyStruct {
+/// #     base: Base<RefCounted>,
+/// # }
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     pub fn one(&self) { }
+/// }
+///
+/// #[godot_api(secondary)]
+/// impl MyStruct {
+///     #[func]
+///     pub fn two(&self) { }
+/// }
+/// ```
 #[proc_macro_attribute]
-pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
-    translate(input, class::attribute_godot_api)
+pub fn godot_api(meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate(input, |body| {
+        class::attribute_godot_api(TokenStream2::from(meta), body)
+    })
 }
 
 /// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs.
@@ -961,13 +987,7 @@ where
     let input2 = TokenStream2::from(input);
     let meta2 = TokenStream2::from(meta);
 
-    // Hack because venial doesn't support direct meta parsing yet
-    let input = quote! {
-        #[#self_name(#meta2)]
-        #input2
-    };
-
-    let result2 = venial::parse_item(input)
+    let result2 = util::venial_parse_meta(&meta2, self_name, &input2)
         .and_then(transform)
         .unwrap_or_else(|e| e.to_compile_error());
 

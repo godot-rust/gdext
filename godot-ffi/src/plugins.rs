@@ -33,7 +33,7 @@ macro_rules! plugin_registry {
 #[cfg_attr(rustfmt, rustfmt::skip)]
 // ^ skip: paste's [< >] syntax chokes fmt
 //   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
-macro_rules! plugin_add_inner_wasm {
+macro_rules! plugin_execute_pre_main_wasm {
     ($gensym:ident,) => {
         // Rust presently requires that statics with a custom `#[link_section]` must be a simple
         // list of bytes on the wasm target (with no extra levels of indirection such as references).
@@ -49,14 +49,15 @@ macro_rules! plugin_add_inner_wasm {
     };
 }
 
+/// Executes a block of code before main, by utilising platform specific linker instructions.
 #[doc(hidden)]
 #[macro_export]
 #[allow(clippy::deprecated_cfg_attr)]
 #[cfg_attr(rustfmt, rustfmt::skip)]
 // ^ skip: paste's [< >] syntax chokes fmt
 //   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
-macro_rules! plugin_add_inner {
-    ($registry:ident; $plugin:expr; $( $path_tt:tt )* ) => {
+macro_rules! plugin_execute_pre_main {
+    ($body:expr) => {
         const _: () = {
             #[allow(non_upper_case_globals)]
             #[used]
@@ -76,17 +77,32 @@ macro_rules! plugin_add_inner {
                 #[cfg_attr(target_os = "android", link_section = ".text.startup")]
                 #[cfg_attr(target_os = "linux", link_section = ".text.startup")]
                 extern "C" fn __inner_init() {
-                	let mut guard = $crate::paste::paste!( $( $path_tt )* [< __godot_rust_plugin_ $registry >] )
-                        .lock()
-                        .unwrap();
-                    guard.push($plugin);
+                    $body
                 }
                 __inner_init
             };
 
             #[cfg(target_family = "wasm")]
-            $crate::gensym! { $crate::plugin_add_inner_wasm!() }
+            $crate::gensym! { $crate::plugin_execute_pre_main_wasm!() }
         };
+    };
+}
+
+/// register a plugin by executing code pre-main that adds the plugin to the plugin registry
+#[doc(hidden)]
+#[macro_export]
+#[allow(clippy::deprecated_cfg_attr)]
+#[cfg_attr(rustfmt, rustfmt::skip)]
+// ^ skip: paste's [< >] syntax chokes fmt
+//   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+macro_rules! plugin_add_inner {
+    ($registry:ident; $plugin:expr; $( $path_tt:tt )* ) => {
+        $crate::plugin_execute_pre_main!({
+            let mut guard = $crate::paste::paste!( $( $path_tt )* [< __godot_rust_plugin_ $registry >] )
+                .lock()
+                .unwrap();
+            guard.push($plugin);
+        });
     };
 }
 

@@ -288,3 +288,21 @@ pub fn safe_ident(s: &str) -> Ident {
          _ => ident(s)
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Parses a `meta` TokenStream, that is, the tokens in parameter position of a proc-macro (between the braces).
+/// Because venial can't actually parse a meta item directly, this is done by reconstructing the full macro attribute on top of some content and then parsing *that*.
+pub fn venial_parse_meta(
+    meta: &TokenStream,
+    self_name: Ident,
+    content: &TokenStream,
+) -> Result<venial::Item, venial::Error> {
+    // Hack because venial doesn't support direct meta parsing yet
+    let input = quote! {
+        #[#self_name(#meta)]
+        #content
+    };
+
+    venial::parse_item(input)
+}

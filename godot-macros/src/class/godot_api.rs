@@ -8,10 +8,24 @@
 use proc_macro2::TokenStream;
 
 use crate::class::{transform_inherent_impl, transform_trait_impl};
-use crate::util::bail;
+use crate::util::{bail, venial_parse_meta, KvParser};
 use crate::ParseResult;
 
-pub fn attribute_godot_api(input_decl: venial::Item) -> ParseResult<TokenStream> {
+use quote::{format_ident, quote};
+
+fn parse_inherent_impl_attr(meta: TokenStream) -> Result<super::InherentImplAttr, venial::Error> {
+    let item = venial_parse_meta(&meta, format_ident!("godot_api"), &quote! { fn func(); })?;
+    let mut attr = KvParser::parse_required(item.attributes(), "godot_api", &meta)?;
+    let secondary = attr.handle_alone("secondary")?;
+    attr.finish()?;
+
+    Ok(super::InherentImplAttr { secondary })
+}
+
+pub fn attribute_godot_api(
+    meta: TokenStream,
+    input_decl: venial::Item,
+) -> ParseResult<TokenStream> {
     let decl = match input_decl {
         venial::Item::Impl(decl) => decl,
         _ => bail!(
@@ -32,8 +46,19 @@ pub fn attribute_godot_api(input_decl: venial::Item) -> ParseResult<TokenStream>
     };
 
     if decl.trait_ty.is_some() {
+        // 'meta' contains the parameters to the macro, that is, for `#[godot_api(a, b, x=y)]`, anything inside the braces.
+        // We currently don't accept any parameters for a trait `impl`, so show an error to the user if they added something there.
+        if meta.to_string() != "" {
+            return bail!(
+                meta,
+                "#[godot_api] on a trait implementation currently does not support any parameters"
+            );
+        }
         transform_trait_impl(decl)
     } else {
-        transform_inherent_impl(decl)
+        match parse_inherent_impl_attr(meta) {
+            Ok(meta) => transform_inherent_impl(meta, decl),
+            Err(err) => Err(err),
+        }
     }
 }
