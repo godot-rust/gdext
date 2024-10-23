@@ -111,7 +111,7 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
                 #constant_registration
 
             });
-        })
+        });
     };
 
     if !is_secondary {
