@@ -64,13 +64,17 @@ struct FuncAttr {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+pub struct InherentImplAttr {
+    /// For implementation reasons, there can be a single 'primary' impl block and 0 or more 'secondary' impl blocks.
+    /// For now this is controlled by a key in the the 'godot_api' attribute
+    pub secondary: bool,
+}
+
 /// Codegen for `#[godot_api] impl MyType`
 pub fn transform_inherent_impl(
-    meta: TokenStream,
+    meta: InherentImplAttr,
     mut impl_block: venial::Impl,
 ) -> ParseResult<TokenStream> {
-    let is_secondary = meta.to_string().contains("secondary");
-
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
     let prv = quote! { ::godot::private };
@@ -117,7 +121,7 @@ pub fn transform_inherent_impl(
         });
     };
 
-    if !is_secondary {
+    if !meta.secondary {
         // we are the primary
 
         let storage = quote! {
@@ -185,8 +189,10 @@ pub fn transform_inherent_impl(
 
         };
 
-        return Ok(result);
+        Ok(result)
     } else {
+        // secondary
+
         let result = quote! {
 
             #impl_block

@@ -11,6 +11,13 @@ use crate::class::{transform_inherent_impl, transform_trait_impl};
 use crate::util::bail;
 use crate::ParseResult;
 
+fn parse_inherent_impl_attr(meta: TokenStream) -> super::InherentImplAttr {
+    super::InherentImplAttr {
+        // todo: this is very obviously not 'proper' or 'sophisticated'
+        secondary: meta.to_string().contains("secondary"),
+    }
+}
+
 pub fn attribute_godot_api(
     meta: TokenStream,
     input_decl: venial::Item,
@@ -35,8 +42,10 @@ pub fn attribute_godot_api(
     };
 
     if decl.trait_ty.is_some() {
+        // todo: trait impl does not allow attr keys, check that 'meta' is empty
         transform_trait_impl(decl)
     } else {
-        transform_inherent_impl(meta, decl)
+        // todo: properly parse attr keys, instead of the hacky 'string.contains'
+        transform_inherent_impl(parse_inherent_impl_attr(meta), decl)
     }
 }
