@@ -57,7 +57,7 @@ macro_rules! plugin_add_inner_wasm {
 // ^ skip: paste's [< >] syntax chokes fmt
 //   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
 macro_rules! execute_pre_main {
-    ($body:expr; ) => {
+    ($body:expr) => {
         const _: () = {
             #[allow(non_upper_case_globals)]
             #[used]
