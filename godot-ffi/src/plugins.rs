@@ -49,7 +49,6 @@ macro_rules! plugin_add_inner_wasm {
     };
 }
 
-
 #[doc(hidden)]
 #[macro_export]
 #[allow(clippy::deprecated_cfg_attr)]

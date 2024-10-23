@@ -24,8 +24,8 @@ use crate::sys;
 use std::sync::{atomic, Arc, Mutex};
 use sys::Global;
 
-use std::mem;
 use group_by::group_by;
+use std::mem;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 
@@ -132,10 +132,9 @@ pub fn next_class_id() -> u16 {
 pub(crate) fn merge_plugins() {
     let mut plugins = __godot_rust_plugin___GODOT_PLUGIN_REGISTRY.lock().unwrap();
 
-    let my_plugins : Vec<ClassPlugin> = mem::replace::<Vec<ClassPlugin>>(&mut *plugins, vec!{});
+    let my_plugins: Vec<ClassPlugin> = mem::replace::<Vec<ClassPlugin>>(&mut *plugins, vec![]);
 
     //let grouped = group_by(my_plugins.into_iter(), |x| { (mem::discriminant(&x.item), x.class_name) });
-
 
     //let mut result : Vec<ClassPlugin> = vec!{};
 
@@ -157,19 +156,18 @@ pub(crate) fn merge_plugins() {
     //     }
     // }
 
-    let _ : Vec<ClassPlugin> = mem::replace(&mut *plugins, my_plugins);
+    let _: Vec<ClassPlugin> = mem::replace(&mut *plugins, my_plugins);
 }
 
-pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {    
+pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
     crate::private::merge_plugins();
     sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
 }
 
 #[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
 pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassName) -> Option<InherentImpl> {
-    
     crate::private::merge_plugins();
-    
+
     // We do this manually instead of using `iterate_plugins()` because we want to break as soon as we find a match.
     let plugins = __godot_rust_plugin___GODOT_PLUGIN_REGISTRY.lock().unwrap();
 

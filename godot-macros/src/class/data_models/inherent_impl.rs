@@ -65,7 +65,10 @@ struct FuncAttr {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Codegen for `#[godot_api] impl MyType`
-pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) -> ParseResult<TokenStream> {
+pub fn transform_inherent_impl(
+    meta: TokenStream,
+    mut impl_block: venial::Impl,
+) -> ParseResult<TokenStream> {
     let is_secondary = meta.to_string().contains("secondary");
 
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
@@ -95,8 +98,8 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
-    let method_storage_name =  format_ident!("__registration_methods_{class_name}");
-    let constants_storage_name =  format_ident!("__registration_constants_{class_name}");
+    let method_storage_name = format_ident!("__registration_methods_{class_name}");
+    let constants_storage_name = format_ident!("__registration_constants_{class_name}");
 
     let fill_storage = quote! {
         ::godot::sys::execute_pre_main!({
@@ -115,16 +118,15 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
     };
 
     if !is_secondary {
-
         // we are the primary
 
-        let storage =  quote! {
+        let storage = quote! {
 
             #[used]
             #[allow(non_upper_case_globals)]
             #[doc(hidden)]
             static #method_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
-            
+
             #[used]
             #[allow(non_upper_case_globals)]
             #[doc(hidden)]
@@ -139,20 +141,20 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
                         f();
                     }
                 }
-    
+
                 fn __register_constants() {
                     let guard = #constants_storage_name.lock().unwrap();
                     for f in guard.iter() {
                         f();
                     }
                 }
-    
+
                 #rpc_registrations
             }
         };
 
         let class_registration = quote! {
-   
+
             ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
                 class_name: #class_name_obj,
                 item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
@@ -185,18 +187,16 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
 
         return Ok(result);
     } else {
-
         let result = quote! {
 
             #impl_block
 
             #fill_storage
-    
+
         };
-    
+
         Ok(result)
     }
-
 }
 
 fn process_godot_fns(
