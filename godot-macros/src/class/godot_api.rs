@@ -8,13 +8,25 @@
 use proc_macro2::TokenStream;
 
 use crate::class::{transform_inherent_impl, transform_trait_impl};
-use crate::util::bail;
+use crate::util::{bail, KvParser};
 use crate::ParseResult;
 
+use quote::quote;
+
 fn parse_inherent_impl_attr(meta: TokenStream) -> super::InherentImplAttr {
+    // Hack because venial doesn't support direct meta parsing yet.
+    let input = quote! {
+        #[godot_api(#meta)]
+        fn () {}
+    };
+
+    let item = venial::parse_item(input).unwrap();
+    let mut attr = KvParser::parse_required(&item.attributes(), "godot_api", &meta).unwrap();
+    let secondary = attr.handle_alone("secondary").unwrap();
+    attr.finish().unwrap();
+
     super::InherentImplAttr {
-        // todo: this is very obviously not 'proper' or 'sophisticated'
-        secondary: meta.to_string().contains("secondary"),
+        secondary: secondary,
     }
 }
 
@@ -42,7 +54,12 @@ pub fn attribute_godot_api(
     };
 
     if decl.trait_ty.is_some() {
-        // todo: trait impl does not allow attr keys, check that 'meta' is empty
+        if meta.to_string() != "" {
+            return bail!(
+                meta,
+                "#[godot_api] on a trait implementation currently does not support any parameters"
+            );
+        }
         transform_trait_impl(decl)
     } else {
         // todo: properly parse attr keys, instead of the hacky 'string.contains'
