@@ -13,23 +13,21 @@ use crate::ParseResult;
 
 use quote::quote;
 
-fn parse_inherent_impl_attr(meta: TokenStream) -> super::InherentImplAttr {
+fn parse_inherent_impl_attr(meta: TokenStream) -> Result<super::InherentImplAttr, venial::Error> {
     // Hack because venial doesn't support direct meta parsing yet.
     let input = quote! {
         #[godot_api(#meta)]
         fn func();
     };
 
-    // todo: properly handle errors instead of 'unwrap'
+    let item = venial::parse_item(input)?;
+    let mut attr = KvParser::parse_required(&item.attributes(), "godot_api", &meta)?;
+    let secondary = attr.handle_alone("secondary")?;
+    attr.finish()?;
 
-    let item = venial::parse_item(input).unwrap();
-    let mut attr = KvParser::parse_required(&item.attributes(), "godot_api", &meta).unwrap();
-    let secondary = attr.handle_alone("secondary").unwrap();
-    attr.finish().unwrap();
-
-    super::InherentImplAttr {
+    Ok(super::InherentImplAttr {
         secondary: secondary,
-    }
+    })
 }
 
 pub fn attribute_godot_api(
@@ -64,6 +62,9 @@ pub fn attribute_godot_api(
         }
         transform_trait_impl(decl)
     } else {
-        transform_inherent_impl(parse_inherent_impl_attr(meta), decl)
+        match parse_inherent_impl_attr(meta) {
+            Ok(meta) => transform_inherent_impl(meta, decl),
+            Err(err) => return Err(err),
+        }
     }
 }
