@@ -8,10 +8,32 @@
 use proc_macro2::TokenStream;
 
 use crate::class::{transform_inherent_impl, transform_trait_impl};
-use crate::util::bail;
+use crate::util::{bail, KvParser};
 use crate::ParseResult;
 
-pub fn attribute_godot_api(input_decl: venial::Item) -> ParseResult<TokenStream> {
+use quote::quote;
+
+fn parse_inherent_impl_attr(meta: TokenStream) -> Result<super::InherentImplAttr, venial::Error> {
+    // Hack because venial doesn't support direct meta parsing yet.
+    let input = quote! {
+        #[godot_api(#meta)]
+        fn func();
+    };
+
+    let item = venial::parse_item(input)?;
+    let mut attr = KvParser::parse_required(&item.attributes(), "godot_api", &meta)?;
+    let secondary = attr.handle_alone("secondary")?;
+    attr.finish()?;
+
+    Ok(super::InherentImplAttr {
+        secondary: secondary,
+    })
+}
+
+pub fn attribute_godot_api(
+    meta: TokenStream,
+    input_decl: venial::Item,
+) -> ParseResult<TokenStream> {
     let decl = match input_decl {
         venial::Item::Impl(decl) => decl,
         _ => bail!(
@@ -32,8 +54,17 @@ pub fn attribute_godot_api(input_decl: venial::Item) -> ParseResult<TokenStream>
     };
 
     if decl.trait_ty.is_some() {
+        if meta.to_string() != "" {
+            return bail!(
+                meta,
+                "#[godot_api] on a trait implementation currently does not support any parameters"
+            );
+        }
         transform_trait_impl(decl)
     } else {
-        transform_inherent_impl(decl)
+        match parse_inherent_impl_attr(meta) {
+            Ok(meta) => transform_inherent_impl(meta, decl),
+            Err(err) => return Err(err),
+        }
     }
 }
