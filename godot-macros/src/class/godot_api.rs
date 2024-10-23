@@ -20,6 +20,8 @@ fn parse_inherent_impl_attr(meta: TokenStream) -> super::InherentImplAttr {
         fn () {}
     };
 
+    // todo: properly handle errors instead of 'unwrap'
+    
     let item = venial::parse_item(input).unwrap();
     let mut attr = KvParser::parse_required(&item.attributes(), "godot_api", &meta).unwrap();
     let secondary = attr.handle_alone("secondary").unwrap();
@@ -62,7 +64,6 @@ pub fn attribute_godot_api(
         }
         transform_trait_impl(decl)
     } else {
-        // todo: properly parse attr keys, instead of the hacky 'string.contains'
         transform_inherent_impl(parse_inherent_impl_attr(meta), decl)
     }
 }
