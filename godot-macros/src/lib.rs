@@ -680,8 +680,8 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///
 /// Please refer to [the book](https://godot-rust.github.io/book/register/constants.html).
 #[proc_macro_attribute]
-pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
-    translate(input, class::attribute_godot_api)
+pub fn godot_api(meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate(input, |body| class::attribute_godot_api(TokenStream2::from(meta), body))
 }
 
 /// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs.

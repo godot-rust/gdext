@@ -65,7 +65,9 @@ struct FuncAttr {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Codegen for `#[godot_api] impl MyType`
-pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<TokenStream> {
+pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) -> ParseResult<TokenStream> {
+    let is_secondary = meta.to_string().contains("secondary");
+
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
     let prv = quote! { ::godot::private };
@@ -93,78 +95,106 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
-    let suffix = &rand::random::<u32>().to_string();
-    let trait_name = format_ident!("ImplementsGodotApi_{suffix}");
+    let method_storage_name =  format_ident!("__registration_methods_{class_name}");
+    let constants_storage_name =  format_ident!("__registration_constants_{class_name}");
 
-    let trait_definition = quote! {
-        /// Auto-implemented for `#[godot_api] impl MyClass` blocks
-        #[doc(hidden)]
-        pub trait #trait_name: ::godot::obj::GodotClass {
-            #[doc(hidden)]
-            fn __register_methods();
-            #[doc(hidden)]
-            fn __register_constants();
-            #[doc(hidden)]
-            fn __register_rpcs(_: &mut dyn std::any::Any) {}
-        }
-    };
+    let fill_storage = quote! {
+        ::godot::sys::execute_pre_main!({
+            #method_storage_name.push(||{
 
-    let register_user_methods_constants_fn_name = format_ident!("register_user_methods_constants_{suffix}");
-    let register_user_rpcs_fn_name = format_ident!("register_user_rpcs{suffix}");
-
-    let helper_definitions = quote! {
-        pub fn #register_user_methods_constants_fn_name<T: #trait_name>(_class_builder: &mut dyn std::any::Any) {
-            // let class_builder = class_builder
-            //     .downcast_mut::<ClassBuilder<T>>()
-            //     .expect("bad type erasure");
-        
-            //T::register_methods(class_builder);
-            T::__register_methods();
-            T::__register_constants();
-        }
-        
-        pub fn #register_user_rpcs_fn_name<T: #trait_name>(object: &mut dyn std::any::Any) {
-            T::__register_rpcs(object);
-        }
-        
-    };
-
-    let result = quote! {
-        #impl_block
-
-        #trait_definition
-
-        #helper_definitions
-
-        impl #trait_name for #class_name {
-            fn __register_methods() {
                 #( #method_registrations )*
                 #( #signal_registrations )*
-            }
 
-            fn __register_constants() {
+            });
+            #constants_storage_name.push(||{
+
                 #constant_registration
-            }
 
-            #rpc_registrations
-        }
-
-        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_obj,
-            item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
-                register_methods_constants_fn: #prv::ErasedRegisterFn {
-                    raw: #register_user_rpcs_fn_name::<#class_name>,
-                },
-                register_rpcs_fn: Some(#prv::ErasedRegisterRpcsFn {
-                    raw: #register_user_rpcs_fn_name::<#class_name>,
-                }),
-                #docs
-            }),
-            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
-        });
+            });
+        })
     };
 
-    Ok(result)
+    if !is_secondary {
+
+        // we are the primary
+
+        let storage =  quote! {
+
+            #[used]
+            #[allow(non_upper_case_globals)]
+            #[doc(hidden)]
+            static #method_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+            
+            #[used]
+            #[allow(non_upper_case_globals)]
+            #[doc(hidden)]
+            static #constants_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+        };
+
+        let trait_impl = quote! {
+            impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
+                fn __register_methods() {
+                    for f in #method_storage_name {
+                        f();
+                    }
+                }
+    
+                fn __register_constants() {
+                    for f in #constants_storage_name {
+                        f();
+                    }
+                }
+    
+                #rpc_registrations
+            }
+        };
+
+        let class_registration = quote! {
+   
+            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
+                class_name: #class_name_obj,
+                item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
+                    register_methods_constants_fn: #prv::ErasedRegisterFn {
+                        raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
+                    },
+                    register_rpcs_fn: Some(#prv::ErasedRegisterRpcsFn {
+                        raw: #prv::callbacks::register_user_rpcs::<#class_name>,
+                    }),
+                    #docs
+                }),
+                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
+            });
+
+        };
+
+        let result = quote! {
+
+            #impl_block
+
+            #storage
+
+            #trait_impl
+
+            #fill_storage
+
+            #class_registration
+
+        };
+
+        return Ok(result);
+    } else {
+
+        let result = quote! {
+            
+            #impl_block
+
+            #fill_storage
+    
+        };
+    
+        Ok(result)
+    }
+
 }
 
 fn process_godot_fns(

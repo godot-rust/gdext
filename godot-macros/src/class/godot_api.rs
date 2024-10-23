@@ -11,7 +11,7 @@ use crate::class::{transform_inherent_impl, transform_trait_impl};
 use crate::util::bail;
 use crate::ParseResult;
 
-pub fn attribute_godot_api(input_decl: venial::Item) -> ParseResult<TokenStream> {
+pub fn attribute_godot_api(meta: TokenStream, input_decl: venial::Item) -> ParseResult<TokenStream> {
     let decl = match input_decl {
         venial::Item::Impl(decl) => decl,
         _ => bail!(
@@ -34,6 +34,6 @@ pub fn attribute_godot_api(input_decl: venial::Item) -> ParseResult<TokenStream>
     if decl.trait_ty.is_some() {
         transform_trait_impl(decl)
     } else {
-        transform_inherent_impl(decl)
+        transform_inherent_impl(meta, decl)
     }
 }

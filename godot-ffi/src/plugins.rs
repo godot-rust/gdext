@@ -49,6 +49,45 @@ macro_rules! plugin_add_inner_wasm {
     };
 }
 
+
+#[doc(hidden)]
+#[macro_export]
+#[allow(clippy::deprecated_cfg_attr)]
+#[cfg_attr(rustfmt, rustfmt::skip)]
+// ^ skip: paste's [< >] syntax chokes fmt
+//   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+macro_rules! execute_pre_main {
+    ($body:expr; ) => {
+        const _: () = {
+            #[allow(non_upper_case_globals)]
+            #[used]
+            // Windows:
+            #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
+            // MacOS + iOS:
+            #[cfg_attr(target_os = "ios", link_section = "__DATA,__mod_init_func")]
+            #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
+            // Linux, Android, BSD:
+            #[cfg_attr(target_os = "android", link_section = ".init_array")]
+            #[cfg_attr(target_os = "dragonfly", link_section = ".init_array")]
+            #[cfg_attr(target_os = "freebsd", link_section = ".init_array")]
+            #[cfg_attr(target_os = "linux", link_section = ".init_array")]
+            #[cfg_attr(target_os = "netbsd", link_section = ".init_array")]
+            #[cfg_attr(target_os = "openbsd", link_section = ".init_array")]
+            static __init: extern "C" fn() = {
+                #[cfg_attr(target_os = "android", link_section = ".text.startup")]
+                #[cfg_attr(target_os = "linux", link_section = ".text.startup")]
+                extern "C" fn __inner_init() {
+                    $body
+                }
+                __inner_init
+            };
+
+            #[cfg(target_family = "wasm")]
+            todo!("wasm not yet implemented")
+        };
+    };
+}
+
 #[doc(hidden)]
 #[macro_export]
 #[allow(clippy::deprecated_cfg_attr)]
