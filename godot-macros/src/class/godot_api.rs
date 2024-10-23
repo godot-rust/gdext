@@ -17,11 +17,11 @@ fn parse_inherent_impl_attr(meta: TokenStream) -> super::InherentImplAttr {
     // Hack because venial doesn't support direct meta parsing yet.
     let input = quote! {
         #[godot_api(#meta)]
-        fn () {}
+        fn func();
     };
 
     // todo: properly handle errors instead of 'unwrap'
-    
+
     let item = venial::parse_item(input).unwrap();
     let mut attr = KvParser::parse_required(&item.attributes(), "godot_api", &meta).unwrap();
     let secondary = attr.handle_alone("secondary").unwrap();
