@@ -155,7 +155,8 @@ fn dynamic_call_with_panic() {
         call_error.to_string(),
         "godot-rust function call failed: Object::call(&\"do_panic\")\
         \n  Source: ObjPayload::do_panic()\
-        \n    Reason: [panic]  do_panic exploded"
+        \n    Reason: [panic]  do_panic exploded\
+        \n  at itest/rust/src/object_tests/object_test.rs:893"
     );
 
     obj.free();
