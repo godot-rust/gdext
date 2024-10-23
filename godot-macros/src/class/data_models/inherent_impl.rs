@@ -100,13 +100,13 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
 
     let fill_storage = quote! {
         ::godot::sys::execute_pre_main!({
-            #method_storage_name.push(||{
+            #method_storage_name.lock().unwrap().push(||{
 
                 #( #method_registrations )*
                 #( #signal_registrations )*
 
             });
-            #constants_storage_name.push(||{
+            #constants_storage_name.lock().unwrap().push(||{
 
                 #constant_registration
 
@@ -134,13 +134,15 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
         let trait_impl = quote! {
             impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
                 fn __register_methods() {
-                    for f in #method_storage_name {
+                    let guard = #method_storage_name.lock().unwrap();
+                    for f in guard {
                         f();
                     }
                 }
     
                 fn __register_constants() {
-                    for f in #constants_storage_name {
+                    let guard = #constants_storage_name.lock().unwrap();
+                    for f in guard {
                         f();
                     }
                 }
@@ -185,7 +187,7 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
     } else {
 
         let result = quote! {
-            
+
             #impl_block
 
             #fill_storage
