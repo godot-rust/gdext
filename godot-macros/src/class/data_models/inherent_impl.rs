@@ -106,7 +106,7 @@ pub fn transform_inherent_impl(
     let constants_storage_name = format_ident!("__registration_constants_{class_name}");
 
     let fill_storage = quote! {
-        ::godot::sys::execute_pre_main!({
+        ::godot::sys::plugin_execute_pre_main!({
             #method_storage_name.lock().unwrap().push(||{
 
                 #( #method_registrations )*

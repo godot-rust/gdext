@@ -23,7 +23,6 @@ use crate::meta::CallContext;
 use crate::sys;
 use std::sync::{atomic, Arc, Mutex};
 use sys::Global;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 
