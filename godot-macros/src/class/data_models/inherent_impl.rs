@@ -135,14 +135,14 @@ pub fn transform_inherent_impl(meta: TokenStream, mut impl_block: venial::Impl) 
             impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
                 fn __register_methods() {
                     let guard = #method_storage_name.lock().unwrap();
-                    for f in guard {
+                    for f in guard.iter() {
                         f();
                     }
                 }
     
                 fn __register_constants() {
                     let guard = #constants_storage_name.lock().unwrap();
-                    for f in guard {
+                    for f in guard.iter() {
                         f();
                     }
                 }
