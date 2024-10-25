@@ -213,6 +213,7 @@ struct ClassAttributes {
     is_internal: bool,
     rename: Option<Ident>,
     deprecations: Vec<TokenStream>,
+    dyn_traits: Vec<Ident>,
 }
 
 impl ClassAttributes {
@@ -335,6 +336,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     let mut is_internal = false;
     let mut rename: Option<Ident> = None;
     let mut deprecations = vec![];
+    let mut dyn_traits = vec![];
 
     // #[class] attribute on struct
     if let Some(mut parser) = KvParser::parse(&class.attributes, "class")? {
@@ -382,6 +384,17 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
             });
         }
 
+        if let Some(mut dyn_traits_list) = parser.handle_list("dyn_trait")? {
+            loop {
+                if let Ok(Some(token)) = dyn_traits_list.try_next_ident() {
+                    dyn_traits.push(token);
+                } else {
+                    break
+                }
+            }
+
+        }
+
         parser.finish()?;
     }
 
@@ -394,6 +407,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         is_internal,
         rename,
         deprecations,
+        dyn_traits
     })
 }
 

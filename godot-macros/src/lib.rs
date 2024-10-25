@@ -754,6 +754,15 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)
 }
 
+#[proc_macro_attribute]
+pub fn dyn_trait(meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate_meta(
+        "dyn_trait",
+        meta,
+        input,
+        class::attribute_dyn_trait)
+}
+
 /// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs.
 ///
 /// This derive macro also derives [`ToGodot`](../builtin/meta/trait.ToGodot.html) and [`FromGodot`](../builtin/meta/trait.FromGodot.html).
