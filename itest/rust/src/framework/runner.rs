@@ -346,7 +346,7 @@ fn print_file_header(file: String, last_file: &mut Option<String>) {
 }
 
 fn extract_file_subtitle(file: &str) -> &str {
-    if let Some(sep_pos) = file.rfind(&['/', '\\']) {
+    if let Some(sep_pos) = file.rfind(['/', '\\']) {
         &file[sep_pos + 1..]
     } else {
         file

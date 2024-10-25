@@ -9,7 +9,7 @@ _**[Website]** | **[Book][book]** | **[API Docs]** | [Discord] | [Mastodon] | [T
 [Godot] is an open-source game engine, focusing on a productive and batteries-included 2D and 3D experience.  
 Its _GDExtension_ API allows integrating third-party languages and libraries.
 
-If you are looking for a Rust binding for Godot 3 (GDNative API), check out [`gdnative`].
+Rust bindings for Godot 3 (GDNative API) are available in [`gdnative`].
 
 
 ## Philosophy
@@ -28,11 +28,13 @@ The gdext library has evolved a lot during 2023 and 2024 and is now in a usable 
 However, there are still certain things to keep in mind.
 
 > [!WARNING]  
-> The public API introduces breaking changes from time to time. Most of these are motivated by new features and
-> improved ergonomics for existing ones. See also [API stability] in the book.
+> The public API introduces breaking changes from time to time, primarily motivated by new features and improved ergonomics.
+> Our [crates.io releases][crates-io] adhere to SemVer, but may lag behind the `master` branch. See also [API stability] in the book.
 
-**Features:** While most Godot features are available, some less commonly used ones are missing. See [#24] for an up-to-date overview.
-At this point, there is little support for [Android] or [iOS], and [Wasm] is experimental. Contributions are very welcome!
+**Features:** Most Godot APIs have been mapped at this point. The current focus lies on a more natural Rust experience and enable more design
+patterns that come in handy for day-to-day game development. See [#24] for an up-to-date feature overview.
+
+At the moment, there is experimental support for [Wasm], [Android] and [iOS], but documentation and tooling is still lacking. Contributions are very welcome!
 
 **Bugs:** Most undefined behavior related to the FFI layer has been ironed out, but there may still be occasional safety issues. Apart from that,
 new additions to the library are typically not feature-complete from the start, but become more robust with feedback and testing over time.
@@ -42,14 +44,14 @@ To counter bugs, we have an elaborate CI suite including clippy, unit tests, eng
 ## Getting started
 
 To dive into Rust development with gdext, check out [the godot-rust book][book]. The book is still under construction,
-but already covers a Hello World setup as well as several more in-depth chapters.
+but already covers a _Hello World_ setup as well as several more in-depth chapters.
 
 To consult the API reference, have a look at the online [API Docs].
 
 Furthermore, we provide a small example game in the [`examples/dodge-the-creeps` directory][dodge-the-creeps].  
 The example [`examples/hot-reload`][hot-reload] demonstrates hot-reloading in the Godot editor.
 
-If you need help, join our [Discord] server and ask in the `#help-gdext` channel!
+If you need help, join our [Discord] server and ask in the `#help` channel!
 
 
 ## License
@@ -83,3 +85,4 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 [iOS]: https://github.com/godot-rust/gdext/issues/498
 [mpl]: https://www.mozilla.org/en-US/MPL
 [philosophy]: https://godot-rust.github.io/book/contribute/philosophy.html
+[crates-io]: https://crates.io/crates/godot
