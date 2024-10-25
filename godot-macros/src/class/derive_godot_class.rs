@@ -389,10 +389,9 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
                 if let Ok(Some(token)) = dyn_traits_list.try_next_ident() {
                     dyn_traits.push(token);
                 } else {
-                    break
+                    break;
                 }
             }
-
         }
 
         parser.finish()?;
@@ -407,7 +406,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         is_internal,
         rename,
         deprecations,
-        dyn_traits
+        dyn_traits,
     })
 }
 
