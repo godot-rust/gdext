@@ -80,7 +80,7 @@ fn create_dispatch_method(
     let (mutability, receiver, bind) = match signature.receiver_type {
         ReceiverType::Ref => (
             quote! { & },
-            quote! {&self, },
+            quote! { &self, },
             quote! {
                 let instance = base.cast::<T>();
                 let guard: GdRef<T> = instance.bind();
@@ -88,14 +88,14 @@ fn create_dispatch_method(
         ),
         ReceiverType::Mut => (
             quote! { &mut },
-            quote! {&mut self, },
+            quote! { &mut self, },
             quote! {
                 let mut instance = base.cast::<T>();
                 let mut guard: GdMut<T> = instance.bind_mut();
             },
         ),
         _ => {
-            // return proper error to user.
+            // return proper error to an user.
             return bail!(
                 &method_name,
         "error[E0038]: the trait cannot be made into an object.\n \
@@ -303,7 +303,6 @@ fn create_dyn_trait_dispatch(
             where
                 T: Inherits<#base_ty> + GodotClass + godot::obj::Bounds<Declarer = godot::obj::bounds::DeclUser> + #trait_name
         {
-            godot_print!("called!");
             let name = T::class_name().to_string();
             let mut registry = #registry_name.lock();
             registry.entry(name).or_insert_with(
