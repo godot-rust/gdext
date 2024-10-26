@@ -16,7 +16,7 @@ pub(crate) type KvMap = HashMap<Ident, Option<KvValue>>;
 
 /// Struct to parse attributes like `#[attr(key, key2="value", key3=123)]` in a very user-friendly way.
 pub(crate) struct KvParser {
-    pub(crate) map: KvMap,
+    map: KvMap,
     span: Span,
 }
 
