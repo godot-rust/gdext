@@ -96,7 +96,12 @@ impl ClassNameSource {
 /// This struct is very cheap to copy. The actual names are cached globally.
 ///
 /// If you need to create your own class name, use [`new_cached()`][Self::new_cached].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+///
+/// # Ordering
+///
+/// `ClassName`s are **not** ordered lexicographically, and the ordering relation is **not** stable across multiple runs of your
+/// application. When lexicographical order is needed, it's possible to convert this type to [`GString`] or [`String`].
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct ClassName {
     global_index: u16,
 }
