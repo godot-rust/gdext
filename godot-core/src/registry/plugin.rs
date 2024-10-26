@@ -45,6 +45,17 @@ impl fmt::Debug for ErasedRegisterFn {
 }
 
 #[derive(Copy, Clone)]
+pub struct ErasedRegisterDynTraitFn {
+    pub raw: fn(&mut dyn Any),
+}
+
+impl fmt::Debug for ErasedRegisterDynTraitFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "0x{:0>16x}", self.raw as usize)
+    }
+}
+
+#[derive(Copy, Clone)]
 pub struct ErasedRegisterRpcsFn {
     pub raw: fn(&mut dyn Any),
 }
@@ -95,6 +106,8 @@ pub enum PluginItem {
 
         /// Callback to library-generated function which registers properties in the `struct` definition.
         register_properties_fn: ErasedRegisterFn,
+
+        register_dyn_trait_fn: ErasedRegisterDynTraitFn,
 
         free_fn: unsafe extern "C" fn(
             _class_user_data: *mut std::ffi::c_void,

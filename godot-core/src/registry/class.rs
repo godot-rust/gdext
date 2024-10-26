@@ -245,6 +245,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             is_instantiable,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
                 docs: _,
+            register_dyn_trait_fn: _,
         } => {
             c.parent_class_name = Some(base_class_name);
             c.default_virtual_fn = default_get_virtual_fn;

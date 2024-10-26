@@ -119,6 +119,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
     let is_tool = struct_cfg.is_tool;
 
+    let dyn_trait_impl = make_dyn_trait_impl(struct_cfg.dyn_traits, class_name);
+
     Ok(quote! {
         impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
@@ -147,6 +149,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #godot_exports_impl
         #user_class_impl
         #init_expecter
+        #dyn_trait_impl
         #( #deprecations )*
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
@@ -157,6 +160,9 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                 generated_recreate_fn: #recreate_fn,
                 register_properties_fn: #prv::ErasedRegisterFn {
                     raw: #prv::callbacks::register_user_properties::<#class_name>,
+                },
+                register_dyn_trait_fn: #prv::ErasedRegisterDynTraitFn {
+                    raw: #prv::callbacks::register_user_dyn_traits::<#class_name>,
                 },
                 free_fn: #prv::callbacks::free::<#class_name>,
                 default_get_virtual_fn: #default_get_virtual_fn,
@@ -246,6 +252,29 @@ fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                     #( #rest_init )*
                     #base_init
                 }
+            }
+        }
+    }
+}
+
+fn make_dyn_trait_impl(dyn_traits: Vec<Ident>, class_name: &Ident) -> TokenStream {
+    // note – we assume that methods "register_traitname_dispatch" are explicitly imported by the user. It is common approach among such cases, for example see Enum Dispatch
+    let register_fns: Vec<TokenStream> = dyn_traits
+        .iter()
+        .map(|t| {
+            let ident = ident(&format!(
+                "register_{}_dispatch",
+                t.to_string().to_lowercase()
+            ));
+            quote! {
+                #ident::<#class_name>()
+            }
+        })
+        .collect();
+    quote! {
+        impl ::godot::obj::cap::DynTrait for #class_name {
+            fn __register_dyn_traits() {
+                #(#register_fns);*
             }
         }
     }
@@ -385,12 +414,8 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         }
 
         if let Some(mut dyn_traits_list) = parser.handle_list("dyn_trait")? {
-            loop {
-                if let Ok(Some(token)) = dyn_traits_list.try_next_ident() {
-                    dyn_traits.push(token);
-                } else {
-                    break;
-                }
+            while let Ok(Some(token)) = dyn_traits_list.try_next_ident() {
+                dyn_traits.push(token);
             }
         }
 

@@ -553,6 +553,12 @@ pub mod cap {
         fn __godot_property_get_revert(&self, property: StringName) -> Option<Variant>;
     }
 
+    #[doc(hidden)]
+    pub trait DynTrait: GodotClass {
+        #[doc(hidden)]
+        fn __register_dyn_traits();
+    }
+
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
     pub trait ImplementsGodotApi: GodotClass {
         #[doc(hidden)]

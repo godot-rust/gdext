@@ -9,7 +9,8 @@ pub use crate::gen::classes::class_macros;
 pub use crate::obj::rtti::ObjectRtti;
 pub use crate::registry::callbacks;
 pub use crate::registry::plugin::{
-    ClassPlugin, ErasedRegisterFn, ErasedRegisterRpcsFn, InherentImpl, PluginItem,
+    ClassPlugin, ErasedRegisterDynTraitFn, ErasedRegisterFn, ErasedRegisterRpcsFn, InherentImpl,
+    PluginItem,
 };
 pub use crate::storage::{as_storage, Storage};
 pub use sys::out;

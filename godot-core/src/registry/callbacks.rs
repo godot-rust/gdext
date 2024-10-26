@@ -345,6 +345,10 @@ pub fn register_user_properties<T: cap::ImplementsGodotExports>(_class_builder: 
     T::__register_exports();
 }
 
+pub fn register_user_dyn_traits<T: cap::DynTrait>(_class_builder: &mut dyn Any) {
+    T::__register_dyn_traits();
+}
+
 pub fn register_user_methods_constants<T: cap::ImplementsGodotApi>(_class_builder: &mut dyn Any) {
     // let class_builder = class_builder
     //     .downcast_mut::<ClassBuilder<T>>()
