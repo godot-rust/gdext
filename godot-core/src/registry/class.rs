@@ -11,7 +11,7 @@ use std::ptr;
 use crate::init::InitLevel;
 use crate::meta::ClassName;
 use crate::obj::{cap, GodotClass};
-use crate::private::{ClassPlugin, PluginItem};
+use crate::private::{ClassPlugin, ErasedRegisterDynTraitFn, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{ErasedRegisterFn, InherentImpl};
 use crate::{godot_error, sys};
@@ -47,7 +47,7 @@ struct ClassRegistrationInfo {
     user_register_fn: Option<ErasedRegisterFn>,
     default_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is at least one OnReady field)
     user_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is a `#[godot_api] impl I*`)
-
+    register_dyn_trait_fn: Option<ErasedRegisterDynTraitFn>,
     /// Godot low-level class creation parameters.
     #[cfg(before_api = "4.2")]
     godot_params: sys::GDExtensionClassCreationInfo,
@@ -140,6 +140,7 @@ pub fn register_class<
         init_level: T::INIT_LEVEL,
         is_editor_plugin: false,
         component_already_filled: Default::default(), // [false; N]
+        register_dyn_trait_fn: None,
     });
 }
 
@@ -245,11 +246,12 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             is_instantiable,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
                 docs: _,
-            register_dyn_trait_fn: _,
+            register_dyn_trait_fn,
         } => {
             c.parent_class_name = Some(base_class_name);
             c.default_virtual_fn = default_get_virtual_fn;
             c.register_properties_fn = Some(register_properties_fn);
+            c.register_dyn_trait_fn = Some(register_dyn_trait_fn);
             c.is_editor_plugin = is_editor_plugin;
 
             // Classes marked #[class(no_init)] are translated to "abstract" in Godot. This disables their default constructor.
@@ -438,6 +440,10 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
         (register_fn.raw)(&mut class_builder);
     }
 
+    if let Some(register_dyn_trait) = info.register_dyn_trait_fn {
+        (register_dyn_trait.raw)(&mut class_builder);
+    }
+
     if info.is_editor_plugin {
         unsafe { interface_fn!(editor_add_plugin)(class_name.string_sys()) };
     }
@@ -485,6 +491,7 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
         user_register_fn: None,
         default_virtual_fn: None,
         user_virtual_fn: None,
+        register_dyn_trait_fn: None,
         godot_params: default_creation_info(),
         init_level: InitLevel::Scene,
         is_editor_plugin: false,

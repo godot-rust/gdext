@@ -107,7 +107,7 @@ fn create_dispatch_method(
     };
     let fields = quote! {#dispatch_func_name: fn(Gd<#base_ty>, #(#param_types,)* fn(#mutability dyn #trait_name, #(#param_types),*) -> #ret) -> #ret};
     let declarations = quote! {
-        #dispatch_func_name: |base, #(#param_idents),*, closure| {
+        #dispatch_func_name: |base, #(#param_idents,)* closure| {
                 #bind
                 closure(#mutability *guard, #(#param_idents),*)
             }
@@ -303,6 +303,7 @@ fn create_dyn_trait_dispatch(
             where
                 T: Inherits<#base_ty> + GodotClass + godot::obj::Bounds<Declarer = godot::obj::bounds::DeclUser> + #trait_name
         {
+            godot_print!("called!");
             let name = T::class_name().to_string();
             let mut registry = #registry_name.lock();
             registry.entry(name).or_insert_with(
@@ -326,6 +327,7 @@ fn create_dyn_trait_dispatch(
             }
         }
 
+        #[derive(Debug)]
         pub struct #wrapper_name {
             pub base: Gd<#base_ty>,
             dispatch: *const #dispatch_name
