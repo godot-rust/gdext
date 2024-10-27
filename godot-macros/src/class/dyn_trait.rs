@@ -56,6 +56,7 @@ fn create_non_dispatchable_method(signature: SignatureInfo) -> TokenStream {
     );
     quote! {
         fn #method_name(#receiver #(#function_params),*) -> #ret {
+            godot_error!(#panic_message);
             panic!(#panic_message)
         }
     }
@@ -125,22 +126,19 @@ fn create_dispatch_method(
 fn is_function_sized(f: &mut venial::Function) -> bool {
     if let Some(where_clause) = f.where_clause.as_ref() {
         return where_clause.items.items().any(|i| {
-            let Some(TokenTree::Ident(bound)) = &i
-                .bound
-                .tokens
-                .iter()
-                .find(|x| matches!(x, TokenTree::Ident(_)))
-            else {
-                return false;
-            };
-            if *bound != "Sized" {
-                return false;
-            }
             let left_side = i
                 .left_side
                 .iter()
                 .fold(String::new(), |acc, arg| format!("{acc}{arg}"));
-            left_side == "Self"
+            if left_side != "Self" {
+                return false;
+            };
+            i.bound.tokens.iter().any(|tt| {
+                let TokenTree::Ident(i) = tt else {
+                    return false;
+                };
+                *i == "Sized"
+            })
         });
     };
     false
@@ -159,7 +157,7 @@ fn check_if_dispatchable(
     DynTraitMethod::Dispatchable(signature_info)
 }
 
-/// Creates signature for given function and check if it is marked as non-dispatchable.
+/// Creates signature for given function and checks if it is marked as non-dispatchable.
 fn parse_associated_function(f: &mut venial::Function) -> DynTraitMethod {
     let mut receiver_type: ReceiverType = ReceiverType::Static;
     let signature = util::reduce_to_signature(f);
@@ -207,6 +205,47 @@ fn parse_associated_function(f: &mut venial::Function) -> DynTraitMethod {
     check_if_dispatchable(f, signature)
 }
 
+/// Proc-macro attribute to be used with `trait` blocks that allows to use user-defined `GodotClass` as Trait Objects.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+///
+/// #[dyn_trait(name=MyTraitObjectName, base=RefCounted)]
+/// trait GdDynTrait {
+///     fn method(&self) -> GString;
+///     fn non_dispatchable_method() where Self: Sized;
+/// }
+///
+/// #[derive(GodotClass)]
+/// #[class(init, dyn_trait = (GdDynTrait))]
+/// struct MyDynStruct {
+///     field: i64,
+///     base: Base<RefCounted>,
+/// }
+///
+/// impl GdDynTrait for MyDynStruct {
+///     fn method(&self) -> GString {
+///         return GString::from("I am dynamic!");
+///     }
+///     fn non_dispatchable_method() {
+///         godot_print!("I can't be dispatched!");
+///     }
+/// }
+///
+///#[derive(GodotClass)]
+/// #[class(init)]
+/// struct OtherStruct {
+///     base: Base<RefCounted>,
+/// }
+/// #[godot_api]
+/// impl OtherStruct {
+///     #[func]
+///     fn some_method(&self, other: MyTraitObjectName) {
+///         godot_print!("hello {}", other.method());
+///     }
+/// }
+///
+/// ```
 pub fn attribute_dyn_trait(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let venial::Item::Trait(mut decl) = input_decl.clone() else {
         bail!(
