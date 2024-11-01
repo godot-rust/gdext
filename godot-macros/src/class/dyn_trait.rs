@@ -205,47 +205,6 @@ fn parse_associated_function(f: &mut venial::Function) -> DynTraitMethod {
     check_if_dispatchable(f, signature)
 }
 
-/// Proc-macro attribute to be used with `trait` blocks that allows to use user-defined `GodotClass` as Trait Objects.
-///
-/// ```no_run
-/// # use godot::prelude::*;
-///
-/// #[dyn_trait(name=MyTraitObjectName, base=RefCounted)]
-/// trait GdDynTrait {
-///     fn method(&self) -> GString;
-///     fn non_dispatchable_method() where Self: Sized;
-/// }
-///
-/// #[derive(GodotClass)]
-/// #[class(init, dyn_trait = (GdDynTrait))]
-/// struct MyDynStruct {
-///     field: i64,
-///     base: Base<RefCounted>,
-/// }
-///
-/// impl GdDynTrait for MyDynStruct {
-///     fn method(&self) -> GString {
-///         return GString::from("I am dynamic!");
-///     }
-///     fn non_dispatchable_method() {
-///         godot_print!("I can't be dispatched!");
-///     }
-/// }
-///
-///#[derive(GodotClass)]
-/// #[class(init)]
-/// struct OtherStruct {
-///     base: Base<RefCounted>,
-/// }
-/// #[godot_api]
-/// impl OtherStruct {
-///     #[func]
-///     fn some_method(&self, other: MyTraitObjectName) {
-///         godot_print!("hello {}", other.method());
-///     }
-/// }
-///
-/// ```
 pub fn attribute_dyn_trait(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let venial::Item::Trait(mut decl) = input_decl.clone() else {
         bail!(

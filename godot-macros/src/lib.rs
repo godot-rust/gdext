@@ -754,6 +754,47 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)
 }
 
+/// Proc-macro attribute to be used with `trait` blocks that allows to use user-defined `GodotClass` as Trait Objects.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+///
+/// #[dyn_trait(name=MyTraitObjectName, base=RefCounted)]
+/// trait GdDynTrait {
+///     fn method(&self) -> GString;
+///     fn non_dispatchable_method() where Self: Sized;
+/// }
+///
+/// #[derive(GodotClass)]
+/// #[class(init, dyn_trait = (GdDynTrait))]
+/// struct MyDynStruct {
+///     field: i64,
+///     base: Base<RefCounted>,
+/// }
+///
+/// impl GdDynTrait for MyDynStruct {
+///     fn method(&self) -> GString {
+///         return GString::from("I am dynamic!");
+///     }
+///     fn non_dispatchable_method() {
+///         godot_print!("I can't be dispatched!");
+///     }
+/// }
+///
+///#[derive(GodotClass)]
+/// #[class(init)]
+/// struct OtherStruct {
+///     base: Base<RefCounted>,
+/// }
+/// #[godot_api]
+/// impl OtherStruct {
+///     #[func]
+///     fn some_method(&self, other: MyTraitObjectName) {
+///         godot_print!("hello {}", other.method());
+///     }
+/// }
+///
+/// ```
 #[proc_macro_attribute]
 pub fn dyn_trait(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta("dyn_trait", meta, input, class::attribute_dyn_trait)
