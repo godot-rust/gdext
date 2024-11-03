@@ -51,14 +51,14 @@ fn property_template_test(ctx: &TestContext) {
 
     assert!(!properties.is_empty());
 
-    for property in gdscript_properties.get_property_list().iter_shared() {
-        let name = property.get("name").unwrap().to::<String>();
+    for mut gdscript_prop in gdscript_properties.get_property_list().iter_shared() {
+        let name = gdscript_prop.at("name").to::<String>();
 
         let Some(mut rust_prop) = properties.remove(&name) else {
             continue;
         };
 
-        let mut rust_usage = rust_prop.get("usage").unwrap().to::<i64>();
+        let mut rust_usage = rust_prop.at("usage").to::<i64>();
 
         // the GDSscript variables are script variables, and so have `PROPERTY_USAGE_SCRIPT_VARIABLE` set.
         if rust_usage == PropertyUsageFlags::STORAGE.ord() as i64 {
@@ -71,9 +71,26 @@ fn property_template_test(ctx: &TestContext) {
 
         rust_prop.set("usage", rust_usage);
 
-        if rust_prop != property {
+        // From Godot 4.4, GDScript uses `.0` for integral floats, see https://github.com/godotengine/godot/pull/47502.
+        // We still register them the old way, to test compatibility. See also godot-core/src/registry/property.rs.
+        // Since GDScript now registers them with `.0`, we need to account for that.
+        if GdextBuild::since_api("4.4") {
+            let mut hint_string = gdscript_prop.at("hint_string").to::<String>();
+
+            // Don't check against `.0` to not accidentally catch `.02`. We don't have regex available here.
+            if hint_string.contains(".0,") {
+                hint_string = hint_string.replace(".0,", ",");
+                gdscript_prop.set("hint_string", hint_string.clone());
+            }
+
+            if hint_string.ends_with(".0") {
+                gdscript_prop.set("hint_string", hint_string.trim_end_matches(".0"));
+            }
+        }
+
+        if rust_prop != gdscript_prop {
             errors.push(format!(
-                "mismatch in property {name}:\n  GDScript: {property:?}\n  Rust:     {rust_prop:?}"
+                "mismatch in property {name}:\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}"
             ));
         }
     }

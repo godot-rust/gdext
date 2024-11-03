@@ -206,11 +206,15 @@ pub mod export_info_functions {
         hide_slider: bool,
         suffix: Option<String>,
     ) -> PropertyHintInfo {
+        // From Godot 4.4, GDScript uses `.0` for integral floats, see https://github.com/godotengine/godot/pull/47502.
+        // We still register them the old way, to test compatibility. See also property_template_test.rs.
+
         let hint_beginning = if let Some(step) = step {
             format!("{min},{max},{step}")
         } else {
             format!("{min},{max}")
         };
+
         let rest = comma_separate_boolean_idents!(
             or_greater,
             or_less,
