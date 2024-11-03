@@ -89,6 +89,7 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
             PluginItem::Struct {
                 docs: Some(docs), ..
             } => map.entry(class_name).or_default().definition = docs,
+
             _ => (),
         }
     });
