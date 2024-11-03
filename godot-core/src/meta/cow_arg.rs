@@ -14,16 +14,50 @@ use std::fmt;
 
 /// Owned or borrowed value, used when passing arguments through `impl AsArg` to Godot APIs.
 #[doc(hidden)]
+#[derive(PartialEq)] // only for tests.
 pub enum CowArg<'r, T> {
     Owned(T),
-    Borrowed(RefArg<'r, T>),
+    Borrowed(&'r T),
 }
 
 impl<'r, T> CowArg<'r, T> {
-    pub fn as_ref(&self) -> &T {
+    pub fn cow_into_owned(self) -> T
+    where
+        T: Clone,
+    {
         match self {
             CowArg::Owned(v) => v,
-            CowArg::Borrowed(r) => r.as_ref(),
+            CowArg::Borrowed(r) => r.clone(),
+        }
+    }
+
+    pub fn cow_as_ref(&self) -> &T {
+        match self {
+            CowArg::Owned(v) => v,
+            CowArg::Borrowed(r) => r,
+        }
+    }
+
+    /// Returns the actual argument to be passed to function calls.
+    ///
+    /// [`CowArg`] does not implement [`AsArg<T>`] because a differently-named method is more explicit (fewer errors in codegen),
+    /// and because [`AsArg::consume_arg()`] is not meaningful.
+    pub fn cow_as_arg(&self) -> RefArg<'_, T> {
+        RefArg::new(self.cow_as_ref())
+    }
+}
+
+/// Exists for polymorphism in [`crate::meta::ArgTarget`].
+///
+/// Necessary for generics in e.g. `Array<T>`, when accepting `impl AsArg<T>` parameters.
+///
+/// `Borrow` may not be the most idiomatic trait for this, but it has the convenient feature that it's implemented for both `T` and `&T`.
+/// Since this is a hidden API, it doesn't matter.
+impl<'r, T> std::borrow::Borrow<T> for CowArg<'r, T> {
+    fn borrow(&self) -> &T {
+        match self {
+            CowArg::Owned(v) => v,
+            CowArg::Borrowed(r) => r,
         }
     }
 }
@@ -52,7 +86,7 @@ where
     where Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
-        self.as_ref().to_godot()
+        self.cow_as_ref().to_godot()
     }
 }
 
@@ -100,7 +134,7 @@ where
     }
 
     fn sys(&self) -> sys::GDExtensionConstTypePtr {
-        self.as_ref().sys()
+        self.cow_as_ref().sys()
     }
 
     fn sys_mut(&mut self) -> sys::GDExtensionTypePtr {
@@ -110,7 +144,7 @@ where
     // This function must be overridden; the default delegating to sys() is wrong for e.g. RawGd<T>.
     // See also other manual overrides of as_arg_ptr().
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        self.as_ref().as_arg_ptr()
+        self.cow_as_ref().as_arg_ptr()
     }
 
     unsafe fn from_arg_ptr(_ptr: sys::GDExtensionTypePtr, _call_type: PtrcallType) -> Self {
@@ -128,7 +162,7 @@ where
     T: GodotFfiVariant,
 {
     fn ffi_to_variant(&self) -> Variant {
-        self.as_ref().ffi_to_variant()
+        self.cow_as_ref().ffi_to_variant()
     }
 
     fn ffi_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
@@ -145,6 +179,6 @@ where
     }
 
     fn is_null(&self) -> bool {
-        self.as_ref().is_null()
+        self.cow_as_ref().is_null()
     }
 }

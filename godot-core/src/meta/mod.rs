@@ -58,11 +58,15 @@ pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use rpc_config::RpcConfig;
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
-pub(crate) use crate::impl_godot_as_self;
 pub(crate) use array_type_info::ArrayTypeInfo;
 pub(crate) use traits::{GodotFfiVariant, GodotNullableFfi};
 
 use crate::registry::method::MethodParamOrReturnInfo;
+
+pub(crate) use crate::{
+    arg_into_owned, arg_into_ref, declare_arg_method, impl_asarg_by_ref, impl_asarg_by_value,
+    impl_godot_as_self,
+};
 
 #[doc(hidden)]
 pub use cow_arg::*;

@@ -38,18 +38,18 @@ impl<'r, T> RefArg<'r, T> {
     ///
     /// # Panics
     /// If `T` is `Option<Gd<...>>::None`.
-    pub fn as_ref(&self) -> &T {
+    pub fn get_ref(&self) -> &T {
         self.shared_ref.expect("RefArg is null")
     }
 
     /// Returns the stored reference.
     ///
     /// Returns `None` if `T` is `Option<Gd<...>>::None`.
-    pub fn as_ref_or_none(&self) -> Option<&T>
+    pub fn get_ref_or_none(&self) -> Option<&T>
     where
         T: GodotNullableFfi,
     {
-        self.shared_ref.clone()
+        self.shared_ref
     }
 
     /// Returns the stored reference.
@@ -60,7 +60,7 @@ impl<'r, T> RefArg<'r, T> {
     where
         T: Clone,
     {
-        self.as_ref().clone()
+        self.get_ref().clone()
     }
 }
 
