@@ -102,7 +102,7 @@ impl Main {
         mob.set_linear_velocity(Vector2::new(range, 0.0).rotated(real::from_f32(direction)));
 
         let mut hud = self.base().get_node_as::<Hud>("Hud");
-        hud.connect("start_game".into(), mob.callable("on_start_game"));
+        hud.connect("start_game", mob.callable("on_start_game"));
     }
 
     fn music(&mut self) -> &mut AudioStreamPlayer {

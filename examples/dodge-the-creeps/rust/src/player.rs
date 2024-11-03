@@ -18,13 +18,13 @@ impl Player {
     #[func]
     fn on_player_body_entered(&mut self, _body: Gd<PhysicsBody2D>) {
         self.base_mut().hide();
-        self.base_mut().emit_signal("hit".into(), &[]);
+        self.base_mut().emit_signal("hit", &[]);
 
         let mut collision_shape = self
             .base()
             .get_node_as::<CollisionShape2D>("CollisionShape2D");
 
-        collision_shape.set_deferred("disabled".into(), &true.to_variant());
+        collision_shape.set_deferred("disabled", &true.to_variant());
     }
 
     #[func]
@@ -65,16 +65,16 @@ impl IArea2D for Player {
 
         // Note: exact=false by default, in Rust we have to provide it explicitly
         let input = Input::singleton();
-        if input.is_action_pressed("move_right".into()) {
+        if input.is_action_pressed("move_right") {
             velocity += Vector2::RIGHT;
         }
-        if input.is_action_pressed("move_left".into()) {
+        if input.is_action_pressed("move_left") {
             velocity += Vector2::LEFT;
         }
-        if input.is_action_pressed("move_down".into()) {
+        if input.is_action_pressed("move_down") {
             velocity += Vector2::DOWN;
         }
-        if input.is_action_pressed("move_up".into()) {
+        if input.is_action_pressed("move_up") {
             velocity += Vector2::UP;
         }
 
@@ -94,7 +94,7 @@ impl IArea2D for Player {
                 animated_sprite.set_flip_v(velocity.y > 0.0)
             }
 
-            animated_sprite.play_ex().name(animation.into()).done();
+            animated_sprite.play_ex().name(animation).done();
         } else {
             animated_sprite.stop();
         }
