@@ -14,15 +14,29 @@ use std::ffi::CStr;
 /// An `impl AsArg<T>` parameter allows values to be passed which can be represented in the target type `T`. Note that unlike `From<T>`,
 /// this trait is implemented more conservatively.
 ///
+/// As a result, `AsArg<T>` is currently only implemented for certain argument types:
+/// - `T` for by-value builtins (typically `Copy`): `i32`, `bool`, `Vector3`, `Transform2D`, ...
+/// - `&T` for by-ref builtins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
+/// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`.
+///
+/// # Pass by value
+/// Implicitly converting from `T` for by-ref builtins is explicitly not supported. This emphasizes that there is no need to consume the object,
+/// thus discourages unnecessary cloning.
+///
+/// If you need to pass owned values in generic code, you can use [`ArgTarget::value_to_arg()`].
+///
 /// # Performance for strings
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
 /// them, is generally expensive because of allocations, re-encoding, validations, hashing, etc. While this doesn't matter for a few strings
 /// passed to engine APIs, it can become a problematic when passing long strings in a hot loop.
 ///
-/// As a result, `AsArg<T>` is currently only implemented for certain conversions:
-/// - `&T` and `&mut T`, since those require no conversion or copy.
-/// - String literals like `"string"` and `c"string"`. While these _do_ need conversions, those are quite explicit, and
-///   `&'static CStr -> StringName` in particular is cheap.
+/// In the case of strings, we allow implicit conversion from Rust types `&str`, `&String` and `&'static CStr` (`StringName` only).
+/// While these conversions are not free, those are either explicit because a string literal is used, or they are unsurprising, because Godot
+/// cannot deal with raw Rust types. On the other hand, `GString` and `StringName` are sometimes used almost interchangeably (example:
+/// [`Node::set_name`](crate::classes::Node::set_name) takes `GString` but [`Node::get_name`](crate::classes::Node::get_name) returns `StringName`).
+///
+/// If you want to convert between Godot's string types for the sake of argument passing, each type provides an `arg()` method, such as
+/// [`GString::arg()`]. You cannot use this method in other contexts.
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "If you pass by value, consider borrowing instead.",
@@ -34,7 +48,7 @@ where
     Self: Sized,
 {
     #[doc(hidden)]
-    fn into_arg<'r>(self) -> <T as ArgTarget>::Type<'r>
+    fn into_arg<'r>(self) -> <T as ArgTarget>::Arg<'r>
     where
         Self: 'r;
 }
@@ -76,20 +90,20 @@ macro_rules! arg_into_owned {
 macro_rules! impl_asarg_by_value {
     ($T:ty) => {
         impl $crate::meta::AsArg<$T> for $T {
-            fn into_arg<'r>(self) -> <$T as $crate::meta::ArgTarget>::Type<'r> {
+            fn into_arg<'r>(self) -> <$T as $crate::meta::ArgTarget>::Arg<'r> {
                 // Moves value (but typically a Copy type).
                 self
             }
         }
 
         impl $crate::meta::ArgTarget for $T {
-            type Type<'v> = $T;
+            type Arg<'v> = $T;
 
-            fn value_to_arg<'v>(self) -> Self::Type<'v> {
+            fn value_to_arg<'v>(self) -> Self::Arg<'v> {
                 self
             }
 
-            fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self {
+            fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
                 arg
             }
         }
@@ -107,7 +121,7 @@ macro_rules! impl_asarg_by_ref {
             // Thus, keep `where` on same line.
             // type ArgType<'v> = &'v $T where Self: 'v;
 
-            fn into_arg<'cow>(self) -> <$T as $crate::meta::ArgTarget>::Type<'cow>
+            fn into_arg<'cow>(self) -> <$T as $crate::meta::ArgTarget>::Arg<'cow>
             where
                 'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
             {
@@ -116,13 +130,13 @@ macro_rules! impl_asarg_by_ref {
         }
 
         impl $crate::meta::ArgTarget for $T {
-            type Type<'v> = $crate::meta::CowArg<'v, $T>;
+            type Arg<'v> = $crate::meta::CowArg<'v, $T>;
 
-            fn value_to_arg<'v>(self) -> Self::Type<'v> {
+            fn value_to_arg<'v>(self) -> Self::Arg<'v> {
                 $crate::meta::CowArg::Owned(self)
             }
 
-            fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self {
+            fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
                 arg.cow_as_ref()
             }
         }
@@ -136,11 +150,11 @@ macro_rules! declare_arg_method {
         ///
         /// # Generic bounds
         /// The bounds are implementation-defined and may change at any time. Do not use this function in a generic context requiring `T`
-        /// -- use the `From` trait in that case.
+        /// -- use the `From` trait or [`ArgTarget`][crate::meta::ArgTarget] in that case.
         pub fn arg<T>(&self) -> impl $crate::meta::AsArg<T>
         where
             for<'a> T: From<&'a Self>
-                + $crate::meta::ArgTarget<Type<'a> = $crate::meta::CowArg<'a, T>>
+                + $crate::meta::ArgTarget<Arg<'a> = $crate::meta::CowArg<'a, T>>
                 + 'a,
         {
             $crate::meta::CowArg::Owned(T::from(self))
@@ -157,7 +171,7 @@ macro_rules! declare_arg_method {
 /// This is necessary for packed array dispatching to different "inner" backend signatures.
 impl<'a, T> AsArg<T> for CowArg<'a, T>
 where
-    for<'r> T: ArgTarget<Type<'r> = CowArg<'r, T>> + 'r,
+    for<'r> T: ArgTarget<Arg<'r> = CowArg<'r, T>> + 'r,
 {
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
@@ -228,32 +242,28 @@ impl AsArg<NodePath> for &String {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Implemented for all types that can be stored in [`AsArg<T>`].
+/// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
 pub trait ArgTarget
 where
     Self: Sized,
 {
-    /// Target type, either `T` or `CowArg<'v, T>`.
+    /// Canonical argument passing type, either `T` or an internally-used CoW type.
     ///
     /// The general rule is that `Copy` types are passed by value, while the rest is passed by reference.
     ///
-    /// This associated type is closely related to [`ToGodot::ToVia<'v>`] and may be reorganized.
-    type Type<'v>: AsArg<Self>
+    /// This associated type is closely related to [`ToGodot::ToVia<'v>`][crate::meta::ToGodot::ToVia] and may be reorganized.
+    type Arg<'v>: AsArg<Self>
     where
         Self: 'v;
 
-    /// Converts an owned value to the canonical argument type.
+    /// Converts an owned value to the canonical argument type, which can be passed to [`impl AsArg<T>`][AsArg].
     ///
     /// Useful in generic contexts where only a value is available, and one doesn't want to dispatch between value/reference.
-    #[doc(hidden)]
-    fn value_to_arg<'v>(self) -> Self::Type<'v>;
+    fn value_to_arg<'v>(self) -> Self::Arg<'v>;
 
-    /// Converts an owned value to the canonical argument type.
+    /// Converts an argument to a shared reference.
     ///
-    /// Useful in generic contexts where only a value is available, and one doesn't want to dispatch between value/reference.
-    #[doc(hidden)]
-    fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self;
+    /// Useful in generic contexts where you need to extract a reference of an argument, independently of how it is passed.
+    #[doc(hidden)] // for now, users are encouraged to use only call-site of impl AsArg; declaration-site may still develop.
+    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self;
 }
-
-/// Shorthand to determine how a type is passed as an argument to Godot APIs.
-pub type Arg<'r, T> = <T as ArgTarget>::Type<'r>;

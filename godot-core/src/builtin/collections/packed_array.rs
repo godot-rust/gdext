@@ -8,7 +8,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::*;
-use crate::meta::{Arg, AsArg, ToGodot};
+use crate::meta::{AsArg, ToGodot};
 use std::{fmt, ops, ptr};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -107,7 +107,7 @@ macro_rules! impl_packed_array {
             }
 
             /// Returns the number of times a value is in the array.
-            pub fn count(&self, value: Arg<$Element>) -> usize {
+            pub fn count(&self, value: impl AsArg<$Element>) -> usize {
                 to_usize(self.as_inner().count(value.into_arg().into_packed_arg()))
             }
 
@@ -140,7 +140,7 @@ macro_rules! impl_packed_array {
             /// Note: On large arrays, this method is much slower than `push` as it will move all
             /// the array's elements after the inserted element. The larger the array, the slower
             /// `insert` will be.
-            pub fn insert(&mut self, index: usize, value: Arg<$Element>) {
+            pub fn insert(&mut self, index: usize, value: impl AsArg<$Element>) {
                 // Intentional > and not >=.
                 if index > self.len() {
                     self.panic_out_of_bounds(index);
@@ -170,7 +170,7 @@ macro_rules! impl_packed_array {
 
             /// Assigns the given value to all elements in the array. This can be used together
             /// with `resize` to create an array with a given size and initialized elements.
-            pub fn fill(&mut self, value: Arg<$Element>) {
+            pub fn fill(&mut self, value: impl AsArg<$Element>) {
                 self.as_inner().fill(value.into_arg().into_packed_arg());
             }
 
@@ -262,7 +262,7 @@ macro_rules! impl_packed_array {
             /// Searches the array for the first occurrence of a value and returns its index, or
             /// `None` if not found. Starts searching at index `from`; pass `None` to search the
             /// entire array.
-            pub fn find(&self, value: Arg<$Element>, from: Option<usize>) -> Option<usize> {
+            pub fn find(&self, value: impl AsArg<$Element>, from: Option<usize>) -> Option<usize> {
                 let from = to_i64(from.unwrap_or(0));
                 let index = self.as_inner().find(value.into_arg().into_packed_arg(), from);
                 if index >= 0 {
@@ -275,7 +275,7 @@ macro_rules! impl_packed_array {
             /// Searches the array backwards for the last occurrence of a value and returns its
             /// index, or `None` if not found. Starts searching at index `from`; pass `None` to
             /// search the entire array.
-            pub fn rfind(&self, value: Arg<$Element>, from: Option<usize>) -> Option<usize> {
+            pub fn rfind(&self, value: impl AsArg<$Element>, from: Option<usize>) -> Option<usize> {
                 let from = from.map(to_i64).unwrap_or(-1);
                 let index = self.as_inner().rfind(value.into_arg().into_packed_arg(), from);
                 // It's not documented, but `rfind` returns -1 if not found.
@@ -291,7 +291,7 @@ macro_rules! impl_packed_array {
             /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
             ///
             /// Calling `bsearch()` on an unsorted array results in unspecified (but safe) behavior.
-            pub fn bsearch(&self, value: Arg<$Element>) -> usize {
+            pub fn bsearch(&self, value: impl AsArg<$Element>) -> usize {
                 to_usize(self.as_inner().bsearch(value.into_arg().into_packed_arg(), true))
             }
 

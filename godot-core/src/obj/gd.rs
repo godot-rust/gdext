@@ -782,13 +782,13 @@ impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
 }
 
 impl<T: GodotClass> ArgTarget for Gd<T> {
-    type Type<'v> = CowArg<'v, Gd<T>>;
+    type Arg<'v> = CowArg<'v, Gd<T>>;
 
-    fn value_to_arg<'v>(self) -> Self::Type<'v> {
+    fn value_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
     }
 
-    fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self {
+    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
         arg.cow_as_ref()
     }
 }
@@ -804,13 +804,13 @@ impl<'r, T: GodotClass> AsArg<Option<Gd<T>>> for Option<&'r Gd<T>> {
 }
 
 impl<T: GodotClass> ArgTarget for Option<Gd<T>> {
-    type Type<'v> = CowArg<'v, Option<Gd<T>>>;
+    type Arg<'v> = CowArg<'v, Option<Gd<T>>>;
 
-    fn value_to_arg<'v>(self) -> Self::Type<'v> {
+    fn value_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
     }
 
-    fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self {
+    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
         arg.cow_as_ref()
     }
 }

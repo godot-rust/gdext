@@ -945,13 +945,13 @@ impl<'r, T: ArrayElement> AsArg<Array<T>> for &'r Array<T> {
 }
 
 impl<T: ArrayElement> ArgTarget for Array<T> {
-    type Type<'v> = CowArg<'v, Self>;
+    type Arg<'v> = CowArg<'v, Self>;
 
-    fn value_to_arg<'v>(self) -> Self::Type<'v> {
+    fn value_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
     }
 
-    fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self {
+    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
         arg.cow_as_ref()
     }
 }
