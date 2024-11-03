@@ -10,6 +10,7 @@ use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
 use crate::builtin::{ColorHsv, GString};
 
+use crate::meta::{arg_into_ref, AsArg};
 use godot_ffi as sys;
 use std::ops;
 use sys::{ffi_methods, GodotFfi};
@@ -93,9 +94,9 @@ impl Color {
     /// - `#RGB` and `RGB`. Equivalent to `#RRGGBBff`.
     ///
     /// Returns `None` if the format is invalid.
-    pub fn from_html<S: Into<GString>>(html: S) -> Option<Self> {
-        let html = html.into();
-        InnerColor::html_is_valid(html.clone()).then(|| InnerColor::html(html))
+    pub fn from_html<S: AsArg<GString>>(html: S) -> Option<Self> {
+        arg_into_ref!(html);
+        InnerColor::html_is_valid(html).then(|| InnerColor::html(html))
     }
 
     /// Constructs a `Color` from a string, which can be either:
@@ -112,13 +113,15 @@ impl Color {
     ///
     /// [color_constants]: https://docs.godotengine.org/en/latest/classes/class_color.html#constants
     /// [cheat_sheet]: https://raw.githubusercontent.com/godotengine/godot-docs/master/img/color_constants.png
-    pub fn from_string<S: Into<GString>>(string: S) -> Option<Self> {
+    pub fn from_string(string: impl AsArg<GString>) -> Option<Self> {
+        arg_into_ref!(string);
+
         let color = InnerColor::from_string(
-            string.into(),
+            string,
             Self::from_rgba(f32::NAN, f32::NAN, f32::NAN, f32::NAN),
         );
-        // Assumption: the implementation of `from_string` in the engine will never return any NaN
-        // upon success.
+
+        // Assumption: the implementation of `from_string` in the engine will never return any NaN upon success.
         if color.r.is_nan() {
             None
         } else {

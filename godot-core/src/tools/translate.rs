@@ -38,17 +38,21 @@ pub use crate::{tr, tr_n};
 /// in Godot.
 #[macro_export]
 macro_rules! tr {
-    ($fmt:literal $(, $($args:tt)*)?) => {
-        $crate::classes::Engine::singleton()
-            .tr(format!($fmt $(, $($args)*)?).into())
-    };
+    ($fmt:literal $(, $($args:tt)*)?) => {{
+        let msg = format!($fmt $(, $($args)*)?);
 
-    ($context:expr; $fmt:literal $(, $($args:tt)*)?) => {
+        $crate::classes::Engine::singleton().tr(&msg)
+    }};
+
+    ($context:expr; $fmt:literal $(, $($args:tt)*)?) => {{
+        let msg = format!($fmt $(, $($args)*)?);
+        let context = format!("{}", $context);
+
         $crate::classes::Engine::singleton()
-            .tr_ex(format!($fmt $(, $($args)*)?).into())
-            .context(format!("{}", $context).into())
+            .tr_ex(&msg)
+            .context(&context)
             .done()
-    };
+    }};
 }
 
 /// A convenience macro for using the [`Object::tr_n()`](crate::classes::Object::tr_n()) and
@@ -85,8 +89,8 @@ macro_rules! tr_n {
     ($n:expr; $singular:literal, $plural:literal $(, $($args:tt)*)?) => {
         $crate::classes::Engine::singleton()
             .tr_n(
-                format!($singular$(, $($args)*)?).into(),
-                format!($plural$(, $($args)*)?).into(),
+                &format!($singular$(, $($args)*)?),
+                &format!($plural$(, $($args)*)?),
                 $n,
             )
     };
@@ -94,11 +98,11 @@ macro_rules! tr_n {
     ($n:expr, $context:expr; $singular:literal, $plural:literal $(, $($args:tt)*)?) => {
         $crate::classes::Engine::singleton()
             .tr_n_ex(
-                format!($singular$(, $($args)*)?).into(),
-                format!($plural$(, $($args)*)?).into(),
+                &format!($singular$(, $($args)*)?),
+                &format!($plural$(, $($args)*)?),
                 $n,
             )
-            .context(format!("{}", $context).into())
+            .context(&format!("{}", $context))
             .done()
     };
 }

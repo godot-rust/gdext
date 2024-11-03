@@ -16,8 +16,8 @@ use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, CallContext, ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo,
-    RefArg, ToGodot,
+    ArgTarget, ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert,
+    GodotType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -349,7 +349,7 @@ impl<T: GodotClass> Gd<T> {
     /// where
     ///     T: Inherits<Node>,
     /// {
-    ///     node.upcast_mut().set_name(name.into());
+    ///     node.upcast_mut().set_name(name);
     /// }
     /// ```
     ///
@@ -769,6 +769,49 @@ impl<T: GodotClass> ArrayElement for Gd<T> {
 impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
     fn element_type_string() -> String {
         Gd::<T>::element_type_string()
+    }
+}
+
+impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
+    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
+    where
+        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
+    {
+        CowArg::Borrowed(self)
+    }
+}
+
+impl<T: GodotClass> ArgTarget for Gd<T> {
+    type Type<'v> = CowArg<'v, Gd<T>>;
+
+    fn value_to_arg<'v>(self) -> Self::Type<'v> {
+        CowArg::Owned(self)
+    }
+
+    fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self {
+        arg.cow_as_ref()
+    }
+}
+
+impl<'r, T: GodotClass> AsArg<Option<Gd<T>>> for Option<&'r Gd<T>> {
+    fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
+        // TODO avoid cloning.
+        match self {
+            Some(gd) => CowArg::Owned(Some(gd.clone())),
+            None => CowArg::Owned(None),
+        }
+    }
+}
+
+impl<T: GodotClass> ArgTarget for Option<Gd<T>> {
+    type Type<'v> = CowArg<'v, Option<Gd<T>>>;
+
+    fn value_to_arg<'v>(self) -> Self::Type<'v> {
+        CowArg::Owned(self)
+    }
+
+    fn arg_to_ref<'r>(arg: &'r Self::Type<'_>) -> &'r Self {
+        arg.cow_as_ref()
     }
 }
 

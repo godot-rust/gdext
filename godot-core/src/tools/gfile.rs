@@ -10,6 +10,7 @@ use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::classes::FileAccess;
 use crate::global::Error;
 use crate::meta::error::IoError;
+use crate::meta::{arg_into_ref, AsArg};
 use crate::obj::Gd;
 
 use std::cmp;
@@ -101,15 +102,14 @@ impl GFile {
     ///
     /// Opens a file located at `path`, creating new [`GFile`] object. For [`ModeFlags`] description check the [`GFile`]
     /// documentation.
-    pub fn open(path: impl Into<GString>, flags: ModeFlags) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa = FileAccess::open(path.clone(), flags).ok_or_else(|| {
+    pub fn open(path: impl AsArg<GString>, flags: ModeFlags) -> std::io::Result<Self> {
+        arg_into_ref!(path);
+
+        let fa = FileAccess::open(path, flags).ok_or_else(|| {
             std::io::Error::new(
                 ErrorKind::Other,
                 format!(
-                    "can't open file {} in mode {:?}; GodotError: {:?}",
-                    &path,
-                    flags,
+                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
                     FileAccess::get_open_error()
                 ),
             )
@@ -123,21 +123,20 @@ impl GFile {
     /// Opens a compressed file located at `path`, creating new [`GFile`] object. Can read only files compressed by
     /// Godot compression formats. For [`ModeFlags`] description check the [`GFile`] documentation.
     pub fn open_compressed(
-        path: impl Into<GString>,
+        path: impl AsArg<GString>,
         flags: ModeFlags,
         compression_mode: CompressionMode,
     ) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa = FileAccess::open_compressed_ex(path.clone(), flags)
+        arg_into_ref!(path);
+
+        let fa = FileAccess::open_compressed_ex(path, flags)
             .compression_mode(compression_mode)
             .done()
             .ok_or_else(|| {
                 std::io::Error::new(
                     ErrorKind::Other,
                     format!(
-                        "can't open file {} in mode {:?}; GodotError: {:?}",
-                        &path,
-                        flags,
+                        "can't open file {path} in mode {flags:?}; GodotError: {:?}",
                         FileAccess::get_open_error()
                     ),
                 )
@@ -151,18 +150,17 @@ impl GFile {
     /// Opens a file encrypted by 32-byte long [`PackedByteArray`] located at `path`, creating new [`GFile`] object.
     /// For [`ModeFlags`] description check the [`GFile`] documentation.
     pub fn open_encrypted(
-        path: impl Into<GString>,
+        path: impl AsArg<GString>,
         flags: ModeFlags,
         key: &PackedByteArray,
     ) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa = FileAccess::open_encrypted(path.clone(), flags, key).ok_or_else(|| {
+        arg_into_ref!(path);
+
+        let fa = FileAccess::open_encrypted(path, flags, key).ok_or_else(|| {
             std::io::Error::new(
                 ErrorKind::Other,
                 format!(
-                    "can't open file {} in mode {:?}; GodotError: {:?}",
-                    &path,
-                    flags,
+                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
                     FileAccess::get_open_error()
                 ),
             )
@@ -173,26 +171,25 @@ impl GFile {
 
     /// Open a file encrypted by password.
     ///
-    /// Opens a file encrypted by a `pass` located at `path`, creating new [`GFile`] object. For [`ModeFlags`]
+    /// Opens a file encrypted by a `password` located at `path`, creating new [`GFile`] object. For [`ModeFlags`]
     /// description check the [`GFile`] documentation.
     pub fn open_encrypted_with_pass(
-        path: impl Into<GString>,
+        path: impl AsArg<GString>,
         flags: ModeFlags,
-        pass: GString,
+        password: impl AsArg<GString>,
     ) -> std::io::Result<Self> {
-        let path: GString = path.into();
-        let fa =
-            FileAccess::open_encrypted_with_pass(path.clone(), flags, pass).ok_or_else(|| {
-                std::io::Error::new(
-                    ErrorKind::Other,
-                    format!(
-                        "can't open file {} in mode {:?}; GodotError: {:?}",
-                        &path,
-                        flags,
-                        FileAccess::get_open_error()
-                    ),
-                )
-            })?;
+        arg_into_ref!(path);
+        arg_into_ref!(password);
+
+        let fa = FileAccess::open_encrypted_with_pass(path, flags, password).ok_or_else(|| {
+            std::io::Error::new(
+                ErrorKind::Other,
+                format!(
+                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
+                    FileAccess::get_open_error()
+                ),
+            )
+        })?;
         Ok(Self::from_inner(fa))
     }
 
@@ -222,13 +219,14 @@ impl GFile {
 
     /// Get last modified time as a Unix timestamp.
     #[doc(alias = "get_modified_time")]
-    pub fn modified_time(path: impl Into<GString>) -> std::io::Result<u64> {
-        let modified_time = FileAccess::get_modified_time(path.into());
+    pub fn modified_time(path: impl AsArg<GString>) -> std::io::Result<u64> {
+        arg_into_ref!(path);
+        let modified_time = FileAccess::get_modified_time(path);
 
         if modified_time == 0 {
             Err(std::io::Error::new(
                 ErrorKind::Other,
-                "can't retrieve last modified time",
+                format!("can't retrieve last modified time: {path}"),
             ))
         } else {
             Ok(modified_time)
@@ -237,12 +235,14 @@ impl GFile {
 
     /// Calculates the MD5 checksum of the file at the given path.
     #[doc(alias = "get_md5")]
-    pub fn md5(path: impl Into<GString>) -> std::io::Result<GString> {
-        let md5 = FileAccess::get_md5(path.into());
+    pub fn md5(path: impl AsArg<GString>) -> std::io::Result<GString> {
+        arg_into_ref!(path);
+        let md5 = FileAccess::get_md5(path);
+
         if md5.is_empty() {
             Err(std::io::Error::new(
                 ErrorKind::Other,
-                "failed to compute file's MD5 checksum",
+                format!("failed to compute file's MD5 checksum: {path}"),
             ))
         } else {
             Ok(md5)
@@ -251,13 +251,14 @@ impl GFile {
 
     /// Calculates the SHA-256 checksum of the file at the given path.
     #[doc(alias = "get_sha256")]
-    pub fn sha256(path: impl Into<GString>) -> std::io::Result<GString> {
-        let sha256 = FileAccess::get_sha256(path.into());
+    pub fn sha256(path: impl AsArg<GString>) -> std::io::Result<GString> {
+        arg_into_ref!(path);
+        let sha256 = FileAccess::get_sha256(path);
 
         if sha256.is_empty() {
             Err(std::io::Error::new(
                 ErrorKind::Other,
-                "failed to compute file's SHA-256 checksum",
+                format!("failed to compute file's SHA-256 checksum: {path}"),
             ))
         } else {
             Ok(sha256)
@@ -362,9 +363,12 @@ impl GFile {
     #[doc(alias = "get_csv_line")]
     pub fn read_csv_line(
         &mut self,
-        delim: impl Into<GString>,
+        delim: impl AsArg<GString>,
     ) -> std::io::Result<PackedStringArray> {
-        let val = self.fa.get_csv_line_ex().delim(delim.into()).done();
+        arg_into_ref!(delim);
+
+        // FIXME: pass by-ref
+        let val = self.fa.get_csv_line_ex().delim(delim).done();
         self.check_error()?;
         Ok(val)
     }
@@ -545,8 +549,10 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-string).
     #[doc(alias = "store_string")]
-    pub fn write_gstring(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
-        self.fa.store_string(value.into());
+    pub fn write_gstring(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+        arg_into_ref!(value);
+
+        self.fa.store_string(value);
         self.clear_file_length();
         self.check_error()?;
         Ok(())
@@ -563,8 +569,10 @@ impl GFile {
     /// - [Wikipedia article](https://en.wikipedia.org/wiki/String_(computer_science)#Length-prefixed)
     /// - [Godot `FileAccess::store_pascal_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-pascal-string)
     #[doc(alias = "store_pascal_string")]
-    pub fn write_pascal_string(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
-        self.fa.store_pascal_string(value.into());
+    pub fn write_pascal_string(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+        arg_into_ref!(value);
+
+        self.fa.store_pascal_string(value);
         self.clear_file_length();
         self.check_error()?;
         Ok(())
@@ -575,8 +583,10 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_line`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-line).
     #[doc(alias = "store_line")]
-    pub fn write_gstring_line(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
-        self.fa.store_line(value.into());
+    pub fn write_gstring_line(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+        arg_into_ref!(value);
+
+        self.fa.store_line(value);
         self.clear_file_length();
         self.check_error()?;
         Ok(())
@@ -592,9 +602,11 @@ impl GFile {
     pub fn write_csv_line(
         &mut self,
         values: &PackedStringArray,
-        delim: impl Into<GString>,
+        delim: impl AsArg<GString>,
     ) -> std::io::Result<()> {
-        self.fa.store_csv_line_ex(values).delim(delim.into()).done();
+        arg_into_ref!(delim);
+
+        self.fa.store_csv_line_ex(values).delim(delim).done();
         self.clear_file_length();
         self.check_error()?;
         Ok(())

@@ -8,14 +8,14 @@
 use godot_ffi as sys;
 
 use crate::builtin::*;
-use crate::meta::ToGodot;
+use crate::meta::{Arg, AsArg, ToGodot};
 use std::{fmt, ops, ptr};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 // FIXME remove dependency on these types
+use crate::meta;
 use sys::{__GdextString, __GdextType};
-
 // TODO(bromeon): ensure and test that all element types can be packed.
 // Many builtin types don't have a #[repr] themselves, but they are used in packed arrays, which assumes certain size and alignment.
 // This is mostly a problem for as_slice(), which reinterprets the FFI representation into the "frontend" type like GString.
@@ -34,8 +34,7 @@ macro_rules! impl_packed_array {
         opaque_type: $Opaque:ty,
         // Name of inner type, e.g. `InnerPackedByteArray`.
         inner_type: $Inner:ident,
-        // Name of type that represents elements in function call arguments, e.g. `i64`. See
-        // `Self::into_arg()`.
+        // Name of type that represents elements in function call arguments, e.g. `i64`. See `to_arg()`.
         argument_type: $Arg:ty,
         // Type that is returned from `$operator_index` and `$operator_index_const`.
         return_type: $IndexRetType:ty,
@@ -103,13 +102,13 @@ macro_rules! impl_packed_array {
             ///
             /// _Godot equivalent: `has`_
             #[doc(alias = "has")]
-            pub fn contains(&self, value: &$Element) -> bool {
-                self.as_inner().has(Self::to_arg(value))
+            pub fn contains(&self, value: impl AsArg<$Element>) -> bool {
+                self.as_inner().has(value.into_arg().into_packed_arg())
             }
 
             /// Returns the number of times a value is in the array.
-            pub fn count(&self, value: &$Element) -> usize {
-                to_usize(self.as_inner().count(Self::to_arg(value)))
+            pub fn count(&self, value: Arg<$Element>) -> usize {
+                to_usize(self.as_inner().count(value.into_arg().into_packed_arg()))
             }
 
             /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
@@ -131,8 +130,8 @@ macro_rules! impl_packed_array {
             /// in GDScript.
             #[doc(alias = "append")]
             #[doc(alias = "push_back")]
-            pub fn push(&mut self, value: $Element) {
-                self.as_inner().push_back(Self::into_arg(value));
+            pub fn push(&mut self, value: impl AsArg<$Element>) {
+                self.as_inner().push_back(value.into_arg().into_packed_arg());
             }
 
             /// Inserts a new element at a given index in the array. The index must be valid, or at
@@ -141,13 +140,13 @@ macro_rules! impl_packed_array {
             /// Note: On large arrays, this method is much slower than `push` as it will move all
             /// the array's elements after the inserted element. The larger the array, the slower
             /// `insert` will be.
-            pub fn insert(&mut self, index: usize, value: $Element) {
+            pub fn insert(&mut self, index: usize, value: Arg<$Element>) {
                 // Intentional > and not >=.
                 if index > self.len() {
                     self.panic_out_of_bounds(index);
                 }
 
-                self.as_inner().insert(to_i64(index), Self::into_arg(value));
+                self.as_inner().insert(to_i64(index), value.into_arg().into_packed_arg());
             }
 
             /// Removes and returns the element at the specified index. Similar to `remove_at` in
@@ -171,8 +170,8 @@ macro_rules! impl_packed_array {
 
             /// Assigns the given value to all elements in the array. This can be used together
             /// with `resize` to create an array with a given size and initialized elements.
-            pub fn fill(&mut self, value: $Element) {
-                self.as_inner().fill(Self::into_arg(value));
+            pub fn fill(&mut self, value: Arg<$Element>) {
+                self.as_inner().fill(value.into_arg().into_packed_arg());
             }
 
             /// Resizes the array to contain a different number of elements. If the new size is
@@ -263,9 +262,9 @@ macro_rules! impl_packed_array {
             /// Searches the array for the first occurrence of a value and returns its index, or
             /// `None` if not found. Starts searching at index `from`; pass `None` to search the
             /// entire array.
-            pub fn find(&self, value: &$Element, from: Option<usize>) -> Option<usize> {
+            pub fn find(&self, value: Arg<$Element>, from: Option<usize>) -> Option<usize> {
                 let from = to_i64(from.unwrap_or(0));
-                let index = self.as_inner().find(Self::to_arg(value), from);
+                let index = self.as_inner().find(value.into_arg().into_packed_arg(), from);
                 if index >= 0 {
                     Some(index.try_into().unwrap())
                 } else {
@@ -276,9 +275,9 @@ macro_rules! impl_packed_array {
             /// Searches the array backwards for the last occurrence of a value and returns its
             /// index, or `None` if not found. Starts searching at index `from`; pass `None` to
             /// search the entire array.
-            pub fn rfind(&self, value: &$Element, from: Option<usize>) -> Option<usize> {
+            pub fn rfind(&self, value: Arg<$Element>, from: Option<usize>) -> Option<usize> {
                 let from = from.map(to_i64).unwrap_or(-1);
-                let index = self.as_inner().rfind(Self::to_arg(value), from);
+                let index = self.as_inner().rfind(value.into_arg().into_packed_arg(), from);
                 // It's not documented, but `rfind` returns -1 if not found.
                 if index >= 0 {
                     Some(to_usize(index))
@@ -292,8 +291,8 @@ macro_rules! impl_packed_array {
             /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
             ///
             /// Calling `bsearch()` on an unsorted array results in unspecified (but safe) behavior.
-            pub fn bsearch(&self, value: &$Element) -> usize {
-                to_usize(self.as_inner().bsearch(Self::to_arg(value), true))
+            pub fn bsearch(&self, value: Arg<$Element>) -> usize {
+                to_usize(self.as_inner().bsearch(value.into_arg().into_packed_arg(), true))
             }
 
             /// Reverses the order of the elements in the array.
@@ -358,20 +357,6 @@ macro_rules! impl_packed_array {
                 } else {
                     item_ptr as *mut $Element
                 }
-            }
-
-            #[doc = concat!("Converts a `", stringify!($Element), "` into a value that can be")]
-            /// passed into API functions. For most types, this is a no-op. But `u8` and `i32` are
-            /// widened to `i64`, and `real` is widened to `f64` if it is an `f32`.
-            #[inline]
-            fn into_arg(e: $Element) -> $Arg {
-                e.into()
-            }
-
-            #[inline]
-            fn to_arg(e: &$Element) -> $Arg {
-                // Once PackedArra<T> is generic, this could use a better tailored implementation that may not need to clone.
-                e.clone().into()
             }
 
             #[doc(hidden)]
@@ -506,7 +491,7 @@ macro_rules! impl_packed_array {
                 // A faster implementation using `resize()` and direct pointer writes might still be
                 // possible.
                 for item in iter.into_iter() {
-                    self.push(item);
+                    self.push(meta::ArgTarget::value_to_arg(item));
                 }
             }
         }
@@ -794,3 +779,48 @@ impl_packed_array!(
         PartialEq => packed_color_array_operator_equal;
     },
 );
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Abstractions that may later simplify the migration to generics.
+
+macro_rules! impl_packed_trait_as_into {
+    ($Type:ty, $Into:ty) => {
+        impl PackedTraits for $Type {
+            type ArgType = $Into;
+
+            // fn into_packed_arg(self) -> Self::ArgType<'_> {
+            fn into_packed_arg(self) -> Self::ArgType {
+                self.into()
+            }
+        }
+    };
+
+    ($Type:ty) => {
+        impl_packed_trait_as_into!($Type, $Type);
+    };
+}
+
+trait PackedTraits /*: PackedArrayElement*/ {
+    type ArgType;
+
+    fn into_packed_arg(self) -> Self::ArgType;
+}
+
+impl_packed_trait_as_into!(u8, i64);
+impl_packed_trait_as_into!(i32, i64);
+impl_packed_trait_as_into!(i64);
+impl_packed_trait_as_into!(f32, f64);
+impl_packed_trait_as_into!(f64);
+impl_packed_trait_as_into!(Vector2);
+impl_packed_trait_as_into!(Vector3);
+#[cfg(since_api = "4.3")]
+impl_packed_trait_as_into!(Vector4);
+impl_packed_trait_as_into!(Color);
+
+impl<'r> PackedTraits for crate::meta::CowArg<'r, GString> {
+    type ArgType = crate::meta::CowArg<'r, GString>;
+
+    fn into_packed_arg(self) -> Self::ArgType {
+        self
+    }
+}

@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::arg_into_ref;
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
 use crate::meta::error::ConvertError;
-use crate::meta::{ArrayElement, FromGodot, ToGodot};
+use crate::meta::{ArrayElement, AsArg, FromGodot, ToGodot};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -115,11 +116,12 @@ impl Variant {
     /// * If the method does not exist or the signature is not compatible with the passed arguments.
     /// * If the call causes an error.
     #[inline]
-    pub fn call(&self, method: impl Into<StringName>, args: &[Variant]) -> Variant {
-        self.call_inner(method.into(), args)
+    pub fn call(&self, method: impl AsArg<StringName>, args: &[Variant]) -> Variant {
+        arg_into_ref!(method);
+        self.call_inner(method, args)
     }
 
-    fn call_inner(&self, method: StringName, args: &[Variant]) -> Variant {
+    fn call_inner(&self, method: &StringName, args: &[Variant]) -> Variant {
         let args_sys: Vec<_> = args.iter().map(|v| v.var_sys()).collect();
         let mut error = sys::default_call_error();
 
@@ -390,6 +392,8 @@ impl Variant {
 }
 
 impl ArrayElement for Variant {}
+
+crate::meta::impl_asarg_by_ref!(Variant);
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.

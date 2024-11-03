@@ -78,20 +78,20 @@ impl StringName {
             .expect("Godot hashes are uint32_t")
     }
 
-    /// Convert to `GString`.
-    ///
-    /// Equivalent to [`GString::from(self)`](struct.GString.html#impl-From%3C%26StringName%3E-for-GString) or `self.into()`,
-    /// but the latter cannot be type-inferred.
-    pub fn to_gstring(&self) -> GString {
-        GString::from(self)
-    }
-
-    /// Convert to `NodePath`.
-    ///
-    /// Equivalent to [`NodePath::from(self)`](struct.NodePath.html#impl-From%3C%26String%3E-for-NodePath) or `self.into()`,
-    /// but the latter cannot be type-inferred.
-    pub fn to_node_path(&self) -> NodePath {
-        NodePath::from(self)
+    crate::meta::declare_arg_method! {
+        /// Use as argument for an [`impl AsArg<GString|NodePath>`][crate::meta::AsArg] parameter.
+        ///
+        /// This is a convenient way to convert arguments of similar string types.
+        ///
+        /// # Example
+        /// [`Node::set_name()`][crate::classes::Node::set_name] takes `GString`, let's pass a `StringName`:
+        /// ```no_run
+        /// # use godot::prelude::*;
+        /// let name = StringName::from("my cool node");
+        ///
+        /// let mut node = Node::new_alloc();
+        /// node.set_name(name.arg());
+        /// ```
     }
 
     /// O(1), non-lexicographic, non-stable ordering relation.

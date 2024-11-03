@@ -185,7 +185,7 @@ impl Callable {
     }
 
     /// Returns the name of the method represented by this callable. If the callable is a lambda function,
-    /// returns the function's name.
+    /// returns the surrounding function's name.
     ///
     /// ## Known Bugs
     ///

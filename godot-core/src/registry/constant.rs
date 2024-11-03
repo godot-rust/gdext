@@ -19,12 +19,12 @@ pub struct IntegerConstant {
 }
 
 impl IntegerConstant {
-    pub fn new<T>(name: StringName, value: T) -> Self
+    pub fn new<T>(name: &str, value: T) -> Self
     where
         T: TryInto<i64> + Copy + std::fmt::Debug,
     {
         Self {
-            name,
+            name: StringName::from(name),
             value: value.try_into().ok().unwrap_or_else(|| {
                 panic!("exported constant `{value:?}` must be representable as `i64`")
             }),
