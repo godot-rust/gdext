@@ -73,6 +73,9 @@ mod rustfmt {
 
         for files in out_files.chunks(20) {
             let mut command = Command::new("rustfmt");
+            command.arg("--edition");
+            command.arg("2021");
+
             for file in files {
                 command.arg(file);
             }
