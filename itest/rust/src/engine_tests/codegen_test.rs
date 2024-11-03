@@ -36,16 +36,16 @@ fn codegen_static_builtin_method() {
     let pi = InnerString::num(std::f64::consts::PI, 3);
     assert_eq!(pi, GString::from("3.142"));
 
-    let col = InnerColor::html("#663399cc".into());
+    let col = InnerColor::html("#663399cc");
     assert_eq!(col, Color::from_rgba(0.4, 0.2, 0.6, 0.8));
 }
 
 #[itest]
 fn codegen_static_class_method() {
-    let exists = FileAccess::file_exists("inexistent".into());
+    let exists = FileAccess::file_exists("inexistent");
     assert!(!exists);
 
-    let exists = FileAccess::file_exists("res://itest.gdextension".into());
+    let exists = FileAccess::file_exists("res://itest.gdextension");
     assert!(exists);
 
     // see also object_test for reference count verification

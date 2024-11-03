@@ -82,8 +82,8 @@ fn signals() {
         let signal_name = format!("signal_{i}_arg");
         let receiver_name = format!("receive_{i}_arg");
 
-        emitter.connect(signal_name.clone().into(), receiver.callable(receiver_name));
-        emitter.emit_signal(signal_name.into(), arg);
+        emitter.connect(&signal_name, receiver.callable(receiver_name));
+        emitter.emit_signal(&signal_name, arg);
 
         assert!(receiver.bind().used[i].get());
     }
@@ -96,7 +96,7 @@ fn signals() {
 fn instantiate_signal() {
     let mut object = RefCounted::new_gd();
 
-    object.add_user_signal("test_signal".into());
+    object.add_user_signal("test_signal");
 
     let signal = Signal::from_object_signal(&object, "test_signal");
 
@@ -110,20 +110,18 @@ fn instantiate_signal() {
 fn emit_signal() {
     let mut object = RefCounted::new_gd();
 
-    object.add_user_signal("test_signal".into());
+    object.add_user_signal("test_signal");
 
     let signal = Signal::from_object_signal(&object, "test_signal");
     let receiver = Receiver::new_alloc();
 
     object.connect(
-        StringName::from("test_signal"),
+        &StringName::from("test_signal"), // explicit StringName
         Callable::from_object_method(&receiver, "receive_1_arg"),
     );
-
     assert_eq!(signal.connections().len(), 1);
 
     signal.emit(&[987i64.to_variant()]);
-
     assert!(receiver.bind().used[1].get());
 
     receiver.free();
@@ -133,17 +131,15 @@ fn emit_signal() {
 fn connect_signal() {
     let mut object = RefCounted::new_gd();
 
-    object.add_user_signal("test_signal".into());
+    object.add_user_signal("test_signal");
 
     let signal = Signal::from_object_signal(&object, "test_signal");
     let receiver = Receiver::new_alloc();
 
     signal.connect(Callable::from_object_method(&receiver, "receive_1_arg"), 0);
-
     assert_eq!(signal.connections().len(), 1);
 
-    object.emit_signal(StringName::from("test_signal"), &[987i64.to_variant()]);
-
+    object.emit_signal("test_signal", &[987i64.to_variant()]);
     assert!(receiver.bind().used[1].get());
 
     receiver.free();
@@ -151,7 +147,7 @@ fn connect_signal() {
 
 #[cfg(since_api = "4.2")]
 mod custom_callable {
-    use godot::builtin::{Callable, Signal, StringName};
+    use godot::builtin::{Callable, Signal};
     use godot::meta::ToGodot;
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
@@ -168,10 +164,10 @@ mod custom_callable {
             "test_signal",
             connect_signal_panic_from_fn,
             |node| {
-                node.add_user_signal("test_signal".into());
+                node.add_user_signal("test_signal");
             },
             |node| {
-                node.emit_signal(StringName::from("test_signal"), &[987i64.to_variant()]);
+                node.emit_signal("test_signal", &[987i64.to_variant()]);
             },
         );
     }
@@ -182,10 +178,10 @@ mod custom_callable {
             "test_signal",
             connect_signal_panic_from_custom,
             |node| {
-                node.add_user_signal("test_signal".into());
+                node.add_user_signal("test_signal");
             },
             |node| {
-                node.emit_signal(StringName::from("test_signal"), &[987i64.to_variant()]);
+                node.emit_signal("test_signal", &[987i64.to_variant()]);
             },
         );
     }

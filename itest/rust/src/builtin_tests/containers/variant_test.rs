@@ -382,7 +382,7 @@ fn variant_null_object_is_nil() {
 
     // Simulates an object that is returned but null
     // Use reflection to get a variant as return type
-    let variant = node.call("get_node_or_null".into(), &[node_path.to_variant()]);
+    let variant = node.call("get_node_or_null", &[node_path.to_variant()]);
     let raw_type: sys::GDExtensionVariantType =
         unsafe { sys::interface_fn!(variant_get_type)(variant.var_sys()) };
 

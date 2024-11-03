@@ -59,7 +59,7 @@ fn serde_array_rust_native_type() {
 
 #[itest]
 fn serde_array_godot_builtin_type() {
-    let value: Array<GString> = array!["Godot".into(), "Rust".into(), "Rocks".into()];
+    let value: Array<GString> = array!["Godot", "Rust", "Rocks"];
 
     let expected_json = r#"["Godot","Rust","Rocks"]"#;
 

@@ -133,8 +133,8 @@ fn onready_property_access() {
     let mut obj = OnReadyWithImpl::create(true);
     obj.notify(NodeNotification::READY);
 
-    obj.set("auto".into(), &33.to_variant());
-    obj.set("manual".into(), &44.to_variant());
+    obj.set("auto", &33.to_variant());
+    obj.set("manual", &44.to_variant());
 
     {
         let obj = obj.bind();
@@ -142,8 +142,8 @@ fn onready_property_access() {
         assert_eq!(*obj.manual, 44);
     }
 
-    let auto = obj.get("auto".into()).to::<i32>();
-    let manual = obj.get("manual".into()).to::<i64>();
+    let auto = obj.get("auto").to::<i32>();
+    let manual = obj.get("manual").to::<i64>();
     assert_eq!(auto, 33);
     assert_eq!(manual, 44);
 
@@ -153,10 +153,10 @@ fn onready_property_access() {
 #[itest]
 fn init_attribute_node_key_lifecycle() {
     let mut obj = InitWithNodeOrBase::new_alloc();
-    obj.set_name("CustomNodeName".into());
+    obj.set_name("CustomNodeName");
 
     let mut child = Node::new_alloc();
-    child.set_name("child".into());
+    child.set_name("child");
     obj.add_child(child);
 
     obj.notify(NodeNotification::READY);

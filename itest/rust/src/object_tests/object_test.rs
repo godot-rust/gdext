@@ -214,7 +214,7 @@ fn object_from_instance_id_inherits_type() {
     let descr = GString::from("some very long description");
 
     let mut node: Gd<Node3D> = Node3D::new_alloc();
-    node.set_editor_description(descr.clone());
+    node.set_editor_description(&descr);
 
     let id = node.instance_id();
 
@@ -248,7 +248,7 @@ fn object_dynamic_free() {
     let mut obj = ObjPayload::new_alloc();
     let id = obj.instance_id();
 
-    obj.call("free".into(), &[]);
+    obj.call("free", &[]);
 
     Gd::<ObjPayload>::try_from_instance_id(id)
         .expect_err("dynamic free() call must destroy object");
@@ -325,7 +325,7 @@ fn object_user_freed_argument_passing() {
     // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
     obj.free();
     expect_panic("pass freed Gd<T> to Godot engine API (T=user)", || {
-        engine.register_singleton("NeverRegistered".into(), obj2);
+        engine.register_singleton("NeverRegistered", obj2);
     });
 }
 
@@ -345,7 +345,7 @@ fn object_user_dynamic_free_during_bind() {
 
     // This technically triggers UB, but in practice no one accesses the references.
     // There is no alternative to test this, see destroy_storage() comments.
-    copy.call("free".into(), &[]);
+    copy.call("free", &[]);
 
     drop(guard);
     assert!(
@@ -363,7 +363,7 @@ fn object_user_call_after_free() {
     obj.free();
 
     expect_panic("call() on dead user object", move || {
-        let _ = copy.call("get_instance_id".into(), &[]);
+        let _ = copy.call("get_instance_id", &[]);
     });
 }
 
@@ -385,7 +385,7 @@ fn object_engine_use_after_free_varcall() {
     node.free();
 
     expect_panic("call method on dead engine object", move || {
-        copy.call_deferred("get_position".into(), &[]);
+        copy.call_deferred("get_position", &[]);
     });
 }
 
@@ -520,10 +520,8 @@ fn object_engine_convert_variant_nil() {
 
 #[itest]
 fn object_engine_returned_refcount() {
-    let Some(file) = FileAccess::open(
-        "res://itest.gdextension".into(),
-        file_access::ModeFlags::READ,
-    ) else {
+    let Some(file) = FileAccess::open("res://itest.gdextension", file_access::ModeFlags::READ)
+    else {
         panic!("failed to open file used to test FileAccess")
     };
     assert!(file.is_open());
@@ -673,7 +671,7 @@ fn object_engine_accept_polymorphic() {
     let expected_name = StringName::from("Node name");
     let expected_class = GString::from("Camera3D");
 
-    node.set_name(GString::from(&expected_name));
+    node.set_name(expected_name.arg());
 
     let actual_name = accept_node(node.clone());
     assert_eq!(actual_name, expected_name);
@@ -748,10 +746,7 @@ fn object_user_upcast_mut() {
     let object = obj.upcast_mut::<Object>();
     assert_eq!(ref_instance_id(object), id);
     assert_eq!(object.get_class(), GString::from("RefcPayload"));
-    assert_eq!(
-        object.call("to_string".into(), &[]),
-        "value=17943".to_variant()
-    );
+    assert_eq!(object.call("to_string", &[]), "value=17943".to_variant());
 }
 
 #[itest]
@@ -822,7 +817,7 @@ fn object_engine_refcounted_free() {
 fn object_user_double_free() {
     let mut obj = ObjPayload::new_alloc();
     let obj2 = obj.clone();
-    obj.call("free".into(), &[]);
+    obj.call("free", &[]);
 
     expect_panic("double free()", move || {
         obj2.free();
@@ -964,7 +959,7 @@ pub mod object_test_gd {
     impl nested::ObjectTest {
         #[func]
         fn pass_object(&self, object: Gd<Object>) -> i64 {
-            let i = object.get("i".into()).to();
+            let i = object.get("i").to();
             object.free();
             i
         }
@@ -976,12 +971,12 @@ pub mod object_test_gd {
 
         #[func]
         fn pass_refcounted(&self, object: Gd<RefCounted>) -> i64 {
-            object.get("i".into()).to()
+            object.get("i").to()
         }
 
         #[func]
         fn pass_refcounted_as_object(&self, object: Gd<Object>) -> i64 {
-            object.get("i".into()).to()
+            object.get("i").to()
         }
 
         #[func]
@@ -1001,7 +996,7 @@ pub mod object_test_gd {
 
         #[func]
         fn return_nested_self() -> Array<Gd<<Self as GodotClass>::Base>> {
-            array![Self::return_self().upcast()]
+            array![&Self::return_self().upcast()]
         }
     }
 
@@ -1058,7 +1053,7 @@ fn double_use_reference() {
     emitter
         .clone()
         .upcast::<Object>()
-        .connect("do_use".into(), double_use.callable("use_1"));
+        .connect("do_use", double_use.callable("use_1"));
 
     let guard = double_use.bind();
 
@@ -1067,7 +1062,7 @@ fn double_use_reference() {
     emitter
         .clone()
         .upcast::<Object>()
-        .emit_signal("do_use".into(), &[]);
+        .emit_signal("do_use", &[]);
 
     assert!(guard.used.get(), "use_1 was not called");
 

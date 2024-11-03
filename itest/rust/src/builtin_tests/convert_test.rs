@@ -11,7 +11,7 @@ use godot::builtin::{
 };
 use godot::classes::{Node, Resource};
 use godot::meta::error::ConvertError;
-use godot::meta::{AsArg, FromGodot, GodotConvert, ToGodot};
+use godot::meta::{AsArg, CowArg, FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Gd, NewAlloc};
 
 use crate::framework::itest;
@@ -254,7 +254,7 @@ fn vec_to_array() {
 
     let from = vec![GString::from("Hello"), GString::from("World")];
     let to = from.to_variant().to::<Array<GString>>();
-    assert_eq!(to, array![GString::from("Hello"), GString::from("World")]);
+    assert_eq!(to, array!["Hello", "World"]);
 
     // Invalid conversion.
     let from = vec![1, 2, 3];
@@ -268,7 +268,7 @@ fn array_to_vec() {
     let to = from.to_variant().to::<Vec<i32>>();
     assert_eq!(to, vec![1, 2, 3]);
 
-    let from = array![GString::from("Hello"), GString::from("World")];
+    let from: Array<GString> = array!["Hello", "World"];
     let to = from.to_variant().to::<Vec<GString>>();
     assert_eq!(to, vec![GString::from("Hello"), GString::from("World")]);
 
@@ -286,7 +286,7 @@ fn rust_array_to_array() {
 
     let from = [GString::from("Hello"), GString::from("World")];
     let to = from.to_variant().to::<Array<GString>>();
-    assert_eq!(to, array![GString::from("Hello"), GString::from("World")]);
+    assert_eq!(to, array!["Hello", "World"]);
 
     // Invalid conversion.
     let from = [1, 2, 3];
@@ -300,7 +300,7 @@ fn array_to_rust_array() {
     let to = from.to_variant().to::<[i32; 3]>();
     assert_eq!(to, [1, 2, 3]);
 
-    let from = array![GString::from("Hello"), GString::from("World")];
+    let from: Array<GString> = array!["Hello", "World"];
     let to = from.to_variant().to::<[GString; 2]>();
     assert_eq!(to, [GString::from("Hello"), GString::from("World")]);
 
@@ -318,7 +318,7 @@ fn slice_to_array() {
 
     let from = &[GString::from("Hello"), GString::from("World")];
     let to = from.to_variant().to::<Array<GString>>();
-    assert_eq!(to, array![GString::from("Hello"), GString::from("World")]);
+    assert_eq!(to, array!["Hello", "World"]);
 
     // Invalid conversion.
     let from = &[1, 2, 3];
@@ -326,32 +326,42 @@ fn slice_to_array() {
     assert!(to.is_err());
 }
 
-fn as_gstring_arg<T: AsArg<GString>>(t: T) -> GString {
-    t.as_arg()
+fn as_gstr_arg<'a, T: 'a + AsArg<GString>>(t: T) -> CowArg<'a, GString> {
+    t.into_arg()
 }
 
-fn as_sname_arg<T: AsArg<StringName>>(t: T) -> StringName {
-    t.as_arg()
+fn as_sname_arg<'a, T: 'a + AsArg<StringName>>(t: T) -> CowArg<'a, StringName> {
+    t.into_arg()
 }
 
-fn as_npath_arg<T: AsArg<NodePath>>(t: T) -> NodePath {
-    t.as_arg()
+fn as_npath_arg<'a, T: 'a + AsArg<NodePath>>(t: T) -> CowArg<'a, NodePath> {
+    t.into_arg()
 }
 
 #[itest]
 fn strings_as_arg() {
+    // Note: CowArg is an internal type.
+
     let str = "GodotRocks";
     let cstr = c"GodotRocks";
     let gstring = GString::from("GodotRocks");
     let sname = StringName::from("GodotRocks");
     let npath = NodePath::from("GodotRocks");
 
-    assert_eq!(as_gstring_arg(str), gstring);
-    assert_eq!(as_gstring_arg(&gstring), gstring);
+    assert_eq!(as_gstr_arg(str), CowArg::Owned(gstring.clone()));
+    assert_eq!(as_gstr_arg(&gstring), CowArg::Borrowed(&gstring));
+    assert_eq!(as_gstr_arg(sname.arg()), CowArg::Owned(gstring.clone()));
+    assert_eq!(as_gstr_arg(npath.arg()), CowArg::Owned(gstring.clone()));
 
-    assert_eq!(as_sname_arg(str), sname);
-    assert_eq!(as_sname_arg(cstr), sname);
+    assert_eq!(as_sname_arg(str), CowArg::Owned(sname.clone()));
+    #[cfg(since_api = "4.2")]
+    assert_eq!(as_sname_arg(cstr), CowArg::Owned(sname.clone()));
+    assert_eq!(as_sname_arg(&sname), CowArg::Borrowed(&sname));
+    assert_eq!(as_sname_arg(gstring.arg()), CowArg::Owned(sname.clone()));
+    assert_eq!(as_sname_arg(npath.arg()), CowArg::Owned(sname.clone()));
 
-    assert_eq!(as_npath_arg(str), npath);
-    assert_eq!(as_npath_arg(&npath), npath);
+    assert_eq!(as_npath_arg(str), CowArg::Owned(npath.clone()));
+    assert_eq!(as_npath_arg(&npath), CowArg::Borrowed(&npath));
+    assert_eq!(as_npath_arg(gstring.arg()), CowArg::Owned(npath.clone()));
+    assert_eq!(as_npath_arg(sname.arg()), CowArg::Owned(npath.clone()));
 }

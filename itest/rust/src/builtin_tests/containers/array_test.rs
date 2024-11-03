@@ -50,10 +50,11 @@ fn untyped_array_from_to_variant() {
 fn array_from_packed_array() {
     let packed_array = PackedInt32Array::from(&[42]);
     let mut array = VariantArray::from(&packed_array);
+
     // This tests that the resulting array doesn't secretly have a runtime type assigned to it,
     // which is not reflected in our static type. It would make sense if it did, but Godot decided
     // otherwise: we get an untyped array.
-    array.push(GString::from("hi").to_variant());
+    array.push(&GString::from("hi").to_variant());
     assert_eq!(array, varray![42, "hi"]);
 }
 
@@ -200,29 +201,29 @@ fn array_first_last() {
 fn array_binary_search() {
     let array = array![1, 3];
 
-    assert_eq!(array.bsearch(&0), 0);
-    assert_eq!(array.bsearch(&1), 0);
-    assert_eq!(array.bsearch(&2), 1);
-    assert_eq!(array.bsearch(&3), 1);
-    assert_eq!(array.bsearch(&4), 2);
+    assert_eq!(array.bsearch(0), 0);
+    assert_eq!(array.bsearch(1), 0);
+    assert_eq!(array.bsearch(2), 1);
+    assert_eq!(array.bsearch(3), 1);
+    assert_eq!(array.bsearch(4), 2);
 }
 
 #[itest]
 fn array_find() {
     let array = array![1, 2, 1];
 
-    assert_eq!(array.find(&0, None), None);
-    assert_eq!(array.find(&1, None), Some(0));
-    assert_eq!(array.find(&1, Some(1)), Some(2));
+    assert_eq!(array.find(0, None), None);
+    assert_eq!(array.find(1, None), Some(0));
+    assert_eq!(array.find(1, Some(1)), Some(2));
 }
 
 #[itest]
 fn array_rfind() {
     let array = array![1, 2, 1];
 
-    assert_eq!(array.rfind(&0, None), None);
-    assert_eq!(array.rfind(&1, None), Some(2));
-    assert_eq!(array.rfind(&1, Some(1)), Some(0));
+    assert_eq!(array.rfind(0, None), None);
+    assert_eq!(array.rfind(1, None), Some(2));
+    assert_eq!(array.rfind(1, Some(1)), Some(0));
 }
 
 #[itest]
@@ -383,7 +384,7 @@ fn untyped_array_pass_to_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
 
     assert_eq!(
-        node.callv(StringName::from("has_signal"), &varray!["tree_entered"]),
+        node.callv("has_signal", &varray!["tree_entered"]),
         true.to_variant()
     );
 }
@@ -393,10 +394,10 @@ fn untyped_array_return_from_godot_func() {
     // There aren't many API functions that return an untyped array.
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
-    child.set_name("child_node".into());
+    child.set_name("child_node");
     node.add_child(&child);
     node.queue_free(); // Do not leak even if the test fails.
-    let result = node.get_node_and_resource("child_node".into());
+    let result = node.get_node_and_resource("child_node");
 
     assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
 }
@@ -418,7 +419,7 @@ fn typed_array_pass_to_godot_func() {
         Format::L8,
         &PackedByteArray::from(&[255, 0, 255, 0, 0, 255, 0, 255]),
     );
-    let images = array![image];
+    let images = array![&image];
     let mut texture = Texture2DArray::new_gd();
     let error = texture.create_from_images(&images);
 
@@ -430,12 +431,12 @@ fn typed_array_pass_to_godot_func() {
 fn typed_array_return_from_godot_func() {
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
-    child.set_name("child_node".into());
+    child.set_name("child_node");
     node.add_child(&child);
     node.queue_free(); // Do not leak even if the test fails.
     let children = node.get_children();
 
-    assert_eq!(children, array![child]);
+    assert_eq!(children, array![&child]);
 }
 
 #[itest]
@@ -487,8 +488,8 @@ fn array_sort_custom() {
 fn array_binary_search_custom() {
     let a = array![5, 4, 2, 1];
     let func = backwards_sort_callable();
-    assert_eq!(a.bsearch_custom(&1, func.clone()), 3);
-    assert_eq!(a.bsearch_custom(&3, func), 2);
+    assert_eq!(a.bsearch_custom(1, func.clone()), 3);
+    assert_eq!(a.bsearch_custom(3, func), 2);
 }
 
 #[cfg(since_api = "4.2")]
@@ -513,13 +514,7 @@ fn array_shrink() {
 
 #[itest]
 fn array_resize() {
-    let mut a = array![
-        GString::from("hello"),
-        GString::from("bar"),
-        GString::from("mixed"),
-        GString::from("baz"),
-        GString::from("meow")
-    ];
+    let mut a = array!["hello", "bar", "mixed", "baz", "meow"];
 
     let new = GString::from("new!");
 
@@ -527,23 +522,14 @@ fn array_resize() {
     assert_eq!(a.len(), 10);
     assert_eq!(
         a,
-        array![
-            GString::from("hello"),
-            GString::from("bar"),
-            GString::from("mixed"),
-            GString::from("baz"),
-            GString::from("meow"),
-            new.clone(),
-            new.clone(),
-            new.clone(),
-            new.clone(),
-            new.clone(),
-        ]
+        array!["hello", "bar", "mixed", "baz", "meow", &new, &new, &new, &new, &new]
     );
 
     a.resize(2, &new);
+    assert_eq!(a, array!["hello", "bar"]);
 
-    assert_eq!(a, array![GString::from("hello"), GString::from("bar"),]);
+    a.resize(0, &new);
+    assert_eq!(a, Array::new());
 }
 
 #[derive(GodotClass, Debug)]

@@ -7,7 +7,7 @@
 
 use crate::framework::{expect_panic, itest};
 use godot::builtin::{
-    Color, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
+    Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
     PackedStringArray,
 };
 
@@ -35,8 +35,8 @@ fn packed_array_from_vec_str() {
     let string_array = PackedStringArray::from(vec!["hello".into(), "world".into()]);
 
     assert_eq!(string_array.len(), 2);
-    assert_eq!(string_array[0], "hello".into());
-    assert_eq!(string_array[1], "world".into());
+    assert_eq!(string_array[0], GString::from("hello"));
+    assert_eq!(string_array[1], GString::from("world"));
 }
 
 #[itest]
@@ -68,8 +68,8 @@ fn packed_array_from_array_str() {
     let string_array = PackedStringArray::from(["hello".into(), "world".into()]);
 
     assert_eq!(string_array.len(), 2);
-    assert_eq!(string_array[0], "hello".into());
-    assert_eq!(string_array[1], "world".into());
+    assert_eq!(string_array[0], GString::from("hello"));
+    assert_eq!(string_array[1], GString::from("world"));
 }
 
 #[itest]
@@ -205,13 +205,14 @@ fn packed_array_index() {
         let _ = array[0];
     });
 
-    array.push("first".into());
-    array.push("second".into());
+    // Note: push works on &str as well as GString, or references of it.
+    array.push("first");
+    array.push(&GString::from("second"));
 
     assert_eq!(array[0], "first".into());
     assert_eq!(array[1], "second".into());
 
-    array[0] = "begin".into();
+    array[0] = GString::from("begin");
     assert_eq!(array[0], "begin".into());
 }
 
@@ -228,29 +229,29 @@ fn packed_array_get() {
 fn packed_array_binary_search() {
     let array = PackedByteArray::from(&[1, 3]);
 
-    assert_eq!(array.bsearch(&0), 0);
-    assert_eq!(array.bsearch(&1), 0);
-    assert_eq!(array.bsearch(&2), 1);
-    assert_eq!(array.bsearch(&3), 1);
-    assert_eq!(array.bsearch(&4), 2);
+    assert_eq!(array.bsearch(0), 0);
+    assert_eq!(array.bsearch(1), 0);
+    assert_eq!(array.bsearch(2), 1);
+    assert_eq!(array.bsearch(3), 1);
+    assert_eq!(array.bsearch(4), 2);
 }
 
 #[itest]
 fn packed_array_find() {
     let array = PackedByteArray::from(&[1, 2, 1]);
 
-    assert_eq!(array.find(&0, None), None);
-    assert_eq!(array.find(&1, None), Some(0));
-    assert_eq!(array.find(&1, Some(1)), Some(2));
+    assert_eq!(array.find(0, None), None);
+    assert_eq!(array.find(1, None), Some(0));
+    assert_eq!(array.find(1, Some(1)), Some(2));
 }
 
 #[itest]
 fn packed_array_rfind() {
     let array = PackedByteArray::from(&[1, 2, 1]);
 
-    assert_eq!(array.rfind(&0, None), None);
-    assert_eq!(array.rfind(&1, None), Some(2));
-    assert_eq!(array.rfind(&1, Some(1)), Some(0));
+    assert_eq!(array.rfind(0, None), None);
+    assert_eq!(array.rfind(1, None), Some(2));
+    assert_eq!(array.rfind(1, Some(1)), Some(0));
 }
 
 #[itest]

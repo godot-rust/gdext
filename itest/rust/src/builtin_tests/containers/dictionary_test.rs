@@ -389,10 +389,10 @@ fn dictionary_iter() {
     };
 
     let map = HashMap::<String, Variant>::from([
-        ("foo".into(), 0.to_variant()),
-        ("bar".into(), true.to_variant()),
-        ("baz".into(), "foobar".to_variant()),
-        ("nil".into(), Variant::nil()),
+        ("foo".to_string(), 0.to_variant()),
+        ("bar".to_string(), true.to_variant()),
+        ("baz".to_string(), "foobar".to_variant()),
+        ("nil".to_string(), Variant::nil()),
     ]);
 
     let map2: HashMap<String, Variant> = dictionary.iter_shared().typed().collect();

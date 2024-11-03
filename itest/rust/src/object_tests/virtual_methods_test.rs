@@ -382,7 +382,7 @@ fn test_ready_dynamic_panic(test_context: &TestContext) {
 
     // NOTE: Current implementation catches panics, but does not propagate them to the user.
     // Godot has no mechanism to transport errors across ptrcalls (e.g. virtual function calls), so this would need to be emulated somehow.
-    let result = test_node.try_call("add_child".into(), &[obj.to_variant()]);
+    let result = test_node.try_call("add_child", &[obj.to_variant()]);
     // let err = result.expect_err("add_child() should have panicked");
     let returned = result.expect("at the moment, panics in virtual functions are swallowed");
     assert_eq!(returned, Variant::nil());
@@ -499,18 +499,21 @@ fn test_virtual_method_with_return() {
 #[itest]
 fn test_format_loader(_test_context: &TestContext) {
     let format_loader = FormatLoaderTest::new_gd();
+
     let mut loader = ResourceLoader::singleton();
     loader
         .add_resource_format_loader_ex(&format_loader)
         .at_front(true)
         .done();
 
-    let extensions = loader.get_recognized_extensions_for_type(FormatLoaderTest::resource_type());
     let mut extensions_rust = format_loader.bind().get_recognized_extensions();
-    extensions_rust.push("tres".into());
+    extensions_rust.push("tres");
+
+    let extensions = loader.get_recognized_extensions_for_type(&FormatLoaderTest::resource_type());
     assert_eq!(extensions, extensions_rust);
+
     let resource = loader
-        .load_ex("path.extension".into())
+        .load_ex("path.extension")
         .cache_mode(CacheMode::IGNORE)
         .done()
         .unwrap();
@@ -530,7 +533,7 @@ fn test_input_event(test_context: &TestContext) {
     test_viewport.add_child(&obj);
 
     let mut event = InputEventAction::new_gd();
-    event.set_action("debug".into());
+    event.set_action("debug");
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
@@ -560,7 +563,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
     }
 
     let mut event = InputEventAction::new_gd();
-    event.set_action("debug".into());
+    event.set_action("debug");
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
@@ -599,12 +602,12 @@ fn test_notifications() {
 fn test_get_called() {
     let obj = GetTest::new_gd();
     assert!(!obj.bind().get_called.get());
-    assert!(obj.get("inexistent".into()).is_nil());
+    assert!(obj.get("inexistent").is_nil());
     assert!(obj.bind().get_called.get());
 
     let obj = GetTest::new_gd();
     assert!(!obj.bind().get_called.get());
-    obj.get("always_get_hello".into());
+    obj.get("always_get_hello");
     assert!(obj.bind().get_called.get());
 }
 
@@ -618,20 +621,20 @@ fn test_get_returns() {
         obj.gettable = 200;
     }
 
-    assert_eq!(obj.get("always_get_hello".into()), "hello".to_variant());
-    assert_eq!(obj.get("gettable".into()), 200.to_variant());
+    assert_eq!(obj.get("always_get_hello"), "hello".to_variant());
+    assert_eq!(obj.get("gettable"), 200.to_variant());
 }
 
 #[itest]
 fn test_set_called() {
     let mut obj = SetTest::new_gd();
     assert!(!obj.bind().set_called);
-    obj.set("inexistent_property".into(), &Variant::nil());
+    obj.set("inexistent_property", &Variant::nil());
     assert!(obj.bind().set_called);
 
     let mut obj = SetTest::new_gd();
     assert!(!obj.bind().set_called);
-    obj.set("settable".into(), &20.to_variant());
+    obj.set("settable", &20.to_variant());
     assert!(obj.bind().set_called);
 }
 
@@ -641,8 +644,8 @@ fn test_set_sets() {
 
     assert_eq!(obj.bind().always_set_to_100, i64::default());
     assert_eq!(obj.bind().settable, i64::default());
-    obj.set("always_set_to_100".into(), &"hello".to_variant());
-    obj.set("settable".into(), &500.to_variant());
+    obj.set("always_set_to_100", &"hello".to_variant());
+    obj.set("settable", &500.to_variant());
     assert_eq!(obj.bind().always_set_to_100, 100);
     assert_eq!(obj.bind().settable, 500);
 }
@@ -655,22 +658,19 @@ fn test_revert() {
     let do_revert = StringName::from("property_do_revert");
     let changes = StringName::from("property_changes");
 
-    assert!(!revert.property_can_revert(not_revert.clone()));
-    assert_eq!(revert.property_get_revert(not_revert), Variant::nil());
-    assert!(revert.property_can_revert(do_revert.clone()));
+    assert!(!revert.property_can_revert(&not_revert));
+    assert_eq!(revert.property_get_revert(&not_revert), Variant::nil());
+    assert!(revert.property_can_revert(&do_revert));
     assert_eq!(
-        revert.property_get_revert(do_revert),
-        GString::from("hello!").to_variant()
+        revert.property_get_revert(&do_revert),
+        "hello!".to_variant()
     );
 
-    assert!(!revert.property_can_revert(changes.clone()));
-    assert!(revert.property_can_revert(changes.clone()));
+    assert!(!revert.property_can_revert(&changes));
+    assert!(revert.property_can_revert(&changes));
 
-    assert_eq!(revert.property_get_revert(changes.clone()), Variant::nil());
-    assert_eq!(
-        revert.property_get_revert(changes.clone()),
-        true.to_variant()
-    );
+    assert_eq!(revert.property_get_revert(&changes), Variant::nil());
+    assert_eq!(revert.property_get_revert(&changes), true.to_variant());
 }
 
 // Used in `test_collision_object_2d_input_event` in `SpecialTests.gd`.

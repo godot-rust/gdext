@@ -38,8 +38,8 @@ fn singleton_is_operational() {
     let value = GString::from("SOME_VALUE");
 
     // set_environment is const, for some reason
-    os.set_environment(key.clone(), value.clone());
+    os.set_environment(&key, &value);
 
-    let read_value = os.get_environment(key);
+    let read_value = os.get_environment(&key);
     assert_eq!(read_value, value);
 }

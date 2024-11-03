@@ -160,7 +160,7 @@ impl ScriptInstance for TestScriptInstance {
 
             "script_method_re_entering" => {
                 let mut base = this.base_mut();
-                let result = base.call("script_method_toggle_property_b".into(), &[]);
+                let result = base.call("script_method_toggle_property_b", &[]);
 
                 Ok(result)
             }
