@@ -674,6 +674,17 @@ impl RustTy {
                 | RustTy::EngineArray { .. }
         )
     }
+
+    pub fn needs_lifetime(&self) -> bool {
+        matches!(
+            self,
+            RustTy::BuiltinIdent {
+                arg_passing: ArgPassing::ByRef | ArgPassing::ImplAsArg,
+                ..
+            } | RustTy::BuiltinArray { .. }
+                | RustTy::EngineArray { .. }
+        )
+    }
 }
 
 impl ToTokens for RustTy {
