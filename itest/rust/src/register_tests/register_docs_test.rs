@@ -7,6 +7,7 @@
 
 #![cfg(feature = "register-docs")]
 
+use crate::framework::itest;
 use godot::prelude::*;
 
 /// *documented* ~ **documented** ~ [AABB] < [pr](https://github.com/godot-rust/gdext/pull/748)
@@ -189,15 +190,16 @@ impl FairlyDocumented {
     fn documented_signal(p: Vector3, w: f64, node: Gd<Node>);
 }
 
-#[test]
-fn correct() {
+#[itest(focus)]
+fn test_register_docs() {
     // Uncomment if implementation changes and expected output file should be rewritten.
     // std::fs::write(
-    //     "tests/test_data/docs.xml",
+    //     "res/registered_docs.xml",
     //     godot_core::docs::gather_xml_docs().next().unwrap(),
     // );
+
     assert_eq!(
-        include_str!("test_data/docs.xml"),
-        godot_core::docs::gather_xml_docs().next().unwrap()
+        include_str!("res/registered_docs.xml"),
+        godot::docs::gather_xml_docs().next().unwrap()
     );
 }
