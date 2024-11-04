@@ -24,7 +24,7 @@ codegen-rustfmt = ["godot-core/codegen-rustfmt"]
 lazy-function-tables = ["godot-core/codegen-lazy-fptrs"]
 serde = ["godot-core/serde"]
 
-register-docs = ["godot-macros/docs", "godot-core/docs"]
+register-docs = ["godot-macros/register-docs", "godot-core/register-docs"]
 
 api-custom = ["godot-core/api-custom"]
 # [version-sync] [[
