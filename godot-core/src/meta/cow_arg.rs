@@ -47,7 +47,7 @@ impl<'r, T> CowArg<'r, T> {
     }
 }
 
-/// Exists for polymorphism in [`crate::meta::ArgTarget`].
+/// Exists for polymorphism in [`crate::meta::ApiParam`].
 ///
 /// Necessary for generics in e.g. `Array<T>`, when accepting `impl AsArg<T>` parameters.
 ///

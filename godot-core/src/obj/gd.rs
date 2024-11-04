@@ -16,7 +16,7 @@ use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArgTarget, ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert,
+    ApiParam, ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert,
     GodotType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
@@ -781,7 +781,7 @@ impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
     }
 }
 
-impl<T: GodotClass> ArgTarget for Gd<T> {
+impl<T: GodotClass> ApiParam for Gd<T> {
     type Arg<'v> = CowArg<'v, Gd<T>>;
 
     fn value_to_arg<'v>(self) -> Self::Arg<'v> {
@@ -803,7 +803,7 @@ impl<'r, T: GodotClass> AsArg<Option<Gd<T>>> for Option<&'r Gd<T>> {
     }
 }
 
-impl<T: GodotClass> ArgTarget for Option<Gd<T>> {
+impl<T: GodotClass> ApiParam for Option<Gd<T>> {
     type Arg<'v> = CowArg<'v, Option<Gd<T>>>;
 
     fn value_to_arg<'v>(self) -> Self::Arg<'v> {
