@@ -190,16 +190,25 @@ impl FairlyDocumented {
     fn documented_signal(p: Vector3, w: f64, node: Gd<Node>);
 }
 
-#[itest(focus)]
+#[itest]
 fn test_register_docs() {
-    // Uncomment if implementation changes and expected output file should be rewritten.
-    // std::fs::write(
-    //     "res/registered_docs.xml",
-    //     godot_core::docs::gather_xml_docs().next().unwrap(),
-    // );
+    let xml = find_class_docs("FairlyDocumented");
 
-    assert_eq!(
-        include_str!("res/registered_docs.xml"),
-        godot::docs::gather_xml_docs().next().unwrap()
-    );
+    // Uncomment if implementation changes and expected output file should be rewritten.
+    // std::fs::write("../rust/src/register_tests/res/registered_docs.xml", &xml)
+    //     .expect("failed to write docs XML file");
+
+    assert_eq!(include_str!("res/registered_docs.xml"), xml);
+}
+
+fn find_class_docs(class_name: &str) -> String {
+    let mut count = 0;
+    for xml in godot::docs::gather_xml_docs() {
+        count += 1;
+        if xml.contains(class_name) {
+            return xml;
+        }
+    }
+
+    panic!("Registered docs for class {class_name} not found in {count} XML files");
 }

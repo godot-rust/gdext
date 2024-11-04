@@ -164,7 +164,7 @@ impl godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
     }
 }
 
-// TODO once this is done via proc-macro, remove `register-docs` feature from itest, and update CI workflows.
+// TODO once this is done via proc-macro, see if `register-docs` is still used in register_docs_test.rs. Otherwise, remove feature from Cargo.toml.
 godot::sys::plugin_add!(
     __GODOT_PLUGIN_REGISTRY in ::godot::private;
     ::godot::private::ClassPlugin {
