@@ -39,7 +39,7 @@ concurrency:
 jobs:
 
   rustfmt:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -65,7 +65,7 @@ jobs:
 
   # Needs to be its own job (apart from sync-doc), because lints don't work with --no-deps, and because it contributes to ci-status.
   doc-lints:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -82,7 +82,7 @@ jobs:
 
 
   clippy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -109,7 +109,7 @@ jobs:
 
   unit-test:
     name: unit-test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -154,14 +154,14 @@ jobs:
           # Linux
 
           - name: linux-full
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full
             with-hot-reload: true
 
           - name: linux-features-experimental
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
@@ -169,13 +169,13 @@ jobs:
           # Linux compat
 
           - name: linux-4.1
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             artifact-name: linux-4.1
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.1.4'
 
           - name: linux-4.2
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             artifact-name: linux-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.2.2'
@@ -183,7 +183,7 @@ jobs:
           # Memory checkers
 
           - name: linux-memcheck
-            os: ubuntu-20.04
+            os: ubuntu-22.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
@@ -216,7 +216,7 @@ jobs:
         shell: bash
 
   run-examples:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -238,7 +238,7 @@ jobs:
 
 
   license-guard:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -269,7 +269,7 @@ jobs:
       - run-examples
       - license-guard
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: "Determine success or failure"
         run: |
