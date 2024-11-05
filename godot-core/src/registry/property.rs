@@ -60,6 +60,7 @@ pub trait Export: Var {
     ///
     /// Only overridden for `Gd<T>`, to detect erroneous exports of `Node` inside a `Resource` class.
     #[allow(clippy::wrong_self_convention)]
+    #[doc(hidden)]
     fn as_node_class() -> Option<ClassName> {
         None
     }
