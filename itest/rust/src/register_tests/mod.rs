@@ -12,6 +12,7 @@ mod func_test;
 mod gdscript_ffi_test;
 mod naming_tests;
 mod option_ffi_test;
+mod register_docs_test;
 #[cfg(feature = "codegen-full")]
 mod rpc_test;
 mod var_test;

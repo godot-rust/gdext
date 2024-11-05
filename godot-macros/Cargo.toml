@@ -12,7 +12,7 @@ homepage = "https://godot-rust.github.io"
 
 [features]
 api-custom = ["godot-bindings/api-custom"]
-docs = ["dep:markdown"]
+register-docs = ["dep:markdown"]
 codegen-full = ["godot/__codegen-full"]
 
 [lib]

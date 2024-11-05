@@ -25,7 +25,7 @@ these</description>
   </description>
 </method>
 
-<method name="virtual_documented">
+<method name="_virtual_documented">
   <return type="()" />
   <param index="0" name="node" type="Gd &lt; Node &gt;" />
   <description>

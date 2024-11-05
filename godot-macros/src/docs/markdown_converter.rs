@@ -79,7 +79,7 @@ fn walk_node(node: &md::Node, definitions: &HashMap<&str, &str>) -> Option<Strin
 
         Html(html) => html.value.clone(),
 
-        _ => walk_nodes(&node.children()?, definitions, ""),
+        _ => walk_nodes(node.children()?, definitions, ""),
     };
 
     Some(bbcode)

@@ -21,8 +21,9 @@ on:
 
 
 env:
-  GDEXT_FEATURES: ''
-  #  GDEXT_FEATURES: '--features crate/feature'
+  # Applies to all 'register-docs' features across crates.
+  CLIPPY_FEATURES: '--features register-docs'
+  TEST_FEATURES: ''
   #  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
@@ -96,7 +97,7 @@ jobs:
 
       - name: "Check clippy"
         run: |
-          cargo clippy --all-targets $GDEXT_FEATURES -- \
+          cargo clippy --all-targets $CLIPPY_FEATURES -- \
           -D clippy::suspicious \
           -D clippy::style \
           -D clippy::complexity \
@@ -120,10 +121,10 @@ jobs:
         uses: ./.github/composite/rust
 
       - name: "Compile tests"
-        run: cargo test $GDEXT_FEATURES --no-run
+        run: cargo test $TEST_FEATURES --no-run
 
       - name: "Test"
-        run: cargo test $GDEXT_FEATURES
+        run: cargo test $TEST_FEATURES
 
 
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401

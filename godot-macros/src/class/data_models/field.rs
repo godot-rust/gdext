@@ -15,7 +15,7 @@ pub struct Field {
     pub var: Option<FieldVar>,
     pub export: Option<FieldExport>,
     pub is_onready: bool,
-    #[cfg(feature = "docs")]
+    #[cfg(feature = "register-docs")]
     pub attributes: Vec<venial::Attribute>,
 }
 
@@ -28,7 +28,7 @@ impl Field {
             var: None,
             export: None,
             is_onready: false,
-            #[cfg(feature = "docs")]
+            #[cfg(feature = "register-docs")]
             attributes: field.attributes.clone(),
         }
     }

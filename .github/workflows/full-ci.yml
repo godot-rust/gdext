@@ -13,7 +13,9 @@ on:
 
 
 env:
-  GDEXT_FEATURES: ''
+  # Applies to all 'register-docs' features across crates.
+  CLIPPY_FEATURES: '--features register-docs'
+  TEST_FEATURES: ''
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
   # ASan options: https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
@@ -99,7 +101,7 @@ jobs:
       # Note: could use `-- --no-deps` to not lint dependencies, however it doesn't really speed up and also skips deps in workspace.
       - name: "Check clippy"
         run: |
-          cargo clippy --all-targets $GDEXT_FEATURES -- \
+          cargo clippy --all-targets $CLIPPY_FEATURES -- \
           -D clippy::suspicious \
           -D clippy::style \
           -D clippy::complexity \
@@ -161,10 +163,10 @@ jobs:
         run: cargo +nightly update -Z minimal-versions
 
       - name: "Compile tests"
-        run: cargo test $GDEXT_FEATURES --no-run ${{ matrix.rust-extra-args }}
+        run: cargo test $TEST_FEATURES --no-run ${{ matrix.rust-extra-args }}
 
       - name: "Test"
-        run: cargo test $GDEXT_FEATURES ${{ matrix.rust-extra-args }}
+        run: cargo test $TEST_FEATURES ${{ matrix.rust-extra-args }}
 
 
   miri-test:

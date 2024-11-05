@@ -42,9 +42,9 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let mut virtual_method_names = vec![];
 
     let prv = quote! { ::godot::private };
-    #[cfg(all(feature = "docs", since_api = "4.3"))]
+    #[cfg(all(feature = "register-docs", since_api = "4.3"))]
     let docs = crate::docs::make_virtual_impl_docs(&original_impl.body_items);
-    #[cfg(not(all(feature = "docs", since_api = "4.3")))]
+    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
     for item in original_impl.body_items.iter() {
         let method = if let venial::ImplMember::AssocFunction(f) = item {

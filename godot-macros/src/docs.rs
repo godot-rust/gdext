@@ -21,7 +21,7 @@ pub fn make_definition_docs(
         let base_escaped = xml_escape(base);
         let desc_escaped = xml_escape(make_docs_from_attributes(description)?);
         let members = members
-            .into_iter()
+            .iter()
             .filter(|x| x.var.is_some() | x.export.is_some())
             .filter_map(member)
             .collect::<String>();
@@ -112,7 +112,7 @@ fn siphon_docs_from_attributes(doc: &[Attribute]) -> impl Iterator<Item = String
             _ => None,
         })
         .flat_map(|doc| {
-            doc.into_iter().map(|x| {
+            doc.iter().map(|x| {
                 x.to_string()
                     .trim_start_matches('r')
                     .trim_start_matches('#')
@@ -126,7 +126,7 @@ fn siphon_docs_from_attributes(doc: &[Attribute]) -> impl Iterator<Item = String
 
 fn xml_escape(value: String) -> String {
     // Most strings have no special characters, so this check helps avoid unnecessary string copying
-    if !value.contains(&['&', '<', '>', '"', '\'']) {
+    if !value.contains(['&', '<', '>', '"', '\'']) {
         return value;
     }
 

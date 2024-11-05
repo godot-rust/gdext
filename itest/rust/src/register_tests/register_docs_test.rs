@@ -1,10 +1,13 @@
-#![cfg(feature = "register-docs")]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+#![cfg(feature = "register-docs")]
+
+use crate::framework::itest;
 use godot::prelude::*;
 
 /// *documented* ~ **documented** ~ [AABB] < [pr](https://github.com/godot-rust/gdext/pull/748)
@@ -187,15 +190,25 @@ impl FairlyDocumented {
     fn documented_signal(p: Vector3, w: f64, node: Gd<Node>);
 }
 
-#[test]
-fn correct() {
+#[itest]
+fn test_register_docs() {
+    let xml = find_class_docs("FairlyDocumented");
+
     // Uncomment if implementation changes and expected output file should be rewritten.
-    // std::fs::write(
-    //     "tests/test_data/docs.xml",
-    //     godot_core::docs::gather_xml_docs().next().unwrap(),
-    // );
-    assert_eq!(
-        include_str!("test_data/docs.xml"),
-        godot_core::docs::gather_xml_docs().next().unwrap()
-    );
+    // std::fs::write("../rust/src/register_tests/res/registered_docs.xml", &xml)
+    //     .expect("failed to write docs XML file");
+
+    assert_eq!(include_str!("res/registered_docs.xml"), xml);
+}
+
+fn find_class_docs(class_name: &str) -> String {
+    let mut count = 0;
+    for xml in godot::docs::gather_xml_docs() {
+        count += 1;
+        if xml.contains(class_name) {
+            return xml;
+        }
+    }
+
+    panic!("Registered docs for class {class_name} not found in {count} XML files");
 }
