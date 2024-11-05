@@ -12,7 +12,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{GlamConv, GlamType};
-use crate::builtin::{inner, real, RVec3, Vector2i, Vector3, Vector3Axis};
+use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
 
 /// Vector used for 3D math using integer coordinates.
 ///
@@ -42,7 +42,7 @@ use crate::builtin::{inner, real, RVec3, Vector2i, Vector3, Vector3Axis};
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | **`Vector3i`**                         |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
-/// <br>You can convert to 2D vectors using [`to_2d()`][Self::to_2d], and to `Vector3` using [`cast_float()`][Self::cast_float].
+/// <br>You can convert to `Vector3` using [`cast_float()`][Self::cast_float].
 ///
 /// # Godot docs
 ///

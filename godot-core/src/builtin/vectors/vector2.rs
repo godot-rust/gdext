@@ -11,7 +11,7 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
-use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i, Vector3};
+use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i};
 
 use std::fmt;
 
@@ -44,7 +44,7 @@ use std::fmt;
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
-/// <br>You can convert to 3D vectors using [`to_3d(z)`][Self::to_3d], and to `Vector2i` using [`cast_int()`][Self::cast_int].
+/// <br>You can convert to `Vector2i` using [`cast_int()`][Self::cast_int].
 ///
 /// # Godot docs
 ///

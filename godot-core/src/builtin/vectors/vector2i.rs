@@ -10,7 +10,7 @@ use std::cmp::Ordering;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{GlamConv, GlamType};
-use crate::builtin::{inner, real, RVec2, Vector2, Vector2Axis, Vector3i};
+use crate::builtin::{inner, real, RVec2, Vector2, Vector2Axis};
 
 use std::fmt;
 
@@ -42,7 +42,7 @@ use std::fmt;
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
-/// <br>You can convert to 3D vectors using [`to_3d(z)`][Self::to_3d], and to `Vector2` using [`cast_float()`][Self::cast_float].
+/// <br>You can convert to `Vector2` using [`cast_float()`][Self::cast_float].
 ///
 /// # Godot docs
 ///
