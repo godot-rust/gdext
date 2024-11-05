@@ -243,14 +243,14 @@ impl<'a> Context<'a> {
         self.builtin_types.contains(ty_name)
     }
 
-    pub fn get_builtin_arg_passing(&self, ty_name: &str) -> ArgPassing {
+    pub fn get_builtin_arg_passing(&self, godot_ty: &GodotTy) -> ArgPassing {
         // Already handled separately.
-        debug_assert!(!ty_name.starts_with("Packed"));
+        debug_assert!(!godot_ty.ty.starts_with("Packed"));
 
         // Arrays are also handled separately, and use ByRef.
-        match ty_name {
-            "Variant" | "VariantArray" | "Dictionary" => ArgPassing::ByRef,
-            "GString" | "NodePath" | "StringName" => ArgPassing::ImplAsArg,
+        match godot_ty.ty.as_str() {
+            "Variant" | "Array" | "Dictionary" => ArgPassing::ByRef,
+            "String" | "StringName" | "NodePath" => ArgPassing::ImplAsArg,
             _ => ArgPassing::ByValue,
         }
     }

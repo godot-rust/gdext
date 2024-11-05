@@ -179,7 +179,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
             return RustTy::BuiltinIdent {
                 ty: ident(hardcoded),
-                arg_passing: ctx.get_builtin_arg_passing(hardcoded),
+                arg_passing: ctx.get_builtin_arg_passing(full_ty),
             };
         }
     }
@@ -224,7 +224,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         // Native structures might not all be Copy, but they should have value semantics.
         RustTy::BuiltinIdent {
             ty: rustify_ty(ty),
-            arg_passing: ctx.get_builtin_arg_passing(ty),
+            arg_passing: ctx.get_builtin_arg_passing(full_ty),
         }
     } else {
         let ty = rustify_ty(ty);

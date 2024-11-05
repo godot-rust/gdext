@@ -130,8 +130,10 @@ macro_rules! impl_ffi_variant {
 #[allow(clippy::module_inception)]
 mod impls {
     use super::*;
+    
+    // IMPORTANT: the presence/absence of `ref` here should be aligned with the ArgPassing variant
+    // used in codegen get_builtin_arg_passing().
 
-    // Also implements ArrayType.
     impl_ffi_variant!(bool, bool_to_variant, bool_from_variant);
     impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
     impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
