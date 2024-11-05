@@ -75,7 +75,7 @@ use godot::prelude::*;
 /// static main: u64 = 0x31c0678b10;
 /// ```
 ///
-/// Some HTML to make sure it's properly escaped:
+/// Some THML to make sure it's properly escaped:
 ///
 /// <br/> <- this is inline HTML
 ///
