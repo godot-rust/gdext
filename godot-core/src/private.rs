@@ -387,27 +387,39 @@ where
             // Handle panic info only in Debug mode.
             #[cfg(debug_assertions)]
             {
-                let guard = info.lock().unwrap();
-                let info = guard.as_ref().expect("no panic info available");
+                let msg = extract_panic_message(err);
+                let mut msg = format_panic_message(msg);
+
+                // Try to add location information.
+                if let Ok(guard) = info.lock() {
+                    if let Some(info) = guard.as_ref() {
+                        msg = format!("{}\n  at {}:{}", msg, info.file, info.line);
+                    }
+                }
+
                 if print {
                     godot_error!(
-                        "Rust function panicked at {}:{}.\n  Context: {}",
-                        info.file,
-                        info.line,
+                        "Rust function panicked: {}\n  Context: {}",
+                        msg,
                         error_context()
                     );
                     //eprintln!("Backtrace:\n{}", info.backtrace);
                 }
+
+                Err(msg)
             }
 
-            let msg = extract_panic_message(err);
-            let msg = format_panic_message(msg);
+            #[cfg(not(debug_assertions))]
+            {
+                let msg = extract_panic_message(err);
+                let msg = format_panic_message(msg);
 
-            if print {
-                godot_error!("{msg}");
+                if print {
+                    godot_error!("{msg}");
+                }
+
+                Err(msg)
             }
-
-            Err(msg)
         }
     }
 }
