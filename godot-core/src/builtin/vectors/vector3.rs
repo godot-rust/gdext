@@ -45,7 +45,7 @@ use std::fmt;
 /// | 3D        | **`Vector3`**                        | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
-/// <br>You can convert to 2D vectors using [`to_2d()`][Self::to_2d], and to `Vector3i` using [`cast_int()`][Self::cast_int].
+/// <br>You can convert to `Vector3i` using [`cast_int()`][Self::cast_int].
 ///
 /// # Godot docs
 ///

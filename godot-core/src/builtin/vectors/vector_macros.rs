@@ -791,12 +791,6 @@ macro_rules! impl_vector2x_fns {
         /// # 2D functions
         /// The following methods are only available on 2D vectors (for both float and int).
         impl $Vector {
-            /// Increases dimension to 3D, accepting a new value for the Z component.
-            #[inline]
-            pub fn to_3d(self, z: $Scalar) -> $Vector3D {
-                <$Vector3D>::new(self.x, self.y, z)
-            }
-
             /// Returns the aspect ratio of this vector, the ratio of [`Self::x`] to [`Self::y`].
             #[inline]
             pub fn aspect(self) -> real {
@@ -853,15 +847,6 @@ macro_rules! impl_vector3x_fns {
         /// # 3D functions
         /// The following methods are only available on 3D vectors (for both float and int).
         impl $Vector {
-            /// Reduces dimension to 2D, discarding the Z component.
-            ///
-            /// See also [`swizzle!`][crate::builtin::swizzle] for a more general way to extract components.
-            /// `self.to_2d()` is equivalent to `swizzle!(self => x, y)`.
-            #[inline]
-            pub fn to_2d(self) -> $Vector2D {
-                <$Vector2D>::new(self.x, self.y)
-            }
-
             /// Returns the axis of the vector's highest value. See [`Vector3Axis`] enum. If all components are equal, this method returns [`None`].
             ///
             /// To mimic Godot's behavior, unwrap this function's result with `unwrap_or(Vector3Axis::X)`.

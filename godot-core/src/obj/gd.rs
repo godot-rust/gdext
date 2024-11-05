@@ -784,7 +784,7 @@ impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
 impl<T: GodotClass> ApiParam for Gd<T> {
     type Arg<'v> = CowArg<'v, Gd<T>>;
 
-    fn value_to_arg<'v>(self) -> Self::Arg<'v> {
+    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
     }
 
@@ -806,7 +806,7 @@ impl<'r, T: GodotClass> AsArg<Option<Gd<T>>> for Option<&'r Gd<T>> {
 impl<T: GodotClass> ApiParam for Option<Gd<T>> {
     type Arg<'v> = CowArg<'v, Option<Gd<T>>>;
 
-    fn value_to_arg<'v>(self) -> Self::Arg<'v> {
+    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
     }
 
