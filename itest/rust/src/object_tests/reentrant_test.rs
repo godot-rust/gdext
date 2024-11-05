@@ -65,7 +65,7 @@ fn reentrant_emit_succeeds() {
     let mut class = ReentrantClass::new_alloc();
 
     let callable = class.callable("second");
-    class.connect("some_signal", callable);
+    class.connect("some_signal", &callable);
 
     assert!(!class.bind().first_called_pre);
     assert!(!class.bind().first_called_post);

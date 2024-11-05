@@ -26,7 +26,7 @@ impl Hud {
         self.show_message("Game Over".into());
 
         let mut timer = self.base().get_tree().unwrap().create_timer(2.0).unwrap();
-        timer.connect("timeout", self.base().callable("show_start_button"));
+        timer.connect("timeout", &self.base().callable("show_start_button"));
     }
 
     #[func]

@@ -74,7 +74,7 @@ impl Signal {
     /// returns [`Error::ERR_INVALID_PARAMETER`] and
     /// pushes an error message, unless the signal is connected with [`ConnectFlags::REFERENCE_COUNTED`](crate::classes::object::ConnectFlags::REFERENCE_COUNTED).
     /// To prevent this, use [`Self::is_connected`] first to check for existing connections.
-    pub fn connect(&self, callable: Callable, flags: i64) -> Error {
+    pub fn connect(&self, callable: &Callable, flags: i64) -> Error {
         let error = self.as_inner().connect(callable, flags);
 
         Error::from_godot(error as i32)
@@ -83,7 +83,7 @@ impl Signal {
     /// Disconnects this signal from the specified [`Callable`].
     ///
     /// If the connection does not exist, generates an error. Use [`Self::is_connected`] to make sure that the connection exists.
-    pub fn disconnect(&self, callable: Callable) {
+    pub fn disconnect(&self, callable: &Callable) {
         self.as_inner().disconnect(callable);
     }
 
@@ -142,7 +142,7 @@ impl Signal {
     }
 
     /// Returns `true` if the specified [`Callable`] is connected to this signal.
-    pub fn is_connected(&self, callable: Callable) -> bool {
+    pub fn is_connected(&self, callable: &Callable) -> bool {
         self.as_inner().is_connected(callable)
     }
 

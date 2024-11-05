@@ -663,28 +663,6 @@ impl RustTy {
             other => quote! { -> #other },
         }
     }
-
-    pub fn is_pass_by_ref(&self) -> bool {
-        matches!(
-            self,
-            RustTy::BuiltinIdent {
-                arg_passing: ArgPassing::ByRef,
-                ..
-            } | RustTy::BuiltinArray { .. }
-                | RustTy::EngineArray { .. }
-        )
-    }
-
-    pub fn needs_lifetime(&self) -> bool {
-        matches!(
-            self,
-            RustTy::BuiltinIdent {
-                arg_passing: ArgPassing::ByRef | ArgPassing::ImplAsArg,
-                ..
-            } | RustTy::BuiltinArray { .. }
-                | RustTy::EngineArray { .. }
-        )
-    }
 }
 
 impl ToTokens for RustTy {

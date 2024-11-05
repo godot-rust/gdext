@@ -12,7 +12,7 @@ use crate::classes::Node;
 use crate::meta::{AsArg, ToGodot};
 use crate::{arg_into_ref, dict};
 
-/// Configuration for a remote procedure call, typically used with `#[rpc(config = ...)]`.
+/// Configuration for a remote procedure call, used with `#[rpc(config = ...)]`.
 ///
 /// See [Godot documentation](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html#remote-procedure-calls).
 #[derive(Copy, Clone, Debug)]

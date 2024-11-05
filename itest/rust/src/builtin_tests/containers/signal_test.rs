@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{Callable, GString, Signal, StringName, Variant};
+use godot::builtin::{Callable, GString, Signal, StringName};
 use godot::meta::ToGodot;
 use godot::register::{godot_api, GodotClass};
 use std::cell::Cell;
@@ -71,18 +71,15 @@ fn signals() {
 
     let args = [
         vec![],
-        vec![Variant::from(987)],
-        vec![
-            Variant::from(receiver.clone()),
-            Variant::from(SIGNAL_ARG_STRING),
-        ],
+        vec![987.to_variant()],
+        vec![receiver.to_variant(), SIGNAL_ARG_STRING.to_variant()],
     ];
 
     for (i, arg) in args.iter().enumerate() {
         let signal_name = format!("signal_{i}_arg");
         let receiver_name = format!("receive_{i}_arg");
 
-        emitter.connect(&signal_name, receiver.callable(receiver_name));
+        emitter.connect(&signal_name, &receiver.callable(receiver_name));
         emitter.emit_signal(&signal_name, arg);
 
         assert!(receiver.bind().used[i].get());
@@ -117,7 +114,7 @@ fn emit_signal() {
 
     object.connect(
         &StringName::from("test_signal"), // explicit StringName
-        Callable::from_object_method(&receiver, "receive_1_arg"),
+        &Callable::from_object_method(&receiver, "receive_1_arg"),
     );
     assert_eq!(signal.connections().len(), 1);
 
@@ -136,7 +133,7 @@ fn connect_signal() {
     let signal = Signal::from_object_signal(&object, "test_signal");
     let receiver = Receiver::new_alloc();
 
-    signal.connect(Callable::from_object_method(&receiver, "receive_1_arg"), 0);
+    signal.connect(&Callable::from_object_method(&receiver, "receive_1_arg"), 0);
     assert_eq!(signal.connections().len(), 1);
 
     object.emit_signal("test_signal", &[987i64.to_variant()]);
@@ -277,7 +274,7 @@ mod custom_callable {
 
         let received = Arc::new(AtomicU32::new(0));
         let callable = callable(received.clone());
-        signal.connect(callable, 0);
+        signal.connect(&callable, 0);
 
         emit(&mut node);
 
