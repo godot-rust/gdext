@@ -56,7 +56,7 @@ pub fn make_constant_registration(
                     #class_name_obj,
                     ConstantKind::Integer(
                         IntegerConstant::new(
-                            StringName::from(#integer_constant_names),
+                            #integer_constant_names,
                             #integer_constant_values
                         )
                     )

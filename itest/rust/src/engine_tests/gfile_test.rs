@@ -28,7 +28,7 @@ fn remove_test_file() {
 fn basic_read_write_works() {
     let mut file = GFile::open(TEST_FULL_PATH, ModeFlags::WRITE).unwrap();
     let line_to_store = GString::from("TESTING1");
-    file.write_gstring_line(line_to_store.clone()).unwrap();
+    file.write_gstring_line(&line_to_store).unwrap();
     drop(file);
 
     let mut file = GFile::open(TEST_FULL_PATH, ModeFlags::READ).unwrap();

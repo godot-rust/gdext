@@ -35,12 +35,14 @@
 //! [`try_cast()`][crate::obj::Gd::try_cast] and [`upcast()`][crate::obj::Gd::upcast]. Upcasts are infallible.
 
 mod array_type_info;
+mod as_arg;
 mod class_name;
 mod godot_convert;
 mod method_info;
 mod property_info;
 mod ref_arg;
 // RpcConfig uses MultiplayerPeer::TransferMode and MultiplayerApi::RpcMode, which are only enabled in `codegen-full` feature.
+mod cow_arg;
 #[cfg(feature = "codegen-full")]
 mod rpc_config;
 mod sealed;
@@ -48,18 +50,26 @@ mod signature;
 mod traits;
 
 pub mod error;
+
+pub use as_arg::*;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 #[cfg(feature = "codegen-full")]
 pub use rpc_config::RpcConfig;
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
-pub(crate) use crate::impl_godot_as_self;
 pub(crate) use array_type_info::ArrayTypeInfo;
 pub(crate) use traits::{GodotFfiVariant, GodotNullableFfi};
 
 use crate::registry::method::MethodParamOrReturnInfo;
 
+pub(crate) use crate::{
+    arg_into_owned, arg_into_ref, declare_arg_method, impl_asarg_by_ref, impl_asarg_by_value,
+    impl_godot_as_self,
+};
+
+#[doc(hidden)]
+pub use cow_arg::*;
 #[doc(hidden)]
 pub use ref_arg::*;
 #[doc(hidden)]

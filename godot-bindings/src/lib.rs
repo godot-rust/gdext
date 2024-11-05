@@ -115,7 +115,7 @@ mod depend_on_prebuilt {
                 .get(2)
                 .and_then(|patch| patch.parse().ok())
                 .unwrap_or(0),
-            status: "stable".into(),
+            status: "stable".to_string(),
             custom_rev: None,
         }
     }

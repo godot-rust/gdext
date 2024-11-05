@@ -9,8 +9,8 @@ use crate::builtin::{Dictionary, StringName};
 use crate::classes::multiplayer_api::RpcMode;
 use crate::classes::multiplayer_peer::TransferMode;
 use crate::classes::Node;
-use crate::dict;
-use crate::meta::ToGodot;
+use crate::meta::{AsArg, ToGodot};
+use crate::{arg_into_ref, dict};
 
 /// Configuration for a remote procedure call, typically used with `#[rpc(config = ...)]`.
 ///
@@ -36,8 +36,9 @@ impl Default for RpcConfig {
 
 impl RpcConfig {
     /// Register `method` as a remote procedure call on `node`.
-    pub fn configure_node(self, node: &mut Node, method_name: impl Into<StringName>) {
-        node.rpc_config(method_name.into(), &self.to_dictionary().to_variant());
+    pub fn configure_node(self, node: &mut Node, method_name: impl AsArg<StringName>) {
+        arg_into_ref!(method_name);
+        node.rpc_config(method_name, &self.to_dictionary().to_variant());
     }
 
     /// Returns a [`Dictionary`] populated with the values required for a call to [`Node::rpc_config()`].

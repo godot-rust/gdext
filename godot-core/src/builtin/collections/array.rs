@@ -4,15 +4,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::borrow::Borrow;
+
 use std::fmt;
 use std::marker::PhantomData;
 
 use crate::builtin::*;
+use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
-    PropertyHintInfo, RefArg, ToGodot,
+    ApiParam, ArrayElement, ArrayTypeInfo, AsArg, CowArg, FromGodot, GodotConvert, GodotFfiVariant,
+    GodotType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
@@ -85,8 +86,8 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// # use godot::prelude::*;
 /// // VariantArray allows dynamic element types.
 /// let mut array = VariantArray::new();
-/// array.push(10.to_variant());
-/// array.push("Hello".to_variant());
+/// array.push(&10.to_variant());
+/// array.push(&"Hello".to_variant());
 ///
 /// // Or equivalent, use the `varray!` macro which converts each element.
 /// let array = varray![10, "Hello"];
@@ -195,12 +196,14 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
-    pub fn contains(&self, value: &T) -> bool {
+    pub fn contains(&self, value: impl AsArg<T>) -> bool {
+        meta::arg_into_ref!(value: T);
         self.as_inner().has(&value.to_variant())
     }
 
     /// Returns the number of times a value is in the array.
-    pub fn count(&self, value: &T) -> usize {
+    pub fn count(&self, value: impl AsArg<T>) -> usize {
+        meta::arg_into_ref!(value: T);
         to_usize(self.as_inner().count(&value.to_variant()))
     }
 
@@ -258,15 +261,14 @@ impl<T: ArrayElement> Array<T> {
 
     /// Sets the value at the specified index.
     ///
-    /// `value` uses `Borrow<T>` to accept either by value or by reference.
-    ///
     /// # Panics
     ///
     /// If `index` is out of bounds.
-    pub fn set(&mut self, index: usize, value: impl Borrow<T>) {
+    pub fn set(&mut self, index: usize, value: impl AsArg<T>) {
         let ptr_mut = self.ptr_mut(index);
 
-        let variant = value.borrow().to_variant();
+        meta::arg_into_ref!(value: T);
+        let variant = value.to_variant();
 
         // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
         unsafe { variant.move_into_var_ptr(ptr_mut) };
@@ -274,24 +276,27 @@ impl<T: ArrayElement> Array<T> {
 
     /// Appends an element to the end of the array.
     ///
-    /// `value` uses `Borrow<T>` to accept either by value or by reference.
-    ///
     /// _Godot equivalents: `append` and `push_back`_
     #[doc(alias = "append")]
     #[doc(alias = "push_back")]
-    pub fn push(&mut self, value: impl Borrow<T>) {
+    pub fn push(&mut self, value: impl AsArg<T>) {
+        meta::arg_into_ref!(value: T);
+
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
         let mut inner = unsafe { self.as_inner_mut() };
-        inner.push_back(&value.borrow().to_variant());
+        inner.push_back(&value.to_variant());
     }
 
     /// Adds an element at the beginning of the array, in O(n).
     ///
     /// On large arrays, this method is much slower than [`push()`][Self::push], as it will move all the array's elements.
     /// The larger the array, the slower `push_front()` will be.
-    pub fn push_front(&mut self, value: T) {
+    pub fn push_front(&mut self, value: impl AsArg<T>) {
+        meta::arg_into_ref!(value: T);
+
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.push_front(&value.to_variant());
+        let mut inner_array = unsafe { self.as_inner_mut() };
+        inner_array.push_front(&value.to_variant());
     }
 
     /// Removes and returns the last element of the array. Returns `None` if the array is empty.
@@ -325,12 +330,14 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// # Panics
     /// If `index > len()`.
-    pub fn insert(&mut self, index: usize, value: T) {
+    pub fn insert(&mut self, index: usize, value: impl AsArg<T>) {
         let len = self.len();
         assert!(
             index <= len,
             "Array insertion index {index} is out of bounds: length is {len}",
         );
+
+        meta::arg_into_ref!(value: T);
 
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
         unsafe { self.as_inner_mut() }.insert(to_i64(index), &value.to_variant());
@@ -359,14 +366,18 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// On large arrays, this method is much slower than [`pop()`][Self::pop], as it will move all the array's
     /// elements after the removed element.
-    pub fn erase(&mut self, value: &T) {
+    pub fn erase(&mut self, value: impl AsArg<T>) {
+        meta::arg_into_ref!(value: T);
+
         // SAFETY: We don't write anything to the array.
         unsafe { self.as_inner_mut() }.erase(&value.to_variant());
     }
 
     /// Assigns the given value to all elements in the array. This can be used together with
     /// `resize` to create an array with a given size and initialized elements.
-    pub fn fill(&mut self, value: &T) {
+    pub fn fill(&mut self, value: impl AsArg<T>) {
+        meta::arg_into_ref!(value: T);
+
         // SAFETY: The array has type `T` and we're writing values of type `T` to it.
         unsafe { self.as_inner_mut() }.fill(&value.to_variant());
     }
@@ -377,16 +388,27 @@ impl<T: ArrayElement> Array<T> {
     /// then the new elements are set to `value`.
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`](Array::shrink) instead.
-    pub fn resize(&mut self, new_size: usize, value: &T) {
+    pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
         let original_size = self.len();
 
         // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
         // array are of type `T` still.
         unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
 
+        meta::arg_into_ref!(value: T);
+
         // If new_size < original_size then this is an empty iterator and does nothing.
         for i in original_size..new_size {
-            self.set(i, value);
+            // Exception safety: if to_variant() panics, the array will become inconsistent (filled with non-T nils).
+            // At the moment (Nov 2024), this can only happen for u64, which isn't a valid Array element type.
+            // This could be changed to use clone() (if that doesn't panic) or store a variant without moving.
+            let variant = value.to_variant();
+
+            let ptr_mut = self.ptr_mut(i);
+
+            // SAFETY: we iterate pointer within bounds; ptr_mut() additionally checks them.
+            // ptr_mut() lookup could be optimized if we know the internal layout.
+            unsafe { variant.move_into_var_ptr(ptr_mut) };
         }
     }
 
@@ -534,8 +556,12 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Searches the array for the first occurrence of a value and returns its index, or `None` if
-    /// not found. Starts searching at index `from`; pass `None` to search the entire array.
-    pub fn find(&self, value: &T, from: Option<usize>) -> Option<usize> {
+    /// not found.
+    ///
+    /// Starts searching at index `from`; pass `None` to search the entire array.
+    pub fn find(&self, value: impl AsArg<T>, from: Option<usize>) -> Option<usize> {
+        meta::arg_into_ref!(value: T);
+
         let from = to_i64(from.unwrap_or(0));
         let index = self.as_inner().find(&value.to_variant(), from);
         if index >= 0 {
@@ -546,11 +572,15 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Searches the array backwards for the last occurrence of a value and returns its index, or
-    /// `None` if not found. Starts searching at index `from`; pass `None` to search the entire
-    /// array.
-    pub fn rfind(&self, value: &T, from: Option<usize>) -> Option<usize> {
+    /// `None` if not found.
+    ///
+    /// Starts searching at index `from`; pass `None` to search the entire array.
+    pub fn rfind(&self, value: impl AsArg<T>, from: Option<usize>) -> Option<usize> {
+        meta::arg_into_ref!(value: T);
+
         let from = from.map(to_i64).unwrap_or(-1);
         let index = self.as_inner().rfind(&value.to_variant(), from);
+
         // It's not documented, but `rfind` returns -1 if not found.
         if index >= 0 {
             Some(to_usize(index))
@@ -566,7 +596,9 @@ impl<T: ArrayElement> Array<T> {
     /// would maintain sorting order.
     ///
     /// Calling `bsearch` on an unsorted array results in unspecified behavior.
-    pub fn bsearch(&self, value: &T) -> usize {
+    pub fn bsearch(&self, value: impl AsArg<T>) -> usize {
+        meta::arg_into_ref!(value: T);
+
         to_usize(self.as_inner().bsearch(&value.to_variant(), true))
     }
 
@@ -582,7 +614,9 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Consider using `sort_custom()` to ensure the sorting order is compatible with
     /// your callable's ordering
-    pub fn bsearch_custom(&self, value: &T, func: Callable) -> usize {
+    pub fn bsearch_custom(&self, value: impl AsArg<T>, func: Callable) -> usize {
+        meta::arg_into_ref!(value: T);
+
         to_usize(
             self.as_inner()
                 .bsearch_custom(&value.to_variant(), func, true),
@@ -901,6 +935,27 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
 impl ArrayElement for VariantArray {}
 
+impl<'r, T: ArrayElement> AsArg<Array<T>> for &'r Array<T> {
+    fn into_arg<'cow>(self) -> CowArg<'cow, Array<T>>
+    where
+        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
+    {
+        CowArg::Borrowed(self)
+    }
+}
+
+impl<T: ArrayElement> ApiParam for Array<T> {
+    type Arg<'v> = CowArg<'v, Self>;
+
+    fn value_to_arg<'v>(self) -> Self::Arg<'v> {
+        CowArg::Owned(self)
+    }
+
+    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
+        arg.cow_as_ref()
+    }
+}
+
 impl<T: ArrayElement> GodotConvert for Array<T> {
     type Via = Self;
 }
@@ -1166,7 +1221,7 @@ impl<T: ArrayElement + ToGodot> Extend<T> for Array<T> {
         // A faster implementation using `resize()` and direct pointer writes might still be possible.
         // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
         for item in iter.into_iter() {
-            self.push(&item);
+            self.push(ApiParam::value_to_arg(item));
         }
     }
 }
@@ -1309,7 +1364,7 @@ macro_rules! varray {
             use $crate::meta::ToGodot as _;
             let mut array = $crate::builtin::VariantArray::default();
             $(
-                array.push($elements.to_variant());
+                array.push(&$elements.to_variant());
             )*
             array
         }

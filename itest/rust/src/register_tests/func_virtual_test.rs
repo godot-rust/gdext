@@ -60,7 +60,7 @@ fn func_virtual() {
     assert_eq!(object.bind().greet_lang(72), GString::from("GDScript#72"));
 
     // Dynamic call: "GDScript".
-    let result = object.call("_greet_lang".into(), &[72.to_variant()]);
+    let result = object.call("_greet_lang", &[72.to_variant()]);
     assert_eq!(result, "GDScript#72".to_variant());
 }
 
@@ -81,7 +81,7 @@ fn func_virtual_renamed() {
     );
 
     // Dynamic call: "GDScript".
-    let result = object.call("greet_lang2".into(), &["Hello".to_variant()]);
+    let result = object.call("greet_lang2", &["Hello".to_variant()]);
     assert_eq!(result, "Hello GDScript".to_variant());
 }
 
@@ -102,7 +102,7 @@ fn func_virtual_gd_self() {
     );
 
     // Dynamic call: "GDScript".
-    let result = object.call("_greet_lang3".into(), &["Hoi".to_variant()]);
+    let result = object.call("_greet_lang3", &["Hoi".to_variant()]);
     assert_eq!(result, "Hoi GDScript".to_variant());
 }
 
@@ -141,7 +141,7 @@ func _get_thing():
 "#;
 
     let mut script = GDScript::new_gd();
-    script.set_source_code(code.into());
+    script.set_source_code(code);
     script.reload(); // Necessary so compile is triggered.
 
     let methods = script

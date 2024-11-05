@@ -67,7 +67,7 @@ impl HasConstants {
 
 /// Checks at runtime if a class has a given integer constant through [ClassDb].
 fn class_has_integer_constant<T: GodotClass>(name: &str) -> bool {
-    ClassDb::singleton().class_has_integer_constant(T::class_name().to_string_name(), name.into())
+    ClassDb::singleton().class_has_integer_constant(&T::class_name().to_string_name(), name)
 }
 
 #[itest]
@@ -83,18 +83,16 @@ fn constants_correct_value() {
         ),
     ];
 
+    let class_name = HasConstants::class_name().to_string_name();
     let constants = ClassDb::singleton()
-        .class_get_integer_constant_list_ex(HasConstants::class_name().to_string_name())
+        .class_get_integer_constant_list_ex(&class_name)
         .no_inheritance(true)
         .done();
 
     for (constant_name, constant_value) in CONSTANTS {
-        assert!(constants.contains(&constant_name.into()));
+        assert!(constants.contains(constant_name));
         assert_eq!(
-            ClassDb::singleton().class_get_integer_constant(
-                HasConstants::class_name().to_string_name(),
-                constant_name.into()
-            ),
+            ClassDb::singleton().class_get_integer_constant(&class_name, constant_name),
             constant_value
         );
     }
@@ -142,9 +140,9 @@ impl godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
             ConstantKind::Enum {
                 name: Self::ENUM_NAME.into(),
                 enumerators: vec![
-                    IntegerConstant::new("ENUM_A".into(), Self::ENUM_A),
-                    IntegerConstant::new("ENUM_B".into(), Self::ENUM_B),
-                    IntegerConstant::new("ENUM_C".into(), Self::ENUM_C),
+                    IntegerConstant::new("ENUM_A", Self::ENUM_A),
+                    IntegerConstant::new("ENUM_B", Self::ENUM_B),
+                    IntegerConstant::new("ENUM_C", Self::ENUM_C),
                 ],
             },
         )
@@ -156,9 +154,9 @@ impl godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
             ConstantKind::Bitfield {
                 name: Self::BITFIELD_NAME.into(),
                 flags: vec![
-                    IntegerConstant::new("BITFIELD_A".into(), Self::BITFIELD_A),
-                    IntegerConstant::new("BITFIELD_B".into(), Self::BITFIELD_B),
-                    IntegerConstant::new("BITFIELD_C".into(), Self::BITFIELD_C),
+                    IntegerConstant::new("BITFIELD_A", Self::BITFIELD_A),
+                    IntegerConstant::new("BITFIELD_B", Self::BITFIELD_B),
+                    IntegerConstant::new("BITFIELD_C", Self::BITFIELD_C),
                 ],
             },
         )
@@ -192,30 +190,24 @@ macro_rules! test_enum_export {
     ) => {
         #$attr
         fn $test_name() {
-            let class_name = <$class>::class_name();
+            let class_name = <$class>::class_name().to_string_name();
             let enum_name = StringName::from(<$class>::$enum_name);
             let variants = [
                 $((stringify!($enumerators), <$class>::$enumerators)),*
             ];
 
             assert!(ClassDb::singleton()
-                .class_has_enum_ex(
-                    class_name.to_string_name(),
-                    enum_name.clone(),
-                )
+                .class_has_enum_ex(&class_name, &enum_name)
                 .no_inheritance(true)
                 .done());
 
             let godot_variants = ClassDb::singleton()
-                .class_get_enum_constants_ex(
-                    class_name.to_string_name(),
-                    enum_name.into(),
-                )
+                .class_get_enum_constants_ex(&class_name, &enum_name)
                 .no_inheritance(true)
                 .done();
 
             let constants = ClassDb::singleton()
-                .class_get_integer_constant_list_ex(class_name.to_string_name())
+                .class_get_integer_constant_list_ex(&class_name)
                 .no_inheritance(true)
                 .done();
 
@@ -224,7 +216,7 @@ macro_rules! test_enum_export {
                 assert!(godot_variants.contains(&variant_name));
                 assert!(constants.contains(&variant_name));
                 assert_eq!(
-                    ClassDb::singleton().class_get_integer_constant(class_name.to_string_name(), variant_name.into()),
+                    ClassDb::singleton().class_get_integer_constant(&class_name, variant_name.arg()),
                     variant_value
                 );
             }

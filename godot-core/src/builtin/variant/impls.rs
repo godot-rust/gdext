@@ -82,6 +82,8 @@ macro_rules! impl_ffi_variant {
         }
 
         impl ArrayElement for $T {}
+
+        impl_ffi_variant!(@as_arg $by_ref_or_val $T);
     };
 
     (@godot_type_name $T:ty) => {
@@ -111,6 +113,14 @@ macro_rules! impl_ffi_variant {
             self.clone()
         }
     };
+
+    (@as_arg by_ref $T:ty) => {
+        $crate::meta::impl_asarg_by_ref!($T);
+    };
+
+    (@as_arg by_val $T:ty) => {
+        $crate::meta::impl_asarg_by_value!($T);
+    };
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -125,9 +135,6 @@ mod impls {
     impl_ffi_variant!(bool, bool_to_variant, bool_from_variant);
     impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
     impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
-    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
-    impl_ffi_variant!(Basis, basis_to_variant, basis_from_variant);
-    impl_ffi_variant!(Callable, callable_to_variant, callable_from_variant);
     impl_ffi_variant!(Vector2, vector2_to_variant, vector2_from_variant);
     impl_ffi_variant!(Vector3, vector3_to_variant, vector3_from_variant);
     impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant);
@@ -135,10 +142,20 @@ mod impls {
     impl_ffi_variant!(Vector3i, vector3i_to_variant, vector3i_from_variant);
     impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
     impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
+    impl_ffi_variant!(Transform2D, transform_2d_to_variant, transform_2d_from_variant);
+    impl_ffi_variant!(Transform3D, transform_3d_to_variant, transform_3d_from_variant);
+    impl_ffi_variant!(Basis, basis_to_variant, basis_from_variant);
+    impl_ffi_variant!(Projection, projection_to_variant, projection_from_variant);
+    impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
+    impl_ffi_variant!(Rect2, rect2_to_variant, rect2_from_variant);
+    impl_ffi_variant!(Rect2i, rect2i_to_variant, rect2i_from_variant);
+    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
-    impl_ffi_variant!(GString, string_to_variant, string_from_variant; String);
-    impl_ffi_variant!(StringName, string_name_to_variant, string_name_from_variant);
-    impl_ffi_variant!(NodePath, node_path_to_variant, node_path_from_variant);
+    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID);
+    impl_ffi_variant!(ref GString, string_to_variant, string_from_variant; String);
+    impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
+    impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
+    impl_ffi_variant!(ref Dictionary, dictionary_to_variant, dictionary_from_variant);
     impl_ffi_variant!(ref PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant);
     impl_ffi_variant!(ref PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant);
     impl_ffi_variant!(ref PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant);
@@ -150,16 +167,8 @@ mod impls {
     #[cfg(since_api = "4.3")]
     impl_ffi_variant!(ref PackedVector4Array, packed_vector4_array_to_variant, packed_vector4_array_from_variant);
     impl_ffi_variant!(ref PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant);
-    impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
-    impl_ffi_variant!(Projection, projection_to_variant, projection_from_variant);
-    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID);
-    impl_ffi_variant!(Rect2, rect2_to_variant, rect2_from_variant);
-    impl_ffi_variant!(Rect2i, rect2i_to_variant, rect2i_from_variant);
-    impl_ffi_variant!(Signal, signal_to_variant, signal_from_variant);
-    impl_ffi_variant!(Transform2D, transform_2d_to_variant, transform_2d_from_variant);
-    impl_ffi_variant!(Transform3D, transform_3d_to_variant, transform_3d_from_variant);
-    impl_ffi_variant!(ref Dictionary, dictionary_to_variant, dictionary_from_variant);
-
+    impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
+    impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -197,7 +206,7 @@ impl GodotType for () {
     }
 
     fn godot_type_name() -> String {
-        "Variant".into()
+        "Variant".to_string()
     }
 }
 
@@ -242,6 +251,6 @@ impl GodotType for Variant {
     }
 
     fn godot_type_name() -> String {
-        "Variant".into()
+        "Variant".to_string()
     }
 }

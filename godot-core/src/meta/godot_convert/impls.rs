@@ -247,6 +247,8 @@ macro_rules! impl_godot_scalar {
                 Ok(via)
             }
         }
+
+        $crate::impl_asarg_by_value!($T);
     };
 }
 

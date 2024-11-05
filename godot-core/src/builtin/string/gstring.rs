@@ -30,7 +30,7 @@ use crate::builtin::{inner, NodePath, StringName};
 /// When interfacing with the Godot engine API, you often have the choice between `String` and `GString`. In user-declared methods
 /// exposed to Godot through the `#[func]` attribute, both types can be used as parameters and return types, and conversions
 /// are done transparently. For auto-generated binding APIs in `godot::classes`, both parameters and return types are `GString`.
-/// In the future, we will likely declare parameters as `impl Into<GString>`, allowing `String` or `&str` to be passed.
+/// Parameters are declared as `impl AsArg<GString>`, allowing you to be more flexible with arguments such as `"some_string"`.
 ///
 /// As a general guideline, use `GString` if:
 /// * your strings are very large, so you can avoid copying them
@@ -42,7 +42,7 @@ use crate::builtin::{inner, NodePath, StringName};
 /// * you would like to decouple part of your code from Godot (e.g. independent game logic, standalone tests)
 /// * you want a standard type for interoperability with third-party code (e.g. `regex` crate)
 /// * you have a large number of method calls per string instance (which are more expensive due to indirectly calling into Godot)
-/// * you need UTF-8 encoding (`GString`'s encoding is platform-dependent and unspecified)
+/// * you need UTF-8 encoding (`GString` uses UTF-32)
 ///
 /// # Null bytes
 ///
@@ -85,7 +85,7 @@ impl GString {
             .expect("Godot hashes are uint32_t")
     }
 
-    /// Gets the internal chars slice from a [`GString`].
+    /// Gets the UTF-32 character slice from a [`GString`].
     pub fn chars(&self) -> &[char] {
         // SAFETY: Godot 4.1 ensures valid UTF-32, making interpreting as char slice safe.
         // See https://github.com/godotengine/godot/pull/74760.
@@ -149,6 +149,24 @@ impl GString {
         let dst: sys::GDExtensionTypePtr = dst.cast();
 
         self.move_return_ptr(dst, sys::PtrcallType::Standard);
+    }
+
+    crate::meta::declare_arg_method! {
+        /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::meta::AsArg] parameter.
+        ///
+        /// This is a convenient way to convert arguments of similar string types.
+        ///
+        /// # Example
+        /// [`Node::has_node()`][crate::classes::Node::has_node] takes `NodePath`, let's pass a `GString`:
+        /// ```no_run
+        /// # use godot::prelude::*;
+        /// let name = GString::from("subnode");
+        ///
+        /// let node = Node::new_alloc();
+        /// if node.has_node(name.arg()) {
+        ///     // ...
+        /// }
+        /// ```
     }
 
     #[doc(hidden)]

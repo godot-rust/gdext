@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 mod markdown_converter;
 
 use crate::class::{ConstDefinition, Field, FuncDefinition, SignalDefinition};
@@ -182,7 +183,8 @@ fn make_constant_docs(constant: &Constant) -> Option<String> {
         .initializer
         .as_ref()
         .map(|x| x.to_token_stream().to_string())
-        .unwrap_or("null".into());
+        .unwrap_or_else(|| "null".to_string());
+
     Some(format!(
         r#"<constant name="{name}" value="{value}">{docs}</constant>"#,
         name = xml_escape(name),
@@ -223,7 +225,8 @@ pub fn make_virtual_method_docs(method: Function) -> Option<String> {
     let ret = method
         .return_ty
         .map(|x| x.to_token_stream().to_string())
-        .unwrap_or("void".into());
+        .unwrap_or_else(|| "void".to_string());
+
     let params = params(method.params.iter().filter_map(|(x, _)| match x {
         FnParam::Receiver(_) => None,
         FnParam::Typed(y) => Some((&y.name, &y.ty)),

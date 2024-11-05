@@ -47,6 +47,6 @@ impl IRigidBody2D for Mob {
         let mut rng = rand::thread_rng();
         let animation_name = anim_names.choose(&mut rng).unwrap();
 
-        sprite.set_animation(animation_name.into());
+        sprite.set_animation(animation_name.arg());
     }
 }

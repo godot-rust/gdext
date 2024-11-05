@@ -58,7 +58,7 @@ enum EnumIntyWithExprs {
 
 #[itest]
 fn newtype_tuple_struct() {
-    roundtrip(TupleNewtype("hello!".into()));
+    roundtrip(TupleNewtype(GString::from("hello!")));
 }
 
 #[itest]

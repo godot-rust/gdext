@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, ToGodot};
@@ -11,16 +12,55 @@ use crate::sys;
 use godot_ffi::{GodotFfi, GodotNullableFfi, PtrcallType};
 use std::fmt;
 
+/// Simple reference wrapper, used when passing arguments by-ref to Godot APIs.
+///
+/// This type is often used as the result of [`ToGodot::to_godot()`], if `Self` is not a `Copy` type.
 pub struct RefArg<'r, T> {
     /// Only `None` if `T: GodotNullableFfi` and `T::is_null()` is true.
     shared_ref: Option<&'r T>,
 }
 
 impl<'r, T> RefArg<'r, T> {
+    /// Creates a new `RefArg` from a reference.
+    ///
+    /// Unless you implement your own `ToGodot` impl, there is usually no reason to use this.
     pub fn new(shared_ref: &'r T) -> Self {
         RefArg {
             shared_ref: Some(shared_ref),
         }
+    }
+
+    // Note: the following APIs are not used by gdext itself, but exist for user convenience, since
+    // RefArg is a public type returned by ToGodot::to_godot(). Does not implementing AsRef + ToOwned, because `RefArg` is intended
+    // to be a niche API, not common occurrence in user code. ToOwned would also impose Borrow<T> on other types.
+
+    /// Returns the stored reference.
+    ///
+    /// # Panics
+    /// If `T` is `Option<Gd<...>>::None`.
+    pub fn get_ref(&self) -> &T {
+        self.shared_ref.expect("RefArg is null")
+    }
+
+    /// Returns the stored reference.
+    ///
+    /// Returns `None` if `T` is `Option<Gd<...>>::None`.
+    pub fn get_ref_or_none(&self) -> Option<&T>
+    where
+        T: GodotNullableFfi,
+    {
+        self.shared_ref
+    }
+
+    /// Returns the stored reference.
+    ///
+    /// # Panics
+    /// If `T` is `Option<Gd<...>>::None`.
+    pub fn to_owned(&self) -> T
+    where
+        T: Clone,
+    {
+        self.get_ref().clone()
     }
 }
 

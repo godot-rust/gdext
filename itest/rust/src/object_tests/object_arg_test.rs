@@ -17,8 +17,8 @@ use crate::object_tests::object_test::{user_refc_instance, RefcPayload};
 fn object_arg_owned() {
     with_objects(|manual, refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(manual, "name".into(), &Variant::from("hello"));
-        let b = db.class_set_property(refc, "value".into(), &Variant::from(-123));
+        let a = db.class_set_property(manual, "name", &Variant::from("hello"));
+        let b = db.class_set_property(refc, "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -27,8 +27,8 @@ fn object_arg_owned() {
 fn object_arg_borrowed() {
     with_objects(|manual, refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(&manual, "name".into(), &Variant::from("hello"));
-        let b = db.class_set_property(&refc, "value".into(), &Variant::from(-123));
+        let a = db.class_set_property(&manual, "name", &Variant::from("hello"));
+        let b = db.class_set_property(&refc, "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -37,8 +37,8 @@ fn object_arg_borrowed() {
 fn object_arg_borrowed_mut() {
     with_objects(|mut manual, mut refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(&mut manual, "name".into(), &Variant::from("hello"));
-        let b = db.class_set_property(&mut refc, "value".into(), &Variant::from(-123));
+        let a = db.class_set_property(&mut manual, "name", &Variant::from("hello"));
+        let b = db.class_set_property(&mut refc, "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -47,8 +47,8 @@ fn object_arg_borrowed_mut() {
 fn object_arg_option_owned() {
     with_objects(|manual, refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(Some(manual), "name".into(), &Variant::from("hello"));
-        let b = db.class_set_property(Some(refc), "value".into(), &Variant::from(-123));
+        let a = db.class_set_property(Some(manual), "name", &Variant::from("hello"));
+        let b = db.class_set_property(Some(refc), "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -57,8 +57,8 @@ fn object_arg_option_owned() {
 fn object_arg_option_borrowed() {
     with_objects(|manual, refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(Some(&manual), "name".into(), &Variant::from("hello"));
-        let b = db.class_set_property(Some(&refc), "value".into(), &Variant::from(-123));
+        let a = db.class_set_property(Some(&manual), "name", &Variant::from("hello"));
+        let b = db.class_set_property(Some(&refc), "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -67,8 +67,8 @@ fn object_arg_option_borrowed() {
 fn object_arg_option_borrowed_mut() {
     with_objects(|mut manual, mut refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(Some(&mut manual), "name".into(), &Variant::from("hello"));
-        let b = db.class_set_property(Some(&mut refc), "value".into(), &Variant::from(-123));
+        let a = db.class_set_property(Some(&mut manual), "name", &Variant::from("hello"));
+        let b = db.class_set_property(Some(&mut refc), "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -80,10 +80,10 @@ fn object_arg_option_none() {
 
     // Will emit errors but should not crash.
     let db = ClassDb::singleton();
-    let error = db.class_set_property(manual, "name".into(), &Variant::from("hello"));
+    let error = db.class_set_property(manual, "name", &Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
-    let error = db.class_set_property(refc, "value".into(), &Variant::from(-123));
+    let error = db.class_set_property(refc, "value", &Variant::from(-123));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 }
 
@@ -91,10 +91,10 @@ fn object_arg_option_none() {
 fn object_arg_null_arg() {
     // Will emit errors but should not crash.
     let db = ClassDb::singleton();
-    let error = db.class_set_property(Gd::null_arg(), "name".into(), &Variant::from("hello"));
+    let error = db.class_set_property(Gd::null_arg(), "name", &Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
-    let error = db.class_set_property(Gd::null_arg(), "value".into(), &Variant::from(-123));
+    let error = db.class_set_property(Gd::null_arg(), "value", &Variant::from(-123));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 }
 

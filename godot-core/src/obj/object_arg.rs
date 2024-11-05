@@ -25,6 +25,10 @@ use std::ptr;
 /// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
 /// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
 /// </div>
+
+#[diagnostic::on_unimplemented(
+    message = "The provided argument of type `{Self}` cannot be converted to a `Gd<{T}>` parameter"
+)]
 pub trait AsObjectArg<T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
@@ -34,7 +38,7 @@ where
 
     /// Returns
     #[doc(hidden)]
-    fn consume_object(self) -> ObjectCow<T>;
+    fn consume_arg(self) -> ObjectCow<T>;
 }
 
 impl<T, U> AsObjectArg<T> for Gd<U>
@@ -46,7 +50,7 @@ where
         <&Gd<U>>::as_object_arg(&self)
     }
 
-    fn consume_object(self) -> ObjectCow<T> {
+    fn consume_arg(self) -> ObjectCow<T> {
         ObjectCow::Owned(self.upcast())
     }
 }
@@ -62,7 +66,7 @@ where
         unsafe { ObjectArg::from_raw_gd(&self.raw) }
     }
 
-    fn consume_object(self) -> ObjectCow<T> {
+    fn consume_arg(self) -> ObjectCow<T> {
         ObjectCow::Borrowed(self.as_object_arg())
     }
 }
@@ -78,8 +82,8 @@ where
         <&Gd<U>>::as_object_arg(&&**self)
     }
 
-    fn consume_object(self) -> ObjectCow<T> {
-        <&Gd<U>>::consume_object(&*self)
+    fn consume_arg(self) -> ObjectCow<T> {
+        <&Gd<U>>::consume_arg(&*self)
     }
 }
 
@@ -93,10 +97,10 @@ where
             .map_or_else(ObjectArg::null, AsObjectArg::as_object_arg)
     }
 
-    fn consume_object(self) -> ObjectCow<T> {
+    fn consume_arg(self) -> ObjectCow<T> {
         match self {
-            Some(obj) => obj.consume_object(),
-            None => Gd::null_arg().consume_object(),
+            Some(obj) => obj.consume_arg(),
+            None => Gd::null_arg().consume_arg(),
         }
     }
 }
@@ -109,7 +113,7 @@ where
         ObjectArg::null()
     }
 
-    fn consume_object(self) -> ObjectCow<T> {
+    fn consume_arg(self) -> ObjectCow<T> {
         // Null pointer is safe to borrow.
         ObjectCow::Borrowed(ObjectArg::null())
     }
@@ -135,8 +139,8 @@ where
 {
     /// Returns the actual `ObjectArg` to be passed to function calls.
     ///
-    /// [`ObjectCow`] does not implement [`AsObjectArg<T>`] because a differently-named method is more explicit (less errors in codegen),
-    /// and because [`AsObjectArg::consume_object()`] is not meaningful.
+    /// [`ObjectCow`] does not implement [`AsObjectArg<T>`] because a differently-named method is more explicit (fewer errors in codegen),
+    /// and because [`AsObjectArg::consume_arg()`] is not meaningful.
     pub fn cow_as_object_arg(&self) -> ObjectArg<T> {
         match self {
             ObjectCow::Owned(gd) => gd.as_object_arg(),

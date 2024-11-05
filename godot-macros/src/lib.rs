@@ -658,7 +658,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// impl MyStruct {
 ///     #[func(virtual)]
 ///     fn language(&self) -> GString {
-///         "Rust".into()
+///         GString::from("Rust")
 ///     }
 /// }
 /// # }

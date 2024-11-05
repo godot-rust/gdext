@@ -95,7 +95,7 @@ impl Signal {
             return;
         };
 
-        object.emit_signal(self.name(), varargs);
+        object.emit_signal(&self.name(), varargs);
     }
 
     /// Returns an [`Array`] of connections for this signal.

@@ -107,7 +107,7 @@ fn is_derived_base_cached(derived: ClassName, base: ClassName) -> bool {
 
     // Query Godot API (takes linear time in depth of inheritance tree).
     let is_parent_class =
-        ClassDb::singleton().is_parent_class(derived.to_string_name(), base.to_string_name());
+        ClassDb::singleton().is_parent_class(&derived.to_string_name(), &base.to_string_name());
 
     // Insert only successful queries. Those that fail are on the error path already and don't need to be fast.
     if is_parent_class {
