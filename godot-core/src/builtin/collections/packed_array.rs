@@ -491,7 +491,7 @@ macro_rules! impl_packed_array {
                 // A faster implementation using `resize()` and direct pointer writes might still be
                 // possible.
                 for item in iter.into_iter() {
-                    self.push(meta::ApiParam::value_to_arg(item));
+                    self.push(meta::ApiParam::owned_to_arg(item));
                 }
             }
         }

@@ -947,7 +947,7 @@ impl<'r, T: ArrayElement> AsArg<Array<T>> for &'r Array<T> {
 impl<T: ArrayElement> ApiParam for Array<T> {
     type Arg<'v> = CowArg<'v, Self>;
 
-    fn value_to_arg<'v>(self) -> Self::Arg<'v> {
+    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
     }
 
@@ -1221,7 +1221,7 @@ impl<T: ArrayElement + ToGodot> Extend<T> for Array<T> {
         // A faster implementation using `resize()` and direct pointer writes might still be possible.
         // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
         for item in iter.into_iter() {
-            self.push(ApiParam::value_to_arg(item));
+            self.push(ApiParam::owned_to_arg(item));
         }
     }
 }

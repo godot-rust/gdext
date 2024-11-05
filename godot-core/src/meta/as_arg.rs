@@ -23,7 +23,7 @@ use std::ffi::CStr;
 /// Implicitly converting from `T` for by-ref builtins is explicitly not supported. This emphasizes that there is no need to consume the object,
 /// thus discourages unnecessary cloning.
 ///
-/// If you need to pass owned values in generic code, you can use [`ApiParam::value_to_arg()`].
+/// If you need to pass owned values in generic code, you can use [`ApiParam::owned_to_arg()`].
 ///
 /// # Performance for strings
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
@@ -106,7 +106,7 @@ macro_rules! impl_asarg_by_value {
         impl $crate::meta::ApiParam for $T {
             type Arg<'v> = $T;
 
-            fn value_to_arg<'v>(self) -> Self::Arg<'v> {
+            fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
                 self
             }
 
@@ -139,7 +139,7 @@ macro_rules! impl_asarg_by_ref {
         impl $crate::meta::ApiParam for $T {
             type Arg<'v> = $crate::meta::CowArg<'v, $T>;
 
-            fn value_to_arg<'v>(self) -> Self::Arg<'v> {
+            fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
                 $crate::meta::CowArg::Owned(self)
             }
 
@@ -252,14 +252,13 @@ impl AsArg<NodePath> for &String {
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
 pub trait ApiParam: GodotType
 // GodotType bound not required right now, but conceptually should always be the case.
-where
-    Self: Sized,
 {
     /// Canonical argument passing type, either `T` or an internally-used CoW type.
     ///
     /// The general rule is that `Copy` types are passed by value, while the rest is passed by reference.
     ///
-    /// This associated type is closely related to [`ToGodot::ToVia<'v>`][crate::meta::ToGodot::ToVia] and may be reorganized.
+    /// This associated type is closely related to [`ToGodot::ToVia<'v>`][crate::meta::ToGodot::ToVia] and may be reorganized in the future.
+    #[doc(hidden)]
     type Arg<'v>: AsArg<Self>
     where
         Self: 'v;
@@ -267,7 +266,9 @@ where
     /// Converts an owned value to the canonical argument type, which can be passed to [`impl AsArg<T>`][AsArg].
     ///
     /// Useful in generic contexts where only a value is available, and one doesn't want to dispatch between value/reference.
-    fn value_to_arg<'v>(self) -> Self::Arg<'v>;
+    ///
+    /// You should not rely on the exact return type, as it may change in future versions; treat it like `impl AsArg<Self>`.
+    fn owned_to_arg<'v>(self) -> Self::Arg<'v>;
 
     /// Converts an argument to a shared reference.
     ///
