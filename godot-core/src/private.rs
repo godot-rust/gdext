@@ -390,7 +390,7 @@ where
                 let msg = extract_panic_message(err);
                 let mut msg = format_panic_message(msg);
 
-                // try to add location information
+                // Try to add location information.
                 if let Ok(guard) = info.lock() {
                     if let Some(info) = guard.as_ref() {
                         msg = format!("{}\n  at {}:{}", msg, info.file, info.line);
