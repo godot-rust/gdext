@@ -34,13 +34,13 @@ fn save_test() {
 
     let resource = SavedGame::new_gd();
 
-    let res = try_save(resource.clone(), FAULTY_PATH);
+    let res = try_save(&resource, FAULTY_PATH);
     assert!(res.is_err());
 
-    let res = try_save(resource.clone(), &res_path);
+    let res = try_save(&resource, &res_path);
     assert!(res.is_ok());
 
-    save(resource.clone(), &res_path);
+    save(&resource, &res_path);
 
     remove_test_file(RESOURCE_NAME);
 }
@@ -53,7 +53,7 @@ fn load_test() {
     let mut resource = SavedGame::new_gd();
     resource.bind_mut().set_level(level);
 
-    save(resource.clone(), &res_path);
+    save(&resource, &res_path);
 
     let res = try_load::<SavedGame>(FAULTY_PATH);
     assert!(res.is_err());

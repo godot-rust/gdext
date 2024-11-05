@@ -78,17 +78,18 @@ where
 /// See [`try_save`] for more information.
 ///
 /// # Panics
-/// If the resouce cannot be saved.
+/// If the resource cannot be saved.
 ///
 /// # Example
 /// ```no_run
 /// use godot::prelude::*;
 ///
-/// save(Resource::new_gd(), "res://BaseResource.tres")
+/// let obj = Resource::new_gd();
+/// save(&obj, "res://BaseResource.tres")
 /// ```
 /// use godot::
 #[inline]
-pub fn save<T>(obj: Gd<T>, path: impl AsArg<GString>)
+pub fn save<T>(obj: &Gd<T>, path: impl AsArg<GString>)
 where
     T: Inherits<Resource>,
 {
@@ -120,12 +121,12 @@ where
 /// };
 ///
 /// let save_state = SavedGame::new_gd();
-/// let res = try_save(save_state, "user://save.tres");
+/// let res = try_save(&save_state, "user://save.tres");
 ///
 /// assert!(res.is_ok());
 /// ```
 #[inline]
-pub fn try_save<T>(obj: Gd<T>, path: impl AsArg<GString>) -> Result<(), IoError>
+pub fn try_save<T>(obj: &Gd<T>, path: impl AsArg<GString>) -> Result<(), IoError>
 where
     T: Inherits<Resource>,
 {
@@ -163,7 +164,7 @@ where
     }
 }
 
-fn save_impl<T>(obj: Gd<T>, path: &GString) -> Result<(), IoError>
+fn save_impl<T>(obj: &Gd<T>, path: &GString) -> Result<(), IoError>
 where
     T: Inherits<Resource>,
 {
