@@ -1053,7 +1053,7 @@ fn double_use_reference() {
     emitter
         .clone()
         .upcast::<Object>()
-        .connect("do_use", double_use.callable("use_1"));
+        .connect("do_use", &double_use.callable("use_1"));
 
     let guard = double_use.bind();
 

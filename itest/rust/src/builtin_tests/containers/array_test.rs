@@ -479,7 +479,7 @@ fn array_should_format_with_display() {
 fn array_sort_custom() {
     let mut a = array![1, 2, 3, 4];
     let func = backwards_sort_callable();
-    a.sort_unstable_custom(func);
+    a.sort_unstable_custom(&func);
     assert_eq!(a, array![4, 3, 2, 1]);
 }
 
@@ -488,8 +488,8 @@ fn array_sort_custom() {
 fn array_binary_search_custom() {
     let a = array![5, 4, 2, 1];
     let func = backwards_sort_callable();
-    assert_eq!(a.bsearch_custom(1, func.clone()), 3);
-    assert_eq!(a.bsearch_custom(3, func), 2);
+    assert_eq!(a.bsearch_custom(1, &func), 3);
+    assert_eq!(a.bsearch_custom(3, &func), 2);
 }
 
 #[cfg(since_api = "4.2")]

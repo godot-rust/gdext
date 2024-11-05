@@ -247,9 +247,12 @@ impl<'a> Context<'a> {
         // Already handled separately.
         debug_assert!(!godot_ty.ty.starts_with("Packed"));
 
+        // IMPORTANT: Keep this in sync with impl_ffi_variant!() macros taking `ref` or not.
+
         // Arrays are also handled separately, and use ByRef.
         match godot_ty.ty.as_str() {
-            "Variant" | "Array" | "Dictionary" => ArgPassing::ByRef,
+            // Note: Signal is currently not used in any parameter, but this may change.
+            "Variant" | "Array" | "Dictionary" | "Callable" | "Signal" => ArgPassing::ByRef,
             "String" | "StringName" | "NodePath" => ArgPassing::ImplAsArg,
             _ => ArgPassing::ByValue,
         }

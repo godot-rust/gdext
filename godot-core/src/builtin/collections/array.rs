@@ -614,7 +614,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Consider using `sort_custom()` to ensure the sorting order is compatible with
     /// your callable's ordering
-    pub fn bsearch_custom(&self, value: impl AsArg<T>, func: Callable) -> usize {
+    pub fn bsearch_custom(&self, value: impl AsArg<T>, func: &Callable) -> usize {
         meta::arg_into_ref!(value: T);
 
         to_usize(
@@ -646,7 +646,7 @@ impl<T: ArrayElement> Array<T> {
     /// Note: The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
     /// This means that values considered equal may have their order changed when using `sort_unstable_custom`.
     #[doc(alias = "sort_custom")]
-    pub fn sort_unstable_custom(&mut self, func: Callable) {
+    pub fn sort_unstable_custom(&mut self, func: &Callable) {
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort_custom(func);
     }
