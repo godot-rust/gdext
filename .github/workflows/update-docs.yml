@@ -23,6 +23,8 @@ env:
 
 jobs:
   notify-docs:
+    # do not run this job in a fork
+    if: github.repository_owner == 'godot-rust'
     runs-on: ubuntu-22.04
     steps:
       # Checkout is always needed, for the notify step
