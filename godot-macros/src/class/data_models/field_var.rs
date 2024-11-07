@@ -57,7 +57,7 @@ impl FieldVar {
     pub(crate) fn new_from_kv(parser: &mut KvParser) -> ParseResult<Self> {
         let mut getter = GetterSetter::parse(parser, "get")?;
         let mut setter = GetterSetter::parse(parser, "set")?;
-        let mut notify = parse_notify(parser, "notify")?;
+        let notify = parse_notify(parser, "notify")?;
 
         if getter.is_omitted() && setter.is_omitted() {
             getter = GetterSetter::Generated;
