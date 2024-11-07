@@ -68,6 +68,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let FieldVar {
             getter,
             setter,
+            notify,
             hint,
             mut usage_flags,
             ..
@@ -135,12 +136,12 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         };
 
         let getter_name = make_getter_setter(
-            getter.to_impl(class_name, GetSet::Get, field),
+            getter.to_impl(class_name, GetSet::Get, None, field),
             &mut getter_setter_impls,
             &mut export_tokens,
         );
         let setter_name = make_getter_setter(
-            setter.to_impl(class_name, GetSet::Set, field),
+            setter.to_impl(class_name, GetSet::Set, notify, field),
             &mut getter_setter_impls,
             &mut export_tokens,
         );

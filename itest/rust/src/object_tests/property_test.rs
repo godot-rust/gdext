@@ -450,3 +450,40 @@ fn override_export() {
 fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
     assert_eq!(property.get_or_nil(key), expected.to_variant());
 }
+
+
+// ---------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(base=Node, init)]
+struct NotifyTest {
+    #[var(notify = on_change)]
+    a: i32,
+    #[var(notify = on_change)]
+    b: i32,
+
+    pub call_count: u32
+}
+
+impl NotifyTest {
+    fn on_change(&mut self) {
+        self.call_count += 1;
+    }
+}
+
+#[itest]
+fn test_var_notify() {
+    let mut class = NotifyTest::new_alloc();
+
+    assert_eq!(class.bind().call_count, 0);
+
+    class.call("set_a", &[3.to_variant()]);
+    assert_eq!(class.bind().a, 3);
+    assert_eq!(class.bind().call_count, 1);
+
+
+    class.call("set_b", &[5.to_variant()]);
+    assert_eq!(class.bind().a, 5);
+    assert_eq!(class.bind().call_count, 2);
+}
+
