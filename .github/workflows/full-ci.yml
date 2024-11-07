@@ -8,6 +8,9 @@ name: Full CI
 # Runs before merging. Rebases on master to make sure CI passes for latest integration, not only for the PR at the time of creation.
 
 on:
+  # Allow manually triggering the workflow:
+  # https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_dispatch
+  workflow_dispatch:
   merge_group:
 #  push:
 
