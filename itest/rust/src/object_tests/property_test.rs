@@ -451,7 +451,6 @@ fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
     assert_eq!(property.get_or_nil(key), expected.to_variant());
 }
 
-
 // ---------------------------------------------------------------
 
 #[derive(GodotClass)]
@@ -462,7 +461,7 @@ struct NotifyTest {
     #[var(notify = on_change)]
     b: i32,
 
-    pub call_count: u32
+    pub call_count: u32,
 }
 
 impl NotifyTest {
@@ -481,9 +480,7 @@ fn test_var_notify() {
     assert_eq!(class.bind().a, 3);
     assert_eq!(class.bind().call_count, 1);
 
-
     class.call("set_b", &[5.to_variant()]);
     assert_eq!(class.bind().b, 5);
     assert_eq!(class.bind().call_count, 2);
 }
-
