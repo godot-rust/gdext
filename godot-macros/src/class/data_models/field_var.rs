@@ -227,22 +227,21 @@ impl GetterSetterImpl {
                     fn #function_name(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via)
                 };
 
-                let notify_block = match notify {
+                let function_body_set = quote! {
+                    <#field_type as ::godot::register::property::Var>::set_property(&mut self.#field_name, #field_name);
+                };
+
+                function_body = match notify {
                     Some(ident) => {
                         quote! {
-                            if self.#field_name != #field_name {
+                            let prev_value = self.#field_name;
+                            #function_body_set
+                            if prev_value != self.#field_name {
                                 self.#ident();
                             }
                         }
                     },
-                    None => {
-                        quote! { }
-                    }
-                };
-
-                function_body = quote! {
-                    <#field_type as ::godot::register::property::Var>::set_property(&mut self.#field_name, #field_name);
-                    #notify_block
+                    None => function_body_set
                 };
             }
         }
