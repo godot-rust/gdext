@@ -483,7 +483,7 @@ fn test_var_notify() {
 
 
     class.call("set_b", &[5.to_variant()]);
-    assert_eq!(class.bind().a, 5);
+    assert_eq!(class.bind().b, 5);
     assert_eq!(class.bind().call_count, 2);
 }
 
