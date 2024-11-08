@@ -7,7 +7,7 @@
 
 //! Parsing the `var` and `export` attributes on fields.
 
-use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetterImpl, UsageFlags};
+use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetter, GetterSetterImpl, UsageFlags};
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
@@ -140,8 +140,12 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             &mut getter_setter_impls,
             &mut export_tokens,
         );
+        let setter_kind = match &setter {
+            GetterSetter::Ex(ident) => GetSet::SetEx(ident.clone()),
+            _ => GetSet::Set,
+        };
         let setter_name = make_getter_setter(
-            setter.to_impl(class_name, GetSet::Set, notify, field),
+            setter.to_impl(class_name, setter_kind, notify, field),
             &mut getter_setter_impls,
             &mut export_tokens,
         );
