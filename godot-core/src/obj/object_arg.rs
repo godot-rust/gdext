@@ -25,7 +25,6 @@ use std::ptr;
 /// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
 /// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
 /// </div>
-
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsObjectArg<{T}>` parameter",
     note = "If you pass by value, consider borrowing instead.",
@@ -77,22 +76,6 @@ where
 
     fn consume_arg(self) -> ObjectCow<T> {
         ObjectCow::Borrowed(self.as_object_arg())
-    }
-}
-
-impl<T, U> AsObjectArg<T> for &mut Gd<U>
-where
-    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
-    U: Inherits<T>,
-{
-    // Delegate to &Gd impl.
-
-    fn as_object_arg(&self) -> ObjectArg<T> {
-        <&Gd<U>>::as_object_arg(&&**self)
-    }
-
-    fn consume_arg(self) -> ObjectCow<T> {
-        <&Gd<U>>::consume_arg(&*self)
     }
 }
 

@@ -39,8 +39,12 @@ fn object_arg_borrowed() {
 fn object_arg_borrowed_mut() {
     with_objects(|mut manual, mut refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(&mut manual, "name", &Variant::from("hello"));
-        let b = db.class_set_property(&mut refc, "value", &Variant::from(-123));
+
+        let manual_ref = &mut manual;
+        let refc_ref = &mut refc;
+
+        let a = db.class_set_property(&*manual_ref, "name", &Variant::from("hello"));
+        let b = db.class_set_property(&*refc_ref, "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -69,10 +73,16 @@ fn object_arg_option_borrowed() {
 
 #[itest]
 fn object_arg_option_borrowed_mut() {
+    // If you have an Option<&mut Gd<T>>, you can use as_deref() to get Option<&Gd<T>>.
+
     with_objects(|mut manual, mut refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(Some(&mut manual), "name", &Variant::from("hello"));
-        let b = db.class_set_property(Some(&mut refc), "value", &Variant::from(-123));
+
+        let manual_opt: Option<&mut Gd<Node>> = Some(&mut manual);
+        let refc_opt: Option<&mut Gd<RefcPayload>> = Some(&mut refc);
+
+        let a = db.class_set_property(manual_opt.as_deref(), "name", &Variant::from("hello"));
+        let b = db.class_set_property(refc_opt.as_deref(), "value", &Variant::from(-123));
         (a, b)
     });
 }
