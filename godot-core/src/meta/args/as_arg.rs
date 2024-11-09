@@ -19,6 +19,9 @@ use std::ffi::CStr;
 /// - `&T` for by-ref builtins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
 /// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`.
 ///
+/// See also the [`AsObjectArg`][crate::meta::AsObjectArg] trait which is specialized for object arguments. It may be merged with `AsArg`
+/// in the future.
+///
 /// # Pass by value
 /// Implicitly converting from `T` for by-ref builtins is explicitly not supported. This emphasizes that there is no need to consume the object,
 /// thus discourages unnecessary cloning.

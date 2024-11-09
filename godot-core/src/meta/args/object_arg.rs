@@ -20,6 +20,8 @@ use std::ptr;
 /// - [`Option<&Gd<T>>`][Option], to pass optional objects. `None` is mapped to a null argument.
 /// - [`Gd::null_arg()`], to pass `null` arguments without using `Option`.
 ///
+/// Note that [`AsObjectArg`] is very similar to the more general [`AsArg`][crate::meta::AsArg] trait. The two may be merged in the future.
+///
 /// # Nullability
 /// <div class="warning">
 /// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass

@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Meta-information about variant types, properties and class names.
+//! Meta-information about Godot types, their properties and conversions between them.
 //!
 //! # Conversions between types
 //!
@@ -33,6 +33,15 @@
 //! Godot classes exist in a hierarchy. In OOP, it is usually possible to represent pointers to derived objects as pointer to their bases.
 //! For conversions between base and derived class objects, you can use `Gd` methods [`cast()`][crate::obj::Gd::cast],
 //! [`try_cast()`][crate::obj::Gd::try_cast] and [`upcast()`][crate::obj::Gd::upcast]. Upcasts are infallible.
+//!
+//! ## Argument conversions
+//!
+//! Rust does not support implicit conversions, however it has something very close: the `impl Into<T>` idiom, which can be used to convert
+//! "T-compatible" arguments into `T`. This library specializes this idea with two traits:
+//!
+//! - [`AsArg<T>`] allows argument conversions from arguments into `T`. This is most interesting in the context of strings (so you can pass
+//!   `&str` to a function expecting `GString`), but is generic to support e.g. array insertion.
+//! - [`AsObjectArg<T>`] is a more specialized version of `AsArg` that is used for object arguments, i.e. `Gd<T>`.
 
 mod args;
 mod array_type_info;
