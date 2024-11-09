@@ -366,6 +366,9 @@ pub fn maybe_rename_virtual_method(rust_method_name: &str) -> &str {
     }
 }
 
+// TODO method-level extra docs, for:
+// - Node::rpc_config() -> link to RpcConfig.
+
 pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
     match class_name.godot_ty.as_str() {
         "FileAccess" => {

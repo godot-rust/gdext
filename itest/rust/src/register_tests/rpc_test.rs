@@ -4,11 +4,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use godot::classes::multiplayer_api::RpcMode;
 use godot::classes::multiplayer_peer::TransferMode;
 use godot::classes::{Engine, MultiplayerApi};
-use godot::meta::RpcConfig;
 use godot::prelude::*;
+use godot::register::RpcConfig;
 use godot::test::itest;
 
 #[derive(GodotClass)]

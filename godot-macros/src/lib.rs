@@ -518,6 +518,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// - [User-defined functions](#user-defined-functions)
 ///   - [Associated functions and methods](#associated-functions-and-methods)
 ///   - [Virtual methods](#virtual-methods)
+///   - [RPC attributes](#rpc-attributes)
 /// - [Constants and signals](#signals)
 ///
 /// # Constructors
@@ -675,6 +676,13 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// Now, `obj.language()` from Rust will dynamically dispatch the call.
 ///
 /// Make sure you understand the limitations in the [tutorial](https://godot-rust.github.io/book/register/virtual-functions.html).
+///
+/// ## RPC attributes
+///
+/// You can use the `#[rpc]` attribute to let your functions act as remote procedure calls (RPCs) in Godot. This is the Rust equivalent of
+/// GDScript's [`@rpc` annotation](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html#remote-procedure-calls).
+///
+///
 ///
 /// # Constants and signals
 ///

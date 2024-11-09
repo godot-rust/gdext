@@ -19,6 +19,7 @@ pub enum RpcAttr {
         call_local: Option<bool>,
         channel: Option<u32>,
     },
+
     // `args` key in the `rpc` attribute.
     // Example:
     // const RPC_CFG: RpcConfig = RpcConfig { mode: RpcMode::Authority, ..RpcConfig::default() };
@@ -76,7 +77,7 @@ pub fn make_rpc_registrations_fn(class_name: &Ident, funcs: &[FuncDefinition]) -
         #[allow(clippy::needless_update)] // clippy complains about using `..RpcConfig::default()` if all fields are overridden
         fn __register_rpcs(object: &mut dyn ::std::any::Any) {
             use ::std::any::Any;
-            use ::godot::meta::RpcConfig;
+            use ::godot::register::RpcConfig;
             use ::godot::classes::multiplayer_api::RpcMode;
             use ::godot::classes::multiplayer_peer::TransferMode;
             use ::godot::classes::Node;
