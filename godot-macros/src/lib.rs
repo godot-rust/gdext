@@ -681,8 +681,58 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///
 /// You can use the `#[rpc]` attribute to let your functions act as remote procedure calls (RPCs) in Godot. This is the Rust equivalent of
 /// GDScript's [`@rpc` annotation](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html#remote-procedure-calls).
+/// `#[rpc]` is only supported for classes inheriting `Node`, and they need to declare a `Base<T>` field.
 ///
+/// The syntax follows GDScript'a `@rpc`. You can optionally specify up to four keys; omitted ones use their default value.
+/// Here's an overview:
 ///
+/// | Setting       | Type             | Possible values (first is default)                 |
+/// |---------------|------------------|----------------------------------------------------|
+/// | RPC mode      | [`RpcMode`]      | **`authority`**, `any_peer`                        |
+/// | Sync          | `bool`           | **`call_remote`**, `call_local`                    |
+/// | Transfer mode | [`TransferMode`] | **`unreliable`**, `unreliable_ordered`, `reliable` |
+/// | Channel       | `u32`            | any                                                |
+///
+/// You can also use `#[rpc(config = value)]`, with `value` being a constant of type [`RpcConfig`] in scope. This can be useful to reuse
+/// configurations across multiple RPCs.
+///
+/// `#[rpc]` implies `#[func]`. You can use both attributes together, if you need to configure other `#[func]`-specific keys.
+///
+/// For example, the following method declarations are all equivalent:
+/// ```
+/// use godot::classes::multiplayer_api::RpcMode;
+/// use godot::classes::multiplayer_peer::TransferMode;
+/// use godot::prelude::*;
+/// use godot::register::RpcConfig;
+///
+/// # #[derive(GodotClass)]
+/// # #[class(no_init, base=Node)]
+/// # struct MyStruct {
+/// #     base: Base<Node>,
+/// # }
+/// #[godot_api]
+/// impl MyStruct {
+///     #[rpc(unreliable_ordered, channel = 2)]
+///     fn with_defaults(&mut self) {}
+///
+///     #[rpc(authority, unreliable_ordered, call_remote, channel = 2)]
+///     fn explicit(&mut self) {}
+///
+///     #[rpc(config = MY_RPC_CONFIG)]
+///     fn external_config(&mut self) {}
+/// }
+///
+/// const MY_RPC_CONFIG: RpcConfig = RpcConfig {
+///     transfer_mode: TransferMode::UNRELIABLE_ORDERED,
+///     channel: 2,
+///     ..Default::default()
+/// };
+/// ```
+///
+// Note: for some reason, the intra-doc links don't work here, despite dev-dependency on godot.
+/// [`RpcMode`]: ../classes/multiplayer_api/struct.RpcMode.html
+/// [`TransferMode`]: ../classes/multiplayer_peer/struct.TransferMode.html
+/// [`RpcConfig`]: ../register/struct.RpcConfig.html
 ///
 /// # Constants and signals
 ///
