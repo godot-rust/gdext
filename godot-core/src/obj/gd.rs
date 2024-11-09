@@ -649,7 +649,7 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> crate::meta::ObjectNullArg<T> {
+    pub fn null_arg() -> impl crate::meta::AsObjectArg<T> {
         crate::meta::ObjectNullArg(std::marker::PhantomData)
     }
 }
