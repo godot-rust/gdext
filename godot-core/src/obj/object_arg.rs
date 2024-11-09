@@ -27,7 +27,9 @@ use std::ptr;
 /// </div>
 
 #[diagnostic::on_unimplemented(
-    message = "The provided argument of type `{Self}` cannot be converted to a `Gd<{T}>` parameter"
+    message = "Argument of type `{Self}` cannot be passed to an `impl AsObjectArg<{T}>` parameter",
+    note = "If you pass by value, consider borrowing instead.",
+    note = "See also `AsObjectArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsObjectArg.html"
 )]
 pub trait AsObjectArg<T>
 where
@@ -40,6 +42,12 @@ where
     #[doc(hidden)]
     fn consume_arg(self) -> ObjectCow<T>;
 }
+
+/*
+Currently not implemented for values, to be consistent with AsArg for by-ref builtins. The idea is that this can discover patterns like
+api.method(refc.clone()), and encourage better performance with api.method(&refc). However, we need to see if there's a notable ergonomic
+impact, and consider that for nodes, Gd<T> copies are relatively cheap (no ref-counting). There is also some value in prematurely ending
+the lifetime of a Gd<T> by moving out, so it's not accidentally used later.
 
 impl<T, U> AsObjectArg<T> for Gd<U>
 where
@@ -54,6 +62,7 @@ where
         ObjectCow::Owned(self.upcast())
     }
 }
+*/
 
 impl<T, U> AsObjectArg<T> for &Gd<U>
 where

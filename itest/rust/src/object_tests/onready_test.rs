@@ -157,7 +157,7 @@ fn init_attribute_node_key_lifecycle() {
 
     let mut child = Node::new_alloc();
     child.set_name("child");
-    obj.add_child(child);
+    obj.add_child(&child);
 
     obj.notify(NodeNotification::READY);
 

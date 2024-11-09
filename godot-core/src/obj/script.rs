@@ -386,7 +386,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///         let name = this.base().get_name();
     ///         godot_print!("name is {name}");
     ///         // However, we cannot call methods that require `&mut Base`, such as:
-    ///         // this.base().add_child(node);
+    ///         // this.base().add_child(&node);
     ///         Ok(Variant::nil())
     ///     }
     ///     # fn class_name(&self) -> GString { todo!() }

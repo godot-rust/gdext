@@ -304,7 +304,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///     fn process(&mut self, _delta: f64) {
     ///         let node = Node::new_alloc();
     ///         // fails because `add_child` requires a mutable reference.
-    ///         self.base().add_child(node);
+    ///         self.base().add_child(&node);
     ///     }
     /// }
     ///
@@ -344,7 +344,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// impl INode for MyClass {
     ///     fn process(&mut self, _delta: f64) {
     ///         let node = Node::new_alloc();
-    ///         self.base_mut().add_child(node);
+    ///         self.base_mut().add_child(&node);
     ///     }
     /// }
     ///

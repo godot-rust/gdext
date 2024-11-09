@@ -13,6 +13,7 @@ use godot::obj::{Gd, NewAlloc, NewGd};
 use crate::framework::itest;
 use crate::object_tests::object_test::{user_refc_instance, RefcPayload};
 
+/*
 #[itest]
 fn object_arg_owned() {
     with_objects(|manual, refc| {
@@ -22,6 +23,7 @@ fn object_arg_owned() {
         (a, b)
     });
 }
+*/
 
 #[itest]
 fn object_arg_borrowed() {
@@ -43,6 +45,7 @@ fn object_arg_borrowed_mut() {
     });
 }
 
+/*
 #[itest]
 fn object_arg_option_owned() {
     with_objects(|manual, refc| {
@@ -52,6 +55,7 @@ fn object_arg_option_owned() {
         (a, b)
     });
 }
+*/
 
 #[itest]
 fn object_arg_option_borrowed() {
@@ -80,10 +84,10 @@ fn object_arg_option_none() {
 
     // Will emit errors but should not crash.
     let db = ClassDb::singleton();
-    let error = db.class_set_property(manual, "name", &Variant::from("hello"));
+    let error = db.class_set_property(&manual, "name", &Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
-    let error = db.class_set_property(refc, "value", &Variant::from(-123));
+    let error = db.class_set_property(&refc, "value", &Variant::from(-123));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 }
 
@@ -106,14 +110,14 @@ fn object_arg_owned_default_params() {
     let b = ResourceFormatLoader::new_gd();
 
     // Use direct and explicit _ex() call syntax.
-    ResourceLoader::singleton().add_resource_format_loader(a.clone()); // by value
+    ResourceLoader::singleton().add_resource_format_loader(&a);
     ResourceLoader::singleton()
-        .add_resource_format_loader_ex(b.clone()) // by value
+        .add_resource_format_loader_ex(&b)
         .done();
 
     // Clean up (no leaks).
-    ResourceLoader::singleton().remove_resource_format_loader(a);
-    ResourceLoader::singleton().remove_resource_format_loader(b);
+    ResourceLoader::singleton().remove_resource_format_loader(&a);
+    ResourceLoader::singleton().remove_resource_format_loader(&b);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

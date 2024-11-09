@@ -82,7 +82,7 @@ fn node_enters_tree() {
         .get_main_loop()
         .unwrap()
         .cast::<SceneTree>();
-    scene_tree.set_multiplayer(MultiplayerApi::create_default_interface());
+    scene_tree.set_multiplayer(&MultiplayerApi::create_default_interface());
     let mut root = scene_tree.get_root().unwrap();
     root.add_child(&node);
     root.remove_child(&node);
