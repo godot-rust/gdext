@@ -15,9 +15,9 @@ use std::ptr;
 
 /// Objects that can be passed as arguments to Godot engine functions.
 ///
-/// This trait is implemented for the following types:
-/// - [`Gd<T>`] and `&Gd<T>`, to pass objects. Subclasses of `T` are explicitly supported.
-/// - [`Option<Gd<T>>`] and `Option<&Gd<T>>`, to pass optional objects. `None` is mapped to a null argument.
+/// This trait is implemented for **shared references** in multiple ways:
+/// - [`&Gd<T>`][crate::obj::Gd]  to pass objects. Subclasses of `T` are explicitly supported.
+/// - [`Option<&Gd<T>>`][Option], to pass optional objects. `None` is mapped to a null argument.
 /// - [`Gd::null_arg()`], to pass `null` arguments without using `Option`.
 ///
 /// # Nullability
@@ -25,6 +25,23 @@ use std::ptr;
 /// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
 /// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
 /// </div>
+///
+/// # Different argument types
+/// Currently, the trait requires pass-by-ref, which helps detect accidental cloning when interfacing with Godot APIs. Plus, it is more
+/// consistent with the [`AsArg`][crate::meta::AsArg] trait (for strings, but also `AsArg<Gd<T>>` as used in
+/// [`Array::push()`][crate::builtin::Array::push] and similar methods).
+///
+/// The following table lists the possible argument types and how you can pass them. `Gd` is short for `Gd<T>`.
+///
+/// | Type              | Closest accepted type | How to transform |
+/// |-------------------|-----------------------|------------------|
+/// | `Gd`              | `&Gd`                 | `&arg`           |
+/// | `&Gd`             | `&Gd`                 | `arg`            |
+/// | `&mut Gd`         | `&Gd`                 | `&*arg`          |
+/// | `Option<Gd>`      | `Option<&Gd>`         | `arg.as_ref()`   |
+/// | `Option<&Gd>`     | `Option<&Gd>`         | `arg`            |
+/// | `Option<&mut Gd>` | `Option<&Gd>`         | `arg.as_deref()` |
+/// | (null literal)    |                       | `Gd::null_arg()` |
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsObjectArg<{T}>` parameter",
     note = "If you pass by value, consider borrowing instead.",
