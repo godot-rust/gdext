@@ -79,7 +79,7 @@ fn signals() {
         let signal_name = format!("signal_{i}_arg");
         let receiver_name = format!("receive_{i}_arg");
 
-        emitter.connect(&signal_name, &receiver.callable(receiver_name));
+        emitter.connect(&signal_name, &receiver.callable(&receiver_name));
         emitter.emit_signal(&signal_name, arg);
 
         assert!(receiver.bind().used[i].get());

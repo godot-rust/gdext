@@ -434,7 +434,7 @@ impl<T: GodotClass> Gd<T> {
     /// Returns a callable referencing a method from this object named `method_name`.
     ///
     /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
-    pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
+    pub fn callable(&self, method_name: impl AsArg<StringName>) -> Callable {
         Callable::from_object_method(self, method_name)
     }
 
