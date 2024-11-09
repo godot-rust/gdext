@@ -71,6 +71,18 @@ fn object_arg_option_borrowed() {
     });
 }
 
+/*
+#[itest]
+fn object_arg_option_borrowed_outer() {
+    with_objects(|manual, refc| {
+        let db = ClassDb::singleton();
+        let a = db.class_set_property(&Some(manual), "name", &Variant::from("hello"));
+        let b = db.class_set_property(&Some(refc), "value", &Variant::from(-123));
+        (a, b)
+    });
+}
+*/
+
 #[itest]
 fn object_arg_option_borrowed_mut() {
     // If you have an Option<&mut Gd<T>>, you can use as_deref() to get Option<&Gd<T>>.
@@ -94,10 +106,10 @@ fn object_arg_option_none() {
 
     // Will emit errors but should not crash.
     let db = ClassDb::singleton();
-    let error = db.class_set_property(&manual, "name", &Variant::from("hello"));
+    let error = db.class_set_property(manual.as_ref(), "name", &Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
-    let error = db.class_set_property(&refc, "value", &Variant::from(-123));
+    let error = db.class_set_property(refc.as_ref(), "value", &Variant::from(-123));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 }
 

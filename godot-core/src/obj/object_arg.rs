@@ -97,6 +97,37 @@ where
     }
 }
 
+/*
+It's relatively common that Godot APIs return `Option<Gd<T>>` or pass this type in virtual functions. To avoid excessive `as_ref()` calls, we
+**could** directly support `&Option<Gd>` in addition to `Option<&Gd>`. However, this is currently not done as it hides nullability,
+especially in situations where a return type is directly propagated:
+    api(create_obj().as_ref())
+    api(&create_obj())
+While the first is slightly longer, it looks different from a function create_obj() that returns Gd<T> and thus can never be null.
+In some scenarios, it's better to immediately ensure non-null (e.g. through `unwrap()`) instead of propagating nulls to the engine.
+It's also quite idiomatic to use as_ref() for inner-option transforms in Rust.
+
+impl<T, U> AsObjectArg<T> for &Option<U>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    for<'a> &'a U: AsObjectArg<T>,
+{
+    fn as_object_arg(&self) -> ObjectArg<T> {
+        match self {
+            Some(obj) => obj.as_object_arg(),
+            None => ObjectArg::null(),
+        }
+    }
+
+    fn consume_arg(self) -> ObjectCow<T> {
+        match self {
+            Some(obj) => obj.consume_arg(),
+            None => Gd::null_arg().consume_arg(),
+        }
+    }
+}
+*/
+
 impl<T> AsObjectArg<T> for ObjectNullArg<T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
