@@ -632,7 +632,7 @@ where
     /// Represents `null` when passing an object argument to Godot.
     ///
     /// This expression is only intended for function argument lists. It can be used whenever a Godot signature accepts
-    /// [`AsObjectArg<T>`][crate::obj::AsObjectArg]. `Gd::null_arg()` as an argument is equivalent to `Option::<Gd<T>>::None`, but less wordy.
+    /// [`AsObjectArg<T>`][crate::meta::AsObjectArg]. `Gd::null_arg()` as an argument is equivalent to `Option::<Gd<T>>::None`, but less wordy.
     ///
     /// To work with objects that can be null, use `Option<Gd<T>>` instead. For APIs that accept `Variant`, you can pass [`Variant::nil()`].
     ///
@@ -649,8 +649,8 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> crate::obj::object_arg::ObjectNullArg<T> {
-        crate::obj::object_arg::ObjectNullArg(std::marker::PhantomData)
+    pub fn null_arg() -> crate::meta::ObjectNullArg<T> {
+        crate::meta::ObjectNullArg(std::marker::PhantomData)
     }
 }
 

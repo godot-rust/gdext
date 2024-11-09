@@ -43,7 +43,7 @@ use std::ffi::CStr;
 /// you can only forward it as-is to a Godot API -- there are no stable APIs to access the inner object yet.
 ///
 /// Furthermore, there is currently no benefit in implementing `AsArg` for your own types, as it's only used by Godot APIs which don't accept
-/// custom types. Classes are already supported through upcasting and [`AsObjectArg`][crate::obj::AsObjectArg].
+/// custom types. Classes are already supported through upcasting and [`AsObjectArg`][crate::meta::AsObjectArg].
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "If you pass by value, consider borrowing instead.",

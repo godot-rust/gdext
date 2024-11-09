@@ -7,18 +7,31 @@
 
 mod as_arg;
 mod cow_arg;
+mod object_arg;
 mod ref_arg;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public APIs
 
-pub use as_arg::*;
+pub use as_arg::{ApiParam, AsArg};
+pub use object_arg::AsObjectArg;
+pub use ref_arg::RefArg;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Internal APIs
 
+// Solely public for itest/convert_test.rs.
+#[cfg(feature = "trace")]
 #[doc(hidden)]
-pub use cow_arg::*;
+pub use cow_arg::CowArg;
+#[cfg(not(feature = "trace"))]
+pub(crate) use cow_arg::CowArg;
 
-#[doc(hidden)]
-pub use ref_arg::*;
+#[allow(unused_imports)] // ObjectCow is used in generated code.
+pub(crate) use object_arg::{ObjectArg, ObjectCow, ObjectNullArg};
+
+// #[doc(hidden)]
+// pub use cow_arg::*;
+//
+// #[doc(hidden)]
+// pub use ref_arg::*;
