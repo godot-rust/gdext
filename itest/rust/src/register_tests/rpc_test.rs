@@ -25,6 +25,14 @@ const CACHED_CFG: RpcConfig = RpcConfig {
     channel: 1,
 };
 
+fn provide_cfg() -> RpcConfig {
+    RpcConfig {
+        transfer_mode: TransferMode::RELIABLE,
+        channel: 1,
+        ..Default::default()
+    }
+}
+
 #[godot_api]
 impl RpcTest {
     #[rpc]
@@ -66,7 +74,10 @@ impl RpcTest {
     pub fn args_func_gd_self(_this: Gd<Self>) {}
 
     #[rpc(config = CACHED_CFG)]
-    pub fn arg_config(&mut self) {}
+    pub fn arg_config_const(&mut self) {}
+
+    #[rpc(config = provide_cfg())]
+    pub fn arg_config_fn(&mut self) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

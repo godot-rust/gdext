@@ -693,8 +693,8 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// | Transfer mode | [`TransferMode`] | **`unreliable`**, `unreliable_ordered`, `reliable` |
 /// | Channel       | `u32`            | any                                                |
 ///
-/// You can also use `#[rpc(config = value)]`, with `value` being a constant of type [`RpcConfig`] in scope. This can be useful to reuse
-/// configurations across multiple RPCs.
+/// You can also use `#[rpc(config = value)]`, with `value` being an expression of type [`RpcConfig`] in scope, for example a `const` or the
+/// call to a function. This can be useful to reuse configurations across multiple RPCs.
 ///
 /// `#[rpc]` implies `#[func]`. You can use both attributes together, if you need to configure other `#[func]`-specific keys.
 ///
@@ -719,14 +719,26 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///     fn explicit(&mut self) {}
 ///
 ///     #[rpc(config = MY_RPC_CONFIG)]
-///     fn external_config(&mut self) {}
+///     fn external_config_const(&mut self) {}
+///
+///     #[rpc(config = my_rpc_provider())]
+///     fn external_config_fn(&mut self) {}
 /// }
 ///
 /// const MY_RPC_CONFIG: RpcConfig = RpcConfig {
+///     rpc_mode: RpcMode::AUTHORITY,
 ///     transfer_mode: TransferMode::UNRELIABLE_ORDERED,
+///     call_local: false,
 ///     channel: 2,
-///     ..Default::default()
 /// };
+///
+/// fn my_rpc_provider() -> RpcConfig {
+///     RpcConfig {
+///         transfer_mode: TransferMode::UNRELIABLE_ORDERED,
+///         channel: 2,
+///         ..Default::default() // only possible in fn, not in const.
+///     }
+/// }
 /// ```
 ///
 // Note: for some reason, the intra-doc links don't work here, despite dev-dependency on godot.
