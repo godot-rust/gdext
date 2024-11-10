@@ -9,13 +9,14 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## [v0.2.0](https://docs.rs/godot/0.2.0)
 
+_10 November 2024_
+
 See [devlog article](https://godot-rust.github.io/dev/november-2024-update) for highlights.
 
 ### 🌻 Features
 
 - Godot 4.3 support in CI and `api-4-3` feature ([#859](https://github.com/godot-rust/gdext/pull/859))
 - Drop support for Godot 4.0 ([#820](https://github.com/godot-rust/gdext/pull/820))
-
 - 🌊 Ergonomic arguments
   - `AsObjectArg` trait enabling implicit conversions for object parameters ([#800](https://github.com/godot-rust/gdext/pull/800))
   - Pass-by-ref for non-`Copy` builtins ([#900](https://github.com/godot-rust/gdext/pull/900), [#906](https://github.com/godot-rust/gdext/pull/906))
