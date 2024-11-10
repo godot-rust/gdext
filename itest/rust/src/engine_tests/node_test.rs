@@ -22,11 +22,11 @@ fn node_get_node() {
 
     let mut parent = Node3D::new_alloc();
     parent.set_name("parent");
-    parent.add_child(child);
+    parent.add_child(&child);
 
     let mut grandparent = Node::new_alloc();
     grandparent.set_name("grandparent");
-    grandparent.add_child(parent);
+    grandparent.add_child(&parent);
 
     // Directly on Gd<T>
     let found = grandparent.get_node_as::<Node3D>("parent/child");
@@ -74,7 +74,7 @@ fn node_scene_tree() {
     assert_eq!(err, global::Error::OK);
 
     let mut tree = SceneTree::new_alloc();
-    let err = tree.change_scene_to_packed(scene);
+    let err = tree.change_scene_to_packed(&scene);
     assert_eq!(err, global::Error::OK);
 
     // Note: parent + child are not owned by PackedScene, thus need to be freed

@@ -175,6 +175,7 @@ pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed + meta:
         builtin_type_string::<Self>()
     }
 
+    #[doc(hidden)]
     fn debug_validate_elements(_array: &builtin::Array<Self>) -> Result<(), ConvertError> {
         // No-op for most element types.
         Ok(())

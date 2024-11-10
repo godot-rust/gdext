@@ -119,7 +119,7 @@ fn object_subtype_swap_argument_passing(ctx: &TestContext) {
 
     let mut tree = ctx.scene_tree.clone();
     expect_panic("pass badly typed Gd<T> to Godot engine API", || {
-        tree.add_child(node);
+        tree.add_child(&node);
     });
 
     swapped_free!(obj, node2);

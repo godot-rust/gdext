@@ -13,6 +13,7 @@ use godot::obj::{Gd, NewAlloc, NewGd};
 use crate::framework::itest;
 use crate::object_tests::object_test::{user_refc_instance, RefcPayload};
 
+/*
 #[itest]
 fn object_arg_owned() {
     with_objects(|manual, refc| {
@@ -22,6 +23,7 @@ fn object_arg_owned() {
         (a, b)
     });
 }
+*/
 
 #[itest]
 fn object_arg_borrowed() {
@@ -37,12 +39,17 @@ fn object_arg_borrowed() {
 fn object_arg_borrowed_mut() {
     with_objects(|mut manual, mut refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(&mut manual, "name", &Variant::from("hello"));
-        let b = db.class_set_property(&mut refc, "value", &Variant::from(-123));
+
+        let manual_ref = &mut manual;
+        let refc_ref = &mut refc;
+
+        let a = db.class_set_property(&*manual_ref, "name", &Variant::from("hello"));
+        let b = db.class_set_property(&*refc_ref, "value", &Variant::from(-123));
         (a, b)
     });
 }
 
+/*
 #[itest]
 fn object_arg_option_owned() {
     with_objects(|manual, refc| {
@@ -52,6 +59,7 @@ fn object_arg_option_owned() {
         (a, b)
     });
 }
+*/
 
 #[itest]
 fn object_arg_option_borrowed() {
@@ -63,12 +71,30 @@ fn object_arg_option_borrowed() {
     });
 }
 
+/*
+#[itest]
+fn object_arg_option_borrowed_outer() {
+    with_objects(|manual, refc| {
+        let db = ClassDb::singleton();
+        let a = db.class_set_property(&Some(manual), "name", &Variant::from("hello"));
+        let b = db.class_set_property(&Some(refc), "value", &Variant::from(-123));
+        (a, b)
+    });
+}
+*/
+
 #[itest]
 fn object_arg_option_borrowed_mut() {
+    // If you have an Option<&mut Gd<T>>, you can use as_deref() to get Option<&Gd<T>>.
+
     with_objects(|mut manual, mut refc| {
         let db = ClassDb::singleton();
-        let a = db.class_set_property(Some(&mut manual), "name", &Variant::from("hello"));
-        let b = db.class_set_property(Some(&mut refc), "value", &Variant::from(-123));
+
+        let manual_opt: Option<&mut Gd<Node>> = Some(&mut manual);
+        let refc_opt: Option<&mut Gd<RefcPayload>> = Some(&mut refc);
+
+        let a = db.class_set_property(manual_opt.as_deref(), "name", &Variant::from("hello"));
+        let b = db.class_set_property(refc_opt.as_deref(), "value", &Variant::from(-123));
         (a, b)
     });
 }
@@ -80,10 +106,10 @@ fn object_arg_option_none() {
 
     // Will emit errors but should not crash.
     let db = ClassDb::singleton();
-    let error = db.class_set_property(manual, "name", &Variant::from("hello"));
+    let error = db.class_set_property(manual.as_ref(), "name", &Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
-    let error = db.class_set_property(refc, "value", &Variant::from(-123));
+    let error = db.class_set_property(refc.as_ref(), "value", &Variant::from(-123));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 }
 
@@ -106,14 +132,14 @@ fn object_arg_owned_default_params() {
     let b = ResourceFormatLoader::new_gd();
 
     // Use direct and explicit _ex() call syntax.
-    ResourceLoader::singleton().add_resource_format_loader(a.clone()); // by value
+    ResourceLoader::singleton().add_resource_format_loader(&a);
     ResourceLoader::singleton()
-        .add_resource_format_loader_ex(b.clone()) // by value
+        .add_resource_format_loader_ex(&b)
         .done();
 
     // Clean up (no leaks).
-    ResourceLoader::singleton().remove_resource_format_loader(a);
-    ResourceLoader::singleton().remove_resource_format_loader(b);
+    ResourceLoader::singleton().remove_resource_format_loader(&a);
+    ResourceLoader::singleton().remove_resource_format_loader(&b);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

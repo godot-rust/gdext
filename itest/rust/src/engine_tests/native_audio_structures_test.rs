@@ -113,7 +113,7 @@ fn native_audio_structure_out_parameter() {
         .cast::<SceneTree>();
 
     tree.get_root().unwrap().add_child(&player);
-    player.set_stream(generator);
+    player.set_stream(&generator);
 
     // Start playback so we can push audio frames through the audio pipeline.
     player.play();

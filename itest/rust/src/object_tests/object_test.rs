@@ -294,7 +294,7 @@ fn object_engine_freed_argument_passing(ctx: &TestContext) {
     // Destroy object and then pass it to a Godot engine API.
     node.free();
     expect_panic("pass freed Gd<T> to Godot engine API (T=Node)", || {
-        tree.add_child(node2);
+        tree.add_child(&node2);
     });
 }
 
@@ -325,7 +325,7 @@ fn object_user_freed_argument_passing() {
     // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
     obj.free();
     expect_panic("pass freed Gd<T> to Godot engine API (T=user)", || {
-        engine.register_singleton("NeverRegistered", obj2);
+        engine.register_singleton("NeverRegistered", &obj2);
     });
 }
 
@@ -848,7 +848,7 @@ fn object_get_scene_tree(ctx: &TestContext) {
     let node = Node3D::new_alloc();
 
     let mut tree = ctx.scene_tree.clone();
-    tree.add_child(node);
+    tree.add_child(&node);
 
     let count = tree.get_child_count();
     assert_eq!(count, 1);

@@ -519,7 +519,7 @@ fn test_format_loader(_test_context: &TestContext) {
         .unwrap();
     assert!(resource.try_cast::<BoxMesh>().is_ok());
 
-    loader.remove_resource_format_loader(format_loader);
+    loader.remove_resource_format_loader(&format_loader);
 }
 
 #[itest]

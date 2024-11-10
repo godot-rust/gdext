@@ -77,12 +77,13 @@ impl RpcTest {
 fn node_enters_tree() {
     let node = RpcTest::new_alloc();
 
-    // Registering is done in `UserClass::__before_ready()`, and it requires a multiplayer api to exist.
+    // Registering is done in `UserClass::__before_ready()`, and it requires a multiplayer API to exist.
     let mut scene_tree = Engine::singleton()
         .get_main_loop()
         .unwrap()
         .cast::<SceneTree>();
-    scene_tree.set_multiplayer(MultiplayerApi::create_default_interface());
+    scene_tree.set_multiplayer(MultiplayerApi::create_default_interface().as_ref());
+
     let mut root = scene_tree.get_root().unwrap();
     root.add_child(&node);
     root.remove_child(&node);
