@@ -22,7 +22,6 @@ See [devlog article](https://godot-rust.github.io/dev/november-2024-update) for 
 ### 🌻 Features
 
 - Godot 4.3 support in CI and `api-4-3` feature ([#859](https://github.com/godot-rust/gdext/pull/859))
-
 - Drop support for Godot 4.0 ([#820](https://github.com/godot-rust/gdext/pull/820))
 - 🌊 Ergonomic arguments
   - `AsObjectArg` trait enabling implicit conversions for object parameters ([#800](https://github.com/godot-rust/gdext/pull/800))
@@ -67,7 +66,6 @@ See [devlog article](https://godot-rust.github.io/dev/november-2024-update) for 
   - Cleanup around `godot::meta` argument conversions ([#948](https://github.com/godot-rust/gdext/pull/948))
   - Remove `to_2d()` + `to_3d()`; clean up `ApiParam` ([#943](https://github.com/godot-rust/gdext/pull/943))
   - 🌊 Simplify property hint APIs ([#838](https://github.com/godot-rust/gdext/pull/838))
-
 - Validation
   - Fix validation for `api-*` mutual exclusivity ([#809](https://github.com/godot-rust/gdext/pull/809))
   - Validate that virtual extension classes require `#[class(tool)]` ([#850](https://github.com/godot-rust/gdext/pull/850))
@@ -102,7 +100,6 @@ See [devlog article](https://godot-rust.github.io/dev/november-2024-update) for 
 - Argument passing
   - Set null into Godot Engint APIs nullable parameters as default ([#823](https://github.com/godot-rust/gdext/pull/823))
   - Fix `Ex*` builder parameters: `ObjectArg<T>` -> `impl AsObjectArg<T>` ([#830](https://github.com/godot-rust/gdext/pull/830))
-
 - Godot doc generation from RustDoc
   - Fix doc comments not showing up if only some class members are documented ([#815](https://github.com/godot-rust/gdext/pull/815))
   - Fix `register-docs` feature not being tested ([#942](https://github.com/godot-rust/gdext/pull/942))
