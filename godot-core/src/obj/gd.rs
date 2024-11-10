@@ -16,8 +16,8 @@ use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ApiParam, ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert,
-    GodotType, PropertyHintInfo, RefArg, ToGodot,
+    ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
+    ParamType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -434,7 +434,7 @@ impl<T: GodotClass> Gd<T> {
     /// Returns a callable referencing a method from this object named `method_name`.
     ///
     /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
-    pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
+    pub fn callable(&self, method_name: impl AsArg<StringName>) -> Callable {
         Callable::from_object_method(self, method_name)
     }
 
@@ -632,7 +632,7 @@ where
     /// Represents `null` when passing an object argument to Godot.
     ///
     /// This expression is only intended for function argument lists. It can be used whenever a Godot signature accepts
-    /// [`AsObjectArg<T>`][crate::obj::AsObjectArg]. `Gd::null_arg()` as an argument is equivalent to `Option::<Gd<T>>::None`, but less wordy.
+    /// [`AsObjectArg<T>`][crate::meta::AsObjectArg]. `Gd::null_arg()` as an argument is equivalent to `Option::<Gd<T>>::None`, but less wordy.
     ///
     /// To work with objects that can be null, use `Option<Gd<T>>` instead. For APIs that accept `Variant`, you can pass [`Variant::nil()`].
     ///
@@ -649,8 +649,8 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> crate::obj::object_arg::ObjectNullArg<T> {
-        crate::obj::object_arg::ObjectNullArg(std::marker::PhantomData)
+    pub fn null_arg() -> impl crate::meta::AsObjectArg<T> {
+        crate::meta::ObjectNullArg(std::marker::PhantomData)
     }
 }
 
@@ -781,7 +781,7 @@ impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
     }
 }
 
-impl<T: GodotClass> ApiParam for Gd<T> {
+impl<T: GodotClass> ParamType for Gd<T> {
     type Arg<'v> = CowArg<'v, Gd<T>>;
 
     fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
@@ -803,7 +803,7 @@ impl<'r, T: GodotClass> AsArg<Option<Gd<T>>> for Option<&'r Gd<T>> {
     }
 }
 
-impl<T: GodotClass> ApiParam for Option<Gd<T>> {
+impl<T: GodotClass> ParamType for Option<Gd<T>> {
     type Arg<'v> = CowArg<'v, Option<Gd<T>>>;
 
     fn owned_to_arg<'v>(self) -> Self::Arg<'v> {

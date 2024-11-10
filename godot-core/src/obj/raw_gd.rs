@@ -345,7 +345,8 @@ impl<T: GodotClass> RawGd<T> {
         rtti.check_type::<T>()
     }
 
-    pub(super) fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
+    // Not pub(super) because used by godot::meta::args::ObjectArg.
+    pub(crate) fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.obj as sys::GDExtensionObjectPtr
     }
 
@@ -687,7 +688,8 @@ pub unsafe fn raw_object_init(
     object_ptr
 }
 
-pub(super) fn object_ffi_to_variant<T: GodotFfi>(self_: &T) -> Variant {
+// Used by godot::meta::args::ObjectArg + local impl GodotFfiVariant.
+pub(crate) fn object_ffi_to_variant<T: GodotFfi>(self_: &T) -> Variant {
     // The conversion method `object_to_variant` DOES increment the reference-count of the object; so nothing to do here.
     // (This behaves differently in the opposite direction `variant_to_object`.)
 
@@ -707,7 +709,8 @@ pub(super) fn object_ffi_to_variant<T: GodotFfi>(self_: &T) -> Variant {
     }
 }
 
-pub(super) fn object_as_arg_ptr<F>(_object_ptr_field: &*mut F) -> sys::GDExtensionConstTypePtr {
+// Used by godot::meta::args::ObjectArg.
+pub(crate) fn object_as_arg_ptr<F>(_object_ptr_field: &*mut F) -> sys::GDExtensionConstTypePtr {
     // Be careful when refactoring this code. Address of field pointer matters, copying it into a local variable will create use-after-free.
 
     // No need to call self.check_rtti("as_arg_ptr") here, since this is already done in ToGodot impl.

@@ -12,8 +12,8 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    ApiParam, ArrayElement, ArrayTypeInfo, AsArg, CowArg, FromGodot, GodotConvert, GodotFfiVariant,
-    GodotType, PropertyHintInfo, RefArg, ToGodot,
+    ArrayElement, ArrayTypeInfo, AsArg, CowArg, FromGodot, GodotConvert, GodotFfiVariant,
+    GodotType, ParamType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
@@ -944,7 +944,7 @@ impl<'r, T: ArrayElement> AsArg<Array<T>> for &'r Array<T> {
     }
 }
 
-impl<T: ArrayElement> ApiParam for Array<T> {
+impl<T: ArrayElement> ParamType for Array<T> {
     type Arg<'v> = CowArg<'v, Self>;
 
     fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
@@ -1221,7 +1221,7 @@ impl<T: ArrayElement + ToGodot> Extend<T> for Array<T> {
         // A faster implementation using `resize()` and direct pointer writes might still be possible.
         // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
         for item in iter.into_iter() {
-            self.push(ApiParam::owned_to_arg(item));
+            self.push(ParamType::owned_to_arg(item));
         }
     }
 }

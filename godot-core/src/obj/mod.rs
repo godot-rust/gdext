@@ -19,14 +19,12 @@ mod onready;
 mod raw_gd;
 mod traits;
 
-pub(crate) mod object_arg;
 pub(crate) mod rtti;
 
 pub use base::*;
 pub use gd::*;
 pub use guards::{BaseMut, BaseRef, GdMut, GdRef};
 pub use instance_id::*;
-pub use object_arg::AsObjectArg;
 pub use onready::*;
 pub use raw_gd::*;
 pub use traits::*;

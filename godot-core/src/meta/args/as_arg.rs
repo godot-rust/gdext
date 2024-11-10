@@ -19,11 +19,14 @@ use std::ffi::CStr;
 /// - `&T` for by-ref builtins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
 /// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`.
 ///
+/// See also the [`AsObjectArg`][crate::meta::AsObjectArg] trait which is specialized for object arguments. It may be merged with `AsArg`
+/// in the future.
+///
 /// # Pass by value
 /// Implicitly converting from `T` for by-ref builtins is explicitly not supported. This emphasizes that there is no need to consume the object,
 /// thus discourages unnecessary cloning.
 ///
-/// If you need to pass owned values in generic code, you can use [`ApiParam::owned_to_arg()`].
+/// If you need to pass owned values in generic code, you can use [`ParamType::owned_to_arg()`].
 ///
 /// # Performance for strings
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
@@ -43,19 +46,19 @@ use std::ffi::CStr;
 /// you can only forward it as-is to a Godot API -- there are no stable APIs to access the inner object yet.
 ///
 /// Furthermore, there is currently no benefit in implementing `AsArg` for your own types, as it's only used by Godot APIs which don't accept
-/// custom types. Classes are already supported through upcasting and [`AsObjectArg`][crate::obj::AsObjectArg].
+/// custom types. Classes are already supported through upcasting and [`AsObjectArg`][crate::meta::AsObjectArg].
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "If you pass by value, consider borrowing instead.",
     note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method.",
     note = "See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
 )]
-pub trait AsArg<T: ApiParam>
+pub trait AsArg<T: ParamType>
 where
     Self: Sized,
 {
     #[doc(hidden)]
-    fn into_arg<'r>(self) -> <T as ApiParam>::Arg<'r>
+    fn into_arg<'r>(self) -> <T as ParamType>::Arg<'r>
     where
         Self: 'r;
 }
@@ -77,7 +80,7 @@ macro_rules! arg_into_ref {
     };
     ($arg_variable:ident: $T:ty) => {
         let $arg_variable = $arg_variable.into_arg();
-        let $arg_variable: &$T = $crate::meta::ApiParam::arg_to_ref(&$arg_variable);
+        let $arg_variable: &$T = $crate::meta::ParamType::arg_to_ref(&$arg_variable);
     };
 }
 
@@ -89,7 +92,7 @@ macro_rules! arg_into_owned {
     ($arg_variable:ident) => {
         let $arg_variable = $arg_variable.into_arg();
         let $arg_variable = $arg_variable.cow_into_owned();
-        // cow_into_owned() is not yet used generically; could be abstracted in ApiParam::arg_to_owned() as well.
+        // cow_into_owned() is not yet used generically; could be abstracted in ParamType::arg_to_owned() as well.
     };
 }
 
@@ -97,13 +100,13 @@ macro_rules! arg_into_owned {
 macro_rules! impl_asarg_by_value {
     ($T:ty) => {
         impl $crate::meta::AsArg<$T> for $T {
-            fn into_arg<'r>(self) -> <$T as $crate::meta::ApiParam>::Arg<'r> {
+            fn into_arg<'r>(self) -> <$T as $crate::meta::ParamType>::Arg<'r> {
                 // Moves value (but typically a Copy type).
                 self
             }
         }
 
-        impl $crate::meta::ApiParam for $T {
+        impl $crate::meta::ParamType for $T {
             type Arg<'v> = $T;
 
             fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
@@ -128,7 +131,7 @@ macro_rules! impl_asarg_by_ref {
             // Thus, keep `where` on same line.
             // type ArgType<'v> = &'v $T where Self: 'v;
 
-            fn into_arg<'cow>(self) -> <$T as $crate::meta::ApiParam>::Arg<'cow>
+            fn into_arg<'cow>(self) -> <$T as $crate::meta::ParamType>::Arg<'cow>
             where
                 'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
             {
@@ -136,7 +139,7 @@ macro_rules! impl_asarg_by_ref {
             }
         }
 
-        impl $crate::meta::ApiParam for $T {
+        impl $crate::meta::ParamType for $T {
             type Arg<'v> = $crate::meta::CowArg<'v, $T>;
 
             fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
@@ -157,11 +160,11 @@ macro_rules! declare_arg_method {
         ///
         /// # Generic bounds
         /// The bounds are implementation-defined and may change at any time. Do not use this function in a generic context requiring `T`
-        /// -- use the `From` trait or [`ApiParam`][crate::meta::ApiParam] in that case.
+        /// -- use the `From` trait or [`ParamType`][crate::meta::ParamType] in that case.
         pub fn arg<T>(&self) -> impl $crate::meta::AsArg<T>
         where
             for<'a> T: From<&'a Self>
-                + $crate::meta::ApiParam<Arg<'a> = $crate::meta::CowArg<'a, T>>
+                + $crate::meta::ParamType<Arg<'a> = $crate::meta::CowArg<'a, T>>
                 + 'a,
         {
             $crate::meta::CowArg::Owned(T::from(self))
@@ -178,7 +181,7 @@ macro_rules! declare_arg_method {
 /// This is necessary for packed array dispatching to different "inner" backend signatures.
 impl<'a, T> AsArg<T> for CowArg<'a, T>
 where
-    for<'r> T: ApiParam<Arg<'r> = CowArg<'r, T>> + 'r,
+    for<'r> T: ParamType<Arg<'r> = CowArg<'r, T>> + 'r,
 {
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
@@ -188,7 +191,7 @@ where
     }
 }
 
-// impl<'a, T> ApiParam for CowArg<'a, T> {
+// impl<'a, T> ParamType for CowArg<'a, T> {
 //     type Type<'v> = CowArg<'v, T>
 //         where Self: 'v;
 // }
@@ -250,7 +253,7 @@ impl AsArg<NodePath> for &String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
-pub trait ApiParam: GodotType
+pub trait ParamType: GodotType
 // GodotType bound not required right now, but conceptually should always be the case.
 {
     /// Canonical argument passing type, either `T` or an internally-used CoW type.

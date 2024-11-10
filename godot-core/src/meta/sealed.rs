@@ -9,8 +9,9 @@
 
 // To ensure the user does not implement `GodotType` for their own types.
 use crate::builtin::*;
+use crate::meta;
 use crate::meta::traits::{ArrayElement, GodotNullableFfi, GodotType};
-use crate::obj::*;
+use crate::obj::{Gd, GodotClass, RawGd};
 
 pub trait Sealed {}
 impl Sealed for Aabb {}
@@ -63,7 +64,7 @@ impl Sealed for Variant {}
 impl<T: ArrayElement> Sealed for Array<T> {}
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> Sealed for RawGd<T> {}
-impl<T: GodotClass> Sealed for object_arg::ObjectArg<T> {}
+impl<T: GodotClass> Sealed for meta::ObjectArg<T> {}
 impl<T> Sealed for Option<T>
 where
     T: GodotType,

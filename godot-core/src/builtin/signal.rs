@@ -13,6 +13,7 @@ use godot_ffi as sys;
 use crate::builtin::{inner, Array, Callable, Dictionary, StringName, Variant};
 use crate::classes::Object;
 use crate::global::Error;
+use crate::meta;
 use crate::meta::{FromGodot, GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
@@ -40,9 +41,10 @@ impl Signal {
     pub fn from_object_signal<T, S>(object: &Gd<T>, signal_name: S) -> Self
     where
         T: GodotClass,
-        S: Into<StringName>,
+        S: meta::AsArg<StringName>,
     {
-        let signal_name = signal_name.into();
+        meta::arg_into_ref!(signal_name);
+
         unsafe {
             Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(signal_from_object_signal);

@@ -33,6 +33,8 @@
 //! * [`register`], used to register **your own** Rust symbols (classes, methods, constants etc.) with Godot.
 //! * [`obj`], everything related to handling Godot objects, such as the `Gd<T>` type.
 //! * [`tools`], higher-level utilities that extend the generated code, e.g. `load<T>()`.
+//! * [`meta`], fundamental information about types, properties and conversions.
+//! * [`init`], entry point and global library configuration.
 //!
 //! The [`prelude`] contains often-imported symbols; feel free to `use godot::prelude::*` in your code.
 //! <br><br>
