@@ -22,7 +22,7 @@ See [devlog article](https://godot-rust.github.io/dev/november-2024-update) for 
 ### 🌻 Features
 
 - Godot 4.3 support in CI and `api-4-3` feature ([#859](https://github.com/godot-rust/gdext/pull/859))
-- Drop support for Godot 4.0 ([#820](https://github.com/godot-rust/gdext/pull/820))
+- 🌊 Drop support for Godot 4.0 ([#820](https://github.com/godot-rust/gdext/pull/820))
 - 🌊 Ergonomic arguments
   - `AsObjectArg` trait enabling implicit conversions for object parameters ([#800](https://github.com/godot-rust/gdext/pull/800))
   - Pass-by-ref for non-`Copy` builtins ([#900](https://github.com/godot-rust/gdext/pull/900), [#906](https://github.com/godot-rust/gdext/pull/906))
@@ -79,7 +79,7 @@ See [devlog article](https://godot-rust.github.io/dev/november-2024-update) for 
   - Skip `notify-docs` job when running in a fork ([#945](https://github.com/godot-rust/gdext/pull/945))
   - Allow manually triggering `full-ci` workflow (mostly useful for forks) ([#933](https://github.com/godot-rust/gdext/pull/933))
 - Code generation and Godot APIs
-  - Allow codegen for UniformSetCacheRD for godot >=4.3 ([#816](https://github.com/godot-rust/gdext/pull/816))
+  - Allow codegen for `UniformSetCacheRD` for Godot >=4.3 ([#816](https://github.com/godot-rust/gdext/pull/816))
   - Enable `ResourceLoader::load_threaded_*` with `experimental-threads` ([#856](https://github.com/godot-rust/gdext/pull/856))
   - Dependency update, more tests for vector angle functions ([#860](https://github.com/godot-rust/gdext/pull/860))
 - Upstream follow-up
