@@ -109,7 +109,7 @@ fn callable_call_return() {
         callable.callv(&varray![10]),
         10.to_variant().stringify().to_variant()
     );
-    // errors in godot but does not crash
+    // Errors in Godot, but should not crash.
     assert_eq!(callable.callv(&varray!["string"]), Variant::nil());
 }
 
@@ -188,6 +188,14 @@ pub mod custom_callable {
         // Important to test 0 arguments, as the FFI call passes a null pointer for the argument array.
         let sum3 = callable.callv(&varray![]);
         assert_eq!(sum3, 0.to_variant());
+    }
+
+    #[itest]
+    fn callable_custom_with_err() {
+        let callable_with_err =
+            Callable::from_fn("on_error_doesnt_crash", |_args: &[&Variant]| Err(()));
+        // Errors in Godot, but should not crash.
+        assert_eq!(callable_with_err.callv(&varray![]), Variant::nil());
     }
 
     #[itest]
