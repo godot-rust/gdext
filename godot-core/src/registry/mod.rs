@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// Note: final re-exports from godot-core are in lib.rs, mod private_register.
+// Note: final re-exports from godot-core are in lib.rs, mod register::private.
 // These are public here for simplicity, but many are not imported by the main crate.
 
 pub mod callbacks;
@@ -14,6 +14,12 @@ pub mod constant;
 pub mod method;
 pub mod plugin;
 pub mod property;
+
+// RpcConfig uses MultiplayerPeer::TransferMode and MultiplayerApi::RpcMode, which are only enabled in `codegen-full` feature.
+#[cfg(feature = "codegen-full")]
+mod rpc_config;
+#[cfg(feature = "codegen-full")]
+pub use rpc_config::RpcConfig;
 
 #[doc(hidden)]
 pub mod godot_register_wrappers;

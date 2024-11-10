@@ -14,7 +14,9 @@ use crate::{arg_into_ref, dict};
 
 /// Configuration for a remote procedure call, used with `#[rpc(config = ...)]`.
 ///
-/// See [Godot documentation](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html#remote-procedure-calls).
+/// Check documentation of the [`#[rpc]` attribute](attr.godot_api.html#rpc-attributes) for usage.
+///
+/// See also [Godot `@rpc` keyword](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html#remote-procedure-calls).
 #[derive(Copy, Clone, Debug)]
 pub struct RpcConfig {
     pub rpc_mode: RpcMode,

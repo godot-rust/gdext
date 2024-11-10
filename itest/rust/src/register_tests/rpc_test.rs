@@ -4,11 +4,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use godot::classes::multiplayer_api::RpcMode;
 use godot::classes::multiplayer_peer::TransferMode;
 use godot::classes::{Engine, MultiplayerApi};
-use godot::meta::RpcConfig;
 use godot::prelude::*;
+use godot::register::RpcConfig;
 use godot::test::itest;
 
 #[derive(GodotClass)]
@@ -23,6 +24,14 @@ const CACHED_CFG: RpcConfig = RpcConfig {
     call_local: false,
     channel: 1,
 };
+
+fn provide_cfg() -> RpcConfig {
+    RpcConfig {
+        transfer_mode: TransferMode::RELIABLE,
+        channel: 1,
+        ..Default::default()
+    }
+}
 
 #[godot_api]
 impl RpcTest {
@@ -65,7 +74,10 @@ impl RpcTest {
     pub fn args_func_gd_self(_this: Gd<Self>) {}
 
     #[rpc(config = CACHED_CFG)]
-    pub fn arg_config(&mut self) {}
+    pub fn arg_config_const(&mut self) {}
+
+    #[rpc(config = provide_cfg())]
+    pub fn arg_config_fn(&mut self) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

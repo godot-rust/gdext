@@ -19,6 +19,7 @@ pub enum RpcAttr {
         call_local: Option<bool>,
         channel: Option<u32>,
     },
+
     // `args` key in the `rpc` attribute.
     // Example:
     // const RPC_CFG: RpcConfig = RpcConfig { mode: RpcMode::Authority, ..RpcConfig::default() };
@@ -73,19 +74,22 @@ pub fn make_rpc_registrations_fn(class_name: &Ident, funcs: &[FuncDefinition]) -
     }
 
     quote! {
-        #[allow(clippy::needless_update)] // clippy complains about using `..RpcConfig::default()` if all fields are overridden
+        // Clippy complains about using `..RpcConfig::default()` if all fields are overridden.
+        #[allow(clippy::needless_update)]
         fn __register_rpcs(object: &mut dyn ::std::any::Any) {
             use ::std::any::Any;
-            use ::godot::meta::RpcConfig;
+            use ::godot::register::RpcConfig;
             use ::godot::classes::multiplayer_api::RpcMode;
             use ::godot::classes::multiplayer_peer::TransferMode;
             use ::godot::classes::Node;
             use ::godot::obj::{WithBaseField, Gd};
 
-            let mut gd = object
-                .downcast_mut::<#class_name>()
-                .expect("bad type erasure when registering RPCs")
-                .to_gd();
+            let this = object
+                .downcast_ref::<#class_name>()
+                .expect("bad type erasure when registering RPCs");
+
+            // Use fully-qualified syntax, so that error message isn't just "no method named `to_gd` found".
+            let mut gd = ::godot::obj::WithBaseField::to_gd(this);
 
             let node = gd.upcast_mut::<Node>();
             #( #rpc_registrations )*
