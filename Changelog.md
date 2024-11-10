@@ -5,6 +5,8 @@ This document tracks changes of released library versions.
 See also [Pulse](https://github.com/godot-rust/gdext/pulse/monthly) for recent activities.  
 Cutting-edge API docs of the `master` branch are available [here](https://godot-rust.github.io/docs/gdext).
 
+🌊 indicates a breaking change. Deprecations are not marked breaking.
+
 ### 🌻 Features
 
 - Godot 4.3 support in CI and `api-4-3` feature ([#859](https://github.com/godot-rust/gdext/pull/859))
@@ -57,13 +59,16 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
   - Validate that editor plugin classes require `#[class(tool)]` ([#852](https://github.com/godot-rust/gdext/pull/852))
   - Best-effort checks for `Array<Integer>` conversions; fix `Debug` for variants containing typed arrays ([#853](https://github.com/godot-rust/gdext/pull/853))
   - 🌊 Disallow `Export` if class doesn't inherit `Node` or `Resource` ([#839](https://github.com/godot-rust/gdext/pull/839))
+  - 🌊 Validate that Nodes can only be exported from Node-derived classes ([#841](https://github.com/godot-rust/gdext/pull/841))
 - CI and tooling
   - Cargo-deny maintenance: update to advisories/licenses v2 ([#829](https://github.com/godot-rust/gdext/pull/829))
   - CI runner updates ([#941](https://github.com/godot-rust/gdext/pull/941))
   - Skip `notify-docs` job when running in a fork ([#945](https://github.com/godot-rust/gdext/pull/945))
   - Allow manually triggering `full-ci` workflow (mostly useful for forks) ([#933](https://github.com/godot-rust/gdext/pull/933))
-- Code generation
+- Code generation and Godot APIs
   - Allow codegen for UniformSetCacheRD for godot >=4.3 ([#816](https://github.com/godot-rust/gdext/pull/816))
+  - Enable `ResourceLoader::load_threaded_*` with `experimental-threads` ([#856](https://github.com/godot-rust/gdext/pull/856))
+  - Dependency update, more tests for vector angle functions ([#860](https://github.com/godot-rust/gdext/pull/860))
 - Refactoring
   - Rewrite `#[var]` + `#[export]` registration to use type-safe API behind scenes ([#840](https://github.com/godot-rust/gdext/pull/840))
 Upstream follow-up
@@ -72,35 +77,35 @@ Upstream follow-up
   - Add `GodotConvert` impl for `*const u8` pointers ([#866](https://github.com/godot-rust/gdext/pull/866))
   - Update list of experimental classes ([#897](https://github.com/godot-rust/gdext/pull/897))
   - Update hint_string tests to account for Godot 4.4 floats with `.0` formatting ([#936](https://github.com/godot-rust/gdext/pull/936))
-- Enable `ResourceLoader::load_threaded_*` with `experimental-threads` ([#856](https://github.com/godot-rust/gdext/pull/856))
-- Geometry APIs
-  - Dependency update, more tests for vector angle functions ([#860](https://github.com/godot-rust/gdext/pull/860))
 - Panics
   - Disable panic hooks in Release mode ([#889](https://github.com/godot-rust/gdext/pull/889))
+  - In debug, include location information in error message on panic ([#926](https://github.com/godot-rust/gdext/pull/926))
 
 ### 🛠️ Bugfixes
 
-- 🌊 `AsObjectArg` trait enabling implicit conversions for object parameters ([#800](https://github.com/godot-rust/gdext/pull/800))
-- Set null into Godot Engint APIs nullable parameters as default ([#823](https://github.com/godot-rust/gdext/pull/823))
-- Implement the `safe_ident` strategy for virtual call parameter identifier generation ([#822](https://github.com/godot-rust/gdext/pull/822))
-- Fix `Ex*` builder parameters: `ObjectArg<T>` -> `impl AsObjectArg<T>` ([#830](https://github.com/godot-rust/gdext/pull/830))
-- Fix doc comments not showing up if only some class members are documented ([#815](https://github.com/godot-rust/gdext/pull/815))
-- Fix `Array<T>` registered without element type ([#836](https://github.com/godot-rust/gdext/pull/836))
-- 🌊 Validate that Nodes can only be exported from Node-derived classes ([#841](https://github.com/godot-rust/gdext/pull/841))
-- Dev-dependencies are enabling full codegen ([#842](https://github.com/godot-rust/gdext/pull/842))
-- Fix user-after-free in `AsObjectArg` pass-by-value (in default-param methods) ([#846](https://github.com/godot-rust/gdext/pull/846))
-- `RawGd::move_return_ptr` with `PtrcallType::Virtual` leaks reference ([#848](https://github.com/godot-rust/gdext/pull/848))
-- Best-effort checks for `Array<Integer>` conversions; fix `Debug` for variants containing typed arrays ([#853](https://github.com/godot-rust/gdext/pull/853))
-- Bugfix - Vector3::sign gives incorrect results due to i32 conversion ([#865](https://github.com/godot-rust/gdext/pull/865))
-- OpenXR is not available on Web ([#872](https://github.com/godot-rust/gdext/pull/872))
-- Virtual methods take `Option<Gd<T>>` (unless whitelisted) ([#883](https://github.com/godot-rust/gdext/pull/883))
-- Make arrays exportable only when their inner type is exportable ([#875](https://github.com/godot-rust/gdext/pull/875))
-- Don't abort on panic inside Callable ([#873](https://github.com/godot-rust/gdext/pull/873))
-- Display script-virtual methods as `_method` instead of `method` in Godot docs ([#918](https://github.com/godot-rust/gdext/pull/918))
-- Fix `enum_test.rs` accidentally excluded from itest ([#931](https://github.com/godot-rust/gdext/pull/931))
-- Codegen-rustfmt: use 2021 edition ([#937](https://github.com/godot-rust/gdext/pull/937))
-- Fix `register-docs` feature not being tested ([#942](https://github.com/godot-rust/gdext/pull/942))
-- In debug, include location information in error message on panic ([#926](https://github.com/godot-rust/gdext/pull/926))
+- Argument passing
+  - Set null into Godot Engint APIs nullable parameters as default ([#823](https://github.com/godot-rust/gdext/pull/823))
+  - Fix `Ex*` builder parameters: `ObjectArg<T>` -> `impl AsObjectArg<T>` ([#830](https://github.com/godot-rust/gdext/pull/830))
+- Godot doc generation from RustDoc
+  - Fix doc comments not showing up if only some class members are documented ([#815](https://github.com/godot-rust/gdext/pull/815))
+  - Fix `register-docs` feature not being tested ([#942](https://github.com/godot-rust/gdext/pull/942))
+- Registration
+  - Fix `Array<T>` registered without element type ([#836](https://github.com/godot-rust/gdext/pull/836))
+  - Virtual methods now take `Option<Gd<T>>` (unless whitelisted) ([#883](https://github.com/godot-rust/gdext/pull/883))
+  - Make arrays exportable only when their inner type is exportable ([#875](https://github.com/godot-rust/gdext/pull/875))
+  - Display script-virtual methods as `_method` instead of `method` in Godot docs ([#918](https://github.com/godot-rust/gdext/pull/918))
+  - Implement the `safe_ident` strategy for virtual call parameter identifier generation ([#822](https://github.com/godot-rust/gdext/pull/822))
+- FFI and memory safety
+  - Fix user-after-free in `AsObjectArg` pass-by-value (in default-param methods) ([#846](https://github.com/godot-rust/gdext/pull/846))
+  - `RawGd::move_return_ptr` with `PtrcallType::Virtual` leaks reference ([#848](https://github.com/godot-rust/gdext/pull/848))
+  - Don't abort on panic inside Callable ([#873](https://github.com/godot-rust/gdext/pull/873))
+- Tooling and dependencies
+  - Dev-dependencies are enabling full codegen ([#842](https://github.com/godot-rust/gdext/pull/842))
+  - OpenXR is not available on Web ([#872](https://github.com/godot-rust/gdext/pull/872))
+  - Fix `enum_test.rs` accidentally excluded from itest ([#931](https://github.com/godot-rust/gdext/pull/931))
+  - Codegen-rustfmt: use 2021 edition ([#937](https://github.com/godot-rust/gdext/pull/937))
+- Math
+  - `Vecor3::sign()` gives incorrect results due to `i32` conversion ([#865](https://github.com/godot-rust/gdext/pull/865))
 
 ### 📈 Performance
 
