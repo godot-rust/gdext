@@ -244,7 +244,7 @@ pub trait IndexEnum: EngineEnum {
 #[diagnostic::on_unimplemented(
     message = "Class `{Self}` requires a `Base<T>` field",
     label = "missing field `_base: Base<...>`",
-    note = "A base field is required to access the base from within `self`, or when using script virtual functions",
+    note = "A base field is required to access the base from within `self`, for script-virtual functions or #[rpc] methods",
     note = "see also: https://godot-rust.github.io/book/register/classes.html#the-base-field"
 )]
 pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
