@@ -7,9 +7,15 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 🌊 indicates a breaking change. Deprecations are not marked breaking.
 
+## [v0.2.0](https://docs.rs/godot/0.2.0)
+
+See [devlog article](https://godot-rust.github.io/dev/november-2024-update) for highlights.
+
 ### 🌻 Features
 
 - Godot 4.3 support in CI and `api-4-3` feature ([#859](https://github.com/godot-rust/gdext/pull/859))
+- Drop support for Godot 4.0 ([#820](https://github.com/godot-rust/gdext/pull/820))
+
 - 🌊 Ergonomic arguments
   - `AsObjectArg` trait enabling implicit conversions for object parameters ([#800](https://github.com/godot-rust/gdext/pull/800))
   - Pass-by-ref for non-`Copy` builtins ([#900](https://github.com/godot-rust/gdext/pull/900), [#906](https://github.com/godot-rust/gdext/pull/906))
@@ -69,9 +75,7 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
   - Allow codegen for UniformSetCacheRD for godot >=4.3 ([#816](https://github.com/godot-rust/gdext/pull/816))
   - Enable `ResourceLoader::load_threaded_*` with `experimental-threads` ([#856](https://github.com/godot-rust/gdext/pull/856))
   - Dependency update, more tests for vector angle functions ([#860](https://github.com/godot-rust/gdext/pull/860))
-- Refactoring
-  - Rewrite `#[var]` + `#[export]` registration to use type-safe API behind scenes ([#840](https://github.com/godot-rust/gdext/pull/840))
-Upstream follow-up
+- Upstream follow-up
   - 🌊 Support `GDExtensionScriptInstanceInfo3` in 4.3 ([#849](https://github.com/godot-rust/gdext/pull/849))
   - Support meta `char16` and `char32` ([#895](https://github.com/godot-rust/gdext/pull/895))
   - Add `GodotConvert` impl for `*const u8` pointers ([#866](https://github.com/godot-rust/gdext/pull/866))
@@ -80,6 +84,9 @@ Upstream follow-up
 - Panics
   - Disable panic hooks in Release mode ([#889](https://github.com/godot-rust/gdext/pull/889))
   - In debug, include location information in error message on panic ([#926](https://github.com/godot-rust/gdext/pull/926))
+- Refactoring
+  - Rewrite `#[var]` + `#[export]` registration to use type-safe API behind scenes ([#840](https://github.com/godot-rust/gdext/pull/840))
+  - Get rid of placeholder names like "foo" ([#888](https://github.com/godot-rust/gdext/pull/888))
 
 ### 🛠️ Bugfixes
 
@@ -116,17 +123,13 @@ Upstream follow-up
 ### 📚 Documentation
 
 - Builtin docs (impl blocks, navigation table, link to Godot) ([#821](https://github.com/godot-rust/gdext/pull/821))
+- Add docs for `#[rpc]` ([#949](https://github.com/godot-rust/gdext/pull/949))
 - Overview about type conversions ([#833](https://github.com/godot-rust/gdext/pull/833))
+- Document `godot::meta` argument conversions ([#948](https://github.com/godot-rust/gdext/pull/948))
+- Add a doc to point users to kwarg builders ([#876](https://github.com/godot-rust/gdext/pull/876))
 - Resolve doc warning with global enums ([#896](https://github.com/godot-rust/gdext/pull/896))
 - ReadMe update + clippy error ([#929](https://github.com/godot-rust/gdext/pull/929))
-- Cleanup around `godot::meta` argument conversions ([#948](https://github.com/godot-rust/gdext/pull/948))
-- Add docs for `#[rpc]` ([#949](https://github.com/godot-rust/gdext/pull/949))
-- Add a doc to point users to kwarg builders ([#876](https://github.com/godot-rust/gdext/pull/876))
 
-### Uncategorized
-
-- Drop support for Godot 4.0 ([#820](https://github.com/godot-rust/gdext/pull/820))
-- Get rid of placeholder names like "foo" ([#888](https://github.com/godot-rust/gdext/pull/888))
 
 
 ## [v0.1.3](https://docs.rs/godot/0.1.3)
