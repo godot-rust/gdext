@@ -378,13 +378,31 @@ impl<T: GodotClass> Gd<T> {
         unsafe { self.raw.as_upcast_mut::<Base>() }
     }
 
+    /// Very unsafe cast down or up. Not exposed to public.
+    ///
+    /// # Safety
+    /// No bounds are checked; caller must ensure `Other` is a valid target.
+    #[doc(hidden)]
+    pub unsafe fn any_cast_ref<Other: GodotClass>(&self) -> &Gd<Other> {
+        std::mem::transmute::<&Self, &Gd<Other>>(self)
+    }
+
+    /// Very unsafe cast down or up. Not exposed to public.
+    ///
+    /// # Safety
+    /// No bounds are checked; caller must ensure `Other` is a valid target.
+    #[doc(hidden)]
+    pub unsafe fn any_cast_mut<Other: GodotClass>(&mut self) -> &mut Gd<Other> {
+        std::mem::transmute::<&mut Self, &mut Gd<Other>>(self)
+    }
+
     /// **Downcast:** try to convert into a smart pointer to a derived class.
     ///
     /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `Err(self)` is returned, meaning you can reuse the original
     /// object for further casts.
     pub fn try_cast<Derived>(self) -> Result<Gd<Derived>, Self>
     where
-        Derived: GodotClass + Inherits<T>,
+        Derived: Inherits<T>,
     {
         // Separate method due to more restrictive bounds.
         self.owned_cast()
@@ -396,7 +414,7 @@ impl<T: GodotClass> Gd<T> {
     /// If the class' dynamic type is not `Derived` or one of its subclasses. Use [`Self::try_cast()`] if you want to check the result.
     pub fn cast<Derived>(self) -> Gd<Derived>
     where
-        Derived: GodotClass + Inherits<T>,
+        Derived: Inherits<T>,
     {
         self.owned_cast().unwrap_or_else(|from_obj| {
             panic!(
