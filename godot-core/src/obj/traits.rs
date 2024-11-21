@@ -137,6 +137,29 @@ pub unsafe trait Inherits<Base: GodotClass>: GodotClass {}
 // SAFETY: Every class is a subclass of itself.
 unsafe impl<T: GodotClass> Inherits<T> for T {}
 
+/// Trait that defines a `T` -> `dyn Trait` relation for use in [`DynGd`][crate::obj::DynGd].
+pub trait Implements<Trait: ?Sized>: GodotClass {
+    fn dyn_upcast(&self) -> &Trait;
+    fn dyn_upcast_mut(&mut self) -> &mut Trait;
+}
+
+// Currently doesn't function, 'dyn Trait' isn't substituted properly. Neither $Trait nor <$Trait> work.
+#[macro_export]
+macro_rules! godot_implements {
+    // ($( $Class:ty => $Trait:ty ),* $(,)?) => {
+    ( $Class:ty => $Trait:ty ) => {
+        impl $crate::obj::Implements<$Trait> for $Class {
+            fn dyn_upcast(&self) -> &(<$Trait> + 'static) {
+                self
+            }
+
+            fn dyn_upcast_mut(&mut self) -> &mut (<$Trait> + 'static) {
+                self
+            }
+        }
+    };
+}
+
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
 #[doc(hidden)]
 pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {

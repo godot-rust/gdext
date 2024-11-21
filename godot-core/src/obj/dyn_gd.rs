@@ -6,12 +6,12 @@
  */
 use crate::classes;
 use crate::obj::guards::DynGdRef;
-use crate::obj::{bounds, Bounds, DynGdMut, Gd, GodotClass, Inherits};
+use crate::obj::{bounds, Bounds, DynGdMut, Gd, Implements, Inherits};
 use std::ops;
 
 pub struct DynGd<T, D>
 where
-    T: GodotClass,
+    T: Implements<D>,
     D: ?Sized,
 {
     obj: Gd<T>,
@@ -21,16 +21,10 @@ where
 
 impl<T, D> DynGd<T, D>
 where
-    T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
+    T: Implements<D> + Bounds<Declarer = bounds::DeclUser>,
     D: ?Sized,
 {
-    pub fn from_gd(gd_instance: Gd<T>) -> Self
-    // Ideas for bounds that require T -> dyn Trait conversion (none of them truly work):
-    where
-        T: std::borrow::BorrowMut<D>,
-        //   for<'a> &'a D: From<&'a T>,
-        //   for<'a> &'a mut D: From<&'a mut T>,
-    {
+    pub fn from_gd(gd_instance: Gd<T>) -> Self {
         let downcast: fn(&Gd<classes::Object>) -> DynGdRef<D> = |obj: &Gd<classes::Object>| {
             // SAFETY: the original instance is Gd<T> as per outer parameter, so downcasting to T is safe.
             let concrete: &Gd<T> = unsafe { obj.any_cast_ref() };
@@ -40,7 +34,7 @@ where
 
             // For some reason, `= From::from` or `= Into::into` fails to compile with "one type is more general than the other".
             // Compilation also fails if we annotate the closure instead of the rhs type.
-            let f: fn(&T) -> &D = |t| t.borrow();
+            let f: fn(&T) -> &D = Implements::dyn_upcast;
             DynGdRef::from_guard::<T>(guard, f)
         };
 
@@ -54,7 +48,7 @@ where
 
                 // For some reason, `= From::from` or `= Into::into` fails to compile with "one type is more general than the other".
                 // Compilation also fails if we annotate the closure instead of the rhs type.
-                let f: fn(&mut T) -> &mut D = |t| t.borrow_mut();
+                let f: fn(&mut T) -> &mut D = Implements::dyn_upcast_mut;
                 DynGdMut::from_guard::<T>(guard, f)
             };
 
@@ -94,7 +88,7 @@ where
     /// See [`Gd::upcast()`].
     pub fn upcast<Base>(self) -> DynGd<Base, D>
     where
-        Base: GodotClass,
+        Base: Implements<D>,
         T: Inherits<Base>,
     {
         // let erased_downcast: fn(&Gd<Object>) -> DynGdRef<T, D> = self.erased_downcast;
@@ -120,7 +114,7 @@ where
 
 impl<T, D> DynGd<T, D>
 where
-    T: GodotClass + Bounds<Memory = bounds::MemManual>,
+    T: Implements<D> + Bounds<Memory = bounds::MemManual>,
     D: ?Sized,
 {
     pub fn free(self) {
@@ -130,7 +124,7 @@ where
 
 impl<T, D> ops::Deref for DynGd<T, D>
 where
-    T: GodotClass,
+    T: Implements<D>,
     D: ?Sized,
 {
     type Target = Gd<T>;
@@ -142,7 +136,7 @@ where
 
 impl<T, D> ops::DerefMut for DynGd<T, D>
 where
-    T: GodotClass,
+    T: Implements<D>,
     D: ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {

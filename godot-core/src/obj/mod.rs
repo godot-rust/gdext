@@ -36,7 +36,7 @@ pub mod script;
 pub use bounds::private::Bounds;
 
 // Macros
-pub use crate::dyn_gd;
+pub use crate::{dyn_gd, godot_implements};
 
 // Do not re-export rtti here.
 
