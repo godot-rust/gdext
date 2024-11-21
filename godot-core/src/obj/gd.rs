@@ -20,8 +20,8 @@ use crate::meta::{
     ParamType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
-    bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    RawGd,
+    bounds, cap, Bounds, DynGd, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits,
+    InstanceId, RawGd,
 };
 use crate::private::callbacks;
 use crate::registry::property::{Export, Var};
@@ -447,6 +447,14 @@ impl<T: GodotClass> Gd<T> {
             let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
             Gd::from_obj_sys(object_ptr)
         }
+    }
+
+    pub fn into_dyn<D>(self) -> DynGd<T, D>
+    where
+        T: Bounds<Declarer = bounds::DeclUser> + std::borrow::BorrowMut<D>,
+        D: ?Sized,
+    {
+        DynGd::<T, D>::from_gd(self)
     }
 
     /// Returns a callable referencing a method from this object named `method_name`.

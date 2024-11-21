@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![allow(unused, dead_code)] // FIXME
-
 #[cfg(not(feature = "experimental-threads"))]
 use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 
@@ -88,74 +86,42 @@ impl<T: GodotClass> Drop for GdMut<'_, T> {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Type-erased Gd guards
 
-/// Mutably/exclusively bound reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
-///
-/// Returned by [`DynGd::dbind_mut()`][crate::obj::DynGd::dbind_mut].
-#[derive(Debug)]
-pub struct DynGdMut<'a, T: GodotClass, D: ?Sized> {
-    guard: GdMut<'a, T>,
-    cached_ptr: *mut D,
-}
+trait ErasedGuard<'a>: 'a {}
 
-impl<'a, T: GodotClass, D: ?Sized> DynGdMut<'a, T, D> {
-    pub fn from_guard(mut guard: GdMut<'a, T>, dynamic_caster: fn(&mut T) -> &mut D) -> Self {
-        let obj = &mut *guard;
-        let dyn_obj = dynamic_caster(obj);
-
-        // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
-        // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
-        let cached_ptr = std::ptr::addr_of_mut!(*dyn_obj);
-        Self { guard, cached_ptr }
-    }
-}
-
-impl<T: GodotClass, D: ?Sized> Deref for DynGdMut<'_, T, D> {
-    type Target = D;
-
-    fn deref(&self) -> &D {
-        // SAFETY: pointer refers to object that is pinned while guard is alive.
-        unsafe { &*self.cached_ptr }
-    }
-}
-
-impl<T: GodotClass, D: ?Sized> DerefMut for DynGdMut<'_, T, D> {
-    fn deref_mut(&mut self) -> &mut D {
-        // SAFETY: pointer refers to object that is pinned while guard is alive.
-        unsafe { &mut *self.cached_ptr }
-    }
-}
-
-impl<T: GodotClass, D: ?Sized> Drop for DynGdMut<'_, T, D> {
-    fn drop(&mut self) {
-        out!("GdMut drop: {:?}", std::any::type_name::<D>());
-    }
-}
+impl<'a, T: GodotClass> ErasedGuard<'a> for GdRef<'a, T> {}
+impl<'a, T: GodotClass> ErasedGuard<'a> for GdMut<'a, T> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Shared bound reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
+/// Shared reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
 ///
 /// Returned by [`DynGd::dbind()`][crate::obj::DynGd::dbind].
-#[derive(Debug)]
-pub struct DynGdRef<'a, T: GodotClass, D: ?Sized> {
-    guard: GdRef<'a, T>,
+pub struct DynGdRef<'a, D: ?Sized> {
+    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld.
+    _guard: Box<dyn ErasedGuard<'a>>,
     cached_ptr: *const D,
 }
 
-impl<'a, T: GodotClass, D: ?Sized> DynGdRef<'a, T, D> {
-    pub fn from_guard(guard: GdRef<'a, T>, dynamic_caster: fn(&T) -> &D) -> Self {
+impl<'a, D: ?Sized> DynGdRef<'a, D> {
+    pub fn from_guard<T: GodotClass>(guard: GdRef<'a, T>, dynamic_caster: fn(&T) -> &D) -> Self {
         let obj = &*guard;
         let dyn_obj = dynamic_caster(obj);
 
         // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
         // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
         let cached_ptr = std::ptr::addr_of!(*dyn_obj);
-        Self { guard, cached_ptr }
+        let dyn_guard = Self {
+            _guard: Box::new(guard),
+            cached_ptr,
+        };
+
+        dyn_guard
     }
 }
 
-impl<T: GodotClass, D: ?Sized> Deref for DynGdRef<'_, T, D> {
+impl<D: ?Sized> Deref for DynGdRef<'_, D> {
     type Target = D;
 
     fn deref(&self) -> &D {
@@ -164,9 +130,62 @@ impl<T: GodotClass, D: ?Sized> Deref for DynGdRef<'_, T, D> {
     }
 }
 
-impl<T: GodotClass, D: ?Sized> Drop for DynGdRef<'_, T, D> {
+impl<D: ?Sized> Drop for DynGdRef<'_, D> {
     fn drop(&mut self) {
-        out!("GdRef drop: {:?}", std::any::type_name::<D>());
+        out!("DynGdRef drop: {:?}", std::any::type_name::<D>());
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Mutably/exclusively bound reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
+///
+/// Returned by [`DynGd::dbind_mut()`][crate::obj::DynGd::dbind_mut].
+pub struct DynGdMut<'a, D: ?Sized> {
+    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld.
+    _guard: Box<dyn ErasedGuard<'a>>,
+    cached_ptr: *mut D,
+}
+
+impl<'a, D: ?Sized> DynGdMut<'a, D> {
+    pub fn from_guard<T: GodotClass>(
+        mut guard: GdMut<'a, T>,
+        dynamic_caster: fn(&mut T) -> &mut D,
+    ) -> Self {
+        let obj = &mut *guard;
+        let dyn_obj = dynamic_caster(obj);
+
+        // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
+        // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
+        let cached_ptr = std::ptr::addr_of_mut!(*dyn_obj);
+        let dyn_guard = Self {
+            _guard: Box::new(guard),
+            cached_ptr,
+        };
+
+        dyn_guard
+    }
+}
+
+impl<D: ?Sized> Deref for DynGdMut<'_, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        // SAFETY: pointer refers to object that is pinned while guard is alive.
+        unsafe { &*self.cached_ptr }
+    }
+}
+
+impl<D: ?Sized> DerefMut for DynGdMut<'_, D> {
+    fn deref_mut(&mut self) -> &mut D {
+        // SAFETY: pointer refers to object that is pinned while guard is alive.
+        unsafe { &mut *self.cached_ptr }
+    }
+}
+
+impl<D: ?Sized> Drop for DynGdMut<'_, D> {
+    fn drop(&mut self) {
+        out!("DynGdMut drop: {:?}", std::any::type_name::<D>());
     }
 }
 

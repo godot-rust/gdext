@@ -1,16 +1,23 @@
+/*
+ * Copyright (c) godot-rust; Bromeon and contributors.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 use crate::framework::itest;
+use godot::obj::{DynGd, Gd};
 use godot::prelude::*;
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Test cases
-
-#[itest]
+#[itest(focus)]
 fn dyn_gd_creation_bind() {
-    // Tests whether type inference works even if object is never referenced.
-    let _unused = dyn_gd!(Health; Gd::from_object(RefcHealth { hp: 1 }));
+    // Type inference on the following currently doesn't work.
+    //    let _unused: DynGd<_, dyn Health> = DynGd::from_gd(Gd::from_object(RefcHealth { hp: 1 }));
+    // However, this DOES work, even if it won't infer `dyn Health`.
+    //    let _unused = DynGd::from_gd(Gd::from_object(RefcHealth { hp: 1 }));
 
     let user_obj = RefcHealth { hp: 34 };
-    let mut dyn_gd = dyn_gd!(Health; Gd::from_object(user_obj));
+    let mut dyn_gd = DynGd::from_gd(Gd::from_object(user_obj));
 
     {
         // Exclusive bind.
@@ -33,12 +40,16 @@ fn dyn_gd_creation_bind() {
     }
 }
 
-#[itest]
+#[itest(focus)]
 fn dyn_gd_creation_deref() {
     let node = foreign::NodeHealth::new_alloc();
     let original_id = node.instance_id();
 
-    let mut node = dyn_gd!(Health; node);
+    // let mut node = node.into_dyn::<dyn Health>();
+    // The first line only works because both type parameters are inferred as RefcHealth, and there's no `dyn Health`.
+    let mut node = DynGd::from_gd(node);
+    // let mut node: DynGd<RefcHealth, dyn Health> = DynGd::from_gd(node);
+
     let dyn_id = node.instance_id();
     assert_eq!(dyn_id, original_id);
 
