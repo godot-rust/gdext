@@ -147,23 +147,6 @@ pub trait AsDyn<Trait: ?Sized>: GodotClass {
     fn dyn_upcast_mut(&mut self) -> &mut Trait;
 }
 
-// Currently doesn't function, 'dyn Trait' isn't substituted properly. Neither $Trait nor <$Trait> work.
-#[macro_export]
-macro_rules! godot_implements {
-    // ($( $Class:ty => $Trait:ty ),* $(,)?) => {
-    ( $Class:ty => $Trait:ty ) => {
-        impl $crate::obj::AsDyn<$Trait> for $Class {
-            fn dyn_upcast(&self) -> &(<$Trait> + 'static) {
-                self
-            }
-
-            fn dyn_upcast_mut(&mut self) -> &mut (<$Trait> + 'static) {
-                self
-            }
-        }
-    };
-}
-
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
 #[doc(hidden)]
 pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {

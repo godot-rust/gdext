@@ -35,9 +35,6 @@ pub mod bounds;
 pub mod script;
 pub use bounds::private::Bounds;
 
-// Macros
-pub use crate::{dyn_gd, godot_implements};
-
 // Do not re-export rtti here.
 
 type GdDerefTarget<T> = <<T as Bounds>::Declarer as bounds::Declarer>::DerefTarget<T>;

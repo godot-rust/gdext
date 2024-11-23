@@ -754,6 +754,53 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)
 }
 
+/// Generates a `Class` -> `dyn Trait` upcasting relation.
+///
+/// This attribute macro can be applied to `impl MyTrait for MyClass` blocks, where `MyClass` is a `GodotClass`. It will automatically
+/// implement `MyClass: AsDyn<dyn MyTrait>`.
+///
+/// Establishing this relation allows godot-rust to upcast `MyGodotClass` to `dyn Trait` inside the library's
+/// [`DynGd`](../obj/struct.DynGd.html) smart pointer.
+///
+/// # Code generation
+/// Given the following code,
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyClass {}
+///
+/// trait MyTrait {}
+///
+/// #[godot_dyn]
+/// impl MyTrait for MyClass {}
+/// ```
+/// the macro expands to:
+/// ```no_run
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(init)]
+/// # struct MyClass {}
+/// # trait MyTrait {}
+/// // impl block remains unchanged.
+/// impl MyTrait for MyClass {}
+///
+/// // But a new `impl AsDyn` is added.
+/// impl AsDyn<dyn MyTrait> for MyClass {
+///     fn dyn_upcast(&self) -> &dyn MyTrait { self }
+///     fn dyn_upcast_mut(&mut self) -> &mut dyn MyTrait { self }
+/// }
+/// ```
+///
+/// # Orphan rule limitations
+/// Since `AsDyn` is always a foreign trait, the `#[godot_dyn]` attribute must be used in the same crate as the Godot class's definition.
+/// (Currently, Godot classes cannot be shared from libraries, but this may [change in the future](https://github.com/godot-rust/gdext/issues/951).)
+#[proc_macro_attribute]
+pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate(input, class::attribute_godot_dyn)
+}
+
 /// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs.
 ///
 /// This derive macro also derives [`ToGodot`](../builtin/meta/trait.ToGodot.html) and [`FromGodot`](../builtin/meta/trait.FromGodot.html).

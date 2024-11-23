@@ -6,7 +6,7 @@
  */
 
 use crate::framework::itest;
-use godot::obj::{DynGd, Gd};
+// Test that all important dyn-related symbols are in the prelude.
 use godot::prelude::*;
 
 #[itest(focus)]
@@ -94,6 +94,7 @@ mod foreign {
     }
 }
 
+#[godot_dyn]
 impl Health for RefcHealth {
     fn get_hitpoints(&self) -> u8 {
         self.hp
@@ -104,6 +105,7 @@ impl Health for RefcHealth {
     }
 }
 
+#[godot_dyn]
 impl Health for foreign::NodeHealth {
     fn get_hitpoints(&self) -> u8 {
         if self.base().has_meta("hp") {
