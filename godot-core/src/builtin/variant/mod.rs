@@ -47,14 +47,14 @@ impl Variant {
 
     /// Create a variant holding a non-nil value.
     ///
-    /// Equivalent to `value.to_variant()`.
+    /// Equivalent to [`value.to_variant()`][ToGodot::to_variant], but consumes the argument.
     pub fn from<T: ToGodot>(value: T) -> Self {
         value.to_variant()
     }
 
     /// ⚠️ Convert to type `T`, panicking on failure.
     ///
-    /// Equivalent to `T::from_variant(&self)`.
+    /// Equivalent to [`T::from_variant(&self)`][FromGodot::from_variant].
     ///
     /// # Panics
     /// When this variant holds a different type.
@@ -64,14 +64,14 @@ impl Variant {
 
     /// Convert to type `T`, returning `Err` on failure.
     ///
-    /// Equivalent to `T::try_from_variant(&self)`.
+    /// Equivalent to [`T::try_from_variant(&self)`][FromGodot::try_from_variant].
     pub fn try_to<T: FromGodot>(&self) -> Result<T, ConvertError> {
         T::try_from_variant(self)
     }
 
     /// Checks whether the variant is empty (`null` value in GDScript).
     ///
-    /// See also [`Self::get_type`].
+    /// See also [`get_type()`][Self::get_type].
     pub fn is_nil(&self) -> bool {
         // Use get_type() rather than sys_type(), to also cover nullptr OBJECT as NIL
         self.get_type() == VariantType::NIL
@@ -80,8 +80,8 @@ impl Variant {
     /// Returns the type that is currently held by this variant.
     ///
     /// If this variant holds a type `Object` but no instance (represented as a null object pointer), then `Nil` will be returned for
-    /// consistency. This may deviate from Godot behavior -- for example, calling `Node::get_node_or_null()` with an invalid
-    /// path returns a variant that has type `Object` but acts like `Nil` for all practical purposes.
+    /// consistency. This may deviate from Godot behavior -- for example, calling [`Node::get_node_or_null()`][crate::classes::Node::get_node_or_null]
+    ///  with an invalid path returns a variant that has type `Object` but acts like `Nil` for all practical purposes.
     pub fn get_type(&self) -> VariantType {
         let sys_type = self.sys_type();
 
@@ -105,6 +105,20 @@ impl Variant {
         } else {
             VariantType::from_sys(sys_type)
         }
+    }
+
+    /// For variants holding an object, returns the object's instance ID.
+    ///
+    /// If the variant is not an object, returns `None`.
+    ///
+    /// If the object is dead, the instance ID is still returned. Use [`Variant::try_to::<Gd<T>>()`][Self::try_to]
+    /// to retrieve only live objects.
+    #[cfg(since_api = "4.4")]
+    pub fn object_id(&self) -> Option<crate::obj::InstanceId> {
+        // SAFETY: safe to call for non-object variants (returns 0).
+        let raw_id: u64 = unsafe { interface_fn!(variant_get_object_instance_id)(self.var_sys()) };
+
+        crate::obj::InstanceId::try_from_u64(raw_id)
     }
 
     /// ⚠️ Calls the specified `method` with the given `args`.

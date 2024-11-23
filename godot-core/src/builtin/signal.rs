@@ -123,7 +123,8 @@ impl Signal {
 
     /// Returns the object to which this signal belongs.
     ///
-    /// Returns [`None`] when this signal doesn't have any object.
+    /// Returns [`None`] when this signal doesn't have any object, or the object is dead. You can differentiate these two situations using
+    /// [`object_id()`][Self::object_id].
     ///
     /// _Godot equivalent: `get_object`_
     pub fn object(&self) -> Option<Gd<Object>> {
@@ -136,6 +137,8 @@ impl Signal {
     /// Returns the ID of this signal's object, see also [`Gd::instance_id`].
     ///
     /// Returns [`None`] when this signal doesn't have any object.
+    ///
+    /// If the pointed-to object is dead, the ID will still be returned. Use [`object()`][Self::object] to check for liveness.
     ///
     /// _Godot equivalent: `get_object_id`_
     pub fn object_id(&self) -> Option<InstanceId> {
