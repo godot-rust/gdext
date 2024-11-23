@@ -451,7 +451,7 @@ impl<T: GodotClass> Gd<T> {
 
     pub fn into_dyn<D>(self) -> DynGd<T, D>
     where
-        T: crate::obj::Implements<D> + Bounds<Declarer = bounds::DeclUser>,
+        T: crate::obj::AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
         D: ?Sized,
     {
         DynGd::<T, D>::from_gd(self)

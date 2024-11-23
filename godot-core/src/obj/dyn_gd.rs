@@ -6,12 +6,12 @@
  */
 use crate::classes;
 use crate::obj::guards::DynGdRef;
-use crate::obj::{bounds, Bounds, DynGdMut, Gd, Implements, Inherits};
+use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, Inherits};
 use std::ops;
 
 pub struct DynGd<T, D>
 where
-    T: Implements<D>,
+    T: AsDyn<D>,
     D: ?Sized,
 {
     obj: Gd<T>,
@@ -21,7 +21,7 @@ where
 
 impl<T, D> DynGd<T, D>
 where
-    T: Implements<D> + Bounds<Declarer = bounds::DeclUser>,
+    T: AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
     D: ?Sized,
 {
     pub fn from_gd(gd_instance: Gd<T>) -> Self {
@@ -34,7 +34,7 @@ where
 
             // For some reason, `= From::from` or `= Into::into` fails to compile with "one type is more general than the other".
             // Compilation also fails if we annotate the closure instead of the rhs type.
-            let f: fn(&T) -> &D = Implements::dyn_upcast;
+            let f: fn(&T) -> &D = AsDyn::dyn_upcast;
             DynGdRef::from_guard::<T>(guard, f)
         };
 
@@ -48,7 +48,7 @@ where
 
                 // For some reason, `= From::from` or `= Into::into` fails to compile with "one type is more general than the other".
                 // Compilation also fails if we annotate the closure instead of the rhs type.
-                let f: fn(&mut T) -> &mut D = Implements::dyn_upcast_mut;
+                let f: fn(&mut T) -> &mut D = AsDyn::dyn_upcast_mut;
                 DynGdMut::from_guard::<T>(guard, f)
             };
 
@@ -88,7 +88,7 @@ where
     /// See [`Gd::upcast()`].
     pub fn upcast<Base>(self) -> DynGd<Base, D>
     where
-        Base: Implements<D>,
+        Base: AsDyn<D>,
         T: Inherits<Base>,
     {
         // let erased_downcast: fn(&Gd<Object>) -> DynGdRef<T, D> = self.erased_downcast;
@@ -114,7 +114,7 @@ where
 
 impl<T, D> DynGd<T, D>
 where
-    T: Implements<D> + Bounds<Memory = bounds::MemManual>,
+    T: AsDyn<D> + Bounds<Memory = bounds::MemManual>,
     D: ?Sized,
 {
     pub fn free(self) {
@@ -124,7 +124,7 @@ where
 
 impl<T, D> ops::Deref for DynGd<T, D>
 where
-    T: Implements<D>,
+    T: AsDyn<D>,
     D: ?Sized,
 {
     type Target = Gd<T>;
@@ -136,7 +136,7 @@ where
 
 impl<T, D> ops::DerefMut for DynGd<T, D>
 where
-    T: Implements<D>,
+    T: AsDyn<D>,
     D: ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {

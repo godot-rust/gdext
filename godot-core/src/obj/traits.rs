@@ -138,7 +138,11 @@ pub unsafe trait Inherits<Base: GodotClass>: GodotClass {}
 unsafe impl<T: GodotClass> Inherits<T> for T {}
 
 /// Trait that defines a `T` -> `dyn Trait` relation for use in [`DynGd`][crate::obj::DynGd].
-pub trait Implements<Trait: ?Sized>: GodotClass {
+#[diagnostic::on_unimplemented(
+    message = "`{Trait}` needs to be a trait object linked with class `{Self}` in the library",
+    note = "you can use `#[godot_dyn]` on `impl Trait for Class` to auto-generate `impl Implements<dyn Trait> for Class`"
+)]
+pub trait AsDyn<Trait: ?Sized>: GodotClass {
     fn dyn_upcast(&self) -> &Trait;
     fn dyn_upcast_mut(&mut self) -> &mut Trait;
 }
@@ -148,7 +152,7 @@ pub trait Implements<Trait: ?Sized>: GodotClass {
 macro_rules! godot_implements {
     // ($( $Class:ty => $Trait:ty ),* $(,)?) => {
     ( $Class:ty => $Trait:ty ) => {
-        impl $crate::obj::Implements<$Trait> for $Class {
+        impl $crate::obj::AsDyn<$Trait> for $Class {
             fn dyn_upcast(&self) -> &(<$Trait> + 'static) {
                 self
             }
