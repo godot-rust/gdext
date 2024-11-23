@@ -16,6 +16,11 @@ use crate::obj::{Gd, GodotClass, InstanceId};
 use std::{fmt, ptr};
 use sys::{ffi_methods, GodotFfi};
 
+#[cfg(all(since_api = "4.2", before_api = "4.3"))]
+type CallableCustomInfo = sys::GDExtensionCallableCustomInfo;
+#[cfg(since_api = "4.3")]
+type CallableCustomInfo = sys::GDExtensionCallableCustomInfo2;
+
 /// A `Callable` represents a function in Godot.
 ///
 /// Usually a callable is a reference to an `Object` and a method name, this is a standard callable. But can
@@ -61,8 +66,8 @@ impl Callable {
     }
 
     #[cfg(since_api = "4.2")]
-    fn default_callable_custom_info() -> sys::GDExtensionCallableCustomInfo {
-        sys::GDExtensionCallableCustomInfo {
+    fn default_callable_custom_info() -> CallableCustomInfo {
+        CallableCustomInfo {
             callable_userdata: ptr::null_mut(),
             token: ptr::null_mut(),
             object_id: 0,
@@ -74,6 +79,8 @@ impl Callable {
             // Op < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
             less_than_func: None,
             to_string_func: None,
+            #[cfg(since_api = "4.3")]
+            get_argument_count_func: None,
         }
     }
 
@@ -105,7 +112,7 @@ impl Callable {
             },
         };
 
-        let info = sys::GDExtensionCallableCustomInfo {
+        let info = CallableCustomInfo {
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
             call_func: Some(rust_callable_call_fn::<F>),
             free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
@@ -126,7 +133,7 @@ impl Callable {
         // - a type-erased workaround for PartialEq supertrait (which has a `Self` type parameter and thus is not object-safe)
         let userdata = CallableUserdata { inner: callable };
 
-        let info = sys::GDExtensionCallableCustomInfo {
+        let info = CallableCustomInfo {
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
             call_func: Some(rust_callable_call_custom::<C>),
             free_func: Some(rust_callable_destroy::<C>),
@@ -140,11 +147,18 @@ impl Callable {
     }
 
     #[cfg(since_api = "4.2")]
-    fn from_custom_info(mut info: sys::GDExtensionCallableCustomInfo) -> Callable {
+    fn from_custom_info(mut info: CallableCustomInfo) -> Callable {
         // SAFETY: callable_custom_create() is a valid way of creating callables.
         unsafe {
             Callable::new_with_uninit(|type_ptr| {
-                sys::interface_fn!(callable_custom_create)(type_ptr, ptr::addr_of_mut!(info))
+                #[cfg(before_api = "4.3")]
+                {
+                    sys::interface_fn!(callable_custom_create)(type_ptr, ptr::addr_of_mut!(info))
+                }
+                #[cfg(since_api = "4.3")]
+                {
+                    sys::interface_fn!(callable_custom_create2)(type_ptr, ptr::addr_of_mut!(info))
+                }
             })
         }
     }
