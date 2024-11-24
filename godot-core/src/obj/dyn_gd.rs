@@ -19,11 +19,14 @@ use std::ops;
 /// To register the `T` -> `D` relation with godot-rust, `T` must implement [`AsDyn<D>`]. This can be automated with the
 /// [`#[godot_dyn]`](../register/attr.godot_dyn.html) attribute macro.
 ///
-/// # Public API
-/// The API is very close to `Gd`. In fact, both `Deref` and `DerefMut` are implemented for `DynGd` -> `Gd`, so you can access all the
+/// # Construction and API
+/// You can convert between `Gd` and `DynGd` using [`Gd::into_dyn()`] and [`DynGd::into_gd()`]. The former sometimes needs an explicit
+/// `::<dyn Trait>` type argument, but can often be inferred.
+///
+/// The `DynGd` API is very close to `Gd`. In fact, both `Deref` and `DerefMut` are implemented for `DynGd` -> `Gd`, so you can access all the
 /// underlying `Gd` methods as well as Godot class APIs directly.
 ///
-/// The main new parts are two methods [`dbind()`][Self::dbind] and [`dbind_mut()`][Self::dbind_mut]. These are very similar to `Gd`'s
+/// The main new parts are two methods [`dyn_bind()`][Self::dyn_bind] and [`dyn_bind_mut()`][Self::dyn_bind_mut]. These are very similar to `Gd`'s
 /// [`bind()`][Gd::bind] and [`bind_mut()`][Gd::bind_mut], but return a reference guard to the trait object `D` instead of the Godot class `T`.
 ///
 /// # Example
@@ -66,11 +69,11 @@ use std::ops;
 /// let mut dyn_monster = dyn_monster.upcast::<RefCounted>();
 ///
 /// // Due to RefCounted abstraction, you can no longer access concrete Monster properties.
-/// // However, the trait Health is still accessible through dbind().
-/// assert!(dyn_monster.dbind().is_alive());
+/// // However, the trait Health is still accessible through dyn_bind().
+/// assert!(dyn_monster.dyn_bind().is_alive());
 ///
-/// // To mutate the object, call dbind_mut(). Rust borrow rules apply.
-/// let mut guard = dyn_monster.dbind_mut();
+/// // To mutate the object, call dyn_bind_mut(). Rust borrow rules apply.
+/// let mut guard = dyn_monster.dyn_bind_mut();
 /// guard.deal_damage(120);
 /// assert!(!guard.is_alive());
 /// ```
@@ -90,7 +93,7 @@ where
     T: AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
     D: ?Sized,
 {
-    pub fn from_gd(gd_instance: Gd<T>) -> Self {
+    pub(crate) fn from_gd(gd_instance: Gd<T>) -> Self {
         let erased_obj = Box::new(gd_instance.clone());
 
         Self {
@@ -111,8 +114,8 @@ where
     /// The resulting guard implements `Deref<Target = D>`, allowing shared access to the trait's methods.
     ///
     /// See [`Gd::bind()`][Gd::bind] for borrow checking semantics and panics.
-    pub fn dbind(&self) -> DynGdRef<D> {
-        self.erased_obj.dbind()
+    pub fn dyn_bind(&self) -> DynGdRef<D> {
+        self.erased_obj.dyn_bind()
     }
 
     /// Acquires an exclusive reference guard to the trait object `D`.
@@ -120,8 +123,8 @@ where
     /// The resulting guard implements `DerefMut<Target = D>`, allowing exclusive mutable access to the trait's methods.
     ///
     /// See [`Gd::bind_mut()`][Gd::bind_mut] for borrow checking semantics and panics.
-    pub fn dbind_mut(&mut self) -> DynGdMut<D> {
-        self.erased_obj.dbind_mut()
+    pub fn dyn_bind_mut(&mut self) -> DynGdMut<D> {
+        self.erased_obj.dyn_bind_mut()
     }
 
     // Certain methods "overridden" from deref'ed Gd here, so they're more idiomatic to use.
@@ -201,8 +204,8 @@ where
 // Type erasure
 
 trait ErasedGd<D: ?Sized> {
-    fn dbind(&self) -> DynGdRef<D>;
-    fn dbind_mut(&mut self) -> DynGdMut<D>;
+    fn dyn_bind(&self) -> DynGdRef<D>;
+    fn dyn_bind_mut(&mut self) -> DynGdMut<D>;
 
     fn clone_box(&self) -> Box<dyn ErasedGd<D>>;
 }
@@ -212,11 +215,11 @@ where
     T: AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
     D: ?Sized,
 {
-    fn dbind(&self) -> DynGdRef<D> {
+    fn dyn_bind(&self) -> DynGdRef<D> {
         DynGdRef::from_guard::<T>(Gd::bind(self))
     }
 
-    fn dbind_mut(&mut self) -> DynGdMut<D> {
+    fn dyn_bind_mut(&mut self) -> DynGdMut<D> {
         DynGdMut::from_guard::<T>(Gd::bind_mut(self))
     }
 
@@ -224,3 +227,6 @@ where
         Box::new(Gd::clone(self))
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Integration with Godot traits
