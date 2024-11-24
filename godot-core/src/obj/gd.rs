@@ -378,32 +378,6 @@ impl<T: GodotClass> Gd<T> {
         unsafe { self.raw.as_upcast_mut::<Base>() }
     }
 
-    /// Very unsafe cast down or up. Not exposed to public.
-    ///
-    /// # Safety
-    /// No bounds are checked; caller must ensure `Other` is a valid target.
-    pub(crate) unsafe fn any_cast_ref<Other: GodotClass>(&self) -> &Gd<Other> {
-        std::mem::transmute::<&Self, &Gd<Other>>(self)
-    }
-
-    /// Very unsafe cast down or up. Not exposed to public.
-    ///
-    /// # Safety
-    /// No bounds are checked; caller must ensure `Other` is a valid target.
-    pub(crate) unsafe fn any_cast_mut<Other: GodotClass>(&mut self) -> &mut Gd<Other> {
-        std::mem::transmute::<&mut Self, &mut Gd<Other>>(self)
-    }
-
-    pub(crate) fn upcast_object(self) -> Gd<classes::Object> {
-        self.owned_cast()
-            .expect("Upcast to Object failed. This is a bug; please report it.")
-    }
-
-    pub(crate) fn upcast_object_ref(&self) -> &Gd<classes::Object> {
-        self.owned_cast()
-            .expect("Upcast to Object failed. This is a bug; please report it.")
-    }
-
     /// **Downcast:** try to convert into a smart pointer to a derived class.
     ///
     /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `Err(self)` is returned, meaning you can reuse the original

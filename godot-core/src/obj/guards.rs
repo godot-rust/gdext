@@ -112,12 +112,11 @@ impl<'a, D: ?Sized> DynGdRef<'a, D> {
         // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
         // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
         let cached_ptr = std::ptr::addr_of!(*dyn_obj);
-        let dyn_guard = Self {
+
+        Self {
             _guard: Box::new(guard),
             cached_ptr,
-        };
-
-        dyn_guard
+        }
     }
 }
 
@@ -155,12 +154,11 @@ impl<'a, D: ?Sized> DynGdMut<'a, D> {
         // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
         // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
         let cached_ptr = std::ptr::addr_of_mut!(*dyn_obj);
-        let dyn_guard = Self {
+
+        Self {
             _guard: Box::new(guard),
             cached_ptr,
-        };
-
-        dyn_guard
+        }
     }
 }
 

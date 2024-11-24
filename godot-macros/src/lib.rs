@@ -757,7 +757,7 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// Generates a `Class` -> `dyn Trait` upcasting relation.
 ///
 /// This attribute macro can be applied to `impl MyTrait for MyClass` blocks, where `MyClass` is a `GodotClass`. It will automatically
-/// implement `MyClass: AsDyn<dyn MyTrait>`.
+/// implement [`MyClass: AsDyn<dyn MyTrait>`](../obj/trait.AsDyn.html) for you.
 ///
 /// Establishing this relation allows godot-rust to upcast `MyGodotClass` to `dyn Trait` inside the library's
 /// [`DynGd`](../obj/struct.DynGd.html) smart pointer.
@@ -783,13 +783,13 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// # #[class(init)]
 /// # struct MyClass {}
 /// # trait MyTrait {}
-/// // impl block remains unchanged.
+/// // impl block remains unchanged...
 /// impl MyTrait for MyClass {}
 ///
-/// // But a new `impl AsDyn` is added.
+/// // ...but a new `impl AsDyn` is added.
 /// impl AsDyn<dyn MyTrait> for MyClass {
-///     fn dyn_upcast(&self) -> &dyn MyTrait { self }
-///     fn dyn_upcast_mut(&mut self) -> &mut dyn MyTrait { self }
+///     fn dyn_upcast(&self) -> &(dyn MyTrait + 'static) { self }
+///     fn dyn_upcast_mut(&mut self) -> &mut (dyn MyTrait + 'static) { self }
 /// }
 /// ```
 ///
