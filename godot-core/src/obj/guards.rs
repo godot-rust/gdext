@@ -17,7 +17,7 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
 use crate::obj::script::ScriptInstance;
-use crate::obj::{Gd, GodotClass};
+use crate::obj::{AsDyn, Gd, GodotClass};
 
 /// Immutably/shared bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
 ///
@@ -99,15 +99,15 @@ impl<'a, T: GodotClass> ErasedGuard<'a> for GdMut<'a, T> {}
 ///
 /// Returned by [`DynGd::dbind()`][crate::obj::DynGd::dbind].
 pub struct DynGdRef<'a, D: ?Sized> {
-    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld.
+    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld and the object isn't freed.
     _guard: Box<dyn ErasedGuard<'a>>,
     cached_ptr: *const D,
 }
 
 impl<'a, D: ?Sized> DynGdRef<'a, D> {
-    pub fn from_guard<T: GodotClass>(guard: GdRef<'a, T>, dynamic_caster: fn(&T) -> &D) -> Self {
+    pub fn from_guard<T: AsDyn<D>>(guard: GdRef<'a, T>) -> Self {
         let obj = &*guard;
-        let dyn_obj = dynamic_caster(obj);
+        let dyn_obj = obj.dyn_upcast();
 
         // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
         // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
@@ -142,18 +142,15 @@ impl<D: ?Sized> Drop for DynGdRef<'_, D> {
 ///
 /// Returned by [`DynGd::dbind_mut()`][crate::obj::DynGd::dbind_mut].
 pub struct DynGdMut<'a, D: ?Sized> {
-    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld.
+    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld and the object isn't freed.
     _guard: Box<dyn ErasedGuard<'a>>,
     cached_ptr: *mut D,
 }
 
 impl<'a, D: ?Sized> DynGdMut<'a, D> {
-    pub fn from_guard<T: GodotClass>(
-        mut guard: GdMut<'a, T>,
-        dynamic_caster: fn(&mut T) -> &mut D,
-    ) -> Self {
+    pub fn from_guard<T: AsDyn<D>>(mut guard: GdMut<'a, T>) -> Self {
         let obj = &mut *guard;
-        let dyn_obj = dynamic_caster(obj);
+        let dyn_obj = obj.dyn_upcast_mut();
 
         // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
         // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.

@@ -242,6 +242,7 @@ impl<T: GodotClass> RawGd<T> {
         // pub struct RawGd<T: GodotClass> {
         //     obj: *mut T,
         //     cached_rtti: Option<ObjectRtti>,
+        //     cached_storage_ptr: InstanceCache, // ZST for engine classes.
         // }
         //
         // The pointers have the same meaning despite different types, and so the whole struct is layout-compatible.
