@@ -431,6 +431,11 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
+    /// Upgrades to a `DynGd<T, D>` pointer, enabling the `D` abstraction.
+    ///
+    /// The `D` parameter can typically be inferred when there is a single `AsDyn<...>` implementation for `T`.  \
+    /// Otherwise, use it as `gd.into_dyn::<dyn MyTrait>()`.
+    #[must_use]
     pub fn into_dyn<D>(self) -> DynGd<T, D>
     where
         T: crate::obj::AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
@@ -702,15 +707,18 @@ impl<T: GodotClass> FromGodot for Gd<T> {
 }
 
 impl<T: GodotClass> GodotType for Gd<T> {
+    // Some #[doc(hidden)] are repeated despite already declared in trait; some IDEs suggest in auto-complete otherwise.
     type Ffi = RawGd<T>;
 
     type ToFfi<'f> = RefArg<'f, RawGd<T>>
     where Self: 'f;
 
+    #[doc(hidden)]
     fn to_ffi(&self) -> Self::ToFfi<'_> {
         RefArg::new(&self.raw)
     }
 
+    #[doc(hidden)]
     fn into_ffi(self) -> Self::Ffi {
         self.raw
     }
@@ -723,7 +731,7 @@ impl<T: GodotClass> GodotType for Gd<T> {
         }
     }
 
-    fn class_name() -> crate::meta::ClassName {
+    fn class_name() -> ClassName {
         T::class_name()
     }
 
@@ -781,6 +789,7 @@ impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
 }
 
 impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
+    #[doc(hidden)] // Repeated despite already hidden in trait; some IDEs suggest this otherwise.
     fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
     where
         'r: 'cow, // Original reference must be valid for at least as long as the returned cow.

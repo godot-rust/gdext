@@ -97,7 +97,7 @@ impl<'a, T: GodotClass> ErasedGuard<'a> for GdMut<'a, T> {}
 
 /// Shared reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
 ///
-/// Returned by [`DynGd::dbind()`][crate::obj::DynGd::dbind].
+/// Returned by [`DynGd::dyn_bind()`][crate::obj::DynGd::dyn_bind].
 pub struct DynGdRef<'a, D: ?Sized> {
     /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld and the object isn't freed.
     _guard: Box<dyn ErasedGuard<'a>>,
@@ -139,7 +139,7 @@ impl<D: ?Sized> Drop for DynGdRef<'_, D> {
 
 /// Mutably/exclusively bound reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
 ///
-/// Returned by [`DynGd::dbind_mut()`][crate::obj::DynGd::dbind_mut].
+/// Returned by [`DynGd::dyn_bind_mut()`][crate::obj::DynGd::dyn_bind_mut].
 pub struct DynGdMut<'a, D: ?Sized> {
     /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld and the object isn't freed.
     _guard: Box<dyn ErasedGuard<'a>>,
