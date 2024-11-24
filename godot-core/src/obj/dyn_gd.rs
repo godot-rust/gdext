@@ -143,6 +143,12 @@ where
             erased_obj: self.erased_obj,
         }
     }
+
+    /// Downgrades to a `Gd<T>` pointer, abandoning the `D` abstraction.
+    #[must_use]
+    pub fn into_gd(self) -> Gd<T> {
+        self.obj
+    }
 }
 
 impl<T, D> DynGd<T, D>

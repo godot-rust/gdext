@@ -142,6 +142,17 @@ fn dyn_gd_shared_guard() {
     a.free(); // now allowed.
 }
 
+#[itest]
+fn dyn_gd_downgrade() {
+    let dyn_gd = RefcHealth::new_gd().into_dyn();
+    let dyn_id = dyn_gd.instance_id();
+
+    let gd = dyn_gd.into_gd();
+
+    assert_eq!(gd.bind().get_hitpoints(), 0); // default hp is 0.
+    assert_eq!(gd.instance_id(), dyn_id);
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Example symbols
 
