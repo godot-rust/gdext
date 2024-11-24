@@ -81,7 +81,6 @@ where
     }
 }
 */
-
 impl<T, U> AsObjectArg<T> for &Gd<U>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,

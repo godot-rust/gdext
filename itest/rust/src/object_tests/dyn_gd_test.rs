@@ -153,6 +153,18 @@ fn dyn_gd_downgrade() {
     assert_eq!(gd.instance_id(), dyn_id);
 }
 
+#[itest]
+fn dyn_gd_pass_to_godot_api() {
+    let child = foreign::NodeHealth::new_alloc().into_dyn();
+
+    let mut parent = Node::new_alloc();
+    parent.add_child(&child);
+
+    assert_eq!(child.get_parent().as_ref(), Some(&parent));
+
+    parent.free();
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Example symbols
 
