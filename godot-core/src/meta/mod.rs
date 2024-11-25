@@ -61,7 +61,9 @@ pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
 pub(crate) use array_type_info::ArrayTypeInfo;
-pub(crate) use traits::{GodotFfiVariant, GodotNullableFfi};
+pub(crate) use traits::{
+    element_godot_type_name, element_variant_type, GodotFfiVariant, GodotNullableFfi,
+};
 
 use crate::registry::method::MethodParamOrReturnInfo;
 

@@ -12,8 +12,9 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ArrayTypeInfo, AsArg, CowArg, FromGodot, GodotConvert, GodotFfiVariant,
-    GodotType, ParamType, PropertyHintInfo, RefArg, ToGodot,
+    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, CowArg,
+    FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType, PropertyHintInfo, RefArg,
+    ToGodot,
 };
 use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
@@ -886,8 +887,14 @@ impl<T: ArrayElement> Array<T> {
     /// Used as `if` statement in trait impls. Avoids defining yet another trait or non-local overridden function just for this case;
     /// `Variant` is the only Godot type that has variant type NIL and can be used as an array element.
     fn has_variant_t() -> bool {
-        T::Ffi::variant_type() == VariantType::NIL
+        element_variant_type::<T>() == VariantType::NIL
     }
+}
+
+#[test]
+fn correct_variant_t() {
+    assert!(Array::<Variant>::has_variant_t());
+    assert!(!Array::<i64>::has_variant_t());
 }
 
 impl VariantArray {
@@ -1133,7 +1140,7 @@ impl<T: ArrayElement> GodotType for Array<T> {
         // Typed arrays use type hint.
         PropertyHintInfo {
             hint: crate::global::PropertyHint::ARRAY_TYPE,
-            hint_string: T::godot_type_name().into(),
+            hint_string: GString::from(element_godot_type_name::<T>()),
         }
     }
 }

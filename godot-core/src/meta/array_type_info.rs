@@ -6,8 +6,8 @@
  */
 
 use crate::builtin::{StringName, VariantType};
-use crate::meta::traits::GodotFfi;
-use crate::meta::GodotType;
+use crate::meta::traits::element_variant_type;
+use crate::meta::{ArrayElement, GodotType};
 use std::fmt;
 
 /// Represents the type information of a Godot array. See
@@ -26,8 +26,8 @@ pub(crate) struct ArrayTypeInfo {
 }
 
 impl ArrayTypeInfo {
-    pub fn of<T: GodotType>() -> Self {
-        let variant_type = <T::Via as GodotType>::Ffi::variant_type();
+    pub fn of<T: ArrayElement>() -> Self {
+        let variant_type = element_variant_type::<T>();
         let class_name = if variant_type == VariantType::OBJECT {
             Some(T::Via::class_name().to_string_name())
         } else {

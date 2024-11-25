@@ -692,6 +692,7 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 }
 
 impl<T: GodotClass> ToGodot for Gd<T> {
+    // TODO return RefArg here?
     type ToVia<'v> = Gd<T>;
 
     fn to_godot(&self) -> Self::ToVia<'_> {

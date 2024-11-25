@@ -7,7 +7,9 @@
 
 use crate::builtin::{GString, StringName};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{ArrayElement, ClassName, GodotType, PackedArrayElement};
+use crate::meta::{
+    element_godot_type_name, ArrayElement, ClassName, GodotType, PackedArrayElement,
+};
 use crate::registry::property::{Export, Var};
 use crate::sys;
 use godot_ffi::VariantType;
@@ -234,7 +236,7 @@ impl PropertyHintInfo {
     pub fn var_array_element<T: ArrayElement>() -> Self {
         Self {
             hint: PropertyHint::ARRAY_TYPE,
-            hint_string: GString::from(T::godot_type_name()),
+            hint_string: GString::from(element_godot_type_name::<T>()),
         }
     }
 
