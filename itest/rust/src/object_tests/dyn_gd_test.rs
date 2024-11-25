@@ -84,6 +84,36 @@ fn dyn_gd_upcast() {
 }
 
 #[itest]
+fn dyn_gd_downcast() {
+    let original = Gd::from_object(RefcHealth { hp: 20 }).into_dyn();
+    let mut object = original.upcast::<Object>();
+
+    object.dyn_bind_mut().deal_damage(7);
+
+    let failed = object.try_cast::<foreign::NodeHealth>();
+    let object = failed.expect_err("DynGd::try_cast() succeeded, but should have failed");
+
+    let refc = object.cast::<RefCounted>();
+    assert_eq!(refc.dyn_bind().get_hitpoints(), 13);
+
+    let back = refc
+        .try_cast::<RefcHealth>()
+        .expect("DynGd::try_cast() should have succeeded");
+    assert_eq!(back.bind().get_hitpoints(), 13);
+}
+
+#[itest]
+fn dyn_gd_debug() {
+    let obj = Gd::from_object(RefcHealth { hp: 20 }).into_dyn();
+    let id = obj.instance_id();
+
+    let actual = format!(".:{obj:?}:.");
+    let expected = format!(".:DynGd {{ id: {id}, class: RefcHealth, trait: dyn Health }}:.");
+
+    assert_eq!(actual, expected);
+}
+
+#[itest]
 fn dyn_gd_exclusive_guard() {
     let mut a = foreign::NodeHealth::new_alloc().into_dyn();
     let mut b = a.clone();
@@ -170,6 +200,18 @@ fn dyn_gd_pass_to_godot_api() {
     assert_eq!(child.get_parent().as_ref(), Some(&parent));
 
     parent.free();
+}
+
+#[itest]
+fn dyn_gd_store_in_godot_array() {
+    let a = Gd::from_object(RefcHealth { hp: 11 }).into_dyn::<dyn Health>();
+    let b = foreign::NodeHealth::new_alloc().into_dyn();
+
+    let array: Array<DynGd<Object, _>> = array![&a.upcast(), &b.upcast()];
+
+    assert_eq!(array.len(), 2);
+
+    array.at(1).free();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

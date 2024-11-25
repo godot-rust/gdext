@@ -11,7 +11,7 @@
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::traits::{ArrayElement, GodotNullableFfi, GodotType};
-use crate::obj::{Gd, GodotClass, RawGd};
+use crate::obj::{DynGd, Gd, GodotClass, RawGd};
 
 pub trait Sealed {}
 impl Sealed for Aabb {}
@@ -64,6 +64,7 @@ impl Sealed for Variant {}
 impl<T: ArrayElement> Sealed for Array<T> {}
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> Sealed for RawGd<T> {}
+impl<T: GodotClass, D: ?Sized> Sealed for DynGd<T, D> {}
 impl<T: GodotClass> Sealed for meta::ObjectArg<T> {}
 impl<T> Sealed for Option<T>
 where

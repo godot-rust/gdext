@@ -727,6 +727,7 @@ impl<T: GodotClass> FromGodot for Gd<T> {
     }
 }
 
+// Keep in sync with DynGd.
 impl<T: GodotClass> GodotType for Gd<T> {
     // Some #[doc(hidden)] are repeated despite already declared in trait; some IDEs suggest in auto-complete otherwise.
     type Ffi = RawGd<T>;
