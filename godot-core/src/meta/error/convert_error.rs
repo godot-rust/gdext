@@ -181,6 +181,12 @@ pub(crate) enum FromGodotError {
     /// InvalidEnum is also used by bitfields.
     InvalidEnum,
 
+    /// Cannot map object to `dyn Trait` because none of the known concrete classes implements it.
+    UnimplementedDynTrait {
+        trait_id: std::any::TypeId,
+        class_name: String,
+    },
+
     /// `InstanceId` cannot be 0.
     ZeroInstanceId,
 }
@@ -235,6 +241,15 @@ impl fmt::Display for FromGodotError {
             }
             Self::InvalidEnum => write!(f, "invalid engine enum value"),
             Self::ZeroInstanceId => write!(f, "`InstanceId` cannot be 0"),
+            Self::UnimplementedDynTrait {
+                trait_id,
+                class_name,
+            } => {
+                write!(
+                    f,
+                    "none of the derived classes from {class_name} have been registered with trait {trait_id:?}"
+                )
+            }
         }
     }
 }

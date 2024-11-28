@@ -212,7 +212,7 @@ fn validate_self(original_impl: &venial::Impl, attr: &str) -> ParseResult<Ident>
 }
 
 /// Gets the right-most type name in the path.
-fn extract_typename(ty: &venial::TypeExpr) -> Option<venial::PathSegment> {
+pub(crate) fn extract_typename(ty: &venial::TypeExpr) -> Option<venial::PathSegment> {
     match ty.as_path() {
         Some(mut path) => path.segments.pop(),
         _ => None,

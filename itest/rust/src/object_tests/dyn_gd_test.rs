@@ -203,13 +203,49 @@ fn dyn_gd_pass_to_godot_api() {
 }
 
 #[itest]
+fn dyn_gd_variant_conversions() {
+    let original = Gd::from_object(RefcHealth { hp: 11 }).into_dyn::<dyn Health>();
+    let original_id = original.instance_id();
+    let refc = original.into_gd().upcast::<RefCounted>();
+
+    let variant = refc.to_variant();
+
+    // Convert to different levels of DynGd:
+
+    let back: DynGd<RefcHealth, dyn Health> = variant.to();
+    assert_eq!(back.bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: DynGd<RefCounted, dyn Health> = variant.to();
+    assert_eq!(back.dyn_bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: DynGd<Object, dyn Health> = variant.to();
+    assert_eq!(back.dyn_bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    // Convert to different levels of Gd:
+
+    let back: Gd<RefcHealth> = variant.to();
+    assert_eq!(back.bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: Gd<RefcHealth> = variant.to();
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: Gd<Object> = variant.to();
+    assert_eq!(back.instance_id(), original_id);
+}
+
+#[itest]
 fn dyn_gd_store_in_godot_array() {
-    let a = Gd::from_object(RefcHealth { hp: 11 }).into_dyn::<dyn Health>();
+    let a = Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
     let b = foreign::NodeHealth::new_alloc().into_dyn();
 
     let array: Array<DynGd<Object, _>> = array![&a.upcast(), &b.upcast()];
 
-    assert_eq!(array.len(), 2);
+    assert_eq!(array.at(0).dyn_bind().get_hitpoints(), 33);
+    assert_eq!(array.at(1).dyn_bind().get_hitpoints(), 100);
 
     array.at(1).free();
 }

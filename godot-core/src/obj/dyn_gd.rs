@@ -6,11 +6,12 @@
  */
 
 use crate::builtin::Variant;
-use crate::{meta, sys};
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits};
+use crate::registry::class::try_dynify_object;
+use crate::{meta, sys};
 use std::{fmt, ops};
 
 /// Smart pointer integrating Rust traits via `dyn` dispatch.
@@ -192,6 +193,27 @@ where
         })
     }
 
+    /// Unsafe fast downcasts, no trait bounds.
+    ///
+    /// # Safety
+    /// The caller must ensure that the dynamic type of the object is `Derived` or a subclass of `Derived`.
+    // Not intended for public use. The lack of bounds simplifies godot-rust implementation, but adds another unsafety layer.
+    #[deny(unsafe_op_in_unsafe_fn)]
+    pub(crate) unsafe fn cast_unchecked<Derived>(self) -> DynGd<Derived, D>
+    where
+        Derived: GodotClass,
+    {
+        let cast_obj = self.obj.owned_cast::<Derived>();
+
+        // SAFETY: ensured by safety invariant.
+        let cast_obj = unsafe { cast_obj.unwrap_unchecked() };
+
+        DynGd {
+            obj: cast_obj,
+            erased_obj: self.erased_obj,
+        }
+    }
+
     /// Downgrades to a `Gd<T>` pointer, abandoning the `D` abstraction.
     #[must_use]
     pub fn into_gd(self) -> Gd<T> {
@@ -317,10 +339,10 @@ where
 impl<T, D> FromGodot for DynGd<T, D>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
-    fn try_from_godot(_via: Self::Via) -> Result<Self, ConvertError> {
-        todo!("Conversion from Godot not yet supported for DynGd")
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        try_dynify_object(via)
     }
 }
 

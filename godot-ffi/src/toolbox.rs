@@ -188,13 +188,13 @@ pub fn unqualified_type_name<T>() -> &'static str {
 */
 
 /// Like [`std::any::type_name`], but returns a short type name without module paths.
-pub fn short_type_name<T>() -> String {
+pub fn short_type_name<T: ?Sized>() -> String {
     let full_name = std::any::type_name::<T>();
     strip_module_paths(full_name)
 }
 
 /// Like [`std::any::type_name_of_val`], but returns a short type name without module paths.
-pub fn short_type_name_of_val<T>(val: &T) -> String {
+pub fn short_type_name_of_val<T: ?Sized>(val: &T) -> String {
     let full_name = std::any::type_name_of_val(val);
     strip_module_paths(full_name)
 }

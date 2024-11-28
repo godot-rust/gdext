@@ -320,6 +320,13 @@ impl<T: GodotClass> Gd<T> {
             .expect("Upcast failed. This is a bug; please report it.")
     }
 
+    /// Equivalent to [`upcast::<Object>()`][Self::upcast], but without bounds.
+    // Not yet public because it might need _mut/_ref overloads, and 6 upcast methods are a bit much...
+    pub(crate) fn upcast_object(self) -> Gd<classes::Object> {
+        self.owned_cast()
+            .expect("Upcast to Object failed. This is a bug; please report it.")
+    }
+
     /// **Upcast shared-ref:** access this object as a shared reference to a base class.
     ///
     /// This is semantically equivalent to multiple applications of [`Self::deref()`]. Not really useful on its own, but combined with
@@ -427,8 +434,9 @@ impl<T: GodotClass> Gd<T> {
         })
     }
 
-    /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
-    fn owned_cast<U>(self) -> Result<Gd<U>, Self>
+    /// Returns `Ok(cast_obj)` on success, `Err(self)` on error.
+    // Visibility: used by DynGd.
+    pub(crate) fn owned_cast<U>(self) -> Result<Gd<U>, Self>
     where
         U: GodotClass,
     {
