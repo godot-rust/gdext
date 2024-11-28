@@ -17,13 +17,30 @@ use crate::registry::plugin::{ErasedRegisterFn, InherentImpl};
 use crate::{godot_error, sys};
 use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
-// Needed for class unregistering. The variable is populated during class registering. There is no actual concurrency here, because Godot
-// calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
-// Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
-// side and analysis required to adopt these changes.
-static LOADED_CLASSES: Global<
-    HashMap<InitLevel, Vec<LoadedClass>>, //.
-> = Global::default();
+/// Returns a lock to a global map of loaded classes, by initialization level.
+///
+/// Needed for class unregistering. The `static` is populated during class registering. There is no actual concurrency here, because Godot
+/// calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
+/// Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
+/// side and analysis required to adopt these changes.
+fn global_loaded_classes_by_init_level(
+) -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
+    static LOADED_CLASSES_BY_INIT_LEVEL: Global<
+        HashMap<InitLevel, Vec<LoadedClass>>, //.
+    > = Global::default();
+
+    lock_or_panic(&LOADED_CLASSES_BY_INIT_LEVEL, "loaded classes")
+}
+
+/// Returns a lock to a global map of loaded classes, by class name.
+///
+/// Complementary mechanism to the on-registration hooks like `__register_methods()`. This is used for runtime queries about a class, for
+/// information which isn't stored in Godot. Example: list related `dyn Trait` implementations.
+fn global_loaded_classes_by_name() -> GlobalGuard<'static, HashMap<ClassName, ClassMetadata>> {
+    static LOADED_CLASSES_BY_NAME: Global<HashMap<ClassName, ClassMetadata>> = Global::default();
+
+    lock_or_panic(&LOADED_CLASSES_BY_NAME, "loaded classes (by name)")
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -34,6 +51,11 @@ pub struct LoadedClass {
     name: ClassName,
     is_editor_plugin: bool,
 }
+
+/// Represents a class which is currently loaded and retained in memory -- including metadata.
+//
+// Currently empty, but should already work for per-class queries.
+pub struct ClassMetadata {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -169,34 +191,49 @@ pub fn auto_register_classes(init_level: InitLevel) {
         fill_class_info(elem.item.clone(), class_info);
     });
 
-    let mut loaded_classes_by_level = global_loaded_classes();
-    for info in map.into_values() {
+    let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
+    let mut loaded_classes_by_name = global_loaded_classes_by_name();
+
+    for mut info in map.into_values() {
         let class_name = info.class_name;
         out!("Register class:   {class_name} at level `{init_level:?}`");
+
         let loaded_class = LoadedClass {
             name: class_name,
             is_editor_plugin: info.is_editor_plugin,
         };
+        let metadata = ClassMetadata {};
+
         loaded_classes_by_level
             .entry(init_level)
             .or_default()
             .push(loaded_class);
 
+        loaded_classes_by_name.insert(class_name, metadata);
+
         register_class_raw(info);
-        out!("Class {class_name} loaded");
+
+        out!("Class {class_name} loaded.");
     }
 
     out!("All classes for level `{init_level:?}` auto-registered.");
 }
 
 pub fn unregister_classes(init_level: InitLevel) {
-    let mut loaded_classes_by_level = global_loaded_classes();
+    let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
+    let mut loaded_classes_by_name = global_loaded_classes_by_name();
+
     let loaded_classes_current_level = loaded_classes_by_level
         .remove(&init_level)
         .unwrap_or_default();
-    out!("Unregistering classes of level {init_level:?}...");
-    for class_name in loaded_classes_current_level.into_iter().rev() {
-        unregister_class_raw(class_name);
+
+    out!("Unregister classes of level {init_level:?}...");
+    for class in loaded_classes_current_level.into_iter().rev() {
+        // Remove from other map.
+        loaded_classes_by_name.remove(&class.name);
+
+        // Unregister from Godot.
+        unregister_class_raw(class);
     }
 }
 
@@ -209,19 +246,6 @@ pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
     }) = crate::private::find_inherent_impl(T::class_name())
     {
         (closure.raw)(object);
-    }
-}
-
-fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
-    match LOADED_CLASSES.try_lock() {
-        Ok(it) => it,
-        Err(err) => match err {
-            GlobalLockError::Poisoned {..} => panic!(
-                "global lock for loaded classes poisoned; class registration or deregistration may have panicked"
-            ),
-            GlobalLockError::WouldBlock => panic!("unexpected concurrent access to global lock for loaded classes"),
-            GlobalLockError::InitFailed => unreachable!("global lock for loaded classes not initialized"),
-        },
     }
 }
 
@@ -468,6 +492,19 @@ fn unregister_class_raw(class: LoadedClass) {
     };
 
     out!("Class {class_name} unloaded");
+}
+
+fn lock_or_panic<T>(global: &'static Global<T>, ctx: &str) -> GlobalGuard<'static, T> {
+    match global.try_lock() {
+        Ok(it) => it,
+        Err(err) => match err {
+            GlobalLockError::Poisoned { .. } => panic!(
+                "global lock for {ctx} poisoned; class registration or deregistration may have panicked"
+            ),
+            GlobalLockError::WouldBlock => panic!("unexpected concurrent access to global lock for {ctx}"),
+            GlobalLockError::InitFailed => unreachable!("global lock for {ctx} not initialized"),
+        },
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
