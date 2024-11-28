@@ -64,8 +64,17 @@ struct FuncAttr {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+pub struct InherentImplAttr {
+    /// For implementation reasons, there can be a single 'primary' impl block and 0 or more 'secondary' impl blocks.
+    /// For now this is controlled by a key in the the 'godot_api' attribute
+    pub secondary: bool,
+}
+
 /// Codegen for `#[godot_api] impl MyType`
-pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<TokenStream> {
+pub fn transform_inherent_impl(
+    meta: InherentImplAttr,
+    mut impl_block: venial::Impl,
+) -> ParseResult<TokenStream> {
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
     let prv = quote! { ::godot::private };
@@ -93,38 +102,96 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
-    let result = quote! {
-        #impl_block
+    let method_storage_name = format_ident!("__registration_methods_{class_name}");
+    let constants_storage_name = format_ident!("__registration_constants_{class_name}");
 
-        impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
-            fn __register_methods() {
+    let fill_storage = quote! {
+        ::godot::sys::plugin_execute_pre_main!({
+            #method_storage_name.lock().unwrap().push(||{
+
                 #( #method_registrations )*
                 #( #signal_registrations )*
-            }
 
-            fn __register_constants() {
+            });
+            #constants_storage_name.lock().unwrap().push(||{
+
                 #constant_registration
-            }
 
-            #rpc_registrations
-        }
-
-        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_obj,
-            item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
-                register_methods_constants_fn: #prv::ErasedRegisterFn {
-                    raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
-                },
-                register_rpcs_fn: Some(#prv::ErasedRegisterRpcsFn {
-                    raw: #prv::callbacks::register_user_rpcs::<#class_name>,
-                }),
-                #docs
-            }),
-            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
+            });
         });
     };
 
-    Ok(result)
+    if !meta.secondary {
+        // We are the primary `impl` block.
+
+        let storage = quote! {
+            #[allow(non_upper_case_globals)]
+            #[doc(hidden)]
+            static #method_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+
+            #[allow(non_upper_case_globals)]
+            #[doc(hidden)]
+            static #constants_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+        };
+
+        let trait_impl = quote! {
+            impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
+                fn __register_methods() {
+                    let guard = #method_storage_name.lock().unwrap();
+                    for f in guard.iter() {
+                        f();
+                    }
+                }
+
+                fn __register_constants() {
+                    let guard = #constants_storage_name.lock().unwrap();
+                    for f in guard.iter() {
+                        f();
+                    }
+                }
+
+                #rpc_registrations
+            }
+        };
+
+        let class_registration = quote! {
+
+            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
+                class_name: #class_name_obj,
+                item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
+                    register_methods_constants_fn: #prv::ErasedRegisterFn {
+                        raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
+                    },
+                    register_rpcs_fn: Some(#prv::ErasedRegisterRpcsFn {
+                        raw: #prv::callbacks::register_user_rpcs::<#class_name>,
+                    }),
+                    #docs
+                }),
+                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
+            });
+
+        };
+
+        let result = quote! {
+            #impl_block
+            #storage
+            #trait_impl
+            #fill_storage
+            #class_registration
+        };
+
+        Ok(result)
+    } else {
+        // We are in a secondary `impl` block, so most of the work has already been done
+        // and we just need to add our registration functions in the storage defined by the primary `impl` block.
+
+        let result = quote! {
+            #impl_block
+            #fill_storage
+        };
+
+        Ok(result)
+    }
 }
 
 fn process_godot_fns(
