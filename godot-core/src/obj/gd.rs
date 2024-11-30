@@ -9,8 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
-
-use sys::{static_assert_eq_size_align, VariantType};
+use sys::{static_assert_eq_size_align, SysPtr as _, VariantType};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
@@ -276,6 +275,27 @@ impl<T: GodotClass> Gd<T> {
     /// runtime condition to check against.
     pub fn is_instance_valid(&self) -> bool {
         self.raw.is_instance_valid()
+    }
+
+    /// Returns the dynamic class name of the object as `StringName`.
+    ///
+    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_name()`] if derived
+    /// classes are involved.
+    ///
+    /// Unlike [`Object::get_class()`], this returns `StringName` instead of `GString` and needs no `Inherits<Object>` bound.
+    pub(crate) fn dynamic_class_string(&self) -> StringName {
+        unsafe {
+            StringName::new_with_string_uninit(|ptr| {
+                let success = sys::interface_fn!(object_get_class_name)(
+                    self.obj_sys().as_const(),
+                    sys::get_library(),
+                    ptr,
+                );
+
+                let success = sys::conv::bool_from_sys(success);
+                assert!(success, "failed to get class name for object {self:?}");
+            })
+        }
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
