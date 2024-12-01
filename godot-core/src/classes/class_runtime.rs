@@ -71,16 +71,12 @@ pub(crate) fn ensure_object_alive(
 }
 
 #[cfg(debug_assertions)]
-pub(crate) fn ensure_object_inherits(
-    derived: ClassName,
-    base: ClassName,
-    instance_id: InstanceId,
-) -> bool {
+pub(crate) fn ensure_object_inherits(derived: ClassName, base: ClassName, instance_id: InstanceId) {
     if derived == base
         || base == Object::class_name() // for Object base, anything inherits by definition
         || is_derived_base_cached(derived, base)
     {
-        return true;
+        return;
     }
 
     panic!(

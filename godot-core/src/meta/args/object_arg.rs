@@ -8,7 +8,7 @@
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
-use crate::obj::{bounds, Bounds, Gd, GodotClass, Inherits, RawGd};
+use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits, RawGd};
 use crate::{obj, sys};
 use godot_ffi::{GodotFfi, GodotNullableFfi, PtrcallType};
 use std::ptr;
@@ -95,6 +95,25 @@ where
 
     fn consume_arg(self) -> ObjectCow<T> {
         ObjectCow::Borrowed(self.as_object_arg())
+    }
+}
+
+impl<T, U, D> AsObjectArg<T> for &DynGd<U, D>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+    D: ?Sized,
+{
+    fn as_object_arg(&self) -> ObjectArg<T> {
+        // Reuse Deref.
+        let gd: &Gd<U> = self;
+        <&Gd<U>>::as_object_arg(&gd)
+    }
+
+    fn consume_arg(self) -> ObjectCow<T> {
+        // Reuse Deref.
+        let gd: &Gd<U> = self;
+        <&Gd<U>>::consume_arg(gd)
     }
 }
 

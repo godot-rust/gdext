@@ -137,6 +137,21 @@ pub unsafe trait Inherits<Base: GodotClass>: GodotClass {}
 // SAFETY: Every class is a subclass of itself.
 unsafe impl<T: GodotClass> Inherits<T> for T {}
 
+/// Trait that defines a `T` -> `dyn Trait` relation for use in [`DynGd`][crate::obj::DynGd].
+///
+/// You should typically not implement this manually, but use the [`#[godot_dyn]`](../register/attr.godot_dyn.html) macro.
+#[diagnostic::on_unimplemented(
+    message = "`{Trait}` needs to be a trait object linked with class `{Self}` in the library",
+    note = "you can use `#[godot_dyn]` on `impl Trait for Class` to auto-generate `impl Implements<dyn Trait> for Class`"
+)]
+// Note: technically, `Trait` doesn't _have to_ implement `Self`. The Rust type system provides no way to verify that a) D is a trait object,
+// and b) that the trait behind it is implemented for the class. Thus, users could any another reference type, such as `&str` pointing to a field.
+// This should be safe, since lifetimes are checked throughout and the class instance remains in place (pinned) inside a DynGd.
+pub trait AsDyn<Trait: ?Sized>: GodotClass {
+    fn dyn_upcast(&self) -> &Trait;
+    fn dyn_upcast_mut(&mut self) -> &mut Trait;
+}
+
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
 #[doc(hidden)]
 pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {

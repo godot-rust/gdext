@@ -17,7 +17,7 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
 use crate::obj::script::ScriptInstance;
-use crate::obj::{Gd, GodotClass};
+use crate::obj::{AsDyn, Gd, GodotClass};
 
 /// Immutably/shared bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
 ///
@@ -82,6 +82,105 @@ impl<T: GodotClass> DerefMut for GdMut<'_, T> {
 impl<T: GodotClass> Drop for GdMut<'_, T> {
     fn drop(&mut self) {
         out!("GdMut drop: {:?}", std::any::type_name::<T>());
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Type-erased Gd guards
+
+trait ErasedGuard<'a>: 'a {}
+
+impl<'a, T: GodotClass> ErasedGuard<'a> for GdRef<'a, T> {}
+impl<'a, T: GodotClass> ErasedGuard<'a> for GdMut<'a, T> {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Shared reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
+///
+/// Returned by [`DynGd::dyn_bind()`][crate::obj::DynGd::dyn_bind].
+pub struct DynGdRef<'a, D: ?Sized> {
+    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld and the object isn't freed.
+    _guard: Box<dyn ErasedGuard<'a>>,
+    cached_ptr: *const D,
+}
+
+impl<'a, D: ?Sized> DynGdRef<'a, D> {
+    pub fn from_guard<T: AsDyn<D>>(guard: GdRef<'a, T>) -> Self {
+        let obj = &*guard;
+        let dyn_obj = obj.dyn_upcast();
+
+        // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
+        // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
+        let cached_ptr = std::ptr::addr_of!(*dyn_obj);
+
+        Self {
+            _guard: Box::new(guard),
+            cached_ptr,
+        }
+    }
+}
+
+impl<D: ?Sized> Deref for DynGdRef<'_, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        // SAFETY: pointer refers to object that is pinned while guard is alive.
+        unsafe { &*self.cached_ptr }
+    }
+}
+
+impl<D: ?Sized> Drop for DynGdRef<'_, D> {
+    fn drop(&mut self) {
+        out!("DynGdRef drop: {:?}", std::any::type_name::<D>());
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Mutably/exclusively bound reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
+///
+/// Returned by [`DynGd::dyn_bind_mut()`][crate::obj::DynGd::dyn_bind_mut].
+pub struct DynGdMut<'a, D: ?Sized> {
+    /// Never accessed, but is kept alive to ensure dynamic borrow checks are upheld and the object isn't freed.
+    _guard: Box<dyn ErasedGuard<'a>>,
+    cached_ptr: *mut D,
+}
+
+impl<'a, D: ?Sized> DynGdMut<'a, D> {
+    pub fn from_guard<T: AsDyn<D>>(mut guard: GdMut<'a, T>) -> Self {
+        let obj = &mut *guard;
+        let dyn_obj = obj.dyn_upcast_mut();
+
+        // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
+        // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
+        let cached_ptr = std::ptr::addr_of_mut!(*dyn_obj);
+
+        Self {
+            _guard: Box::new(guard),
+            cached_ptr,
+        }
+    }
+}
+
+impl<D: ?Sized> Deref for DynGdMut<'_, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        // SAFETY: pointer refers to object that is pinned while guard is alive.
+        unsafe { &*self.cached_ptr }
+    }
+}
+
+impl<D: ?Sized> DerefMut for DynGdMut<'_, D> {
+    fn deref_mut(&mut self) -> &mut D {
+        // SAFETY: pointer refers to object that is pinned while guard is alive.
+        unsafe { &mut *self.cached_ptr }
+    }
+}
+
+impl<D: ?Sized> Drop for DynGdMut<'_, D> {
+    fn drop(&mut self) {
+        out!("DynGdMut drop: {:?}", std::any::type_name::<D>());
     }
 }
 

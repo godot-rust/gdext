@@ -8,7 +8,7 @@
 pub use super::register::property::{Export, Var};
 
 // Re-export macros.
-pub use super::register::{godot_api, Export, GodotClass, GodotConvert, Var};
+pub use super::register::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
 
 pub use super::builtin::__prelude_reexport::*;
 pub use super::builtin::math::FloatExt as _;
@@ -26,7 +26,10 @@ pub use super::global::{
 pub use super::tools::{load, save, try_load, try_save, GFile};
 
 pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
-pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady};
+pub use super::obj::{
+    AsDyn, Base, DynGd, DynGdMut, DynGdRef, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId,
+    OnReady,
+};
 
 // Make trait methods available.
 pub use super::obj::EngineBitfield as _;
