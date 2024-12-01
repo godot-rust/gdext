@@ -100,9 +100,11 @@ where
         ToFfi<'f>: GodotNullableFfi,
     >,
 {
-    type ToVia<'v> = Option<T::ToVia<'v>>
+    type ToVia<'v>
+        = Option<T::ToVia<'v>>
     // type ToVia<'v> = Self::Via
-    where Self: 'v;
+    where
+        Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
         self.as_ref().map(ToGodot::to_godot)
@@ -421,8 +423,10 @@ impl<T: ArrayElement> GodotConvert for &[T] {
 }
 
 impl<T: ArrayElement> ToGodot for &[T] {
-    type ToVia<'v> = Array<T>
-    where Self: 'v;
+    type ToVia<'v>
+        = Array<T>
+    where
+        Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
         Array::from(*self)

@@ -73,19 +73,21 @@ macro_rules! wrong_direction {
     };
 }
 
-impl<'r, T> GodotConvert for RefArg<'r, T>
+impl<T> GodotConvert for RefArg<'_, T>
 where
     T: GodotConvert,
 {
     type Via = T::Via;
 }
 
-impl<'r, T> ToGodot for RefArg<'r, T>
+impl<T> ToGodot for RefArg<'_, T>
 where
     T: ToGodot,
 {
-    type ToVia<'v> = T::ToVia<'v>
-    where Self: 'v;
+    type ToVia<'v>
+        = T::ToVia<'v>
+    where
+        Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
         let shared_ref = self
@@ -97,7 +99,7 @@ where
 }
 
 // TODO refactor signature tuples into separate in+out traits, so FromGodot is no longer needed.
-impl<'r, T> FromGodot for RefArg<'r, T>
+impl<T> FromGodot for RefArg<'_, T>
 where
     T: FromGodot,
 {
@@ -106,7 +108,7 @@ where
     }
 }
 
-impl<'r, T> fmt::Debug for RefArg<'r, T>
+impl<T> fmt::Debug for RefArg<'_, T>
 where
     T: fmt::Debug,
 {
@@ -116,7 +118,7 @@ where
 }
 
 // SAFETY: delegated to T.
-unsafe impl<'r, T> GodotFfi for RefArg<'r, T>
+unsafe impl<T> GodotFfi for RefArg<'_, T>
 where
     T: GodotFfi,
 {
@@ -166,7 +168,7 @@ where
     }
 }
 
-impl<'r, T> GodotFfiVariant for RefArg<'r, T>
+impl<T> GodotFfiVariant for RefArg<'_, T>
 where
     T: GodotFfiVariant,
 {
@@ -182,7 +184,7 @@ where
     }
 }
 
-impl<'r, T> GodotNullableFfi for RefArg<'r, T>
+impl<T> GodotNullableFfi for RefArg<'_, T>
 where
     T: GodotNullableFfi,
 {

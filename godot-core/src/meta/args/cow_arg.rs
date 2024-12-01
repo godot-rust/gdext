@@ -20,7 +20,7 @@ pub enum CowArg<'r, T> {
     Borrowed(&'r T),
 }
 
-impl<'r, T> CowArg<'r, T> {
+impl<T> CowArg<'_, T> {
     pub fn cow_into_owned(self) -> T
     where
         T: Clone,
@@ -53,7 +53,7 @@ impl<'r, T> CowArg<'r, T> {
 ///
 /// `Borrow` may not be the most idiomatic trait for this, but it has the convenient feature that it's implemented for both `T` and `&T`.
 /// Since this is a hidden API, it doesn't matter.
-impl<'r, T> std::borrow::Borrow<T> for CowArg<'r, T> {
+impl<T> std::borrow::Borrow<T> for CowArg<'_, T> {
     fn borrow(&self) -> &T {
         match self {
             CowArg::Owned(v) => v,
@@ -71,19 +71,21 @@ macro_rules! wrong_direction {
     };
 }
 
-impl<'r, T> GodotConvert for CowArg<'r, T>
+impl<T> GodotConvert for CowArg<'_, T>
 where
     T: GodotConvert,
 {
     type Via = T::Via;
 }
 
-impl<'r, T> ToGodot for CowArg<'r, T>
+impl<T> ToGodot for CowArg<'_, T>
 where
     T: ToGodot,
 {
-    type ToVia<'v> = T::ToVia<'v>
-    where Self: 'v;
+    type ToVia<'v>
+        = T::ToVia<'v>
+    where
+        Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
         self.cow_as_ref().to_godot()
@@ -91,7 +93,7 @@ where
 }
 
 // TODO refactor signature tuples into separate in+out traits, so FromGodot is no longer needed.
-impl<'r, T> FromGodot for CowArg<'r, T>
+impl<T> FromGodot for CowArg<'_, T>
 where
     T: FromGodot,
 {
@@ -100,7 +102,7 @@ where
     }
 }
 
-impl<'r, T> fmt::Debug for CowArg<'r, T>
+impl<T> fmt::Debug for CowArg<'_, T>
 where
     T: fmt::Debug,
 {
@@ -113,7 +115,7 @@ where
 }
 
 // SAFETY: delegated to T.
-unsafe impl<'r, T> GodotFfi for CowArg<'r, T>
+unsafe impl<T> GodotFfi for CowArg<'_, T>
 where
     T: GodotFfi,
 {
@@ -157,7 +159,7 @@ where
     }
 }
 
-impl<'r, T> GodotFfiVariant for CowArg<'r, T>
+impl<T> GodotFfiVariant for CowArg<'_, T>
 where
     T: GodotFfiVariant,
 {
@@ -170,7 +172,7 @@ where
     }
 }
 
-impl<'r, T> GodotNullableFfi for CowArg<'r, T>
+impl<T> GodotNullableFfi for CowArg<'_, T>
 where
     T: GodotNullableFfi,
 {

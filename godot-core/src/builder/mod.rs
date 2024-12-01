@@ -22,7 +22,11 @@ where
         Self { _c: PhantomData }
     }
 
-    pub fn virtual_method<'cb, F>(&'cb mut self, name: &'cb str, method: F) -> MethodBuilder<C, F> {
+    pub fn virtual_method<'cb, F>(
+        &'cb mut self,
+        name: &'cb str,
+        method: F,
+    ) -> MethodBuilder<'cb, C, F> {
         MethodBuilder::new(self, name, method)
     }
 }

@@ -43,7 +43,7 @@ impl<'a, T> Deref for RefGuardBlocking<'a, T> {
     }
 }
 
-impl<'a, T> Drop for RefGuardBlocking<'a, T> {
+impl<T> Drop for RefGuardBlocking<'_, T> {
     fn drop(&mut self) {
         let mut state_lock = self.state.lock().unwrap();
 
@@ -88,13 +88,13 @@ impl<'a, T> Deref for MutGuardBlocking<'a, T> {
     }
 }
 
-impl<'a, T> DerefMut for MutGuardBlocking<'a, T> {
+impl<T> DerefMut for MutGuardBlocking<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.inner.as_mut().unwrap().deref_mut()
     }
 }
 
-impl<'a, T> Drop for MutGuardBlocking<'a, T> {
+impl<T> Drop for MutGuardBlocking<'_, T> {
     fn drop(&mut self) {
         drop(self.inner.take());
 

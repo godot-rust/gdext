@@ -179,7 +179,7 @@ macro_rules! declare_arg_method {
 ///
 /// Allows forwarding of `impl AsArg<T>` arguments to both another signature of `impl AsArg<T>` and signature of `T` for `Copy` types.
 /// This is necessary for packed array dispatching to different "inner" backend signatures.
-impl<'a, T> AsArg<T> for CowArg<'a, T>
+impl<T> AsArg<T> for CowArg<'_, T>
 where
     for<'r> T: ParamType<Arg<'r> = CowArg<'r, T>> + 'r,
 {

@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-/// Distributed self-registration of "plugins" without central list
+//! Distributed self-registration of "plugins" without central list
 
 // Note: code in this file is safe, however it seems that some annotations fall into the "unsafe" category.
 // For example, adding #![forbid(unsafe_code)] causes this error:

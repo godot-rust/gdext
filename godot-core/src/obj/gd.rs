@@ -696,8 +696,10 @@ impl<T: GodotClass> FromGodot for Gd<T> {
 impl<T: GodotClass> GodotType for Gd<T> {
     type Ffi = RawGd<T>;
 
-    type ToFfi<'f> = RefArg<'f, RawGd<T>>
-    where Self: 'f;
+    type ToFfi<'f>
+        = RefArg<'f, RawGd<T>>
+    where
+        Self: 'f;
 
     fn to_ffi(&self) -> Self::ToFfi<'_> {
         RefArg::new(&self.raw)
@@ -793,7 +795,7 @@ impl<T: GodotClass> ParamType for Gd<T> {
     }
 }
 
-impl<'r, T: GodotClass> AsArg<Option<Gd<T>>> for Option<&'r Gd<T>> {
+impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
     fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
         // TODO avoid cloning.
         match self {

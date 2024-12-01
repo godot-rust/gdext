@@ -1102,8 +1102,10 @@ impl<T: ArrayElement> Drop for Array<T> {
 impl<T: ArrayElement> GodotType for Array<T> {
     type Ffi = Self;
 
-    type ToFfi<'f> = RefArg<'f, Array<T>>
-    where Self: 'f;
+    type ToFfi<'f>
+        = RefArg<'f, Array<T>>
+    where
+        Self: 'f;
 
     fn to_ffi(&self) -> Self::ToFfi<'_> {
         RefArg::new(self)
@@ -1250,7 +1252,7 @@ pub struct Iter<'a, T: ArrayElement> {
     next_idx: usize,
 }
 
-impl<'a, T: ArrayElement + FromGodot> Iterator for Iter<'a, T> {
+impl<T: ArrayElement + FromGodot> Iterator for Iter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
