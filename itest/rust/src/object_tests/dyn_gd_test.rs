@@ -114,6 +114,51 @@ fn dyn_gd_debug() {
 }
 
 #[itest]
+fn dyn_gd_display() {
+    let obj = Gd::from_object(RefcHealth { hp: 55 }).into_dyn();
+
+    let actual = format!("{obj}");
+    let expected = "RefcHealth(hp=55)";
+
+    assert_eq!(actual, expected);
+}
+
+#[itest]
+fn dyn_gd_eq() {
+    let gd = Gd::from_object(RefcHealth { hp: 55 });
+    let a = gd.clone().into_dyn();
+    let b = gd.into_dyn();
+    let c = b.clone();
+
+    assert_eq!(a, b);
+    assert_eq!(a, c);
+    assert_eq!(b, c);
+
+    let x = Gd::from_object(RefcHealth { hp: 55 }).into_dyn();
+
+    assert_ne!(a, x);
+}
+
+#[itest]
+fn dyn_gd_hash() {
+    use godot::sys::hash_value;
+
+    let gd = Gd::from_object(RefcHealth { hp: 55 });
+    let a = gd.clone().into_dyn();
+    let b = gd.into_dyn();
+    let c = b.clone();
+
+    assert_eq!(hash_value(&a), hash_value(&b));
+    assert_eq!(hash_value(&a), hash_value(&c));
+    assert_eq!(hash_value(&b), hash_value(&c));
+
+    let x = Gd::from_object(RefcHealth { hp: 55 }).into_dyn();
+
+    // Not guaranteed, but exceedingly likely.
+    assert_ne!(hash_value(&a), hash_value(&x));
+}
+
+#[itest]
 fn dyn_gd_exclusive_guard() {
     let mut a = foreign::NodeHealth::new_alloc().into_dyn();
     let mut b = a.clone();
@@ -267,6 +312,13 @@ trait Health {
 #[class(init)]
 struct RefcHealth {
     hp: u8,
+}
+
+#[godot_api]
+impl IRefCounted for RefcHealth {
+    fn to_string(&self) -> GString {
+        format!("RefcHealth(hp={})", self.hp).into()
+    }
 }
 
 // Pretend NodeHealth is defined somewhere else, with a default constructor but

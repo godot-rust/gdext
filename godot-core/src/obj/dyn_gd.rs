@@ -245,6 +245,37 @@ where
     }
 }
 
+impl<T, D> PartialEq for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.obj == other.obj
+    }
+}
+
+impl<T, D> Eq for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+}
+
+impl<T, D> std::hash::Hash for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    /// ⚠️ Hashes this object based on its instance ID.
+    ///
+    /// # Panics
+    /// When `self` is dead.
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.obj.hash(state);
+    }
+}
+
 impl<T, D> ops::Deref for DynGd<T, D>
 where
     T: GodotClass,
@@ -275,6 +306,16 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let trt = sys::short_type_name::<D>();
         crate::classes::debug_string_with_trait::<T>(self, f, "DynGd", &trt)
+    }
+}
+
+impl<T, D> fmt::Display for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        crate::classes::display_string(self, f)
     }
 }
 
