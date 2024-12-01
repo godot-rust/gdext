@@ -82,8 +82,10 @@ impl<T> ToGodot for CowArg<'_, T>
 where
     T: ToGodot,
 {
-    type ToVia<'v> = T::ToVia<'v>
-    where Self: 'v;
+    type ToVia<'v>
+        = T::ToVia<'v>
+    where
+        Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
         self.cow_as_ref().to_godot()

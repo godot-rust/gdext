@@ -21,7 +21,6 @@ use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInf
 ///
 /// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
 /// arguments/return types.
-
 // on_unimplemented: we also mention #[export] here, because we can't control the order of error messages.
 // Missing Export often also means missing Var trait, and so the Var error message appears first.
 #[diagnostic::on_unimplemented(

@@ -696,8 +696,10 @@ impl<T: GodotClass> FromGodot for Gd<T> {
 impl<T: GodotClass> GodotType for Gd<T> {
     type Ffi = RawGd<T>;
 
-    type ToFfi<'f> = RefArg<'f, RawGd<T>>
-    where Self: 'f;
+    type ToFfi<'f>
+        = RefArg<'f, RawGd<T>>
+    where
+        Self: 'f;
 
     fn to_ffi(&self) -> Self::ToFfi<'_> {
         RefArg::new(&self.raw)

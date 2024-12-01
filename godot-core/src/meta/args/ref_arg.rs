@@ -84,8 +84,10 @@ impl<T> ToGodot for RefArg<'_, T>
 where
     T: ToGodot,
 {
-    type ToVia<'v> = T::ToVia<'v>
-    where Self: 'v;
+    type ToVia<'v>
+        = T::ToVia<'v>
+    where
+        Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
         let shared_ref = self

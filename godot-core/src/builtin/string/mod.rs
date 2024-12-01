@@ -24,8 +24,10 @@ impl GodotConvert for &str {
 }
 
 impl ToGodot for &str {
-    type ToVia<'v> = GString
-    where Self: 'v;
+    type ToVia<'v>
+        = GString
+    where
+        Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
         GString::from(*self)
