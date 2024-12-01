@@ -274,7 +274,7 @@ impl<'a> Context<'a> {
         self.cached_rust_types.get(ty)
     }
 
-    pub fn notification_constants(&'a self, class_name: &TyName) -> Option<&Vec<(Ident, i32)>> {
+    pub fn notification_constants(&'a self, class_name: &TyName) -> Option<&'a Vec<(Ident, i32)>> {
         self.notifications_by_class.get(class_name)
     }
 

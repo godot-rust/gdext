@@ -54,7 +54,7 @@ impl EnumeratorExprCache {
         int: &'ords Ident,
         names: &'ords [Ident],
         ord_exprs: &'ords [TokenStream],
-    ) -> impl Iterator<Item = &TokenStream> + 'cache {
+    ) -> impl Iterator<Item = &'cache TokenStream> + 'cache {
         self.ensure_initialized(int, names, ord_exprs);
 
         names
