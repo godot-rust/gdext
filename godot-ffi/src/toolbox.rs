@@ -187,6 +187,67 @@ pub fn unqualified_type_name<T>() -> &'static str {
 }
 */
 
+/// Like [`std::any::type_name`], but returns a short type name without module paths.
+pub fn short_type_name<T>() -> String {
+    let full_name = std::any::type_name::<T>();
+    strip_module_paths(full_name)
+}
+
+/// Like [`std::any::type_name_of_val`], but returns a short type name without module paths.
+pub fn short_type_name_of_val<T>(val: &T) -> String {
+    let full_name = std::any::type_name_of_val(val);
+    strip_module_paths(full_name)
+}
+
+/// Helper function to strip module paths from a fully qualified type name.
+fn strip_module_paths(full_name: &str) -> String {
+    let mut result = String::new();
+    let mut identifier = String::new();
+
+    let mut chars = full_name.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '<' | '>' | ',' | ' ' | '&' | '(' | ')' | '[' | ']' => {
+                // Process the current identifier.
+                if !identifier.is_empty() {
+                    let short_name = identifier.split("::").last().unwrap_or(&identifier);
+                    result.push_str(short_name);
+                    identifier.clear();
+                }
+                result.push(c);
+
+                // Handle spaces after commas for readability.
+                if c == ',' && chars.peek().map_or(false, |&next_c| next_c != ' ') {
+                    result.push(' ');
+                }
+            }
+            ':' => {
+                // Check for '::' indicating module path separator.
+                if chars.peek() == Some(&':') {
+                    // Skip the second ':'
+                    chars.next();
+                    identifier.push_str("::");
+                } else {
+                    identifier.push(c);
+                }
+            }
+            _ => {
+                // Part of an identifier.
+                identifier.push(c);
+            }
+        }
+    }
+
+    // Process any remaining identifier.
+    if !identifier.is_empty() {
+        let short_name = identifier.split("::").last().unwrap_or(&identifier);
+        result.push_str(short_name);
+    }
+
+    result
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Private helpers
 
@@ -457,3 +518,53 @@ mod manual_init_cell {
 }
 
 pub(crate) use manual_init_cell::ManualInitCell;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Unit tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_short_type_name() {
+        assert_eq!(short_type_name::<i32>(), "i32");
+        assert_eq!(short_type_name::<Option<i32>>(), "Option<i32>");
+        assert_eq!(
+            short_type_name::<Result<Option<i32>, String>>(),
+            "Result<Option<i32>, String>"
+        );
+        assert_eq!(
+            short_type_name::<Vec<Result<Option<i32>, String>>>(),
+            "Vec<Result<Option<i32>, String>>"
+        );
+        assert_eq!(
+            short_type_name::<std::collections::HashMap<String, Vec<i32>>>(),
+            "HashMap<String, Vec<i32>>"
+        );
+        assert_eq!(
+            short_type_name::<Result<Option<i32>, String>>(),
+            "Result<Option<i32>, String>"
+        );
+        assert_eq!(short_type_name::<i32>(), "i32");
+        assert_eq!(short_type_name::<Vec<String>>(), "Vec<String>");
+    }
+
+    #[test]
+    fn test_short_type_name_of_val() {
+        let value = Some(42);
+        assert_eq!(short_type_name_of_val(&value), "Option<i32>");
+
+        let result: Result<_, String> = Ok(Some(42));
+        assert_eq!(
+            short_type_name_of_val(&result),
+            "Result<Option<i32>, String>"
+        );
+
+        let vec = vec![result];
+        assert_eq!(
+            short_type_name_of_val(&vec),
+            "Vec<Result<Option<i32>, String>>"
+        );
+    }
+}
