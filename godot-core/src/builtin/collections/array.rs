@@ -1250,7 +1250,7 @@ pub struct Iter<'a, T: ArrayElement> {
     next_idx: usize,
 }
 
-impl<'a, T: ArrayElement + FromGodot> Iterator for Iter<'a, T> {
+impl<T: ArrayElement + FromGodot> Iterator for Iter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {

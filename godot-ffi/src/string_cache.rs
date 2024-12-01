@@ -102,7 +102,7 @@ impl<'a> StringCache<'a> {
 }
 
 /// Destroy all string names.
-impl<'a> Drop for StringCache<'a> {
+impl Drop for StringCache<'_> {
     fn drop(&mut self) {
         let string_name_destroy = self.builtin_lifecycle.string_name_destroy;
 

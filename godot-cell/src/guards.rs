@@ -45,7 +45,7 @@ impl<'a, T> RefGuard<'a, T> {
     }
 }
 
-impl<'a, T> Deref for RefGuard<'a, T> {
+impl<T> Deref for RefGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -54,7 +54,7 @@ impl<'a, T> Deref for RefGuard<'a, T> {
     }
 }
 
-impl<'a, T> Drop for RefGuard<'a, T> {
+impl<T> Drop for RefGuard<'_, T> {
     fn drop(&mut self) {
         self.state
             .lock()
@@ -122,7 +122,7 @@ impl<'a, T> MutGuard<'a, T> {
     }
 }
 
-impl<'a, T> Deref for MutGuard<'a, T> {
+impl<T> Deref for MutGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -150,7 +150,7 @@ impl<'a, T> Deref for MutGuard<'a, T> {
     }
 }
 
-impl<'a, T> DerefMut for MutGuard<'a, T> {
+impl<T> DerefMut for MutGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         let count = self.state.lock().unwrap().borrow_state.mut_count();
         // This is just a best-effort error check. It should never be triggered.
@@ -177,7 +177,7 @@ impl<'a, T> DerefMut for MutGuard<'a, T> {
     }
 }
 
-impl<'a, T> Drop for MutGuard<'a, T> {
+impl<T> Drop for MutGuard<'_, T> {
     fn drop(&mut self) {
         self.state
             .lock()
@@ -276,7 +276,7 @@ impl<'a, T> InaccessibleGuard<'a, T> {
     }
 }
 
-impl<'a, T> Drop for InaccessibleGuard<'a, T> {
+impl<T> Drop for InaccessibleGuard<'_, T> {
     fn drop(&mut self) {
         // Default behavior of drop-logic simply panics and poisons the cell on failure. This is appropriate
         // for single-threaded code where no errors should happen here.

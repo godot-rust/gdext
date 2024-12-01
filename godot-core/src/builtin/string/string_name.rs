@@ -344,22 +344,22 @@ impl From<&'static std::ffi::CStr> for StringName {
 /// See [`StringName::transient_ord()`].
 pub struct TransientStringNameOrd<'a>(&'a StringName);
 
-impl<'a> PartialEq for TransientStringNameOrd<'a> {
+impl PartialEq for TransientStringNameOrd<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl<'a> Eq for TransientStringNameOrd<'a> {}
+impl Eq for TransientStringNameOrd<'_> {}
 
-impl<'a> PartialOrd for TransientStringNameOrd<'a> {
+impl PartialOrd for TransientStringNameOrd<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 // implement Ord like above
-impl<'a> Ord for TransientStringNameOrd<'a> {
+impl Ord for TransientStringNameOrd<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // SAFETY: builtin operator provided by Godot.
         let op_less = |lhs, rhs| unsafe {

@@ -474,7 +474,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     }
 }
 
-impl<'a, T: ScriptInstance> Deref for SiMut<'a, T> {
+impl<T: ScriptInstance> Deref for SiMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -482,7 +482,7 @@ impl<'a, T: ScriptInstance> Deref for SiMut<'a, T> {
     }
 }
 
-impl<'a, T: ScriptInstance> DerefMut for SiMut<'a, T> {
+impl<T: ScriptInstance> DerefMut for SiMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.mut_ref
     }

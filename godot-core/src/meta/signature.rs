@@ -654,7 +654,7 @@ impl<'a> CallContext<'a> {
     }
 }
 
-impl<'a> fmt::Display for CallContext<'a> {
+impl fmt::Display for CallContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}::{}", self.class_name, self.function_name)
     }

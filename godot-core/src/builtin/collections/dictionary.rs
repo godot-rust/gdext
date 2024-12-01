@@ -572,7 +572,7 @@ impl<'a> Iter<'a> {
     }
 }
 
-impl<'a> Iterator for Iter<'a> {
+impl Iterator for Iter<'_> {
     type Item = (Variant, Variant);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -614,7 +614,7 @@ impl<'a> Keys<'a> {
     }
 }
 
-impl<'a> Iterator for Keys<'a> {
+impl Iterator for Keys<'_> {
     type Item = Variant;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -647,7 +647,7 @@ impl<'a, K, V> TypedIter<'a, K, V> {
     }
 }
 
-impl<'a, K: FromGodot, V: FromGodot> Iterator for TypedIter<'a, K, V> {
+impl<K: FromGodot, V: FromGodot> Iterator for TypedIter<'_, K, V> {
     type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -680,7 +680,7 @@ impl<'a, K> TypedKeys<'a, K> {
     }
 }
 
-impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
+impl<K: FromGodot> Iterator for TypedKeys<'_, K> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
