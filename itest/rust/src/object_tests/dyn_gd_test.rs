@@ -317,7 +317,7 @@ fn dyn_gd_error_unregistered_trait() {
 
 #[itest]
 fn dyn_gd_error_unimplemented_trait() {
-    let obj = RefCounted::new_gd(); //Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
+    let obj = RefCounted::new_gd();
 
     let variant = obj.to_variant();
     let back = variant.try_to::<DynGd<RefCounted, dyn Health>>();
@@ -327,6 +327,31 @@ fn dyn_gd_error_unimplemented_trait() {
         err.to_string(),
         format!("none of the classes derived from `RefCounted` have been linked to trait `dyn Health` with #[godot_dyn]: {obj:?}")
     );
+}
+
+#[itest]
+fn dyn_gd_free_while_dyn_bound() {
+    let mut obj = foreign::NodeHealth::new_alloc().into_dyn();
+
+    {
+        let copy = obj.clone();
+        let _guard = obj.dyn_bind();
+
+        expect_panic("Cannot free while dyn_bind() guard is held", || {
+            copy.free();
+        });
+    }
+    {
+        let copy = obj.clone();
+        let _guard = obj.dyn_bind_mut();
+
+        expect_panic("Cannot free while dyn_bind_mut() guard is held", || {
+            copy.free();
+        });
+    }
+
+    // Now allowed.
+    obj.free();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

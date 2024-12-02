@@ -82,6 +82,24 @@ use std::{fmt, ops};
 /// guard.deal_damage(120);
 /// assert!(!guard.is_alive());
 /// ```
+///
+/// # Polymorphic `dyn` re-enrichment
+///
+/// When passing `DynGd<T, D>` to Godot, you will lose the `D` part of the type inside the engine, because Godot doesn't know about Rust traits.
+/// The trait methods won't be accessible through GDScript, either.
+///
+/// If you now receive the same object back from Godot, you can easily obtain it as `Gd<T>` -- but what if you need the original `DynGd<T, D>`?
+/// If `T` is concrete (i.e. directly implements `D`), then [`Gd::into_dyn()`] is of course possible. But in reality, you may have a polymorphic
+/// base class such as `RefCounted` and want to ensure that trait object `D` dispatches to the correct subclass, without manually checking every
+/// possible candidate.
+///
+/// To stay with the above example: let's say `Health` is implemented for both `Monster` and `Knight` classes. You now receive a
+/// `DynGd<RefCounted, dyn Health>`, which can represent either of the two classes. How can this work without trying to downcast to both?
+///
+/// godot-rust has a mechanism to re-enrich the `DynGd` with the correct trait object. Thanks to `#[godot_dyn]`, the library knows for which
+/// classes `Health` is implemented, and it can query the dynamic type of the object. Based on that type, it can find the `impl Health`
+/// implementation matching the correct class. Behind the scenes, everything is wired up correctly so that you can restore the original `DynGd`
+/// even after it has passed through Godot.
 pub struct DynGd<T, D>
 where
     // T does _not_ require AsDyn<D> here. Otherwise, it's impossible to upcast (without implementing the relation for all base classes).
@@ -226,6 +244,9 @@ where
     T: GodotClass + Bounds<Memory = bounds::MemManual>,
     D: ?Sized,
 {
+    /// Destroy the manually-managed Godot object.
+    ///
+    /// See [`Gd::free()`] for semantics and panics.
     pub fn free(self) {
         self.obj.free()
     }
