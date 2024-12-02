@@ -295,6 +295,40 @@ fn dyn_gd_store_in_godot_array() {
     array.at(1).free();
 }
 
+#[itest]
+fn dyn_gd_error_unregistered_trait() {
+    trait UnrelatedTrait {}
+
+    let obj = Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
+
+    let variant = obj.to_variant();
+    let back = variant.try_to::<DynGd<RefcHealth, dyn UnrelatedTrait>>();
+
+    let err = back.expect_err("DynGd::try_to() should have failed");
+    let expected_err = {
+        // The conversion fails before a DynGd is created, so Display still operates on the Gd.
+        let obj = obj.into_gd();
+
+        format!("trait `dyn UnrelatedTrait` has not been registered with #[godot_dyn]: {obj:?}")
+    };
+
+    assert_eq!(err.to_string(), expected_err);
+}
+
+#[itest]
+fn dyn_gd_error_unimplemented_trait() {
+    let obj = RefCounted::new_gd(); //Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
+
+    let variant = obj.to_variant();
+    let back = variant.try_to::<DynGd<RefCounted, dyn Health>>();
+
+    let err = back.expect_err("DynGd::try_to() should have failed");
+    assert_eq!(
+        err.to_string(),
+        format!("none of the classes derived from `RefCounted` have been linked to trait `dyn Health` with #[godot_dyn]: {obj:?}")
+    );
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Example symbols
 

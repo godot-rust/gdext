@@ -292,13 +292,14 @@ pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
 pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
     object: Gd<T>,
 ) -> Result<DynGd<T, D>, ConvertError> {
-    let typeid = std::any::TypeId::of::<D>();
+    let typeid = any::TypeId::of::<D>();
+    let trait_name = sys::short_type_name::<D>();
 
     // Iterate all classes that implement the trait.
     let dyn_traits_by_typeid = global_dyn_traits_by_typeid();
-    let relations = dyn_traits_by_typeid.get(&typeid).unwrap_or_else(|| {
-        panic!("Trait '{typeid:?}' has not been registered with #[godot_dyn].");
-    });
+    let Some(relations) = dyn_traits_by_typeid.get(&typeid) else {
+        return Err(FromGodotError::UnregisteredDynTrait { trait_name }.into_error(object));
+    };
 
     // TODO maybe use 2nd hashmap instead of linear search.
     // (probably not pair of typeid/classname, as that wouldn't allow the above check).
@@ -322,7 +323,7 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
     }
 
     let error = FromGodotError::UnimplementedDynTrait {
-        trait_id: typeid,
+        trait_name,
         class_name: dynamic_class.to_string(),
     };
 

@@ -131,6 +131,22 @@ fn variant_bad_conversions() {
 }
 
 #[itest]
+fn variant_bad_conversion_error_message() {
+    let variant = 123.to_variant();
+
+    let err = variant
+        .try_to::<GString>()
+        .expect_err("i32 -> GString conversion should fail");
+    assert_eq!(err.to_string(), "cannot convert from INT to STRING: 123");
+
+    // TODO this error isn't great, but unclear whether it can be improved. If not, document.
+    let err = variant
+        .try_to::<Gd<Node>>()
+        .expect_err("i32 -> Gd<Node> conversion should fail");
+    assert_eq!(err.to_string(), "`Gd` cannot be null: null");
+}
+
+#[itest]
 fn variant_array_bad_conversions() {
     let i32_array: Array<i32> = array![1, 2, 160, -40];
     let i32_variant = i32_array.to_variant();
