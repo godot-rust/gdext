@@ -5,15 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi as sys;
-
-use crate::builtin::Variant;
+use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{
     sealed, ClassName, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
+use godot_ffi as sys;
 
 // Re-export sys traits in this module, so all are in one place.
 use crate::registry::property::builtin_type_string;
@@ -162,7 +161,10 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
     label = "has invalid element type"
 )]
-pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed + meta::ParamType {
+pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + meta::ParamType {
+    // Note: several indirections in ArrayElement and the global `element_*` functions go through `GodotConvert::Via`,
+    // to not require Self: GodotType. What matters is how array elements map to Godot on the FFI level (GodotType trait).
+
     /// Returns the representation of this type as a type string.
     ///
     /// Used for elements in arrays (the latter despite `ArrayElement` not having a direct relation).
@@ -172,7 +174,7 @@ pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed + meta:
     #[doc(hidden)]
     fn element_type_string() -> String {
         // Most array elements and all packed array elements are builtin types, so this is a good default.
-        builtin_type_string::<Self>()
+        builtin_type_string::<Self::Via>()
     }
 
     #[doc(hidden)]
@@ -181,6 +183,23 @@ pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed + meta:
         Ok(())
     }
 }
+
+// Non-polymorphic helper functions, to avoid constant `<T::Via as GodotType>::` in the code.
+
+#[doc(hidden)]
+pub(crate) fn element_variant_type<T: ArrayElement>() -> VariantType {
+    <T::Via as GodotType>::Ffi::variant_type()
+}
+
+#[doc(hidden)]
+pub(crate) fn element_godot_type_name<T: ArrayElement>() -> String {
+    <T::Via as GodotType>::godot_type_name()
+}
+
+// #[doc(hidden)]
+// pub(crate)  fn element_godot_type_name<T: ArrayElement>() -> String {
+//     <T::Via as GodotType>::godot_type_name()
+// }
 
 /// Marker trait to identify types that can be stored in `Packed*Array` types.
 #[diagnostic::on_unimplemented(

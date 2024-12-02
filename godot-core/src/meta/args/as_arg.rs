@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::{GString, NodePath, StringName};
-use crate::meta::{CowArg, GodotType};
+use crate::meta::{sealed, CowArg};
 use std::ffi::CStr;
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -253,7 +253,9 @@ impl AsArg<NodePath> for &String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
-pub trait ParamType: GodotType
+// ParamType used to be a subtrait of GodotType, but this can be too restrictive. For example, DynGd is not a "Godot canonical type"
+// (GodotType), however it's still useful to store it in arrays -- which requires AsArg and subsequently ParamType.
+pub trait ParamType: sealed::Sealed + Sized + 'static
 // GodotType bound not required right now, but conceptually should always be the case.
 {
     /// Canonical argument passing type, either `T` or an internally-used CoW type.

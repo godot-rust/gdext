@@ -25,9 +25,21 @@ pub fn u32_to_usize(i: u32) -> usize {
     unsafe { i.try_into().unwrap_unchecked() }
 }
 
-/// Converts a rust-bool into a sys-bool.
+/// Converts a Rust-bool into a sys-bool.
 pub const fn bool_to_sys(value: bool) -> sys::GDExtensionBool {
     value as sys::GDExtensionBool
+}
+
+/// Converts a sys-bool to Rust-bool.
+///
+/// # Panics
+/// If the value is not a valid sys-bool (0 or 1).
+pub fn bool_from_sys(value: sys::GDExtensionBool) -> bool {
+    match value {
+        SYS_TRUE => true,
+        SYS_FALSE => false,
+        _ => panic!("Invalid GDExtensionBool value: {}", value),
+    }
 }
 
 /// Convert a list into a pointer + length pair. Should be used together with [`ptr_list_from_sys`].
