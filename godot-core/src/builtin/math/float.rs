@@ -16,6 +16,7 @@ mod private {
     impl Sealed for f64 {}
 }
 
+/// Trait that provides Godot math functions as extensions on `f32` and `f64`.
 pub trait FloatExt: private::Sealed + Copy {
     const CMP_EPSILON: Self;
 

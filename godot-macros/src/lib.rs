@@ -148,7 +148,8 @@ use crate::util::{bail, ident, KvParser};
 /// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
 /// (fields with a `get` or `set` declaration) and
 /// [exports](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html)
-/// (fields annotated with `@export`). In the gdext API, these two concepts are represented with `#[var]` and `#[export]` attributes respectively.
+/// (fields annotated with `@export`). In the gdext API, these two concepts are represented with `#[var]` and `#[export]` attributes respectively,
+/// which in turn are backed by the [`Var`](../register/property/trait.Var.html) and [`Export`](../register/property/trait.Export.html) traits.
 ///
 /// ## Property registration
 ///
@@ -846,9 +847,9 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_dyn)
 }
 
-/// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs.
+/// Derive macro for [`GodotConvert`](../meta/trait.GodotConvert.html) on structs.
 ///
-/// This derive macro also derives [`ToGodot`](../builtin/meta/trait.ToGodot.html) and [`FromGodot`](../builtin/meta/trait.FromGodot.html).
+/// This derive macro also derives [`ToGodot`](../meta/trait.ToGodot.html) and [`FromGodot`](../meta/trait.FromGodot.html).
 ///
 /// # Choosing a Via type
 ///
@@ -979,7 +980,7 @@ pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
 
 /// Derive macro for [`Var`](../register/property/trait.Var.html) on enums.
 ///
-/// This expects a derived [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) implementation, using a manual
+/// This expects a derived [`GodotConvert`](../meta/trait.GodotConvert.html) implementation, using a manual
 /// implementation of `GodotConvert` may lead to incorrect values being displayed in Godot.
 #[proc_macro_derive(Var, attributes(godot))]
 pub fn derive_var(input: TokenStream) -> TokenStream {

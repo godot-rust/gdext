@@ -14,7 +14,8 @@ use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInf
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
 
-/// Trait implemented for types that can be used as `#[var]` fields.
+// Note: HTML link for #[var] works if this symbol is inside prelude, but not in register::property.
+/// Trait implemented for types that can be used as [`#[var]`](../register/derive.GodotClass.html#properties-and-exports) fields.
 ///
 /// This creates a copy of the value, according to copy semantics provided by `Clone`. For example, `Array`, `Dictionary` and `Gd` are
 /// returned by shared reference instead of copying the actual data.
@@ -45,7 +46,8 @@ pub trait Var: GodotConvert {
     }
 }
 
-/// Trait implemented for types that can be used as `#[export]` fields.
+// Note: HTML link for #[export] works if this symbol is inside prelude, but not in register::property.
+/// Trait implemented for types that can be used as [`#[export]`](../register/derive.GodotClass.html#properties-and-exports) fields.
 ///
 /// `Export` is only implemented for objects `Gd<T>` if either `T: Inherits<Node>` or `T: Inherits<Resource>`, just like GDScript.
 /// This means you cannot use `#[export]` with `Gd<RefCounted>`, for example.
