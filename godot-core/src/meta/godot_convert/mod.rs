@@ -21,6 +21,7 @@ use crate::meta::GodotType;
 /// in Godot (without intermediate "via"). Every `GodotType` also implements `GodotConvert` with `Via = Self`.
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
+#[doc(alias = "via", alias = "transparent")]
 #[diagnostic::on_unimplemented(
     message = "`GodotConvert` is needed for `#[func]` parameters/returns, as well as `#[var]` and `#[export]` properties",
     note = "check following errors for more information"

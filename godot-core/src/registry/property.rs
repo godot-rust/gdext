@@ -21,6 +21,12 @@ use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInf
 ///
 /// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
 /// arguments/return types.
+///
+/// See also [`Export`], a specialization of this trait for properties exported to the editor UI.
+///
+/// For enums, this trait can be derived using the [`#[derive(Var)]`](../derive.Var.html) macro.
+#[doc(alias = "property")]
+//
 // on_unimplemented: we also mention #[export] here, because we can't control the order of error messages.
 // Missing Export often also means missing Var trait, and so the Var error message appears first.
 #[diagnostic::on_unimplemented(
@@ -43,6 +49,10 @@ pub trait Var: GodotConvert {
 ///
 /// `Export` is only implemented for objects `Gd<T>` if either `T: Inherits<Node>` or `T: Inherits<Resource>`, just like GDScript.
 /// This means you cannot use `#[export]` with `Gd<RefCounted>`, for example.
+///
+/// For enums, this trait can be derived using the [`#[derive(Export)]`](../derive.Export.html) macro.
+#[doc(alias = "property")]
+//
 // on_unimplemented: mentioning both Var + Export; see above.
 #[diagnostic::on_unimplemented(
     message = "`#[var]` properties require `Var` trait; #[export] ones require `Export` trait",

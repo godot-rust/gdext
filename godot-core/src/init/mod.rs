@@ -226,6 +226,7 @@ fn gdext_on_level_deinit(level: InitLevel) {
 /// [gdextension]: attr.gdextension.html
 /// [safety]: https://godot-rust.github.io/book/gdext/advanced/safety.html
 // FIXME intra-doc link
+#[doc(alias = "entry_symbol", alias = "entry_point")]
 pub unsafe trait ExtensionLibrary {
     /// Determines if and how an extension's code is run in the editor.
     fn editor_run_behavior() -> EditorRunBehavior {

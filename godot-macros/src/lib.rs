@@ -474,7 +474,17 @@ use crate::util::{bail, ident, KvParser};
 ///     }
 /// }
 /// ```
-#[proc_macro_derive(GodotClass, attributes(class, base, hint, var, export, init, signal))]
+#[doc(
+    alias = "class",
+    alias = "base",
+    alias = "init",
+    alias = "no_init",
+    alias = "var",
+    alias = "export",
+    alias = "tool",
+    alias = "rename"
+)]
+#[proc_macro_derive(GodotClass, attributes(class, base, hint, var, export, init))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
 }
@@ -773,6 +783,15 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///     pub fn two(&self) { }
 /// }
 /// ```
+#[doc(
+    alias = "func",
+    alias = "rpc",
+    alias = "virtual",
+    alias = "signal",
+    alias = "constant",
+    alias = "rename",
+    alias = "secondary"
+)]
 #[proc_macro_attribute]
 pub fn godot_api(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, |body| {
