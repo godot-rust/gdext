@@ -6,7 +6,7 @@
  */
 
 use crate::util::bail;
-use crate::ParseResult;
+use crate::{util, ParseResult};
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -33,6 +33,10 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
     };
 
     let class_path = &decl.self_ty;
+    let class_name_obj = util::class_name_obj(class_path); //&util::extract_typename(class_path));
+    let prv = quote! { ::godot::private };
+
+    //let dynify_fn = format_ident!("__dynify_{}", class_name);
 
     let new_code = quote! {
         #decl
@@ -46,6 +50,28 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
                 self
             }
         }
+
+        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
+            class_name: #class_name_obj,
+            item: #prv::PluginItem::DynTraitImpl {
+                dyn_trait_typeid: std::any::TypeId::of::<dyn #trait_path>(),
+                erased_dynify_fn: {
+                    fn dynify_fn(obj: ::godot::obj::Gd<::godot::classes::Object>) -> #prv::ErasedDynGd {
+                        let obj = unsafe { obj.try_cast::<#class_path>().unwrap_unchecked() };
+                        let obj = obj.into_dyn::<dyn #trait_path>();
+                        let obj = obj.upcast::<::godot::classes::Object>();
+
+                        #prv::ErasedDynGd {
+                            boxed: Box::new(obj),
+                        }
+                    }
+
+                    dynify_fn
+                }
+            },
+            init_level: <#class_path as ::godot::obj::GodotClass>::INIT_LEVEL,
+        });
+
     };
 
     Ok(new_code)

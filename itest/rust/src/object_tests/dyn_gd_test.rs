@@ -84,6 +84,81 @@ fn dyn_gd_upcast() {
 }
 
 #[itest]
+fn dyn_gd_downcast() {
+    let original = Gd::from_object(RefcHealth { hp: 20 }).into_dyn();
+    let mut object = original.upcast::<Object>();
+
+    object.dyn_bind_mut().deal_damage(7);
+
+    let failed = object.try_cast::<foreign::NodeHealth>();
+    let object = failed.expect_err("DynGd::try_cast() succeeded, but should have failed");
+
+    let refc = object.cast::<RefCounted>();
+    assert_eq!(refc.dyn_bind().get_hitpoints(), 13);
+
+    let back = refc
+        .try_cast::<RefcHealth>()
+        .expect("DynGd::try_cast() should have succeeded");
+    assert_eq!(back.bind().get_hitpoints(), 13);
+}
+
+#[itest]
+fn dyn_gd_debug() {
+    let obj = Gd::from_object(RefcHealth { hp: 20 }).into_dyn();
+    let id = obj.instance_id();
+
+    let actual = format!(".:{obj:?}:.");
+    let expected = format!(".:DynGd {{ id: {id}, class: RefcHealth, trait: dyn Health }}:.");
+
+    assert_eq!(actual, expected);
+}
+
+#[itest]
+fn dyn_gd_display() {
+    let obj = Gd::from_object(RefcHealth { hp: 55 }).into_dyn();
+
+    let actual = format!("{obj}");
+    let expected = "RefcHealth(hp=55)";
+
+    assert_eq!(actual, expected);
+}
+
+#[itest]
+fn dyn_gd_eq() {
+    let gd = Gd::from_object(RefcHealth { hp: 55 });
+    let a = gd.clone().into_dyn();
+    let b = gd.into_dyn();
+    let c = b.clone();
+
+    assert_eq!(a, b);
+    assert_eq!(a, c);
+    assert_eq!(b, c);
+
+    let x = Gd::from_object(RefcHealth { hp: 55 }).into_dyn();
+
+    assert_ne!(a, x);
+}
+
+#[itest]
+fn dyn_gd_hash() {
+    use godot::sys::hash_value;
+
+    let gd = Gd::from_object(RefcHealth { hp: 55 });
+    let a = gd.clone().into_dyn();
+    let b = gd.into_dyn();
+    let c = b.clone();
+
+    assert_eq!(hash_value(&a), hash_value(&b));
+    assert_eq!(hash_value(&a), hash_value(&c));
+    assert_eq!(hash_value(&b), hash_value(&c));
+
+    let x = Gd::from_object(RefcHealth { hp: 55 }).into_dyn();
+
+    // Not guaranteed, but exceedingly likely.
+    assert_ne!(hash_value(&a), hash_value(&x));
+}
+
+#[itest]
 fn dyn_gd_exclusive_guard() {
     let mut a = foreign::NodeHealth::new_alloc().into_dyn();
     let mut b = a.clone();
@@ -172,6 +247,113 @@ fn dyn_gd_pass_to_godot_api() {
     parent.free();
 }
 
+#[itest]
+fn dyn_gd_variant_conversions() {
+    let original = Gd::from_object(RefcHealth { hp: 11 }).into_dyn::<dyn Health>();
+    let original_id = original.instance_id();
+    let refc = original.into_gd().upcast::<RefCounted>();
+
+    let variant = refc.to_variant();
+
+    // Convert to different levels of DynGd:
+
+    let back: DynGd<RefcHealth, dyn Health> = variant.to();
+    assert_eq!(back.bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: DynGd<RefCounted, dyn Health> = variant.to();
+    assert_eq!(back.dyn_bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: DynGd<Object, dyn Health> = variant.to();
+    assert_eq!(back.dyn_bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    // Convert to different levels of Gd:
+
+    let back: Gd<RefcHealth> = variant.to();
+    assert_eq!(back.bind().get_hitpoints(), 11);
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: Gd<RefcHealth> = variant.to();
+    assert_eq!(back.instance_id(), original_id);
+
+    let back: Gd<Object> = variant.to();
+    assert_eq!(back.instance_id(), original_id);
+}
+
+#[itest]
+fn dyn_gd_store_in_godot_array() {
+    let a = Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
+    let b = foreign::NodeHealth::new_alloc().into_dyn();
+
+    let array: Array<DynGd<Object, _>> = array![&a.upcast(), &b.upcast()];
+
+    assert_eq!(array.at(0).dyn_bind().get_hitpoints(), 33);
+    assert_eq!(array.at(1).dyn_bind().get_hitpoints(), 100);
+
+    array.at(1).free();
+}
+
+#[itest]
+fn dyn_gd_error_unregistered_trait() {
+    trait UnrelatedTrait {}
+
+    let obj = Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
+
+    let variant = obj.to_variant();
+    let back = variant.try_to::<DynGd<RefcHealth, dyn UnrelatedTrait>>();
+
+    let err = back.expect_err("DynGd::try_to() should have failed");
+    let expected_err = {
+        // The conversion fails before a DynGd is created, so Display still operates on the Gd.
+        let obj = obj.into_gd();
+
+        format!("trait `dyn UnrelatedTrait` has not been registered with #[godot_dyn]: {obj:?}")
+    };
+
+    assert_eq!(err.to_string(), expected_err);
+}
+
+#[itest]
+fn dyn_gd_error_unimplemented_trait() {
+    let obj = RefCounted::new_gd();
+
+    let variant = obj.to_variant();
+    let back = variant.try_to::<DynGd<RefCounted, dyn Health>>();
+
+    let err = back.expect_err("DynGd::try_to() should have failed");
+    assert_eq!(
+        err.to_string(),
+        format!("none of the classes derived from `RefCounted` have been linked to trait `dyn Health` with #[godot_dyn]: {obj:?}")
+    );
+}
+
+#[itest]
+fn dyn_gd_free_while_dyn_bound() {
+    let mut obj = foreign::NodeHealth::new_alloc().into_dyn();
+
+    {
+        let copy = obj.clone();
+        let _guard = obj.dyn_bind();
+
+        expect_panic("Cannot free while dyn_bind() guard is held", || {
+            copy.free();
+        });
+    }
+    {
+        let copy = obj.clone();
+        let _guard = obj.dyn_bind_mut();
+
+        expect_panic("Cannot free while dyn_bind_mut() guard is held", || {
+            copy.free();
+        });
+    }
+
+    // Now allowed.
+    obj.free();
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Example symbols
 
@@ -189,6 +371,13 @@ trait Health {
 #[class(init)]
 struct RefcHealth {
     hp: u8,
+}
+
+#[godot_api]
+impl IRefCounted for RefcHealth {
+    fn to_string(&self) -> GString {
+        format!("RefcHealth(hp={})", self.hp).into()
+    }
 }
 
 // Pretend NodeHealth is defined somewhere else, with a default constructor but

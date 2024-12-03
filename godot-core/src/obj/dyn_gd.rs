@@ -5,9 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::Variant;
+use crate::meta::error::ConvertError;
+use crate::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits};
-use std::ops;
+use crate::registry::class::try_dynify_object;
+use crate::{meta, sys};
+use std::{fmt, ops};
 
 /// Smart pointer integrating Rust traits via `dyn` dispatch.
 ///
@@ -77,6 +82,24 @@ use std::ops;
 /// guard.deal_damage(120);
 /// assert!(!guard.is_alive());
 /// ```
+///
+/// # Polymorphic `dyn` re-enrichment
+///
+/// When passing `DynGd<T, D>` to Godot, you will lose the `D` part of the type inside the engine, because Godot doesn't know about Rust traits.
+/// The trait methods won't be accessible through GDScript, either.
+///
+/// If you now receive the same object back from Godot, you can easily obtain it as `Gd<T>` -- but what if you need the original `DynGd<T, D>`?
+/// If `T` is concrete (i.e. directly implements `D`), then [`Gd::into_dyn()`] is of course possible. But in reality, you may have a polymorphic
+/// base class such as `RefCounted` and want to ensure that trait object `D` dispatches to the correct subclass, without manually checking every
+/// possible candidate.
+///
+/// To stay with the above example: let's say `Health` is implemented for both `Monster` and `Knight` classes. You now receive a
+/// `DynGd<RefCounted, dyn Health>`, which can represent either of the two classes. How can this work without trying to downcast to both?
+///
+/// godot-rust has a mechanism to re-enrich the `DynGd` with the correct trait object. Thanks to `#[godot_dyn]`, the library knows for which
+/// classes `Health` is implemented, and it can query the dynamic type of the object. Based on that type, it can find the `impl Health`
+/// implementation matching the correct class. Behind the scenes, everything is wired up correctly so that you can restore the original `DynGd`
+/// even after it has passed through Godot.
 pub struct DynGd<T, D>
 where
     // T does _not_ require AsDyn<D> here. Otherwise, it's impossible to upcast (without implementing the relation for all base classes).
@@ -130,7 +153,7 @@ where
     // Certain methods "overridden" from deref'ed Gd here, so they're more idiomatic to use.
     // Those taking self by value, like free(), must be overridden.
 
-    /// Upcast to a Godot base, while retaining the `D` trait object.
+    /// **Upcast** to a Godot base, while retaining the `D` trait object.
     ///
     /// This is useful when you want to gather multiple objects under a common Godot base (e.g. `Node`), but still enable common functionality.
     /// The common functionality is still accessible through `D` even when upcasting.
@@ -147,6 +170,68 @@ where
         }
     }
 
+    /// **Downcast** to a more specific Godot class, while retaining the `D` trait object.
+    ///
+    /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `Err(self)` is returned, meaning you can reuse the original
+    /// object for further casts.
+    ///
+    /// See also [`Gd::try_cast()`].
+    pub fn try_cast<Derived>(self) -> Result<DynGd<Derived, D>, Self>
+    where
+        Derived: Inherits<T>,
+    {
+        match self.obj.try_cast::<Derived>() {
+            Ok(obj) => Ok(DynGd {
+                obj,
+                erased_obj: self.erased_obj,
+            }),
+            Err(obj) => Err(DynGd {
+                obj,
+                erased_obj: self.erased_obj,
+            }),
+        }
+    }
+
+    /// ⚠️ **Downcast:** to a more specific Godot class, while retaining the `D` trait object.
+    ///
+    /// See also [`Gd::cast()`].
+    ///
+    /// # Panics
+    /// If the class' dynamic type is not `Derived` or one of its subclasses. Use [`Self::try_cast()`] if you want to check the result.
+    pub fn cast<Derived>(self) -> DynGd<Derived, D>
+    where
+        Derived: Inherits<T>,
+    {
+        self.try_cast().unwrap_or_else(|from_obj| {
+            panic!(
+                "downcast from {from} to {to} failed; instance {from_obj:?}",
+                from = T::class_name(),
+                to = Derived::class_name(),
+            )
+        })
+    }
+
+    /// Unsafe fast downcasts, no trait bounds.
+    ///
+    /// # Safety
+    /// The caller must ensure that the dynamic type of the object is `Derived` or a subclass of `Derived`.
+    // Not intended for public use. The lack of bounds simplifies godot-rust implementation, but adds another unsafety layer.
+    #[deny(unsafe_op_in_unsafe_fn)]
+    pub(crate) unsafe fn cast_unchecked<Derived>(self) -> DynGd<Derived, D>
+    where
+        Derived: GodotClass,
+    {
+        let cast_obj = self.obj.owned_cast::<Derived>();
+
+        // SAFETY: ensured by safety invariant.
+        let cast_obj = unsafe { cast_obj.unwrap_unchecked() };
+
+        DynGd {
+            obj: cast_obj,
+            erased_obj: self.erased_obj,
+        }
+    }
+
     /// Downgrades to a `Gd<T>` pointer, abandoning the `D` abstraction.
     #[must_use]
     pub fn into_gd(self) -> Gd<T> {
@@ -159,6 +244,9 @@ where
     T: GodotClass + Bounds<Memory = bounds::MemManual>,
     D: ?Sized,
 {
+    /// Destroy the manually-managed Godot object.
+    ///
+    /// See [`Gd::free()`] for semantics and panics.
     pub fn free(self) {
         self.obj.free()
     }
@@ -175,6 +263,37 @@ where
             obj: self.obj.clone(),
             erased_obj: self.erased_obj.clone_box(),
         }
+    }
+}
+
+impl<T, D> PartialEq for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.obj == other.obj
+    }
+}
+
+impl<T, D> Eq for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+}
+
+impl<T, D> std::hash::Hash for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    /// ⚠️ Hashes this object based on its instance ID.
+    ///
+    /// # Panics
+    /// When `self` is dead.
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.obj.hash(state);
     }
 }
 
@@ -197,6 +316,27 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.obj
+    }
+}
+
+impl<T, D> fmt::Debug for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let trt = sys::short_type_name::<D>();
+        crate::classes::debug_string_with_trait::<T>(self, f, "DynGd", &trt)
+    }
+}
+
+impl<T, D> fmt::Display for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        crate::classes::display_string(self, f)
     }
 }
 
@@ -229,4 +369,77 @@ where
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Integration with Godot traits
+// Integration with Godot traits -- most are directly delegated to Gd<T>.
+
+impl<T, D> GodotConvert for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    type Via = Gd<T>;
+}
+
+impl<T, D> ToGodot for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    type ToVia<'v>
+        = <Gd<T> as ToGodot>::ToVia<'v>
+    where
+        D: 'v;
+
+    fn to_godot(&self) -> Self::ToVia<'_> {
+        self.obj.to_godot()
+    }
+
+    fn to_variant(&self) -> Variant {
+        self.obj.to_variant()
+    }
+}
+
+impl<T, D> FromGodot for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        try_dynify_object(via)
+    }
+}
+
+impl<'r, T, D> meta::AsArg<DynGd<T, D>> for &'r DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn into_arg<'cow>(self) -> meta::CowArg<'cow, DynGd<T, D>>
+    where
+        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
+    {
+        meta::CowArg::Borrowed(self)
+    }
+}
+
+impl<T, D> meta::ParamType for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    type Arg<'v> = meta::CowArg<'v, DynGd<T, D>>;
+
+    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
+        meta::CowArg::Owned(self)
+    }
+
+    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
+        arg.cow_as_ref()
+    }
+}
+
+impl<T, D> meta::ArrayElement for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+}

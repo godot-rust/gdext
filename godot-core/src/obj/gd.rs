@@ -9,8 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
-
-use sys::{static_assert_eq_size_align, VariantType};
+use sys::{static_assert_eq_size_align, SysPtr as _, VariantType};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
@@ -278,6 +277,27 @@ impl<T: GodotClass> Gd<T> {
         self.raw.is_instance_valid()
     }
 
+    /// Returns the dynamic class name of the object as `StringName`.
+    ///
+    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_name()`] if derived
+    /// classes are involved.
+    ///
+    /// Unlike [`Object::get_class()`], this returns `StringName` instead of `GString` and needs no `Inherits<Object>` bound.
+    pub(crate) fn dynamic_class_string(&self) -> StringName {
+        unsafe {
+            StringName::new_with_string_uninit(|ptr| {
+                let success = sys::interface_fn!(object_get_class_name)(
+                    self.obj_sys().as_const(),
+                    sys::get_library(),
+                    ptr,
+                );
+
+                let success = sys::conv::bool_from_sys(success);
+                assert!(success, "failed to get class name for object {self:?}");
+            })
+        }
+    }
+
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
     ///
     /// Moves out of this value. If you want to create _another_ smart pointer instance,
@@ -298,6 +318,13 @@ impl<T: GodotClass> Gd<T> {
     {
         self.owned_cast()
             .expect("Upcast failed. This is a bug; please report it.")
+    }
+
+    /// Equivalent to [`upcast::<Object>()`][Self::upcast], but without bounds.
+    // Not yet public because it might need _mut/_ref overloads, and 6 upcast methods are a bit much...
+    pub(crate) fn upcast_object(self) -> Gd<classes::Object> {
+        self.owned_cast()
+            .expect("Upcast to Object failed. This is a bug; please report it.")
     }
 
     /// **Upcast shared-ref:** access this object as a shared reference to a base class.
@@ -407,8 +434,9 @@ impl<T: GodotClass> Gd<T> {
         })
     }
 
-    /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
-    fn owned_cast<U>(self) -> Result<Gd<U>, Self>
+    /// Returns `Ok(cast_obj)` on success, `Err(self)` on error.
+    // Visibility: used by DynGd.
+    pub(crate) fn owned_cast<U>(self) -> Result<Gd<U>, Self>
     where
         U: GodotClass,
     {
@@ -707,6 +735,7 @@ impl<T: GodotClass> FromGodot for Gd<T> {
     }
 }
 
+// Keep in sync with DynGd.
 impl<T: GodotClass> GodotType for Gd<T> {
     // Some #[doc(hidden)] are repeated despite already declared in trait; some IDEs suggest in auto-complete otherwise.
     type Ffi = RawGd<T>;

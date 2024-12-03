@@ -188,9 +188,8 @@ impl CallError {
         expected: VariantType,
     ) -> Self {
         // Note: reason is same wording as in FromVariantError::description().
-        let reason = format!(
-            "parameter #{param_index} conversion -- expected type {expected:?}, got {actual:?}"
-        );
+        let reason =
+            format!("parameter #{param_index} -- cannot convert from {actual:?} to {expected:?}");
 
         Self::new(call_ctx, reason, None)
     }

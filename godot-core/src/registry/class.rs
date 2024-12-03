@@ -6,24 +6,50 @@
  */
 
 use std::collections::HashMap;
-use std::ptr;
+use std::{any, ptr};
 
 use crate::init::InitLevel;
+use crate::meta::error::{ConvertError, FromGodotError};
 use crate::meta::ClassName;
-use crate::obj::{cap, GodotClass};
+use crate::obj::{cap, DynGd, Gd, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
-use crate::registry::plugin::{ErasedRegisterFn, InherentImpl};
-use crate::{godot_error, sys};
+use crate::registry::plugin::{ErasedDynifyFn, ErasedRegisterFn, InherentImpl};
+use crate::{classes, godot_error, sys};
 use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
-// Needed for class unregistering. The variable is populated during class registering. There is no actual concurrency here, because Godot
-// calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
-// Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
-// side and analysis required to adopt these changes.
-static LOADED_CLASSES: Global<
-    HashMap<InitLevel, Vec<LoadedClass>>, //.
-> = Global::default();
+/// Returns a lock to a global map of loaded classes, by initialization level.
+///
+/// Needed for class unregistering. The `static` is populated during class registering. There is no actual concurrency here, because Godot
+/// calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
+/// Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
+/// side and analysis required to adopt these changes.
+fn global_loaded_classes_by_init_level(
+) -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
+    static LOADED_CLASSES_BY_INIT_LEVEL: Global<
+        HashMap<InitLevel, Vec<LoadedClass>>, //.
+    > = Global::default();
+
+    lock_or_panic(&LOADED_CLASSES_BY_INIT_LEVEL, "loaded classes")
+}
+
+/// Returns a lock to a global map of loaded classes, by class name.
+///
+/// Complementary mechanism to the on-registration hooks like `__register_methods()`. This is used for runtime queries about a class, for
+/// information which isn't stored in Godot. Example: list related `dyn Trait` implementations.
+fn global_loaded_classes_by_name() -> GlobalGuard<'static, HashMap<ClassName, ClassMetadata>> {
+    static LOADED_CLASSES_BY_NAME: Global<HashMap<ClassName, ClassMetadata>> = Global::default();
+
+    lock_or_panic(&LOADED_CLASSES_BY_NAME, "loaded classes (by name)")
+}
+
+fn global_dyn_traits_by_typeid(
+) -> GlobalGuard<'static, HashMap<any::TypeId, Vec<DynToClassRelation>>> {
+    static DYN_TRAITS_BY_TYPEID: Global<HashMap<any::TypeId, Vec<DynToClassRelation>>> =
+        Global::default();
+
+    lock_or_panic(&DYN_TRAITS_BY_TYPEID, "dyn traits")
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -33,6 +59,17 @@ static LOADED_CLASSES: Global<
 pub struct LoadedClass {
     name: ClassName,
     is_editor_plugin: bool,
+}
+
+/// Represents a class which is currently loaded and retained in memory -- including metadata.
+//
+// Currently empty, but should already work for per-class queries.
+pub struct ClassMetadata {}
+
+/// Represents a `dyn Trait` implemented (and registered) for a class.
+pub struct DynToClassRelation {
+    implementing_class_name: ClassName,
+    erased_dynify_fn: ErasedDynifyFn,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -60,8 +97,11 @@ struct ClassRegistrationInfo {
     init_level: InitLevel,
     is_editor_plugin: bool,
 
+    /// One entry for each `dyn Trait` implemented (and registered) for this class.
+    dynify_fns_by_trait: HashMap<any::TypeId, ErasedDynifyFn>,
+
     /// Used to ensure that each component is only filled once.
-    component_already_filled: [bool; 3],
+    component_already_filled: [bool; 4],
 }
 
 impl ClassRegistrationInfo {
@@ -73,6 +113,7 @@ impl ClassRegistrationInfo {
             PluginItem::Struct { .. } => 0,
             PluginItem::InherentImpl(_) => 1,
             PluginItem::ITraitImpl { .. } => 2,
+            PluginItem::DynTraitImpl { .. } => 3,
         };
 
         if self.component_already_filled[index] {
@@ -139,6 +180,7 @@ pub fn register_class<
         godot_params,
         init_level: T::INIT_LEVEL,
         is_editor_plugin: false,
+        dynify_fns_by_trait: HashMap::new(),
         component_already_filled: Default::default(), // [false; N]
     });
 }
@@ -169,34 +211,62 @@ pub fn auto_register_classes(init_level: InitLevel) {
         fill_class_info(elem.item.clone(), class_info);
     });
 
-    let mut loaded_classes_by_level = global_loaded_classes();
-    for info in map.into_values() {
+    let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
+    let mut loaded_classes_by_name = global_loaded_classes_by_name();
+    let mut dyn_traits_by_typeid = global_dyn_traits_by_typeid();
+
+    for mut info in map.into_values() {
         let class_name = info.class_name;
         out!("Register class:   {class_name} at level `{init_level:?}`");
+
         let loaded_class = LoadedClass {
             name: class_name,
             is_editor_plugin: info.is_editor_plugin,
         };
+        let metadata = ClassMetadata {};
+
+        // Transpose Class->Trait relations to Trait->Class relations.
+        for (trait_type_id, dynify_fn) in info.dynify_fns_by_trait.drain() {
+            dyn_traits_by_typeid
+                .entry(trait_type_id)
+                .or_default()
+                .push(DynToClassRelation {
+                    implementing_class_name: class_name,
+                    erased_dynify_fn: dynify_fn,
+                });
+        }
+
         loaded_classes_by_level
             .entry(init_level)
             .or_default()
             .push(loaded_class);
 
+        loaded_classes_by_name.insert(class_name, metadata);
+
         register_class_raw(info);
-        out!("Class {class_name} loaded");
+
+        out!("Class {class_name} loaded.");
     }
 
     out!("All classes for level `{init_level:?}` auto-registered.");
 }
 
 pub fn unregister_classes(init_level: InitLevel) {
-    let mut loaded_classes_by_level = global_loaded_classes();
+    let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
+    let mut loaded_classes_by_name = global_loaded_classes_by_name();
+    // TODO clean up dyn traits
+
     let loaded_classes_current_level = loaded_classes_by_level
         .remove(&init_level)
         .unwrap_or_default();
-    out!("Unregistering classes of level {init_level:?}...");
-    for class_name in loaded_classes_current_level.into_iter().rev() {
-        unregister_class_raw(class_name);
+
+    out!("Unregister classes of level {init_level:?}...");
+    for class in loaded_classes_current_level.into_iter().rev() {
+        // Remove from other map.
+        loaded_classes_by_name.remove(&class.name);
+
+        // Unregister from Godot.
+        unregister_class_raw(class);
     }
 }
 
@@ -212,17 +282,52 @@ pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
     }
 }
 
-fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
-    match LOADED_CLASSES.try_lock() {
-        Ok(it) => it,
-        Err(err) => match err {
-            GlobalLockError::Poisoned {..} => panic!(
-                "global lock for loaded classes poisoned; class registration or deregistration may have panicked"
-            ),
-            GlobalLockError::WouldBlock => panic!("unexpected concurrent access to global lock for loaded classes"),
-            GlobalLockError::InitFailed => unreachable!("global lock for loaded classes not initialized"),
-        },
+/// Tries to upgrade a polymorphic `Gd<T>` to `DynGd<T, D>`, where the `T` -> `D` relation is only present via derived objects.
+///
+/// This works without direct `T: AsDyn<D>` because it considers `object`'s dynamic type `Td : Inherits<T>`.
+///
+/// Only direct relations are considered, i.e. the `Td: AsDyn<D>` must be fulfilled (and registered). If any intermediate base class of `Td`
+/// implements the trait `D`, this will not consider it. Base-derived conversions are theoretically possible, but need quite a bit of extra
+/// machinery.
+pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
+    object: Gd<T>,
+) -> Result<DynGd<T, D>, ConvertError> {
+    let typeid = any::TypeId::of::<D>();
+    let trait_name = sys::short_type_name::<D>();
+
+    // Iterate all classes that implement the trait.
+    let dyn_traits_by_typeid = global_dyn_traits_by_typeid();
+    let Some(relations) = dyn_traits_by_typeid.get(&typeid) else {
+        return Err(FromGodotError::UnregisteredDynTrait { trait_name }.into_error(object));
+    };
+
+    // TODO maybe use 2nd hashmap instead of linear search.
+    // (probably not pair of typeid/classname, as that wouldn't allow the above check).
+    let dynamic_class = object.dynamic_class_string();
+
+    for relation in relations {
+        if dynamic_class == relation.implementing_class_name.to_string_name() {
+            let erased = (relation.erased_dynify_fn)(object.upcast_object());
+
+            // Must succeed, or was registered wrong.
+            let dyn_gd_object = erased.boxed.downcast::<DynGd<classes::Object, D>>();
+
+            // SAFETY: the relation ensures that the **unified** (for storage) pointer was of type `DynGd<classes::Object, D>`.
+            let dyn_gd_object = unsafe { dyn_gd_object.unwrap_unchecked() };
+
+            // SAFETY: the relation ensures that the **original** pointer was of type `DynGd<T, D>`.
+            let dyn_gd_t = unsafe { dyn_gd_object.cast_unchecked::<T>() };
+
+            return Ok(dyn_gd_t);
+        }
     }
+
+    let error = FromGodotError::UnimplementedDynTrait {
+        trait_name,
+        class_name: dynamic_class.to_string(),
+    };
+
+    Err(error.into_error(object))
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
@@ -343,6 +448,21 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.godot_params.property_get_revert_func = user_property_get_revert_fn;
             c.user_virtual_fn = Some(get_virtual_fn);
         }
+        PluginItem::DynTraitImpl {
+            dyn_trait_typeid,
+            erased_dynify_fn,
+        } => {
+            let prev = c
+                .dynify_fns_by_trait
+                .insert(dyn_trait_typeid, erased_dynify_fn);
+
+            assert!(
+                prev.is_none(),
+                "Duplicate registration of {:?} for class {}",
+                dyn_trait_typeid,
+                c.class_name
+            );
+        }
     }
     // out!("|   reg (after):     {c:?}");
     // out!();
@@ -360,6 +480,8 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) -> Result<(), ()> {
 
 /// Registers a class with given the dynamic type information `info`.
 fn register_class_raw(mut info: ClassRegistrationInfo) {
+    // Some metadata like dynify fns are already emptied at this point. Only consider registrations for Godot.
+
     // First register class...
     validate_class_constraints(&info);
 
@@ -470,6 +592,19 @@ fn unregister_class_raw(class: LoadedClass) {
     out!("Class {class_name} unloaded");
 }
 
+fn lock_or_panic<T>(global: &'static Global<T>, ctx: &str) -> GlobalGuard<'static, T> {
+    match global.try_lock() {
+        Ok(it) => it,
+        Err(err) => match err {
+            GlobalLockError::Poisoned { .. } => panic!(
+                "global lock for {ctx} poisoned; class registration or deregistration may have panicked"
+            ),
+            GlobalLockError::WouldBlock => panic!("unexpected concurrent access to global lock for {ctx}"),
+            GlobalLockError::InitFailed => unreachable!("global lock for {ctx} not initialized"),
+        },
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Substitutes for Default impl
 
@@ -487,6 +622,7 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
         godot_params: default_creation_info(),
         init_level: InitLevel::Scene,
         is_editor_plugin: false,
+        dynify_fns_by_trait: HashMap::new(),
         component_already_filled: Default::default(), // [false; N]
     }
 }

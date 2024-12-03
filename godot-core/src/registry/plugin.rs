@@ -9,9 +9,10 @@
 use crate::docs::*;
 use crate::init::InitLevel;
 use crate::meta::ClassName;
-use crate::sys;
+use crate::obj::Gd;
+use crate::{classes, sys};
 use std::any::Any;
-use std::fmt;
+use std::{any, fmt};
 // TODO(bromeon): some information coming from the proc-macro API is deferred through PluginItem, while others is directly
 // translated to code. Consider moving more code to the PluginItem, which allows for more dynamic registration and will
 // be easier for a future builder API.
@@ -54,6 +55,8 @@ impl fmt::Debug for ErasedRegisterRpcsFn {
         write!(f, "0x{:0>16x}", self.raw as usize)
     }
 }
+
+pub type ErasedDynifyFn = fn(Gd<classes::Object>) -> ErasedDynGd;
 
 #[derive(Clone, Debug)]
 pub struct InherentImpl {
@@ -239,4 +242,16 @@ pub enum PluginItem {
             ) -> sys::GDExtensionBool,
         >,
     },
+
+    DynTraitImpl {
+        /// TypeId of the `dyn Trait` object.
+        dyn_trait_typeid: any::TypeId,
+
+        /// Function that converts a `Gd<Object>` to a type-erased `DynGd<Object, dyn Trait>` (with the latter erased for common storage).
+        erased_dynify_fn: fn(Gd<classes::Object>) -> ErasedDynGd,
+    },
+}
+
+pub struct ErasedDynGd {
+    pub boxed: Box<dyn Any>,
 }

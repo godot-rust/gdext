@@ -519,6 +519,20 @@ fn object_engine_convert_variant_nil() {
 }
 
 #[itest]
+fn object_engine_convert_variant_error() {
+    let refc = RefCounted::new_gd();
+    let variant = refc.to_variant();
+
+    let err = Gd::<Area2D>::try_from_variant(&variant)
+        .expect_err("`Gd<RefCounted>` should not convert to `Gd<Area2D>`");
+
+    assert_eq!(
+        err.to_string(),
+        format!("cannot convert to class Area2D: {refc:?}")
+    );
+}
+
+#[itest]
 fn object_engine_returned_refcount() {
     let Some(file) = FileAccess::open("res://itest.gdextension", file_access::ModeFlags::READ)
     else {
