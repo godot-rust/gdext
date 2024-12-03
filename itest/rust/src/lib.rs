@@ -18,7 +18,7 @@ mod register_tests;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Entry point
 
-#[gdextension(entry_point=itest_init)]
+#[gdextension(entry_symbol = itest_init)]
 unsafe impl ExtensionLibrary for framework::IntegrationTests {
     fn on_level_init(level: InitLevel) {
         // Testing that we can initialize and use `Object`-derived classes during `Servers` init level. See `object_tests::init_level_test`.
