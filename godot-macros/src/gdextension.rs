@@ -28,12 +28,30 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
     let drained_attributes = std::mem::take(&mut impl_decl.attributes);
     let mut parser = KvParser::parse_required(&drained_attributes, "gdextension", &impl_decl)?;
     let entry_point = parser.handle_ident("entry_point")?;
+    let entry_symbol = parser.handle_ident("entry_symbol")?;
     parser.finish()?;
 
-    let entry_point = entry_point.unwrap_or_else(|| ident("gdext_rust_init"));
+    if entry_point.is_some() && entry_symbol.is_some() {
+        return bail!(
+            impl_decl.tk_impl,
+            "Cannot specify both `entry_point` and `entry_symbol` in #[gdextension] attribute",
+        );
+    }
+
+    let deprecation = if entry_point.is_some() {
+        quote! { ::godot::__deprecated::emit_deprecated_warning!(gdextension_entry_point); }
+    } else {
+        TokenStream::new()
+    };
+
+    let entry_point = entry_symbol
+        .or(entry_point)
+        .unwrap_or_else(|| ident("gdext_rust_init"));
+
     let impl_ty = &impl_decl.self_ty;
 
     Ok(quote! {
+        #deprecation
         #impl_decl
 
         // This cfg cannot be checked from the outer proc-macro since its 'target' is the build

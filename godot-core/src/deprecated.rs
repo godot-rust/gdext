@@ -38,16 +38,21 @@ pub use crate::emit_deprecated_warning;
 // Library-side deprecations
 
 #[deprecated = "\nThe attribute key #[init(val = ...)] replaces #[init(default = ...)].\n\
-	More information on https://github.com/godot-rust/gdext/pull/844."]
+	More information on https://github.com/godot-rust/gdext/pull/844"]
 pub const fn init_default() {}
 
 #[deprecated = "\nThe attribute key #[class(editor_plugin)] is now implied by #[class(base = EditorPlugin)]. It is ignored.\n\
-	More information on https://github.com/godot-rust/gdext/pull/884."]
+	More information on https://github.com/godot-rust/gdext/pull/884"]
 pub const fn class_editor_plugin() {}
 
 #[deprecated = "\nThe attribute key #[class(hidden)] has been renamed to #[class(internal)], following Godot terminology.\n\
-    More information on https://github.com/godot-rust/gdext/pull/884."]
+    More information on https://github.com/godot-rust/gdext/pull/884"]
 pub const fn class_hidden() {}
+
+#[deprecated = "\nThe attribute key #[gdextension(entry_point)] has been renamed to #[gdextension(entry_symbol)], for consistency \
+    with the configuration key in the .gdextension file.\n\
+    More information on https://github.com/godot-rust/gdext/pull/959"]
+pub const fn gdextension_entry_point() {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Godot-side deprecations

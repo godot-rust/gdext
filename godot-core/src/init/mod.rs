@@ -184,12 +184,14 @@ fn gdext_on_level_deinit(level: InitLevel) {
 /// Every library should have exactly one implementation of this trait. It is always used in combination with the
 /// [`#[gdextension]`][gdextension] proc-macro attribute.
 ///
+/// # Example
 /// The simplest usage is as follows. This will automatically perform the necessary init and cleanup routines, and register
 /// all classes marked with `#[derive(GodotClass)]`, without needing to mention them in a central list. The order in which
 /// classes are registered is not specified.
 ///
 /// ```
-/// # use godot::init::*;
+/// use godot::init::*;
+///
 /// // This is just a type tag without any functionality.
 /// // Its name is irrelevant.
 /// struct MyExtension;
@@ -198,10 +200,25 @@ fn gdext_on_level_deinit(level: InitLevel) {
 /// unsafe impl ExtensionLibrary for MyExtension {}
 /// ```
 ///
-/// # Safety
-/// By using godot-rust, you accept the safety considerations [as outlined in the book][safety].
-/// Please make sure you fully understand the implications.
+/// # Custom entry symbol
+/// There is usually no reason to, but you can use a different entry point (C function in the dynamic library). This must match the key
+/// that you specify in the `.gdextension` file. Let's say your `.gdextension` file has such a section:
+/// ```toml
+/// [configuration]
+/// entry_symbol = "custom_name"
+/// ```
+/// then you can implement the trait like this:
+/// ```no_run
+/// # use godot::init::*;
+/// struct MyExtension;
 ///
+/// #[gdextension(entry_symbol = custom_name)]
+/// unsafe impl ExtensionLibrary for MyExtension {}
+/// ```
+/// Note that this only changes the name. You cannot provide your own function -- use the [`on_level_init()`][ExtensionLibrary::on_level_init]
+/// hook for custom startup logic.
+///
+/// # Safety
 /// The library cannot enforce any safety guarantees outside Rust code, which means that **you as a user** are
 /// responsible to uphold them: namely in GDScript code or other GDExtension bindings loaded by the engine.
 /// Violating this may cause undefined behavior, even when invoking _safe_ functions.
