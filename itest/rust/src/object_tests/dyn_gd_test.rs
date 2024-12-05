@@ -418,3 +418,32 @@ impl Health for foreign::NodeHealth {
         self.base_mut().set_meta("hp", &new_hp.to_variant());
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Check that one class can implement two or more traits
+
+pub trait MyTrait1 {
+    #[allow(unused)]
+    fn do_something(&self);
+}
+
+pub trait MyTrait2 {
+    #[allow(unused)]
+    fn do_something_else(&self);
+}
+
+#[derive(GodotClass)]
+#[class(init, base=Node)]
+pub struct NodeForTwoTraits {
+    base: Base<Node>,
+}
+
+#[godot_dyn]
+impl MyTrait1 for NodeForTwoTraits {
+    fn do_something(&self) {}
+}
+
+#[godot_dyn]
+impl MyTrait2 for NodeForTwoTraits {
+    fn do_something_else(&self) {}
+}
