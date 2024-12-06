@@ -107,7 +107,7 @@
 //! * **`codegen-rustfmt`**
 //!
 //!   Use rustfmt to format generated binding code. Because rustfmt is so slow, this is detrimental to initial compile time.
-//!   Without it, we use a lightweight and fast custom formatter to enable basic human readability.
+//!   Without it, we use a lightweight and fast custom formatter to enable basic human readability.<br><br>
 //!
 //! * **`register-docs`**
 //!

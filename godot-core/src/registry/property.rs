@@ -14,13 +14,20 @@ use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInf
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
 
-/// Trait implemented for types that can be used as `#[var]` fields.
+// Note: HTML link for #[var] works if this symbol is inside prelude, but not in register::property.
+/// Trait implemented for types that can be used as [`#[var]`](../register/derive.GodotClass.html#properties-and-exports) fields.
 ///
 /// This creates a copy of the value, according to copy semantics provided by `Clone`. For example, `Array`, `Dictionary` and `Gd` are
 /// returned by shared reference instead of copying the actual data.
 ///
 /// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
 /// arguments/return types.
+///
+/// See also [`Export`], a specialization of this trait for properties exported to the editor UI.
+///
+/// For enums, this trait can be derived using the [`#[derive(Var)]`](../derive.Var.html) macro.
+#[doc(alias = "property")]
+//
 // on_unimplemented: we also mention #[export] here, because we can't control the order of error messages.
 // Missing Export often also means missing Var trait, and so the Var error message appears first.
 #[diagnostic::on_unimplemented(
@@ -39,10 +46,15 @@ pub trait Var: GodotConvert {
     }
 }
 
-/// Trait implemented for types that can be used as `#[export]` fields.
+// Note: HTML link for #[export] works if this symbol is inside prelude, but not in register::property.
+/// Trait implemented for types that can be used as [`#[export]`](../register/derive.GodotClass.html#properties-and-exports) fields.
 ///
 /// `Export` is only implemented for objects `Gd<T>` if either `T: Inherits<Node>` or `T: Inherits<Resource>`, just like GDScript.
 /// This means you cannot use `#[export]` with `Gd<RefCounted>`, for example.
+///
+/// For enums, this trait can be derived using the [`#[derive(Export)]`](../derive.Export.html) macro.
+#[doc(alias = "property")]
+//
 // on_unimplemented: mentioning both Var + Export; see above.
 #[diagnostic::on_unimplemented(
     message = "`#[var]` properties require `Var` trait; #[export] ones require `Export` trait",

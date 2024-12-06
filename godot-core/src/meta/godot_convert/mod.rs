@@ -21,6 +21,7 @@ use crate::meta::GodotType;
 /// in Godot (without intermediate "via"). Every `GodotType` also implements `GodotConvert` with `Via = Self`.
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
+#[doc(alias = "via", alias = "transparent")]
 #[diagnostic::on_unimplemented(
     message = "`GodotConvert` is needed for `#[func]` parameters/returns, as well as `#[var]` and `#[export]` properties",
     note = "check following errors for more information"
@@ -39,6 +40,8 @@ pub trait GodotConvert {
 /// Violating these assumptions is safe but will give unexpected results.
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
+///
+/// This trait can be derived using the [`#[derive(GodotConvert)]`](../register/derive.GodotConvert.html) macro.
 pub trait ToGodot: Sized + GodotConvert {
     /// Target type of [`to_godot()`](ToGodot::to_godot), which can differ from [`Via`][GodotConvert::Via] for pass-by-reference types.
     ///
@@ -71,6 +74,8 @@ pub trait ToGodot: Sized + GodotConvert {
 /// Violating these assumptions is safe but will give unexpected results.
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
+///
+/// This trait can be derived using the [`#[derive(GodotConvert)]`](../register/derive.GodotConvert.html) macro.
 pub trait FromGodot: Sized + GodotConvert {
     /// Converts the Godot representation to this type, returning `Err` on failure.
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError>;
