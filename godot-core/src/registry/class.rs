@@ -113,7 +113,10 @@ impl ClassRegistrationInfo {
             PluginItem::Struct { .. } => 0,
             PluginItem::InherentImpl(_) => 1,
             PluginItem::ITraitImpl { .. } => 2,
-            PluginItem::DynTraitImpl { .. } => 3,
+
+            // Multiple dyn traits can be registered, thus don't validate for uniqueness.
+            // (Still keep array size, so future additions don't have to regard this).
+            PluginItem::DynTraitImpl { .. } => return,
         };
 
         if self.component_already_filled[index] {
