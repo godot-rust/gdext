@@ -160,7 +160,7 @@ fn dyn_gd_hash() {
 
 #[itest]
 fn dyn_gd_exclusive_guard() {
-    let mut a = foreign::NodeHealth::new_alloc().into_dyn();
+    let mut a = foreign::NodeHealth::new_alloc().into_dyn::<dyn Health>();
     let mut b = a.clone();
 
     let guard = a.dyn_bind_mut();
@@ -187,7 +187,7 @@ fn dyn_gd_exclusive_guard() {
 
 #[itest]
 fn dyn_gd_shared_guard() {
-    let a = foreign::NodeHealth::new_alloc().into_dyn();
+    let a = foreign::NodeHealth::new_alloc().into_dyn::<dyn Health>();
     let b = a.clone();
     let mut c = a.clone();
 
@@ -227,7 +227,7 @@ fn dyn_gd_downgrade() {
 
 #[itest]
 fn dyn_gd_call_godot_method() {
-    let mut node = foreign::NodeHealth::new_alloc().into_dyn();
+    let mut node = foreign::NodeHealth::new_alloc().into_dyn::<dyn Health>();
 
     node.set_name("dyn-name!");
     assert_eq!(node.get_name(), "dyn-name!".into());
@@ -237,7 +237,7 @@ fn dyn_gd_call_godot_method() {
 
 #[itest]
 fn dyn_gd_pass_to_godot_api() {
-    let child = foreign::NodeHealth::new_alloc().into_dyn();
+    let child = foreign::NodeHealth::new_alloc().into_dyn::<dyn Health>();
 
     let mut parent = Node::new_alloc();
     parent.add_child(&child);
@@ -331,7 +331,7 @@ fn dyn_gd_error_unimplemented_trait() {
 
 #[itest]
 fn dyn_gd_free_while_dyn_bound() {
-    let mut obj = foreign::NodeHealth::new_alloc().into_dyn();
+    let mut obj: DynGd<_, dyn Health> = foreign::NodeHealth::new_alloc().into_dyn();
 
     {
         let copy = obj.clone();
@@ -351,6 +351,18 @@ fn dyn_gd_free_while_dyn_bound() {
     }
 
     // Now allowed.
+    obj.free();
+}
+
+#[itest]
+fn dyn_gd_multiple_traits() {
+    let obj = foreign::NodeHealth::new_alloc();
+    let original_id = obj.instance_id();
+
+    let obj = obj.into_dyn::<dyn InstanceIdProvider>().upcast::<Node>();
+    let id = obj.dyn_bind().get_id_dynamic();
+    assert_eq!(id, original_id);
+
     obj.free();
 }
 
@@ -416,5 +428,20 @@ impl Health for foreign::NodeHealth {
     fn deal_damage(&mut self, damage: u8) {
         let new_hp = self.get_hitpoints() - damage;
         self.base_mut().set_meta("hp", &new_hp.to_variant());
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Check that one class can implement two or more traits.
+
+// Pointless trait, but tests access to object.
+trait InstanceIdProvider {
+    fn get_id_dynamic(&self) -> InstanceId;
+}
+
+#[godot_dyn]
+impl InstanceIdProvider for foreign::NodeHealth {
+    fn get_id_dynamic(&self) -> InstanceId {
+        self.base().instance_id()
     }
 }
