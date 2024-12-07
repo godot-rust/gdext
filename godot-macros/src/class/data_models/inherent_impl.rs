@@ -80,7 +80,7 @@ pub fn transform_inherent_impl(
     let prv = quote! { ::godot::private };
 
     // Can add extra functions to the end of the impl block.
-    let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block)?;
+    let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block, meta.secondary)?;
     let consts = process_godot_constants(&mut impl_block)?;
 
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
@@ -197,6 +197,7 @@ pub fn transform_inherent_impl(
 fn process_godot_fns(
     class_name: &Ident,
     impl_block: &mut venial::Impl,
+    is_secondary_impl: bool,
 ) -> ParseResult<(Vec<FuncDefinition>, Vec<SignalDefinition>)> {
     let mut func_definitions = vec![];
     let mut signal_definitions = vec![];
@@ -286,9 +287,16 @@ fn process_godot_fns(
                     rpc_info,
                 });
             }
+
             ItemAttrType::Signal(ref _attr_val) => {
+                if is_secondary_impl {
+                    return attr.bail(
+                        "#[signal] is not currently supported in secondary impl blocks",
+                        function,
+                    );
+                }
                 if function.return_ty.is_some() {
-                    return attr.bail("return types are not supported", function);
+                    return attr.bail("return types in #[signal] are not supported", function);
                 }
 
                 let external_attributes = function.attributes.clone();
@@ -301,6 +309,7 @@ fn process_godot_fns(
 
                 removed_indexes.push(index);
             }
+
             ItemAttrType::Const(_) => {
                 return attr.bail(
                     "#[constant] can only be used on associated constant",
@@ -541,12 +550,7 @@ where
             }
 
             // #[signal]
-            name if name == "signal" => {
-                // TODO once parameters are supported, this should probably be moved to the struct definition
-                // E.g. a zero-sized type Signal<(i32, String)> with a provided emit(i32, String) method
-                // This could even be made public (callable on the struct obj itself)
-                AttrParseResult::Signal(attr.value.clone())
-            }
+            name if name == "signal" => AttrParseResult::Signal(attr.value.clone()),
 
             // #[constant]
             name if name == "constant" => AttrParseResult::Const(attr.value.clone()),
