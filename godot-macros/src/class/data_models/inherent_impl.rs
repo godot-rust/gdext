@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use crate::class::{
     into_signature_info, make_constant_registration, make_method_registration,
     make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
@@ -66,7 +67,7 @@ struct FuncAttr {
 
 pub struct InherentImplAttr {
     /// For implementation reasons, there can be a single 'primary' impl block and 0 or more 'secondary' impl blocks.
-    /// For now this is controlled by a key in the the 'godot_api' attribute
+    /// For now, this is controlled by a key in the 'godot_api' attribute.
     pub secondary: bool,
 }
 
@@ -80,7 +81,7 @@ pub fn transform_inherent_impl(
     let prv = quote! { ::godot::private };
 
     // Can add extra functions to the end of the impl block.
-    let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block)?;
+    let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block, meta.secondary)?;
     let consts = process_godot_constants(&mut impl_block)?;
 
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
@@ -107,16 +108,13 @@ pub fn transform_inherent_impl(
 
     let fill_storage = quote! {
         ::godot::sys::plugin_execute_pre_main!({
-            #method_storage_name.lock().unwrap().push(||{
-
+            #method_storage_name.lock().unwrap().push(|| {
                 #( #method_registrations )*
                 #( #signal_registrations )*
-
             });
-            #constants_storage_name.lock().unwrap().push(||{
 
+            #constants_storage_name.lock().unwrap().push(|| {
                 #constant_registration
-
             });
         });
     };
@@ -155,7 +153,6 @@ pub fn transform_inherent_impl(
         };
 
         let class_registration = quote! {
-
             ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
                 class_name: #class_name_obj,
                 item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
@@ -169,7 +166,6 @@ pub fn transform_inherent_impl(
                 }),
                 init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
             });
-
         };
 
         let result = quote! {
@@ -182,7 +178,7 @@ pub fn transform_inherent_impl(
 
         Ok(result)
     } else {
-        // We are in a secondary `impl` block, so most of the work has already been done
+        // We are in a secondary `impl` block, so most of the work has already been done,
         // and we just need to add our registration functions in the storage defined by the primary `impl` block.
 
         let result = quote! {
@@ -197,6 +193,7 @@ pub fn transform_inherent_impl(
 fn process_godot_fns(
     class_name: &Ident,
     impl_block: &mut venial::Impl,
+    is_secondary_impl: bool,
 ) -> ParseResult<(Vec<FuncDefinition>, Vec<SignalDefinition>)> {
     let mut func_definitions = vec![];
     let mut signal_definitions = vec![];
@@ -286,9 +283,16 @@ fn process_godot_fns(
                     rpc_info,
                 });
             }
+
             ItemAttrType::Signal(ref _attr_val) => {
+                if is_secondary_impl {
+                    return attr.bail(
+                        "#[signal] is not currently supported in secondary impl blocks",
+                        function,
+                    );
+                }
                 if function.return_ty.is_some() {
-                    return attr.bail("return types are not supported", function);
+                    return attr.bail("return types in #[signal] are not supported", function);
                 }
 
                 let external_attributes = function.attributes.clone();
@@ -301,6 +305,7 @@ fn process_godot_fns(
 
                 removed_indexes.push(index);
             }
+
             ItemAttrType::Const(_) => {
                 return attr.bail(
                     "#[constant] can only be used on associated constant",
@@ -541,12 +546,7 @@ where
             }
 
             // #[signal]
-            name if name == "signal" => {
-                // TODO once parameters are supported, this should probably be moved to the struct definition
-                // E.g. a zero-sized type Signal<(i32, String)> with a provided emit(i32, String) method
-                // This could even be made public (callable on the struct obj itself)
-                AttrParseResult::Signal(attr.value.clone())
-            }
+            name if name == "signal" => AttrParseResult::Signal(attr.value.clone()),
 
             // #[constant]
             name if name == "constant" => AttrParseResult::Const(attr.value.clone()),
