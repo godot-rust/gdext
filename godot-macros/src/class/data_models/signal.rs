@@ -6,8 +6,8 @@
  */
 
 use crate::util;
-use proc_macro2::TokenStream;
-use quote::quote;
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {
@@ -19,10 +19,13 @@ pub struct SignalDefinition {
 }
 
 pub fn make_signal_registrations(
-    signals: Vec<SignalDefinition>,
+    signals: &[SignalDefinition],
+    class_name: &Ident,
     class_name_obj: &TokenStream,
-) -> Vec<TokenStream> {
+) -> (Vec<TokenStream>, TokenStream) {
     let mut signal_registrations = Vec::new();
+    let mut struct_fields = Vec::new();
+    let mut struct_methods = Vec::new();
 
     for signal in signals.iter() {
         let SignalDefinition {
@@ -43,8 +46,10 @@ pub fn make_signal_registrations(
         }
 
         let signature_tuple = util::make_signature_tuple_type(&quote! { () }, &param_types);
+        let signal_param_tuple = quote! { ( #( #param_types, )* ) };
+
         let indexes = 0..param_types.len();
-        let param_array_decl = quote! {
+        let param_property_infos = quote! {
             [
                 // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
                 #(
@@ -60,15 +65,32 @@ pub fn make_signal_registrations(
             util::extract_cfg_attrs(external_attributes)
                 .into_iter()
                 .collect();
-        let signal_name_str = signature.name.to_string();
+
+        let signal_name = &signature.name;
+        let signal_name_str = signal_name.to_string();
         let signal_parameters_count = param_names.len();
-        let signal_parameters = param_array_decl;
+
+        struct_fields.push(quote! {
+            #(#signal_cfg_attrs)*
+            #signal_name: ::godot::builtin::TypedSignal<#signal_param_tuple>
+        });
+
+        let emit_method = format_ident!("{}", signal_name);
+        let connect_method = format_ident!("{}_connect", signal_name);
+        let emit_params = &signature.params;
+        struct_methods.push(quote! {
+            #(#signal_cfg_attrs)*
+            fn #emit_method(&self, #emit_params) {}
+
+            #(#signal_cfg_attrs)*
+            fn #connect_method(&self, f: impl FnMut #signal_param_tuple) {}
+        });
 
         let signal_registration = quote! {
             #(#signal_cfg_attrs)*
             unsafe {
                 use ::godot::sys;
-                let parameters_info: [::godot::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
+                let parameters_info: [::godot::meta::PropertyInfo; #signal_parameters_count] = #param_property_infos;
 
                 let mut parameters_info_sys: [sys::GDExtensionPropertyInfo; #signal_parameters_count] =
                     std::array::from_fn(|i| parameters_info[i].property_sys());
@@ -87,5 +109,17 @@ pub fn make_signal_registrations(
 
         signal_registrations.push(signal_registration);
     }
-    signal_registrations
+
+    let struct_name = format_ident!("{}Signals", class_name);
+    let struct_code = quote! {
+        pub struct #struct_name {
+            #( #struct_fields, )*
+        }
+
+        impl #struct_name {
+            #( #struct_methods )*
+        }
+    };
+
+    (signal_registrations, struct_code)
 }

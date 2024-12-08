@@ -89,7 +89,8 @@ pub fn transform_inherent_impl(
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
 
-    let signal_registrations = make_signal_registrations(signals, &class_name_obj);
+    let (signal_registrations, signal_struct) =
+        make_signal_registrations(&signals, &class_name, &class_name_obj);
 
     #[cfg(feature = "codegen-full")]
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
@@ -174,6 +175,7 @@ pub fn transform_inherent_impl(
             #trait_impl
             #fill_storage
             #class_registration
+            #signal_struct
         };
 
         Ok(result)
