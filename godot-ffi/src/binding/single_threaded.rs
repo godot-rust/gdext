@@ -156,11 +156,23 @@ impl BindingStorage {
                 "Godot engine not available; make sure you are not calling it from unit/doc tests",
             );
 
-            assert_eq!(
-                main_thread_id,
-                std::thread::current().id(),
-                "attempted to access binding from different thread than main thread; this is UB - use the \"experimental-threads\" feature."
-            );
+            if main_thread_id != std::thread::current().id() {
+                // If a binding is accessed the first time, this will panic and start unwinding. It can then happen that during unwinding,
+                // another FFI call happens (e.g. Godot destructor), which would cause immediate abort, swallowing the error message.
+                // Thus check if a panic is already in progress.
+
+                if std::thread::panicking() {
+                    eprintln!(
+                        "ERROR: Attempted to access binding from different thread than main thread; this is UB.\n\
+                        Cannot panic because panic unwind is already in progress. Please check surrounding messages to fix the bug."
+                    );
+                } else {
+                    panic!(
+                        "attempted to access binding from different thread than main thread; \
+                        this is UB - use the \"experimental-threads\" feature."
+                    )
+                };
+            }
         }
 
         // SAFETY: This function can only be called when the binding is initialized and from the main thread, so we know that it's initialized.
