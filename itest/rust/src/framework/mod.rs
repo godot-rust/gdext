@@ -77,6 +77,25 @@ pub struct TestContext {
     pub property_tests: Gd<Node>,
 }
 
+/// Utility to assert that something can be sent between threads.
+pub struct ThreadCrosser<T> {
+    value: T,
+}
+
+impl<T> ThreadCrosser<T> {
+    pub fn new(value: T) -> Self {
+        Self { value }
+    }
+
+    /// # Safety
+    /// Bypasses `Send` checks, user's responsibility.
+    pub unsafe fn extract(self) -> T {
+        self.value
+    }
+}
+
+unsafe impl<T> Send for ThreadCrosser<T> {}
+
 #[derive(Copy, Clone)]
 pub struct RustTestCase {
     pub name: &'static str,
@@ -123,6 +142,29 @@ pub fn expect_panic(context: &str, code: impl FnOnce()) {
         panic.is_err(),
         "code should have panicked but did not: {context}",
     );
+}
+
+/// Synchronously run a thread and return result. Panics are propagated to caller thread.
+#[track_caller]
+pub fn quick_thread<R, F>(f: F) -> R
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    let handle = std::thread::spawn(f);
+
+    match handle.join() {
+        Ok(result) => result,
+        Err(panic_payload) => {
+            if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                panic!("quick_thread panicked: {s}")
+            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                panic!("quick_thread panicked: {s}")
+            } else {
+                panic!("quick_thread panicked with unknown type.")
+            };
+        }
+    }
 }
 
 /// Disable printing errors from Godot. Ideally we should catch and handle errors, ensuring they happen when
