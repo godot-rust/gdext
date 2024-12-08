@@ -421,7 +421,7 @@ mod serialize {
             D: Deserializer<'de>,
         {
             struct StringNameVisitor;
-            impl<'de> Visitor<'de> for StringNameVisitor {
+            impl Visitor<'_> for StringNameVisitor {
                 type Value = StringName;
 
                 fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {

@@ -384,7 +384,7 @@ mod serialize {
             D: Deserializer<'de>,
         {
             struct GStringVisitor;
-            impl<'de> Visitor<'de> for GStringVisitor {
+            impl Visitor<'_> for GStringVisitor {
                 type Value = GString;
 
                 fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {

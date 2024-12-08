@@ -14,8 +14,8 @@ on:
       - 'v0.[0-9]+.[0-9]+'
 
 env:
-  # Note: used for test and clippy, not for publish
-  GDEXT_FEATURES: "--features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde"
+  # Note: used for test and clippy, not for publish. Test features are different from other CIs.
+  CLIPPY_TEST_FEATURES: "--features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde"
 
   # Crates to publish -- important, this doesn't work when there are spaces in any of the paths!
   # Keep in sync with update-version.sh
@@ -108,7 +108,7 @@ jobs:
         run: rustup update stable
 
       - name: "Compile and run test"
-        run: cargo test $GDEXT_FEATURES
+        run: cargo test $CLIPPY_TEST_FEATURES
 
   clippy:
     runs-on: ubuntu-latest
@@ -121,7 +121,7 @@ jobs:
 
       - name: "Check clippy"
         run: |
-          cargo clippy --all-targets $GDEXT_FEATURES -- \
+          cargo clippy --all-targets $CLIPPY_TEST_FEATURES -- \
           -D clippy::suspicious \
           -D clippy::style \
           -D clippy::complexity \

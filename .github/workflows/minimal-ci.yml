@@ -22,7 +22,7 @@ on:
 
 env:
   # Applies to all 'register-docs' features across crates.
-  CLIPPY_FEATURES: '--features register-docs'
+  CLIPPY_FEATURES: '--features register-docs,godot/experimental-godot-api,godot/serde'
   TEST_FEATURES: ''
   #  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
