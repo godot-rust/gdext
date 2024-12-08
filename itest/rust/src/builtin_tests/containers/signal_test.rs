@@ -60,6 +60,26 @@ fn signal_construction_and_id() {
     assert_eq!(signal.object(), None);
 }
 
+#[itest]
+fn signal_generated_api() {
+    let mut object = RefCounted::new_gd();
+    let object_id = object.instance_id();
+
+    object.add_user_signal("test_signal");
+
+    let signal = Signal::from_object_signal(&object, "test_signal");
+
+    assert!(!signal.is_null());
+    assert_eq!(signal.name(), StringName::from("test_signal"));
+    assert_eq!(signal.object(), Some(object.clone().upcast()));
+    assert_eq!(signal.object_id(), Some(object_id));
+
+    // Invalidating the object still returns the old ID, however not the object.
+    drop(object);
+    assert_eq!(signal.object_id(), Some(object_id));
+    assert_eq!(signal.object(), None);
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helper types
 

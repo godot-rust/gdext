@@ -63,6 +63,7 @@ pub mod __prelude_reexport {
     pub use string::{GString, NodePath, StringName};
     pub use transform2d::*;
     pub use transform3d::*;
+    pub use typed_signal::TypedSignal;
     pub use variant::*;
     pub use vectors::*;
 
@@ -109,6 +110,7 @@ mod signal;
 mod string;
 mod transform2d;
 mod transform3d;
+mod typed_signal;
 mod variant;
 mod vectors;
 
