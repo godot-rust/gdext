@@ -9,7 +9,7 @@ use godot_ffi as sys;
 
 use crate::builtin::{inner, StringName, Variant, VariantArray};
 use crate::classes::Object;
-use crate::meta::{CallContext, GodotType, ToGodot};
+use crate::meta::{AsArg, CallContext, GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::Bounds;
 use crate::obj::{Gd, GodotClass, InstanceId};
@@ -84,31 +84,37 @@ impl Callable {
         }
     }
 
-    /// Create a callable from a Rust function or closure.
+    /// Create callable from **thread-safe** Rust function or closure.
     ///
     /// `name` is used for the string representation of the closure, which helps debugging.
     ///
-    /// Callables created through multiple `from_fn()` calls are never equal, even if they refer to the same function. If you want to use
-    /// equality, either clone an existing `Callable` instance, or define your own `PartialEq` impl with [`Callable::from_custom`].
+    /// This constructor requires `Send` + `Sync` bound and allows the callable to be invoked from any thread. If you guarantee that you invoke
+    /// it from the same thread as creating it, use [`from_local_fn`][Self::from_local_fn] instead.
+    ///
+    /// Callables created through multiple `from_local_fn` or `from_sync_fn()` calls are never equal, even if they refer to the same function.
+    /// If you want to use equality, either clone an existing `Callable` instance, or define your own `PartialEq` impl with
+    /// [`Callable::from_custom`].
     ///
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let callable = Callable::from_fn("sum", |args: &[&Variant]| {
+    /// let callable = Callable::from_sync_fn("sum", |args: &[&Variant]| {
     ///     let sum: i32 = args.iter().map(|arg| arg.to::<i32>()).sum();
     ///     Ok(sum.to_variant())
     /// });
     /// ```
     #[cfg(since_api = "4.2")]
-    pub fn from_fn<F, S>(name: S, rust_function: F) -> Self
+    pub fn from_sync_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: Into<crate::builtin::GString>,
+        S: AsArg<crate::builtin::GString>,
     {
+        meta::arg_into_owned!(name);
+
         let userdata = CallableUserdata {
             inner: FnWrapper {
                 rust_function,
-                name: name.into(),
+                name,
             },
         };
 
@@ -121,6 +127,15 @@ impl Callable {
         };
 
         Self::from_custom_info(info)
+    }
+
+    #[deprecated = "Now split into from_local_fn (single-threaded) and from_sync_fn (multi-threaded)."]
+    pub fn from_fn<F, S>(name: S, rust_function: F) -> Self
+    where
+        F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        S: Into<crate::builtin::GString>,
+    {
+        Self::from_sync_fn(&name.into(), rust_function)
     }
 
     /// Create a highly configurable callable from Rust.
