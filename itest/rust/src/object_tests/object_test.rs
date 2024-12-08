@@ -889,7 +889,7 @@ pub(super) struct ObjPayload {}
 
 #[godot_api]
 impl ObjPayload {
-    #[signal]
+    #[signal(__no_builder)]
     fn do_use();
 
     #[func]

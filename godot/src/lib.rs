@@ -186,6 +186,9 @@ pub mod register {
     pub use godot_core::registry::property;
     pub use godot_macros::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
 
+    // FIXME
+    pub use godot_core::builtin::Func;
+
     #[cfg(feature = "__codegen-full")]
     pub use godot_core::registry::RpcConfig;
 

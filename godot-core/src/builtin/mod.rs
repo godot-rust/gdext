@@ -146,9 +146,9 @@ pub use crate::{array, dict, real, reals, varray};
 
 // Re-export generated enums.
 pub use crate::gen::central::global_reexported_enums::{Corner, EulerOrder, Side, VariantOperator};
-pub use crate::sys::VariantType;
 // Not yet public.
 pub(crate) use crate::gen::central::VariantDispatch;
+pub use crate::sys::VariantType;
 
 #[doc(hidden)]
 pub mod __prelude_reexport {
@@ -171,6 +171,8 @@ pub mod __prelude_reexport {
     pub use string::{GString, NodePath, StringName};
     pub use transform2d::*;
     pub use transform3d::*;
+    // TODO move to register?
+    pub use typed_signal::{Func, TypedSignal};
     pub use variant::*;
     pub use vectors::*;
 
@@ -219,6 +221,7 @@ mod signal;
 mod string;
 mod transform2d;
 mod transform3d;
+mod typed_signal;
 mod variant;
 mod vectors;
 
