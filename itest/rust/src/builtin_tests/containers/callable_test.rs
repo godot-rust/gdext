@@ -4,13 +4,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use godot::builtin::inner::InnerCallable;
 use godot::builtin::{varray, Callable, GString, StringName, Variant};
 use godot::classes::{Node2D, Object};
 use godot::meta::ToGodot;
 use godot::obj::{NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
-use std::fmt::{Display, Formatter};
 use std::hash::Hasher;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -364,7 +364,7 @@ pub mod custom_callable {
     }
 
     impl Hash for Adder {
-        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        fn hash<H: Hasher>(&self, state: &mut H) {
             let mut guard = self.tracker.lock().unwrap();
             guard.hash_counter += 1;
 
@@ -378,7 +378,7 @@ pub mod custom_callable {
         }
     }
 
-    impl godot::builtin::RustCallable for Adder {
+    impl RustCallable for Adder {
         fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
             for arg in args {
                 self.sum += arg.to::<i32>();
@@ -410,6 +410,7 @@ pub mod custom_callable {
         tracker.lock().unwrap().hash_counter
     }
 
+    // Also used in signal_test.
     pub struct PanicCallable(pub Arc<AtomicU32>);
 
     impl PartialEq for PanicCallable {
@@ -424,8 +425,8 @@ pub mod custom_callable {
         }
     }
 
-    impl Display for PanicCallable {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    impl fmt::Display for PanicCallable {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "test")
         }
     }

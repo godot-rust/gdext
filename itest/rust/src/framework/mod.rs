@@ -135,7 +135,7 @@ pub fn suppress_godot_print(mut f: impl FnMut()) {
 }
 
 /// Some tests are disabled, as they rely on Godot checks which are only available in Debug builds.
-/// See https://github.com/godotengine/godot/issues/86264.
+/// See <https://github.com/godotengine/godot/issues/86264>.
 pub fn runs_release() -> bool {
     !Os::singleton().is_debug_build()
 }

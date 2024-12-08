@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use crate::class::{
     into_signature_info, make_constant_registration, make_method_registration,
     make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
@@ -66,7 +67,7 @@ struct FuncAttr {
 
 pub struct InherentImplAttr {
     /// For implementation reasons, there can be a single 'primary' impl block and 0 or more 'secondary' impl blocks.
-    /// For now this is controlled by a key in the the 'godot_api' attribute
+    /// For now, this is controlled by a key in the 'godot_api' attribute.
     pub secondary: bool,
 }
 
@@ -107,16 +108,13 @@ pub fn transform_inherent_impl(
 
     let fill_storage = quote! {
         ::godot::sys::plugin_execute_pre_main!({
-            #method_storage_name.lock().unwrap().push(||{
-
+            #method_storage_name.lock().unwrap().push(|| {
                 #( #method_registrations )*
                 #( #signal_registrations )*
-
             });
-            #constants_storage_name.lock().unwrap().push(||{
 
+            #constants_storage_name.lock().unwrap().push(|| {
                 #constant_registration
-
             });
         });
     };
@@ -155,7 +153,6 @@ pub fn transform_inherent_impl(
         };
 
         let class_registration = quote! {
-
             ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
                 class_name: #class_name_obj,
                 item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
@@ -169,7 +166,6 @@ pub fn transform_inherent_impl(
                 }),
                 init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
             });
-
         };
 
         let result = quote! {
@@ -182,7 +178,7 @@ pub fn transform_inherent_impl(
 
         Ok(result)
     } else {
-        // We are in a secondary `impl` block, so most of the work has already been done
+        // We are in a secondary `impl` block, so most of the work has already been done,
         // and we just need to add our registration functions in the storage defined by the primary `impl` block.
 
         let result = quote! {
