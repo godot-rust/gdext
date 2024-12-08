@@ -1,6 +1,6 @@
 [package]
 name = "godot-macros"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.80"
 license = "MPL-2.0"
@@ -28,7 +28,7 @@ markdown = { version = "=1.0.0-alpha.21", optional = true }
 venial = "0.6"
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings", version = "=0.2.0" } # emit_godot_version_cfg
+godot-bindings = { path = "../godot-bindings", version = "=0.2.1" } # emit_godot_version_cfg
 
 # Reverse dev dependencies so doctests can use `godot::` prefix.
 [dev-dependencies]

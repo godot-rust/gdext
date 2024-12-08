@@ -1,6 +1,6 @@
 [package]
 name = "godot-codegen"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.80"
 license = "MPL-2.0"
@@ -21,7 +21,7 @@ experimental-godot-api = []
 experimental-threads = []
 
 [dependencies]
-godot-bindings = { path = "../godot-bindings", version = "=0.2.0" }
+godot-bindings = { path = "../godot-bindings", version = "=0.2.1" }
 
 heck = "0.5"
 nanoserde = "0.1.35"
@@ -35,7 +35,7 @@ quote = "1.0.29"
 regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings", version = "=0.2.0" } # emit_godot_version_cfg
+godot-bindings = { path = "../godot-bindings", version = "=0.2.1" } # emit_godot_version_cfg
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

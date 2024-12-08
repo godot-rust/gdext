@@ -1,6 +1,6 @@
 [package]
 name = "godot"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.80"
 license = "MPL-2.0"
@@ -10,7 +10,7 @@ description = "Rust bindings for Godot 4"
 authors = ["Bromeon", "godot-rust contributors"]
 repository = "https://github.com/godot-rust/gdext"
 homepage = "https://godot-rust.github.io"
-documentation = "https://docs.rs/godot/0.2.0"
+documentation = "https://docs.rs/godot/0.2.1"
 readme = "crate-readme.md"
 
 [features]
@@ -48,8 +48,8 @@ __debug-log = ["godot-core/debug-log"]
 __trace = ["godot-core/trace"]
 
 [dependencies]
-godot-core = { path = "../godot-core", version = "=0.2.0" }
-godot-macros = { path = "../godot-macros", version = "=0.2.0" }
+godot-core = { path = "../godot-core", version = "=0.2.1" }
+godot-macros = { path = "../godot-macros", version = "=0.2.1" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

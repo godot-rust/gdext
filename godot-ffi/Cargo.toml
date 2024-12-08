@@ -1,6 +1,6 @@
 [package]
 name = "godot-ffi"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.80"
 license = "MPL-2.0"
@@ -45,8 +45,8 @@ libc = "0.2.153"
 gensym = "0.1.1"
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings", version = "=0.2.0" }
-godot-codegen = { path = "../godot-codegen", version = "=0.2.0" }
+godot-bindings = { path = "../godot-bindings", version = "=0.2.1" }
+godot-codegen = { path = "../godot-codegen", version = "=0.2.1" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
