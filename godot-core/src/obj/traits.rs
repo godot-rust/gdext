@@ -76,6 +76,21 @@ impl GodotClass for NoBase {
     const INIT_LEVEL: InitLevel = InitLevel::Core; // arbitrary; never read.
 }
 
+#[diagnostic::on_unimplemented(
+    message = "expected base `{Self}` found `{A}`",
+    label = "expected base `{Self}` found `{A}`"
+)]
+#[doc(hidden)]
+pub trait IsBase<T: GodotClass, A> {
+    #[doc(hidden)]
+    fn conv(b: Base<T>) -> A;
+}
+impl<T: GodotClass> IsBase<T, Base<T>> for Base<T> {
+    fn conv(b: Base<T>) -> Base<T> {
+        b
+    }
+}
+
 unsafe impl Bounds for NoBase {
     type Memory = bounds::MemManual;
     type DynMemory = bounds::MemManual;
