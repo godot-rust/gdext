@@ -103,6 +103,8 @@ jobs:
     needs: validation
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
 
       - name: "Install Rust (uncached)"
         run: rustup update stable
@@ -115,6 +117,8 @@ jobs:
     needs: validation
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
 
       - name: "Install Rust (uncached)"
         run: rustup update stable
@@ -136,6 +140,8 @@ jobs:
     needs: validation
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
 
       - name: "Install Rust (uncached)"
         run: rustup update stable
