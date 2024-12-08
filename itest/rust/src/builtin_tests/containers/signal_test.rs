@@ -247,7 +247,7 @@ mod custom_callable {
     }
 
     fn connect_signal_panic_from_fn(received: Arc<AtomicU32>) -> Callable {
-        Callable::from_fn("test", move |_args| {
+        Callable::from_local_fn("test", move |_args| {
             panic!("TEST: {}", received.fetch_add(1, Ordering::SeqCst))
         })
     }

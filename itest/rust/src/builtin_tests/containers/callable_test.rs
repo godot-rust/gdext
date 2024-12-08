@@ -169,16 +169,71 @@ impl CallableRefcountTest {
 #[cfg(since_api = "4.2")]
 pub mod custom_callable {
     use super::*;
-    use crate::framework::assert_eq_self;
+    use crate::framework::{assert_eq_self, quick_thread, ThreadCrosser};
     use godot::builtin::{Dictionary, RustCallable};
+    use godot::sys;
     use godot::sys::GdextBuild;
     use std::fmt;
     use std::hash::Hash;
     use std::sync::{Arc, Mutex};
 
     #[itest]
-    fn callable_from_fn() {
-        let callable = Callable::from_fn("sum", sum);
+    fn callable_from_local_fn() {
+        let callable = Callable::from_local_fn("sum", sum);
+
+        assert!(callable.is_valid());
+        assert!(!callable.is_null());
+        assert!(callable.is_custom());
+        assert!(callable.object().is_none());
+
+        let sum1 = callable.callv(&varray![1, 2, 4, 8]);
+        assert_eq!(sum1, 15.to_variant());
+
+        // Important to test 0 arguments, as the FFI call passes a null pointer for the argument array.
+        let sum2 = callable.callv(&varray![]);
+        assert_eq!(sum2, 0.to_variant());
+    }
+
+    // Without this feature, any access to the global binding from another thread fails; so the from_local_fn() cannot be tested in isolation.
+    // #[cfg(feature = "experimental-threads")]
+    #[itest]
+    fn callable_from_local_fn_crossthread() {
+        // This static is a workaround for not being able to propagate failed `Callable` invocations as panics.
+        // See note in itest callable_call() for further info.
+        static GLOBAL: sys::Global<i32> = sys::Global::default();
+
+        let callable = Callable::from_local_fn("change_global", |_args| {
+            *GLOBAL.lock() = 777;
+            Ok(Variant::nil())
+        });
+
+        // Note that Callable itself isn't Sync/Send, so we have to transfer it unsafely.
+        // Godot may pass it to another thread though without `unsafe`.
+        let crosser = ThreadCrosser::new(callable);
+
+        // Create separate thread and ensure calling fails.
+        // expect_panic(
+        //     "Callable created with from_local_fn() must panic when invoked on other thread",
+        //     ||{
+        quick_thread(|| {
+            let callable = unsafe { crosser.extract() };
+            callable.callv(&varray![5]);
+        });
+        // ,);
+
+        // We should really use expect_panic here (AROUND quick_thread, not inside), however we currently can't catch panics, see above.
+        // Instead, we check the global value.
+        assert_eq!(
+            *GLOBAL.lock(),
+            0,
+            "Callable created with from_local_fn() must not run when invoked on other thread"
+        );
+    }
+
+    #[itest]
+    #[cfg(feature = "experimental-threads")]
+    fn callable_from_sync_fn() {
+        let callable = Callable::from_sync_fn("sum", sum);
 
         assert!(callable.is_valid());
         assert!(!callable.is_null());
@@ -199,16 +254,16 @@ pub mod custom_callable {
     #[itest]
     fn callable_custom_with_err() {
         let callable_with_err =
-            Callable::from_fn("on_error_doesnt_crash", |_args: &[&Variant]| Err(()));
+            Callable::from_local_fn("on_error_doesnt_crash", |_args: &[&Variant]| Err(()));
         // Errors in Godot, but should not crash.
         assert_eq!(callable_with_err.callv(&varray![]), Variant::nil());
     }
 
     #[itest]
     fn callable_from_fn_eq() {
-        let a = Callable::from_fn("sum", sum);
+        let a = Callable::from_local_fn("sum", sum);
         let b = a.clone();
-        let c = Callable::from_fn("sum", sum);
+        let c = Callable::from_local_fn("sum", sum);
 
         assert_eq!(a, b, "same function, same instance -> equal");
         assert_ne!(a, c, "same function, different instance -> not equal");
@@ -312,7 +367,7 @@ pub mod custom_callable {
     fn callable_callv_panic_from_fn() {
         let received = Arc::new(AtomicU32::new(0));
         let received_callable = received.clone();
-        let callable = Callable::from_fn("test", move |_args| {
+        let callable = Callable::from_local_fn("test", move |_args| {
             panic!("TEST: {}", received_callable.fetch_add(1, Ordering::SeqCst))
         });
 

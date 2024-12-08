@@ -7,7 +7,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, StringName, Variant, VariantArray};
+use crate::builtin::{inner, GString, StringName, Variant, VariantArray};
 use crate::classes::Object;
 use crate::meta::{AsArg, CallContext, GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
@@ -84,6 +84,27 @@ impl Callable {
         }
     }
 
+    /// Create callable from **single-threaded** Rust function or closure.
+    ///
+    /// `name` is used for the string representation of the closure, which helps debugging.
+    ///
+    /// This constructor only allows the callable to be invoked from the same thread as creating it. If you need to invoke it from any thread,
+    /// use [`from_sync_fn`][Self::from_sync_fn] instead (requires crate feature `experimental-threads`; only enable if really needed).
+    #[cfg(since_api = "4.2")]
+    pub fn from_local_fn<F, S>(name: S, rust_function: F) -> Self
+    where
+        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        S: AsArg<GString>,
+    {
+        meta::arg_into_owned!(name);
+
+        Self::from_fn_wrapper(FnWrapper {
+            rust_function,
+            name,
+            thread_id: Some(std::thread::current().id()),
+        })
+    }
+
     /// Create callable from **thread-safe** Rust function or closure.
     ///
     /// `name` is used for the string representation of the closure, which helps debugging.
@@ -104,38 +125,34 @@ impl Callable {
     /// });
     /// ```
     #[cfg(since_api = "4.2")]
+    #[cfg(feature = "experimental-threads")]
     pub fn from_sync_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: AsArg<crate::builtin::GString>,
+        S: AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
-        let userdata = CallableUserdata {
-            inner: FnWrapper {
-                rust_function,
-                name,
-            },
-        };
-
-        let info = CallableCustomInfo {
-            callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
-            call_func: Some(rust_callable_call_fn::<F>),
-            free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
-            to_string_func: Some(rust_callable_to_string_named::<F>),
-            ..Self::default_callable_custom_info()
-        };
-
-        Self::from_custom_info(info)
+        Self::from_fn_wrapper(FnWrapper {
+            rust_function,
+            name,
+            thread_id: None,
+        })
     }
 
     #[deprecated = "Now split into from_local_fn (single-threaded) and from_sync_fn (multi-threaded)."]
+    #[cfg(since_api = "4.2")]
     pub fn from_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: Into<crate::builtin::GString>,
+        S: Into<GString>,
     {
-        Self::from_sync_fn(&name.into(), rust_function)
+        // Do not call from_sync_fn() since that is feature-gated, but this isn't due to compatibility.
+        Self::from_fn_wrapper(FnWrapper {
+            rust_function,
+            name: name.into(),
+            thread_id: None,
+        })
     }
 
     /// Create a highly configurable callable from Rust.
@@ -155,6 +172,24 @@ impl Callable {
             hash_func: Some(rust_callable_hash::<C>),
             equal_func: Some(rust_callable_equal::<C>),
             to_string_func: Some(rust_callable_to_string_display::<C>),
+            ..Self::default_callable_custom_info()
+        };
+
+        Self::from_custom_info(info)
+    }
+
+    #[cfg(since_api = "4.2")]
+    fn from_fn_wrapper<F>(inner: FnWrapper<F>) -> Self
+    where
+        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+    {
+        let userdata = CallableUserdata { inner };
+
+        let info = CallableCustomInfo {
+            callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
+            call_func: Some(rust_callable_call_fn::<F>),
+            free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
+            to_string_func: Some(rust_callable_to_string_named::<F>),
             ..Self::default_callable_custom_info()
         };
 
@@ -345,7 +380,7 @@ unsafe impl GodotFfi for Callable {
     }
 }
 
-crate::meta::impl_godot_as_self!(Callable);
+meta::impl_godot_as_self!(Callable);
 
 impl fmt::Debug for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -380,6 +415,7 @@ mod custom_callable {
     use super::*;
     use crate::builtin::GString;
     use std::hash::Hash;
+    use std::thread::ThreadId;
 
     pub struct CallableUserdata<T> {
         pub inner: T,
@@ -395,8 +431,11 @@ mod custom_callable {
     }
 
     pub(crate) struct FnWrapper<F> {
-        pub(crate) rust_function: F,
-        pub(crate) name: GString,
+        pub(super) rust_function: F,
+        pub(super) name: GString,
+
+        /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
+        pub(super) thread_id: Option<ThreadId>,
     }
 
     /// Represents a custom callable object defined in Rust.
@@ -434,7 +473,7 @@ mod custom_callable {
             // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
             let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
             let result = c.invoke(arg_refs);
-            crate::meta::varcall_return_checked(result, r_return, r_error);
+            meta::varcall_return_checked(result, r_return, r_error);
             Ok(())
         });
     }
@@ -459,8 +498,21 @@ mod custom_callable {
         crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
             // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
             let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
+
+            if w.thread_id
+                .is_some_and(|tid| tid != std::thread::current().id())
+            {
+                // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
+                // See comments in itest callable_call() for details.
+                panic!(
+                    "Callable '{}' created with from_local_fn() must be called from the same thread it was created in.\n\
+                    If you need to call it from any thread, use from_sync_fn() instead (requires `experimental-threads` feature).",
+                    w.name
+                );
+            }
+
             let result = (w.rust_function)(arg_refs);
-            crate::meta::varcall_return_checked(result, r_return, r_error);
+            meta::varcall_return_checked(result, r_return, r_error);
             Ok(())
         });
     }

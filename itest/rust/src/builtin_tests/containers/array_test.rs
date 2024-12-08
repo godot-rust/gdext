@@ -494,7 +494,7 @@ fn array_binary_search_custom() {
 
 #[cfg(since_api = "4.2")]
 fn backwards_sort_callable() -> Callable {
-    Callable::from_fn("sort backwards", |args: &[&Variant]| {
+    Callable::from_local_fn("sort backwards", |args: &[&Variant]| {
         let res = args[0].to::<i32>() > args[1].to::<i32>();
         Ok(res.to_variant())
     })
