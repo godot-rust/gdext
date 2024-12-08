@@ -195,7 +195,6 @@ pub mod custom_callable {
     }
 
     // Without this feature, any access to the global binding from another thread fails; so the from_local_fn() cannot be tested in isolation.
-    // #[cfg(feature = "experimental-threads")]
     #[itest]
     fn callable_from_local_fn_crossthread() {
         // This static is a workaround for not being able to propagate failed `Callable` invocations as panics.
@@ -212,17 +211,31 @@ pub mod custom_callable {
         let crosser = ThreadCrosser::new(callable);
 
         // Create separate thread and ensure calling fails.
-        // expect_panic(
-        //     "Callable created with from_local_fn() must panic when invoked on other thread",
-        //     ||{
-        quick_thread(|| {
-            let callable = unsafe { crosser.extract() };
-            callable.callv(&varray![5]);
-        });
-        // ,);
+        // Why expect_panic for (single-threaded && Debug) but not (multi-threaded || Release) mode:
+        // - Check is only enabled in Debug, not Release.
+        // - We currently can't catch panics from Callable invocations, see above. True for both single/multi-threaded.
+        // - In single-threaded mode, there's an FFI access check which panics as soon as another thread is invoked. *This* panics.
+        // - In multi-threaded, we need to observe the effect instead (see below).
 
-        // We should really use expect_panic here (AROUND quick_thread, not inside), however we currently can't catch panics, see above.
-        // Instead, we check the global value.
+        if !cfg!(feature = "experimental-threads") && cfg!(debug_assertions) {
+            // Single-threaded and Debug.
+            crate::framework::expect_panic(
+                "Callable created with from_local_fn() must panic when invoked on other thread",
+                || {
+                    quick_thread(|| {
+                        let callable = unsafe { crosser.extract() };
+                        callable.callv(&varray![5]);
+                    });
+                },
+            );
+        } else {
+            // Multi-threaded OR Release.
+            quick_thread(|| {
+                let callable = unsafe { crosser.extract() };
+                callable.callv(&varray![5]);
+            });
+        }
+
         assert_eq!(
             *GLOBAL.lock(),
             0,
