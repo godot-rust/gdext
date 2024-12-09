@@ -6,17 +6,19 @@
  */
 
 use crate::class::{FieldExport, FieldVar};
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::ToTokens;
 
 pub struct Field {
     pub name: Ident,
     pub ty: venial::TypeExpr,
-    pub default_val: Option<TokenStream>,
+    pub default_val: Option<FieldDefault>,
     pub var: Option<FieldVar>,
     pub export: Option<FieldExport>,
     pub is_onready: bool,
     #[cfg(feature = "register-docs")]
     pub attributes: Vec<venial::Attribute>,
+    pub span: Span,
 }
 
 impl Field {
@@ -30,6 +32,7 @@ impl Field {
             is_onready: false,
             #[cfg(feature = "register-docs")]
             attributes: field.attributes.clone(),
+            span: field.span(),
         }
     }
 }
@@ -43,4 +46,19 @@ pub struct Fields {
 
     /// Deprecation warnings.
     pub deprecations: Vec<TokenStream>,
+
+    /// Errors during macro evaluation that shouldn't abort the execution of the macro.
+    pub errors: Vec<venial::Error>,
+}
+
+#[derive(Clone)]
+pub struct FieldDefault {
+    pub default_val: TokenStream,
+    pub span: Span,
+}
+
+impl ToTokens for FieldDefault {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.default_val.to_tokens(tokens)
+    }
 }
