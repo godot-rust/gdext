@@ -78,9 +78,16 @@ pub fn make_signal_registrations(
         let emit_method = format_ident!("{}", signal_name);
         let connect_method = format_ident!("{}_connect", signal_name);
         let emit_params = &signature.params;
+
         struct_methods.push(quote! {
             #(#signal_cfg_attrs)*
-            fn #emit_method(&self, #emit_params) {}
+            fn #emit_method(&self, #emit_params) {
+                use ::godot::meta::ToGodot;
+                let varargs = [
+                    #( #param_names.to_variant(), )*
+                ];
+                self.object.emit_signal(#signal_name_str, &varargs);
+            }
 
             #(#signal_cfg_attrs)*
             fn #connect_method(&self, f: impl FnMut #signal_param_tuple) {}
@@ -116,7 +123,8 @@ pub fn make_signal_registrations(
         let struct_name = format_ident!("{}Signals", class_name);
         quote! {
             pub struct #struct_name {
-                #( #struct_fields, )*
+                // Could technically use Cow, but makes no difference for nodes (pointer copy, no ref-count).
+                object: ::godot::obj::Gd<::godot::classes::Object>,
             }
 
             impl #struct_name {
@@ -127,7 +135,9 @@ pub fn make_signal_registrations(
                 type SignalCollection = #struct_name;
 
                 fn emit(&self) -> Self::SignalCollection {
-                    todo!()
+                    Self::SignalCollection {
+                        object: self.to_gd(),
+                    }
                 }
             }
         }

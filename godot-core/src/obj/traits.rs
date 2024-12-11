@@ -258,8 +258,8 @@ pub trait IndexEnum: EngineEnum {
 // Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
 #[diagnostic::on_unimplemented(
     message = "Class `{Self}` requires a `Base<T>` field",
-    label = "missing field `_base: Base<...>`",
-    note = "A base field is required to access the base from within `self`, for script-virtual functions or #[rpc] methods",
+    label = "missing field `_base: Base<...>` in struct declaration",
+    note = "A base field is required to access the base from within `self`, as well as for #[signal], #[rpc] and #[func(virtual)]",
     note = "see also: https://godot-rust.github.io/book/register/classes.html#the-base-field"
 )]
 pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
@@ -569,7 +569,7 @@ pub mod cap {
     }
 
     // Move one level up, like WithBaseField?
-    pub trait WithSignals: GodotClass {
+    pub trait WithSignals: WithBaseField {
         type SignalCollection;
 
         fn emit(&self) -> Self::SignalCollection;
