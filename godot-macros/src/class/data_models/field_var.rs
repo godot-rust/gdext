@@ -156,6 +156,7 @@ impl Default for FieldVar {
             hint: Default::default(),
             usage_flags: Default::default(),
             span: Span::call_site(),
+            notify: Default::default()
         }
     }
 }
