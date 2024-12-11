@@ -573,9 +573,9 @@ pub mod cap {
 
     // Move one level up, like WithBaseField?
     pub trait WithSignals: WithBaseField {
-        type SignalCollection;
+        type SignalCollection<'a>;
 
-        fn emit(&self) -> Self::SignalCollection;
+        fn emit(&mut self) -> Self::SignalCollection<'_>;
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
