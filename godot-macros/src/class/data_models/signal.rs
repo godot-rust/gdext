@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util;
+use crate::util::bail;
+use crate::{util, ParseResult};
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {
@@ -25,7 +26,7 @@ pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
     class_name_obj: &TokenStream,
-) -> (Vec<TokenStream>, TokenStream) {
+) -> ParseResult<(Vec<TokenStream>, TokenStream)> {
     let mut signal_registrations = Vec::new();
     let mut struct_fields = Vec::new();
     let mut struct_methods = Vec::new();
@@ -48,8 +49,8 @@ pub fn make_signal_registrations(
                     param_names.push(param.name.clone());
                     param_names_str.push(param.name.to_string());
                 }
-                venial::FnParam::Receiver(_receiver) => {
-                    // receiver_mut = Some(&receiver.tk_mut);
+                venial::FnParam::Receiver(receiver) => {
+                    return bail!(receiver, "#[signal] cannot have receiver (self) parameter");
                 }
             };
         }
@@ -155,5 +156,5 @@ pub fn make_signal_registrations(
         }
     };
 
-    (signal_registrations, struct_code)
+    Ok((signal_registrations, struct_code))
 }
