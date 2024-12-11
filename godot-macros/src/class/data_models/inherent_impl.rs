@@ -95,7 +95,7 @@ pub fn transform_inherent_impl(
     let docs = quote! {};
 
     let (signal_registrations, signal_struct) =
-        make_signal_registrations(&signals, &class_name, &class_name_obj);
+        make_signal_registrations(&signals, &class_name, &class_name_obj)?;
 
     #[cfg(feature = "codegen-full")]
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
