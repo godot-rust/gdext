@@ -16,6 +16,9 @@ pub struct SignalDefinition {
 
     /// The signal's non-gdext attributes (all except #[signal]).
     pub external_attributes: Vec<venial::Attribute>,
+
+    /// Whether there is going to be a type-safe builder for this signal (true by default).
+    pub has_builder: bool,
 }
 
 pub fn make_signal_registrations(
@@ -31,17 +34,23 @@ pub fn make_signal_registrations(
         let SignalDefinition {
             signature,
             external_attributes,
+            has_builder,
         } = signal;
         let mut param_types: Vec<venial::TypeExpr> = Vec::new();
-        let mut param_names: Vec<String> = Vec::new();
+        let mut param_names: Vec<Ident> = Vec::new();
+        let mut param_names_str: Vec<String> = Vec::new();
 
-        for param in signature.params.inner.iter() {
-            match &param.0 {
+        // let mut receiver_mut = None;
+        for (param, _punct) in signature.params.inner.iter() {
+            match param {
                 venial::FnParam::Typed(param) => {
                     param_types.push(param.ty.clone());
-                    param_names.push(param.name.to_string());
+                    param_names.push(param.name.clone());
+                    param_names_str.push(param.name.to_string());
                 }
-                venial::FnParam::Receiver(_) => {}
+                venial::FnParam::Receiver(_receiver) => {
+                    // receiver_mut = Some(&receiver.tk_mut);
+                }
             };
         }
 
@@ -54,7 +63,7 @@ pub fn make_signal_registrations(
                 // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
                 #(
                     <#signature_tuple as godot::meta::VarcallSignatureTuple>
-                        ::param_property_info(#indexes, #param_names),
+                        ::param_property_info(#indexes, #param_names_str),
                 )*
             ]
         };
@@ -70,28 +79,31 @@ pub fn make_signal_registrations(
         let signal_name_str = signal_name.to_string();
         let signal_parameters_count = param_names.len();
 
-        struct_fields.push(quote! {
-            #(#signal_cfg_attrs)*
-            #signal_name: ::godot::builtin::TypedSignal<#signal_param_tuple>
-        });
+        if *has_builder {
+            struct_fields.push(quote! {
+                #(#signal_cfg_attrs)*
+                #signal_name: ::godot::builtin::TypedSignal<#signal_param_tuple>
+            });
 
-        let emit_method = format_ident!("{}", signal_name);
-        let connect_method = format_ident!("{}_connect", signal_name);
-        let emit_params = &signature.params;
+            let emit_method = format_ident!("{}", signal_name);
+            let connect_method = format_ident!("{}_connect", signal_name);
+            let emit_params = &signature.params;
 
-        struct_methods.push(quote! {
-            #(#signal_cfg_attrs)*
-            fn #emit_method(&self, #emit_params) {
-                use ::godot::meta::ToGodot;
-                let varargs = [
-                    #( #param_names.to_variant(), )*
-                ];
-                self.object.emit_signal(#signal_name_str, &varargs);
-            }
+            struct_methods.push(quote! {
+                #(#signal_cfg_attrs)*
+                fn #emit_method(&mut self, #emit_params) {
+                    use ::godot::meta::ToGodot;
+                    // Potential optimization: encode args as signature-tuple and use direct ptrcall.
+                    let varargs = [
+                        #( #param_names.to_variant(), )*
+                    ];
+                    self.object_base.emit_signal(#signal_name_str, &varargs);
+                }
 
-            #(#signal_cfg_attrs)*
-            fn #connect_method(&self, f: impl FnMut #signal_param_tuple) {}
-        });
+                #(#signal_cfg_attrs)*
+                fn #connect_method(&self, f: impl FnMut #signal_param_tuple) {}
+            });
+        }
 
         let signal_registration = quote! {
             #(#signal_cfg_attrs)*
@@ -122,21 +134,21 @@ pub fn make_signal_registrations(
     } else {
         let struct_name = format_ident!("{}Signals", class_name);
         quote! {
-            pub struct #struct_name {
-                // Could technically use Cow, but makes no difference for nodes (pointer copy, no ref-count).
-                object: ::godot::obj::Gd<::godot::classes::Object>,
+            pub struct #struct_name<'a> {
+                // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
+                object_base: ::godot::obj::BaseMut<'a, #class_name>,
             }
 
-            impl #struct_name {
+            impl #struct_name<'_> {
                 #( #struct_methods )*
             }
 
             impl ::godot::obj::cap::WithSignals for #class_name {
-                type SignalCollection = #struct_name;
+                type SignalCollection<'a> = #struct_name<'a>;
 
-                fn emit(&self) -> Self::SignalCollection {
+                fn emit(&mut self) -> Self::SignalCollection<'_> {
                     Self::SignalCollection {
-                        object: self.to_gd(),
+                        object_base: self.base_mut(),
                     }
                 }
             }

@@ -79,7 +79,7 @@ struct GdSelfObj {
 #[godot_api]
 impl GdSelfObj {
     // A signal that will be looped back to update_internal through gdscript.
-    #[signal]
+    #[signal(__no_builder)]
     fn update_internal_signal(new_internal: i32);
 
     #[func]
