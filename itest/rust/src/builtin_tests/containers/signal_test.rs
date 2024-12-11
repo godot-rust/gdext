@@ -85,7 +85,9 @@ fn signal_generated_api() {
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct Emitter {}
+struct Emitter {
+    _base: Base<Object>,
+}
 
 #[godot_api]
 impl Emitter {
