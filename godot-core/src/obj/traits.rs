@@ -571,6 +571,13 @@ pub mod cap {
         fn __godot_property_get_revert(&self, property: StringName) -> Option<Variant>;
     }
 
+    // Move one level up, like WithBaseField?
+    pub trait WithSignals: GodotClass {
+        type SignalCollection;
+
+        fn emit(&self) -> Self::SignalCollection;
+    }
+
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
     pub trait ImplementsGodotApi: GodotClass {
         #[doc(hidden)]
