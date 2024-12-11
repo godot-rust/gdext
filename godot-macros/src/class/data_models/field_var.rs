@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 
 use crate::class::{
@@ -16,12 +16,13 @@ use crate::util::KvParser;
 use crate::{util, ParseResult};
 
 /// Store info from `#[var]` attribute.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct FieldVar {
     pub getter: GetterSetter,
     pub setter: GetterSetter,
     pub hint: FieldHint,
     pub usage_flags: UsageFlags,
+    pub span: Span,
 }
 
 impl FieldVar {
@@ -34,6 +35,7 @@ impl FieldVar {
     /// - `hint_string = expr`
     /// - `usage_flags =
     pub(crate) fn new_from_kv(parser: &mut KvParser) -> ParseResult<Self> {
+        let span = parser.span();
         let mut getter = GetterSetter::parse(parser, "get")?;
         let mut setter = GetterSetter::parse(parser, "set")?;
 
@@ -71,7 +73,20 @@ impl FieldVar {
             setter,
             hint,
             usage_flags,
+            span,
         })
+    }
+}
+
+impl Default for FieldVar {
+    fn default() -> Self {
+        Self {
+            getter: Default::default(),
+            setter: Default::default(),
+            hint: Default::default(),
+            usage_flags: Default::default(),
+            span: Span::call_site(),
+        }
     }
 }
 
