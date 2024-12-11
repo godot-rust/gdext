@@ -289,7 +289,7 @@ fn process_godot_fns(
             ItemAttrType::Signal(ref _attr_val) => {
                 if is_secondary_impl {
                     return attr.bail(
-                        "#[signal] is not currently supported in secondary impl blocks",
+                        "#[signal] is currently not supported in secondary impl blocks",
                         function,
                     );
                 }

@@ -110,14 +110,26 @@ pub fn make_signal_registrations(
         signal_registrations.push(signal_registration);
     }
 
-    let struct_name = format_ident!("{}Signals", class_name);
-    let struct_code = quote! {
-        pub struct #struct_name {
-            #( #struct_fields, )*
-        }
+    let struct_code = if struct_fields.is_empty() {
+        TokenStream::new()
+    } else {
+        let struct_name = format_ident!("{}Signals", class_name);
+        quote! {
+            pub struct #struct_name {
+                #( #struct_fields, )*
+            }
 
-        impl #struct_name {
-            #( #struct_methods )*
+            impl #struct_name {
+                #( #struct_methods )*
+            }
+
+            impl ::godot::obj::cap::WithSignals for #class_name {
+                type SignalCollection = #struct_name;
+
+                fn emit(&self) -> Self::SignalCollection {
+                    todo!()
+                }
+            }
         }
     };
 
