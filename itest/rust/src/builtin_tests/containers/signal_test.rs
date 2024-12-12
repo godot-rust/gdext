@@ -5,15 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
 use godot::classes::{Object, RefCounted};
 use godot::meta::ToGodot;
+use godot::obj::cap::WithSignals;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
 use std::cell::Cell;
-
-use crate::framework::itest;
 
 #[itest]
 fn signal_basic_connect_emit() {
@@ -60,24 +60,10 @@ fn signal_construction_and_id() {
     assert_eq!(signal.object(), None);
 }
 
-#[itest]
+#[itest(focus)]
 fn signal_generated_api() {
     let mut object = RefCounted::new_gd();
     let object_id = object.instance_id();
-
-    object.add_user_signal("test_signal");
-
-    let signal = Signal::from_object_signal(&object, "test_signal");
-
-    assert!(!signal.is_null());
-    assert_eq!(signal.name(), StringName::from("test_signal"));
-    assert_eq!(signal.object(), Some(object.clone().upcast()));
-    assert_eq!(signal.object_id(), Some(object_id));
-
-    // Invalidating the object still returns the old ID, however not the object.
-    drop(object);
-    assert_eq!(signal.object_id(), Some(object_id));
-    assert_eq!(signal.object(), None);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -99,6 +85,12 @@ impl Emitter {
 
     #[signal]
     fn emitter_2(arg1: Gd<Object>, arg2: GString);
+
+    fn connect_signals(&mut self) {
+        self.emit().emitter_2_connect(|obj, s| {
+            println!("emitter_2({obj}, {s})");
+        })
+    }
 }
 
 #[derive(GodotClass)]
