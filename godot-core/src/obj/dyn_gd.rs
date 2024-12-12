@@ -25,6 +25,7 @@ use std::{fmt, ops};
 /// [`#[godot_dyn]`](../register/attr.godot_dyn.html) attribute macro.
 ///
 /// # Construction and API
+///
 /// You can convert between `Gd` and `DynGd` using [`Gd::into_dyn()`] and [`DynGd::into_gd()`]. The former sometimes needs an explicit
 /// `::<dyn Trait>` type argument, but can often be inferred.
 ///
@@ -88,18 +89,52 @@ use std::{fmt, ops};
 /// When passing `DynGd<T, D>` to Godot, you will lose the `D` part of the type inside the engine, because Godot doesn't know about Rust traits.
 /// The trait methods won't be accessible through GDScript, either.
 ///
-/// If you now receive the same object back from Godot, you can easily obtain it as `Gd<T>` -- but what if you need the original `DynGd<T, D>`?
-/// If `T` is concrete (i.e. directly implements `D`), then [`Gd::into_dyn()`] is of course possible. But in reality, you may have a polymorphic
-/// base class such as `RefCounted` and want to ensure that trait object `D` dispatches to the correct subclass, without manually checking every
-/// possible candidate.
+/// When _receiving_ objects from Godot, the [`FromGodot`] trait is used to convert values to their Rust counterparts. `FromGodot` allows you to
+/// use types in `#[func]` parameters or extract elements from arrays, among others. If you now receive a trait-enabled object back from Godot,
+/// you can easily obtain it as `Gd<T>` -- but what if you need the original `DynGd<T, D>` back? If `T` is concrete and directly implements `D`,
+/// then [`Gd::into_dyn()`] is of course possible. But in reality, you may have a polymorphic base class such as `RefCounted` or `Node` and
+/// want to ensure that trait object `D` dispatches to the correct subclass, without manually checking every possible candidate.
 ///
-/// To stay with the above example: let's say `Health` is implemented for both `Monster` and `Knight` classes. You now receive a
-/// `DynGd<RefCounted, dyn Health>`, which can represent either of the two classes. How can this work without trying to downcast to both?
+/// To stay with the above example: let's say `Health` is implemented for two classes `Monster` and `Knight`. You now have a
+/// `DynGd<RefCounted, dyn Health>`, which can represent either of the two classes. We pass this to Godot (e.g. as a `Variant`), and then back.
 ///
-/// godot-rust has a mechanism to re-enrich the `DynGd` with the correct trait object. Thanks to `#[godot_dyn]`, the library knows for which
-/// classes `Health` is implemented, and it can query the dynamic type of the object. Based on that type, it can find the `impl Health`
-/// implementation matching the correct class. Behind the scenes, everything is wired up correctly so that you can restore the original `DynGd`
-/// even after it has passed through Godot.
+/// ```no_run
+/// # use godot::prelude::*;
+/// trait Health { /* ... */ }
+///
+/// #[derive(GodotClass)]
+/// # #[class(init)]
+/// struct Monster { /* ... */ }
+/// #[godot_dyn]
+/// impl Health for Monster { /* ... */ }
+///
+/// #[derive(GodotClass)]
+/// # #[class(init)]
+/// struct Knight { /* ... */ }
+/// #[godot_dyn]
+/// impl Health for Knight { /* ... */ }
+///
+/// // Let's construct a DynGd, and pass it to Godot as a Variant.
+/// # let runtime_condition = true;
+/// let variant = if runtime_condition {
+///     // DynGd<Knight, dyn Health>
+///     Knight::new_gd().into_dyn::<dyn Health>().to_variant()
+/// } else {
+///     // DynGd<Monster, dyn Health>
+///     Monster::new_gd().into_dyn::<dyn Health>().to_variant()
+/// };
+///
+/// // Now convert back into a DynGd -- but we don't know the concrete type.
+/// // We can still represent it as DynGd<RefCounted, dyn Health>.
+/// let dyn_gd: DynGd<RefCounted, dyn Health> = variant.to();
+/// // Now work with the abstract object as usual.
+/// ```
+///
+/// When converting from Godot back into `DynGd`, we say that the `dyn Health` trait object is _re-enriched_.
+///
+/// godot-rust achieves this thanks to the registration done by `#[godot_dyn]`: the library knows for which classes `Health` is implemented,
+/// and it can query the dynamic type of the object. Based on that type, it can find the `impl Health` implementation matching the correct class.
+/// Behind the scenes, everything is wired up correctly so that you can restore the original `DynGd` even after it has passed through Godot.
 pub struct DynGd<T, D>
 where
     // T does _not_ require AsDyn<D> here. Otherwise, it's impossible to upcast (without implementing the relation for all base classes).
