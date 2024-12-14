@@ -37,7 +37,7 @@ pub fn attribute_godot_api(
     if decl.impl_generic_params.is_some() {
         bail!(
             &decl,
-            "#[godot_api] currently does not support generic parameters",
+            "#[godot_api] does not support lifetimes or generic parameters",
         )?;
     }
 
