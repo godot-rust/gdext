@@ -16,9 +16,19 @@ use crate::util::{bail, error, ident, path_ends_with_complex, require_api_versio
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
-    let class = item
-        .as_struct()
-        .ok_or_else(|| venial::Error::new("Not a valid struct"))?;
+    let class = item.as_struct().ok_or_else(|| {
+        util::error_fn(
+            "#[derive(GodotClass)] is only allowed on structs",
+            item.name(),
+        )
+    })?;
+
+    if class.generic_params.is_some() {
+        return bail!(
+            &class.generic_params,
+            "#[derive(GodotClass)] does not support lifetimes or generic parameters",
+        );
+    }
 
     let named_fields = named_fields(class)?;
     let mut struct_cfg = parse_struct_attributes(class)?;
@@ -410,13 +420,16 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 ///
 /// Errors if `class` is a tuple struct.
 fn named_fields(class: &venial::Struct) -> ParseResult<Vec<(venial::NamedField, Punct)>> {
-    // This is separate from parse_fields to improve compile errors.  The errors from here demand larger and more non-local changes from the API
+    // This is separate from parse_fields to improve compile errors. The errors from here demand larger and more non-local changes from the API
     // user than those from parse_struct_attributes, so this must be run first.
     match &class.fields {
+        // TODO disallow unit structs in the future
+        // It often happens that over time, a registered class starts to require a base field.
+        // Extending a {} struct requires breaking less code, so we should encourage it from the start.
         venial::Fields::Unit => Ok(vec![]),
         venial::Fields::Tuple(_) => bail!(
             &class.fields,
-            "#[derive(GodotClass)] not supported for tuple structs",
+            "#[derive(GodotClass)] is not supported for tuple structs",
         )?,
         venial::Fields::Named(fields) => Ok(fields.fields.inner.clone()),
     }

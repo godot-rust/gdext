@@ -21,7 +21,7 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
     if decl.impl_generic_params.is_some() {
         bail!(
             &decl,
-            "#[godot_dyn] currently does not support generic parameters",
+            "#[godot_dyn] does not support lifetimes or generic parameters",
         )?;
     }
 

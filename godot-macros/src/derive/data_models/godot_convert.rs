@@ -39,20 +39,25 @@ impl GodotConvert {
             other => {
                 return bail!(
                     other,
-                    "`GodotConvert` only supports structs and enums currently"
+                    "#[derive(GodotConvert)] only supports structs and enums"
                 )
             }
         };
 
-        if let Some(where_clause) = where_clause {
+        if let Some(generic_params) = generic_params {
             return bail!(
-                where_clause,
-                "`GodotConvert` does not support where clauses"
+                generic_params,
+                "#[derive(GodotConvert)] does not support lifetimes or generic parameters"
             );
         }
 
-        if let Some(generic_params) = generic_params {
-            return bail!(generic_params, "`GodotConvert` does not support generics");
+        // Is this check even necessary? What's the use case of where clauses without generics?
+        // For traits, one can imagine `Self: SomeBound`, but for structs/enums?
+        if let Some(where_clause) = where_clause {
+            return bail!(
+                where_clause,
+                "#[derive(GodotConvert)] does not support where clauses"
+            );
         }
 
         let data = ConvertType::parse_declaration(item)?;
@@ -79,7 +84,7 @@ impl ConvertType {
         match &item {
             venial::Item::Struct(struct_) => {
                 let GodotAttribute::Transparent { .. } = attribute else {
-                    return bail!(attribute.span(), "`GodotConvert` on structs only works with `#[godot(transparent)]` currently");
+                    return bail!(attribute.span(), "#[derive(GodotConvert)] on structs currently only works with #[godot(transparent)]");
                 };
 
                 Ok(Self::NewType {
@@ -90,7 +95,7 @@ impl ConvertType {
                 let GodotAttribute::Via { via_type, .. } = attribute else {
                     return bail!(
                         attribute.span(),
-                        "`GodotConvert` on enums requires `#[godot(via = ...)]` currently"
+                        "#[derive(GodotConvert)] on enums requires #[godot(via = ...)]"
                     );
                 };
 
@@ -99,10 +104,7 @@ impl ConvertType {
                     via: via_type,
                 })
             }
-            _ => bail!(
-                item,
-                "`GodotConvert` only supports structs and enums currently"
-            ),
+            _ => unreachable!(), // already checked outside.
         }
     }
 
