@@ -420,7 +420,7 @@ impl ClassMethod {
             "hash present for virtual class method"
         );
 
-        let rust_method_name = Self::make_virtual_method_name(&method.name);
+        let rust_method_name = Self::make_virtual_method_name(class_name, &method.name);
 
         Self::from_json_inner(
             method,
@@ -488,13 +488,13 @@ impl ClassMethod {
         })
     }
 
-    fn make_virtual_method_name(godot_method_name: &str) -> &str {
+    fn make_virtual_method_name<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
         // Remove leading underscore from virtual method names.
         let method_name = godot_method_name
             .strip_prefix('_')
             .unwrap_or(godot_method_name);
 
-        special_cases::maybe_rename_virtual_method(method_name)
+        special_cases::maybe_rename_virtual_method(class_name, method_name)
     }
 }
 
