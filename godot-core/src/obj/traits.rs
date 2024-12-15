@@ -570,11 +570,9 @@ pub mod cap {
 
     // Move one level up, like WithBaseField?
     pub trait WithFuncs {
-        type FuncCollection<'a>
-        where
-            Self: 'a;
+        type FuncCollection;
 
-        fn funcs(&mut self) -> Self::FuncCollection<'_>;
+        fn funcs() -> Self::FuncCollection;
     }
 
     pub trait WithSignals: WithBaseField {

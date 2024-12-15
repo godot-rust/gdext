@@ -194,25 +194,22 @@ pub fn make_func_collection(
     });
 
     quote! {
-        pub struct #struct_name<'a> {
-            _lifetime: std::marker::PhantomData<&'a ()>,
-        }
+        #[non_exhaustive] // Prevent direct instantiation.
+        pub struct #struct_name {}
 
-        impl #struct_name<'_> {
+        impl #struct_name {
             #[doc(hidden)]
             pub fn __internal() -> Self {
-                Self {
-                    _lifetime: std::marker::PhantomData,
-                }
+                Self {}
             }
 
             #( #collection_methods )*
         }
 
         impl ::godot::obj::cap::WithFuncs for #class_name {
-            type FuncCollection<'a> = #struct_name<'a>;
+            type FuncCollection = #struct_name;
 
-            fn funcs(&mut self) -> Self::FuncCollection<'_> {
+            fn funcs() -> Self::FuncCollection {
                 Self::FuncCollection::__internal()
             }
         }
