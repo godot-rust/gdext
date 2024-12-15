@@ -128,7 +128,7 @@ impl Receiver {
     fn _just_here_to_generate_funcs();
 
     fn func(&self) {
-        let f = self.funcs().receiver_2();
+        let f = Self::funcs().receiver_2();
     }
 }
 
