@@ -8,7 +8,7 @@
 use crate::util::bail;
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {
@@ -26,10 +26,10 @@ pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
     class_name_obj: &TokenStream,
-) -> ParseResult<(Vec<TokenStream>, TokenStream)> {
+) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
-    let mut struct_fields = Vec::new();
-    let mut struct_methods = Vec::new();
+    let mut signals_fields = Vec::new();
+    let mut signals_struct_methods = Vec::new();
 
     for signal in signals.iter() {
         let SignalDefinition {
@@ -81,7 +81,7 @@ pub fn make_signal_registrations(
         let signal_parameters_count = param_names.len();
 
         if *has_builder {
-            struct_fields.push(quote! {
+            signals_fields.push(quote! {
                 #(#signal_cfg_attrs)*
                 #signal_name: ::godot::builtin::TypedSignal<#signal_param_tuple>
             });
@@ -90,7 +90,7 @@ pub fn make_signal_registrations(
             let connect_method = format_ident!("{}_connect", signal_name);
             let emit_params = &signature.params;
 
-            struct_methods.push(quote! {
+            signals_struct_methods.push(quote! {
                 #(#signal_cfg_attrs)*
                 fn #emit_method(&mut self, #emit_params) {
                     use ::godot::meta::ToGodot;
@@ -130,31 +130,40 @@ pub fn make_signal_registrations(
         signal_registrations.push(signal_registration);
     }
 
-    let struct_code = if struct_fields.is_empty() {
-        TokenStream::new()
+    let struct_code = if signals_fields.is_empty() {
+        None
     } else {
-        let struct_name = format_ident!("{}Signals", class_name);
-        quote! {
-            pub struct #struct_name<'a> {
-                // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
-                object_base: ::godot::obj::BaseMut<'a, #class_name>,
-            }
-
-            impl #struct_name<'_> {
-                #( #struct_methods )*
-            }
-
-            impl ::godot::obj::cap::WithSignals for #class_name {
-                type SignalCollection<'a> = #struct_name<'a>;
-
-                fn emit(&mut self) -> Self::SignalCollection<'_> {
-                    Self::SignalCollection {
-                        object_base: self.base_mut(),
-                    }
-                }
-            }
-        }
+        Some(make_signal_collection(class_name, signals_struct_methods))
     };
 
     Ok((signal_registrations, struct_code))
+}
+
+// See also make_func_collection().
+fn make_signal_collection(
+    class_name: &Ident,
+    signals_struct_methods: Vec<TokenStream>,
+) -> TokenStream {
+    let struct_name = format_ident!("{}Signals", class_name);
+
+    quote! {
+        pub struct #struct_name<'a> {
+            // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
+            object_base: ::godot::obj::BaseMut<'a, #class_name>,
+        }
+
+        impl #struct_name<'_> {
+            #( #signals_struct_methods )*
+        }
+
+        impl ::godot::obj::cap::WithSignals for #class_name {
+            type SignalCollection<'a> = #struct_name<'a>;
+
+            fn signals(&mut self) -> Self::SignalCollection<'_> {
+                Self::SignalCollection {
+                    object_base: self.base_mut(),
+                }
+            }
+        }
+    }
 }
