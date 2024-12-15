@@ -27,6 +27,8 @@ where
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 pub struct TypedSignal<Ps> {
     signal: Signal,
     _signature: std::marker::PhantomData<Ps>,
@@ -50,5 +52,28 @@ impl<Ps: ParamTuple> TypedSignal<Ps> {
 
     pub fn to_untyped(&self) -> Signal {
         self.signal.clone()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub struct TypedFunc<R, Ps> {
+    godot_name: &'static str,
+    _return_type: std::marker::PhantomData<R>,
+    _param_types: std::marker::PhantomData<Ps>,
+}
+
+impl<R, Ps> TypedFunc<R, Ps> {
+    #[doc(hidden)]
+    pub fn from_godot_name(godot_name: &'static str) -> Self {
+        Self {
+            godot_name,
+            _return_type: std::marker::PhantomData,
+            _param_types: std::marker::PhantomData,
+        }
+    }
+
+    pub fn godot_name(&self) -> &'static str {
+        self.godot_name
     }
 }

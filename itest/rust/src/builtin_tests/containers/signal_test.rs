@@ -9,7 +9,7 @@ use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
 use godot::classes::{Object, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::cap::WithSignals;
+use godot::obj::cap::{WithFuncs, WithSignals};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
@@ -87,9 +87,12 @@ impl Emitter {
     fn emitter_2(arg1: Gd<Object>, arg2: GString);
 
     fn connect_signals(&mut self) {
-        self.emit().emitter_2_connect(|obj, s| {
+        self.signals().emitter_2_connect(|obj, s| {
             println!("emitter_2({obj}, {s})");
         })
+
+        // let f = self.funcs().emitter_2();
+        // self.signals().emitter_2_connect()
     }
 }
 
@@ -119,6 +122,13 @@ impl Receiver {
         assert_eq!(SIGNAL_ARG_STRING, arg2.to_string());
 
         self.used[2].set(true);
+    }
+
+    #[signal]
+    fn _just_here_to_generate_funcs();
+
+    fn func(&self) {
+        let f = self.funcs().receiver_2();
     }
 }
 

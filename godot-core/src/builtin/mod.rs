@@ -63,7 +63,8 @@ pub mod __prelude_reexport {
     pub use string::{GString, NodePath, StringName};
     pub use transform2d::*;
     pub use transform3d::*;
-    pub use typed_signal::TypedSignal;
+    // TODO move to register?
+    pub use typed_signal::{TypedFunc, TypedSignal};
     pub use variant::*;
     pub use vectors::*;
 
