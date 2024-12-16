@@ -6,6 +6,7 @@
  */
 
 use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, SignatureInfo};
+use crate::util::ident;
 use crate::{util, ParseResult};
 
 use proc_macro2::{Ident, TokenStream};
@@ -15,7 +16,6 @@ use quote::quote;
 pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream> {
     let (class_name, trait_path, trait_base_class) =
         util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
-    let class_name_obj = util::class_name_obj(&class_name);
 
     let mut godot_init_impl = TokenStream::new();
     let mut to_string_impl = TokenStream::new();
@@ -26,17 +26,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let mut get_property_list_impl = TokenStream::new();
     let mut property_get_revert_impl = TokenStream::new();
 
-    let mut register_fn = None;
-    let mut create_fn = None;
-    let mut recreate_fn = None;
-    let mut to_string_fn = None;
-    let mut on_notification_fn = None;
-    let mut get_property_fn = None;
-    let mut set_property_fn = None;
-    let mut get_property_list_fn = None;
-    let mut free_property_list_fn = None;
-    let mut property_get_revert_fn = None;
-    let mut property_can_revert_fn = None;
+    let mut modifiers = Vec::new();
 
     let mut overridden_virtuals = vec![];
 
@@ -82,21 +72,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     }
                 };
 
-                // Adds a match arm for each implementation of this method, transferring its respective cfg attrs to
-                // the corresponding match arm (see explanation for the match after this loop).
-                // In principle, the cfg attrs will allow only either 0 or 1 of a function with this name to exist,
-                // unless there are duplicate implementations for the same method, which should error anyway.
-                // Thus, in any correct program, the match arms (which are, in principle, identical) will be reduced to
-                // a single one at most, since we forward the cfg attrs. The idea here is precisely to keep this
-                // specific match arm 'alive' if at least one implementation of the method is also kept (hence why all
-                // the match arms are identical).
-                register_fn = Some(quote! {
-                    #register_fn
-                    #(#cfg_attrs)*
-                    () => Some(#prv::ErasedRegisterFn {
-                        raw: #prv::callbacks::register_class_by_builder::<#class_name>
-                    }),
-                });
+                modifiers.push((cfg_attrs, ident("with_register")));
             }
 
             "init" => {
@@ -110,18 +86,8 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                         }
                     }
                 };
-                create_fn = Some(quote! {
-                    #create_fn
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::create::<#class_name>),
-                });
-                if cfg!(since_api = "4.2") {
-                    recreate_fn = Some(quote! {
-                        #recreate_fn
-                        #(#cfg_attrs)*
-                        () => Some(#prv::callbacks::recreate::<#class_name>),
-                    });
-                }
+
+                modifiers.push((cfg_attrs, ident("with_create")));
             }
 
             "to_string" => {
@@ -136,11 +102,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     }
                 };
 
-                to_string_fn = Some(quote! {
-                    #to_string_fn
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::to_string::<#class_name>),
-                });
+                modifiers.push((cfg_attrs, ident("with_string")));
             }
 
             "on_notification" => {
@@ -160,11 +122,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     }
                 };
 
-                on_notification_fn = Some(quote! {
-                    #on_notification_fn
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::on_notification::<#class_name>),
-                });
+                modifiers.push((cfg_attrs, ident("with_on_notification")));
             }
 
             "get_property" => {
@@ -182,10 +140,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     }
                 };
 
-                get_property_fn = Some(quote! {
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::get_property::<#class_name>),
-                });
+                modifiers.push((cfg_attrs, ident("with_get_property")));
             }
 
             "set_property" => {
@@ -203,10 +158,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     }
                 };
 
-                set_property_fn = Some(quote! {
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::set_property::<#class_name>),
-                });
+                modifiers.push((cfg_attrs, ident("with_set_property")));
             }
 
             #[cfg(before_api = "4.3")]
@@ -215,10 +167,6 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     #(#cfg_attrs)*
                     compile_error!("`get_property_list` is only supported for Godot versions of at least 4.3");
                 };
-
-                // Set these variables otherwise rust complains that these variables aren't changed in Godot < 4.3.
-                get_property_list_fn = None;
-                free_property_list_fn = None;
             }
 
             #[cfg(since_api = "4.3")]
@@ -238,14 +186,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     }
                 };
 
-                get_property_list_fn = Some(quote! {
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::get_property_list::<#class_name>),
-                });
-                free_property_list_fn = Some(quote! {
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::free_property_list::<#class_name>),
-                });
+                modifiers.push((cfg_attrs, ident("with_get_property_list")));
             }
 
             "property_get_revert" => {
@@ -263,15 +204,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     }
                 };
 
-                property_get_revert_fn = Some(quote! {
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::property_get_revert::<#class_name>),
-                });
-
-                property_can_revert_fn = Some(quote! {
-                    #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::property_can_revert::<#class_name>),
-                });
+                modifiers.push((cfg_attrs, ident("with_property_get_revert")));
             }
 
             // Other virtual methods, like ready, process etc.
@@ -340,22 +273,20 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
 
     let tool_check = util::make_virtual_tool_check();
 
-    // Use 'match' as a way to only emit 'Some(...)' if the given cfg attrs allow.
-    // This permits users to conditionally remove virtual method impls from compilation while also removing their FFI
-    // glue which would otherwise make them visible to Godot even if not really implemented.
-    // Needs '#[allow(unreachable_patterns)]' to avoid warnings about the last match arm.
-    // Also requires '#[allow(clippy::match_single_binding)]' for similar reasons.
-    let register_fn = convert_to_match_expression_or_none(register_fn);
-    let create_fn = convert_to_match_expression_or_none(create_fn);
-    let recreate_fn = convert_to_match_expression_or_none(recreate_fn);
-    let to_string_fn = convert_to_match_expression_or_none(to_string_fn);
-    let on_notification_fn = convert_to_match_expression_or_none(on_notification_fn);
-    let get_property_fn = convert_to_match_expression_or_none(get_property_fn);
-    let set_property_fn = convert_to_match_expression_or_none(set_property_fn);
-    let get_property_list_fn = convert_to_match_expression_or_none(get_property_list_fn);
-    let free_property_list_fn = convert_to_match_expression_or_none(free_property_list_fn);
-    let property_get_revert_fn = convert_to_match_expression_or_none(property_get_revert_fn);
-    let property_can_revert_fn = convert_to_match_expression_or_none(property_can_revert_fn);
+    let modifications = modifiers.into_iter().map(|(cfg_attrs, modifier)| {
+        quote! {
+            #(#cfg_attrs)*
+            { item = item.#modifier::<#class_name>(); }
+        }
+    });
+
+    let item_constructor = quote! {
+        {
+            let mut item = #prv::ITraitImpl::new::<#class_name>(#docs);
+            #(#modifications)*
+            item
+        }
+    };
 
     // See also __default_virtual_call() codegen.
     let (hash_param, hashes_use, match_expr);
@@ -401,25 +332,9 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             }
         }
 
-        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_obj,
-            item: #prv::PluginItem::ITraitImpl {
-                user_register_fn: #register_fn,
-                user_create_fn: #create_fn,
-                user_recreate_fn: #recreate_fn,
-                user_to_string_fn: #to_string_fn,
-                user_on_notification_fn: #on_notification_fn,
-                user_set_fn: #set_property_fn,
-                user_get_fn: #get_property_fn,
-                user_get_property_list_fn: #get_property_list_fn,
-                user_free_property_list_fn: #free_property_list_fn,
-                user_property_get_revert_fn: #property_get_revert_fn,
-                user_property_can_revert_fn: #property_can_revert_fn,
-                get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
-                #docs
-            },
-            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
-        });
+        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin::new::<#class_name>(
+            #prv::PluginItem::ITraitImpl(#item_constructor)
+        ));
     };
 
     Ok(result)
@@ -475,30 +390,6 @@ impl OverriddenVirtualFn<'_> {
             #(#cfg_attrs)*
             #pattern => #method_callback,
         }
-    }
-}
-
-/// Expects either Some(quote! { () => A, () => B, ... }) or None as the 'tokens' parameter.
-/// The idea is that the () => ... arms can be annotated by cfg attrs, so, if any of them compiles (and assuming the cfg
-/// attrs only allow one arm to 'survive' compilation), their return value (Some(...)) will be prioritized over the
-/// 'None' from the catch-all arm at the end. If, however, none of them compile, then None is returned from the last
-/// match arm.
-fn convert_to_match_expression_or_none(tokens: Option<TokenStream>) -> TokenStream {
-    if let Some(tokens) = tokens {
-        quote! {
-            {
-                // When one of the () => ... arms is present, the last arm intentionally won't ever match.
-                #[allow(unreachable_patterns)]
-                // Don't warn when only _ => None is present as all () => ... arms were removed from compilation.
-                #[allow(clippy::match_single_binding)]
-                match () {
-                    #tokens
-                    _ => None,
-                }
-            }
-        }
-    } else {
-        quote! { None }
     }
 }
 

@@ -12,7 +12,9 @@
 
 use crate::builder::ClassBuilder;
 use crate::builtin::{StringName, Variant};
-use crate::obj::{cap, Base, GodotClass, UserClass};
+use crate::classes::Object;
+use crate::obj::{bounds, cap, AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass};
+use crate::registry::plugin::ErasedDynGd;
 use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
 use godot_ffi as sys;
 use std::any::Any;
@@ -395,4 +397,23 @@ pub fn register_user_methods_constants<T: cap::ImplementsGodotApi>(_class_builde
 
 pub fn register_user_rpcs<T: cap::ImplementsGodotApi>(object: &mut dyn Any) {
     T::__register_rpcs(object);
+}
+
+/// # Safety
+///
+/// `obj` must be castable to `T`.
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe fn dynify_fn<T, D>(obj: Gd<Object>) -> ErasedDynGd
+where
+    T: GodotClass + Inherits<Object> + AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
+    D: ?Sized + 'static,
+{
+    // SAFETY: `obj` is castable to `T`.
+    let obj = unsafe { obj.try_cast::<T>().unwrap_unchecked() };
+    let obj = obj.into_dyn::<D>();
+    let obj = obj.upcast::<Object>();
+
+    ErasedDynGd {
+        boxed: Box::new(obj),
+    }
 }
