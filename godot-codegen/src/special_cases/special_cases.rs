@@ -349,19 +349,26 @@ pub fn is_utility_function_deleted(function: &JsonUtilityFunction, ctx: &mut Con
 }
 
 pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
+    // This is for non-virtual methods only. For virtual methods, use other handler below.
+
     match (class_name.godot_ty.as_str(), godot_method_name) {
         // GDScript, GDScriptNativeClass, possibly more in the future
         (_, "new") => "instantiate",
+
         _ => godot_method_name,
     }
 }
 
 // Maybe merge with above?
-pub fn maybe_rename_virtual_method(rust_method_name: &str) -> &str {
-    // A few classes define a virtual method called "_init" (distinct from the constructor)
-    // -> rename those to avoid a name conflict in I* interface trait.
-    match rust_method_name {
-        "init" => "init_ext",
+pub fn maybe_rename_virtual_method<'m>(class_name: &TyName, rust_method_name: &'m str) -> &'m str {
+    match (class_name.godot_ty.as_str(), rust_method_name) {
+        // Workaround for 2 methods of same name; see https://github.com/godotengine/godot/pull/99181#issuecomment-2543311415.
+        ("AnimationNodeExtension", "process") => "process_animation",
+
+        // A few classes define a virtual method called "_init" (distinct from the constructor)
+        // -> rename those to avoid a name conflict in I* interface trait.
+        (_, "init") => "init_ext",
+
         _ => rust_method_name,
     }
 }

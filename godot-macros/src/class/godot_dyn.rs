@@ -21,7 +21,7 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
     if decl.impl_generic_params.is_some() {
         bail!(
             &decl,
-            "#[godot_dyn] currently does not support generic parameters",
+            "#[godot_dyn] does not support lifetimes or generic parameters",
         )?;
     }
 
@@ -57,6 +57,7 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
                 dyn_trait_typeid: std::any::TypeId::of::<dyn #trait_path>(),
                 erased_dynify_fn: {
                     fn dynify_fn(obj: ::godot::obj::Gd<::godot::classes::Object>) -> #prv::ErasedDynGd {
+                        // SAFETY: runtime class type is statically known here and linked to the `class_name` field of the plugin.
                         let obj = unsafe { obj.try_cast::<#class_path>().unwrap_unchecked() };
                         let obj = obj.into_dyn::<dyn #trait_path>();
                         let obj = obj.upcast::<::godot::classes::Object>();
