@@ -6,7 +6,7 @@
  */
 
 use crate::meta::ClassName;
-use crate::registry::plugin::{InherentImpl, PluginItem};
+use crate::registry::plugin::{ITraitImpl, InherentImpl, PluginItem, Struct};
 use std::collections::HashMap;
 
 /// Created for documentation on
@@ -81,14 +81,14 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
                 map.entry(class_name).or_default().inherent = docs
             }
 
-            PluginItem::ITraitImpl {
+            PluginItem::ITraitImpl(ITraitImpl {
                 virtual_method_docs,
                 ..
-            } => map.entry(class_name).or_default().virtual_methods = virtual_method_docs,
+            }) => map.entry(class_name).or_default().virtual_methods = virtual_method_docs,
 
-            PluginItem::Struct {
+            PluginItem::Struct(Struct {
                 docs: Some(docs), ..
-            } => map.entry(class_name).or_default().definition = docs,
+            }) => map.entry(class_name).or_default().definition = docs,
 
             _ => (),
         }

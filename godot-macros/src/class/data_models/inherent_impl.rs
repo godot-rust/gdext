@@ -153,19 +153,9 @@ pub fn transform_inherent_impl(
         };
 
         let class_registration = quote! {
-            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-                class_name: #class_name_obj,
-                item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
-                    register_methods_constants_fn: #prv::ErasedRegisterFn {
-                        raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
-                    },
-                    register_rpcs_fn: Some(#prv::ErasedRegisterRpcsFn {
-                        raw: #prv::callbacks::register_user_rpcs::<#class_name>,
-                    }),
-                    #docs
-                }),
-                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
-            });
+            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin::new::<#class_name>(
+                #prv::PluginItem::InherentImpl(#prv::InherentImpl::new::<#class_name>(#docs))
+            ));
         };
 
         let result = quote! {
