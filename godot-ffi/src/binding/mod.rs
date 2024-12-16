@@ -11,6 +11,9 @@ use crate::{
     GdextRuntimeMetadata, ManualInitCell, UtilityFunctionTable,
 };
 
+#[macro_use]
+use crate::out;
+
 #[cfg(feature = "experimental-threads")]
 mod multi_threaded;
 #[cfg(not(feature = "experimental-threads"))]
@@ -84,6 +87,11 @@ unsafe impl Send for ClassLibraryPtr {}
 /// # Safety
 /// The table must not have been initialized yet.
 unsafe fn initialize_table<T>(table: &ManualInitCell<T>, value: T, what: &str) {
+    if table.is_initialized() {
+        out!("Table for {} is already initialized!", what);
+        return;
+    }
+
     debug_assert!(
         !table.is_initialized(),
         "method table for {what} should only be initialized once"

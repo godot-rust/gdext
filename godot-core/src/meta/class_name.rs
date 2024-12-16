@@ -41,9 +41,9 @@ pub unsafe fn cleanup() {
 /// Entry in the class name cache.
 ///
 /// `StringName` needs to be lazy-initialized because the Godot binding may not be initialized yet.
-struct ClassNameEntry {
-    rust_str: ClassNameSource,
-    godot_str: OnceCell<StringName>,
+pub struct ClassNameEntry {
+    pub rust_str: ClassNameSource,
+    pub godot_str: OnceCell<StringName>,
 }
 
 impl ClassNameEntry {
@@ -62,13 +62,13 @@ impl ClassNameEntry {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// `Cow`-like enum for class names, but with C strings as the borrowed variant.
-enum ClassNameSource {
+pub enum ClassNameSource {
     Owned(String),
     Borrowed(&'static CStr),
 }
 
 impl ClassNameSource {
-    fn to_string_name(&self) -> StringName {
+    pub fn to_string_name(&self) -> StringName {
         match self {
             ClassNameSource::Owned(s) => StringName::from(s),
 
@@ -107,6 +107,17 @@ pub struct ClassName {
 }
 
 impl ClassName {
+    pub fn iter_all<F>(f: F)
+    where
+        F: Fn(&ClassNameEntry),
+    {
+        let guard = CLASS_NAMES.lock();
+
+        for name in guard.iter() {
+            f(name);
+        }
+    }
+
     /// Construct a new class name.
     ///
     /// This is expensive the first time it called for a given `T`, but will be cached for subsequent calls.

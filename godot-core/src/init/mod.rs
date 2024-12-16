@@ -12,9 +12,13 @@ use godot_ffi as sys;
 use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
+use crate::meta::ClassName;
 use crate::out;
+use crate::private::ClassPlugin;
 
 pub use sys::GdextBuild;
+
+static mut ENGINE_INITIALIZED: bool = false;
 
 #[doc(hidden)]
 #[deny(unsafe_op_in_unsafe_fn)]
@@ -41,9 +45,21 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
 
         let config = sys::GdextConfig::new(tool_only_in_editor);
 
+        out!("Is engine initialized? {}", unsafe {
+            if ENGINE_INITIALIZED {
+                "yes"
+            } else {
+                "nope"
+            }
+        });
+
         // SAFETY: no custom code has run yet + no other thread is accessing global handle.
         unsafe {
-            sys::initialize(get_proc_address, library, config);
+            if !ENGINE_INITIALIZED {
+                sys::initialize(get_proc_address, library, config);
+            }
+
+            ENGINE_INITIALIZED = true;
         }
 
         // Currently no way to express failure; could be exposed to E if necessary.
@@ -157,6 +173,24 @@ unsafe fn gdext_on_level_init(level: InitLevel) {
         }
         _ => (),
     }
+
+    crate::private::iterate_plugins(|elem: &ClassPlugin| {
+        // Filter per ClassPlugin and not PluginItem, because all components of all classes are mixed together in one huge list.
+        if elem.init_level != level {
+            return;
+        }
+
+        out!("Pre::auto_register_classes: {}", &elem.class_name);
+
+        out!("All class names: ");
+        ClassName::iter_all(|entry| {
+            let string_name = entry
+                .godot_str
+                .get_or_init(|| entry.rust_str.to_string_name());
+
+            out!("\tClass name: {}", string_name);
+        });
+    });
 
     crate::registry::class::auto_register_classes(level);
 }
@@ -364,9 +398,9 @@ unsafe fn ensure_godot_features_compatible() {
 
     if godot_is_double != gdext_is_double {
         panic!(
-            "Godot runs with {} precision, but gdext was compiled with {} precision.\n\
-            Cargo feature `double-precision` must be used if and only if Godot is compiled with `precision=double`.\n",
-            s(godot_is_double), s(gdext_is_double),
-        );
+             "Godot runs with {} precision, but gdext was compiled with {} precision.\n\
+             Cargo feature `double-precision` must be used if and only if Godot is compiled with `precision=double`.\n",
+             s(godot_is_double), s(gdext_is_double),
+         );
     }
 }
