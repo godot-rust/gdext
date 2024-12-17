@@ -243,6 +243,14 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
 
         // (add more builtin types below)
 
+	// Vector2i
+	| ("Vector2i", "clampi")
+	| ("Vector2i", "distance_squared_to")
+	| ("Vector2i", "distance_to")
+	| ("Vector2i", "maxi")
+        | ("Vector2i", "mini")
+        | ("Vector2i", "snappedi")
+
         => true, _ => false
     }
 }
