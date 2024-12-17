@@ -103,10 +103,13 @@ fn make_builtin_class(
     };
     let inner_class = class.inner_name();
 
-    let FnDefinitions {
-        functions: methods,
-        builders,
-    } = make_builtin_methods(class, variant_shout_name, &class.methods, ctx);
+    // Note: builders are currently disabled for builtins, even though default parameters exist (e.g. String::substr).
+    // We just use the full signature instead. For outer APIs (user-facing), try to find idiomatic APIs.
+    #[rustfmt::skip]
+    let (
+        FnDefinitions { functions: inner_methods, .. },
+        FnDefinitions { functions: outer_methods, .. },
+    ) = make_builtin_methods(class, variant_shout_name, &class.methods, ctx);
 
     let imports = util::make_imports();
     let enums = enums::make_enums(&class.enums, &TokenStream::new());
@@ -129,10 +132,13 @@ fn make_builtin_class(
                 }
             }
             #special_constructors
-            #methods
+            #inner_methods
+        }
+        // Selected APIs appear directly in the outer class.
+        impl #outer_class {
+            #outer_methods
         }
 
-        #builders
         #enums
     };
     // note: TypePtr -> ObjectPtr conversion OK?
@@ -140,17 +146,32 @@ fn make_builtin_class(
     GeneratedBuiltin { code }
 }
 
+/// Returns 2 definition packs, one for the `Inner*` methods, and one for those ending up directly in the public-facing (outer) class.
 fn make_builtin_methods(
     builtin_class: &BuiltinClass,
     variant_shout_name: &Ident,
     methods: &[BuiltinMethod],
     ctx: &mut Context,
-) -> FnDefinitions {
-    let definitions = methods.iter().map(|method| {
-        make_builtin_method_definition(builtin_class, variant_shout_name, method, ctx)
-    });
+) -> (FnDefinitions, FnDefinitions) {
+    // Can't use partition() without allocating new vectors. It can also not be used after map() since condition is lost at that point.
 
-    FnDefinitions::expand(definitions)
+    let inner_defs = methods
+        .iter()
+        .filter(|&method| !method.is_exposed_in_outer)
+        .map(|method| {
+            make_builtin_method_definition(builtin_class, variant_shout_name, method, ctx)
+        });
+    let inner_defs = FnDefinitions::expand(inner_defs);
+
+    let outer_defs = methods
+        .iter()
+        .filter(|&method| method.is_exposed_in_outer)
+        .map(|method| {
+            make_builtin_method_definition(builtin_class, variant_shout_name, method, ctx)
+        });
+    let outer_defs = FnDefinitions::expand(outer_defs);
+
+    (inner_defs, outer_defs)
 }
 
 /// Depending on the built-in class, adds custom constructors and methods.
@@ -219,7 +240,14 @@ fn make_builtin_method_definition(
         quote! { fptr_by_index(#table_index) }
     };
 
-    let receiver = functions_common::make_receiver(method.qualifier(), quote! { self.sys_ptr });
+    let ffi_arg_in = if method.is_exposed_in_outer {
+        // TODO create dedicated method (in GodotFfi?) and replace similar occurrences everywhere.
+        quote! { sys::SysPtr::force_mut(self.sys()) }
+    } else {
+        quote! { self.sys_ptr }
+    };
+
+    let receiver = functions_common::make_receiver(method.qualifier(), ffi_arg_in);
     let object_ptr = &receiver.ffi_arg;
 
     let ptrcall_invocation = quote! {

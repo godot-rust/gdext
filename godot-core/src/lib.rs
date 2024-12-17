@@ -54,6 +54,10 @@ mod gen {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
+pub mod inners {
+    pub use crate::gen::*;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Hidden but accessible symbols
 

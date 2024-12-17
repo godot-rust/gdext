@@ -363,6 +363,8 @@ pub struct BuiltinMethod {
     pub common: FunctionCommon,
     pub qualifier: FnQualifier,
     pub surrounding_class: TyName,
+    /// Whether the method is directly exposed in the public-facing API, instead of the `Inner*` private struct.
+    pub is_exposed_in_outer: bool,
 }
 
 impl BuiltinMethod {
