@@ -173,6 +173,9 @@ pub use godot_core::possibly_docs as docs;
 #[doc(hidden)]
 pub use godot_core::sys;
 
+/// Generated "inner" builtin types -- these are normally private.
+pub use godot_core::inner_builtins;
+
 /// Entry point and global init/shutdown of the library.
 pub mod init {
     pub use godot_core::init::*;
