@@ -79,11 +79,11 @@ impl FnDefinitions {
         // Collect needed because borrowed by 2 closures
         let definitions: Vec<_> = definitions.collect();
         let functions = definitions.iter().map(|def| &def.functions);
-        let structs = definitions.iter().map(|def| &def.builders);
+        let builder_structs = definitions.iter().map(|def| &def.builders);
 
         FnDefinitions {
             functions: quote! { #( #functions )* },
-            builders: quote! { #( #structs )* },
+            builders: quote! { #( #builder_structs )* },
         }
     }
 }

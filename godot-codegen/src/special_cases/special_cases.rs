@@ -212,6 +212,9 @@ pub fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_nam
 }
 
 /// Whether a class or builtin method should be hidden from the public API.
+///
+/// Builtin class methods are all private by default, due to being declared in an `Inner*` struct. A separate mechanism is used
+/// to make them public, see [`is_builtin_method_exposed`].
 #[rustfmt::skip]
 pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
     match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
@@ -221,6 +224,24 @@ pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
         | ("RefCounted", "reference")
         | ("RefCounted", "unreference")
         | ("Object", "notification")
+
+        => true, _ => false
+    }
+}
+
+#[rustfmt::skip]
+pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -> bool {
+    match (builtin_ty.godot_ty.as_str(), godot_method_name) {
+        // GString
+        | ("String", "casecmp_to")
+        | ("String", "nocasecmp_to")
+
+        // StringName
+        | ("StringName", "casecmp_to")
+
+        // NodePath
+
+        // (add more builtin types below)
 
         => true, _ => false
     }
