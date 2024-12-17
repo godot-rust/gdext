@@ -64,6 +64,9 @@ impl IScriptExtension for TestScript {
     fn get_members(&self) -> godot::prelude::Array<StringName> { unreachable!() }
     fn is_placeholder_fallback_enabled(&self) -> bool { unreachable!() }
     fn get_rpc_config(&self) -> Variant { unreachable!() }
+    
+    #[cfg(since_api = "4.4")]
+    fn get_doc_class_name(&self) -> StringName { unreachable!() }
 }
 
 struct TestScriptInstance {
