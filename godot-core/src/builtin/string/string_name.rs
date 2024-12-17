@@ -76,6 +76,16 @@ impl StringName {
             .expect("Godot hashes are uint32_t")
     }
 
+    // TODO unimplemented because it returns GString -- there must be an efficient way to substring interned string names?
+    /*
+    /// Returns a substring of this, as another `StringName`.
+    pub fn substr(&self, range: impl ops::RangeBounds<usize>) -> Self {
+        let (from, len) = super::from_len(range);
+
+        self.as_inner().substr(from, len)
+    }
+    */
+
     /// Format a string using substitutions from an array or dictionary.
     ///
     /// The result is `GString` and not `StringName`.

@@ -14,6 +14,7 @@ mod string_name;
 
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
+use std::ops;
 
 pub use gstring::*;
 pub use node_path::NodePath;
@@ -50,4 +51,26 @@ impl FromGodot for String {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         Ok(via.to_string())
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Returns a tuple of `(from, len)` from a Rust range.
+fn to_fromlen_pair<R>(range: R) -> (i64, i64)
+where
+    R: ops::RangeBounds<usize>,
+{
+    let from = match range.start_bound() {
+        ops::Bound::Included(&n) => n as i64,
+        ops::Bound::Excluded(&n) => (n as i64) + 1,
+        ops::Bound::Unbounded => 0,
+    };
+
+    let len = match range.end_bound() {
+        ops::Bound::Included(&n) => ((n + 1) as i64) - from,
+        ops::Bound::Excluded(&n) => (n as i64) - from,
+        ops::Bound::Unbounded => -1,
+    };
+
+    (from, len)
 }

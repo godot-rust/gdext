@@ -5,8 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::convert::Infallible;
+use std::ffi::c_char;
 use std::fmt::Write;
-use std::{convert::Infallible, ffi::c_char, fmt, str::FromStr};
+use std::str::FromStr;
+use std::{fmt, ops};
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
@@ -105,6 +108,13 @@ impl GString {
 
             std::slice::from_raw_parts(ptr as *const char, len as usize)
         }
+    }
+
+    /// Returns a substring of this, as another `GString`.
+    pub fn substr(&self, range: impl ops::RangeBounds<usize>) -> Self {
+        let (from, len) = super::to_fromlen_pair(range);
+
+        self.as_inner().substr(from, len)
     }
 
     /// Format a string using substitutions from an array or dictionary.

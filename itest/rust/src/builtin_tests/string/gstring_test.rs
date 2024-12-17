@@ -113,3 +113,14 @@ fn string_with_null() {
         assert_eq!(left, right);
     }
 }
+
+#[itest]
+fn string_substr() {
+    let string = GString::from("stable");
+    assert_eq!(string.substr(..), "stable".into());
+    assert_eq!(string.substr(1..), "table".into());
+    assert_eq!(string.substr(..4), "stab".into());
+    assert_eq!(string.substr(..=3), "stab".into());
+    assert_eq!(string.substr(2..5), "abl".into());
+    assert_eq!(string.substr(2..=4), "abl".into());
+}
