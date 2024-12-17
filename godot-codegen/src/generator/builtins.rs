@@ -262,15 +262,17 @@ fn make_builtin_method_definition(
         )
     };
 
-    // TODO(#382): wait for https://github.com/godot-rust/gdext/issues/382
     let varcall_invocation = quote! {
-        /*<CallSig as VarcallSignatureTuple>::out_class_varcall(
+        let method_bind = sys::builtin_method_table().#fptr_access;
+
+        <CallSig as VarcallSignatureTuple>::out_builtin_ptrcall_varargs(
             method_bind,
+            #builtin_name_str,
             #method_name_str,
             #object_ptr,
             args,
             varargs
-        )*/
+        )
     };
 
     let safety_doc = method_safety_doc(builtin_class.name(), method);
@@ -282,6 +284,7 @@ fn make_builtin_method_definition(
             varcall_invocation,
             ptrcall_invocation,
             is_virtual_required: false,
+            is_varcall_fallible: false,
         },
         safety_doc,
         &TokenStream::new(),

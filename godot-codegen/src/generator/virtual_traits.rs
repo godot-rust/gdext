@@ -155,6 +155,7 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
             is_virtual_required: method.is_virtual_required(),
+            is_varcall_fallible: true,
         },
         None,
         &TokenStream::new(),
