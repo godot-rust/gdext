@@ -12,7 +12,8 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::{inner, NodePath, StringName};
+use crate::builtin::{inner, NodePath, StringName, Variant};
+use crate::meta;
 
 /// Godot's reference counted string type.
 ///
@@ -97,13 +98,31 @@ impl GString {
             let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
             let ptr = interface_fn!(string_operator_index_const)(s, 0);
 
-            // Even when len == 0, from_raw_parts requires ptr != 0
+            // Even when len == 0, from_raw_parts requires ptr != null.
             if ptr.is_null() {
                 return &[];
             }
 
             std::slice::from_raw_parts(ptr as *const char, len as usize)
         }
+    }
+
+    /// Format a string using substitutions from an array or dictionary.
+    ///
+    /// See Godot's [`String.format()`](https://docs.godotengine.org/en/stable/classes/class_string.html#class-string-method-format).
+    pub fn format(&self, array_or_dict: &Variant) -> Self {
+        self.as_inner().format(array_or_dict, "{_}")
+    }
+
+    /// Format a string using substitutions from an array or dictionary + custom placeholder.
+    ///
+    /// See Godot's [`String.format()`](https://docs.godotengine.org/en/stable/classes/class_string.html#class-string-method-format).
+    pub fn format_with_placeholder(
+        &self,
+        array_or_dict: &Variant,
+        placeholder: impl meta::AsArg<GString>,
+    ) -> Self {
+        self.as_inner().format(array_or_dict, placeholder)
     }
 
     ffi_methods! {
@@ -154,7 +173,7 @@ impl GString {
         self.move_return_ptr(dst, sys::PtrcallType::Standard);
     }
 
-    crate::meta::declare_arg_method! {
+    meta::declare_arg_method! {
         /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::meta::AsArg] parameter.
         ///
         /// This is a convenient way to convert arguments of similar string types.
@@ -195,7 +214,7 @@ unsafe impl GodotFfi for GString {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(GString);
+meta::impl_godot_as_self!(GString);
 
 impl_builtin_traits! {
     for GString {

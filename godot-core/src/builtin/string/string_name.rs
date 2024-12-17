@@ -10,8 +10,9 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::inner;
+use crate::builtin::{inner, Variant};
 use crate::builtin::{GString, NodePath};
+use crate::meta;
 
 /// A string optimized for unique names.
 ///
@@ -75,7 +76,27 @@ impl StringName {
             .expect("Godot hashes are uint32_t")
     }
 
-    crate::meta::declare_arg_method! {
+    /// Format a string using substitutions from an array or dictionary.
+    ///
+    /// The result is `GString` and not `StringName`.
+    /// See Godot's [`StringName.format()`](https://docs.godotengine.org/en/stable/classes/class_stringname.html#class-stringname-method-format).
+    pub fn format(&self, array_or_dict: &Variant) -> GString {
+        self.as_inner().format(array_or_dict, "{_}")
+    }
+
+    /// Format a string using substitutions from an array or dictionary + custom placeholder.
+    ///
+    /// The result is `GString` and not `StringName`.
+    /// See Godot's [`StringName.format()`](https://docs.godotengine.org/en/stable/classes/class_stringname.html#class-stringname-method-format).
+    pub fn format_with_placeholder(
+        &self,
+        array_or_dict: &Variant,
+        placeholder: impl meta::AsArg<GString>,
+    ) -> GString {
+        self.as_inner().format(array_or_dict, placeholder)
+    }
+
+    meta::declare_arg_method! {
         /// Use as argument for an [`impl AsArg<GString|NodePath>`][crate::meta::AsArg] parameter.
         ///
         /// This is a convenient way to convert arguments of similar string types.
@@ -183,7 +204,7 @@ unsafe impl GodotFfi for StringName {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-crate::meta::impl_godot_as_self!(StringName);
+meta::impl_godot_as_self!(StringName);
 
 impl_builtin_traits! {
     for StringName {
