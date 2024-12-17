@@ -241,6 +241,14 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
 
         // NodePath
 
+        // Callable
+        | ("Callable", "call")
+        | ("Callable", "call_deferred")
+        | ("Callable", "bind")
+        | ("Callable", "get_bound_arguments")
+        | ("Callable", "rpc")
+        | ("Callable", "rpc_id")
+
         // (add more builtin types below)
 
         => true, _ => false
