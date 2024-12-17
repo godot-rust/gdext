@@ -151,6 +151,24 @@ fn callable_bindv() {
     );
 }
 
+// This is also testing that using works at all.
+#[itest]
+#[cfg(since_api = "4.2")]
+fn callable_varargs() {
+    // TODO: Replace with proper apis instead of using `InnerCallable`.
+    use godot::builtin::inner;
+    let obj = CallableTestObj::new_gd();
+    let callable = obj.callable("bar");
+    let inner_callable = inner::InnerCallable::from_outer(&callable);
+    let callable_bound = inner_callable.bind(&[10.to_variant()]);
+    let inner_callable_bound = inner::InnerCallable::from_outer(&callable_bound);
+
+    assert_eq!(
+        inner_callable_bound.call(&[]),
+        10.to_variant().stringify().to_variant()
+    );
+}
+
 // Testing https://github.com/godot-rust/gdext/issues/410
 
 #[derive(GodotClass)]

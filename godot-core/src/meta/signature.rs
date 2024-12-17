@@ -74,6 +74,15 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
         varargs: &[Variant],
     ) -> Self::Ret;
 
+    unsafe fn out_builtin_ptrcall_varargs(
+        builtin_fn: BuiltinMethodBind,
+        class_name: &'static str,
+        method_name: &'static str,
+        type_ptr: sys::GDExtensionTypePtr,
+        args: Self::Params,
+        varargs: &[Variant],
+    ) -> Self::Ret;
+
     fn format_args(args: &Self::Params) -> String;
 }
 
@@ -299,6 +308,35 @@ macro_rules! impl_varcall_signature_for_tuple {
                 // Important: this calls from_sys_init_default().
                 let result = new_from_ptrcall::<Self::Ret>(|return_ptr| {
                     utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
+                });
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
+            }
+
+            #[inline]
+            unsafe fn out_builtin_ptrcall_varargs(
+                builtin_fn: BuiltinMethodBind,
+                class_name: &'static str,
+                method_name: &'static str,
+                type_ptr: sys::GDExtensionTypePtr,
+                ($($pn,)*): Self::Params,
+                varargs: &[Variant],
+            ) -> Self::Ret {
+                let call_ctx = CallContext::outbound(class_name, method_name);
+                //$crate::out!("out_builtin_ptrcall_varargs: {call_ctx}");
+
+                let explicit_args: [Variant; $PARAM_COUNT] = [
+                    $(
+                       into_ffi_variant(&$pn),
+                    )*
+                ];
+
+                let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
+                type_ptrs.extend(explicit_args.iter().map(sys::GodotFfi::sys));
+                type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
+
+                // Important: this calls from_sys_init_default().
+                let result = new_from_ptrcall::<Self::Ret>(|return_ptr| {
+                    builtin_fn(type_ptr, type_ptrs.as_ptr(), return_ptr, type_ptrs.len() as i32);
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }

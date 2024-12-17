@@ -343,7 +343,6 @@ pub fn is_class_method_param_required(
 
 /// True if builtin method is excluded. Does NOT check for type exclusion; use [`is_builtin_type_deleted`] for that.
 pub fn is_builtin_method_deleted(_class_name: &TyName, method: &JsonBuiltinMethod) -> bool {
-    // Currently only deleted if codegen.
     codegen_special_cases::is_builtin_method_excluded(method)
 }
 
