@@ -56,6 +56,10 @@ use crate::builtin::{inner, NodePath, StringName};
 /// | General purpose   | **`GString`**                              |
 /// | Interned names    | [`StringName`][crate::builtin::StringName] |
 /// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
+///
+/// # Godot docs
+///
+/// [`String` (stable)](https://docs.godotengine.org/en/stable/classes/class_string.html)
 #[doc(alias = "String")]
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]
@@ -64,17 +68,16 @@ pub struct GString {
 }
 
 impl GString {
-    /// Construct a new empty GString.
+    /// Construct a new empty `GString`.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Number of characters in the string.
+    ///
+    /// _Godot equivalent: `length`_
     pub fn len(&self) -> usize {
         self.as_inner().length().try_into().unwrap()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.as_inner().is_empty()
     }
 
     /// Returns a 32-bit integer hash value representing the string.
@@ -85,7 +88,7 @@ impl GString {
             .expect("Godot hashes are uint32_t")
     }
 
-    /// Gets the UTF-32 character slice from a [`GString`].
+    /// Gets the UTF-32 character slice from a `GString`.
     pub fn chars(&self) -> &[char] {
         // SAFETY: Godot 4.1 ensures valid UTF-32, making interpreting as char slice safe.
         // See https://github.com/godotengine/godot/pull/74760.

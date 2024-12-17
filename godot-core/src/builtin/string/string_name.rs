@@ -44,6 +44,10 @@ use crate::builtin::{GString, NodePath};
 /// | General purpose   | [`GString`][crate::builtin::GString]       |
 /// | Interned names    | **`StringName`**                           |
 /// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
+///
+/// # Godot docs
+///
+/// [`StringName` (stable)](https://docs.godotengine.org/en/stable/classes/class_stringname.html)
 // Currently we rely on `transparent` for `borrow_string_sys`.
 #[repr(transparent)]
 pub struct StringName {
@@ -55,19 +59,12 @@ impl StringName {
         Self { opaque }
     }
 
-    /// Returns the number of characters in the string.
+    /// Number of characters in the string.
     ///
     /// _Godot equivalent: `length`_
     #[doc(alias = "length")]
     pub fn len(&self) -> usize {
         self.as_inner().length() as usize
-    }
-
-    /// Returns `true` if this is the empty string.
-    ///
-    /// _Godot equivalent: `is_empty`_
-    pub fn is_empty(&self) -> bool {
-        self.as_inner().is_empty()
     }
 
     /// Returns a 32-bit integer hash value representing the string.
