@@ -447,6 +447,7 @@ impl Projection {
     /// added to the first and second values of the final column respectively.
     ///
     /// _Godot equivalent: `Projection.jitter_offseted()`_
+    #[doc(alias = "jitter_offseted")]
     #[must_use]
     pub fn jitter_offset(&self, offset: Vector2) -> Self {
         Self::from_cols(
@@ -499,6 +500,19 @@ impl Mul<Vector4> for Projection {
 
     fn mul(self, rhs: Vector4) -> Self::Output {
         self.glam2(&rhs, |m, v| m * v)
+    }
+}
+
+impl std::ops::Index<Vector4Axis> for Projection {
+    type Output = Vector4;
+
+    fn index(&self, index: Vector4Axis) -> &Self::Output {
+        match index {
+            Vector4Axis::X => &self.cols[0],
+            Vector4Axis::Y => &self.cols[1],
+            Vector4Axis::Z => &self.cols[2],
+            Vector4Axis::W => &self.cols[3],
+        }
     }
 }
 
