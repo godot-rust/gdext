@@ -28,6 +28,10 @@ use super::{GString, StringName};
 /// | General purpose   | [`GString`][crate::builtin::GString]       |
 /// | Interned names    | [`StringName`][crate::builtin::StringName] |
 /// | Scene-node paths  | **`NodePath`**                             |
+///
+/// # Godot docs
+///
+/// [`NodePath` (stable)](https://docs.godotengine.org/en/stable/classes/class_nodepath.html)
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
 }

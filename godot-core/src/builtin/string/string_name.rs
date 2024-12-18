@@ -10,8 +10,9 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::inner;
+use crate::builtin::{inner, Variant};
 use crate::builtin::{GString, NodePath};
+use crate::meta;
 
 /// A string optimized for unique names.
 ///
@@ -44,6 +45,10 @@ use crate::builtin::{GString, NodePath};
 /// | General purpose   | [`GString`][crate::builtin::GString]       |
 /// | Interned names    | **`StringName`**                           |
 /// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
+///
+/// # Godot docs
+///
+/// [`StringName` (stable)](https://docs.godotengine.org/en/stable/classes/class_stringname.html)
 // Currently we rely on `transparent` for `borrow_string_sys`.
 #[repr(transparent)]
 pub struct StringName {
@@ -55,19 +60,12 @@ impl StringName {
         Self { opaque }
     }
 
-    /// Returns the number of characters in the string.
+    /// Number of characters in the string.
     ///
     /// _Godot equivalent: `length`_
     #[doc(alias = "length")]
     pub fn len(&self) -> usize {
         self.as_inner().length() as usize
-    }
-
-    /// Returns `true` if this is the empty string.
-    ///
-    /// _Godot equivalent: `is_empty`_
-    pub fn is_empty(&self) -> bool {
-        self.as_inner().is_empty()
     }
 
     /// Returns a 32-bit integer hash value representing the string.
@@ -78,7 +76,37 @@ impl StringName {
             .expect("Godot hashes are uint32_t")
     }
 
-    crate::meta::declare_arg_method! {
+    // TODO unimplemented because it returns GString -- there must be an efficient way to substring interned string names?
+    /*
+    /// Returns a substring of this, as another `StringName`.
+    pub fn substr(&self, range: impl ops::RangeBounds<usize>) -> Self {
+        let (from, len) = super::from_len(range);
+
+        self.as_inner().substr(from, len)
+    }
+    */
+
+    /// Format a string using substitutions from an array or dictionary.
+    ///
+    /// The result is `GString` and not `StringName`.
+    /// See Godot's [`StringName.format()`](https://docs.godotengine.org/en/stable/classes/class_stringname.html#class-stringname-method-format).
+    pub fn format(&self, array_or_dict: &Variant) -> GString {
+        self.as_inner().format(array_or_dict, "{_}")
+    }
+
+    /// Format a string using substitutions from an array or dictionary + custom placeholder.
+    ///
+    /// The result is `GString` and not `StringName`.
+    /// See Godot's [`StringName.format()`](https://docs.godotengine.org/en/stable/classes/class_stringname.html#class-stringname-method-format).
+    pub fn format_with_placeholder(
+        &self,
+        array_or_dict: &Variant,
+        placeholder: impl meta::AsArg<GString>,
+    ) -> GString {
+        self.as_inner().format(array_or_dict, placeholder)
+    }
+
+    meta::declare_arg_method! {
         /// Use as argument for an [`impl AsArg<GString|NodePath>`][crate::meta::AsArg] parameter.
         ///
         /// This is a convenient way to convert arguments of similar string types.
@@ -186,7 +214,7 @@ unsafe impl GodotFfi for StringName {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-crate::meta::impl_godot_as_self!(StringName);
+meta::impl_godot_as_self!(StringName);
 
 impl_builtin_traits! {
     for StringName {

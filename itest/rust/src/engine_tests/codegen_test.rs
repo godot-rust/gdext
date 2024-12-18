@@ -9,7 +9,7 @@
 // Functionality is only tested on a superficial level (to make sure general FFI mechanisms work).
 
 use crate::framework::itest;
-use godot::builtin::inner::{InnerColor, InnerString};
+use godot::builtin::inner::InnerColor;
 use godot::classes::{FileAccess, HttpRequest, IHttpRequest, Image};
 use godot::prelude::*;
 
@@ -33,7 +33,7 @@ fn codegen_base_renamed() {
 
 #[itest]
 fn codegen_static_builtin_method() {
-    let pi = InnerString::num(std::f64::consts::PI, 3);
+    let pi = GString::num(std::f64::consts::PI, 3);
     assert_eq!(pi, GString::from("3.142"));
 
     let col = InnerColor::html("#663399cc");
