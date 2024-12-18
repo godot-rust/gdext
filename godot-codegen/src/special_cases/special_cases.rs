@@ -240,6 +240,11 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("StringName", "casecmp_to")
 
         // NodePath
+        | ("NodePath", "is_absolute")
+        | ("NodePath", "is_empty")
+        | ("NodePath", "get_concatenated_names")
+        | ("NodePath", "get_concatenated_subnames")
+        //| ("NodePath", "get_as_property_path")
 
         // (add more builtin types below)
 
