@@ -335,6 +335,21 @@ impl Callable {
         self.as_inner().is_valid()
     }
 
+    pub fn unbind(&self, args: usize) -> Callable {
+        self.as_inner().unbind(args as i64)
+    }
+
+    #[cfg(since_api = "4.3")]
+    #[doc(alias = "get_argument_count")]
+    pub fn arg_len(&self) -> usize {
+        self.as_inner().get_argument_count() as usize
+    }
+
+    #[doc(alias = "get_bound_arguments_count")]
+    pub fn bound_args_len(&self) -> i64 {
+        self.as_inner().get_bound_arguments_count()
+    }
+
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerCallable {
         inner::InnerCallable::from_outer(self)
