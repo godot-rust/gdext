@@ -800,6 +800,8 @@ macro_rules! impl_vector2x_fns {
             /// Returns the axis of the vector's highest value. See [`Vector2Axis`] enum. If all components are equal, this method returns [`None`].
             ///
             /// To mimic Godot's behavior, unwrap this function's result with `unwrap_or(Vector2Axis::X)`.
+            ///
+            #[doc = concat!("*Godot equivalent: `", stringify!($Vector), ".max_axis_index`*")]
             #[inline]
             #[doc(alias = "max_axis_index")]
             pub fn max_axis(self) -> Option<Vector2Axis> {
@@ -814,6 +816,8 @@ macro_rules! impl_vector2x_fns {
             /// Returns the axis of the vector's lowest value. See [`Vector2Axis`] enum. If all components are equal, this method returns [`None`].
             ///
             /// To mimic Godot's behavior, unwrap this function's result with `unwrap_or(Vector2Axis::Y)`.
+            ///
+            #[doc = concat!("*Godot equivalent: `", stringify!($Vector), ".min_axis_index`*")]
             #[inline]
             #[doc(alias = "min_axis_index")]
             pub fn min_axis(self) -> Option<Vector2Axis> {
