@@ -1,0 +1,8 @@
+[package]
+name = "discovery"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+hot-reload = { path = "../hot-reload/rust" }
+# No direct dependency on godot crate.

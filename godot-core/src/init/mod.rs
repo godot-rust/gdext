@@ -16,6 +16,8 @@ use crate::out;
 
 pub use sys::GdextBuild;
 
+pub mod discovery;
+
 #[doc(hidden)]
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(

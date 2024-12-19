@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::TokenStream;
-use quote::quote;
-
 use crate::util::{bail, ident, validate_impl, KvParser};
 use crate::ParseResult;
+use proc_macro2::TokenStream;
+use quote::quote;
+use venial::TypeExpr;
 
 pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
     let mut impl_decl = match item {
@@ -26,9 +26,15 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
     }
 
     let drained_attributes = std::mem::take(&mut impl_decl.attributes);
+
+    // #[gdextension(entry_symbol = ...)]
     let mut parser = KvParser::parse_required(&drained_attributes, "gdextension", &impl_decl)?;
     let entry_point = parser.handle_ident("entry_point")?;
     let entry_symbol = parser.handle_ident("entry_symbol")?;
+
+    // #[gdextension(discover)]
+    let discover = parser.handle_alone("discover")?;
+
     parser.finish()?;
 
     if entry_point.is_some() && entry_symbol.is_some() {
@@ -50,10 +56,62 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
 
     let impl_ty = &impl_decl.self_ty;
 
+    let discovery_impl = make_discovery(discover, impl_ty);
+    let wasm_preregistration = make_wasm_pre_registration();
+
     Ok(quote! {
         #deprecation
         #impl_decl
+        #wasm_preregistration
 
+        #[no_mangle]
+        unsafe extern "C" fn #entry_point(
+            get_proc_address: ::godot::sys::GDExtensionInterfaceGetProcAddress,
+            library: ::godot::sys::GDExtensionClassLibraryPtr,
+            init: *mut ::godot::sys::GDExtensionInitialization,
+        ) -> ::godot::sys::GDExtensionBool {
+            // Required due to the lack of a constructor facility such as .init_array in rust wasm
+            #[cfg(target_os = "emscripten")]
+            emscripten_preregistration();
+
+            ::godot::init::__gdext_load_library::<#impl_ty>(
+                get_proc_address,
+                library,
+                init
+            )
+        }
+
+        fn __static_type_check() {
+            // Ensures that the init function matches the signature advertised in FFI header
+            let _unused: ::godot::sys::GDExtensionInitializationFunction = Some(#entry_point);
+        }
+
+        #[cfg(target_os = "linux")]
+        ::godot::sys::register_hot_reload_workaround!();
+
+        #discovery_impl
+    })
+}
+
+fn make_discovery(discovery: bool, impl_ty: &TypeExpr) -> TokenStream {
+    if !discovery {
+        return TokenStream::new();
+    }
+
+    quote! {
+        /// Re-export of Godot's discovery module.
+        pub use ::godot::init::discovery as godot_discovery;
+
+        impl ::godot::init::discovery::ExtensionDiscovery for #impl_ty {
+            fn discover_classes() -> Vec<::godot::init::discovery::DiscoveredClass> {
+               ::godot::init::discovery::__discover()
+            }
+        }
+    }
+}
+
+fn make_wasm_pre_registration() -> TokenStream {
+    quote! {
         // This cfg cannot be checked from the outer proc-macro since its 'target' is the build
         // host. See: https://github.com/rust-lang/rust/issues/42587
         #[cfg(target_os = "emscripten")]
@@ -70,7 +128,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             //
             // We should keep an eye out for these sorts of failures!
             let script = std::ffi::CString::new(concat!(
-                "var pkgName = '", env!("CARGO_PKG_NAME"), "';", r#"
+            "var pkgName = '", env!("CARGO_PKG_NAME"), "';", r#"
                 var libName = pkgName.replaceAll('-', '_') + '.wasm';
                 if (!(libName in LDSO.loadedLibsByName)) {
                     // Always print to console, even if the error is suppressed.
@@ -101,30 +159,5 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             extern "C" { fn emscripten_run_script(script: *const std::ffi::c_char); }
             unsafe { emscripten_run_script(script.as_ptr()); }
         }
-
-        #[no_mangle]
-        unsafe extern "C" fn #entry_point(
-            get_proc_address: ::godot::sys::GDExtensionInterfaceGetProcAddress,
-            library: ::godot::sys::GDExtensionClassLibraryPtr,
-            init: *mut ::godot::sys::GDExtensionInitialization,
-        ) -> ::godot::sys::GDExtensionBool {
-            // Required due to the lack of a constructor facility such as .init_array in rust wasm
-            #[cfg(target_os = "emscripten")]
-            emscripten_preregistration();
-
-            ::godot::init::__gdext_load_library::<#impl_ty>(
-                get_proc_address,
-                library,
-                init
-            )
-        }
-
-        fn __static_type_check() {
-            // Ensures that the init function matches the signature advertised in FFI header
-            let _unused: ::godot::sys::GDExtensionInitializationFunction = Some(#entry_point);
-        }
-
-        #[cfg(target_os = "linux")]
-        ::godot::sys::register_hot_reload_workaround!();
-    })
+    }
 }
