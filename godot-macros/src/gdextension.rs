@@ -32,8 +32,8 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
     let entry_point = parser.handle_ident("entry_point")?;
     let entry_symbol = parser.handle_ident("entry_symbol")?;
 
-    // #[gdextension(discover)]
-    let discover = parser.handle_alone("discover")?;
+    // #[gdextension(discovery)]
+    let discover = parser.handle_alone("discovery")?;
 
     parser.finish()?;
 
@@ -102,8 +102,8 @@ fn make_discovery(discovery: bool, impl_ty: &TypeExpr) -> TokenStream {
         /// Re-export of Godot's discovery module.
         pub use ::godot::init::discovery as godot_discovery;
 
-        impl ::godot::init::discovery::ExtensionDiscovery for #impl_ty {
-            fn discover_classes() -> Vec<::godot::init::discovery::DiscoveredClass> {
+        impl #impl_ty {
+            pub fn discover() -> ::godot::init::discovery::DiscoveredExtension {
                ::godot::init::discovery::__discover()
             }
         }

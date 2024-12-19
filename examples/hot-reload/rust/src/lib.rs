@@ -9,9 +9,9 @@ use godot::prelude::*;
 
 pub struct HotReload;
 
-// The `discover` attribute is used by the discovery crate, not needed for hot reload.
+// The `discovery` attribute is used by the discovery crate, not needed for hot reload.
 // That's also the reason why `HotReload` is public.
-#[gdextension(discover)]
+#[gdextension(discovery)]
 unsafe impl ExtensionLibrary for HotReload {
     fn on_level_init(_level: InitLevel) {
         println!("[Rust]      Init level {:?}", _level);
