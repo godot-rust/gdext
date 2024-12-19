@@ -48,6 +48,18 @@ fn class_name_dynamic() {
     assert_eq!(a.to_cow_str(), Cow::<'static, str>::Owned("A".to_string()));
 }
 
+#[itest]
+fn class_name_display() {
+    let a = A::class_name();
+    assert_eq!(format!("{a}"), "A");
+
+    // Use fmt::ToString trait.
+    #[cfg(since_api = "4.4")]
+    assert_eq!(统一码::class_name().to_string(), "统一码");
+}
+
+// No test for fmt::Debug (index is unspecified).
+
 #[cfg(since_api = "4.4")]
 #[itest]
 fn class_name_dynamic_unicode() {

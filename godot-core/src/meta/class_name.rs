@@ -101,7 +101,7 @@ impl ClassNameSource {
 ///
 /// `ClassName`s are **not** ordered lexicographically, and the ordering relation is **not** stable across multiple runs of your
 /// application. When lexicographical order is needed, it's possible to convert this type to [`GString`] or [`String`].
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ClassName {
     global_index: u16,
 }
@@ -230,7 +230,16 @@ impl ClassName {
 
 impl fmt::Display for ClassName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.with_string_name(|s| s.fmt(f))
+        write!(f, "{}", self.to_cow_str())
+    }
+}
+
+impl fmt::Debug for ClassName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ClassName")
+            .field("id", &self.global_index)
+            .field("name", &self.to_cow_str())
+            .finish()
     }
 }
 
