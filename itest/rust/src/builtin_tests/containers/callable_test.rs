@@ -6,10 +6,13 @@
  */
 
 use godot::builtin::inner::InnerCallable;
-use godot::builtin::{varray, Callable, GString, StringName, Variant};
-use godot::classes::{Node2D, Object};
+use godot::builtin::{
+    array, varray, Array, Callable, GString, NodePath, StringName, Variant, VariantArray,
+};
+use godot::classes::{Node2D, Object, RefCounted};
+use godot::init::GdextBuild;
 use godot::meta::ToGodot;
-use godot::obj::{NewAlloc, NewGd};
+use godot::obj::{Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 use std::hash::Hasher;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -32,6 +35,11 @@ impl CallableTestObj {
     #[func]
     fn bar(&self, b: i32) -> GString {
         b.to_variant().stringify()
+    }
+
+    #[func]
+    fn baz(&self, a: i32, b: GString, c: Array<NodePath>, d: Gd<RefCounted>) -> VariantArray {
+        varray![a, b, c, d]
     }
 }
 
@@ -86,7 +94,7 @@ fn callable_object_method() {
 }
 
 #[itest]
-fn callable_call() {
+fn callable_callv() {
     let obj = CallableTestObj::new_gd();
     let callable = obj.callable("foo");
 
@@ -104,6 +112,31 @@ fn callable_call() {
     assert_eq!(callable.callv(&varray!["string"]), Variant::nil());
 
     assert_eq!(Callable::invalid().callv(&varray![1, 2, 3]), Variant::nil());
+}
+
+#[cfg(since_api = "4.2")]
+#[itest]
+fn callable_call() {
+    let obj = CallableTestObj::new_gd();
+    let callable = obj.callable("foo");
+
+    assert_eq!(obj.bind().value, 0);
+    callable.call(&[10.to_variant()]);
+    assert_eq!(obj.bind().value, 10);
+
+    // Too many arguments: this call fails, its logic is not applied.
+    // In the future, panic should be propagated to caller.
+    callable.call(&[20.to_variant(), 30.to_variant()]);
+    assert_eq!(obj.bind().value, 10);
+
+    // TODO(bromeon): this causes a Rust panic, but since call() is routed to Godot, the panic is handled at the FFI boundary.
+    // Can there be a way to notify the caller about failed calls like that?
+    assert_eq!(callable.call(&["string".to_variant()]), Variant::nil());
+
+    assert_eq!(
+        Callable::invalid().call(&[1.to_variant(), 2.to_variant(), 3.to_variant()]),
+        Variant::nil()
+    );
 }
 
 #[itest]
@@ -151,23 +184,91 @@ fn callable_bindv() {
     );
 }
 
-// This is also testing that using works at all.
-#[itest]
 #[cfg(since_api = "4.2")]
-fn callable_varargs() {
-    // TODO: Replace with proper apis instead of using `InnerCallable`.
-    use godot::builtin::inner;
+#[itest]
+fn callable_bind() {
     let obj = CallableTestObj::new_gd();
     let callable = obj.callable("bar");
-    let inner_callable = inner::InnerCallable::from_outer(&callable);
-    let callable_bound = inner_callable.bind(&[10.to_variant()]);
-    let inner_callable_bound = inner::InnerCallable::from_outer(&callable_bound);
+    let callable_bound = callable.bind(&[10.to_variant()]);
 
     assert_eq!(
-        inner_callable_bound.call(&[]),
+        callable_bound.call(&[]),
         10.to_variant().stringify().to_variant()
     );
 }
+
+#[cfg(since_api = "4.2")]
+#[itest]
+fn callable_unbind() {
+    let obj = CallableTestObj::new_gd();
+    let callable = obj.callable("bar");
+    let callable_unbound = callable.unbind(3);
+
+    assert_eq!(
+        callable_unbound.call(&[
+            121.to_variant(),
+            20.to_variant(),
+            30.to_variant(),
+            40.to_variant()
+        ]),
+        121.to_variant().stringify().to_variant()
+    );
+}
+
+#[cfg(since_api = "4.3")]
+#[itest]
+fn callable_arg_len() {
+    let obj = CallableTestObj::new_gd();
+
+    assert_eq!(obj.callable("foo").arg_len(), 1);
+    assert_eq!(obj.callable("bar").arg_len(), 1);
+    assert_eq!(obj.callable("baz").arg_len(), 4);
+    assert_eq!(obj.callable("foo").unbind(10).arg_len(), 11);
+    assert_eq!(
+        obj.callable("baz")
+            .bind(&[10.to_variant(), "hello".to_variant()])
+            .arg_len(),
+        2
+    );
+}
+
+#[itest]
+fn callable_bound_args_len() {
+    let obj = CallableTestObj::new_gd();
+
+    assert_eq!(obj.callable("foo").bound_args_len(), 0);
+    assert_eq!(obj.callable("foo").bindv(&varray![10]).bound_args_len(), 1);
+    #[cfg(since_api = "4.3")]
+    assert_eq!(
+        obj.callable("foo").unbind(28).bound_args_len(),
+        if GdextBuild::since_api("4.4") { 0 } else { -28 }
+    );
+    #[cfg(since_api = "4.3")]
+    assert_eq!(
+        obj.callable("foo")
+            .bindv(&varray![10])
+            .unbind(5)
+            .bound_args_len(),
+        if GdextBuild::since_api("4.4") { 1 } else { -4 }
+    );
+}
+
+#[itest]
+fn callable_get_bound_arguments() {
+    let obj = CallableTestObj::new_gd();
+
+    let a: i32 = 10;
+    let b: &str = "hello!";
+    let c: Array<NodePath> = array!["my/node/path"];
+    let d: Gd<RefCounted> = RefCounted::new_gd();
+
+    let callable = obj.callable("baz");
+    let callable_bound = callable.bindv(&varray![a, b, c, d]);
+
+    assert_eq!(callable_bound.get_bound_arguments(), varray![a, b, c, d]);
+}
+
+// TODO: Add tests for `Callable::rpc` and `Callable::rpc_id`.
 
 // Testing https://github.com/godot-rust/gdext/issues/410
 

@@ -176,6 +176,7 @@ pub(crate) enum FromGodotError {
     },
 
     /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
+    #[cfg(debug_assertions)]
     BadArrayTypeInt { expected: ArrayTypeInfo, value: i64 },
 
     /// InvalidEnum is also used by bitfields.
@@ -236,6 +237,7 @@ impl fmt::Display for FromGodotError {
                     "expected array of class {exp_class}, got array of class {act_class}"
                 )
             }
+            #[cfg(debug_assertions)]
             Self::BadArrayTypeInt { expected, value } => {
                 write!(
                     f,

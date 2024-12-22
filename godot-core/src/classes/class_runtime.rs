@@ -8,8 +8,11 @@
 //! Runtime checks and inspection of Godot classes.
 
 use crate::builtin::{GString, StringName};
+#[cfg(debug_assertions)]
 use crate::classes::{ClassDb, Object};
-use crate::meta::{CallContext, ClassName};
+use crate::meta::CallContext;
+#[cfg(debug_assertions)]
+use crate::meta::ClassName;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
 use crate::sys;
 
