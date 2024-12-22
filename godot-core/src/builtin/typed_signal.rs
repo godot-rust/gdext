@@ -6,7 +6,8 @@
  */
 
 use crate::builtin::{Callable, Signal, Variant};
-use crate::meta;
+use crate::{classes, meta};
+use crate::obj::Gd;
 
 pub trait ParamTuple {
     fn to_variant_array(&self) -> Vec<Variant>;
@@ -57,13 +58,13 @@ impl<Ps: ParamTuple> TypedSignal<Ps> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub struct TypedFunc<R, Ps> {
+pub struct TypedFunc<C, R, Ps> {
     godot_name: &'static str,
     _return_type: std::marker::PhantomData<R>,
-    _param_types: std::marker::PhantomData<Ps>,
+    _param_types: std::marker::PhantomData<(C, Ps)>,
 }
 
-impl<R, Ps> TypedFunc<R, Ps> {
+impl<C: GodotClass, R, Ps> TypedFunc<C, R, Ps> {
     #[doc(hidden)]
     pub fn from_godot_name(godot_name: &'static str) -> Self {
         Self {
@@ -73,7 +74,35 @@ impl<R, Ps> TypedFunc<R, Ps> {
         }
     }
 
+    pub fn with_object(obj: &Gd<T>) {
+
+    }
+
     pub fn godot_name(&self) -> &'static str {
         self.godot_name
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+pub struct Func<R, Ps> {
+    godot_name: &'static str,
+    bound_object: Option<Gd<classes::Object>>,
+    _return_type: std::marker::PhantomData<R>,
+    _param_types: std::marker::PhantomData< Ps>,
+
+
+}
+
+impl<R, Ps> Func<R, Ps> {
+    pub fn to_callable(&self) -> Callable {
+        // Instance method.
+        if let Some(bound_object) = self.bound_object.as_ref() {
+            return Callable::from_object_method(bound_object, self.godot_name);
+        }
+
+        // Static method.
     }
 }
