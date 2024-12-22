@@ -21,7 +21,9 @@ use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
 use crate::sys;
-use std::sync::{atomic, Arc, Mutex};
+use std::sync::atomic;
+#[cfg(debug_assertions)]
+use std::sync::{Arc, Mutex};
 use sys::Global;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -412,6 +414,7 @@ where
 
             #[cfg(not(debug_assertions))]
             {
+                let _ = error_context; // Unused warning.
                 let msg = extract_panic_message(err);
                 let msg = format_panic_message(msg);
 
