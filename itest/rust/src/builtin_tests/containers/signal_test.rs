@@ -91,7 +91,7 @@ impl Emitter {
             println!("emitter_2({obj}, {s})");
         })
 
-        // let f = self.funcs().emitter_2();
+        // let f = Self::funcs().emitter_2();
         // self.signals().emitter_2_connect()
     }
 }
