@@ -9,7 +9,7 @@ use std::convert::Infallible;
 use std::ffi::c_char;
 use std::fmt::Write;
 use std::str::FromStr;
-use std::{fmt, ops};
+use std::{cmp, fmt, ops};
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
@@ -17,6 +17,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use crate::builtin::{inner, NodePath, StringName, Variant};
 use crate::meta;
+use crate::meta::AsArg;
 
 /// Godot's reference counted string type.
 ///
@@ -80,6 +81,7 @@ impl GString {
     /// Number of characters in the string.
     ///
     /// _Godot equivalent: `length`_
+    #[doc(alias = "length")]
     pub fn len(&self) -> usize {
         self.as_inner().length().try_into().unwrap()
     }
@@ -130,9 +132,81 @@ impl GString {
     pub fn format_with_placeholder(
         &self,
         array_or_dict: &Variant,
-        placeholder: impl meta::AsArg<GString>,
+        placeholder: impl AsArg<GString>,
     ) -> Self {
         self.as_inner().format(array_or_dict, placeholder)
+    }
+
+    /// Case-sensitive, lexicographic comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// See also [`nocasecmp_to()`](Self::nocasecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn casecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().casecmp_to(to))
+    }
+
+    /// Case-**insensitive**, lexicographic comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn nocasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().nocasecmp_to(to))
+    }
+
+    /// Case-sensitive, **natural-order** comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often expected,
+    /// instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not `["1", "10", "2", "3", ...]`.
+    ///
+    /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less` if shorter.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalnocasecmp_to()`](Self::naturalnocasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn naturalcasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().naturalcasecmp_to(to))
+    }
+
+    /// Case-insensitive, **natural-order** comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often expected,
+    /// instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not `["1", "10", "2", "3", ...]`.
+    ///
+    /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less` if shorter.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn naturalnocasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().naturalnocasecmp_to(to))
+    }
+
+    /// Case-sensitive, filename-oriented comparison to another string.
+    ///
+    /// Like [`naturalcasecmp_to()`][Self::naturalcasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores (`_`) before
+    /// any other character. Useful when sorting folders or file names.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filenocasecmp_to()`](Self::filenocasecmp_to).
+    #[cfg(since_api = "4.3")]
+    pub fn filecasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().filecasecmp_to(to))
+    }
+
+    /// Case-insensitive, filename-oriented comparison to another string.
+    ///
+    /// Like [`naturalnocasecmp_to()`][Self::naturalnocasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores (`_`) before
+    /// any other character. Useful when sorting folders or file names.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    #[cfg(since_api = "4.3")]
+    pub fn filenocasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().filenocasecmp_to(to))
     }
 
     ffi_methods! {
@@ -184,7 +258,7 @@ impl GString {
     }
 
     meta::declare_arg_method! {
-        /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::meta::AsArg] parameter.
+        /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::AsArg] parameter.
         ///
         /// This is a convenient way to convert arguments of similar string types.
         ///
