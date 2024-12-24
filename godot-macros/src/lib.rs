@@ -710,10 +710,23 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// `#[rpc]` implies `#[func]`. You can use both attributes together, if you need to configure other `#[func]`-specific keys.
 ///
 /// For example, the following method declarations are all equivalent:
-/// ```
+/// ```no_run
+/// # // Polyfill without full codegen.
+/// # #![allow(non_camel_case_types)]
+/// # #[cfg(not(feature = "codegen-full"))]
+/// # enum RpcMode { DISABLED, ANY_PEER, AUTHORITY }
+/// # #[cfg(not(feature = "codegen-full"))]
+/// # enum TransferMode { UNRELIABLE, UNRELIABLE_ORDERED, RELIABLE }
+/// # #[cfg(not(feature = "codegen-full"))]
+/// # pub struct RpcConfig { pub rpc_mode: RpcMode, pub transfer_mode: TransferMode, pub call_local: bool, pub channel: u32 }
+/// # #[cfg(not(feature = "codegen-full"))]
+/// # impl Default for RpcConfig { fn default() -> Self { todo!("never called") } }
+/// # #[cfg(feature = "codegen-full")]
 /// use godot::classes::multiplayer_api::RpcMode;
+/// # #[cfg(feature = "codegen-full")]
 /// use godot::classes::multiplayer_peer::TransferMode;
 /// use godot::prelude::*;
+/// # #[cfg(feature = "codegen-full")]
 /// use godot::register::RpcConfig;
 ///
 /// # #[derive(GodotClass)]

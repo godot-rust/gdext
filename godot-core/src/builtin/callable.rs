@@ -307,6 +307,7 @@ impl Callable {
     /// _Godot equivalent: `get_method`_
     ///
     /// [godot#73052]: https://github.com/godotengine/godot/issues/73052
+    #[doc(alias = "get_method")]
     pub fn method_name(&self) -> Option<StringName> {
         let method_name = self.as_inner().get_method();
         if method_name.is_empty() {
@@ -384,19 +385,28 @@ impl Callable {
         self.as_inner().is_valid()
     }
 
+    /// Returns a copy of the callable, ignoring `args` user arguments.
+    ///
+    /// Despite its name, this does **not** directly undo previous `bind()` calls. See
+    /// [Godot docs](https://docs.godotengine.org/en/latest/classes/class_callable.html#class-callable-method-unbind) for up-to-date semantics.
     pub fn unbind(&self, args: usize) -> Callable {
         self.as_inner().unbind(args as i64)
     }
 
     #[cfg(since_api = "4.3")]
-    #[doc(alias = "get_argument_count")]
-    pub fn arg_len(&self) -> usize {
+    pub fn get_argument_count(&self) -> usize {
         self.as_inner().get_argument_count() as usize
     }
 
-    #[doc(alias = "get_bound_arguments_count")]
-    pub fn bound_args_len(&self) -> i64 {
-        self.as_inner().get_bound_arguments_count()
+    /// Get number of bound arguments.
+    ///
+    /// Note: for Godot < 4.4, this function returns incorrect results when applied on a callable that used `unbind()`.
+    /// See [#98713](https://github.com/godotengine/godot/pull/98713) for details.
+    pub fn get_bound_arguments_count(&self) -> usize {
+        // This does NOT fix the bug before Godot 4.4, just cap it at zero. unbind() will still erroneously decrease the bound arguments count.
+        let alleged_count = self.as_inner().get_bound_arguments_count();
+
+        alleged_count.max(0) as usize
     }
 
     #[doc(hidden)]
