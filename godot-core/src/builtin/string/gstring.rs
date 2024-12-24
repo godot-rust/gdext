@@ -5,14 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::convert::Infallible;
+use std::ffi::c_char;
 use std::fmt::Write;
-use std::{convert::Infallible, ffi::c_char, fmt, str::FromStr};
+use std::str::FromStr;
+use std::{cmp, fmt, ops};
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::{inner, NodePath, StringName};
+use crate::builtin::{inner, NodePath, StringName, Variant};
+use crate::meta;
+use crate::meta::AsArg;
 
 /// Godot's reference counted string type.
 ///
@@ -56,6 +61,10 @@ use crate::builtin::{inner, NodePath, StringName};
 /// | General purpose   | **`GString`**                              |
 /// | Interned names    | [`StringName`][crate::builtin::StringName] |
 /// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
+///
+/// # Godot docs
+///
+/// [`String` (stable)](https://docs.godotengine.org/en/stable/classes/class_string.html)
 #[doc(alias = "String")]
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]
@@ -64,17 +73,17 @@ pub struct GString {
 }
 
 impl GString {
-    /// Construct a new empty GString.
+    /// Construct a new empty `GString`.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Number of characters in the string.
+    ///
+    /// _Godot equivalent: `length`_
+    #[doc(alias = "length")]
     pub fn len(&self) -> usize {
         self.as_inner().length().try_into().unwrap()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.as_inner().is_empty()
     }
 
     /// Returns a 32-bit integer hash value representing the string.
@@ -85,7 +94,7 @@ impl GString {
             .expect("Godot hashes are uint32_t")
     }
 
-    /// Gets the UTF-32 character slice from a [`GString`].
+    /// Gets the UTF-32 character slice from a `GString`.
     pub fn chars(&self) -> &[char] {
         // SAFETY: Godot 4.1 ensures valid UTF-32, making interpreting as char slice safe.
         // See https://github.com/godotengine/godot/pull/74760.
@@ -94,13 +103,141 @@ impl GString {
             let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
             let ptr = interface_fn!(string_operator_index_const)(s, 0);
 
-            // Even when len == 0, from_raw_parts requires ptr != 0
+            // Even when len == 0, from_raw_parts requires ptr != null.
             if ptr.is_null() {
                 return &[];
             }
 
             std::slice::from_raw_parts(ptr as *const char, len as usize)
         }
+    }
+
+    /// Returns a substring of this, as another `GString`.
+    pub fn substr(&self, range: impl ops::RangeBounds<usize>) -> Self {
+        let (from, len) = super::to_fromlen_pair(range);
+
+        self.as_inner().substr(from, len)
+    }
+
+    /// Format a string using substitutions from an array or dictionary.
+    ///
+    /// See Godot's [`String.format()`](https://docs.godotengine.org/en/stable/classes/class_string.html#class-string-method-format).
+    pub fn format(&self, array_or_dict: &Variant) -> Self {
+        self.as_inner().format(array_or_dict, "{_}")
+    }
+
+    /// Format a string using substitutions from an array or dictionary + custom placeholder.
+    ///
+    /// See Godot's [`String.format()`](https://docs.godotengine.org/en/stable/classes/class_string.html#class-string-method-format).
+    pub fn format_with_placeholder(
+        &self,
+        array_or_dict: &Variant,
+        placeholder: impl AsArg<GString>,
+    ) -> Self {
+        self.as_inner().format(array_or_dict, placeholder)
+    }
+
+    /// Case-sensitive, lexicographic comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// See also [`nocasecmp_to()`](Self::nocasecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn casecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().casecmp_to(to))
+    }
+
+    /// Case-**insensitive**, lexicographic comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn nocasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().nocasecmp_to(to))
+    }
+
+    /// Case-sensitive, **natural-order** comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often expected,
+    /// instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not `["1", "10", "2", "3", ...]`.
+    ///
+    /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less` if shorter.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalnocasecmp_to()`](Self::naturalnocasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn naturalcasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().naturalcasecmp_to(to))
+    }
+
+    /// Case-insensitive, **natural-order** comparison to another string.
+    ///
+    /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
+    /// matches the alphabetical order.
+    ///
+    /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often expected,
+    /// instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not `["1", "10", "2", "3", ...]`.
+    ///
+    /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less` if shorter.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    pub fn naturalnocasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().naturalnocasecmp_to(to))
+    }
+
+    /// Case-sensitive, filename-oriented comparison to another string.
+    ///
+    /// Like [`naturalcasecmp_to()`][Self::naturalcasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores (`_`) before
+    /// any other character. Useful when sorting folders or file names.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filenocasecmp_to()`](Self::filenocasecmp_to).
+    #[cfg(since_api = "4.3")]
+    pub fn filecasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().filecasecmp_to(to))
+    }
+
+    /// Case-insensitive, filename-oriented comparison to another string.
+    ///
+    /// Like [`naturalnocasecmp_to()`][Self::naturalnocasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores (`_`) before
+    /// any other character. Useful when sorting folders or file names.
+    ///
+    /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
+    #[cfg(since_api = "4.3")]
+    pub fn filenocasecmp_to(&self, to: impl AsArg<GString>) -> cmp::Ordering {
+        sys::i64_to_ordering(self.as_inner().filenocasecmp_to(to))
+    }
+
+    /// Splits the string using a string delimiter and returns the substring at index `slice`.
+    ///
+    /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
+    ///
+    /// This is faster than [`split()`][Self::split], if you only need one substring.
+    pub fn get_slice(&self, delimiter: impl AsArg<GString>, slice: usize) -> Option<GString> {
+        let sliced = self.as_inner().get_slice(delimiter, slice as i64);
+
+        // Note: self="" always returns None.
+        super::populated_or_none(sliced)
+    }
+
+    /// Returns the total number of slices, when the string is split with the given delimiter.
+    ///
+    /// See also [`split()`][Self::split] and [`get_slice()`][Self::get_slice].
+    pub fn get_slice_count(&self, delimiter: impl AsArg<GString>) -> usize {
+        self.as_inner().get_slice_count(delimiter) as usize
+    }
+
+    /// Splits the string using a Unicode char `delimiter` and returns the substring at index `slice`.
+    ///
+    /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
+    ///
+    /// This is faster than [`split()`][Self::split], if you only need one substring.
+    pub fn get_slicec(&self, delimiter: char, slice: usize) -> Option<GString> {
+        let sliced = self.as_inner().get_slicec(delimiter as i64, slice as i64);
+
+        // Note: self="" always returns None.
+        super::populated_or_none(sliced)
     }
 
     ffi_methods! {
@@ -151,8 +288,8 @@ impl GString {
         self.move_return_ptr(dst, sys::PtrcallType::Standard);
     }
 
-    crate::meta::declare_arg_method! {
-        /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::meta::AsArg] parameter.
+    meta::declare_arg_method! {
+        /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::AsArg] parameter.
         ///
         /// This is a convenient way to convert arguments of similar string types.
         ///
@@ -192,7 +329,7 @@ unsafe impl GodotFfi for GString {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(GString);
+meta::impl_godot_as_self!(GString);
 
 impl_builtin_traits! {
     for GString {
