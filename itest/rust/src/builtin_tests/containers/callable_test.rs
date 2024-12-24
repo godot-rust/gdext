@@ -41,6 +41,11 @@ impl CallableTestObj {
     fn baz(&self, a: i32, b: GString, c: Array<NodePath>, d: Gd<RefCounted>) -> VariantArray {
         varray![a, b, c, d]
     }
+
+    #[func]
+    fn static_function(c: i32) -> GString {
+        c.to_variant().stringify()
+    }
 }
 
 #[itest]
@@ -63,7 +68,9 @@ fn callable_validity() {
     assert!(!Callable::invalid().is_valid());
     assert!(Callable::invalid().is_null());
     assert!(!Callable::invalid().is_custom());
-    assert!(Callable::invalid().object().is_none());
+    assert_eq!(Callable::invalid().object(), None);
+    assert_eq!(Callable::invalid().object_id(), None);
+    assert_eq!(Callable::invalid().method_name(), None);
 }
 
 #[itest]
@@ -87,10 +94,30 @@ fn callable_object_method() {
     drop(object);
     assert_eq!(callable.object_id(), Some(object_id));
     assert_eq!(callable.object(), None);
+}
 
-    assert_eq!(Callable::invalid().object(), None);
-    assert_eq!(Callable::invalid().object_id(), None);
-    assert_eq!(Callable::invalid().method_name(), None);
+#[itest]
+fn callable_static() {
+    let callable = Callable::from_local_static("CallableTestObj", "static_function");
+
+    // Test current behavior in <4.4 and >=4.4. Although our API explicitly leaves it unspecified, we then notice change in implementation.
+    if cfg!(since_api = "4.4") {
+        assert_eq!(callable.object(), None);
+        assert_eq!(callable.object_id(), None);
+        assert_eq!(callable.method_name(), None);
+    } else {
+        assert!(callable.object().is_some());
+        assert!(callable.object_id().is_some());
+        assert_eq!(callable.method_name(), Some("static_function".into()));
+        assert_eq!(callable.to_string(), "GDScriptNativeClass::static_function");
+    }
+
+    // Calling works consistently everywhere.
+    let result = callable.callv(&varray![12345]);
+    assert_eq!(result, "12345".to_variant());
+
+    #[cfg(since_api = "4.3")]
+    assert_eq!(callable.arg_len(), 0); // Consistently doesn't work :)
 }
 
 #[itest]
