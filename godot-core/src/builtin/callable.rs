@@ -385,6 +385,10 @@ impl Callable {
         self.as_inner().is_valid()
     }
 
+    /// Returns a copy of the callable, ignoring `args` user arguments.
+    ///
+    /// Despite its name, this does **not** directly undo previous `bind()` calls. See
+    /// [Godot docs](https://docs.godotengine.org/en/latest/classes/class_callable.html#class-callable-method-unbind) for up-to-date semantics.
     pub fn unbind(&self, args: usize) -> Callable {
         self.as_inner().unbind(args as i64)
     }
@@ -394,8 +398,12 @@ impl Callable {
         self.as_inner().get_argument_count() as usize
     }
 
+    /// Get number of bound arguments.
+    ///
+    /// Note: for Godot < 4.4, this function returns incorrect results when applied on a callable that used `unbind()`.
+    /// See [#98713](https://github.com/godotengine/godot/pull/98713) for details.
     pub fn get_bound_arguments_count(&self) -> usize {
-        // To consistently return usize, we already fix the bug https://github.com/godotengine/godot/pull/98713 before Godot 4.4.
+        // This does NOT fix the bug before Godot 4.4, just cap it at zero. unbind() will still erroneously decrease the bound arguments count.
         let alleged_count = self.as_inner().get_bound_arguments_count();
 
         alleged_count.max(0) as usize

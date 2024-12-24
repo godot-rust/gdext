@@ -5,18 +5,17 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::inner::InnerCallable;
+use crate::framework::itest;
 use godot::builtin::{
-    array, varray, Array, Callable, GString, NodePath, StringName, Variant, VariantArray,
+    array, varray, Array, Callable, GString, NodePath, StringName, Variant, VariantArray, Vector2,
 };
 use godot::classes::{Node2D, Object, RefCounted};
+use godot::init::GdextBuild;
 use godot::meta::ToGodot;
 use godot::obj::{Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 use std::hash::Hasher;
 use std::sync::atomic::{AtomicU32, Ordering};
-
-use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(init, base=RefCounted)]
@@ -27,23 +26,18 @@ struct CallableTestObj {
 #[godot_api]
 impl CallableTestObj {
     #[func]
-    fn foo(&mut self, a: i32) {
-        self.value = a;
+    fn stringify_int(&self, int: i32) -> GString {
+        int.to_variant().stringify()
     }
 
     #[func]
-    fn bar(&self, b: i32) -> GString {
-        b.to_variant().stringify()
+    fn assign_int(&mut self, int: i32) {
+        self.value = int;
     }
 
-    #[func]
-    fn baz(&self, a: i32, b: GString, c: Array<NodePath>, d: Gd<RefCounted>) -> VariantArray {
+    #[func] // static
+    fn concat_array(a: i32, b: GString, c: Array<NodePath>, d: Gd<RefCounted>) -> VariantArray {
         varray![a, b, c, d]
-    }
-
-    #[func]
-    fn static_function(c: i32) -> GString {
-        c.to_variant().stringify()
     }
 }
 
@@ -51,19 +45,19 @@ impl CallableTestObj {
 fn callable_validity() {
     let obj = CallableTestObj::new_gd();
 
-    // non-null object, valid method
-    assert!(obj.callable("foo").is_valid());
-    assert!(!obj.callable("foo").is_null());
-    assert!(!obj.callable("foo").is_custom());
-    assert!(obj.callable("foo").object().is_some());
+    // Non-null object, valid method.
+    assert!(obj.callable("assign_int").is_valid());
+    assert!(!obj.callable("assign_int").is_null());
+    assert!(!obj.callable("assign_int").is_custom());
+    assert!(obj.callable("assign_int").object().is_some());
 
-    // non-null object, invalid method
-    assert!(!obj.callable("doesn't_exist").is_valid());
-    assert!(!obj.callable("doesn't_exist").is_null());
-    assert!(!obj.callable("doesn't_exist").is_custom());
-    assert!(obj.callable("doesn't_exist").object().is_some());
+    // Non-null object, invalid method.
+    assert!(!obj.callable("doesnt_exist").is_valid());
+    assert!(!obj.callable("doesnt_exist").is_null());
+    assert!(!obj.callable("doesnt_exist").is_custom());
+    assert!(obj.callable("doesnt_exist").object().is_some());
 
-    // null object
+    // Null object.
     assert!(!Callable::invalid().is_valid());
     assert!(Callable::invalid().is_null());
     assert!(!Callable::invalid().is_custom());
@@ -75,19 +69,27 @@ fn callable_validity() {
 #[itest]
 fn callable_hash() {
     let obj = CallableTestObj::new_gd();
-    assert_eq!(obj.callable("foo").hash(), obj.callable("foo").hash());
-    assert_ne!(obj.callable("foo").hash(), obj.callable("bar").hash());
+    assert_eq!(
+        obj.callable("assign_int").hash(),
+        obj.callable("assign_int").hash()
+    );
+
+    // Not guaranteed, but unlikely.
+    assert_ne!(
+        obj.callable("assign_int").hash(),
+        obj.callable("stringify_int").hash()
+    );
 }
 
 #[itest]
 fn callable_object_method() {
     let object = CallableTestObj::new_gd();
     let object_id = object.instance_id();
-    let callable = object.callable("foo");
+    let callable = object.callable("assign_int");
 
     assert_eq!(callable.object(), Some(object.clone().upcast::<Object>()));
     assert_eq!(callable.object_id(), Some(object_id));
-    assert_eq!(callable.method_name(), Some("foo".into()));
+    assert_eq!(callable.method_name(), Some("assign_int".into()));
 
     // Invalidating the object still returns the old ID, however not the object.
     drop(object);
@@ -97,7 +99,7 @@ fn callable_object_method() {
 
 #[itest]
 fn callable_static() {
-    let callable = Callable::from_local_static("CallableTestObj", "static_function");
+    let callable = Callable::from_local_static("CallableTestObj", "concat_array");
 
     // Test current behavior in <4.4 and >=4.4. Although our API explicitly leaves it unspecified, we then notice change in implementation.
     if cfg!(since_api = "4.4") {
@@ -107,13 +109,21 @@ fn callable_static() {
     } else {
         assert!(callable.object().is_some());
         assert!(callable.object_id().is_some());
-        assert_eq!(callable.method_name(), Some("static_function".into()));
-        assert_eq!(callable.to_string(), "GDScriptNativeClass::static_function");
+        assert_eq!(callable.method_name(), Some("concat_array".into()));
+        assert_eq!(callable.to_string(), "GDScriptNativeClass::concat_array");
     }
 
     // Calling works consistently everywhere.
-    let result = callable.callv(&varray![12345]);
-    assert_eq!(result, "12345".to_variant());
+    let result = callable.callv(&varray![
+        10,
+        "hello",
+        &array![&NodePath::from("my/node/path")],
+        RefCounted::new_gd()
+    ]);
+
+    let result = result.to::<VariantArray>();
+    assert_eq!(result.len(), 4);
+    assert_eq!(result.at(0), 10.to_variant());
 
     #[cfg(since_api = "4.3")]
     assert_eq!(callable.get_argument_count(), 0); // Consistently doesn't work :)
@@ -122,7 +132,7 @@ fn callable_static() {
 #[itest]
 fn callable_callv() {
     let obj = CallableTestObj::new_gd();
-    let callable = obj.callable("foo");
+    let callable = obj.callable("assign_int");
 
     assert_eq!(obj.bind().value, 0);
     callable.callv(&varray![10]);
@@ -143,20 +153,18 @@ fn callable_callv() {
 #[cfg(since_api = "4.2")]
 #[itest]
 fn callable_call() {
+    // See callable_callv() for future improvements.
+
     let obj = CallableTestObj::new_gd();
-    let callable = obj.callable("foo");
+    let callable = obj.callable("assign_int");
 
     assert_eq!(obj.bind().value, 0);
     callable.call(&[10.to_variant()]);
     assert_eq!(obj.bind().value, 10);
 
-    // Too many arguments: this call fails, its logic is not applied.
-    // In the future, panic should be propagated to caller.
     callable.call(&[20.to_variant(), 30.to_variant()]);
     assert_eq!(obj.bind().value, 10);
 
-    // TODO(bromeon): this causes a Rust panic, but since call() is routed to Godot, the panic is handled at the FFI boundary.
-    // Can there be a way to notify the caller about failed calls like that?
     assert_eq!(callable.call(&["string".to_variant()]), Variant::nil());
 
     assert_eq!(
@@ -168,32 +176,35 @@ fn callable_call() {
 #[itest]
 fn callable_call_return() {
     let obj = CallableTestObj::new_gd();
-    let callable = obj.callable("bar");
+    let callable = obj.callable("stringify_int");
 
     assert_eq!(
         callable.callv(&varray![10]),
         10.to_variant().stringify().to_variant()
     );
-    // Errors in Godot, but should not crash.
+
+    // Causes error in Godot, but should not crash.
     assert_eq!(callable.callv(&varray!["string"]), Variant::nil());
 }
 
+#[cfg(since_api = "4.2")]
 #[itest]
 fn callable_call_engine() {
     let obj = Node2D::new_alloc();
     let cb = Callable::from_object_method(&obj, "set_position");
-    let inner: InnerCallable = cb.as_inner();
 
-    assert!(!inner.is_null());
-    assert_eq!(inner.get_object_id(), obj.instance_id().to_i64());
-    assert_eq!(inner.get_method(), StringName::from("set_position"));
+    assert!(!cb.is_null());
+    assert_eq!(cb.object_id(), Some(obj.instance_id()));
+    assert_eq!(cb.method_name(), Some(StringName::from("set_position")));
 
-    // TODO once varargs is available
-    // let pos = Vector2::new(5.0, 7.0);
-    // inner.call(&[pos.to_variant()]);
-    // assert_eq!(obj.get_position(), pos);
-    //
-    // inner.bindv(array);
+    let pos = Vector2::new(5.0, 7.0);
+    cb.call(&[pos.to_variant()]);
+    assert_eq!(obj.get_position(), pos);
+
+    let pos = Vector2::new(1.0, 23.0);
+    let bound = cb.bind(&[pos.to_variant()]);
+    bound.call(&[]);
+    assert_eq!(obj.get_position(), pos);
 
     obj.free();
 }
@@ -201,7 +212,7 @@ fn callable_call_engine() {
 #[itest]
 fn callable_bindv() {
     let obj = CallableTestObj::new_gd();
-    let callable = obj.callable("bar");
+    let callable = obj.callable("stringify_int");
     let callable_bound = callable.bindv(&varray![10]);
 
     assert_eq!(
@@ -214,7 +225,7 @@ fn callable_bindv() {
 #[itest]
 fn callable_bind() {
     let obj = CallableTestObj::new_gd();
-    let callable = obj.callable("bar");
+    let callable = obj.callable("stringify_int");
     let callable_bound = callable.bind(&[10.to_variant()]);
 
     assert_eq!(
@@ -227,7 +238,7 @@ fn callable_bind() {
 #[itest]
 fn callable_unbind() {
     let obj = CallableTestObj::new_gd();
-    let callable = obj.callable("bar");
+    let callable = obj.callable("stringify_int");
     let callable_unbound = callable.unbind(3);
 
     assert_eq!(
@@ -243,15 +254,19 @@ fn callable_unbind() {
 
 #[cfg(since_api = "4.3")]
 #[itest]
-fn callable_arg_len() {
+fn callable_get_argument_count() {
     let obj = CallableTestObj::new_gd();
 
-    assert_eq!(obj.callable("foo").get_argument_count(), 1);
-    assert_eq!(obj.callable("bar").get_argument_count(), 1);
-    assert_eq!(obj.callable("baz").get_argument_count(), 4);
-    assert_eq!(obj.callable("foo").unbind(10).get_argument_count(), 11);
+    let assign_int = obj.callable("assign_int");
+    assert_eq!(assign_int.get_argument_count(), 1);
+    assert_eq!(assign_int.unbind(10).get_argument_count(), 11);
+
+    assert_eq!(obj.callable("stringify_int").get_argument_count(), 1);
+
+    let concat_array = obj.callable("concat_array");
+    assert_eq!(concat_array.get_argument_count(), 4);
     assert_eq!(
-        obj.callable("baz")
+        concat_array
             .bind(&[10.to_variant(), "hello".to_variant()])
             .get_argument_count(),
         2
@@ -259,18 +274,19 @@ fn callable_arg_len() {
 }
 
 #[itest]
-fn callable_bound_args_len() {
-    // Note: bug regarding get_bound_arguments_count() returning negative numbers has been fixed in godot-rust also for older versions.
-
+fn callable_get_bound_arguments_count() {
     let obj = CallableTestObj::new_gd();
-    let original = obj.callable("foo");
+    let original = obj.callable("assign_int");
 
     assert_eq!(original.get_bound_arguments_count(), 0);
     assert_eq!(original.unbind(28).get_bound_arguments_count(), 0);
 
     let with_1_arg = original.bindv(&varray![10]);
     assert_eq!(with_1_arg.get_bound_arguments_count(), 1);
-    assert_eq!(with_1_arg.unbind(5).get_bound_arguments_count(), 1);
+
+    // Note: bug regarding get_bound_arguments_count() before 4.4; godot-rust caps at 0.
+    let expected = if GdextBuild::since_api("4.4") { 1 } else { 0 };
+    assert_eq!(with_1_arg.unbind(5).get_bound_arguments_count(), expected);
 }
 
 #[itest]
@@ -288,10 +304,7 @@ fn callable_get_bound_arguments() {
     assert_eq!(callable_bound.get_bound_arguments(), varray![a, b, c, d]);
 }
 
-// TODO: Add tests for `Callable::rpc` and `Callable::rpc_id`.
-
-// Testing https://github.com/godot-rust/gdext/issues/410
-
+// Regression test for https://github.com/godot-rust/gdext/issues/410.
 #[derive(GodotClass)]
 #[class(init, base = Node)]
 pub struct CallableRefcountTest {}
@@ -407,7 +420,8 @@ pub mod custom_callable {
     fn callable_custom_with_err() {
         let callable_with_err =
             Callable::from_local_fn("on_error_doesnt_crash", |_args: &[&Variant]| Err(()));
-        // Errors in Godot, but should not crash.
+
+        // Causes error in Godot, but should not crash.
         assert_eq!(callable_with_err.callv(&varray![]), Variant::nil());
     }
 
@@ -538,6 +552,9 @@ pub mod custom_callable {
         assert_eq!(1, received.load(Ordering::SeqCst));
     }
 
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    // Helper structs and functions for custom callables
+
     struct Adder {
         sum: i32,
 
@@ -644,5 +661,3 @@ pub mod custom_callable {
         }
     }
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
