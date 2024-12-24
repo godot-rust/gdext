@@ -10,7 +10,6 @@ use godot::builtin::{
     array, varray, Array, Callable, GString, NodePath, StringName, Variant, VariantArray,
 };
 use godot::classes::{Node2D, Object, RefCounted};
-use godot::init::GdextBuild;
 use godot::meta::ToGodot;
 use godot::obj::{Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
@@ -117,7 +116,7 @@ fn callable_static() {
     assert_eq!(result, "12345".to_variant());
 
     #[cfg(since_api = "4.3")]
-    assert_eq!(callable.arg_len(), 0); // Consistently doesn't work :)
+    assert_eq!(callable.get_argument_count(), 0); // Consistently doesn't work :)
 }
 
 #[itest]
@@ -247,37 +246,31 @@ fn callable_unbind() {
 fn callable_arg_len() {
     let obj = CallableTestObj::new_gd();
 
-    assert_eq!(obj.callable("foo").arg_len(), 1);
-    assert_eq!(obj.callable("bar").arg_len(), 1);
-    assert_eq!(obj.callable("baz").arg_len(), 4);
-    assert_eq!(obj.callable("foo").unbind(10).arg_len(), 11);
+    assert_eq!(obj.callable("foo").get_argument_count(), 1);
+    assert_eq!(obj.callable("bar").get_argument_count(), 1);
+    assert_eq!(obj.callable("baz").get_argument_count(), 4);
+    assert_eq!(obj.callable("foo").unbind(10).get_argument_count(), 11);
     assert_eq!(
         obj.callable("baz")
             .bind(&[10.to_variant(), "hello".to_variant()])
-            .arg_len(),
+            .get_argument_count(),
         2
     );
 }
 
 #[itest]
 fn callable_bound_args_len() {
-    let obj = CallableTestObj::new_gd();
+    // Note: bug regarding get_bound_arguments_count() returning negative numbers has been fixed in godot-rust also for older versions.
 
-    assert_eq!(obj.callable("foo").bound_args_len(), 0);
-    assert_eq!(obj.callable("foo").bindv(&varray![10]).bound_args_len(), 1);
-    #[cfg(since_api = "4.3")]
-    assert_eq!(
-        obj.callable("foo").unbind(28).bound_args_len(),
-        if GdextBuild::since_api("4.4") { 0 } else { -28 }
-    );
-    #[cfg(since_api = "4.3")]
-    assert_eq!(
-        obj.callable("foo")
-            .bindv(&varray![10])
-            .unbind(5)
-            .bound_args_len(),
-        if GdextBuild::since_api("4.4") { 1 } else { -4 }
-    );
+    let obj = CallableTestObj::new_gd();
+    let original = obj.callable("foo");
+
+    assert_eq!(original.get_bound_arguments_count(), 0);
+    assert_eq!(original.unbind(28).get_bound_arguments_count(), 0);
+
+    let with_1_arg = original.bindv(&varray![10]);
+    assert_eq!(with_1_arg.get_bound_arguments_count(), 1);
+    assert_eq!(with_1_arg.unbind(5).get_bound_arguments_count(), 1);
 }
 
 #[itest]

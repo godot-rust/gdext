@@ -307,6 +307,7 @@ impl Callable {
     /// _Godot equivalent: `get_method`_
     ///
     /// [godot#73052]: https://github.com/godotengine/godot/issues/73052
+    #[doc(alias = "get_method")]
     pub fn method_name(&self) -> Option<StringName> {
         let method_name = self.as_inner().get_method();
         if method_name.is_empty() {
@@ -389,14 +390,15 @@ impl Callable {
     }
 
     #[cfg(since_api = "4.3")]
-    #[doc(alias = "get_argument_count")]
-    pub fn arg_len(&self) -> usize {
+    pub fn get_argument_count(&self) -> usize {
         self.as_inner().get_argument_count() as usize
     }
 
-    #[doc(alias = "get_bound_arguments_count")]
-    pub fn bound_args_len(&self) -> i64 {
-        self.as_inner().get_bound_arguments_count()
+    pub fn get_bound_arguments_count(&self) -> usize {
+        // To consistently return usize, we already fix the bug https://github.com/godotengine/godot/pull/98713 before Godot 4.4.
+        let alleged_count = self.as_inner().get_bound_arguments_count();
+
+        alleged_count.max(0) as usize
     }
 
     #[doc(hidden)]
