@@ -209,6 +209,37 @@ impl GString {
         sys::i64_to_ordering(self.as_inner().filenocasecmp_to(to))
     }
 
+    /// Splits the string using a string delimiter and returns the substring at index `slice`.
+    ///
+    /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
+    ///
+    /// This is faster than [`split()`][Self::split], if you only need one substring.
+    pub fn get_slice(&self, delimiter: impl AsArg<GString>, slice: usize) -> Option<GString> {
+        let sliced = self.as_inner().get_slice(delimiter, slice as i64);
+
+        // Note: self="" always returns None.
+        super::populated_or_none(sliced)
+    }
+
+    /// Returns the total number of slices, when the string is split with the given delimiter.
+    ///
+    /// See also [`split()`][Self::split] and [`get_slice()`][Self::get_slice].
+    pub fn get_slice_count(&self, delimiter: impl AsArg<GString>) -> usize {
+        self.as_inner().get_slice_count(delimiter) as usize
+    }
+
+    /// Splits the string using a Unicode char `delimiter` and returns the substring at index `slice`.
+    ///
+    /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
+    ///
+    /// This is faster than [`split()`][Self::split], if you only need one substring.
+    pub fn get_slicec(&self, delimiter: char, slice: usize) -> Option<GString> {
+        let sliced = self.as_inner().get_slicec(delimiter as i64, slice as i64);
+
+        // Note: self="" always returns None.
+        super::populated_or_none(sliced)
+    }
+
     ffi_methods! {
         type sys::GDExtensionStringPtr = *mut Self;
 

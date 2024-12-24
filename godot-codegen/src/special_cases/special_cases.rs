@@ -235,9 +235,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         // TODO maybe consider renaming "match_" -> "matches". The "*n" could technically be "*_n", but is probably OK.
         
         // GString
-        | ("String", "get_slice")
-        | ("String", "get_slicec")
-        | ("String", "get_slice_count")
         | ("String", "find")
         | ("String", "findn")
         | ("String", "count")

@@ -74,3 +74,11 @@ where
 
     (from, len)
 }
+
+fn populated_or_none(s: GString) -> Option<GString> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
+    }
+}
