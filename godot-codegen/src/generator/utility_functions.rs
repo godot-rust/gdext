@@ -35,16 +35,16 @@ pub(crate) fn generate_utilities_file(
     submit_fn(gen_path.join("utilities.rs"), tokens);
 }
 
-pub(crate) fn make_utility_function_ptr_name(godot_function_name: &str) -> Ident {
-    util::safe_ident(godot_function_name)
+pub(crate) fn make_utility_function_ptr_name(function: &dyn Function) -> Ident {
+    function.name_ident()
 }
 
 pub(crate) fn make_utility_function_definition(function: &UtilityFunction) -> TokenStream {
+    let function_ident = make_utility_function_ptr_name(function);
     let function_name_str = function.name();
-    let fn_ptr = make_utility_function_ptr_name(function_name_str);
 
     let ptrcall_invocation = quote! {
-        let utility_fn = sys::utility_function_table().#fn_ptr;
+        let utility_fn = sys::utility_function_table().#function_ident;
 
         <CallSig as PtrcallSignatureTuple>::out_utility_ptrcall(
             utility_fn,
@@ -54,7 +54,7 @@ pub(crate) fn make_utility_function_definition(function: &UtilityFunction) -> To
     };
 
     let varcall_invocation = quote! {
-        let utility_fn = sys::utility_function_table().#fn_ptr;
+        let utility_fn = sys::utility_function_table().#function_ident;
 
         <CallSig as VarcallSignatureTuple>::out_utility_ptrcall_varargs(
             utility_fn,

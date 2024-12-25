@@ -42,10 +42,12 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let mut virtual_method_names = vec![];
 
     let prv = quote! { ::godot::private };
+
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
     let docs = crate::docs::make_virtual_impl_docs(&original_impl.body_items);
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
+
     for item in original_impl.body_items.iter() {
         let method = if let venial::ImplMember::AssocFunction(f) = item {
             f
@@ -58,7 +60,9 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
         let cfg_attrs = util::extract_cfg_attrs(&method.attributes)
             .into_iter()
             .collect::<Vec<_>>();
+
         let method_name = method.name.to_string();
+
         match method_name.as_str() {
             "register_class" => {
                 // Implements the trait once for each implementation of this method, forwarding the cfg attrs of each
@@ -288,13 +292,10 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             _ => {
                 let method = util::reduce_to_signature(method);
 
-                // Godot-facing name begins with underscore
+                // Godot-facing name begins with underscore.
                 //
-                // Note: godot-codegen special-cases the virtual
-                // method called _init (which exists on a handful of
-                // classes, distinct from the default constructor) to
-                // init_ext, to avoid Rust-side ambiguity. See
-                // godot_codegen::class_generator::virtual_method_name.
+                // godot-codegen special-cases the virtual method called _init (which exists on a handful of classes, distinct from the default
+                // constructor) to init_ext, to avoid Rust-side ambiguity. See godot_codegen::class_generator::virtual_method_name.
                 let virtual_method_name = if method_name == "init_ext" {
                     String::from("_init")
                 } else {
@@ -373,7 +374,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
 
         impl ::godot::obj::cap::ImplementsGodotVirtual for #class_name {
-            fn __virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
+            fn __virtual_call(name: &str, hash: u32) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
                 use ::godot::obj::UserClass as _;
                 #tool_check

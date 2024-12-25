@@ -159,8 +159,8 @@ pub fn make_utility_function_table(api: &ExtensionApi) -> TokenStream {
     };
 
     for function in api.utility_functions.iter() {
+        let field = generator::utility_functions::make_utility_function_ptr_name(function);
         let fn_name_str = function.name();
-        let field = generator::utility_functions::make_utility_function_ptr_name(fn_name_str);
         let hash = function.hash();
 
         table.method_decls.push(quote! {
@@ -177,6 +177,11 @@ pub fn make_utility_function_table(api: &ExtensionApi) -> TokenStream {
     make_named_method_table(table)
 }
 
+#[cfg(since_api = "4.4")]
+pub fn make_virtual_hashes_table(api: &ExtensionApi) -> TokenStream {
+    make_virtual_hashes_for_all_classes(&api.classes)
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
@@ -191,7 +196,7 @@ struct NamedMethodTable {
     method_count: usize,
 }
 
-#[allow(dead_code)] // for lazy feature
+#[allow(dead_code)] // Individual fields would need to be cfg'ed with: feature = "codegen-lazy-fptrs".
 struct IndexedMethodTable {
     table_name: Ident,
     imports: TokenStream,
@@ -298,6 +303,52 @@ fn make_named_method_table(info: NamedMethodTable) -> TokenStream {
                     #( #method_inits )*
                 }
             }
+        }
+    }
+}
+
+#[cfg(since_api = "4.4")]
+fn make_virtual_hashes_for_all_classes(all_classes: &[Class]) -> TokenStream {
+    let modules = all_classes
+        .iter()
+        .map(|class| make_virtual_hashes_for_class(class));
+
+    quote! {
+        #![allow(non_snake_case, non_upper_case_globals)]
+
+        #( #modules )*
+    }
+}
+
+#[cfg(since_api = "4.4")]
+fn make_virtual_hashes_for_class(class: &Class) -> TokenStream {
+    let class_rust_name = &class.name().rust_ty;
+
+    let constants: Vec<TokenStream> = class
+        .methods
+        .iter()
+        .filter_map(|method| {
+            let FnDirection::Virtual { hash } = method.direction() else {
+                return None;
+            };
+
+            let method_name = method.name_ident();
+            let constant = quote! {
+                pub const #method_name: u32 = #hash;
+            };
+
+            Some(constant)
+        })
+        .collect();
+
+    // Don't generate mod SomeClass {} without contents.
+    if constants.is_empty() {
+        return TokenStream::new();
+    }
+
+    quote! {
+        pub mod #class_rust_name {
+            #( #constants )*
         }
     }
 }

@@ -44,6 +44,8 @@ pub fn generate_sys_module_file(sys_gen_path: &Path, submit_fn: &mut SubmitFn) {
         pub mod table_scene_classes;
         pub mod table_editor_classes;
         pub mod table_utilities;
+        #[cfg(since_api = "4.4")]
+        pub mod virtual_hashes;
 
         pub mod central;
         pub mod gdextension_interface;
@@ -76,6 +78,15 @@ pub fn generate_sys_classes_file(
 
         submit_fn(sys_gen_path.join(filename), code);
         watch.record(format!("generate_classes_{}_file", api_level.lower()));
+    }
+
+    // From 4.4 onward, generate table that maps all virtual methods to their known hashes.
+    // This allows Godot to fall back to an older compatibility function if one is not supported.
+    #[cfg(since_api = "4.4")]
+    {
+        let virtual_hashes_code = method_tables::make_virtual_hashes_table(api);
+        submit_fn(sys_gen_path.join("virtual_hashes.rs"), virtual_hashes_code);
+        watch.record("generate_virtual_hashes_file");
     }
 }
 
