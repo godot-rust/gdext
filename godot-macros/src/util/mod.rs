@@ -166,30 +166,31 @@ pub(crate) fn validate_impl(
     validate_self(original_impl, attr)
 }
 
-/// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name
-/// of `Trait` begins with `I`.
+/// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name of `Trait` begins with `I`.
+///
+/// Returns `(class_name, trait_path, trait_base_class)`, e.g. `(MyClass, godot::prelude::INode3D, Node3D)`.
 pub(crate) fn validate_trait_impl_virtual<'a>(
     original_impl: &'a venial::Impl,
     attr: &str,
-) -> ParseResult<(Ident, &'a venial::TypeExpr)> {
+) -> ParseResult<(Ident, &'a venial::TypeExpr, Ident)> {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
     let typename = extract_typename(trait_name);
 
     // Validate trait
-    if !typename
+    let Some(base_class) = typename
         .as_ref()
-        .map_or(false, |seg| seg.ident.to_string().starts_with('I'))
-    {
+        .and_then(|seg| seg.ident.to_string().strip_prefix('I').map(ident))
+    else {
         return bail!(
             original_impl,
             "#[{attr}] for trait impls requires a virtual method trait (trait name should start with 'I')",
         );
-    }
+    };
 
     // Validate self
     validate_self(original_impl, attr).map(|class_name| {
         // let trait_name = typename.unwrap(); // unwrap: already checked in 'Validate trait'
-        (class_name, trait_name)
+        (class_name, trait_name, base_class)
     })
 }
 
