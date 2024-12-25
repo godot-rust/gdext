@@ -74,6 +74,21 @@ pub struct DynToClassRelation {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+// This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
+#[cfg(before_api = "4.2")]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo;
+#[cfg(all(since_api = "4.2", before_api = "4.3"))]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo2;
+#[cfg(all(since_api = "4.3", before_api = "4.4"))]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo3;
+#[cfg(since_api = "4.4")]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo4;
+
+#[cfg(before_api = "4.4")]
+pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual as sys::Inner>::FnPtr;
+#[cfg(since_api = "4.4")]
+pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual2 as sys::Inner>::FnPtr;
+
 #[derive(Debug)]
 struct ClassRegistrationInfo {
     class_name: ClassName,
@@ -82,18 +97,11 @@ struct ClassRegistrationInfo {
     register_methods_constants_fn: Option<ErasedRegisterFn>,
     register_properties_fn: Option<ErasedRegisterFn>,
     user_register_fn: Option<ErasedRegisterFn>,
-    default_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is at least one OnReady field)
-    user_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is a `#[godot_api] impl I*`)
+    default_virtual_fn: Option<GodotGetVirtual>, // Optional (set if there is at least one OnReady field)
+    user_virtual_fn: Option<GodotGetVirtual>, // Optional (set if there is a `#[godot_api] impl I*`)
 
     /// Godot low-level class creation parameters.
-    #[cfg(before_api = "4.2")]
-    godot_params: sys::GDExtensionClassCreationInfo,
-    #[cfg(all(since_api = "4.2", before_api = "4.3"))]
-    godot_params: sys::GDExtensionClassCreationInfo2,
-    #[cfg(all(since_api = "4.3", before_api = "4.4"))]
-    godot_params: sys::GDExtensionClassCreationInfo3,
-    #[cfg(since_api = "4.4")]
-    godot_params: sys::GDExtensionClassCreationInfo4,
+    godot_params: GodotCreationInfo,
 
     #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
     init_level: InitLevel,
@@ -146,17 +154,7 @@ pub fn register_class<
 
     out!("Manually register class {}", std::any::type_name::<T>());
 
-    // This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
-    #[cfg(before_api = "4.2")]
-    type CreationInfo = sys::GDExtensionClassCreationInfo;
-    #[cfg(all(since_api = "4.2", before_api = "4.3"))]
-    type CreationInfo = sys::GDExtensionClassCreationInfo2;
-    #[cfg(all(since_api = "4.3", before_api = "4.4"))]
-    type CreationInfo = sys::GDExtensionClassCreationInfo3;
-    #[cfg(since_api = "4.4")]
-    type CreationInfo = sys::GDExtensionClassCreationInfo4;
-
-    let godot_params = CreationInfo {
+    let godot_params = GodotCreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
         notification_func: Some(callbacks::on_notification::<T>),
         reference_func: Some(callbacks::reference::<T>),
@@ -507,23 +505,18 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
         // Try to register class...
 
         #[cfg(before_api = "4.2")]
-        let _: () = interface_fn!(classdb_register_extension_class)(
-            sys::get_library(),
-            class_name.string_sys(),
-            parent_class_name.string_sys(),
-            ptr::addr_of!(info.godot_params),
-        );
+        let register_fn = interface_fn!(classdb_register_extension_class);
 
         #[cfg(all(since_api = "4.2", before_api = "4.3"))]
-        let _: () = interface_fn!(classdb_register_extension_class2)(
-            sys::get_library(),
-            class_name.string_sys(),
-            parent_class_name.string_sys(),
-            ptr::addr_of!(info.godot_params),
-        );
+        let register_fn = interface_fn!(classdb_register_extension_class2);
 
-        #[cfg(since_api = "4.3")]
-        let _: () = interface_fn!(classdb_register_extension_class3)(
+        #[cfg(all(since_api = "4.3", before_api = "4.4"))]
+        let register_fn = interface_fn!(classdb_register_extension_class3);
+
+        #[cfg(since_api = "4.4")]
+        let register_fn = interface_fn!(classdb_register_extension_class4);
+
+        let _: () = register_fn(
             sys::get_library(),
             class_name.string_sys(),
             parent_class_name.string_sys(),
@@ -713,7 +706,7 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo3 {
     }
 }
 
-// #[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo4 {
     sys::GDExtensionClassCreationInfo4 {
         is_virtual: false as u8,

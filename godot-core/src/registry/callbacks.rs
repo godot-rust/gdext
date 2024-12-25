@@ -112,6 +112,7 @@ pub unsafe extern "C" fn free<T: GodotClass>(
 pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
+    #[cfg(since_api = "4.4")] _hash: u32,
 ) -> sys::GDExtensionClassCallVirtual {
     // This string is not ours, so we cannot call the destructor on it.
     let borrowed_string = StringName::borrow_string_sys(name);
@@ -123,6 +124,7 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
 pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
+    #[cfg(since_api = "4.4")] _hash: u32,
 ) -> sys::GDExtensionClassCallVirtual {
     // This string is not ours, so we cannot call the destructor on it.
     let borrowed_string = StringName::borrow_string_sys(name);

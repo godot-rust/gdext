@@ -423,9 +423,12 @@ impl ClassMethod {
         // Hash for virtual methods is available from Godot 4.4, see https://github.com/godotengine/godot/pull/100674.
         let direction = FnDirection::Virtual {
             #[cfg(since_api = "4.4")]
-            hash: method
-                .hash
-                .expect("virtual class methods must have a hash since Godot 4.4"),
+            hash: method.hash.unwrap_or_else(|| {
+                panic!(
+                    "virtual class methods must have a hash since Godot 4.4; missing: {}.{}",
+                    class_name.godot_ty, method.name
+                )
+            }),
         };
 
         let rust_method_name = Self::make_virtual_method_name(class_name, &method.name);

@@ -251,9 +251,9 @@ fn strip_module_paths(full_name: &str) -> String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Private helpers
 
-/// Metafunction to extract inner function pointer types from all the bindgen Option<F> type names.
+/// Metafunction to extract inner function pointer types from all the bindgen `Option<F>` type names.
 /// Needed for `unsafe_cast_fn_ptr` macro.
-pub(crate) trait Inner: Sized {
+pub trait Inner: Sized {
     type FnPtr: Sized;
 }
 
