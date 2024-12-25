@@ -19,6 +19,16 @@ use std::any::Any;
 use sys::conv::u32_to_usize;
 use sys::interface_fn;
 
+// Creation callback has `p_notify_postinitialize` parameter since 4.4: https://github.com/godotengine/godot/pull/91018.
+#[cfg(since_api = "4.4")]
+pub unsafe extern "C" fn create<T: cap::GodotDefault>(
+    _class_userdata: *mut std::ffi::c_void,
+    _notify_postinitialize: sys::GDExtensionBool,
+) -> sys::GDExtensionObjectPtr {
+    create_custom(T::__godot_user_init)
+}
+
+#[cfg(before_api = "4.4")]
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
