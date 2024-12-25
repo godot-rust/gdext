@@ -310,7 +310,7 @@ pub trait Function: fmt::Display {
         self.common().is_private
     }
     fn is_virtual(&self) -> bool {
-        matches!(self.direction(), FnDirection::Virtual)
+        matches!(self.direction(), FnDirection::Virtual { .. })
     }
     fn direction(&self) -> FnDirection {
         self.common().direction
@@ -330,7 +330,7 @@ pub struct UtilityFunction {
 impl UtilityFunction {
     pub fn hash(&self) -> i64 {
         match self.direction() {
-            FnDirection::Virtual => unreachable!("utility function cannot be virtual"),
+            FnDirection::Virtual { .. } => unreachable!("utility function cannot be virtual"),
             FnDirection::Outbound { hash } => hash,
         }
     }
@@ -370,7 +370,7 @@ pub struct BuiltinMethod {
 impl BuiltinMethod {
     pub fn hash(&self) -> i64 {
         match self.direction() {
-            FnDirection::Virtual => unreachable!("builtin method cannot be virtual"),
+            FnDirection::Virtual { .. } => unreachable!("builtin method cannot be virtual"),
             FnDirection::Outbound { hash } => hash,
         }
     }
@@ -441,7 +441,11 @@ impl fmt::Display for ClassMethod {
 #[derive(Copy, Clone, Debug)]
 pub enum FnDirection {
     /// Godot -> Rust.
-    Virtual,
+    Virtual {
+        // Since PR https://github.com/godotengine/godot/pull/100674, virtual methods have a compat hash, too.
+        #[cfg(since_api = "4.4")]
+        hash: i64,
+    },
 
     /// Rust -> Godot.
     Outbound { hash: i64 },
