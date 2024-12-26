@@ -1,3 +1,42 @@
+## This script is used to create a new Godot project with Rust support or add Rust support to an existing project.
+## To run the script, navigate to the project folder and run the following command:
+##
+##     curl https://raw.githubusercontent.com/godot-rust/gdext/refs/heads/master/bin/new.sh > ./tmp-new.sh && ./tmp-new.sh && rm ./tmp-new.sh
+##
+## If the script is run in a folder with a ".godot" folder, it will ask if you want
+## to add Rust support to the current project or restructure it.
+##   If the user chooses to restructure the project, the script will move the files
+##   to a temporary folder then restructure the project as follows
+##   (where "root" is the name of the project folder):
+##
+##     - "root"
+##       - "godot"
+##         - ".godot"
+##         - "rust.gdextension"
+##       - "rust"
+##         - "src"
+##           - "lib.rs"
+##         - "Cargo.toml"
+##
+##   Otherwise, it will add a rust folder to the current project and add a "rust"
+##   folder in the current directory with the following structure
+##   (where "root" is the name of the project folder):
+##
+##     - "root"
+##       - ".godot"
+##       - "rust"
+##         - "src"
+##           - "lib.rs"
+##         - "Cargo.toml"
+##       - "rust.gdextension"
+##
+##
+## If the script is run in a folder without a ".godot" folder, it will ask the
+## user for a project name and create a new project with with a structure described
+## above in the "restructure" section.
+##
+
+# The the current directory that the script was initiated from
 CURRENT_DIR=$(pwd)
 
 function create_rust_project {
