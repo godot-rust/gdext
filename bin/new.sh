@@ -63,7 +63,7 @@ opt-level = 3' Cargo.toml
 
   echo -e "\e[38;5;117mAdding godot crate to the Cargo.toml file\e[0m"
   cargo add godot
-  # cargo build
+  cargo build
 }
 
 function create_gdextension {
