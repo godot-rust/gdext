@@ -347,6 +347,11 @@ impl InheritanceTree {
         assert!(existing.is_none(), "Duplicate inheritance insert");
     }
 
+    #[allow(unused)] // Currently 4.4 gated, for virtual method hashes.
+    pub fn direct_base(&self, derived_name: &TyName) -> Option<TyName> {
+        self.derived_to_base.get(derived_name).cloned()
+    }
+
     /// Returns all base classes, without the class itself, in order from nearest to furthest (object).
     pub fn collect_all_bases(&self, derived_name: &TyName) -> Vec<TyName> {
         let mut upgoer = derived_name;

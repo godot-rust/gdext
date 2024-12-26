@@ -87,7 +87,7 @@ pub fn generate_sys_classes_file(
     // This allows Godot to fall back to an older compatibility function if one is not supported.
     #[cfg(since_api = "4.4")]
     {
-        let code = virtual_hashes::make_virtual_hashes_file(api);
+        let code = virtual_hashes::make_virtual_hashes_file(api, ctx);
         submit_fn(sys_gen_path.join("virtual_hashes.rs"), code);
         watch.record("generate_virtual_hashes_file");
     }

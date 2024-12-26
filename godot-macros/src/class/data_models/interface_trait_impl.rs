@@ -315,7 +315,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     // with known_virtual_hashes module could be changed to something like the following (GodotBase = nearest Godot base class):
                     // __get_virtual_hash::<Self::GodotBase>("method")
                     Some(quote! {
-                        if hash == ::godot::sys::known_virtual_hashes::#trait_base_class::#method_name_ident
+                        if hash == hashes::#method_name_ident
                     })
                 } else {
                     None
@@ -370,10 +370,13 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let property_can_revert_fn = convert_to_match_expression_or_none(property_can_revert_fn);
 
     // See also __default_virtual_call() codegen.
-    let hash_param = if cfg!(since_api = "4.4") {
-        quote! { hash: u32, }
+    let (hash_param, hashes_use);
+    if cfg!(since_api = "4.4") {
+        hash_param = quote! { hash: u32, };
+        hashes_use = quote! { use ::godot::sys::known_virtual_hashes::#trait_base_class as hashes; }
     } else {
-        TokenStream::new()
+        hash_param = TokenStream::new();
+        hashes_use = TokenStream::new();
     };
 
     let virtual_match_arms = overridden_virtuals
@@ -399,6 +402,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                 use ::godot::obj::UserClass as _;
                 #tool_check
 
+                #hashes_use
                 match name {
                     #( #virtual_match_arms )*
                     _ => None,
