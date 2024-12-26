@@ -500,6 +500,7 @@ mod export_impls {
     // Primitives
     impl_property_by_godot_convert!(f64);
     impl_property_by_godot_convert!(i64);
+    impl_property_by_godot_convert!(u64);
     impl_property_by_godot_convert!(bool);
 
     // Godot uses f64 internally for floats, and if Godot tries to pass an invalid f32 into a rust property
