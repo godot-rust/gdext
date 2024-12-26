@@ -104,6 +104,7 @@ function create_new {
 
   create_gdextension "$CURRENT_DIR/$PROJECT_NAME/godot" "$PROJECT_NAME" "../rust"
   create_rust_project "$CURRENT_DIR/$PROJECT_NAME" "$PROJECT_NAME"
+  write_lib_rs "$CURRENT_DIR/$PROJECT_NAME" "$PROJECT_NAME"
 }
 
 function move_files_around {
@@ -125,6 +126,20 @@ function move_files_around {
   rm -rf ./.tmp-$PROJECT_NAME
 }
 
+function write_lib_rs {
+  ROOT_DIR=$1
+  PROJECT_NAME=$2
+
+  cd $ROOT_DIR
+
+  echo "use godot::prelude::*;
+
+struct RustExtension;
+
+#[gdextension]
+unsafe impl ExtensionLibrary for RustExtension {}" > rust/src/lib.rs
+}
+
 echo -e "\e[33mLooking for the \".godot\" folder in the current directory\e[0m"
 if [ -d ".godot" ]; then
   PROJECT_NAME=${PWD##*/}
@@ -136,6 +151,7 @@ if [ -d ".godot" ]; then
       echo "Adding project to the current directory"
       create_gdextension "$CURRENT_DIR" "$PROJECT_NAME" "rust"
       create_rust_project "$CURRENT_DIR/rust" "$PROJECT_NAME"
+      write_lib_rs "$CURRENT_DIR" "$PROJECT_NAME"
       echo -e "\e[32m\nDone!\e[0m"
     ;;
     # Restructure the project
@@ -148,6 +164,7 @@ if [ -d ".godot" ]; then
           move_files_around "$PROJECT_NAME"
           create_gdextension "$CURRENT_DIR/godot" "$PROJECT_NAME" "../rust"
           create_rust_project  "$CURRENT_DIR" "$PROJECT_NAME"
+          write_lib_rs "$CURRENT_DIR" "$PROJECT_NAME"
           echo -e "\e[32m\nDone!\e[0m"
         ;;
         * )
