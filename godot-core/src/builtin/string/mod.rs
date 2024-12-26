@@ -10,6 +10,7 @@
 mod gstring;
 mod macros;
 mod node_path;
+mod string_macros;
 mod string_name;
 
 use crate::meta::error::ConvertError;
@@ -18,7 +19,7 @@ use std::ops;
 
 pub use gstring::*;
 pub use node_path::NodePath;
-pub use string_name::{StringName, TransientStringNameOrd};
+pub use string_name::*;
 
 impl GodotConvert for &str {
     type Via = GString;
@@ -80,5 +81,18 @@ fn populated_or_none(s: GString) -> Option<GString> {
         None
     } else {
         Some(s)
+    }
+}
+
+fn found_to_option(index: i64) -> Option<usize> {
+    if index == -1 {
+        None
+    } else {
+        // If this fails, then likely because we overlooked a negative value.
+        let index_usize = index
+            .try_into()
+            .unwrap_or_else(|_| panic!("unexpected index {index} returned from Godot function"));
+
+        Some(index_usize)
     }
 }

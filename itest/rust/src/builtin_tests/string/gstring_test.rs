@@ -8,7 +8,7 @@
 use std::collections::HashSet;
 
 use crate::framework::itest;
-use godot::builtin::GString;
+use godot::builtin::{GString, PackedStringArray};
 
 // TODO use tests from godot-rust/gdnative
 
@@ -123,4 +123,64 @@ fn string_substr() {
     assert_eq!(string.substr(..=3), "stab".into());
     assert_eq!(string.substr(2..5), "abl".into());
     assert_eq!(string.substr(2..=4), "abl".into());
+}
+
+#[itest]
+fn string_find() {
+    let s = GString::from("Hello World");
+
+    assert_eq!(s.find("o"), Some(4));
+
+    // Forward
+    assert_eq!(s.find_ex("o").done(), Some(4));
+    assert_eq!(s.find_ex("O").done(), None);
+    assert_eq!(s.find_ex("O").n().done(), Some(4));
+    assert_eq!(s.find_ex("O").n().from(4).done(), Some(4));
+    assert_eq!(s.find_ex("O").n().from(5).done(), Some(7));
+
+    // Reverse
+    assert_eq!(s.find_ex("o").r().done(), Some(7));
+    assert_eq!(s.find_ex("O").r().done(), None);
+    assert_eq!(s.find_ex("O").r().n().done(), Some(7));
+    assert_eq!(s.find_ex("O").r().n().from(7).done(), Some(7));
+    assert_eq!(s.find_ex("O").r().n().from(6).done(), Some(4));
+}
+
+fn packed(strings: &[&str]) -> PackedStringArray {
+    strings.iter().map(|&s| GString::from(s)).collect()
+}
+
+#[itest]
+fn string_split() {
+    let s = GString::from("Hello World");
+    assert_eq!(s.split(" "), packed(&["Hello", "World"]));
+    assert_eq!(
+        s.split(""),
+        packed(&["H", "e", "l", "l", "o", " ", "W", "o", "r", "l", "d"])
+    );
+    assert_eq!(s.split_ex(" ").done(), packed(&["Hello", "World"]));
+    assert_eq!(s.split_ex("world").done(), packed(&["Hello World"]));
+
+    // Empty divisions
+    assert_eq!(s.split_ex("l").done(), packed(&["He", "", "o Wor", "d"]));
+    assert_eq!(
+        s.split_ex("l").disallow_empty().done(),
+        packed(&["He", "o Wor", "d"])
+    );
+
+    // Max-split
+    assert_eq!(
+        s.split_ex("l").maxsplit(1).done(),
+        packed(&["He", "lo World"])
+    );
+    assert_eq!(
+        s.split_ex("l").maxsplit(2).done(),
+        packed(&["He", "", "o World"])
+    );
+
+    // Reverse max-split
+    assert_eq!(
+        s.split_ex("l").maxsplit_r(1).done(),
+        packed(&["Hello Wor", "d"])
+    );
 }

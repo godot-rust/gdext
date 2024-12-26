@@ -10,9 +10,9 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::{inner, Variant};
-use crate::builtin::{GString, NodePath};
-use crate::meta;
+use crate::builtin::{inner, GString, NodePath, Variant};
+use crate::meta::AsArg;
+use crate::{impl_shared_string_api, meta};
 
 /// A string optimized for unique names.
 ///
@@ -74,36 +74,6 @@ impl StringName {
             .hash()
             .try_into()
             .expect("Godot hashes are uint32_t")
-    }
-
-    // TODO unimplemented because it returns GString -- there must be an efficient way to substring interned string names?
-    /*
-    /// Returns a substring of this, as another `StringName`.
-    pub fn substr(&self, range: impl ops::RangeBounds<usize>) -> Self {
-        let (from, len) = super::from_len(range);
-
-        self.as_inner().substr(from, len)
-    }
-    */
-
-    /// Format a string using substitutions from an array or dictionary.
-    ///
-    /// The result is `GString` and not `StringName`.
-    /// See Godot's [`StringName.format()`](https://docs.godotengine.org/en/stable/classes/class_stringname.html#class-stringname-method-format).
-    pub fn format(&self, array_or_dict: &Variant) -> GString {
-        self.as_inner().format(array_or_dict, "{_}")
-    }
-
-    /// Format a string using substitutions from an array or dictionary + custom placeholder.
-    ///
-    /// The result is `GString` and not `StringName`.
-    /// See Godot's [`StringName.format()`](https://docs.godotengine.org/en/stable/classes/class_stringname.html#class-stringname-method-format).
-    pub fn format_with_placeholder(
-        &self,
-        array_or_dict: &Variant,
-        placeholder: impl meta::AsArg<GString>,
-    ) -> GString {
-        self.as_inner().format(array_or_dict, placeholder)
     }
 
     meta::declare_arg_method! {
@@ -226,6 +196,12 @@ impl_builtin_traits! {
         // (based on pointers). See transient_ord() method.
         Hash;
     }
+}
+
+impl_shared_string_api! {
+    builtin: StringName,
+    find_builder: ExStringNameFind,
+    split_builder: ExStringNameSplit,
 }
 
 impl fmt::Display for StringName {
@@ -386,7 +362,6 @@ impl PartialOrd for TransientStringNameOrd<'_> {
     }
 }
 
-// implement Ord like above
 impl Ord for TransientStringNameOrd<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // SAFETY: builtin operator provided by Godot.
