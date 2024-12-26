@@ -28,6 +28,9 @@ pub mod notifications;
 pub mod utility_functions;
 pub mod virtual_traits;
 
+#[cfg(since_api = "4.4")]
+pub mod virtual_hashes;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // Some file generation functions are in specific modules:
@@ -84,8 +87,8 @@ pub fn generate_sys_classes_file(
     // This allows Godot to fall back to an older compatibility function if one is not supported.
     #[cfg(since_api = "4.4")]
     {
-        let virtual_hashes_code = method_tables::make_virtual_hashes_table(api);
-        submit_fn(sys_gen_path.join("virtual_hashes.rs"), virtual_hashes_code);
+        let code = virtual_hashes::make_virtual_hashes_file(api);
+        submit_fn(sys_gen_path.join("virtual_hashes.rs"), code);
         watch.record("generate_virtual_hashes_file");
     }
 }
