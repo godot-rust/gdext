@@ -311,6 +311,8 @@ fn make_user_class_impl(
         let callback = make_virtual_callback(class_name, &signature_info, BeforeKind::OnlyBefore);
 
         // See also __virtual_call() codegen.
+        // This doesn't explicitly check if the base class inherits from Node (and thus has `_ready`), but the derive-macro already does
+        // this for the `OnReady` field declaration.
         let (hash_param, hash_check);
         if cfg!(since_api = "4.4") {
             hash_param = quote! { hash: u32, };

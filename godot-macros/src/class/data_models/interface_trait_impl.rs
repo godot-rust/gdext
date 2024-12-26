@@ -288,6 +288,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
 
             // Other virtual methods, like ready, process etc.
             method_name_str => {
+                #[cfg(since_api = "4.4")]
                 let method_name_ident = method.name.clone();
                 let method = util::reduce_to_signature(method);
 
@@ -310,17 +311,6 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     BeforeKind::Without
                 };
 
-                let hash_if_cond = if cfg!(since_api = "4.4") {
-                    // If ever the `I*` verbatim validation is relaxed (it won't work with use-renames or other weird edge cases), the approach
-                    // with known_virtual_hashes module could be changed to something like the following (GodotBase = nearest Godot base class):
-                    // __get_virtual_hash::<Self::GodotBase>("method")
-                    Some(quote! {
-                        if hash == hashes::#method_name_ident
-                    })
-                } else {
-                    None
-                };
-
                 // Note that, if the same method is implemented multiple times (with different cfg attr combinations),
                 // then there will be multiple match arms annotated with the same cfg attr combinations, thus they will
                 // be reduced to just one arm (at most, if the implementations aren't all removed from compilation) for
@@ -328,7 +318,11 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                 overridden_virtuals.push(OverriddenVirtualFn {
                     cfg_attrs,
                     method_name: virtual_method_name,
-                    hash_if_cond,
+                    // If ever the `I*` verbatim validation is relaxed (it won't work with use-renames or other weird edge cases), the approach
+                    // with known_virtual_hashes module could be changed to something like the following (GodotBase = nearest Godot base class):
+                    // __get_virtual_hash::<Self::GodotBase>("method")
+                    #[cfg(since_api = "4.4")]
+                    hash_constant: quote! { hashes::#method_name_ident },
                     signature_info,
                     before_kind,
                 });
@@ -338,11 +332,17 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
 
     // If there is no ready() method explicitly overridden, we need to add one, to ensure that __before_ready() is called to
     // initialize the OnReady fields.
-    if !overridden_virtuals.iter().any(|v| v.method_name == "ready") {
+    if is_possibly_node_class(&trait_base_class)
+        && !overridden_virtuals
+            .iter()
+            .any(|v| v.method_name == "_ready")
+    {
         let match_arm = OverriddenVirtualFn {
             cfg_attrs: vec![],
             method_name: "_ready".to_string(),
-            hash_if_cond: None, // TODO?
+            // Can't use `hashes::ready` here, as the base class might not be `Node` (see above why such a branch is still added).
+            #[cfg(since_api = "4.4")]
+            hash_constant: quote! { ::godot::sys::known_virtual_hashes::Node::ready },
             signature_info: SignatureInfo::fn_ready(),
             before_kind: BeforeKind::OnlyBefore,
         };
@@ -370,13 +370,16 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let property_can_revert_fn = convert_to_match_expression_or_none(property_can_revert_fn);
 
     // See also __default_virtual_call() codegen.
-    let (hash_param, hashes_use);
+    let (hash_param, hashes_use, match_expr);
     if cfg!(since_api = "4.4") {
         hash_param = quote! { hash: u32, };
-        hashes_use = quote! { use ::godot::sys::known_virtual_hashes::#trait_base_class as hashes; }
+        hashes_use =
+            quote! { use ::godot::sys::known_virtual_hashes::#trait_base_class as hashes; };
+        match_expr = quote! { (name, hash) };
     } else {
         hash_param = TokenStream::new();
         hashes_use = TokenStream::new();
+        match_expr = quote! { name };
     };
 
     let virtual_match_arms = overridden_virtuals
@@ -403,7 +406,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                 #tool_check
 
                 #hashes_use
-                match name {
+                match #match_expr {
                     #( #virtual_match_arms )*
                     _ => None,
                 }
@@ -434,10 +437,30 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     Ok(result)
 }
 
+/// Returns `false` if the given class does definitely not inherit `Node`, `true` otherwise.
+///
+/// `#[godot_api]` has currently no way of checking base class at macro-resolve time, so the `_ready` branch is unconditionally
+/// added, even for classes that don't inherit from `Node`. As a best-effort, we exclude some very common non-Node classes explicitly, to
+/// generate less useless code.
+fn is_possibly_node_class(trait_base_class: &Ident) -> bool {
+    !matches!(
+        trait_base_class.to_string().as_str(), //.
+        "Object"
+            | "MainLoop"
+            | "RefCounted"
+            | "Resource"
+            | "ResourceLoader"
+            | "ResourceSaver"
+            | "SceneTree"
+            | "Script"
+            | "ScriptExtension"
+    )
+}
 struct OverriddenVirtualFn<'a> {
     cfg_attrs: Vec<&'a venial::Attribute>,
     method_name: String,
-    hash_if_cond: Option<TokenStream>,
+    #[cfg(since_api = "4.4")]
+    hash_constant: TokenStream,
     signature_info: SignatureInfo,
     before_kind: BeforeKind,
 }
@@ -445,8 +468,16 @@ struct OverriddenVirtualFn<'a> {
 impl OverriddenVirtualFn<'_> {
     fn make_match_arm(&self, class_name: &Ident) -> TokenStream {
         let cfg_attrs = self.cfg_attrs.iter();
-        let method_name = self.method_name.as_str();
-        let hash_if_cond = &self.hash_if_cond;
+        let method_name_str = self.method_name.as_str();
+
+        #[cfg(since_api = "4.4")]
+        let pattern = {
+            let hash_constant = &self.hash_constant;
+            quote! { (#method_name_str, #hash_constant) }
+        };
+
+        #[cfg(before_api = "4.4")]
+        let pattern = method_name_str;
 
         // Lazily generate code for the actual work (calling user function).
         let method_callback =
@@ -454,7 +485,7 @@ impl OverriddenVirtualFn<'_> {
 
         quote! {
             #(#cfg_attrs)*
-            #method_name #hash_if_cond => #method_callback,
+            #pattern => #method_callback,
         }
     }
 }
