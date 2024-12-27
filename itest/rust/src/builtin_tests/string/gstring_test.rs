@@ -146,10 +146,6 @@ fn string_find() {
     assert_eq!(s.find_ex("O").r().n().from(6).done(), Some(4));
 }
 
-fn packed(strings: &[&str]) -> PackedStringArray {
-    strings.iter().map(|&s| GString::from(s)).collect()
-}
-
 #[itest]
 fn string_split() {
     let s = GString::from("Hello World");
@@ -183,4 +179,28 @@ fn string_split() {
         s.split_ex("l").maxsplit_r(1).done(),
         packed(&["Hello Wor", "d"])
     );
+}
+
+#[itest]
+fn string_count() {
+    let s = GString::from("Long sentence with Sentry guns.");
+    assert_eq!(s.count("sent", ..), 1);
+    assert_eq!(s.count("en", 6..), 3);
+    assert_eq!(s.count("en", 7..), 2);
+    assert_eq!(s.count("en", 6..=6), 0);
+    assert_eq!(s.count("en", 6..=7), 1);
+    assert_eq!(s.count("en", 6..8), 1);
+    assert_eq!(s.count("en", 7..8), 0);
+    assert_eq!(s.count("en", ..8), 1);
+    assert_eq!(s.count("en", ..10), 1);
+    assert_eq!(s.count("en", ..11), 2);
+    assert_eq!(s.count("en", ..=10), 2);
+
+    assert_eq!(s.countn("sent", ..), 2);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+fn packed(strings: &[&str]) -> PackedStringArray {
+    strings.iter().map(|&s| GString::from(s)).collect()
 }

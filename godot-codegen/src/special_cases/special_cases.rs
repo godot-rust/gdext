@@ -235,8 +235,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         // TODO maybe consider renaming "match_" -> "matches". The "*n" could technically be "*_n", but is probably OK.
         
         // GString
-        | ("String", "count")
-        | ("String", "countn")
         | ("String", "match")
         | ("String", "matchn")
         | ("String", "begins_with")
@@ -325,8 +323,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("String", "humanize_size")
 
         // StringName
-        | ("StringName", "count")
-        | ("StringName", "countn")
         | ("StringName", "match")
         | ("StringName", "matchn")
         | ("StringName", "begins_with")

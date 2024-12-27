@@ -17,12 +17,130 @@ macro_rules! impl_shared_string_api {
 
         /// Manually-declared, shared methods between `GString` and `StringName`.
         impl $Builtin {
+            /// Find first occurrence of `what` and return index, or `None` if not found.
+            ///
+            /// Check [`find_ex()`](Self::find_ex) for all custom options.
+            pub fn find(&self, what: impl AsArg<GString>) -> Option<usize> {
+                self.find_ex(what).done()
+            }
+
+            /// Returns a builder for finding substrings, with various configuration options.
+            ///
+            /// The builder struct offers methods to configure 3 dimensions, which map to different Godot functions in the back:
+            ///
+            /// | Method        | Default behavior                          | Behavior after method call         |
+            /// |---------------|-------------------------------------------|------------------------------------|
+            /// | `r()`         | forward search (`find*`)                  | backward search (`rfind*`)         |
+            /// | `n()`         | case-sensitive search (`*find`)           | case-insensitive search (`*findn`) |
+            /// | `from(index)` | search from beginning (or end if reverse) | search from specified index        |
+            ///
+            /// Returns `Some(index)` of the first occurrence, or `None` if not found.
+            ///
+            /// # Example
+            /// To find the substring `"O"` in `"Hello World"`, not considering case and starting from position 5, you can write:
+            /// ```no_run
+            /// # use godot::prelude::*;
+            /// # fn do_sth_with_index(_i: usize) {}
+            /// let s = GString::from("Hello World");
+            /// if let Some(found) = s.find_ex("O").n().from(5).done() {
+            ///    do_sth_with_index(found)
+            /// }
+            /// ```
+            /// This is equivalent to the following GDScript code:
+            /// ```gdscript
+            /// var s: GString = "Hello World"
+            /// var found = s.findn("O", 5)
+            /// if found != -1:
+            ///     do_sth_with_index(found)
+            /// ```
+            #[doc(alias = "findn", alias = "rfind", alias = "rfindn")]
+            pub fn find_ex<'s, 'w>(
+                &'s self,
+                what: impl AsArg<GString> + 'w,
+            ) -> $FindBuilder<'s, 'w> {
+                $FindBuilder::new(self, what.into_arg())
+            }
+
+            /// Count how many times `what` appears within `range`. Use `..` for full string search.
+            pub fn count(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
+                let (from, to) = super::to_godot_fromto(range);
+                self.as_inner().count(what, from, to) as usize
+            }
+
+            /// Count how many times `what` appears within `range`, case-insensitively. Use `..` for full string search.
+            pub fn countn(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
+                let (from, to) = super::to_godot_fromto(range);
+                self.as_inner().countn(what, from, to) as usize
+            }
+
+            /// Splits the string according to `delimiter`.
+            ///
+            /// See [`split_ex()`][Self::split_ex] if you need further configuration.
+            pub fn split(&self, delimiter: impl AsArg<GString>) -> $crate::builtin::PackedStringArray {
+                self.split_ex(delimiter).done()
+            }
+
+            /// Returns a builder that splits this string into substrings using `delimiter`.
+            ///
+            /// If `delimiter` is an empty string, each substring will be a single character.
+            ///
+            /// The builder struct offers methods to configure multiple dimensions. Note that `rsplit` in Godot is not useful without the `maxsplit`
+            /// argument, so the two are combined in Rust as `maxsplit_r`.
+            ///
+            /// | Method             | Default behavior       | Behavior after method call                        |
+            /// |--------------------|------------------------|---------------------------------------------------|
+            /// | `disallow_empty()` | allows empty parts     | empty parts are removed from result               |
+            /// | `maxsplit(n)`      | entire string is split | splits `n` times -> `n+1` parts                   |
+            /// | `maxsplit_r(n)`    | entire string is split | splits `n` times -> `n+1` parts (start from back) |
+            #[doc(alias = "rsplit")]
+            pub fn split_ex<'s, 'w>(
+                &'s self,
+                delimiter: impl AsArg<GString> + 'w,
+            ) -> $SplitBuilder<'s, 'w> {
+                $SplitBuilder::new(self, delimiter.into_arg())
+            }
+
             /// Returns a substring of this, as another `GString`.
             // TODO is there no efficient way to implement this for StringName by interning?
             pub fn substr(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
-                let (from, len) = super::to_fromlen_pair(range);
+                let (from, len) = super::to_godot_fromlen(range);
 
                 self.as_inner().substr(from, len)
+            }
+
+            /// Splits the string using a string delimiter and returns the substring at index `slice`.
+            ///
+            /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
+            ///
+            /// This is faster than [`split()`][Self::split], if you only need one substring.
+            pub fn get_slice(
+                &self,
+                delimiter: impl AsArg<GString>,
+                slice: usize,
+            ) -> Option<GString> {
+                let sliced = self.as_inner().get_slice(delimiter, slice as i64);
+
+                // Note: self="" always returns None.
+                super::populated_or_none(sliced)
+            }
+
+            /// Splits the string using a Unicode char `delimiter` and returns the substring at index `slice`.
+            ///
+            /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
+            ///
+            /// This is faster than [`split()`][Self::split], if you only need one substring.
+            pub fn get_slicec(&self, delimiter: char, slice: usize) -> Option<GString> {
+                let sliced = self.as_inner().get_slicec(delimiter as i64, slice as i64);
+
+                // Note: self="" always returns None.
+                super::populated_or_none(sliced)
+            }
+
+            /// Returns the total number of slices, when the string is split with the given delimiter.
+            ///
+            /// See also [`split()`][Self::split] and [`get_slice()`][Self::get_slice].
+            pub fn get_slice_count(&self, delimiter: impl AsArg<GString>) -> usize {
+                self.as_inner().get_slice_count(delimiter) as usize
             }
 
             /// Format a string using substitutions from an array or dictionary.
@@ -115,111 +233,6 @@ macro_rules! impl_shared_string_api {
                 sys::i64_to_ordering(self.as_inner().filenocasecmp_to(to))
             }
 
-            /// Splits the string using a string delimiter and returns the substring at index `slice`.
-            ///
-            /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
-            ///
-            /// This is faster than [`split()`][Self::split], if you only need one substring.
-            pub fn get_slice(
-                &self,
-                delimiter: impl AsArg<GString>,
-                slice: usize,
-            ) -> Option<GString> {
-                let sliced = self.as_inner().get_slice(delimiter, slice as i64);
-
-                // Note: self="" always returns None.
-                super::populated_or_none(sliced)
-            }
-
-            /// Returns the total number of slices, when the string is split with the given delimiter.
-            ///
-            /// See also [`split()`][Self::split] and [`get_slice()`][Self::get_slice].
-            pub fn get_slice_count(&self, delimiter: impl AsArg<GString>) -> usize {
-                self.as_inner().get_slice_count(delimiter) as usize
-            }
-
-            /// Splits the string using a Unicode char `delimiter` and returns the substring at index `slice`.
-            ///
-            /// Returns the original string if delimiter does not occur in the string. Returns `None` if `slice` is out of bounds.
-            ///
-            /// This is faster than [`split()`][Self::split], if you only need one substring.
-            pub fn get_slicec(&self, delimiter: char, slice: usize) -> Option<GString> {
-                let sliced = self.as_inner().get_slicec(delimiter as i64, slice as i64);
-
-                // Note: self="" always returns None.
-                super::populated_or_none(sliced)
-            }
-
-            /// Find first occurrence of `what` and return index, or `None` if not found.
-            ///
-            /// Check [`find_ex()`](Self::find_ex) for all custom options.
-            pub fn find(&self, what: impl AsArg<GString>) -> Option<usize> {
-                self.find_ex(what).done()
-            }
-
-            /// Returns a builder for finding substrings, with various configuration options.
-            ///
-            /// The builder struct offers methods to configure 3 dimensions, which map to different Godot functions in the back:
-            ///
-            /// | Method        | Default behavior                          | Behavior after method call         |
-            /// |---------------|-------------------------------------------|------------------------------------|
-            /// | `r()`         | forward search (`find*`)                  | backward search (`rfind*`)         |
-            /// | `n()`         | case-sensitive search (`*find`)           | case-insensitive search (`*findn`) |
-            /// | `from(index)` | search from beginning (or end if reverse) | search from specified index        |
-            ///
-            /// Returns `Some(index)` of the first occurrence, or `None` if not found.
-            ///
-            /// # Example
-            /// To find the substring `"O"` in `"Hello World"`, not considering case and starting from position 5, you can write:
-            /// ```no_run
-            /// # use godot::prelude::*;
-            /// # fn do_sth_with_index(_i: usize) {}
-            /// let s = GString::from("Hello World");
-            /// if let Some(found) = s.find_ex("O").n().from(5).done() {
-            ///    do_sth_with_index(found)
-            /// }
-            /// ```
-            /// This is equivalent to the following GDScript code:
-            /// ```gdscript
-            /// var s: GString = "Hello World"
-            /// var found = s.findn("O", 5)
-            /// if found != -1:
-            ///     do_sth_with_index(found)
-            /// ```
-            #[doc(alias = "findn", alias = "rfind", alias = "rfindn")]
-            pub fn find_ex<'s, 'w>(
-                &'s self,
-                what: impl AsArg<GString> + 'w,
-            ) -> $FindBuilder<'s, 'w> {
-                $FindBuilder::new(self, what.into_arg())
-            }
-
-            /// Splits the string according to `delimiter`.
-            ///
-            /// See [`split_ex()`][Self::split_ex] if you need further configuration.
-            pub fn split(&self, delimiter: impl AsArg<GString>) -> $crate::builtin::PackedStringArray {
-                self.split_ex(delimiter).done()
-            }
-
-            /// Returns a builder that splits this string into substrings using `delimiter`.
-            ///
-            /// If `delimiter` is an empty string, each substring will be a single character.
-            ///
-            /// The builder struct offers methods to configure multiple dimensions. Note that `rsplit` in Godot is not useful without the `maxsplit`
-            /// argument, so the two are combined in Rust as `maxsplit_r`.
-            ///
-            /// | Method             | Default behavior       | Behavior after method call                        |
-            /// |--------------------|------------------------|---------------------------------------------------|
-            /// | `disallow_empty()` | allows empty parts     | empty parts are removed from result               |
-            /// | `maxsplit(n)`      | entire string is split | splits `n` times -> `n+1` parts                   |
-            /// | `maxsplit_r(n)`    | entire string is split | splits `n` times -> `n+1` parts (start from back) |
-            #[doc(alias = "rsplit")]
-            pub fn split_ex<'s, 'w>(
-                &'s self,
-                delimiter: impl AsArg<GString> + 'w,
-            ) -> $SplitBuilder<'s, 'w> {
-                $SplitBuilder::new(self, delimiter.into_arg())
-            }
         }
 
         // --------------------------------------------------------------------------------------------------------------------------------------
