@@ -17,6 +17,24 @@ macro_rules! impl_shared_string_api {
 
         /// Manually-declared, shared methods between `GString` and `StringName`.
         impl $Builtin {
+            /// Returns the Unicode code point ("character") at position `index`.
+            ///
+            /// # Panics
+            /// In debug builds, if `index` is out of bounds. In Release builds, `0` is returned instead.
+            // Unicode conversion panic is not documented because we rely on Godot strings having valid Unicode.
+            // TODO implement Index/IndexMut (for GString; StringName may have varying reprs).
+            pub fn unicode_at(&self, index: usize) -> char {
+                debug_assert!(index < self.len(), "unicode_at: index {} out of bounds (len {})", index, self.len());
+
+                let char_i64 = self.as_inner().unicode_at(index as i64);
+
+                u32::try_from(char_i64).ok()
+                    .and_then(|char_u32| char::from_u32(char_u32))
+                    .unwrap_or_else(|| {
+                        panic!("cannot map Unicode code point (value {char_i64}) to char (at position {index})")
+                    })
+            }
+
             /// Find first occurrence of `what` and return index, or `None` if not found.
             ///
             /// Check [`find_ex()`](Self::find_ex) for all custom options.
@@ -84,8 +102,8 @@ macro_rules! impl_shared_string_api {
             ///
             /// If `delimiter` is an empty string, each substring will be a single character.
             ///
-            /// The builder struct offers methods to configure multiple dimensions. Note that `rsplit` in Godot is not useful without the `maxsplit`
-            /// argument, so the two are combined in Rust as `maxsplit_r`.
+            /// The builder struct offers methods to configure multiple dimensions. Note that `rsplit` in Godot is not useful without the
+            /// `maxsplit` argument, so the two are combined in Rust as `maxsplit_r`.
             ///
             /// | Method             | Default behavior       | Behavior after method call                        |
             /// |--------------------|------------------------|---------------------------------------------------|
@@ -176,10 +194,44 @@ macro_rules! impl_shared_string_api {
                 self.as_inner().format(array_or_dict, placeholder)
             }
 
+            // left() + right() are not redefined, as their i64 can be negative.
+
+            /// Formats the string to be at least `min_length` long, by adding characters to the left of the string, if necessary.
+            ///
+            /// Godot itself allows padding with multiple characters, but that behavior is not very useful, because `min_length` isn't
+            /// respected in that case. The parameter in Godot is even called `character`. In Rust, we directly expose `char` instead.
+            ///
+            /// See also [`rpad()`](Self::rpad).
+            pub fn lpad(&self, min_length: usize, character: char) -> GString {
+                let one_char_string = GString::from([character].as_slice());
+                self.as_inner().lpad(min_length as i64, &one_char_string)
+            }
+
+            /// Formats the string to be at least `min_length` long, by adding characters to the right of the string, if necessary.
+            ///
+            /// Godot itself allows padding with multiple characters, but that behavior is not very useful, because `min_length` isn't
+            /// respected in that case. The parameter in Godot is even called `character`. In Rust, we directly expose `char` instead.
+            ///
+            /// See also [`lpad()`](Self::lpad).
+            pub fn rpad(&self, min_length: usize, character: char) -> GString {
+                let one_char_string = GString::from([character].as_slice());
+                self.as_inner().rpad(min_length as i64, &one_char_string)
+            }
+
+            /// Formats the string representing a number to have an exact number of `digits` _after_ the decimal point.
+            pub fn pad_decimals(&self, digits: usize) -> GString {
+                self.as_inner().pad_decimals(digits as i64)
+            }
+
+            /// Formats the string representing a number to have an exact number of `digits` _before_ the decimal point.
+            pub fn pad_zeros(&self, digits: usize) -> GString {
+                self.as_inner().pad_zeros(digits as i64)
+            }
+
             /// Case-sensitive, lexicographic comparison to another string.
             ///
-            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
-            /// matches the alphabetical order.
+            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which
+            /// roughly matches the alphabetical order.
             ///
             /// See also [`nocasecmp_to()`](Self::nocasecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
             pub fn casecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
@@ -188,8 +240,8 @@ macro_rules! impl_shared_string_api {
 
             /// Case-**insensitive**, lexicographic comparison to another string.
             ///
-            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
-            /// matches the alphabetical order.
+            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which
+            /// roughly matches the alphabetical order.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
             pub fn nocasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
@@ -198,13 +250,15 @@ macro_rules! impl_shared_string_api {
 
             /// Case-sensitive, **natural-order** comparison to another string.
             ///
-            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
-            /// matches the alphabetical order.
+            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which
+            /// roughly matches the alphabetical order.
             ///
-            /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often expected,
-            /// instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not `["1", "10", "2", "3", ...]`.
+            /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often
+            /// expected, instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not
+            /// `["1", "10", "2", "3", ...]`.
             ///
-            /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less` if shorter.
+            /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less`
+            /// if shorter.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalnocasecmp_to()`](Self::naturalnocasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
             pub fn naturalcasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
@@ -213,13 +267,15 @@ macro_rules! impl_shared_string_api {
 
             /// Case-insensitive, **natural-order** comparison to another string.
             ///
-            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which roughly
-            /// matches the alphabetical order.
+            /// Returns the `Ordering` relation of `self` towards `to`. Ordering is determined by the Unicode code points of each string, which
+            /// roughly matches the alphabetical order.
             ///
-            /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often expected,
-            /// instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not `["1", "10", "2", "3", ...]`.
+            /// When used for sorting, natural order comparison orders sequences of numbers by the combined value of each digit as is often
+            /// expected, instead of the single digit's value. A sorted sequence of numbered strings will be `["1", "2", "3", ...]`, not
+            /// `["1", "10", "2", "3", ...]`.
             ///
-            /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less` if shorter.
+            /// With different string lengths, returns `Ordering::Greater` if this string is longer than the `to` string, or `Ordering::Less`
+            /// if shorter.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
             pub fn naturalnocasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
@@ -228,8 +284,8 @@ macro_rules! impl_shared_string_api {
 
             /// Case-sensitive, filename-oriented comparison to another string.
             ///
-            /// Like [`naturalcasecmp_to()`][Self::naturalcasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores (`_`) before
-            /// any other character. Useful when sorting folders or file names.
+            /// Like [`naturalcasecmp_to()`][Self::naturalcasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores
+            /// (`_`) before any other character. Useful when sorting folders or file names.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filenocasecmp_to()`](Self::filenocasecmp_to).
             #[cfg(since_api = "4.3")]
@@ -239,8 +295,8 @@ macro_rules! impl_shared_string_api {
 
             /// Case-insensitive, filename-oriented comparison to another string.
             ///
-            /// Like [`naturalnocasecmp_to()`][Self::naturalnocasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores (`_`) before
-            /// any other character. Useful when sorting folders or file names.
+            /// Like [`naturalnocasecmp_to()`][Self::naturalnocasecmp_to], but prioritizes strings that begin with periods (`.`) and underscores
+            /// (`_`) before any other character. Useful when sorting folders or file names.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
             #[cfg(since_api = "4.3")]
@@ -248,6 +304,27 @@ macro_rules! impl_shared_string_api {
                 sys::i64_to_ordering(self.as_inner().filenocasecmp_to(to))
             }
 
+            /// Simple expression match (also called "glob" or "globbing"), where `*` matches zero or more arbitrary characters and `?`
+            /// matches any single character except a period (`.`).
+            ///
+            /// An empty string or empty expression always evaluates to `false`.
+            ///
+            /// Renamed from `match` because of collision with Rust keyword + possible confusion with `String::matches()` that can match regex.
+            #[doc(alias = "match")]
+            pub fn match_glob(&self, pattern: impl AsArg<GString>) -> bool {
+                self.as_inner().match_(pattern)
+            }
+
+            /// Simple **case-insensitive** expression match (also called "glob" or "globbing"), where `*` matches zero or more arbitrary
+            /// characters and `?` matches any single character except a period (`.`).
+            ///
+            /// An empty string or empty expression always evaluates to `false`.
+            ///
+            /// Renamed from `matchn` because of collision with Rust keyword + possible confusion with `String::matches()` that can match regex.
+            #[doc(alias = "matchn")]
+            pub fn matchn_glob(&self, pattern: impl AsArg<GString>) -> bool {
+                self.as_inner().matchn(pattern)
+            }
         }
 
         // --------------------------------------------------------------------------------------------------------------------------------------

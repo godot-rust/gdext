@@ -7,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use crate::framework::itest;
+use crate::framework::{expect_panic, itest};
 use godot::builtin::{GString, PackedStringArray};
 
 // TODO use tests from godot-rust/gdnative
@@ -72,12 +72,40 @@ fn string_chars() {
     assert_eq!(string.chars(), empty_char_slice);
     assert_eq!(string, GString::from(empty_char_slice));
 
-    let string = String::from("some_string");
+    let string = String::from("ö🍎A💡");
     let string_chars: Vec<char> = string.chars().collect();
     let gstring = GString::from(string);
 
-    assert_eq!(string_chars, gstring.chars().to_vec());
+    assert_eq!(gstring.chars(), string_chars.as_slice());
+    assert_eq!(
+        gstring.chars(),
+        &[
+            char::from_u32(0x00F6).unwrap(),
+            char::from_u32(0x1F34E).unwrap(),
+            char::from(65),
+            char::from_u32(0x1F4A1).unwrap(),
+        ]
+    );
+
     assert_eq!(gstring, GString::from(string_chars.as_slice()));
+}
+
+#[itest]
+fn string_unicode_at() {
+    let s = GString::from("ö🍎A💡");
+    assert_eq!(s.unicode_at(0), 'ö');
+    assert_eq!(s.unicode_at(1), '🍎');
+    assert_eq!(s.unicode_at(2), 'A');
+    assert_eq!(s.unicode_at(3), '💡');
+
+    #[cfg(debug_assertions)]
+    expect_panic("Debug mode: unicode_at() out-of-bounds panics", || {
+        s.unicode_at(4);
+    });
+
+    // Release mode: out-of-bounds prints Godot error, but returns 0.
+    #[cfg(not(debug_assertions))]
+    assert_eq!(s.unicode_at(4), '\0');
 }
 
 #[itest]
@@ -221,6 +249,25 @@ fn string_insert() {
 
     // Special behavior in Godot, but maybe the idea is to allow large constants to mean "end".
     assert_eq!(s.insert(123, "!"), "H World!".into());
+}
+
+#[itest]
+fn string_pad() {
+    let s = GString::from("123");
+    assert_eq!(s.lpad(5, '0'), "00123".into());
+    assert_eq!(s.lpad(2, ' '), "123".into());
+    assert_eq!(s.lpad(4, ' '), " 123".into());
+
+    assert_eq!(s.rpad(5, '+'), "123++".into());
+    assert_eq!(s.rpad(2, ' '), "123".into());
+    assert_eq!(s.rpad(4, ' '), "123 ".into());
+
+    let s = GString::from("123.456");
+    assert_eq!(s.pad_decimals(5), "123.45600".into());
+    assert_eq!(s.pad_decimals(2), "123.45".into()); // note: Godot rounds down
+
+    assert_eq!(s.pad_zeros(5), "00123.456".into());
+    assert_eq!(s.pad_zeros(2), "123.456".into());
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

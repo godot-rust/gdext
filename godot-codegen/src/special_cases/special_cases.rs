@@ -232,11 +232,7 @@ pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
 #[rustfmt::skip]
 pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -> bool {
     match (builtin_ty.godot_ty.as_str(), godot_method_name) {
-        // TODO maybe consider renaming "match_" -> "matches". The "*n" could technically be "*_n", but is probably OK.
-        
         // GString
-        | ("String", "match")
-        | ("String", "matchn")
         | ("String", "begins_with")
         | ("String", "ends_with")
         | ("String", "is_subsequence_of")
@@ -264,7 +260,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("String", "get_extension")
         | ("String", "get_basename")
         | ("String", "path_join")
-        | ("String", "unicode_at")
         | ("String", "indent")
         | ("String", "dedent")
         | ("String", "md5_text")
@@ -301,10 +296,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("String", "to_float")
         | ("String", "hex_to_int")
         | ("String", "bin_to_int")
-        | ("String", "lpad")
-        | ("String", "rpad")
-        | ("String", "pad_decimals")
-        | ("String", "pad_zeros")
         | ("String", "trim_prefix")
         | ("String", "trim_suffix")
         | ("String", "to_ascii_buffer")
@@ -321,8 +312,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("String", "humanize_size")
 
         // StringName
-        | ("StringName", "match")
-        | ("StringName", "matchn")
         | ("StringName", "begins_with")
         | ("StringName", "ends_with")
         | ("StringName", "is_subsequence_of")
@@ -350,7 +339,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("StringName", "get_extension")
         | ("StringName", "get_basename")
         | ("StringName", "path_join")
-        | ("StringName", "unicode_at")
         | ("StringName", "indent")
         | ("StringName", "dedent")
         | ("StringName", "md5_text")
@@ -387,10 +375,6 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("StringName", "to_float")
         | ("StringName", "hex_to_int")
         | ("StringName", "bin_to_int")
-        | ("StringName", "lpad")
-        | ("StringName", "rpad")
-        | ("StringName", "pad_decimals")
-        | ("StringName", "pad_zeros")
         | ("StringName", "trim_prefix")
         | ("StringName", "trim_suffix")
         | ("StringName", "to_ascii_buffer")
