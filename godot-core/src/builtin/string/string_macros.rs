@@ -103,7 +103,7 @@ macro_rules! impl_shared_string_api {
             /// Returns a substring of this, as another `GString`.
             // TODO is there no efficient way to implement this for StringName by interning?
             pub fn substr(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
-                let (from, len) = super::to_godot_fromlen(range);
+                let (from, len) = super::to_godot_fromlen_neg1(range);
 
                 self.as_inner().substr(from, len)
             }
@@ -141,6 +141,21 @@ macro_rules! impl_shared_string_api {
             /// See also [`split()`][Self::split] and [`get_slice()`][Self::get_slice].
             pub fn get_slice_count(&self, delimiter: impl AsArg<GString>) -> usize {
                 self.as_inner().get_slice_count(delimiter) as usize
+            }
+
+            /// Returns a copy of the string without the specified index range.
+            pub fn erase(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
+                let (from, len) = super::to_godot_fromlen_i32max(range);
+                self.as_inner().erase(from, len)
+            }
+
+            /// Returns a copy of the string with an additional string inserted at the given position.
+            ///
+            /// If the position is out of bounds, the string will be inserted at the end.
+            ///
+            /// Consider using [`format()`](Self::format) for more flexibility.
+            pub fn insert(&self, position: usize, what: impl AsArg<GString>) -> GString {
+                self.as_inner().insert(position as i64, what)
             }
 
             /// Format a string using substitutions from an array or dictionary.

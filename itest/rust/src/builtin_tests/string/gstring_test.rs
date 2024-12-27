@@ -199,6 +199,30 @@ fn string_count() {
     assert_eq!(s.countn("sent", ..), 2);
 }
 
+#[itest]
+fn string_erase() {
+    let s = GString::from("Hello World");
+    assert_eq!(s.erase(..), GString::new());
+    assert_eq!(s.erase(4..4), s);
+    assert_eq!(s.erase(2..=2), "Helo World".into());
+    assert_eq!(s.erase(1..=3), "Ho World".into());
+    assert_eq!(s.erase(1..4), "Ho World".into());
+    assert_eq!(s.erase(..6), "World".into());
+    assert_eq!(s.erase(5..), "Hello".into());
+}
+
+#[itest]
+fn string_insert() {
+    let s = GString::from("H World");
+    assert_eq!(s.insert(1, "i"), "Hi World".into());
+    assert_eq!(s.insert(1, "ello"), "Hello World".into());
+    assert_eq!(s.insert(7, "."), "H World.".into());
+    assert_eq!(s.insert(0, "¿"), "¿H World".into());
+
+    // Special behavior in Godot, but maybe the idea is to allow large constants to mean "end".
+    assert_eq!(s.insert(123, "!"), "H World!".into());
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 fn packed(strings: &[&str]) -> PackedStringArray {
