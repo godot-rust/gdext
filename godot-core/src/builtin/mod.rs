@@ -82,7 +82,9 @@ pub mod iter {
 
 /// Specialized types related to Godot's various string implementations.
 pub mod strings {
-    pub use super::string::TransientStringNameOrd;
+    pub use super::string::{
+        ExGStringFind, ExGStringSplit, ExStringNameFind, ExStringNameSplit, TransientStringNameOrd,
+    };
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
