@@ -6,8 +6,8 @@
  */
 
 use crate::builtin::{Callable, Signal, Variant};
+use crate::obj::{Gd, GodotClass};
 use crate::{classes, meta};
-use crate::obj::Gd;
 
 pub trait ParamTuple {
     fn to_variant_array(&self) -> Vec<Variant>;
@@ -74,9 +74,7 @@ impl<C: GodotClass, R, Ps> TypedFunc<C, R, Ps> {
         }
     }
 
-    pub fn with_object(obj: &Gd<T>) {
-
-    }
+    pub fn with_object<T: GodotClass>(obj: &Gd<T>) {}
 
     pub fn godot_name(&self) -> &'static str {
         self.godot_name
@@ -85,15 +83,14 @@ impl<C: GodotClass, R, Ps> TypedFunc<C, R, Ps> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-
-
+/// `#[func]` reference that is readily callable.
+///
+/// Can be either a static function of a class, or a method which is bound to a concrete object.
 pub struct Func<R, Ps> {
     godot_name: &'static str,
     bound_object: Option<Gd<classes::Object>>,
     _return_type: std::marker::PhantomData<R>,
-    _param_types: std::marker::PhantomData< Ps>,
-
-
+    _param_types: std::marker::PhantomData<Ps>,
 }
 
 impl<R, Ps> Func<R, Ps> {
@@ -101,6 +98,8 @@ impl<R, Ps> Func<R, Ps> {
         // Instance method.
         if let Some(bound_object) = self.bound_object.as_ref() {
             return Callable::from_object_method(bound_object, self.godot_name);
+        } else {
+            return Callable::from_local_static();
         }
 
         // Static method.
