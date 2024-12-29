@@ -87,12 +87,12 @@ impl Emitter {
     fn emitter_2(arg1: Gd<Object>, arg2: GString);
 
     fn connect_signals(&mut self) {
-        self.signals().emitter_2_connect(|obj, s| {
-            println!("emitter_2({obj}, {s})");
-        })
+        // self.signals().emitter_2_connect(|obj, s| {
+        //     println!("emitter_2({obj}, {s})");
+        // });
 
-        // let f = Self::funcs().emitter_2();
-        // self.signals().emitter_2_connect()
+        let f = self.funcs().emitter_2();
+        self.signals().emitter_2_connect(f)
     }
 }
 

@@ -574,8 +574,10 @@ pub mod cap {
     // Move one level up, like WithBaseField?
     pub trait WithFuncs {
         type FuncCollection;
+        type StaticFuncCollection;
 
-        fn funcs() -> Self::FuncCollection;
+        fn static_funcs() -> Self::StaticFuncCollection;
+        fn funcs(&self) -> Self::FuncCollection;
     }
 
     pub trait WithSignals: WithBaseField {

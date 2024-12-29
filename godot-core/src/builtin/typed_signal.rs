@@ -5,8 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Maybe move this to builtin::functional module?
+
 use crate::builtin::{Callable, Signal, Variant};
-use crate::obj::{Gd, GodotClass};
+use crate::obj::Gd;
 use crate::{classes, meta};
 
 pub trait ParamTuple {
@@ -58,6 +60,7 @@ impl<Ps: ParamTuple> TypedSignal<Ps> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/*
 pub struct TypedFunc<C, R, Ps> {
     godot_name: &'static str,
     _return_type: std::marker::PhantomData<R>,
@@ -80,28 +83,67 @@ impl<C: GodotClass, R, Ps> TypedFunc<C, R, Ps> {
         self.godot_name
     }
 }
+*/
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// `#[func]` reference that is readily callable.
+/// Type-safe `#[func]` reference that is readily callable.
 ///
 /// Can be either a static function of a class, or a method which is bound to a concrete object.
+///
+/// This can be seen as a more type-safe variant of Godot's `Callable`, which can carry intermediate information about function signatures (e.g.
+/// when connecting signals).
 pub struct Func<R, Ps> {
     godot_name: &'static str,
-    bound_object: Option<Gd<classes::Object>>,
+    callable_kind: CallableKind,
     _return_type: std::marker::PhantomData<R>,
     _param_types: std::marker::PhantomData<Ps>,
 }
 
-impl<R, Ps> Func<R, Ps> {
-    pub fn to_callable(&self) -> Callable {
-        // Instance method.
-        if let Some(bound_object) = self.bound_object.as_ref() {
-            return Callable::from_object_method(bound_object, self.godot_name);
-        } else {
-            return Callable::from_local_static();
-        }
+enum CallableKind {
+    StaticFunction {
+        // Maybe class name can be moved out (and also be useful for methods), e.g. Debug impl or so.
+        class_godot_name: &'static str,
+    },
+    Method {
+        bound_object: Gd<classes::Object>,
+    },
+}
 
-        // Static method.
+impl<R, Ps> Func<R, Ps> {
+    #[doc(hidden)]
+    fn from_instance_method(
+        bound_object: Gd<classes::Object>,
+        method_godot_name: &'static str,
+    ) -> Self {
+        Self {
+            godot_name: method_godot_name,
+            callable_kind: CallableKind::Method { bound_object },
+            _return_type: std::marker::PhantomData,
+            _param_types: std::marker::PhantomData,
+        }
+    }
+    #[doc(hidden)]
+    fn from_static_function(
+        class_godot_name: &'static str,
+        method_godot_name: &'static str,
+    ) -> Self {
+        Self {
+            godot_name: method_godot_name,
+            callable_kind: CallableKind::StaticFunction { class_godot_name },
+            _return_type: std::marker::PhantomData,
+            _param_types: std::marker::PhantomData,
+        }
+    }
+
+    pub fn to_callable(&self) -> Callable {
+        match &self.callable_kind {
+            CallableKind::StaticFunction { class_godot_name } => {
+                Callable::from_local_static(*class_godot_name, self.godot_name)
+            }
+            CallableKind::Method { bound_object } => {
+                Callable::from_object_method(bound_object, self.godot_name)
+            }
+        }
     }
 }

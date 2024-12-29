@@ -169,11 +169,15 @@ pub fn make_func_collection(
     class_name: &Ident,
     func_definitions: &[FuncDefinition],
 ) -> TokenStream {
-    let struct_name = format_ident!("{}Funcs", class_name);
+    let instance_collection = format_ident!("{}Funcs", class_name);
+    let static_collection = format_ident!("{}StaticFuncs", class_name);
 
-    let collection_methods = func_definitions.iter().map(|func| {
-        let rust_name = func.rust_ident();
-        let godot_name = func.godot_name();
+    let mut instance_collection_methods = vec![];
+    let mut static_collection_methods = vec![];
+
+    for func in func_definitions {
+        let rust_func_name = func.rust_ident();
+        let godot_func_name = func.godot_name();
 
         let signature_info = &func.signature_info;
         let generic_args = signature_info.separate_return_params_args();
@@ -185,32 +189,60 @@ pub fn make_func_collection(
             .into_iter()
             .collect::<Vec<_>>();
 
-        quote! {
-            #(#cfg_attrs)*
-            fn #rust_name(&self) -> ::godot::builtin::TypedFunc<#generic_args> {
-                ::godot::builtin::TypedFunc::from_godot_name(#godot_name)
-            }
+        if func.signature_info.receiver_type == ReceiverType::Static {
+            static_collection_methods.push(quote! {
+                #(#cfg_attrs)*
+                fn #rust_func_name() -> ::godot::builtin::Func<#generic_args> {
+                    let class_name = <Self as ::godot::obj::GodotClass>::class_name();
+                    ::godot::builtin::Func::from_instance_method(class_name.as_str(), #godot_func_name)
+                }
+            });
+        } else {
+            instance_collection_methods.push(quote! {
+                #(#cfg_attrs)*
+                fn #rust_func_name(&self) -> ::godot::builtin::Func<#generic_args> {
+                    let object = <Self as ::godot::obj::WithBaseField>::to_gd(self);
+                    ::godot::builtin::Func::from_instance_method(object, #godot_func_name)
+                }
+            });
         }
-    });
+    }
 
     quote! {
         #[non_exhaustive] // Prevent direct instantiation.
-        pub struct #struct_name {}
+        pub struct #instance_collection {}
 
-        impl #struct_name {
+        impl #instance_collection {
             #[doc(hidden)]
             pub fn __internal() -> Self {
                 Self {}
             }
 
-            #( #collection_methods )*
+            #( #instance_collection_methods )*
+        }
+
+        #[non_exhaustive] // Prevent direct instantiation.
+        pub struct #static_collection {}
+
+        impl #static_collection {
+            #[doc(hidden)]
+            pub fn __internal() -> Self {
+                Self {}
+            }
+
+            #( #static_collection_methods )*
         }
 
         impl ::godot::obj::cap::WithFuncs for #class_name {
-            type FuncCollection = #struct_name;
+            type FuncCollection = #instance_collection;
+            type StaticFuncCollection = #static_collection;
 
-            fn funcs() -> Self::FuncCollection {
+            fn funcs(&self) -> Self::FuncCollection {
                 Self::FuncCollection::__internal()
+            }
+
+            fn static_funcs() -> Self::StaticFuncCollection {
+                Self::StaticFuncCollection::__internal()
             }
         }
     }
