@@ -212,6 +212,7 @@ macro_rules! impl_packed_array {
             ///
             /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
             #[doc(alias = "slice")]
+            // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
             pub fn subarray(&self, begin: usize, end: usize) -> Self {
                 let len = self.len();
                 let begin = begin.min(len);
