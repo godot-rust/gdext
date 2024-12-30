@@ -26,3 +26,6 @@ exp.rs
 
 # Mac specific
 .DS_Store
+
+# Windows specific
+desktop.ini

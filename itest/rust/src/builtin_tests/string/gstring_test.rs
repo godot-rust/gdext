@@ -7,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::{expect_debug_panic_or_release_ok, itest};
 use godot::builtin::{GString, PackedStringArray};
 
 // TODO use tests from godot-rust/gdnative
@@ -98,14 +98,10 @@ fn string_unicode_at() {
     assert_eq!(s.unicode_at(2), 'A');
     assert_eq!(s.unicode_at(3), '💡');
 
-    #[cfg(debug_assertions)]
-    expect_panic("Debug mode: unicode_at() out-of-bounds panics", || {
-        s.unicode_at(4);
-    });
-
     // Release mode: out-of-bounds prints Godot error, but returns 0.
-    #[cfg(not(debug_assertions))]
-    assert_eq!(s.unicode_at(4), '\0');
+    expect_debug_panic_or_release_ok("unicode_at() out-of-bounds panics", || {
+        assert_eq!(s.unicode_at(4), '\0');
+    });
 }
 
 #[itest]
