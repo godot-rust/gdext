@@ -10,9 +10,38 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.2.0](#v020), [v0.2.1](#v021)
+- [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
 
+
+## [v0.2.2](https://docs.rs/godot/0.2.2)
+
+_31 December 2024_
+
+### 🌻 Features
+
+- Feature parity with Godot builtin types
+  - `Vector2i` ([#978](https://github.com/godot-rust/gdext/pull/978))
+  - `Projection` ([#983](https://github.com/godot-rust/gdext/pull/983))
+  - `Callable` ([#979](https://github.com/godot-rust/gdext/pull/979))
+  - `Quaternion` ([#981](https://github.com/godot-rust/gdext/pull/981))
+  - `GString` + `StringName` ([#980](https://github.com/godot-rust/gdext/pull/980))
+  - `NodePath` ([#982](https://github.com/godot-rust/gdext/pull/982))
+  - `PackedByteArray` ([#994](https://github.com/godot-rust/gdext/pull/994))
+- Support static functions in `Callable` ([#989](https://github.com/godot-rust/gdext/pull/989))
+- Codegen can directly expose `Inner*` builtin methods ([#976](https://github.com/godot-rust/gdext/pull/976))
+- Generate builtin methods with varargs ([#977](https://github.com/godot-rust/gdext/pull/977))
+
+### 🧹 Quality of life
+
+- More accurately provide spans to errors in the `GodotClass` macro ([#920](https://github.com/godot-rust/gdext/pull/920))
+- Improve some proc-macro attribute error messages ([#971](https://github.com/godot-rust/gdext/pull/971))
+- Add required virtual method `IScriptInstance::get_doc_class_name()` in test ([#975](https://github.com/godot-rust/gdext/pull/975))
+- Clean up `Callable` + tests, fix `check.sh test` ([#990](https://github.com/godot-rust/gdext/pull/990))
+
+### 📚 Documentation
+
+- Improve docs in `DynGd` (re-enrichment) + Cargo features ([#969](https://github.com/godot-rust/gdext/pull/969))
 
 
 ## [v0.2.1](https://docs.rs/godot/0.2.1)
