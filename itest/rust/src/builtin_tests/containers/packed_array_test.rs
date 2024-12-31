@@ -7,9 +7,10 @@
 
 use crate::framework::{expect_panic, itest};
 use godot::builtin::{
-    Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
-    PackedStringArray,
+    dict, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
+    PackedStringArray, Variant,
 };
+use godot::prelude::ToGodot;
 
 #[itest]
 fn packed_array_default() {
@@ -304,4 +305,72 @@ fn packed_array_format() {
 
     let a = PackedByteArray::new();
     assert_eq!(format!("{a}"), "[]");
+}
+
+#[itest]
+fn packed_byte_array_encode_decode() {
+    let a = PackedByteArray::from(&[0xAB, 0xCD, 0x12]);
+
+    assert_eq!(a.decode_u8(0), Ok(0xAB));
+    assert_eq!(a.decode_u8(2), Ok(0x12));
+    assert_eq!(a.decode_u16(1), Ok(0x12CD)); // Currently little endian, but this may change.
+    assert_eq!(a.decode_u16(2), Err(()));
+    assert_eq!(a.decode_u32(0), Err(()));
+
+    let mut a = a;
+    a.encode_u16(1, 0xEF34).unwrap();
+    assert_eq!(a.decode_u8(0), Ok(0xAB));
+    assert_eq!(a.decode_u8(1), Ok(0x34));
+    assert_eq!(a.decode_u8(2), Ok(0xEF));
+}
+
+#[itest]
+fn packed_byte_array_encode_decode_variant() {
+    let variant = dict! {
+        "s": "some string",
+        "i": -12345,
+    }
+    .to_variant();
+
+    let mut a = PackedByteArray::new();
+    a.resize(40);
+
+    // NIL is a valid, encodable value.
+    let nil = a.encode_var(3, &Variant::nil(), false);
+    assert_eq!(nil, Ok(4));
+
+    let bytes = a.encode_var(3, &variant, false);
+    assert_eq!(bytes, Err(()));
+
+    a.resize(80);
+    let bytes = a.encode_var(3, &variant, false);
+    assert_eq!(bytes, Ok(60)); // Size may change; in that case we only need to verify is_ok().
+
+    // Decoding. Detects garbage.
+    let decoded = a.decode_var(3, false).expect("decode_var() succeeds");
+    assert_eq!(decoded.0, variant);
+    assert_eq!(decoded.1, 60);
+
+    let decoded = a.decode_var(4, false);
+    assert_eq!(decoded, Err(()));
+
+    // Decoding with NILs.
+    let decoded = a.decode_var_allow_nil(3, false);
+    assert_eq!(decoded.0, variant);
+    assert_eq!(decoded.1, 60);
+
+    // Interprets garbage as NIL Variant with size 4.
+    let decoded = a.decode_var_allow_nil(4, false);
+    assert_eq!(decoded.0, Variant::nil());
+    assert_eq!(decoded.1, 4);
+
+    // Even last 4 bytes (still zeroed memory) is allegedly a variant.
+    let decoded = a.decode_var_allow_nil(76, false);
+    assert_eq!(decoded.0, Variant::nil());
+    assert_eq!(decoded.1, 4);
+
+    // Only running out of size "fails".
+    let decoded = a.decode_var_allow_nil(77, false);
+    assert_eq!(decoded.0, Variant::nil());
+    assert_eq!(decoded.1, 0);
 }

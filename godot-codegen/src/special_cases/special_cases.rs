@@ -399,7 +399,7 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("NodePath", "is_empty")
         | ("NodePath", "get_concatenated_names")
         | ("NodePath", "get_concatenated_subnames")
-        //| ("NodePath", "get_as_property_path")
+        | ("NodePath", "get_as_property_path")
 
         // Callable
         | ("Callable", "call")
@@ -409,7 +409,13 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("Callable", "rpc")
         | ("Callable", "rpc_id")
 
-        // (add more builtin types below)
+        // PackedByteArray
+        | ("PackedByteArray", "get_string_from_ascii")
+        | ("PackedByteArray", "get_string_from_utf8")
+        | ("PackedByteArray", "get_string_from_utf16")
+        | ("PackedByteArray", "get_string_from_utf32")
+        | ("PackedByteArray", "get_string_from_wchar")
+        | ("PackedByteArray", "hex_encode")
 
         // Vector2i
         | ("Vector2i", "clampi")
