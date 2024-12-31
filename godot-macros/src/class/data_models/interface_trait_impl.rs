@@ -142,6 +142,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             }
 
             "on_notification" => {
+                let inactive_class_early_return = make_inactive_class_check(TokenStream::new());
                 on_notification_impl = quote! {
                     #on_notification_impl
 
@@ -150,10 +151,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                         fn __godot_notification(&mut self, what: i32) {
                             use ::godot::obj::UserClass as _;
 
-                            #[cfg(before_api = "4.3")]
-                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
-                                return;
-                            }
+                            #inactive_class_early_return
 
                             <Self as #trait_path>::on_notification(self, what.into())
                         }
@@ -168,16 +166,14 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             }
 
             "get_property" => {
+                let inactive_class_early_return = make_inactive_class_check(quote! { None });
                 get_property_impl = quote! {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotGet for #class_name {
                         fn __godot_get_property(&self, property: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
                             use ::godot::obj::UserClass as _;
 
-                            #[cfg(before_api = "4.3")]
-                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
-                                return None;
-                            }
+                            #inactive_class_early_return
 
                             <Self as #trait_path>::get_property(self, property)
                         }
@@ -191,16 +187,14 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             }
 
             "set_property" => {
+                let inactive_class_early_return = make_inactive_class_check(quote! { false });
                 set_property_impl = quote! {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotSet for #class_name {
                         fn __godot_set_property(&mut self, property: ::godot::builtin::StringName, value: ::godot::builtin::Variant) -> bool {
                             use ::godot::obj::UserClass as _;
 
-                            #[cfg(before_api = "4.3")]
-                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
-                                return false;
-                            }
+                            #inactive_class_early_return
 
                             <Self as #trait_path>::set_property(self, property, value)
                         }
@@ -227,19 +221,15 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
 
             #[cfg(since_api = "4.3")]
             "get_property_list" => {
+                // `get_property_list` is only supported in Godot API >= 4.3. If we add support for `get_property_list` to earlier
+                // versions of Godot then this code is still needed and should be uncommented.
+                //
+                // let inactive_class_early_return = make_inactive_class_check(false);
                 get_property_list_impl = quote! {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotGetPropertyList for #class_name {
                         fn __godot_get_property_list(&mut self) -> Vec<::godot::meta::PropertyInfo> {
-                            // `get_property_list` is only supported in Godot API >= 4.3. If we add support for `get_property_list` to earlier
-                            // versions of Godot then this code is still needed and should be uncommented.
-                            //
-                            // use ::godot::obj::UserClass as _;
-                            //
-                            // #[cfg(before_api = "4.3")]
-                            // if ::godot::private::is_class_inactive(Self::__config().is_tool) {
-                            //     return false;
-                            // }
+                            // #inactive_class_early_return
 
                             <Self as #trait_path>::get_property_list(self)
                         }
@@ -257,16 +247,14 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             }
 
             "property_get_revert" => {
+                let inactive_class_early_return = make_inactive_class_check(quote! { None });
                 property_get_revert_impl = quote! {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotPropertyGetRevert for #class_name {
                         fn __godot_property_get_revert(&self, property: StringName) -> Option<::godot::builtin::Variant> {
                             use ::godot::obj::UserClass as _;
 
-                            #[cfg(before_api = "4.3")]
-                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
-                                return None;
-                            }
+                            #inactive_class_early_return
 
                             <Self as #trait_path>::property_get_revert(self, property)
                         }
@@ -434,4 +422,18 @@ fn convert_to_match_expression_or_none(tokens: Option<TokenStream>) -> TokenStre
     } else {
         quote! { None }
     }
+}
+
+#[cfg(before_api = "4.3")]
+fn make_inactive_class_check(return_value: TokenStream) -> TokenStream {
+    quote! {
+        if ::godot::private::is_class_inactive(Self::__config().is_tool) {
+            return #return_value;
+        }
+    }
+}
+
+#[cfg(since_api = "4.3")]
+fn make_inactive_class_check(_return_value: TokenStream) -> TokenStream {
+    TokenStream::new()
 }

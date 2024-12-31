@@ -5,6 +5,7 @@ use crate::player;
 use godot::classes::{Marker2D, PathFollow2D, RigidBody2D, Timer};
 use godot::prelude::*;
 
+use godot::classes::notify::NodeNotification;
 use rand::Rng as _;
 use std::f32::consts::PI;
 
@@ -116,6 +117,8 @@ impl Main {
 
 #[godot_api]
 impl INode for Main {
+    fn on_notification(&mut self, _what: NodeNotification) {}
+
     fn init(base: Base<Node>) -> Self {
         Main {
             mob_scene: PackedScene::new_gd(),
