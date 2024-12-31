@@ -13,8 +13,11 @@ use std::{fmt, ops, ptr};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-// FIXME remove dependency on these types
+use crate::classes::file_access::CompressionMode;
 use crate::meta;
+use crate::obj::EngineEnum;
+
+// FIXME remove dependency on these types.
 use sys::{__GdextString, __GdextType};
 // TODO(bromeon): ensure and test that all element types can be packed.
 // Many builtin types don't have a #[repr] themselves, but they are used in packed arrays, which assumes certain size and alignment.
@@ -112,6 +115,7 @@ macro_rules! impl_packed_array {
             }
 
             /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
+            #[doc(alias = "size")]
             pub fn len(&self) -> usize {
                 to_usize(self.as_inner().size())
             }
@@ -310,7 +314,7 @@ macro_rules! impl_packed_array {
             }
 
             // Include specific functions in the code only if the Packed*Array provides the function.
-            impl_specific_packed_array_functions!($PackedArray);
+            declare_packed_array_conversion_fns!($PackedArray);
 
             /// # Panics
             ///
@@ -544,7 +548,7 @@ macro_rules! impl_packed_array {
 }
 
 // Helper macro to only include specific functions in the code if the Packed*Array provides the function.
-macro_rules! impl_specific_packed_array_functions {
+macro_rules! declare_packed_array_conversion_fns {
     (PackedByteArray) => {
         /// Returns a copy of the data converted to a `PackedFloat32Array`, where each block of 4 bytes has been converted to a 32-bit float.
         ///
@@ -818,10 +822,180 @@ impl_packed_trait_as_into!(Vector3);
 impl_packed_trait_as_into!(Vector4);
 impl_packed_trait_as_into!(Color);
 
-impl<'r> PackedTraits for crate::meta::CowArg<'r, GString> {
-    type ArgType = crate::meta::CowArg<'r, GString>;
+impl<'r> PackedTraits for meta::CowArg<'r, GString> {
+    type ArgType = meta::CowArg<'r, GString>;
 
     fn into_packed_arg(self) -> Self::ArgType {
         self
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Specific API for PackedByteArray
+
+macro_rules! declare_encode_decode {
+    // $Via could be inferred, but ensures we have the correct type expectations.
+    ($Ty:ty, $encode_fn:ident, $decode_fn:ident, $Via:ty) => {
+        #[doc = concat!("Encodes a value of type `", stringify!($Ty), "` at position `byte_offset`.")]
+        ///
+        /// Godot will print an error on encode failure (not enough space left). If you want to detect this programmatically,
+        /// you need to check the offset manually -- or write directly to a Rust data structure, such as `Vec<u8>`.
+        pub fn $encode_fn(&self, byte_offset: usize, value: $Ty) {
+            // We trust Godot that indeed only fitting values are returned.
+            self.as_inner()
+                .$encode_fn(byte_offset as i64, value as $Via);
+        }
+
+        #[doc = concat!("Decodes a value of type `", stringify!($Ty), "` at position `byte_offset`.")]
+        ///
+        /// Godot will print an error on decode failure (not enough space left), and return `0`. If you want to detect this programmatically,
+        /// you need to check the offset manually -- or convert the packed array to a Rust data structure, such as `Vec<u8>`.
+        pub fn $decode_fn(&self, byte_offset: usize) -> $Ty {
+            // We trust Godot that indeed only fitting values are returned.
+            let decoded: $Via = self.as_inner().$decode_fn(byte_offset as i64);
+            decoded as $Ty
+        }
+    };
+}
+
+impl PackedByteArray {
+    declare_encode_decode!(u8, encode_u8, decode_u8, i64);
+    declare_encode_decode!(i8, encode_s8, decode_s8, i64);
+    declare_encode_decode!(u16, encode_u16, decode_u16, i64);
+    declare_encode_decode!(i16, encode_s16, decode_s16, i64);
+    declare_encode_decode!(u32, encode_u32, decode_u32, i64);
+    declare_encode_decode!(i32, encode_s32, decode_s32, i64);
+    declare_encode_decode!(u64, encode_u64, decode_u64, i64);
+    declare_encode_decode!(i64, encode_s64, decode_s64, i64);
+    declare_encode_decode!(f32, encode_half, decode_half, f64);
+    declare_encode_decode!(f32, encode_float, decode_float, f64);
+    declare_encode_decode!(f64, encode_double, decode_double, f64);
+
+    /// Encodes a `Variant` as bytes. Returns number of bytes written.
+    ///
+    /// Sufficient space must be allocated, depending on the encoded variant's size. If `allow_objects` is false, [`VariantType::OBJECT`] values
+    /// are not permitted and will instead be serialized as ID-only. You should set `allow_objects` to false by default.
+    pub fn encode_var(
+        &self,
+        byte_offset: usize,
+        value: impl AsArg<Variant>,
+        allow_objects: bool,
+    ) -> usize {
+        meta::arg_into_ref!(value);
+
+        let bytes_written: i64 =
+            self.as_inner()
+                .encode_var(byte_offset as i64, value, allow_objects);
+        bytes_written as usize
+    }
+
+    /// Returns `true` if a valid `Variant` value can be decoded at `byte_offset`.
+    ///
+    /// Returns `false` otherwise, or when the value is of type [`VariantType::OBJECT`] and `allow_objects` is `false`.
+    ///
+    /// # Security
+    /// You should set `allow_objects` to `false` unless you have a good reason not to. Decoding objects (e.g. coming from remote sources)
+    /// can cause arbitrary code execution.
+    pub fn has_encoded_var(&self, byte_offset: usize, allow_objects: bool) -> bool {
+        self.as_inner()
+            .has_encoded_var(byte_offset as i64, allow_objects)
+    }
+
+    /// Decodes a `Variant` from bytes and returns it.
+    ///
+    /// Returns [`Variant::nil()`] if a valid variant can't be decoded, or the value is of type [`VariantType::OBJECT`] and `allow_objects`
+    /// is `false`.
+    ///
+    /// To know how many bytes the decoded variant took, you need to separately call [`decode_var_size()`][Self::decode_var_size].
+    ///
+    /// # Security
+    /// You should set `allow_objects` to `false` unless you have a good reason not to. Decoding objects (e.g. coming from remote sources)
+    /// can cause arbitrary code execution.
+    pub fn decode_var(&self, byte_offset: usize, allow_objects: bool) -> Variant {
+        self.as_inner()
+            .decode_var(byte_offset as i64, allow_objects)
+    }
+
+    /// Decodes a `Variant` from bytes and returns it.
+    ///
+    /// Returns [`Variant::nil()`] if a valid variant can't be decoded, or the value is of type [`VariantType::OBJECT`] and `allow_objects`
+    /// is `false`.
+    ///
+    /// This method is designed to be called in combination with [`decode_var()`][Self::decode_var].
+    ///
+    /// # Security
+    /// You should set `allow_objects` to `false` unless you have a good reason not to. Decoding objects (e.g. coming from remote sources)
+    /// can cause arbitrary code execution.
+    pub fn decode_var_size(&self, byte_offset: usize, allow_objects: bool) -> usize {
+        let size: i64 = self
+            .as_inner()
+            .decode_var_size(byte_offset as i64, allow_objects);
+
+        size as usize
+    }
+
+    /// Returns a new `PackedByteArray`, with the data of this array compressed.
+    ///
+    /// On failure, Godot prints an error and this method returns `None`. (Note that any empty results coming from Godot are mapped to `None`
+    /// in Rust.)
+    pub fn compress(&self, compression_mode: CompressionMode) -> Option<PackedByteArray> {
+        let compressed: PackedByteArray = self.as_inner().compress(compression_mode.ord() as i64);
+        populated_or_none(compressed)
+    }
+
+    /// Returns a new `PackedByteArray`, with the data of this array decompressed.
+    ///
+    /// Set `buffer_size` to the size of the uncompressed data.
+    ///
+    /// On failure, Godot prints an error and this method returns `None`. (Note that any empty results coming from Godot are mapped to `None`
+    /// in Rust.)
+    ///
+    /// **Note:** Decompression is not guaranteed to work with data not compressed by Godot, for example if data compressed with the deflate
+    /// compression mode lacks a checksum or header.
+    pub fn decompress(
+        &self,
+        buffer_size: usize,
+        compression_mode: CompressionMode,
+    ) -> Option<PackedByteArray> {
+        let decompressed: PackedByteArray = self
+            .as_inner()
+            .decompress(buffer_size as i64, compression_mode.ord() as i64);
+
+        populated_or_none(decompressed)
+    }
+
+    /// Returns a new `PackedByteArray`, with the data of this array decompressed, and without fixed decompression buffer.
+    ///
+    /// This method only accepts `BROTLI`, `GZIP`, and `DEFLATE` compression modes.
+    ///
+    /// This method is potentially slower than [`decompress()`][Self::decompress], as it may have to re-allocate its output buffer multiple
+    /// times while decompressing, whereas `decompress()` knows its output buffer size from the beginning.
+    ///
+    /// GZIP has a maximal compression ratio of 1032:1, meaning it's very possible for a small compressed payload to decompress to a potentially
+    /// very large output. To guard against this, you may provide a maximum size this function is allowed to allocate in bytes via
+    /// `max_output_size`. Passing `None` will allow for unbounded output. If any positive value is passed, and the decompression exceeds that
+    /// amount in bytes, then an error will be returned.
+    ///
+    /// **Note:** Decompression is not guaranteed to work with data not compressed by Godot, for example if data compressed with the deflate
+    /// compression mode lacks a checksum or header.
+    pub fn decompress_dynamic(
+        &self,
+        max_output_size: Option<usize>,
+        compression_mode: CompressionMode,
+    ) -> Option<PackedByteArray> {
+        let max_output_size = max_output_size.map(|i| i as i64).unwrap_or(-1);
+        let decompressed: PackedByteArray = self
+            .as_inner()
+            .decompress_dynamic(max_output_size, compression_mode.ord() as i64);
+
+        populated_or_none(decompressed)
+    }
+}
+
+fn populated_or_none(array: PackedByteArray) -> Option<PackedByteArray> {
+    if array.is_empty() {
+        None
+    } else {
+        Some(array)
     }
 }
