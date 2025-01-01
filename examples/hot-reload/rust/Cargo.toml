@@ -7,7 +7,8 @@ license = "MPL-2.0"
 publish = false
 
 [lib]
-crate-type = ["cdylib"]
+# The `rlib` type is not necessary for hot reload, but is used by the `discovery` crate.
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 godot = { path = "../../../godot", default-features = false }

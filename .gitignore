@@ -17,6 +17,7 @@ Cargo.lock
 
 # This project: input JSONs and code generation
 gen
+discovered.txt
 
 # Temporary tweaks, remove later
 /script
