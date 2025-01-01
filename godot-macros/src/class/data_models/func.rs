@@ -36,12 +36,12 @@ pub struct FuncDefinition {
 // Virtual methods are non-static by their nature; so there's no support for static ones.
 pub fn make_virtual_callback(
     class_name: &Ident,
-    signature_info: SignatureInfo,
+    signature_info: &SignatureInfo,
     before_kind: BeforeKind,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
 
-    let wrapped_method = make_forwarding_closure(class_name, &signature_info, before_kind);
+    let wrapped_method = make_forwarding_closure(class_name, signature_info, before_kind);
     let sig_tuple = signature_info.tuple_type();
 
     let call_ctx = make_call_context(
@@ -192,6 +192,7 @@ impl SignatureInfo {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum BeforeKind {
     /// Default: just call the method.
     Without,

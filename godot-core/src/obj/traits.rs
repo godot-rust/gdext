@@ -162,7 +162,10 @@ pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
     fn __before_ready(&mut self);
 
     #[doc(hidden)]
-    fn __default_virtual_call(_method_name: &str) -> sys::GDExtensionClassCallVirtual {
+    fn __default_virtual_call(
+        _method_name: &str,
+        #[cfg(since_api = "4.4")] _hash: u32,
+    ) -> sys::GDExtensionClassCallVirtual {
         None
     }
 }
@@ -586,6 +589,9 @@ pub mod cap {
     /// Auto-implemented for `#[godot_api] impl XyVirtual for MyClass` blocks
     pub trait ImplementsGodotVirtual: GodotClass {
         #[doc(hidden)]
-        fn __virtual_call(_name: &str) -> sys::GDExtensionClassCallVirtual;
+        fn __virtual_call(
+            name: &str,
+            #[cfg(since_api = "4.4")] hash: u32,
+        ) -> sys::GDExtensionClassCallVirtual;
     }
 }

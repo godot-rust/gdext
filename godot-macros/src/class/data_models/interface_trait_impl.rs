@@ -8,12 +8,13 @@
 use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, SignatureInfo};
 use crate::{util, ParseResult};
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`
 pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream> {
-    let (class_name, trait_path) = util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
+    let (class_name, trait_path, trait_base_class) =
+        util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
 
     let mut godot_init_impl = TokenStream::new();
@@ -37,15 +38,15 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let mut property_get_revert_fn = None;
     let mut property_can_revert_fn = None;
 
-    let mut virtual_methods = vec![];
-    let mut virtual_method_cfg_attrs = vec![];
-    let mut virtual_method_names = vec![];
+    let mut overridden_virtuals = vec![];
 
     let prv = quote! { ::godot::private };
+
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
     let docs = crate::docs::make_virtual_impl_docs(&original_impl.body_items);
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
+
     for item in original_impl.body_items.iter() {
         let method = if let venial::ImplMember::AssocFunction(f) = item {
             f
@@ -58,8 +59,9 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
         let cfg_attrs = util::extract_cfg_attrs(&method.attributes)
             .into_iter()
             .collect::<Vec<_>>();
-        let method_name = method.name.to_string();
-        match method_name.as_str() {
+
+        let method_name_str = method.name.to_string();
+        match method_name_str.as_str() {
             "register_class" => {
                 // Implements the trait once for each implementation of this method, forwarding the cfg attrs of each
                 // implementation to the generated trait impl. If the cfg attrs allow for multiple implementations of
@@ -273,26 +275,25 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             }
 
             // Other virtual methods, like ready, process etc.
-            _ => {
+            method_name_str => {
+                #[cfg(since_api = "4.4")]
+                let method_name_ident = method.name.clone();
                 let method = util::reduce_to_signature(method);
 
-                // Godot-facing name begins with underscore
+                // Godot-facing name begins with underscore.
                 //
-                // Note: godot-codegen special-cases the virtual
-                // method called _init (which exists on a handful of
-                // classes, distinct from the default constructor) to
-                // init_ext, to avoid Rust-side ambiguity. See
-                // godot_codegen::class_generator::virtual_method_name.
-                let virtual_method_name = if method_name == "init_ext" {
+                // godot-codegen special-cases the virtual method called _init (which exists on a handful of classes, distinct from the default
+                // constructor) to init_ext, to avoid Rust-side ambiguity. See godot_codegen::class_generator::virtual_method_name.
+                let virtual_method_name = if method_name_str == "init_ext" {
                     String::from("_init")
                 } else {
-                    format!("_{method_name}")
+                    format!("_{method_name_str}")
                 };
 
                 let signature_info = into_signature_info(method, &class_name, false);
 
                 // Overridden ready() methods additionally have an additional `__before_ready()` call (for OnReady inits).
-                let before_kind = if method_name == "ready" {
+                let before_kind = if method_name_str == "ready" {
                     BeforeKind::WithBefore
                 } else {
                     BeforeKind::Without
@@ -302,33 +303,42 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                 // then there will be multiple match arms annotated with the same cfg attr combinations, thus they will
                 // be reduced to just one arm (at most, if the implementations aren't all removed from compilation) for
                 // each distinct method.
-                virtual_method_cfg_attrs.push(cfg_attrs);
-                virtual_method_names.push(virtual_method_name);
-                virtual_methods.push((signature_info, before_kind));
+                overridden_virtuals.push(OverriddenVirtualFn {
+                    cfg_attrs,
+                    method_name: virtual_method_name,
+                    // If ever the `I*` verbatim validation is relaxed (it won't work with use-renames or other weird edge cases), the approach
+                    // with known_virtual_hashes module could be changed to something like the following (GodotBase = nearest Godot base class):
+                    // __get_virtual_hash::<Self::GodotBase>("method")
+                    #[cfg(since_api = "4.4")]
+                    hash_constant: quote! { hashes::#method_name_ident },
+                    signature_info,
+                    before_kind,
+                });
             }
         }
     }
 
     // If there is no ready() method explicitly overridden, we need to add one, to ensure that __before_ready() is called to
     // initialize the OnReady fields.
-    if !virtual_methods
-        .iter()
-        .any(|(sig, _)| sig.method_name == "ready")
+    if is_possibly_node_class(&trait_base_class)
+        && !overridden_virtuals
+            .iter()
+            .any(|v| v.method_name == "_ready")
     {
-        let signature_info = SignatureInfo::fn_ready();
+        let match_arm = OverriddenVirtualFn {
+            cfg_attrs: vec![],
+            method_name: "_ready".to_string(),
+            // Can't use `hashes::ready` here, as the base class might not be `Node` (see above why such a branch is still added).
+            #[cfg(since_api = "4.4")]
+            hash_constant: quote! { ::godot::sys::known_virtual_hashes::Node::ready },
+            signature_info: SignatureInfo::fn_ready(),
+            before_kind: BeforeKind::OnlyBefore,
+        };
 
-        virtual_method_cfg_attrs.push(vec![]);
-        virtual_method_names.push("_ready".to_string());
-        virtual_methods.push((signature_info, BeforeKind::OnlyBefore));
+        overridden_virtuals.push(match_arm);
     }
 
     let tool_check = util::make_virtual_tool_check();
-    let virtual_method_callbacks: Vec<TokenStream> = virtual_methods
-        .into_iter()
-        .map(|(signature_info, before_kind)| {
-            make_virtual_callback(&class_name, signature_info, before_kind)
-        })
-        .collect();
 
     // Use 'match' as a way to only emit 'Some(...)' if the given cfg attrs allow.
     // This permits users to conditionally remove virtual method impls from compilation while also removing their FFI
@@ -347,6 +357,23 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let property_get_revert_fn = convert_to_match_expression_or_none(property_get_revert_fn);
     let property_can_revert_fn = convert_to_match_expression_or_none(property_can_revert_fn);
 
+    // See also __default_virtual_call() codegen.
+    let (hash_param, hashes_use, match_expr);
+    if cfg!(since_api = "4.4") {
+        hash_param = quote! { hash: u32, };
+        hashes_use =
+            quote! { use ::godot::sys::known_virtual_hashes::#trait_base_class as hashes; };
+        match_expr = quote! { (name, hash) };
+    } else {
+        hash_param = TokenStream::new();
+        hashes_use = TokenStream::new();
+        match_expr = quote! { name };
+    };
+
+    let virtual_match_arms = overridden_virtuals
+        .iter()
+        .map(|v| v.make_match_arm(&class_name));
+
     let result = quote! {
         #original_impl
         #godot_init_impl
@@ -361,16 +388,14 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
 
         impl ::godot::obj::cap::ImplementsGodotVirtual for #class_name {
-            fn __virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
+            fn __virtual_call(name: &str, #hash_param) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
                 use ::godot::obj::UserClass as _;
                 #tool_check
 
-                match name {
-                    #(
-                       #(#virtual_method_cfg_attrs)*
-                       #virtual_method_names => #virtual_method_callbacks,
-                    )*
+                #hashes_use
+                match #match_expr {
+                    #( #virtual_match_arms )*
                     _ => None,
                 }
             }
@@ -398,6 +423,59 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     };
 
     Ok(result)
+}
+
+/// Returns `false` if the given class does definitely not inherit `Node`, `true` otherwise.
+///
+/// `#[godot_api]` has currently no way of checking base class at macro-resolve time, so the `_ready` branch is unconditionally
+/// added, even for classes that don't inherit from `Node`. As a best-effort, we exclude some very common non-Node classes explicitly, to
+/// generate less useless code.
+fn is_possibly_node_class(trait_base_class: &Ident) -> bool {
+    !matches!(
+        trait_base_class.to_string().as_str(), //.
+        "Object"
+            | "MainLoop"
+            | "RefCounted"
+            | "Resource"
+            | "ResourceLoader"
+            | "ResourceSaver"
+            | "SceneTree"
+            | "Script"
+            | "ScriptExtension"
+    )
+}
+struct OverriddenVirtualFn<'a> {
+    cfg_attrs: Vec<&'a venial::Attribute>,
+    method_name: String,
+    #[cfg(since_api = "4.4")]
+    hash_constant: TokenStream,
+    signature_info: SignatureInfo,
+    before_kind: BeforeKind,
+}
+
+impl OverriddenVirtualFn<'_> {
+    fn make_match_arm(&self, class_name: &Ident) -> TokenStream {
+        let cfg_attrs = self.cfg_attrs.iter();
+        let method_name_str = self.method_name.as_str();
+
+        #[cfg(since_api = "4.4")]
+        let pattern = {
+            let hash_constant = &self.hash_constant;
+            quote! { (#method_name_str, #hash_constant) }
+        };
+
+        #[cfg(before_api = "4.4")]
+        let pattern = method_name_str;
+
+        // Lazily generate code for the actual work (calling user function).
+        let method_callback =
+            make_virtual_callback(class_name, &self.signature_info, self.before_kind);
+
+        quote! {
+            #(#cfg_attrs)*
+            #pattern => #method_callback,
+        }
+    }
 }
 
 /// Expects either Some(quote! { () => A, () => B, ... }) or None as the 'tokens' parameter.

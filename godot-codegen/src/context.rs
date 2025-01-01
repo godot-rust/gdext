@@ -69,14 +69,14 @@ impl<'a> Context<'a> {
             // Populate derived-to-base relations
             if let Some(base) = class.inherits.as_ref() {
                 let base_name = TyName::from_godot(base);
-                println!(
-                    "* Add engine class {} <- inherits {}",
-                    class_name.description(),
-                    base_name.description()
-                );
+                // println!(
+                //     "* Add engine class {} <- inherits {}",
+                //     class_name.description(),
+                //     base_name.description()
+                // );
                 ctx.inheritance_tree.insert(class_name.clone(), base_name);
             } else {
-                println!("* Add engine class {}", class_name.description());
+                // println!("* Add engine class {}", class_name.description());
             }
 
             // Populate notification constants (first, only for classes that declare them themselves).
@@ -345,6 +345,11 @@ impl InheritanceTree {
     pub fn insert(&mut self, derived_name: TyName, base_name: TyName) {
         let existing = self.derived_to_base.insert(derived_name, base_name);
         assert!(existing.is_none(), "Duplicate inheritance insert");
+    }
+
+    #[allow(unused)] // Currently 4.4 gated, for virtual method hashes.
+    pub fn direct_base(&self, derived_name: &TyName) -> Option<TyName> {
+        self.derived_to_base.get(derived_name).cloned()
     }
 
     /// Returns all base classes, without the class itself, in order from nearest to furthest (object).

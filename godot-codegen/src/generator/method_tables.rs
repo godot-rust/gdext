@@ -159,8 +159,8 @@ pub fn make_utility_function_table(api: &ExtensionApi) -> TokenStream {
     };
 
     for function in api.utility_functions.iter() {
+        let field = generator::utility_functions::make_utility_function_ptr_name(function);
         let fn_name_str = function.name();
-        let field = generator::utility_functions::make_utility_function_ptr_name(fn_name_str);
         let hash = function.hash();
 
         table.method_decls.push(quote! {
@@ -191,7 +191,7 @@ struct NamedMethodTable {
     method_count: usize,
 }
 
-#[allow(dead_code)] // for lazy feature
+#[allow(dead_code)] // Individual fields would need to be cfg'ed with: feature = "codegen-lazy-fptrs".
 struct IndexedMethodTable {
     table_name: Ident,
     imports: TokenStream,

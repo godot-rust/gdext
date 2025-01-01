@@ -49,7 +49,6 @@
 
 use crate::obj::cap::GodotDefault;
 use crate::obj::{Bounds, Gd, GodotClass, RawGd};
-use crate::registry::callbacks;
 use crate::storage::{InstanceCache, Storage};
 use crate::{out, sys};
 use private::Sealed;
@@ -418,10 +417,7 @@ impl Declarer for DeclUser {
     where
         T: GodotDefault + Bounds<Declarer = Self>,
     {
-        unsafe {
-            let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
-            Gd::from_obj_sys(object_ptr)
-        }
+        Gd::default_instance()
     }
 }
 

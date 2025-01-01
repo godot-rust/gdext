@@ -8,7 +8,7 @@
 use crate::generator::default_parameters;
 use crate::models::domain::{ArgPassing, FnParam, FnQualifier, Function, RustTy};
 use crate::special_cases;
-use crate::util::{lifetime, safe_ident};
+use crate::util::lifetime;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
@@ -155,11 +155,11 @@ pub fn make_function_definition(
         make_params_exprs(sig.params().iter(), passing)
     };
 
-    let rust_function_name_str = sig.name();
+    let rust_function_name = sig.name_ident();
 
     let (primary_fn_name, default_fn_code, default_structs_code);
     if has_default_params {
-        primary_fn_name = format_ident!("{}_full", safe_ident(rust_function_name_str));
+        primary_fn_name = format_ident!("{}_full", rust_function_name);
 
         (default_fn_code, default_structs_code) =
             default_parameters::make_function_definition_with_defaults(
@@ -169,7 +169,7 @@ pub fn make_function_definition(
                 cfg_attributes,
             );
     } else {
-        primary_fn_name = safe_ident(rust_function_name_str);
+        primary_fn_name = rust_function_name.clone();
         default_fn_code = TokenStream::new();
         default_structs_code = TokenStream::new();
     };
@@ -227,7 +227,7 @@ pub fn make_function_definition(
             }
         } else {
             let try_return_decl = &sig.return_value().call_result_decl();
-            let try_fn_name = format_ident!("try_{}", rust_function_name_str);
+            let try_fn_name = format_ident!("try_{}", rust_function_name);
 
             // Note: all varargs functions are non-static, which is why there are some shortcuts in try_*() argument forwarding.
             // This can be made more complex if ever necessary.
