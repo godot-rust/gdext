@@ -424,12 +424,15 @@ impl ClassMethod {
         let direction = FnDirection::Virtual {
             #[cfg(since_api = "4.4")]
             hash: {
-                let hash_i64 = method.hash.unwrap_or_else(|| {
+                // TODO(v0.3,virtual-compat): re-enable this in favor of 0 fallback.
+                /*let hash_i64 = method.hash.unwrap_or_else(|| {
                     panic!(
                         "virtual class methods must have a hash since Godot 4.4; missing: {}.{}",
                         class_name.godot_ty, method.name
                     )
-                });
+                });*/
+                // Temporarily use hash 0 until upstream PR is merged.
+                let hash_i64 = method.hash.unwrap_or(0);
 
                 // TODO see if we can use u32 everywhere.
                 hash_i64.try_into().unwrap_or_else(|_| {
