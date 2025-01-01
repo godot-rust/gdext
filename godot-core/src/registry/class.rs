@@ -716,6 +716,7 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo4 {
         is_abstract: false as u8,
         is_exposed: sys::conv::SYS_TRUE,
         is_runtime: sys::conv::SYS_TRUE,
+        icon_path: ptr::null(),
         set_func: None,
         get_func: None,
         get_property_list_func: None,
