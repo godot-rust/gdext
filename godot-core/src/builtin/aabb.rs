@@ -153,8 +153,15 @@ impl Aabb {
         self.contains_point(point)
     }
 
-    /// Returns `true` if the AABB has area, and `false` if the AABB is linear, empty, or has a negative size. See also `Aabb.area()`.
+    /// Returns if this bounding box has a surface or a length, i.e. at least one component of [`Self::size`] is greater than 0.
     #[inline]
+    pub fn has_surface(self) -> bool {
+        (self.size.x > 0.0) || (self.size.y > 0.0) || (self.size.z > 0.0)
+    }
+
+    /// Returns true if at least one of the size's components (X, Y, Z) is greater than 0.
+    #[inline]
+    #[deprecated = "Replaced with `has_surface()`, which has different semantics"]
     pub fn has_area(self) -> bool {
         ((self.size.x > 0.0) as u8 + (self.size.y > 0.0) as u8 + (self.size.z > 0.0) as u8) >= 2
     }
@@ -226,7 +233,8 @@ impl Aabb {
     /// Returns the scalar length of the longest axis of the AABB.
     #[inline]
     pub fn longest_axis_size(self) -> real {
-        self.size.x.max(self.size.y.max(self.size.z))
+        let size = self.size;
+        size.x.max(size.y).max(size.z)
     }
 
     /// Returns the normalized shortest axis of the AABB.
@@ -253,6 +261,7 @@ impl Aabb {
 
     /// Returns the support point in a given direction. This is useful for collision detection algorithms.
     #[inline]
+    #[doc(alias = "get_support")]
     pub fn support(self, dir: Vector3) -> Vector3 {
         let half_extents = self.size * 0.5;
         let relative_center_point = self.position + half_extents;

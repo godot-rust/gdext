@@ -177,7 +177,9 @@ impl Rect2 {
         self.size.x > 0.0 && self.size.y > 0.0
     }
 
-    /// Returns `true` if the Rect2 contains a point. By convention, the right and bottom edges of the Rect2 are considered exclusive, so points on these edges are not included.
+    /// Returns `true` if the Rect2 contains a point (excluding right/bottom edges).
+    ///
+    /// By convention, the right and bottom edges of the Rect2 are considered exclusive, so points on these edges are not included.
     ///
     /// Note: This method is not reliable for Rect2 with a negative size. Use `abs` to get a positive sized equivalent rectangle to check for contained points.
     #[inline]
