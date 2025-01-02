@@ -181,10 +181,17 @@ impl Rect2 {
     ///
     /// Note: This method is not reliable for Rect2 with a negative size. Use `abs` to get a positive sized equivalent rectangle to check for contained points.
     #[inline]
-    pub fn has_point(self, point: Vector2) -> bool {
+    #[doc(alias = "has_point")]
+    pub fn contains_point(self, point: Vector2) -> bool {
         let point = point - self.position;
 
         point.abs() == point && point.x < self.size.x && point.y < self.size.y
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `contains_point()`, for consistency with `Rect2i`"]
+    pub fn has_point(self, point: Vector2) -> bool {
+        self.contains_point(point)
     }
 
     /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, an empty Rect2 is returned.

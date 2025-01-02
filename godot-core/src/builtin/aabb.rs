@@ -128,13 +128,15 @@ impl Aabb {
         Self { position, size }
     }
 
-    /// Returns `true` if the AABB contains a point. By convention,
-    /// the right and bottom edges of the AABB are considered exclusive, so points on these edges are not included.
+    /// Returns `true` if the AABB contains a point (excluding right/bottom edge).
+    ///
+    /// By convention, the right and bottom edges of the AABB are considered exclusive, so points on these edges are not included.
     ///
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn has_point(self, point: Vector3) -> bool {
+    #[doc(alias = "has_point")]
+    pub fn contains_point(self, point: Vector3) -> bool {
         self.assert_nonnegative();
 
         let point = point - self.position;
@@ -143,6 +145,12 @@ impl Aabb {
             && point.x < self.size.x
             && point.y < self.size.y
             && point.z < self.size.z
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `contains_point()`, for consistency with `Rect2i`"]
+    pub fn has_point(self, point: Vector3) -> bool {
+        self.contains_point(point)
     }
 
     /// Returns `true` if the AABB has area, and `false` if the AABB is linear, empty, or has a negative size. See also `Aabb.area()`.
