@@ -10,4 +10,5 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
+# `experimental-godot-api` feature needs to be enabled since godot's classes `MultiplayerSynchronizer`, `MultiplayerApi` and few others are marked as experimental
 godot = { path = "../../../godot", default-features = false, features = ["experimental-godot-api"] }
