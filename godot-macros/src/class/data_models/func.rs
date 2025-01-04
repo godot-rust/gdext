@@ -192,7 +192,8 @@ pub fn make_func_collection(
         if func.signature_info.receiver_type == ReceiverType::Static {
             static_collection_methods.push(quote! {
                 #(#cfg_attrs)*
-                fn #rust_func_name() -> ::godot::builtin::Func<#generic_args> {
+                // Use `&self` here to enable `.` chaining, such as in MyClass::static_funcs().my_func().
+                fn #rust_func_name(&self) -> ::godot::builtin::Func<#generic_args> {
                     let class_name = <Self as ::godot::obj::GodotClass>::class_name();
                     ::godot::builtin::Func::from_instance_method(class_name.as_str(), #godot_func_name)
                 }

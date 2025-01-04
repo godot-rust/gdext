@@ -40,6 +40,19 @@ fn signal_basic_connect_emit() {
     emitter.free();
 }
 
+#[itest(focus)]
+fn signal_generated_api() {
+    let mut emitter = Emitter::new_alloc();
+    let receiver = Receiver::new_alloc();
+
+    emitter.bind_mut().connect_signals();
+
+    //assert!(receiver.bind().used[i].get());
+
+    receiver.free();
+    emitter.free();
+}
+
 #[itest]
 fn signal_construction_and_id() {
     let mut object = RefCounted::new_gd();
@@ -58,12 +71,6 @@ fn signal_construction_and_id() {
     drop(object);
     assert_eq!(signal.object_id(), Some(object_id));
     assert_eq!(signal.object(), None);
-}
-
-#[itest(focus)]
-fn signal_generated_api() {
-    let mut object = RefCounted::new_gd();
-    let object_id = object.instance_id();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -86,13 +93,20 @@ impl Emitter {
     #[signal]
     fn emitter_2(arg1: Gd<Object>, arg2: GString);
 
+    #[func]
+    fn self_receive(&self, arg1: i64) {}
+
+    #[func]
+    fn self_receive_static(arg1: i64) {}
+
     fn connect_signals(&mut self) {
         // self.signals().emitter_2_connect(|obj, s| {
         //     println!("emitter_2({obj}, {s})");
         // });
 
-        let f = Self::static_funcs().emitter_2();
-        self.signals().emitter_2_connect(f)
+        let m = self.funcs().self_receive();
+        let s = Self::static_funcs().self_receive_static();
+        self.signals().emitter_1_connect(m);
     }
 }
 
@@ -124,11 +138,12 @@ impl Receiver {
         self.used[2].set(true);
     }
 
+    // This should probably have a dedicated key such as #[godot_api(func_refs)] or so...
     #[signal]
     fn _just_here_to_generate_funcs();
 
     fn func(&self) {
-        let f = Self::funcs().receiver_2();
+        let f = self.signals().receiver_2();
     }
 }
 
