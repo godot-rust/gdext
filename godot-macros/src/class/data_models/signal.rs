@@ -22,6 +22,18 @@ pub struct SignalDefinition {
     pub has_builder: bool,
 }
 
+/// A collection struct accessible via `.signals()` in the generated impl.
+///
+/// Also defines individual signal types.
+#[derive(Default)]
+struct SignalCollection {
+    /// The individual `my_signal()` accessors, returning concrete signal types.
+    collection_methods: Vec<TokenStream>,
+
+    /// The actual signal definitions, including both `struct` and `impl` blocks.
+    signal_struct_defs: Vec<TokenStream>,
+}
+
 pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
@@ -29,7 +41,7 @@ pub fn make_signal_registrations(
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
     let mut signals_fields = Vec::new();
-    let mut signals_struct_methods = Vec::new();
+    let mut collection_api = SignalCollection::default();
 
     for signal in signals.iter() {
         let SignalDefinition {
@@ -78,7 +90,6 @@ pub fn make_signal_registrations(
 
         let signal_name = &signature.name;
         let signal_name_str = signal_name.to_string();
-        let signal_parameters_count = param_names.len();
 
         if *has_builder {
             signals_fields.push(quote! {
@@ -90,7 +101,7 @@ pub fn make_signal_registrations(
             let connect_method = format_ident!("{}_connect", signal_name);
             let emit_params = &signature.params;
 
-            signals_struct_methods.push(quote! {
+            collection_api.collection_methods.push(quote! {
                 #(#signal_cfg_attrs)*
                 fn #emit_method(&mut self, #emit_params) {
                     use ::godot::meta::ToGodot;
@@ -106,6 +117,7 @@ pub fn make_signal_registrations(
             });
         }
 
+        let signal_parameters_count = param_names.len();
         let signal_registration = quote! {
             #(#signal_cfg_attrs)*
             unsafe {
@@ -133,7 +145,7 @@ pub fn make_signal_registrations(
     let struct_code = if signals_fields.is_empty() {
         None
     } else {
-        Some(make_signal_collection(class_name, signals_struct_methods))
+        Some(make_signal_collection(class_name, collection_api))
     };
 
     Ok((signal_registrations, struct_code))
