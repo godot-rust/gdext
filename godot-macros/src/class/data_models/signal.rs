@@ -50,7 +50,7 @@ impl<'a> SignalDetails<'a> {
     pub fn extract(
         original_decl: &'a venial::Function,
         class_name: &'a Ident,
-        external_attributes: &'a Vec<venial::Attribute>,
+        external_attributes: &'a [venial::Attribute],
     ) -> ParseResult<SignalDetails<'a>> {
         let mut param_types = vec![];
         let mut param_names = vec![];
@@ -109,8 +109,10 @@ pub fn make_signal_registrations(
             has_builder,
         } = signal;
 
-        let details = SignalDetails::extract(&signature, class_name, external_attributes)?;
+        let details = SignalDetails::extract(signature, class_name, external_attributes)?;
 
+        // Callable custom functions are only supported in 4.2+, upon which custom signals rely.
+        #[cfg(since_api = "4.2")]
         if *has_builder {
             collection_api.extend_with(&details);
         }
@@ -136,7 +138,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
         ..
     } = details;
 
-    let signature_tuple = util::make_signature_tuple_type(&quote! { () }, &param_types);
+    let signature_tuple = util::make_signature_tuple_type(&quote! { () }, param_types);
 
     let indexes = 0..param_types.len();
     let param_property_infos = quote! {
@@ -185,28 +187,24 @@ struct SignalCollection {
 
     /// The actual signal definitions, including both `struct` and `impl` blocks.
     individual_structs: Vec<TokenStream>,
-    // signals_fields: Vec<TokenStream>,
 }
 
 impl SignalCollection {
     fn extend_with(&mut self, details: &SignalDetails) {
         let SignalDetails {
             signal_name,
+            signal_name_str,
             signal_cfg_attrs,
             individual_struct_name,
             ..
         } = details;
 
-        // self.signals_fields.push(quote! {
-        //     #(#signal_cfg_attrs)*
-        //     #signal_name: ::godot::builtin::TypedSignal<#param_tuple>
-        // });
-
         self.collection_methods.push(quote! {
             #(#signal_cfg_attrs)*
-            fn #signal_name(&mut self) -> #individual_struct_name<'_> {
-                let object_mut = &mut *self.object_base;
-                #individual_struct_name { object_mut }
+            fn #signal_name(self) -> #individual_struct_name<'a> {
+                #individual_struct_name {
+                    typed: ::godot::register::TypedSignal::new(self.object, #signal_name_str)
+                }
             }
         });
 
@@ -226,44 +224,53 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         class_name,
         param_names,
         param_tuple,
-        signal_name_str,
+        // signal_name,
         signal_cfg_attrs,
         individual_struct_name,
         ..
     } = details;
 
+    // let module_name = format_ident!("__godot_signal_{class_name}_{signal_name}");
+
+    // Module + re-export.
+    // Could also keep contained in module to reduce namespace pollution, but might make docs a bit more nested.
     quote! {
+        // #(#signal_cfg_attrs)*
+        // mod #module_name {
+
+        // TODO make pub without running into "private type `MySignal` in public interface" errors.
         #(#signal_cfg_attrs)*
         #[allow(non_camel_case_types)]
-        pub struct #individual_struct_name<'a> {
-            object_mut: &'a mut ::godot::classes::Object
-            //object_base: ::godot::obj::BaseMut<'a, #class_name>,
-            //signal: ::godot::builtin::TypedSignal<#param_tuple>
+        struct #individual_struct_name<'a> {
+            typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
         }
 
+        // Concrete convenience API is macro-based; many parts are delegated to TypedSignal via Deref/DerefMut.
         #(#signal_cfg_attrs)*
         impl #individual_struct_name<'_> {
             pub fn emit(&mut self, #emit_params) {
-                use ::godot::meta::ToGodot;
-                // Potential optimization: encode args as signature-tuple and use direct ptrcall.
-                let varargs = [
-                    #( #param_names.to_variant(), )*
-                ];
-                self.object_mut.emit_signal(#signal_name_str, &varargs);
-            }
-
-            fn connect_fn(&mut self, f: impl FnMut #param_tuple) {
-
-            }
-
-            fn connect<R>(mut self, registered_func: ::godot::register::Func<R, #param_tuple>) -> Self {
-                // connect() return value is ignored -- do not write `let _ = ...`, so we can revisit this when adding #[must_use] to Error.
-
-                let callable = registered_func.to_callable();
-                self.object_mut.connect(#signal_name_str, &callable);
-                self
+                self.typed.emit((#( #param_names, )*));
             }
         }
+
+        #(#signal_cfg_attrs)*
+        impl<'a> std::ops::Deref for #individual_struct_name<'a> {
+            type Target = ::godot::register::TypedSignal<'a, #class_name, #param_tuple>;
+
+            fn deref(&self) -> &Self::Target {
+                &self.typed
+            }
+        }
+
+        #(#signal_cfg_attrs)*
+        impl std::ops::DerefMut for #individual_struct_name<'_> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.typed
+            }
+        }
+
+        // #(#signal_cfg_attrs)*
+        // pub(crate) use #module_name::#individual_struct_name;
     }
 }
 
@@ -273,27 +280,27 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
         return None;
     }
 
-    let struct_name = format_ident!("{}Signals", class_name);
-    let signals_struct_methods = &collection.collection_methods;
+    let collection_struct_name = format_ident!("{}Signals", class_name);
+    let collection_struct_methods = &collection.collection_methods;
     let individual_structs = collection.individual_structs;
 
     let code = quote! {
         #[allow(non_camel_case_types)]
-        pub struct #struct_name<'a> {
+        pub struct #collection_struct_name<'a> {
             // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
-            object_base: ::godot::obj::BaseMut<'a, #class_name>,
+            object: ::godot::register::ObjectRef<'a, #class_name>
         }
 
-        impl #struct_name<'_> {
-            #( #signals_struct_methods )*
+        impl<'a> #collection_struct_name<'a> {
+            #( #collection_struct_methods )*
         }
 
         impl ::godot::obj::cap::WithSignals for #class_name {
-            type SignalCollection<'a> = #struct_name<'a>;
+            type SignalCollection<'a> = #collection_struct_name<'a>;
 
             fn signals(&mut self) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
-                    object_base: self.base_mut(),
+                    object: ::godot::register::ObjectRef::Internal { obj_mut: self }
                 }
             }
         }

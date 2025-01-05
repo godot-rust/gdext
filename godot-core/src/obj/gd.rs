@@ -327,6 +327,11 @@ impl<T: GodotClass> Gd<T> {
             .expect("Upcast to Object failed. This is a bug; please report it.")
     }
 
+    /// Equivalent to [`upcast_mut::<Object>()`][Self::upcast_mut], but without bounds.
+    pub(crate) fn upcast_object_mut(&mut self) -> &mut classes::Object {
+        self.raw.as_object_mut()
+    }
+
     /// **Upcast shared-ref:** access this object as a shared reference to a base class.
     ///
     /// This is semantically equivalent to multiple applications of [`Self::deref()`]. Not really useful on its own, but combined with
