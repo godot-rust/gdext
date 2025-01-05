@@ -23,13 +23,12 @@ type CallableCustomInfo = sys::GDExtensionCallableCustomInfo2;
 
 /// A `Callable` represents a function in Godot.
 ///
-/// Usually a callable is a reference to an `Object` and a method name, this is a standard callable. But can
-/// also be a custom callable, which is usually created from `bind`, `unbind`, or a GDScript lambda. See
-/// [`Callable::is_custom`].
-///
-/// Currently, it is impossible to use `bind` and `unbind` in GDExtension, see [godot-cpp#802].
-///
-/// [godot-cpp#802]: https://github.com/godotengine/godot-cpp/issues/802
+/// Callables can be created in many ways:
+/// - From an `Object` and a (non-static) method name. This is a _standard_ callable.
+/// - From a GDScript class name and a static function name. (This typically works because classes are instances of `GDScript`).
+/// - From a GDScript lambda function.
+/// - By modifying an existing `Callable` with [`bind()`][Self::bind] or [`unbind()`][Self::unbind].
+/// - By creating a custom callable from Rust.
 ///
 /// # Godot docs
 ///
@@ -72,6 +71,11 @@ impl Callable {
     /// Note that due to varying support across different engine versions, the resulting `Callable` has unspecified behavior for
     /// methods such as [`method_name()`][Self::method_name], [`object()`][Self::object], [`object_id()`][Self::object_id] or
     /// [`get_argument_count()`][Self::arg_len] among others. It is recommended to only use this for calling the function.
+    ///
+    /// # Compatibility
+    /// Up until and including Godot 4.3, this method has some limitations:
+    /// - [`is_valid()`][Self::is_valid] will return `false`, even though the call itself succeeds.
+    /// - You cannot use statics to connect signals to such callables. Use the new typed signal API instead.
     pub fn from_local_static(
         class_name: impl meta::AsArg<StringName>,
         function_name: impl meta::AsArg<StringName>,

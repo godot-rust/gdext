@@ -106,12 +106,21 @@ fn callable_static() {
         assert_eq!(callable.object(), None);
         assert_eq!(callable.object_id(), None);
         assert_eq!(callable.method_name(), None);
+        assert!(callable.is_custom());
+        assert!(callable.is_valid());
     } else {
         assert!(callable.object().is_some());
         assert!(callable.object_id().is_some());
         assert_eq!(callable.method_name(), Some("concat_array".into()));
         assert_eq!(callable.to_string(), "GDScriptNativeClass::concat_array");
+        assert!(!callable.is_custom());
+
+        // Surprisingly false, but call still works (see test below).
+        // What DOESN'T work is connecting 4.3 static methods to signals via this approach.
+        assert!(!callable.is_valid());
     }
+
+    assert!(!callable.is_null());
 
     // Calling works consistently everywhere.
     let result = callable.callv(&varray![
