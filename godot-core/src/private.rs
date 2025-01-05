@@ -17,11 +17,9 @@ pub use sys::out;
 #[cfg(feature = "trace")]
 pub use crate::meta::trace;
 
-use crate::builtin::Variant;
 use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
-use crate::obj::{bounds, BaseMut, GodotClass, Inherits};
 use crate::sys;
 use std::sync::atomic;
 #[cfg(debug_assertions)]

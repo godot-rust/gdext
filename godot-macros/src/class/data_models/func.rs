@@ -193,16 +193,16 @@ pub fn make_func_collection(
             static_collection_methods.push(quote! {
                 #(#cfg_attrs)*
                 // Use `&self` here to enable `.` chaining, such as in MyClass::static_funcs().my_func().
-                fn #rust_func_name(self) -> ::godot::builtin::Func<#generic_args> {
+                fn #rust_func_name(self) -> ::godot::register::Func<#generic_args> {
                     let class_name = <#class_name as ::godot::obj::GodotClass>::class_name();
-                    ::godot::builtin::Func::from_static_function(class_name.to_cow_str(), #godot_func_name)
+                    ::godot::register::Func::from_static_function(class_name.to_cow_str(), #godot_func_name)
                 }
             });
         } else {
             instance_collection_methods.push(quote! {
                 #(#cfg_attrs)*
-                fn #rust_func_name(self) -> ::godot::builtin::Func<#generic_args> {
-                    ::godot::builtin::Func::from_instance_method(self.obj, #godot_func_name)
+                fn #rust_func_name(self) -> ::godot::register::Func<#generic_args> {
+                    ::godot::register::Func::from_instance_method(self.obj, #godot_func_name)
                 }
             });
         }

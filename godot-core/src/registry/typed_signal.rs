@@ -7,56 +7,163 @@
 
 // Maybe move this to builtin::functional module?
 
-use crate::builtin::{Callable, Signal, Variant};
-use crate::obj::Gd;
+use crate::builtin::{Callable, Variant};
+use crate::obj::{Gd, GodotClass, WithBaseField};
+use crate::registry::as_func::AsFunc;
 use crate::{classes, meta, sys};
 use std::borrow::Cow;
 use std::fmt;
 
 pub trait ParamTuple {
     fn to_variant_array(&self) -> Vec<Variant>;
+    fn from_variant_array(array: &[&Variant]) -> Self;
 }
 
-impl ParamTuple for () {
-    fn to_variant_array(&self) -> Vec<Variant> {
-        Vec::new()
-    }
+macro_rules! impl_param_tuple {
+    // Recursive case for tuple with N elements
+    ($($args:ident : $Ps:ident),*) => {
+        impl<$($Ps),*> ParamTuple for ($($Ps,)*)
+        where
+            $($Ps: meta::ToGodot + meta::FromGodot),*
+        {
+            fn to_variant_array(&self) -> Vec<Variant> {
+                let ($($args,)*) = self;
+
+                vec![
+                    $( $args.to_variant(), )*
+                ]
+            }
+
+            #[allow(unused_variables, unused_mut, clippy::unused_unit)]
+            fn from_variant_array(array: &[&Variant]) -> Self {
+               let mut iter = array.iter();
+               ( $(
+                  <$Ps>::from_variant(
+                        iter.next().unwrap_or_else(|| panic!("ParamTuple: {} access out-of-bounds (len {})", stringify!($args), array.len()))
+                  ),
+               )* )
+            }
+        }
+    };
 }
 
-impl<T> ParamTuple for (T,)
+impl_param_tuple!();
+impl_param_tuple!(arg0: P0);
+impl_param_tuple!(arg0: P0, arg1: P1);
+impl_param_tuple!(arg0: P0, arg1: P1, arg2: P2);
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[doc(hidden)]
+pub enum ObjectRef<'a, C: GodotClass> {
+    /// Helpful for emit: reuse `&self` from within the `impl` block, goes through `base()` re-borrowing and thus allows re-entrant calls
+    /// through Godot.
+    Internal { obj_mut: &'a mut C },
+
+    /// From outside, based on `Gd` pointer.
+    External { gd: Gd<C> },
+}
+
+impl<C> ObjectRef<'_, C>
 where
-    T: meta::ToGodot,
+    C: WithBaseField,
 {
-    fn to_variant_array(&self) -> Vec<Variant> {
-        vec![self.0.to_variant()]
+    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object)) {
+        match self {
+            ObjectRef::Internal { obj_mut } => f(obj_mut.base_mut().upcast_object_mut()),
+            ObjectRef::External { gd } => f(gd.upcast_object_mut()),
+        }
+    }
+
+    fn to_owned(&self) -> Gd<C> {
+        match self {
+            ObjectRef::Internal { obj_mut } => WithBaseField::to_gd(*obj_mut),
+            ObjectRef::External { gd } => gd.clone(),
+        }
     }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub struct TypedSignal<Ps> {
-    signal: Signal,
+pub struct TypedSignal<'a, C: GodotClass, Ps> {
+    //signal: Signal,
+    /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
+    owner: ObjectRef<'a, C>,
+    name: Cow<'static, str>,
     _signature: std::marker::PhantomData<Ps>,
 }
 
-impl<Ps: ParamTuple> TypedSignal<Ps> {
-    pub(crate) fn from_untyped(signal: Signal) -> Self {
+impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
+    #[doc(hidden)]
+    pub fn new(owner: ObjectRef<'a, C>, name: &'static str) -> Self {
         Self {
-            signal,
+            owner,
+            name: Cow::Borrowed(name),
             _signature: std::marker::PhantomData,
         }
     }
 
-    pub fn emit(&self, params: Ps) {
-        self.signal.emit(&params.to_variant_array());
+    pub fn emit(&mut self, params: Ps) {
+        let name = self.name.as_ref();
+
+        self.owner.with_object_mut(|obj| {
+            obj.emit_signal(name, &params.to_variant_array());
+        });
     }
 
-    pub fn connect_untyped(&mut self, callable: &Callable, flags: i64) {
-        self.signal.connect(callable, flags);
+    /// Connect a method (member function) with `&mut self` as the first parameter.
+    pub fn connect_self<F>(&mut self, mut function: F)
+    where
+        for<'c> F: AsFunc<&'c mut C, Ps> + 'static,
+    {
+        // When using sys::short_type_name() in the future, make sure global "func" and member "MyClass::func" are rendered as such.
+        // PascalCase heuristic should then be good enough.
+        let callable_name = std::any::type_name_of_val(&function);
+
+        let object = self.owner.to_owned();
+        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
+            let args = Ps::from_variant_array(variant_args);
+
+            // let mut function = function;
+            // function.call(instance, args);
+            let mut object = object.clone();
+
+            // TODO: how to avoid another bind, when emitting directly from Rust?
+            let mut instance = object.bind_mut();
+            let instance = &mut *instance;
+            function.call(instance, args);
+
+            Ok(Variant::nil())
+        };
+
+        let name = self.name.as_ref();
+        let callable = Callable::from_local_fn(callable_name, godot_fn);
+
+        self.owner.with_object_mut(|obj| {
+            obj.connect(name, &callable);
+        });
     }
 
-    pub fn to_untyped(&self) -> Signal {
-        self.signal.clone()
+    /// Connect a static function (global or associated function).
+    pub fn connect<F>(&mut self, mut function: F)
+    where
+        F: AsFunc<(), Ps> + 'static,
+    {
+        let callable_name = std::any::type_name_of_val(&function);
+
+        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
+            let args = Ps::from_variant_array(variant_args);
+            function.call((), args);
+
+            Ok(Variant::nil())
+        };
+
+        let name = self.name.as_ref();
+        let callable = Callable::from_local_fn(callable_name, godot_fn);
+
+        self.owner.with_object_mut(|obj| {
+            obj.connect(name, &callable);
+        });
     }
 }
 

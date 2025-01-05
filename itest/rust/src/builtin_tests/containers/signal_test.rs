@@ -9,7 +9,7 @@ use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
 use godot::classes::{Object, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::cap::{WithFuncs, WithSignals};
+use godot::obj::cap::WithSignals;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
@@ -49,24 +49,20 @@ fn signal_symbols_api() {
     let mut internal = emitter.bind_mut();
 
     internal.connect_signals_internal();
-    //internal.signals().emitter_1()
     drop(internal);
 
     // let check = Signal::from_object_signal(&emitter, "emitter_1");
     // dbg!(check.connections());
 
-    println!("PRE_EMIT");
-    emitter.emit_signal("emitter_1", &[1234.to_variant()]);
-    println!("POST_EMIT");
-
     emitter.bind_mut().emit_signals_internal();
 
+    // Check that instance method is invoked.
     let received_arg = LAST_METHOD_ARG.lock();
     assert_eq!(*received_arg, Some(1234), "Emit failed (method)");
 
-    // This is currently broken:
-    // let received_arg = LAST_STATIC_FUNCTION_ARG.lock();
-    // assert_eq!(*received_arg, Some(1234), "Emit failed (static function)");
+    // Check that static function is invoked.
+    let received_arg = LAST_STATIC_FUNCTION_ARG.lock();
+    assert_eq!(*received_arg, Some(1234), "Emit failed (static function)");
 
     receiver.free();
     emitter.free();
@@ -118,30 +114,20 @@ impl Emitter {
 
     #[func]
     fn self_receive(&mut self, arg1: i64) {
-        println!("Received instance: {}", arg1);
         *LAST_METHOD_ARG.lock() = Some(arg1);
     }
 
     #[func]
     fn self_receive_static(arg1: i64) {
-        let x = Self::self_receive;
-        let y = Self::self_receive_static;
-
-        println!("Received static: {}", arg1);
         *LAST_STATIC_FUNCTION_ARG.lock() = Some(arg1);
     }
 
     // "Internal" means connect/emit happens from within the class (via &mut self).
 
     fn connect_signals_internal(&mut self) {
-        self.signals().emitter_2().connect_fn(|obj, s| {
-            println!("emitter_2({obj}, {s})");
-        });
-
-        let m = self.funcs().self_receive();
-        let s = Self::static_funcs().self_receive_static();
-
-        self.signals().emitter_1().connect(m).connect(s);
+        let mut sig = self.signals().emitter_1();
+        sig.connect_self(Self::self_receive);
+        sig.connect(Self::self_receive_static);
     }
 
     fn emit_signals_internal(&mut self) {
@@ -180,10 +166,6 @@ impl Receiver {
     // This should probably have a dedicated key such as #[godot_api(func_refs)] or so...
     #[signal]
     fn _just_here_to_generate_funcs();
-
-    fn func(&self) {
-        // let f = self.signals().receiver_2();
-    }
 }
 
 const SIGNAL_ARG_STRING: &str = "Signal string arg";
