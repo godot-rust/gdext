@@ -5,9 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi::join_with;
 use std::collections::HashMap;
 use std::{any, ptr};
 
+use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::error::{ConvertError, FromGodotError};
 use crate::meta::ClassName;
@@ -15,7 +17,7 @@ use crate::obj::{cap, DynGd, Gd, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{ErasedDynifyFn, ErasedRegisterFn, InherentImpl};
-use crate::{classes, godot_error, sys};
+use crate::{classes, godot_error, godot_warn, sys};
 use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
 /// Returns a lock to a global map of loaded classes, by initialization level.
@@ -218,11 +220,30 @@ pub fn auto_register_classes(init_level: InitLevel) {
         fill_class_info(elem.item.clone(), class_info);
     });
 
+    // First register all the loaded classes and dyn traits.
+    // We need all the dyn classes in the registry to properly register DynGd properties;
+    // one can do it directly inside the loop – by locking and unlocking the mutex –
+    // but it is much slower and doesn't guarantee that all the dependent classes will be already loaded in most cases.
+    register_classes_and_dyn_traits(&mut map, init_level);
+
+    // actually register all the classes
+    for info in map.into_values() {
+        register_class_raw(info);
+        out!("Class {class_name} loaded.");
+    }
+
+    out!("All classes for level `{init_level:?}` auto-registered.");
+}
+
+fn register_classes_and_dyn_traits(
+    map: &mut HashMap<ClassName, ClassRegistrationInfo>,
+    init_level: InitLevel,
+) {
     let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
     let mut loaded_classes_by_name = global_loaded_classes_by_name();
     let mut dyn_traits_by_typeid = global_dyn_traits_by_typeid();
 
-    for mut info in map.into_values() {
+    for info in map.values_mut() {
         let class_name = info.class_name;
         out!("Register class:   {class_name} at level `{init_level:?}`");
 
@@ -249,13 +270,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
             .push(loaded_class);
 
         loaded_classes_by_name.insert(class_name, metadata);
-
-        register_class_raw(info);
-
-        out!("Class {class_name} loaded.");
     }
-
-    out!("All classes for level `{init_level:?}` auto-registered.");
 }
 
 pub fn unregister_classes(init_level: InitLevel) {
@@ -335,6 +350,38 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
     };
 
     Err(error.into_error(object))
+}
+
+/// Responsible for creating hint_string for [`DynGd<T, D>`][crate::obj::DynGd] properties which works with [`PropertyHint::NODE_TYPE`][crate::global::PropertyHint::NODE_TYPE] or [`PropertyHint::RESOURCE_TYPE`][crate::global::PropertyHint::RESOURCE_TYPE].
+///
+/// Godot offers very limited capabilities when it comes to validating properties in the editor if given class isn't a tool.
+/// Proper hint string combined with `PropertyHint::NODE_TYPE` or `PropertyHint::RESOURCE_TYPE` allows to limit selection only to valid classes - those registered as implementors of given `DynGd<T, D>`'s `D` trait.
+///
+/// See also [Godot docs for PropertyHint](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enum-globalscope-propertyhint).
+pub(crate) fn get_dyn_property_hint_string<D>() -> GString
+where
+    D: ?Sized + 'static,
+{
+    let typeid = any::TypeId::of::<D>();
+    let dyn_traits_by_typeid = global_dyn_traits_by_typeid();
+    let Some(relations) = dyn_traits_by_typeid.get(&typeid) else {
+        let trait_name = sys::short_type_name::<D>();
+        godot_warn!(
+            "godot-rust: No class has been linked to trait {trait_name} with #[godot_dyn]."
+        );
+        return GString::default();
+    };
+    assert!(
+        !relations.is_empty(),
+        "Trait {trait_name} has been registered as DynGd Trait \
+        despite no class being related to it \n\
+        **this is a bug, please report it**",
+        trait_name = sys::short_type_name::<D>()
+    );
+
+    GString::from(join_with(relations.iter(), ", ", |relation| {
+        relation.implementing_class_name.to_cow_str()
+    }))
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
