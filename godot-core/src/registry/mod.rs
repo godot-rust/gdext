@@ -16,9 +16,11 @@ pub mod plugin;
 pub mod property;
 
 #[cfg(since_api = "4.2")]
-pub mod as_func;
-#[cfg(since_api = "4.2")]
-pub mod typed_signal;
+pub mod functional;
+
+// Contents re-exported in `godot` crate; just keep empty.
+#[cfg(before_api = "4.2")]
+pub mod functional {}
 
 // RpcConfig uses MultiplayerPeer::TransferMode and MultiplayerApi::RpcMode, which are only enabled in `codegen-full` feature.
 #[cfg(feature = "codegen-full")]

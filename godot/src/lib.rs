@@ -183,16 +183,12 @@ pub mod init {
 
 /// Register/export Rust symbols to Godot: classes, methods, enums...
 pub mod register {
+    pub use godot_core::registry::functional::*;
     pub use godot_core::registry::property;
     pub use godot_macros::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
 
     #[cfg(feature = "__codegen-full")]
     pub use godot_core::registry::RpcConfig;
-
-    #[cfg(since_api = "4.2")]
-    pub use godot_core::registry::as_func::*;
-    #[cfg(since_api = "4.2")]
-    pub use godot_core::registry::typed_signal::*;
 
     /// Re-exports used by proc-macro API.
     #[doc(hidden)]

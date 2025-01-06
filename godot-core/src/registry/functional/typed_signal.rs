@@ -9,50 +9,10 @@
 
 use crate::builtin::{Callable, Variant};
 use crate::obj::{Gd, GodotClass, WithBaseField};
-use crate::registry::as_func::AsFunc;
-use crate::{classes, meta, sys};
+use crate::registry::functional::{AsFunc, ParamTuple};
+use crate::{classes, sys};
 use std::borrow::Cow;
 use std::fmt;
-
-pub trait ParamTuple {
-    fn to_variant_array(&self) -> Vec<Variant>;
-    fn from_variant_array(array: &[&Variant]) -> Self;
-}
-
-macro_rules! impl_param_tuple {
-    // Recursive case for tuple with N elements
-    ($($args:ident : $Ps:ident),*) => {
-        impl<$($Ps),*> ParamTuple for ($($Ps,)*)
-        where
-            $($Ps: meta::ToGodot + meta::FromGodot),*
-        {
-            fn to_variant_array(&self) -> Vec<Variant> {
-                let ($($args,)*) = self;
-
-                vec![
-                    $( $args.to_variant(), )*
-                ]
-            }
-
-            #[allow(unused_variables, unused_mut, clippy::unused_unit)]
-            fn from_variant_array(array: &[&Variant]) -> Self {
-               let mut iter = array.iter();
-               ( $(
-                  <$Ps>::from_variant(
-                        iter.next().unwrap_or_else(|| panic!("ParamTuple: {} access out-of-bounds (len {})", stringify!($args), array.len()))
-                  ),
-               )* )
-            }
-        }
-    };
-}
-
-impl_param_tuple!();
-impl_param_tuple!(arg0: P0);
-impl_param_tuple!(arg0: P0, arg1: P1);
-impl_param_tuple!(arg0: P0, arg1: P1, arg2: P2);
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[doc(hidden)]
 pub enum ObjectRef<'a, C: GodotClass> {
@@ -166,62 +126,6 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
         });
     }
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-/* Previous impl based on assumption, Signal would be used. Could maybe be combined within an enum.
-
-pub struct TypedSignal<Ps> {
-    signal: Signal,
-    _signature: std::marker::PhantomData<Ps>,
-}
-
-impl<Ps: ParamTuple> TypedSignal<Ps> {
-    pub(crate) fn from_untyped(signal: Signal) -> Self {
-        Self {
-            signal,
-            _signature: std::marker::PhantomData,
-        }
-    }
-
-    pub fn emit(&self, params: Ps) {
-        self.signal.emit(&params.to_variant_array());
-    }
-
-    pub fn connect_untyped(&mut self, callable: &Callable, flags: i64) {
-        self.signal.connect(callable, flags);
-    }
-
-    pub fn to_untyped(&self) -> Signal {
-        self.signal.clone()
-    }
-}*/
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/*
-pub struct TypedFunc<C, R, Ps> {
-    godot_name: &'static str,
-    _return_type: std::marker::PhantomData<R>,
-    _param_types: std::marker::PhantomData<(C, Ps)>,
-}
-
-impl<C: GodotClass, R, Ps> TypedFunc<C, R, Ps> {
-    #[doc(hidden)]
-    pub fn from_godot_name(godot_name: &'static str) -> Self {
-        Self {
-            godot_name,
-            _return_type: std::marker::PhantomData,
-            _param_types: std::marker::PhantomData,
-        }
-    }
-
-    pub fn with_object<T: GodotClass>(obj: &Gd<T>) {}
-
-    pub fn godot_name(&self) -> &'static str {
-        self.godot_name
-    }
-}
-*/
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
