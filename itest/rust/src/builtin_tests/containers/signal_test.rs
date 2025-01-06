@@ -41,6 +41,7 @@ fn signal_basic_connect_emit() {
     emitter.free();
 }
 
+#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_api() {
     let mut emitter = Emitter::new_alloc();
@@ -124,12 +125,14 @@ impl Emitter {
 
     // "Internal" means connect/emit happens from within the class (via &mut self).
 
+    #[cfg(since_api = "4.2")]
     fn connect_signals_internal(&mut self) {
         let mut sig = self.signals().emitter_1();
         sig.connect_self(Self::self_receive);
         sig.connect(Self::self_receive_static);
     }
 
+    #[cfg(since_api = "4.2")]
     fn emit_signals_internal(&mut self) {
         self.signals().emitter_1().emit(1234);
     }
