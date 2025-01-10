@@ -86,11 +86,8 @@ type GodotCreationInfo = sys::GDExtensionClassCreationInfo4;
 
 #[cfg(before_api = "4.4")]
 pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual as sys::Inner>::FnPtr;
-// TODO(v0.3,virtual-compat): re-enable this to use GetVirtual2
-// #[cfg(since_api = "4.4")]
-// pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual2 as sys::Inner>::FnPtr;
 #[cfg(since_api = "4.4")]
-pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual as sys::Inner>::FnPtr;
+pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual2 as sys::Inner>::FnPtr;
 
 #[derive(Debug)]
 struct ClassRegistrationInfo {
