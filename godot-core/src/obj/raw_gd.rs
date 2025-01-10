@@ -103,8 +103,7 @@ impl<T: GodotClass> RawGd<T> {
     pub(crate) fn is_instance_valid(&self) -> bool {
         self.cached_rtti
             .as_ref()
-            .map(|rtti| rtti.instance_id().lookup_validity())
-            .unwrap_or(false)
+            .is_some_and(|rtti| rtti.instance_id().lookup_validity())
     }
 
     // See use-site for explanation.

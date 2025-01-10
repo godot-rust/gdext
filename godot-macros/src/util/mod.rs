@@ -228,19 +228,15 @@ pub(crate) fn path_is_single(path: &[TokenTree], expected: &str) -> bool {
 
 pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
     // Could also use TypeExpr::as_path(), or fn below this one.
-    path.last()
-        .map(|last| last.to_string() == expected)
-        .unwrap_or(false)
+    path.last().is_some_and(|last| last.to_string() == expected)
 }
 
 pub(crate) fn path_ends_with_complex(path: &venial::TypeExpr, expected: &str) -> bool {
-    path.as_path()
-        .map(|path| {
-            path.segments
-                .last()
-                .is_some_and(|seg| seg.ident == expected)
-        })
-        .unwrap_or(false)
+    path.as_path().is_some_and(|path| {
+        path.segments
+            .last()
+            .is_some_and(|seg| seg.ident == expected)
+    })
 }
 
 pub(crate) fn extract_cfg_attrs(
