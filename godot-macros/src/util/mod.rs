@@ -141,7 +141,7 @@ fn delimiter_opening_char(delimiter: Delimiter) -> char {
 /// declaration of the form `impl MyTrait for SomeType`. The type `SomeType` is irrelevant in this example.
 pub(crate) fn is_impl_named(original_impl: &venial::Impl, name: &str) -> bool {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-    extract_typename(trait_name).map_or(false, |seg| seg.ident == name)
+    extract_typename(trait_name).is_some_and(|seg| seg.ident == name)
 }
 
 /// Validates either:
@@ -238,7 +238,7 @@ pub(crate) fn path_ends_with_complex(path: &venial::TypeExpr, expected: &str) ->
         .map(|path| {
             path.segments
                 .last()
-                .map_or(false, |seg| seg.ident == expected)
+                .is_some_and(|seg| seg.ident == expected)
         })
         .unwrap_or(false)
 }
@@ -248,7 +248,7 @@ pub(crate) fn extract_cfg_attrs(
 ) -> impl IntoIterator<Item = &venial::Attribute> {
     attrs.iter().filter(|attr| {
         attr.get_single_path_segment()
-            .map_or(false, |name| name == "cfg")
+            .is_some_and(|name| name == "cfg")
     })
 }
 

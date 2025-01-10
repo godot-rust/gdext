@@ -227,7 +227,7 @@ fn strip_module_paths(full_name: &str) -> String {
                 result.push(c);
 
                 // Handle spaces after commas for readability.
-                if c == ',' && chars.peek().map_or(false, |&next_c| next_c != ' ') {
+                if c == ',' && chars.peek().is_some_and(|&next_c| next_c != ' ') {
                     result.push(' ');
                 }
             }
