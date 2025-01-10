@@ -34,6 +34,44 @@ struct SignalCollection {
     signal_struct_defs: Vec<TokenStream>,
 }
 
+/// Extracted syntax info for a declared signal.
+struct SignalDetails<'a> {
+    param_types: Vec<venial::TypeExpr>,
+    param_names: Vec<Ident>,
+    param_names_str: Vec<String>,
+    signal_name: &'a Ident,
+    signal_name_str: String,
+}
+
+impl SignalDetails<'_> {
+    pub fn extract(function_decl: &venial::Function) -> ParseResult<Self> {
+        let mut param_types = vec![];
+        let mut param_names = vec![];
+        let mut param_names_str = vec![];
+
+        for (param, _punct) in function_decl.params.inner.iter() {
+            match param {
+                venial::FnParam::Typed(param) => {
+                    param_types.push(param.ty.clone());
+                    param_names.push(param.name.clone());
+                    param_names_str.push(param.name.to_string());
+                }
+                venial::FnParam::Receiver(receiver) => {
+                    return bail!(receiver, "#[signal] cannot have receiver (self) parameter");
+                }
+            };
+        }
+
+        Ok(Self {
+            param_types,
+            param_names,
+            param_names_str,
+            signal_name: &function_decl.name,
+            signal_name_str: function_decl.name.to_string(),
+        })
+    }
+}
+
 pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
@@ -49,23 +87,14 @@ pub fn make_signal_registrations(
             external_attributes,
             has_builder,
         } = signal;
-        let mut param_types: Vec<venial::TypeExpr> = Vec::new();
-        let mut param_names: Vec<Ident> = Vec::new();
-        let mut param_names_str: Vec<String> = Vec::new();
 
-        // let mut receiver_mut = None;
-        for (param, _punct) in signature.params.inner.iter() {
-            match param {
-                venial::FnParam::Typed(param) => {
-                    param_types.push(param.ty.clone());
-                    param_names.push(param.name.clone());
-                    param_names_str.push(param.name.to_string());
-                }
-                venial::FnParam::Receiver(receiver) => {
-                    return bail!(receiver, "#[signal] cannot have receiver (self) parameter");
-                }
-            };
-        }
+        let SignalDetails {
+            param_types,
+            param_names,
+            param_names_str,
+            signal_name,
+            signal_name_str,
+        } = SignalDetails::extract(&signature);
 
         let signature_tuple = util::make_signature_tuple_type(&quote! { () }, &param_types);
         let signal_param_tuple = quote! { ( #( #param_types, )* ) };
@@ -87,9 +116,6 @@ pub fn make_signal_registrations(
             util::extract_cfg_attrs(external_attributes)
                 .into_iter()
                 .collect();
-
-        let signal_name = &signature.name;
-        let signal_name_str = signal_name.to_string();
 
         if *has_builder {
             signals_fields.push(quote! {
