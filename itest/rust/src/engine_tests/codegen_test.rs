@@ -128,3 +128,45 @@ impl CodegenTest2 {
     #[func(virtual)]
     fn with_virtual_many_unnamed(&self, _: i32, _: GString) {}
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Generation of APIs via declarative macro.
+
+macro_rules! make_class {
+    ($ClassName:ident, $BaseName:ident) => {
+        #[derive(GodotClass)]
+        #[class(no_init, base=$BaseName)]
+        pub struct $ClassName {
+            base: Base<godot::classes::$BaseName>,
+        }
+    };
+}
+
+macro_rules! make_interface_impl {
+    ($Class:ty, $Trait:path) => {
+        #[godot_api]
+        #[allow(unused)]
+        impl $Trait for $Class {
+            fn init(base: Base<Self::Base>) -> Self {
+                Self { base }
+            }
+
+            fn process(&mut self, _: f64) {}
+        }
+    };
+}
+
+macro_rules! make_user_api {
+    ($Class:ty, $method:ident, $Param:ty) => {
+        #[godot_api]
+        #[allow(unused)]
+        impl $Class {
+            #[func]
+            fn $method(&self, _m: $Param) {}
+        }
+    };
+}
+
+make_class!(CodegenTest3, Node3D);
+make_interface_impl!(CodegenTest3, INode3D);
+make_user_api!(CodegenTest3, take_param, i32);
