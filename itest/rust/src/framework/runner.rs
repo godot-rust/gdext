@@ -333,9 +333,7 @@ fn print_test_pre(test_case: &str, test_file: String, last_file: &mut Option<Str
 
 fn print_file_header(file: String, last_file: &mut Option<String>) {
     // Check if we need to open a new category for a file.
-    let print_file = last_file
-        .as_ref()
-        .map_or(true, |last_file| last_file != &file);
+    let print_file = last_file.as_ref() != Some(&file);
 
     if print_file {
         println!("\n   {}:", extract_file_subtitle(&file));

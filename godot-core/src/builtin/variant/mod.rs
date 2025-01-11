@@ -453,9 +453,9 @@ impl Drop for Variant {
 // Variant is not Eq because it can contain floats and other types composed of floats.
 impl PartialEq for Variant {
     fn eq(&self, other: &Self) -> bool {
-        Self::evaluate(self, other, VariantOperator::EQUAL)
-            .map(|v| v.to::<bool>())
-            .unwrap_or(false) // if there is no defined conversion, then they are non-equal
+        Self::evaluate(self, other, VariantOperator::EQUAL) //.
+            .is_some_and(|v| v.to::<bool>())
+        // If there is no defined conversion (-> None), then they are non-equal.
     }
 }
 

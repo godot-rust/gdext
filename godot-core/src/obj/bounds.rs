@@ -272,8 +272,7 @@ impl MemDynamic {
     /// Check whether dynamic type is ref-counted.
     fn inherits_refcounted<T: GodotClass>(obj: &RawGd<T>) -> bool {
         obj.instance_id_unchecked()
-            .map(|id| id.is_ref_counted())
-            .unwrap_or(false)
+            .is_some_and(|id| id.is_ref_counted())
     }
 }
 impl Sealed for MemDynamic {}
@@ -301,8 +300,7 @@ impl DynMemory for MemDynamic {
         out!("  MemDyn::dec   <{}>", std::any::type_name::<T>());
         if obj
             .instance_id_unchecked()
-            .map(|id| id.is_ref_counted())
-            .unwrap_or(false)
+            .is_some_and(|id| id.is_ref_counted())
         {
             // Will call `RefCounted::unreference()` which checks for liveness.
             MemRefCounted::maybe_dec_ref(obj)

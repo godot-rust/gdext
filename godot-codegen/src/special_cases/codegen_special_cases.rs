@@ -74,14 +74,16 @@ pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Conte
     };
 
     // Exclude if return type contains an excluded type.
-    if method.return_value.as_ref().map_or(false, |ret| {
-        is_arg_or_return_excluded(ret.type_.as_str(), ctx)
-    }) {
+    if method
+        .return_value
+        .as_ref()
+        .is_some_and(|ret| is_arg_or_return_excluded(ret.type_.as_str(), ctx))
+    {
         return true;
     }
 
     // Exclude if any argument contains an excluded type.
-    if method.arguments.as_ref().map_or(false, |args| {
+    if method.arguments.as_ref().is_some_and(|args| {
         args.iter()
             .any(|arg| is_arg_or_return_excluded(arg.type_.as_str(), ctx))
     }) {
@@ -107,8 +109,8 @@ pub(crate) fn is_utility_function_excluded(
     function
         .return_type
         .as_ref()
-        .map_or(false, |ret| is_type_excluded(ret.as_str(), ctx))
-        || function.arguments.as_ref().map_or(false, |args| {
+        .is_some_and(|ret| is_type_excluded(ret.as_str(), ctx))
+        || function.arguments.as_ref().is_some_and(|args| {
             args.iter()
                 .any(|arg| is_type_excluded(arg.type_.as_str(), ctx))
         })

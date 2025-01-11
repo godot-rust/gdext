@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GodotFfi};
+use godot_ffi::{ffi_methods, GdextBuild, GodotFfi};
 
 use crate::builtin::inner;
 
@@ -142,19 +142,23 @@ impl NodePath {
     #[cfg(since_api = "4.3")]
     #[doc(alias = "slice")]
     pub fn subpath(&self, begin: i32, exclusive_end: i32) -> NodePath {
-        // Polyfill for bug https://github.com/godotengine/godot/pull/100954.
-        // TODO(v0.3) make polyfill (everything but last line) conditional if PR is merged in 4.4.
-        let name_count = self.get_name_count() as i32;
-        let subname_count = self.get_subname_count() as i32;
-        let total_count = name_count + subname_count;
+        // Polyfill for bug https://github.com/godotengine/godot/pull/100954, fixed in 4.4.
+        let begin = if GdextBuild::since_api("4.4") {
+            begin
+        } else {
+            let name_count = self.get_name_count() as i32;
+            let subname_count = self.get_subname_count() as i32;
+            let total_count = name_count + subname_count;
 
-        let mut begin = begin.clamp(-total_count, total_count);
-        if begin < 0 {
-            begin += total_count;
-        }
-        if begin > name_count {
-            begin += 1;
-        }
+            let mut begin = begin.clamp(-total_count, total_count);
+            if begin < 0 {
+                begin += total_count;
+            }
+            if begin > name_count {
+                begin += 1;
+            }
+            begin
+        };
 
         self.as_inner().slice(begin as i64, exclusive_end as i64)
     }
