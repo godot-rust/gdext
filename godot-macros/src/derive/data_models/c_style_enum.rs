@@ -9,6 +9,7 @@ use crate::util::bail;
 use crate::ParseResult;
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
+use std::fmt::Write;
 
 /// Stores info from C-style enums for use in deriving `GodotConvert` and other related traits.
 #[derive(Clone, Debug)]
@@ -87,22 +88,45 @@ impl CStyleEnum {
     }
 
     /// Return a hint string for use with `PropertyHint::ENUM` where each variant has an explicit integer hint.
-    pub fn to_int_hint(&self) -> String {
-        self.enumerator_names
+    pub fn to_int_hint(&self) -> TokenStream {
+        // We can't build the format string directly, since the ords may be expressions and not literals.
+        // Thus generate code containing a format!() statement.
+
+        let iter = self
+            .enumerator_names
             .iter()
-            .zip(self.enumerator_ords.iter())
-            .map(|(name, discrim)| format!("{name}:{discrim}"))
-            .collect::<Vec<_>>()
-            .join(",")
+            .zip(self.enumerator_ords.iter());
+
+        let mut fmt = String::new();
+        let mut fmt_args = Vec::new();
+        let mut first = true;
+
+        for (name, discrim) in iter {
+            if first {
+                first = false;
+            } else {
+                fmt.push(',');
+            }
+
+            write!(fmt, "{name}:{{}}").expect("write to string");
+            fmt_args.push(discrim.clone());
+        }
+
+        quote! {
+            format!(#fmt, #(#fmt_args),*)
+        }
     }
 
     /// Return a hint string for use with `PropertyHint::ENUM` where the variants are just kept as strings.
-    pub fn to_string_hint(&self) -> String {
-        self.enumerator_names
+    pub fn to_string_hint(&self) -> TokenStream {
+        let hint_string = self
+            .enumerator_names
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>()
-            .join(",")
+            .join(",");
+
+        hint_string.to_token_stream()
     }
 }
 

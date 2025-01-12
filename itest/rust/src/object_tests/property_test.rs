@@ -313,6 +313,22 @@ pub enum TestEnum {
     C = 2,
 }
 
+#[derive(GodotConvert, Var)]
+#[godot(via = i64)]
+pub enum Behavior {
+    Peaceful,
+    Defend,
+    Aggressive = (3 + 4),
+}
+
+#[derive(GodotConvert, Var)]
+#[godot(via = GString)]
+pub enum StrBehavior {
+    Peaceful,
+    Defend,
+    Aggressive = (3 + 4),
+}
+
 #[derive(GodotClass)]
 #[class(no_init)]
 pub struct DeriveProperty {
@@ -326,8 +342,24 @@ fn derive_property() {
         my_enum: TestEnum::B,
     };
     assert_eq!(class.get_my_enum(), TestEnum::B as i64);
+
     class.set_my_enum(TestEnum::C as i64);
     assert_eq!(class.my_enum, TestEnum::C);
+}
+
+// Regression test for https://github.com/godot-rust/gdext/issues/1009.
+#[itest]
+fn enum_var_hint() {
+    let int_prop = <Behavior as Var>::var_hint();
+    assert_eq!(int_prop.hint, PropertyHint::ENUM);
+    assert_eq!(
+        int_prop.hint_string,
+        "Peaceful:0,Defend:1,Aggressive:7".into()
+    );
+
+    let str_prop = <StrBehavior as Var>::var_hint();
+    assert_eq!(str_prop.hint, PropertyHint::ENUM);
+    assert_eq!(str_prop.hint_string, "Peaceful,Defend,Aggressive".into());
 }
 
 #[derive(GodotClass)]
@@ -336,12 +368,12 @@ pub struct DeriveExport {
     pub my_enum: TestEnum,
 
     // Tests also qualified base path (type inference of Base<T> without #[hint]).
-    pub base: godot::obj::Base<RefCounted>,
+    pub base: Base<RefCounted>,
 }
 
 #[godot_api]
 impl IRefCounted for DeriveExport {
-    fn init(base: godot::obj::Base<Self::Base>) -> Self {
+    fn init(base: Base<Self::Base>) -> Self {
         Self {
             my_enum: TestEnum::B,
             base,
