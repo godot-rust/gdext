@@ -8,6 +8,7 @@
 //! Functions and macros that are not very specific to gdext, but come in handy.
 
 use crate as sys;
+use std::fmt::{Display, Write};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros
@@ -162,21 +163,25 @@ where
     join_with(iter, ", ", |item| format!("{item:?}"))
 }
 
-pub fn join_with<T, I, F>(mut iter: I, sep: &str, mut format_elem: F) -> String
+pub fn join_with<T, I, F, S>(mut iter: I, sep: &str, mut format_elem: F) -> String
 where
     I: Iterator<Item = T>,
-    F: FnMut(&T) -> String,
+    F: FnMut(&T) -> S,
+    S: Display,
 {
     let mut result = String::new();
 
     if let Some(first) = iter.next() {
-        result.push_str(&format_elem(&first));
+        // write! propagates error only if given formatter fails.
+        // String formatting by itself is an infallible operation.
+        // Read more at: https://doc.rust-lang.org/stable/std/fmt/index.html#formatting-traits
+        write!(&mut result, "{first}", first = format_elem(&first))
+            .expect("Formatter should not fail!");
         for item in iter {
-            result.push_str(sep);
-            result.push_str(&format_elem(&item));
+            write!(&mut result, "{sep}{item}", item = format_elem(&item))
+                .expect("Formatter should not fail!");
         }
     }
-
     result
 }
 

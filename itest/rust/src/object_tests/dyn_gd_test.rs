@@ -445,3 +445,15 @@ impl InstanceIdProvider for foreign::NodeHealth {
         self.base().instance_id()
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Check if DynGd can be properly exported
+
+#[derive(GodotClass)]
+#[class(init)]
+struct RefcDynGdExporter {
+    #[var]
+    first: Option<DynGd<Object, dyn Health>>,
+    #[export]
+    second: Option<DynGd<foreign::NodeHealth, dyn InstanceIdProvider>>,
+}

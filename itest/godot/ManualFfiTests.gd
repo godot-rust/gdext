@@ -68,6 +68,36 @@ func test_export():
 	obj.free()
 	node.free()
 
+func test_export_dyn_gd():
+	var dyn_gd_exporter = RefcDynGdExporter.new()
+
+	# NodeHealth is valid candidate both for `empty` and `second` fields.
+	var node = NodeHealth.new()
+	dyn_gd_exporter.first = node
+	assert_eq(dyn_gd_exporter.first, node)
+
+	dyn_gd_exporter.second = node
+	assert_eq(dyn_gd_exporter.second, node)
+
+	# RefcHealth is valid candidate for `first` field.
+	var refc = RefcHealth.new()
+	dyn_gd_exporter.first = refc
+	assert_eq(dyn_gd_exporter.first, refc)
+	node.free()
+
+func test_export_dyn_gd_should_fail_for_wrong_type():
+	if runs_release():
+		return
+
+	var dyn_gd_exporter = RefcDynGdExporter.new()
+	var refc = RefcHealth.new()
+
+	disable_error_messages()
+	dyn_gd_exporter.second = refc # Should fail.
+	enable_error_messages()
+
+	assert_fail("`DynGdExporter.second` should only accept NodeHealth and only if it implements `InstanceIdProvider` trait")
+
 class MockObjGd extends Object:
 	var i: int = 0
 
