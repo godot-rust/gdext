@@ -559,7 +559,8 @@ impl UtilityFunction {
 impl Enum {
     pub fn from_json(json_enum: &JsonEnum, surrounding_class: Option<&TyName>) -> Self {
         let godot_name = &json_enum.name;
-        let is_bitfield = json_enum.is_bitfield;
+        let is_bitfield = special_cases::is_enum_bitfield(surrounding_class, godot_name)
+            .unwrap_or(json_enum.is_bitfield);
         let is_private = special_cases::is_enum_private(surrounding_class, godot_name);
         let is_exhaustive = special_cases::is_enum_exhaustive(surrounding_class, godot_name);
 

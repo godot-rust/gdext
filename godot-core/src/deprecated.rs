@@ -32,8 +32,9 @@ macro_rules! emit_deprecated_warning {
     };
 }
 
+use crate::classes;
 pub use crate::emit_deprecated_warning;
-
+use crate::obj::{EngineBitfield, EngineEnum};
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Library-side deprecations
 
@@ -53,6 +54,42 @@ pub const fn class_hidden() {}
     with the configuration key in the .gdextension file.\n\
     More information on https://github.com/godot-rust/gdext/pull/959"]
 pub const fn gdextension_entry_point() {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Manual fills
+
+// Note: this may cause import ambiguities for trait methods, however those are considered "minor changes" in Rust SemVer (which means
+// patch bump for 0.x), in contrast to removing a trait impl. See https://doc.rust-lang.org/cargo/reference/semver.html#item-new and
+// https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md#minor-change-implementing-any-non-fundamental-trait.
+impl EngineEnum for classes::object::ConnectFlags {
+    fn try_from_ord(ord: i32) -> Option<Self> {
+        <Self as EngineBitfield>::try_from_ord(ord as u64)
+    }
+
+    fn ord(self) -> i32 {
+        <Self as EngineBitfield>::ord(self) as i32
+    }
+
+    fn as_str(&self) -> &'static str {
+        match *self {
+            Self::DEFERRED => "DEFERRED",
+            Self::PERSIST => "PERSIST",
+            Self::ONE_SHOT => "ONE_SHOT",
+            Self::REFERENCE_COUNTED => "REFERENCE_COUNTED",
+            _ => "",
+        }
+    }
+
+    fn godot_name(&self) -> &'static str {
+        match *self {
+            Self::DEFERRED => "CONNECT_DEFERRED",
+            Self::PERSIST => "CONNECT_PERSIST",
+            Self::ONE_SHOT => "CONNECT_ONE_SHOT",
+            Self::REFERENCE_COUNTED => "CONNECT_REFERENCE_COUNTED",
+            _ => self.as_str(),
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Godot-side deprecations
