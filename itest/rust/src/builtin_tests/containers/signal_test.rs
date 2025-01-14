@@ -5,15 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
 use godot::classes::{Object, RefCounted};
 use godot::meta::ToGodot;
+use godot::obj::cap::WithSignals;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
+use godot::sys::Global;
 use std::cell::Cell;
-
-use crate::framework::itest;
 
 #[itest]
 fn signal_basic_connect_emit() {
@@ -35,6 +36,34 @@ fn signal_basic_connect_emit() {
 
         assert!(receiver.bind().used[i].get());
     }
+
+    receiver.free();
+    emitter.free();
+}
+
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_api() {
+    let mut emitter = Emitter::new_alloc();
+    let receiver = Receiver::new_alloc();
+
+    let mut internal = emitter.bind_mut();
+
+    internal.connect_signals_internal();
+    drop(internal);
+
+    // let check = Signal::from_object_signal(&emitter, "emitter_1");
+    // dbg!(check.connections());
+
+    emitter.bind_mut().emit_signals_internal();
+
+    // Check that instance method is invoked.
+    let received_arg = LAST_METHOD_ARG.lock();
+    assert_eq!(*received_arg, Some(1234), "Emit failed (method)");
+
+    // Check that static function is invoked.
+    let received_arg = LAST_STATIC_FUNCTION_ARG.lock();
+    assert_eq!(*received_arg, Some(1234), "Emit failed (static function)");
 
     receiver.free();
     emitter.free();
@@ -63,9 +92,15 @@ fn signal_construction_and_id() {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helper types
 
+/// Global sets the value of the received argument and whether it was a static function.
+static LAST_METHOD_ARG: Global<Option<i64>> = Global::default();
+static LAST_STATIC_FUNCTION_ARG: Global<Option<i64>> = Global::default();
+
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct Emitter {}
+struct Emitter {
+    _base: Base<Object>,
+}
 
 #[godot_api]
 impl Emitter {
@@ -77,6 +112,30 @@ impl Emitter {
 
     #[signal]
     fn emitter_2(arg1: Gd<Object>, arg2: GString);
+
+    #[func]
+    fn self_receive(&mut self, arg1: i64) {
+        *LAST_METHOD_ARG.lock() = Some(arg1);
+    }
+
+    #[func]
+    fn self_receive_static(arg1: i64) {
+        *LAST_STATIC_FUNCTION_ARG.lock() = Some(arg1);
+    }
+
+    // "Internal" means connect/emit happens from within the class (via &mut self).
+
+    #[cfg(since_api = "4.2")]
+    fn connect_signals_internal(&mut self) {
+        let mut sig = self.signals().emitter_1();
+        sig.connect_self(Self::self_receive);
+        sig.connect(Self::self_receive_static);
+    }
+
+    #[cfg(since_api = "4.2")]
+    fn emit_signals_internal(&mut self) {
+        self.signals().emitter_1().emit(1234);
+    }
 }
 
 #[derive(GodotClass)]
@@ -106,6 +165,10 @@ impl Receiver {
 
         self.used[2].set(true);
     }
+
+    // This should probably have a dedicated key such as #[godot_api(func_refs)] or so...
+    #[signal]
+    fn _just_here_to_generate_funcs();
 }
 
 const SIGNAL_ARG_STRING: &str = "Signal string arg";
