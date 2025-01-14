@@ -17,23 +17,24 @@ pub fn make_definition_docs(
     description: &[Attribute],
     members: &[Field],
 ) -> TokenStream {
-    (|| {
-        let base_escaped = xml_escape(base);
-        let desc_escaped = xml_escape(make_docs_from_attributes(description)?);
-        let members = members
-            .iter()
-            .filter(|x| x.var.is_some() | x.export.is_some())
-            .filter_map(member)
-            .collect::<String>();
-        Some(quote! {
-            docs: ::godot::docs::StructDocs {
+    let base_escaped = xml_escape(base);
+    let Some(desc_escaped) = make_docs_from_attributes(description).map(xml_escape) else {
+        return quote! { None };
+    };
+    let members = members
+        .iter()
+        .filter(|x| x.var.is_some() | x.export.is_some())
+        .filter_map(member)
+        .collect::<String>();
+    quote! {
+        Some(
+            ::godot::docs::StructDocs {
                 base: #base_escaped,
                 description: #desc_escaped,
                 members: #members,
-            }.into()
-        })
-    })()
-    .unwrap_or(quote! { docs: None })
+            }
+        )
+    }
 }
 
 pub fn make_inherent_impl_docs(
@@ -77,7 +78,7 @@ pub fn make_inherent_impl_docs(
             .collect::<String>();
 
         quote! {
-            docs: ::godot::docs::InherentImplDocs {
+            ::godot::docs::InherentImplDocs {
                 methods: #methods,
                 signals_block: #signals_block,
                 constants_block: #constants_block,
@@ -97,7 +98,7 @@ pub fn make_virtual_impl_docs(vmethods: &[ImplMember]) -> TokenStream {
         .filter_map(make_virtual_method_docs)
         .collect::<String>();
 
-    quote! { virtual_method_docs: #virtual_methods, }
+    quote! { #virtual_methods }
 }
 
 /// `///` is expanded to `#[doc = "…"]`.
