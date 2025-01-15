@@ -198,7 +198,7 @@ impl Rect2 {
 
     /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, an empty Rect2 is returned.
     #[inline]
-    pub fn intersection(self, b: Self) -> Option<Self> {
+    pub fn intersect(self, b: Self) -> Option<Self> {
         if !self.intersects(b) {
             return None;
         }
@@ -211,6 +211,11 @@ impl Rect2 {
         rect.size = end.coord_min(end_b) - rect.position;
 
         Some(rect)
+    }
+
+    #[deprecated = "Renamed to `intersect()`"]
+    pub fn intersection(self, b: Rect2) -> Option<Self> {
+        self.intersect(b)
     }
 
     /// Checks whether two rectangles have at least one point in common.

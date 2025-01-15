@@ -174,10 +174,10 @@ impl Aabb {
 
     /// Returns the intersection between two AABBs.
     ///
-    /// # Panics
+    /// # Panics (Debug)
     /// If `self.size` is negative.
     #[inline]
-    pub fn intersection(self, b: Aabb) -> Option<Self> {
+    pub fn intersect(self, b: Aabb) -> Option<Self> {
         self.assert_nonnegative();
 
         if !self.intersects(b) {
@@ -192,6 +192,11 @@ impl Aabb {
         rect.size = end.coord_min(end_b) - rect.position;
 
         Some(rect)
+    }
+
+    #[deprecated = "Renamed to `intersect()`"]
+    pub fn intersection(self, b: Aabb) -> Option<Self> {
+        self.intersect(b)
     }
 
     /// Returns `true` if this AABB is finite, by calling `@GlobalScope.is_finite` on each component.
@@ -434,6 +439,7 @@ impl Aabb {
     ///
     /// Most functions will fail to give a correct result if the size is negative.
     #[inline]
+    /// TODO(v0.3): make private, change to debug_assert().
     pub fn assert_nonnegative(self) {
         assert!(
             self.size.x >= 0.0 && self.size.y >= 0.0 && self.size.z >= 0.0,
@@ -529,27 +535,27 @@ mod test {
             size: Vector3::new(1.0, 1.0, 1.0),
         };
 
-        // Check for intersection including border
+        // Check for intersection including border.
         assert!(aabb1.intersects(aabb2));
         assert!(aabb2.intersects(aabb1));
 
-        // Check for non-intersection including border
+        // Check for non-intersection including border.
         assert!(!aabb1.intersects(aabb3));
         assert!(!aabb3.intersects(aabb1));
 
-        // Check for intersection excluding border
+        // Check for intersection excluding border.
         assert!(aabb1.intersects_exclude_borders(aabb2));
         assert!(aabb2.intersects_exclude_borders(aabb1));
 
-        // Check for non-intersection excluding border
+        // Check for non-intersection excluding border.
         assert!(!aabb1.intersects_exclude_borders(aabb3));
         assert!(!aabb3.intersects_exclude_borders(aabb1));
 
-        // Check for non-intersection excluding border
+        // Check for non-intersection excluding border.
         assert!(!aabb1.intersects_exclude_borders(aabb4));
         assert!(!aabb4.intersects_exclude_borders(aabb1));
 
-        // Check for intersection with same AABB including border
+        // Check for intersection with same AABB including border.
         assert!(aabb1.intersects(aabb1));
     }
 
@@ -576,19 +582,18 @@ mod test {
             size: Vector3::new(1.0, 1.0, 1.0),
         };
 
-        // Test cases
         assert_eq!(
-            aabb1.intersection(aabb2),
+            aabb1.intersect(aabb2),
             Some(Aabb {
                 position: Vector3::new(1.0, 1.0, 1.0),
                 size: Vector3::new(1.0, 1.0, 1.0),
             })
         );
 
-        assert_eq!(aabb1.intersection(aabb3), None);
+        assert_eq!(aabb1.intersect(aabb3), None);
 
         assert_eq!(
-            aabb1.intersection(aabb4),
+            aabb1.intersect(aabb4),
             Some(Aabb {
                 position: Vector3::new(0.0, 0.0, 0.0),
                 size: Vector3::new(0.0, 0.0, 0.0),
@@ -598,7 +603,7 @@ mod test {
 
     #[test]
     fn test_intersects_ray() {
-        // Test case 1: Ray intersects the AABB
+        // Test case 1: Ray intersects the AABB.
         let aabb1 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -608,7 +613,7 @@ mod test {
 
         assert!(aabb1.intersects_ray(from1, dir1));
 
-        // Test case 2: Ray misses the AABB
+        // Test case 2: Ray misses the AABB.
         let aabb2 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -617,7 +622,7 @@ mod test {
         let dir2 = Vector3::new(0.0, 0.0, 1.0);
         assert!(!aabb2.intersects_ray(from2, dir2));
 
-        // Test case 3: Ray starts inside the AABB
+        // Test case 3: Ray starts inside the AABB.
         let aabb3 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -626,7 +631,7 @@ mod test {
         let dir3 = Vector3::new(0.0, 0.0, 1.0);
         assert!(aabb3.intersects_ray(from3, dir3));
 
-        // Test case 4: Ray direction parallel to AABB
+        // Test case 4: Ray direction parallel to AABB.
         let aabb4 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -635,7 +640,7 @@ mod test {
         let dir4 = Vector3::new(1.0, 0.0, 0.0);
         assert!(aabb4.intersects_ray(from4, dir4));
 
-        // Test case 5: Ray direction diagonal through the AABB
+        // Test case 5: Ray direction diagonal through the AABB.
         let aabb5 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -644,7 +649,7 @@ mod test {
         let dir5 = Vector3::new(1.0, 1.0, 1.0);
         assert!(aabb5.intersects_ray(from5, dir5));
 
-        // Test case 6: Ray origin on an AABB face
+        // Test case 6: Ray origin on an AABB face.
         let aabb6 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -745,10 +750,10 @@ mod test {
             position: Vector3::new(-1.5, 2.0, -2.5),
             size: Vector3::ONE,
         };
-        let inter = aabb_big.intersection(aabb_small);
+        let inter = aabb_big.intersect(aabb_small);
         assert!(
             inter.unwrap().approx_eq(&aabb_small),
-            "intersection() with fully contained AABB should return the smaller AABB."
+            "intersect() with fully contained AABB should return the smaller AABB."
         );
 
         let aabb_small = Aabb {
@@ -759,7 +764,7 @@ mod test {
             position: Vector3::new(0.5, 2.0, -2.0),
             size: Vector3::new(1.0, 0.5, 1.0),
         };
-        let inter = aabb_big.intersection(aabb_small);
+        let inter = aabb_big.intersect(aabb_small);
         assert!(
             inter.unwrap().approx_eq(&expected),
             "intersect() with partially contained AABB (overflowing on Y axis) should match expected."
@@ -769,7 +774,7 @@ mod test {
             position: Vector3::new(10.0, -10.0, -10.0),
             size: Vector3::ONE,
         };
-        let inter = aabb_big.intersection(aabb_small);
+        let inter = aabb_big.intersect(aabb_small);
         assert!(
             inter.is_none(),
             "intersect() with non-contained AABB should return None."
