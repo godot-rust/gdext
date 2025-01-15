@@ -177,19 +177,28 @@ impl Rect2 {
         self.size.x > 0.0 && self.size.y > 0.0
     }
 
-    /// Returns `true` if the Rect2 contains a point. By convention, the right and bottom edges of the Rect2 are considered exclusive, so points on these edges are not included.
+    /// Returns `true` if the Rect2 contains a point (excluding right/bottom edges).
+    ///
+    /// By convention, the right and bottom edges of the Rect2 are considered exclusive, so points on these edges are not included.
     ///
     /// Note: This method is not reliable for Rect2 with a negative size. Use `abs` to get a positive sized equivalent rectangle to check for contained points.
     #[inline]
-    pub fn has_point(self, point: Vector2) -> bool {
+    #[doc(alias = "has_point")]
+    pub fn contains_point(self, point: Vector2) -> bool {
         let point = point - self.position;
 
         point.abs() == point && point.x < self.size.x && point.y < self.size.y
     }
 
+    #[inline]
+    #[deprecated = "Renamed to `contains_point()`, for consistency with `Rect2i`"]
+    pub fn has_point(self, point: Vector2) -> bool {
+        self.contains_point(point)
+    }
+
     /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, an empty Rect2 is returned.
     #[inline]
-    pub fn intersection(self, b: Self) -> Option<Self> {
+    pub fn intersect(self, b: Self) -> Option<Self> {
         if !self.intersects(b) {
             return None;
         }
@@ -202,6 +211,11 @@ impl Rect2 {
         rect.size = end.coord_min(end_b) - rect.position;
 
         Some(rect)
+    }
+
+    #[deprecated = "Renamed to `intersect()`"]
+    pub fn intersection(self, b: Rect2) -> Option<Self> {
+        self.intersect(b)
     }
 
     /// Checks whether two rectangles have at least one point in common.

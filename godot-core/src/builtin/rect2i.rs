@@ -223,7 +223,7 @@ impl Rect2i {
     ///
     /// Note that rectangles that only share a border do not intersect.
     #[inline]
-    pub fn intersection(self, b: Self) -> Option<Self> {
+    pub fn intersect(self, b: Self) -> Option<Self> {
         self.assert_nonnegative();
         b.assert_nonnegative();
 
@@ -243,11 +243,16 @@ impl Rect2i {
         Some(Self::from_corners(new_pos, new_end))
     }
 
+    #[deprecated = "Renamed to `intersect()`"]
+    pub fn intersection(self, b: Self) -> Option<Self> {
+        self.intersect(b)
+    }
+
     /// Returns `true` if the `Rect2i` overlaps with `b` (i.e. they have at least one
     /// point in common)
     #[inline]
     pub fn intersects(self, b: Self) -> bool {
-        self.intersection(b).is_some()
+        self.intersect(b).is_some()
     }
 
     /// Returns a larger `Rect2i` that contains this `Rect2i` and `b`.
@@ -554,19 +559,19 @@ mod test {
         let d = Rect2i::from_components(8, 8, 2, 3);
 
         assert!(a.intersects(b));
-        assert_eq!(a.intersection(b), Some(b));
+        assert_eq!(a.intersect(b), Some(b));
         assert!(a.intersects(c));
-        assert_eq!(a.intersection(c), Some(c));
+        assert_eq!(a.intersect(c), Some(c));
         assert!(a.intersects(d));
-        assert_eq!(a.intersection(d), Some(c));
+        assert_eq!(a.intersect(d), Some(c));
 
         assert!(!b.intersects(c));
-        assert_eq!(b.intersection(c), None);
+        assert_eq!(b.intersect(c), None);
         assert!(!b.intersects(d));
-        assert_eq!(b.intersection(d), None);
+        assert_eq!(b.intersect(d), None);
 
         assert!(c.intersects(d));
-        assert_eq!(c.intersection(d), Some(c));
+        assert_eq!(c.intersect(d), Some(c));
     }
 
     #[test]
