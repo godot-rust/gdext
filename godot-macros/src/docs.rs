@@ -112,14 +112,9 @@ fn siphon_docs_from_attributes(doc: &[Attribute]) -> impl Iterator<Item = String
             _ => None,
         })
         .flat_map(|doc| {
-            doc.iter().map(|x| {
-                x.to_string()
-                    .trim_start_matches('r')
-                    .trim_start_matches('#')
-                    .trim_start_matches('"')
-                    .trim_end_matches('#')
-                    .trim_end_matches('"')
-                    .to_string()
+            doc.into_iter().map(|x| {
+                litrs::StringLit::parse(x.to_string())
+                    .map_or("".to_string(), |parsed| parsed.value().to_string())
             })
         })
 }
