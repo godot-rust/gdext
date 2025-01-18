@@ -34,10 +34,11 @@ Commands:
     dok           generate docs and open in browser
 
 Options:
-    -h, --help          print this help text
-    --double            run check with double-precision
-    -f, --filter <arg>  only run integration tests which contain any of the
-                        args (comma-separated). requires itest.
+    -h, --help               print this help text
+    --double                 run check with double-precision
+    -f, --filter <arg>       only run integration tests which contain any of the
+                             args (comma-separated). requires itest.
+    -a, --api-version <ver>  specify the Godot API version to use (e.g. 4.3, 4.3.1).
 
 Examples:
     check.sh fmt clippy
@@ -61,6 +62,22 @@ function log() {
     echo "$@" >&2
 }
 
+# Converts a x.x.x version string to a feature string.
+# e.g. 4.3.0 -> godot/api-4-3, 4.3.1 -> godot/api-4-3-1
+function version_to_feature() {
+    echo "godot/api-$(echo "$1" | sed 's/\./-/g' | sed 's/-0$//')"
+}
+
+# Validates that the given string is a valid x.x.x version string.
+# Allow for .0 to be dropped (e.g. 4.3 is equivalent to 4.3.0).
+function validate_version_string() {
+    if [[ ! "$1" =~ ^4\.[0-9]+(\.[0-9]+)?$ ]]; then
+        log "Invalid Godot version string '$1'."
+        log "The version string should be in the form 'x.x.x' or 'x.x' and the major version should be at least 4."
+        exit 2
+    fi
+}
+
 # Echoes the given command to stderr, then executes it.
 function run() {
     # https://stackoverflow.com/a/76153233/14637
@@ -78,9 +95,10 @@ function findGodot() {
     # $godotBin previously detected.
     if [[ -v godotBin ]]; then
         return
+    fi
 
     # User-defined GODOT4_BIN.
-    elif [[ -n "$GODOT4_BIN" ]]; then
+    if [[ -n "$GODOT4_BIN" ]]; then
         log "Using environment variable GODOT4_BIN=$(printf %q "$GODOT4_BIN")"
         godotBin="$GODOT4_BIN"
 
@@ -95,7 +113,7 @@ function findGodot() {
         log "Found 'godot4.bat' script"
         godotBin="godot4.bat"
 
-    # This should come last: only use this as a last resort as `godot` may refer to a 
+    # This should come last: only use this as a last resort as `godot` may refer to a
     # Godot 3.x installation.
     elif command -v godot >/dev/null; then
         # Check if `godot` actually is Godot 4.x
@@ -157,7 +175,7 @@ function cmd_test() {
 function cmd_itest() {
     findGodot && \
         run cargo build -p itest "${extraCargoArgs[@]}" && \
-        run "$godotBin" --path itest/godot --headless -- "[${extraArgs[@]}]"
+        run "$godotBin" $GODOT_ARGS --path itest/godot --headless -- "[${extraArgs[@]}]"
 }
 
 function cmd_doc() {
@@ -176,10 +194,11 @@ function cmd_dok() {
 # `itest` compilations and `check.sh` runs. Note that this means some runs are different from CI.
 extraCargoArgs=("--no-default-features")
 cmds=()
-nextArgIsFilter=false
 extraArgs=()
+apiVersion=""
 
-for arg in "$@"; do
+while [[ $# -gt 0 ]]; do
+    arg="$1"
     case "$arg" in
         -h | --help | help)
             echo "$HELP_TEXT"
@@ -196,22 +215,39 @@ for arg in "$@"; do
             ;;
         -f | --filter)
             if [[ "${cmds[*]}" =~ itest ]]; then
-                nextArgIsFilter=true
+                if [[ -z "$2" ]]; then
+                    log "-f/--filter requires an argument."
+                    exit 2
+                fi
+
+                extraArgs+=("$2")
+                shift
             else
                 log "-f/--filter requires 'itest' to be specified as a command."
                 exit 2
             fi
             ;;
-        *)
-            if $nextArgIsFilter; then
-                extraArgs+=("$arg")
-                nextArgIsFilter=false
-            else
-                log "Unrecognized argument '$arg'. Use '$0 --help' to see what's available."
+        -a | --api-version)
+            if [[ -z "$2" || "$2" == -* ]]; then
+                log "-a/--api-version requires an argument."
                 exit 2
             fi
+
+            apiVersion="$2"
+            validate_version_string "$apiVersion"
+
+            apiFeature=$(version_to_feature "$apiVersion")
+            extraCargoArgs+=("--features" "$apiFeature")
+
+            echo "Using Godot API version $apiVersion with feature $apiFeature"
+            shift
+            ;;
+        *)
+            log "Unrecognized argument '$arg'. Use '$0 --help' to see what's available."
+            exit 2
             ;;
     esac
+    shift
 done
 
 # Default if no commands are explicitly given.
