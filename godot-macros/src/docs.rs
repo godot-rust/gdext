@@ -151,8 +151,9 @@ fn xml_escape(value: String) -> String {
 /// for Godot's consumption.
 fn make_docs_from_attributes(doc: &[Attribute]) -> Option<String> {
     let doc = siphon_docs_from_attributes(doc)
-        .collect::<Vec<_>>()
+        .collect::<Vec<String>>()
         .join("\n");
+
     (!doc.is_empty()).then(|| markdown_converter::to_bbcode(&doc))
 }
 
