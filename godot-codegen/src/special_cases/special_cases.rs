@@ -855,6 +855,21 @@ pub fn is_enum_exhaustive(class_name: Option<&TyName>, enum_name: &str) -> bool 
     }
 }
 
+/// Overrides Godot's enum/bitfield status.
+/// * `Some(true)` -> bitfield
+/// * `Some(false)` -> enum
+/// * `None` -> keep default
+#[rustfmt::skip]
+pub fn is_enum_bitfield(class_name: Option<&TyName>, enum_name: &str) -> Option<bool> {
+    let class_name = class_name.map(|c| c.godot_ty.as_str());
+    match (class_name, enum_name) {
+        | (Some("Object"), "ConnectFlags")
+
+        => Some(true), 
+        _ => None
+    }
+}
+
 /// Whether an enum can be combined with another enum (return value) for bitmasking purposes.
 ///
 /// If multiple masks are ever necessary, this can be extended to return a slice instead of Option.
