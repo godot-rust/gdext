@@ -44,12 +44,14 @@ fn signal_basic_connect_emit() {
 
 // "Internal" means connect/emit happens from within the class, via self.signals().
 #[cfg(since_api = "4.2")]
-#[itest(focus)]
+#[itest]
 fn signal_symbols_internal() {
     let mut emitter = Emitter::new_alloc();
-    let mut internal = emitter.bind_mut();
 
-    internal.connect_signals_internal();
+    // Connect signals from inside.
+    let tracker = Rc::new(Cell::new(0));
+    let mut internal = emitter.bind_mut();
+    internal.connect_signals_internal(tracker.clone());
     drop(internal);
 
     // let check = Signal::from_object_signal(&emitter, "emitter_1");
@@ -57,42 +59,57 @@ fn signal_symbols_internal() {
 
     emitter.bind_mut().emit_signals_internal();
 
+    // Check that closure is invoked.
+    assert_eq!(tracker.get(), 1234, "Emit failed (closure)");
+
     // Check that instance method is invoked.
-    let received_arg = LAST_METHOD_ARG.lock();
-    assert_eq!(*received_arg, Some(1234), "Emit failed (method)");
+    assert_eq!(emitter.bind().last_received, 1234, "Emit failed (method)");
 
     // Check that static function is invoked.
-    let received_arg = LAST_STATIC_FUNCTION_ARG.lock();
-    assert_eq!(*received_arg, Some(1234), "Emit failed (static function)");
+    assert_eq!(
+        *LAST_STATIC_FUNCTION_ARG.lock(),
+        1234,
+        "Emit failed (static function)"
+    );
 
     emitter.free();
 }
 
 // "External" means connect/emit happens from outside the class, via Gd::signals().
 #[cfg(since_api = "4.2")]
-#[itest(focus)]
+#[itest]
 fn signal_symbols_external() {
     let emitter = Emitter::new_alloc();
 
     // Local function; deliberately use a !Send type.
-    let received = Rc::new(Cell::new(0));
-    let received_clone = received.clone();
-    emitter.signals().emitter_1().connect(move |i| {
-        received_clone.set(i);
+    let tracker = Rc::new(Cell::new(0));
+    let tracker_copy = tracker.clone();
+    let mut sig = emitter.signals().emitter_1();
+    sig.connect(move |i| {
+        tracker_copy.set(i);
     });
 
     // Self-modifying method.
-    emitter
-        .signals()
-        .emitter_1()
-        .connect_self(Emitter::self_receive);
+    sig.connect_self(Emitter::self_receive);
 
     // Connect to other object.
     let receiver = Receiver::new_alloc();
+    sig.connect_obj(&receiver, Receiver::receiver_1_mut);
 
-    // Emit and check received values.
-    emitter.signals().emitter_1().emit(2345);
-    assert_eq!(received.get(), 2345);
+    // Emit signal.
+    sig.emit(987);
+
+    // Check that closure is invoked.
+    assert_eq!(tracker.get(), 987, "Emit failed (closure)");
+
+    // Check that instance method is invoked.
+    assert_eq!(emitter.bind().last_received, 987, "Emit failed (method)");
+
+    // Check that *other* instance method is invoked.
+    assert!(
+        receiver.bind().used[1].get(),
+        "Emit failed (other object method)"
+    );
 
     receiver.free();
     emitter.free();
@@ -122,13 +139,14 @@ fn signal_construction_and_id() {
 // Helper types
 
 /// Global sets the value of the received argument and whether it was a static function.
-static LAST_METHOD_ARG: Global<Option<i64>> = Global::default();
-static LAST_STATIC_FUNCTION_ARG: Global<Option<i64>> = Global::default();
+static LAST_STATIC_FUNCTION_ARG: Global<i64> = Global::default();
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
 struct Emitter {
     _base: Base<Object>,
+    #[cfg(since_api = "4.2")]
+    last_received: i64,
 }
 
 #[godot_api]
@@ -144,21 +162,22 @@ impl Emitter {
 
     #[func]
     fn self_receive(&mut self, arg1: i64) {
-        *LAST_METHOD_ARG.lock() = Some(arg1);
+        self.last_received = arg1;
     }
 
     #[func]
     fn self_receive_static(arg1: i64) {
-        *LAST_STATIC_FUNCTION_ARG.lock() = Some(arg1);
+        *LAST_STATIC_FUNCTION_ARG.lock() = arg1;
     }
 
     // "Internal" means connect/emit happens from within the class (via &mut self).
 
     #[cfg(since_api = "4.2")]
-    fn connect_signals_internal(&mut self) {
+    fn connect_signals_internal(&mut self, tracker: Rc<Cell<i64>>) {
         let mut sig = self.signals().emitter_1();
         sig.connect_self(Self::self_receive);
         sig.connect(Self::self_receive_static);
+        sig.connect(move |i| tracker.set(i));
     }
 
     #[cfg(since_api = "4.2")]
@@ -183,6 +202,12 @@ impl Receiver {
 
     #[func]
     fn receiver_1(&self, arg1: i64) {
+        self.used[1].set(true);
+        assert_eq!(arg1, 987);
+    }
+
+    // TODO remove as soon as shared-ref emitter receivers are supported.
+    fn receiver_1_mut(&mut self, arg1: i64) {
         self.used[1].set(true);
         assert_eq!(arg1, 987);
     }

@@ -8,7 +8,7 @@
 // Maybe move this to builtin::functional module?
 
 use crate::builtin::{Callable, Variant};
-use crate::obj::{Gd, GodotClass, WithBaseField};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
 use crate::registry::functional::{AsFunc, ParamTuple};
 use crate::{classes, sys};
 use std::borrow::Cow;
@@ -71,6 +71,37 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
         });
     }
 
+    /// Connect a non-member function (global function, associated function or closure).
+    ///
+    /// Example usages:
+    /// ```ignore
+    /// sig.connect(Self::static_func);
+    /// sig.connect(global_func);
+    /// sig.connect(|arg| { /* closure */ });
+    /// ```
+    ///
+    /// To connect to a method of the own object `self`, use [`connect_self()`][Self::connect_self].
+    pub fn connect<F>(&mut self, mut function: F)
+    where
+        F: AsFunc<(), Ps> + 'static,
+    {
+        let callable_name = std::any::type_name_of_val(&function);
+
+        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
+            let args = Ps::from_variant_array(variant_args);
+            function.call((), args);
+
+            Ok(Variant::nil())
+        };
+
+        let name = self.name.as_ref();
+        let callable = Callable::from_local_fn(callable_name, godot_fn);
+
+        self.owner.with_object_mut(|obj| {
+            obj.connect(name, &callable);
+        });
+    }
+
     /// Connect a method (member function) with `&mut self` as the first parameter.
     pub fn connect_self<F>(&mut self, mut function: F)
     where
@@ -104,16 +135,23 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
         });
     }
 
-    /// Connect a static function (global or associated function).
-    pub fn connect<F>(&mut self, mut function: F)
+    /// Connect a method (member function) with any `Gd<T>` (not `self`) as the first parameter.
+    ///
+    /// To connect to methods on the same object, use [`connect_self()`][Self::connect_self].
+    pub fn connect_obj<F, OtherC>(&mut self, object: &Gd<OtherC>, mut function: F)
     where
-        F: AsFunc<(), Ps> + 'static,
+        OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
+        for<'c> F: AsFunc<&'c mut OtherC, Ps> + 'static,
     {
         let callable_name = std::any::type_name_of_val(&function);
 
+        let mut object = object.clone();
         let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
             let args = Ps::from_variant_array(variant_args);
-            function.call((), args);
+
+            let mut instance = object.bind_mut();
+            let instance = &mut *instance;
+            function.call(instance, args);
 
             Ok(Variant::nil())
         };
