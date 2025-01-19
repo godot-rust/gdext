@@ -242,6 +242,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #(#signal_cfg_attrs)*
         #[allow(non_camel_case_types)]
         struct #individual_struct_name<'a> {
+            #[doc(hidden)]
             typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
         }
 
@@ -301,6 +302,13 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
             fn signals(&mut self) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
                     object: ::godot::register::ObjectRef::Internal { obj_mut: self }
+                }
+            }
+
+            #[doc(hidden)]
+            fn __signals_from_external(external: &Gd<Self>) -> Self::SignalCollection<'_> {
+                Self::SignalCollection {
+                    object: ::godot::register::ObjectRef::External { gd: external.clone() }
                 }
             }
         }

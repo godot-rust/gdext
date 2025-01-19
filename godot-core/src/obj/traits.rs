@@ -583,7 +583,35 @@ pub mod cap {
     pub trait WithSignals: WithBaseField {
         type SignalCollection<'a>;
 
+        /// Access user-defined signals of the current object `self`.
+        ///
+        /// For classes that have at least one `#[signal]` defined, returns a collection of signal names. Each returned signal has a specialized
+        /// API for connecting and emitting signals in a type-safe way. If you need to access signals from outside (given a `Gd` pointer), use
+        /// [`Gd::signals()`] instead.
+        ///
+        /// If you haven't already, read the [book chapter about signals](https://godot-rust.github.io/book/register/signals.html) for a
+        /// walkthrough.
+        ///
+        /// # Provided API
+        ///
+        /// The returned collection provides a method for each signal, with the same name as the corresponding `#[signal]`.  \
+        /// For example, if you have...
+        /// ```ignore
+        /// #[signal]
+        /// fn damage_taken(&mut self, amount: i32);
+        /// ```
+        /// ...then you can access the signal as `self.signals().damage_taken()`, which returns an object with the following API:
+        ///  
+        /// | Method signature | Description |
+        /// |------------------|-------------|
+        /// | `connect(f: impl FnMut(i32))` | Connects global or associated function, or a closure. |
+        /// | `connect_self(f: impl FnMut(&mut Self, i32))` | Connects a `&mut self` method or closure. |
+        /// | `emit(amount: i32)` | Emits the signal with the given arguments. |
+        ///
         fn signals(&mut self) -> Self::SignalCollection<'_>;
+
+        #[doc(hidden)]
+        fn __signals_from_external(external: &Gd<Self>) -> Self::SignalCollection<'_>;
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks

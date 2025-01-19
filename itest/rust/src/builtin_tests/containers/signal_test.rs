@@ -15,6 +15,7 @@ use godot::register::{godot_api, GodotClass};
 use godot::sys;
 use godot::sys::Global;
 use std::cell::Cell;
+use std::rc::Rc;
 
 #[itest]
 fn signal_basic_connect_emit() {
@@ -41,12 +42,11 @@ fn signal_basic_connect_emit() {
     emitter.free();
 }
 
+// "Internal" means connect/emit happens from within the class, via self.signals().
 #[cfg(since_api = "4.2")]
-#[itest]
-fn signal_symbols_api() {
+#[itest(focus)]
+fn signal_symbols_internal() {
     let mut emitter = Emitter::new_alloc();
-    let receiver = Receiver::new_alloc();
-
     let mut internal = emitter.bind_mut();
 
     internal.connect_signals_internal();
@@ -64,6 +64,35 @@ fn signal_symbols_api() {
     // Check that static function is invoked.
     let received_arg = LAST_STATIC_FUNCTION_ARG.lock();
     assert_eq!(*received_arg, Some(1234), "Emit failed (static function)");
+
+    emitter.free();
+}
+
+// "External" means connect/emit happens from outside the class, via Gd::signals().
+#[cfg(since_api = "4.2")]
+#[itest(focus)]
+fn signal_symbols_external() {
+    let emitter = Emitter::new_alloc();
+
+    // Local function; deliberately use a !Send type.
+    let received = Rc::new(Cell::new(0));
+    let received_clone = received.clone();
+    emitter.signals().emitter_1().connect(move |i| {
+        received_clone.set(i);
+    });
+
+    // Self-modifying method.
+    emitter
+        .signals()
+        .emitter_1()
+        .connect_self(Emitter::self_receive);
+
+    // Connect to other object.
+    let receiver = Receiver::new_alloc();
+
+    // Emit and check received values.
+    emitter.signals().emitter_1().emit(2345);
+    assert_eq!(received.get(), 2345);
 
     receiver.free();
     emitter.free();
