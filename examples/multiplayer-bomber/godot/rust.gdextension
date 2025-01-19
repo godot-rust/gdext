@@ -1,0 +1,15 @@
+[configuration]
+entry_symbol = "gdext_rust_init"
+compatibility_minimum = 4.1
+
+[libraries]
+linux.debug.x86_64 = "res://../../../target/debug/libmultiplayer_bomber.so"
+linux.release.x86_64 = "res://../../../target/release/libmultiplayer_bomber.so"
+windows.debug.x86_64 = "res://../../../target/debug/multiplayer_bomber.dll"
+windows.release.x86_64 = "res://../../../target/release/multiplayer_bomber.dll"
+macos.debug = "res://../../../target/debug/libmultiplayer_bomber.dylib"
+macos.release = "res://../../../target/release/libmultiplayer_bomber.dylib"
+macos.debug.arm64 = "res://../../../target/debug/libmultiplayer_bomber.dylib"
+macos.release.arm64 = "res://../../../target/release/libmultiplayer_bomber.dylib"
+web.debug.wasm32 = "res://../../../target/wasm32-unknown-emscripten/debug/multiplayer_bomber.wasm"
+web.release.wasm32 = "res://../../../target/wasm32-unknown-emscripten/release/multiplayer_bomber.wasm"

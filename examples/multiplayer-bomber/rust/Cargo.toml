@@ -1,0 +1,14 @@
+[package]
+name = "multiplayer-bomber"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+license = "MPL-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# `experimental-godot-api` feature needs to be enabled since godot's classes `MultiplayerSynchronizer`, `MultiplayerApi` and few others are marked as experimental
+godot = { path = "../../../godot", default-features = false, features = ["experimental-godot-api"] }
