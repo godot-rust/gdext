@@ -128,13 +128,15 @@ impl Aabb {
         Self { position, size }
     }
 
-    /// Returns `true` if the AABB contains a point. By convention,
-    /// the right and bottom edges of the AABB are considered exclusive, so points on these edges are not included.
+    /// Returns `true` if the AABB contains a point (excluding right/bottom edge).
+    ///
+    /// By convention, the right and bottom edges of the AABB are considered exclusive, so points on these edges are not included.
     ///
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn has_point(self, point: Vector3) -> bool {
+    #[doc(alias = "has_point")]
+    pub fn contains_point(self, point: Vector3) -> bool {
         self.assert_nonnegative();
 
         let point = point - self.position;
@@ -145,8 +147,21 @@ impl Aabb {
             && point.z < self.size.z
     }
 
-    /// Returns `true` if the AABB has area, and `false` if the AABB is linear, empty, or has a negative size. See also `Aabb.area()`.
     #[inline]
+    #[deprecated = "Renamed to `contains_point()`, for consistency with `Rect2i`"]
+    pub fn has_point(self, point: Vector3) -> bool {
+        self.contains_point(point)
+    }
+
+    /// Returns if this bounding box has a surface or a length, i.e. at least one component of [`Self::size`] is greater than 0.
+    #[inline]
+    pub fn has_surface(self) -> bool {
+        (self.size.x > 0.0) || (self.size.y > 0.0) || (self.size.z > 0.0)
+    }
+
+    /// Returns true if at least one of the size's components (X, Y, Z) is greater than 0.
+    #[inline]
+    #[deprecated = "Replaced with `has_surface()`, which has different semantics"]
     pub fn has_area(self) -> bool {
         ((self.size.x > 0.0) as u8 + (self.size.y > 0.0) as u8 + (self.size.z > 0.0) as u8) >= 2
     }
@@ -159,10 +174,10 @@ impl Aabb {
 
     /// Returns the intersection between two AABBs.
     ///
-    /// # Panics
+    /// # Panics (Debug)
     /// If `self.size` is negative.
     #[inline]
-    pub fn intersection(self, b: Aabb) -> Option<Self> {
+    pub fn intersect(self, b: Aabb) -> Option<Self> {
         self.assert_nonnegative();
 
         if !self.intersects(b) {
@@ -177,6 +192,11 @@ impl Aabb {
         rect.size = end.coord_min(end_b) - rect.position;
 
         Some(rect)
+    }
+
+    #[deprecated = "Renamed to `intersect()`"]
+    pub fn intersection(self, b: Aabb) -> Option<Self> {
+        self.intersect(b)
     }
 
     /// Returns `true` if this AABB is finite, by calling `@GlobalScope.is_finite` on each component.
@@ -218,7 +238,8 @@ impl Aabb {
     /// Returns the scalar length of the longest axis of the AABB.
     #[inline]
     pub fn longest_axis_size(self) -> real {
-        self.size.x.max(self.size.y.max(self.size.z))
+        let size = self.size;
+        size.x.max(size.y).max(size.z)
     }
 
     /// Returns the normalized shortest axis of the AABB.
@@ -245,6 +266,7 @@ impl Aabb {
 
     /// Returns the support point in a given direction. This is useful for collision detection algorithms.
     #[inline]
+    #[doc(alias = "get_support")]
     pub fn support(self, dir: Vector3) -> Vector3 {
         let half_extents = self.size * 0.5;
         let relative_center_point = self.position + half_extents;
@@ -327,22 +349,56 @@ impl Aabb {
 
     /// Returns `true` if the given ray intersects with this AABB. Ray length is infinite.
     ///
-    /// # Panics
+    /// Semantically equivalent to `self.intersects_ray(ray_from, ray_dir).is_some()`; might be microscopically faster.
+    ///
+    /// # Panics (Debug)
     /// If `self.size` is negative.
     #[inline]
-    pub fn intersects_ray(self, from: Vector3, dir: Vector3) -> bool {
-        self.assert_nonnegative();
+    pub fn intersects_ray(self, ray_from: Vector3, ray_dir: Vector3) -> bool {
+        let (tnear, tfar) = self.compute_ray_tnear_tfar(ray_from, ray_dir);
 
-        let tmin = (self.position - from) / dir;
-        let tmax = (self.end() - from) / dir;
+        tnear <= tfar
+    }
+
+    /// Returns the point where the given (infinite) ray intersects with this AABB, or `None` if there is no intersection.
+    ///
+    /// # Panics (Debug)
+    /// If `self.size` is negative, or if `ray_dir` is zero. Note that this differs from Godot, which treats rays that degenerate to points as
+    /// intersecting if inside, and not if outside the AABB.
+    #[inline]
+    pub fn intersect_ray(self, ray_from: Vector3, ray_dir: Vector3) -> Option<Vector3> {
+        let (tnear, tfar) = self.compute_ray_tnear_tfar(ray_from, ray_dir);
+
+        if tnear <= tfar {
+            // if tnear < 0: the ray starts inside the box -> take other intersection point.
+            let t = if tnear < 0.0 { tfar } else { tnear };
+            Some(ray_from + ray_dir * t)
+        } else {
+            None
+        }
+    }
+
+    // Credits: https://tavianator.com/2011/ray_box.html
+    fn compute_ray_tnear_tfar(self, ray_from: Vector3, ray_dir: Vector3) -> (real, real) {
+        self.assert_nonnegative();
+        debug_assert!(
+            ray_dir != Vector3::ZERO,
+            "ray direction must not be zero; use contains_point() for point checks"
+        );
+
+        // Note: leads to -inf/inf for each component that is 0. This should generally balance out, unless all are zero.
+        let recip_dir = ray_dir.recip();
+
+        let tmin = (self.position - ray_from) * recip_dir;
+        let tmax = (self.end() - ray_from) * recip_dir;
 
         let t1 = tmin.coord_min(tmax);
         let t2 = tmin.coord_max(tmax);
 
         let tnear = t1.x.max(t1.y).max(t1.z);
-        let tfar = t2.y.min(t2.x).min(t2.z);
+        let tfar = t2.x.min(t2.y).min(t2.z);
 
-        tnear <= tfar
+        (tnear, tfar)
     }
 
     /// Returns `true` if the given ray intersects with this AABB. Segment length is finite.
@@ -383,6 +439,7 @@ impl Aabb {
     ///
     /// Most functions will fail to give a correct result if the size is negative.
     #[inline]
+    /// TODO(v0.3): make private, change to debug_assert().
     pub fn assert_nonnegative(self) {
         assert!(
             self.size.x >= 0.0 && self.size.y >= 0.0 && self.size.z >= 0.0,
@@ -478,27 +535,27 @@ mod test {
             size: Vector3::new(1.0, 1.0, 1.0),
         };
 
-        // Check for intersection including border
+        // Check for intersection including border.
         assert!(aabb1.intersects(aabb2));
         assert!(aabb2.intersects(aabb1));
 
-        // Check for non-intersection including border
+        // Check for non-intersection including border.
         assert!(!aabb1.intersects(aabb3));
         assert!(!aabb3.intersects(aabb1));
 
-        // Check for intersection excluding border
+        // Check for intersection excluding border.
         assert!(aabb1.intersects_exclude_borders(aabb2));
         assert!(aabb2.intersects_exclude_borders(aabb1));
 
-        // Check for non-intersection excluding border
+        // Check for non-intersection excluding border.
         assert!(!aabb1.intersects_exclude_borders(aabb3));
         assert!(!aabb3.intersects_exclude_borders(aabb1));
 
-        // Check for non-intersection excluding border
+        // Check for non-intersection excluding border.
         assert!(!aabb1.intersects_exclude_borders(aabb4));
         assert!(!aabb4.intersects_exclude_borders(aabb1));
 
-        // Check for intersection with same AABB including border
+        // Check for intersection with same AABB including border.
         assert!(aabb1.intersects(aabb1));
     }
 
@@ -525,19 +582,18 @@ mod test {
             size: Vector3::new(1.0, 1.0, 1.0),
         };
 
-        // Test cases
         assert_eq!(
-            aabb1.intersection(aabb2),
+            aabb1.intersect(aabb2),
             Some(Aabb {
                 position: Vector3::new(1.0, 1.0, 1.0),
                 size: Vector3::new(1.0, 1.0, 1.0),
             })
         );
 
-        assert_eq!(aabb1.intersection(aabb3), None);
+        assert_eq!(aabb1.intersect(aabb3), None);
 
         assert_eq!(
-            aabb1.intersection(aabb4),
+            aabb1.intersect(aabb4),
             Some(Aabb {
                 position: Vector3::new(0.0, 0.0, 0.0),
                 size: Vector3::new(0.0, 0.0, 0.0),
@@ -547,16 +603,17 @@ mod test {
 
     #[test]
     fn test_intersects_ray() {
-        // Test case 1: Ray intersects the AABB
+        // Test case 1: Ray intersects the AABB.
         let aabb1 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
         };
         let from1 = Vector3::new(1.0, 1.0, -1.0);
         let dir1 = Vector3::new(0.0, 0.0, 1.0);
+
         assert!(aabb1.intersects_ray(from1, dir1));
 
-        // Test case 2: Ray misses the AABB
+        // Test case 2: Ray misses the AABB.
         let aabb2 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -565,7 +622,7 @@ mod test {
         let dir2 = Vector3::new(0.0, 0.0, 1.0);
         assert!(!aabb2.intersects_ray(from2, dir2));
 
-        // Test case 3: Ray starts inside the AABB
+        // Test case 3: Ray starts inside the AABB.
         let aabb3 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -574,7 +631,7 @@ mod test {
         let dir3 = Vector3::new(0.0, 0.0, 1.0);
         assert!(aabb3.intersects_ray(from3, dir3));
 
-        // Test case 4: Ray direction parallel to AABB
+        // Test case 4: Ray direction parallel to AABB.
         let aabb4 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -583,7 +640,7 @@ mod test {
         let dir4 = Vector3::new(1.0, 0.0, 0.0);
         assert!(aabb4.intersects_ray(from4, dir4));
 
-        // Test case 5: Ray direction diagonal through the AABB
+        // Test case 5: Ray direction diagonal through the AABB.
         let aabb5 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -592,7 +649,7 @@ mod test {
         let dir5 = Vector3::new(1.0, 1.0, 1.0);
         assert!(aabb5.intersects_ray(from5, dir5));
 
-        // Test case 6: Ray origin on an AABB face
+        // Test case 6: Ray origin on an AABB face.
         let aabb6 = Aabb {
             position: Vector3::new(0.0, 0.0, 0.0),
             size: Vector3::new(2.0, 2.0, 2.0),
@@ -602,15 +659,159 @@ mod test {
         assert!(aabb6.intersects_ray(from6, dir6));
     }
 
+    #[test] // Ported from Godot tests.
+    fn test_intersect_ray_2() {
+        let aabb = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::new(4.0, 5.0, 6.0),
+        };
+
+        assert_eq!(
+            aabb.intersect_ray(Vector3::new(-100.0, 3.0, 0.0), Vector3::new(1.0, 0.0, 0.0)),
+            Some(Vector3::new(-1.5, 3.0, 0.0)),
+            "intersect_ray(), ray points directly at AABB -> Some"
+        );
+
+        assert_eq!(
+            aabb.intersect_ray(Vector3::new(10.0, 10.0, 0.0), Vector3::new(0.0, 1.0, 0.0)),
+            None,
+            "intersect_ray(), ray parallel and outside the AABB -> None"
+        );
+
+        assert_eq!(
+            aabb.intersect_ray(Vector3::ONE, Vector3::new(0.0, 1.0, 0.0)),
+            Some(Vector3::new(1.0, 2.0, 1.0)),
+            "intersect_ray(), ray originating inside the AABB -> Some"
+        );
+
+        assert_eq!(
+            aabb.intersect_ray(Vector3::new(-10.0, 0.0, 0.0), Vector3::new(-1.0, 0.0, 0.0)),
+            None,
+            "intersect_ray(), ray points away from AABB -> None"
+        );
+
+        assert_eq!(
+            aabb.intersect_ray(Vector3::new(0.0, 0.0, 0.0), Vector3::ONE),
+            Some(Vector3::new(2.0, 2.0, 2.0)),
+            "intersect_ray(), ray along the AABB diagonal -> Some"
+        );
+
+        assert_eq!(
+            aabb.intersect_ray(
+                aabb.position + Vector3::splat(0.0001),
+                Vector3::new(-1.0, 0.0, 0.0)
+            ),
+            Some(Vector3::new(-1.5, 2.0001, -2.4999)),
+            "intersect_ray(), ray starting on the AABB's edge -> Some"
+        );
+
+        assert_eq!(
+            aabb.intersect_ray(Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)),
+            Some(Vector3::new(0.0, 2.0, 0.0)),
+            "intersect_ray(): ray has 2 axes parallel to AABB -> Some"
+        );
+    }
+
+    #[test] // Ported from Godot tests.
+    fn test_intersect_aabb() {
+        let aabb_big = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::new(4.0, 5.0, 6.0),
+        };
+
+        let aabb_small = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::ONE,
+        };
+        assert!(
+            aabb_big.intersects(aabb_small),
+            "intersects() with fully contained AABB (touching the edge) should return true."
+        );
+
+        let aabb_small = Aabb {
+            position: Vector3::new(0.5, 1.5, -2.0),
+            size: Vector3::ONE,
+        };
+        assert!(
+            aabb_big.intersects(aabb_small),
+            "intersects() with partially contained AABB (overflowing on Y axis) should return true."
+        );
+
+        let aabb_small = Aabb {
+            position: Vector3::new(10.0, -10.0, -10.0),
+            size: Vector3::ONE,
+        };
+        assert!(
+            !aabb_big.intersects(aabb_small),
+            "intersects() with non-contained AABB should return false."
+        );
+
+        let aabb_small = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::ONE,
+        };
+        let inter = aabb_big.intersect(aabb_small);
+        assert!(
+            inter.unwrap().approx_eq(&aabb_small),
+            "intersect() with fully contained AABB should return the smaller AABB."
+        );
+
+        let aabb_small = Aabb {
+            position: Vector3::new(0.5, 1.5, -2.0),
+            size: Vector3::ONE,
+        };
+        let expected = Aabb {
+            position: Vector3::new(0.5, 2.0, -2.0),
+            size: Vector3::new(1.0, 0.5, 1.0),
+        };
+        let inter = aabb_big.intersect(aabb_small);
+        assert!(
+            inter.unwrap().approx_eq(&expected),
+            "intersect() with partially contained AABB (overflowing on Y axis) should match expected."
+        );
+
+        let aabb_small = Aabb {
+            position: Vector3::new(10.0, -10.0, -10.0),
+            size: Vector3::ONE,
+        };
+        let inter = aabb_big.intersect(aabb_small);
+        assert!(
+            inter.is_none(),
+            "intersect() with non-contained AABB should return None."
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    #[cfg(debug_assertions)]
+    fn test_intersect_ray_zero_dir_inside() {
+        let aabb = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::new(4.0, 5.0, 6.0),
+        };
+
+        aabb.intersect_ray(Vector3::new(-1.0, 3.0, -2.0), Vector3::ZERO);
+    }
+
+    #[test]
+    #[should_panic]
+    #[cfg(debug_assertions)]
+    fn test_intersect_ray_zero_dir_outside() {
+        let aabb = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::new(4.0, 5.0, 6.0),
+        };
+
+        aabb.intersect_ray(Vector3::new(-1000.0, 3.0, -2.0), Vector3::ZERO);
+    }
+
     #[test]
     fn test_intersects_plane() {
-        // Create an AABB
         let aabb = Aabb {
             position: Vector3::new(-1.0, -1.0, -1.0),
             size: Vector3::new(2.0, 2.0, 2.0),
         };
 
-        // Define planes for testing
         let plane_inside = Plane {
             normal: Vector3::new(1.0, 0.0, 0.0),
             d: 0.0,
@@ -638,6 +839,32 @@ mod test {
         assert!(!aabb.intersects_plane(plane_parallel));
     }
 
+    #[test] // Ported from Godot tests.
+    fn test_intersects_plane_2() {
+        let aabb_big = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::new(4.0, 5.0, 6.0),
+        };
+
+        let plane1 = Plane::new(Vector3::new(0.0, 1.0, 0.0), 4.0);
+        assert!(
+            aabb_big.intersects_plane(plane1),
+            "intersects_plane() should return true (plane near top)."
+        );
+
+        let plane2 = Plane::new(Vector3::new(0.0, -1.0, 0.0), -4.0);
+        assert!(
+            aabb_big.intersects_plane(plane2),
+            "intersects_plane() should return true (plane near bottom)."
+        );
+
+        let plane3 = Plane::new(Vector3::new(0.0, 1.0, 0.0), 200.0);
+        assert!(
+            !aabb_big.intersects_plane(plane3),
+            "intersects_plane() should return false (plane far away)."
+        );
+    }
+
     #[test]
     fn test_aabb_intersects_segment() {
         let aabb = Aabb {
@@ -654,5 +881,49 @@ mod test {
         let from = Vector3::new(-2.0, 2.0, 2.0);
         let to = Vector3::new(-1.0, 1.0, 1.0);
         assert!(!aabb.intersects_segment(from, to));
+    }
+
+    #[test] // Ported from Godot tests.
+    fn test_intersects_segment_2() {
+        let aabb = Aabb {
+            position: Vector3::new(-1.5, 2.0, -2.5),
+            size: Vector3::new(4.0, 5.0, 6.0),
+        };
+
+        // True cases.
+        assert!(
+            aabb.intersects_segment(Vector3::new(1.0, 3.0, 0.0), Vector3::new(0.0, 3.0, 0.0)),
+            "intersects_segment(), segment fully inside -> true"
+        );
+        assert!(
+            aabb.intersects_segment(Vector3::new(0.0, 3.0, 0.0), Vector3::new(0.0, -300.0, 0.0)),
+            "intersects_segment(), segment crossing the box -> true"
+        );
+        assert!(
+            aabb.intersects_segment(
+                Vector3::new(-50.0, 3.0, -50.0),
+                Vector3::new(50.0, 3.0, 50.0)
+            ),
+            "intersects_segment(), diagonal crossing the box -> true"
+        );
+
+        // False case.
+        assert!(
+            !aabb.intersects_segment(
+                Vector3::new(-50.0, 25.0, -50.0),
+                Vector3::new(50.0, 25.0, 50.0)
+            ),
+            "intersects_segment(), segment above the box -> false"
+        );
+
+        // Degenerate segments (points).
+        assert!(
+            aabb.intersects_segment(Vector3::new(0.0, 3.0, 0.0), Vector3::new(0.0, 3.0, 0.0)),
+            "intersects_segment(), segment of length 0 *inside* the box -> true"
+        );
+        assert!(
+            !aabb.intersects_segment(Vector3::new(0.0, 300.0, 0.0), Vector3::new(0.0, 300.0, 0.0)),
+            "intersects_segment(), segment of length 0 *outside* the box -> false"
+        );
     }
 }

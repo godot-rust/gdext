@@ -50,8 +50,8 @@ fn rect2i_equiv_unary() {
             evaluate_mappings("encloses", a.encloses(b), inner_a.encloses(b));
             evaluate_mappings("intersects", a.intersects(b), inner_a.intersects(b));
             evaluate_mappings(
-                "intersection",
-                a.intersection(b).unwrap_or_default(),
+                "intersect",
+                a.intersect(b).unwrap_or_default(),
                 inner_a.intersection(b),
             );
             evaluate_mappings("merge", a.merge(b), inner_a.merge(b));
