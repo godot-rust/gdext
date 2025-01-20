@@ -98,7 +98,7 @@ pub fn transform_inherent_impl(
 
     let method_registrations: Vec<TokenStream> = funcs
         .into_iter()
-        .map(|func_def| make_method_registration(&class_name, func_def))
+        .map(|func_def| make_method_registration(&class_name, func_def, None))
         .collect::<ParseResult<Vec<TokenStream>>>()?;
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;

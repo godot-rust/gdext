@@ -279,7 +279,8 @@ fn make_user_class_impl(
         let tool_check = util::make_virtual_tool_check();
         let signature_info = SignatureInfo::fn_ready();
 
-        let callback = make_virtual_callback(class_name, &signature_info, BeforeKind::OnlyBefore);
+        let callback =
+            make_virtual_callback(class_name, &signature_info, BeforeKind::OnlyBefore, None);
 
         // See also __virtual_call() codegen.
         // This doesn't explicitly check if the base class inherits from Node (and thus has `_ready`), but the derive-macro already does
