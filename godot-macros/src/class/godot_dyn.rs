@@ -32,26 +32,42 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
         );
     };
 
+    let mut associated_types = vec![];
+    for impl_member in &decl.body_items {
+        let venial::ImplMember::AssocType(associated_type) = impl_member else {
+            continue;
+        };
+        let Some(type_expr) = &associated_type.initializer_ty else {
+            continue;
+        };
+        let type_name = &associated_type.name;
+        associated_types.push(quote! { #type_name = #type_expr })
+    }
+
+    let assoc_type_constraints = if associated_types.is_empty() {
+        TokenStream::new()
+    } else {
+        quote! { < #(#associated_types),* > }
+    };
+
     let class_path = &decl.self_ty;
     let prv = quote! { ::godot::private };
-
-    //let dynify_fn = format_ident!("__dynify_{}", class_name);
 
     let new_code = quote! {
         #decl
 
-        impl ::godot::obj::AsDyn<dyn #trait_path> for #class_path {
-            fn dyn_upcast(&self) -> &(dyn #trait_path + 'static) {
+        impl ::godot::obj::AsDyn<dyn #trait_path #assoc_type_constraints> for #class_path {
+            fn dyn_upcast(&self) -> &(dyn #trait_path #assoc_type_constraints + 'static) {
                 self
             }
 
-            fn dyn_upcast_mut(&mut self) -> &mut (dyn #trait_path + 'static) {
+            fn dyn_upcast_mut(&mut self) -> &mut (dyn #trait_path #assoc_type_constraints + 'static) {
                 self
             }
         }
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin::new::<#class_path>(
-            #prv::PluginItem::DynTraitImpl(#prv::DynTraitImpl::new::<#class_path, dyn #trait_path>()))
+            #prv::PluginItem::DynTraitImpl(#prv::DynTraitImpl::new::<#class_path, dyn #trait_path #assoc_type_constraints>()))
         );
 
     };

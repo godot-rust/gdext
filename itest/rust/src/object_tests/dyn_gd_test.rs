@@ -41,18 +41,34 @@ fn dyn_gd_creation_bind() {
 
 #[itest]
 fn dyn_gd_creation_deref() {
-    let node = foreign::NodeHealth::new_alloc();
-    let original_id = node.instance_id();
+    let obj = Gd::from_object(RefcHealth { hp: 100 });
+    let original_id = obj.instance_id();
 
-    let mut node = node.into_dyn::<dyn Health>();
+    // Type can be safely inferred.
+    let mut obj = obj.into_dyn();
 
-    let dyn_id = node.instance_id();
+    let dyn_id = obj.instance_id();
     assert_eq!(dyn_id, original_id);
 
-    deal_20_damage(&mut *node.dyn_bind_mut());
-    assert_eq!(node.dyn_bind().get_hitpoints(), 80);
+    deal_20_damage(&mut *obj.dyn_bind_mut());
+    assert_eq!(obj.dyn_bind().get_hitpoints(), 80);
+}
 
-    node.free();
+#[itest]
+fn dyn_gd_creation_deref_multiple_traits() {
+    let obj = foreign::NodeHealth::new_alloc();
+    let original_id = obj.instance_id();
+
+    // `dyn Health` must be explicitly declared if multiple AsDyn<...> trait implementations exist.
+    let mut obj = obj.into_dyn::<dyn Health>();
+
+    let dyn_id = obj.instance_id();
+    assert_eq!(dyn_id, original_id);
+
+    deal_20_damage(&mut *obj.dyn_bind_mut());
+    assert_eq!(obj.dyn_bind().get_hitpoints(), 80);
+
+    obj.free();
 }
 
 fn deal_20_damage(h: &mut dyn Health) {
@@ -104,13 +120,25 @@ fn dyn_gd_downcast() {
 
 #[itest]
 fn dyn_gd_debug() {
-    let obj = Gd::from_object(RefcHealth { hp: 20 }).into_dyn();
-    let id = obj.instance_id();
+    let node = foreign::NodeHealth::new_alloc();
+    let id = node.instance_id();
 
-    let actual = format!(".:{obj:?}:.");
-    let expected = format!(".:DynGd {{ id: {id}, class: RefcHealth, trait: dyn Health }}:.");
+    let node = node.into_dyn::<dyn Health>();
+
+    let actual = format!(".:{node:?}:.");
+    let expected = format!(".:DynGd {{ id: {id}, class: NodeHealth, trait: dyn Health }}:.");
 
     assert_eq!(actual, expected);
+
+    let node = node
+        .into_gd()
+        .into_dyn::<dyn InstanceIdProvider<Id = InstanceId>>();
+    let actual = format!(".:{node:?}:.");
+    let expected = format!(".:DynGd {{ id: {id}, class: NodeHealth, trait: dyn InstanceIdProvider<Id = InstanceId> }}:.");
+
+    assert_eq!(actual, expected);
+
+    node.free();
 }
 
 #[itest]
@@ -249,42 +277,51 @@ fn dyn_gd_pass_to_godot_api() {
 
 #[itest]
 fn dyn_gd_variant_conversions() {
-    let original = Gd::from_object(RefcHealth { hp: 11 }).into_dyn::<dyn Health>();
-    let original_id = original.instance_id();
-    let refc = original.into_gd().upcast::<RefCounted>();
+    let node = foreign::NodeHealth::new_alloc();
+    let original_id = node.instance_id();
 
-    let variant = refc.to_variant();
+    let variant = node.to_variant();
 
     // Convert to different levels of DynGd:
 
-    let back: DynGd<RefcHealth, dyn Health> = variant.to();
-    assert_eq!(back.bind().get_hitpoints(), 11);
+    let back: DynGd<foreign::NodeHealth, dyn Health> = variant.to();
+    assert_eq!(back.bind().get_hitpoints(), 100);
     assert_eq!(back.instance_id(), original_id);
 
-    let back: DynGd<RefCounted, dyn Health> = variant.to();
-    assert_eq!(back.dyn_bind().get_hitpoints(), 11);
+    let back: DynGd<Node, dyn Health> = variant.to();
+    assert_eq!(back.dyn_bind().get_hitpoints(), 100);
     assert_eq!(back.instance_id(), original_id);
 
     let back: DynGd<Object, dyn Health> = variant.to();
-    assert_eq!(back.dyn_bind().get_hitpoints(), 11);
+    assert_eq!(back.dyn_bind().get_hitpoints(), 100);
     assert_eq!(back.instance_id(), original_id);
+
+    // Convert to different DynGd:
+
+    let back: DynGd<foreign::NodeHealth, dyn InstanceIdProvider<Id = InstanceId>> = variant.to();
+    assert_eq!(back.dyn_bind().get_id_dynamic(), original_id);
+
+    let back: DynGd<Node, dyn InstanceIdProvider<Id = InstanceId>> = variant.to();
+    assert_eq!(back.dyn_bind().get_id_dynamic(), original_id);
+
+    let back: DynGd<Object, dyn InstanceIdProvider<Id = InstanceId>> = variant.to();
+    assert_eq!(back.dyn_bind().get_id_dynamic(), original_id);
 
     // Convert to different levels of Gd:
 
-    let back: Gd<RefcHealth> = variant.to();
-    assert_eq!(back.bind().get_hitpoints(), 11);
-    assert_eq!(back.instance_id(), original_id);
-
-    let back: Gd<RefcHealth> = variant.to();
+    let back: Gd<foreign::NodeHealth> = variant.to();
+    assert_eq!(back.bind().get_hitpoints(), 100);
     assert_eq!(back.instance_id(), original_id);
 
     let back: Gd<Object> = variant.to();
     assert_eq!(back.instance_id(), original_id);
+
+    node.free();
 }
 
 #[itest]
 fn dyn_gd_store_in_godot_array() {
-    let a = Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
+    let a = Gd::from_object(RefcHealth { hp: 33 }).into_dyn();
     let b = foreign::NodeHealth::new_alloc().into_dyn();
 
     let array: Array<DynGd<Object, _>> = array![&a.upcast(), &b.upcast()];
@@ -298,21 +335,29 @@ fn dyn_gd_store_in_godot_array() {
 #[itest]
 fn dyn_gd_error_unregistered_trait() {
     trait UnrelatedTrait {}
+    let node = foreign::NodeHealth::new_alloc().into_dyn::<dyn Health>();
 
-    let obj = Gd::from_object(RefcHealth { hp: 33 }).into_dyn::<dyn Health>();
+    let variant = node.to_variant();
 
-    let variant = obj.to_variant();
-    let back = variant.try_to::<DynGd<RefcHealth, dyn UnrelatedTrait>>();
+    let back = variant.try_to::<DynGd<foreign::NodeHealth, dyn UnrelatedTrait>>();
+
+    // The conversion fails before a DynGd is created, so Display still operates on the Gd.
+    let node = node.into_gd();
 
     let err = back.expect_err("DynGd::try_to() should have failed");
-    let expected_err = {
-        // The conversion fails before a DynGd is created, so Display still operates on the Gd.
-        let obj = obj.into_gd();
-
-        format!("trait `dyn UnrelatedTrait` has not been registered with #[godot_dyn]: {obj:?}")
-    };
+    let expected_err =
+        format!("trait `dyn UnrelatedTrait` has not been registered with #[godot_dyn]: {node:?}");
 
     assert_eq!(err.to_string(), expected_err);
+
+    let back = variant.try_to::<DynGd<foreign::NodeHealth, dyn InstanceIdProvider<Id = i32>>>();
+
+    let err = back.expect_err("DynGd::try_to() should have failed");
+    let expected_err = format!("trait `dyn InstanceIdProvider<Id = i32>` has not been registered with #[godot_dyn]: {node:?}");
+
+    assert_eq!(err.to_string(), expected_err);
+
+    node.free();
 }
 
 #[itest]
@@ -327,11 +372,23 @@ fn dyn_gd_error_unimplemented_trait() {
         err.to_string(),
         format!("none of the classes derived from `RefCounted` have been linked to trait `dyn Health` with #[godot_dyn]: {obj:?}")
     );
+
+    let node = foreign::NodeHealth::new_alloc();
+    let variant = node.to_variant();
+    let back = variant.try_to::<DynGd<foreign::NodeHealth, dyn InstanceIdProvider<Id = f32>>>();
+
+    let err = back.expect_err("DynGd::try_to() should have failed");
+    assert_eq!(
+        err.to_string(),
+        format!("none of the classes derived from `NodeHealth` have been linked to trait `dyn InstanceIdProvider<Id = f32>` with #[godot_dyn]: {node:?}")
+    );
+
+    node.free();
 }
 
 #[itest]
 fn dyn_gd_free_while_dyn_bound() {
-    let mut obj: DynGd<_, dyn Health> = foreign::NodeHealth::new_alloc().into_dyn();
+    let mut obj = foreign::NodeHealth::new_alloc().into_dyn::<dyn Health>();
 
     {
         let copy = obj.clone();
@@ -359,7 +416,9 @@ fn dyn_gd_multiple_traits() {
     let obj = foreign::NodeHealth::new_alloc();
     let original_id = obj.instance_id();
 
-    let obj = obj.into_dyn::<dyn InstanceIdProvider>().upcast::<Node>();
+    let obj = obj
+        .into_dyn::<dyn InstanceIdProvider<Id = InstanceId>>()
+        .upcast::<Node>();
     let id = obj.dyn_bind().get_id_dynamic();
     assert_eq!(id, original_id);
 
@@ -434,14 +493,15 @@ impl Health for foreign::NodeHealth {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Check that one class can implement two or more traits.
 
-// Pointless trait, but tests access to object.
 trait InstanceIdProvider {
-    fn get_id_dynamic(&self) -> InstanceId;
+    type Id;
+    fn get_id_dynamic(&self) -> Self::Id;
 }
 
 #[godot_dyn]
 impl InstanceIdProvider for foreign::NodeHealth {
-    fn get_id_dynamic(&self) -> InstanceId {
+    type Id = InstanceId;
+    fn get_id_dynamic(&self) -> Self::Id {
         self.base().instance_id()
     }
 }
@@ -455,5 +515,15 @@ struct RefcDynGdExporter {
     #[var]
     first: Option<DynGd<Object, dyn Health>>,
     #[export]
-    second: Option<DynGd<foreign::NodeHealth, dyn InstanceIdProvider>>,
+    second: Option<DynGd<foreign::NodeHealth, dyn InstanceIdProvider<Id = InstanceId>>>,
+}
+
+// Implementation created only to register the DynGd `HealthWithAssociatedType<HealthType=f32>` trait.
+// Pointless trait, but tests proper conversion.
+#[godot_dyn]
+impl InstanceIdProvider for RefcDynGdExporter {
+    type Id = f32;
+    fn get_id_dynamic(&self) -> Self::Id {
+        42.0
+    }
 }
