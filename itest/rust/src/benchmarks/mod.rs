@@ -10,7 +10,7 @@
 use std::hint::black_box;
 
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{GString, Rect2i, StringName, Vector2i};
+use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i};
 use godot::classes::{Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd};
 use godot::register::GodotClass;
@@ -91,6 +91,26 @@ fn utilities_ffi_call() -> f64 {
     let exponent = black_box(3.456);
 
     godot::global::pow(base, exponent)
+}
+
+#[bench(repeat = 25)]
+fn packed_array_from_iter_known_size() -> PackedInt32Array {
+    // Create an iterator whose `size_hint()` returns `(len, Some(len))`.
+    PackedInt32Array::from_iter(0..100)
+}
+
+#[bench(repeat = 25)]
+fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
+    // Create an iterator whose `size_hint()` returns `(0, None)`.
+    let mut item = 0;
+    PackedInt32Array::from_iter(std::iter::from_fn(|| {
+        item += 1;
+        if item <= 100 {
+            Some(item)
+        } else {
+            None
+        }
+    }))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
