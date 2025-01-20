@@ -277,7 +277,48 @@ fn packed_array_insert() {
 }
 
 #[itest]
-fn packed_array_extend() {
+fn packed_array_extend_known_size() {
+    // The logic in `extend()` is not trivial, so we test it for a wide range of sizes.
+    for len_a in 0..32i32 {
+        for len_b in 0..32i32 {
+            let mut array = PackedInt32Array::from_iter(0..len_a);
+            array.extend(len_a..len_a + len_b);
+            assert_eq!(
+                array.to_vec(),
+                (0..len_a + len_b).collect::<Vec<_>>(),
+                "len_a = {len_a}, len_b = {len_b}",
+            );
+        }
+    }
+}
+
+#[itest]
+fn packed_array_extend_unknown_size() {
+    // The logic in `extend()` is not trivial, so we test it for a wide range of sizes.
+    for len_a in 0..32i32 {
+        for len_b in 0..32i32 {
+            let mut array = PackedInt32Array::from_iter(0..len_a);
+            let mut item = len_a;
+            array.extend(std::iter::from_fn(|| {
+                let result = if item < len_a + len_b {
+                    Some(item)
+                } else {
+                    None
+                };
+                item += 1;
+                result
+            }));
+            assert_eq!(
+                array.to_vec(),
+                (0..len_a + len_b).collect::<Vec<_>>(),
+                "len_a = {len_a}, len_b = {len_b}",
+            );
+        }
+    }
+}
+
+#[itest]
+fn packed_array_extend_array() {
     let mut array = PackedByteArray::from(&[1, 2]);
     let other = PackedByteArray::from(&[3, 4]);
     array.extend_array(&other);
