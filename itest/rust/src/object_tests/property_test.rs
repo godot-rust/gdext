@@ -482,3 +482,25 @@ fn override_export() {
 fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
     assert_eq!(property.get_or_nil(key), expected.to_variant());
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(base=Node, init)]
+struct RenamedFunc {
+    #[var(get = get_int_val, set = set_int_val)]
+    int_val: i32,
+}
+
+#[godot_api]
+impl RenamedFunc {
+    #[func(rename=f1)]
+    pub fn get_int_val(&self) -> i32 {
+        self.int_val
+    }
+
+    #[func(rename=f2)]
+    pub fn set_int_val(&mut self, val: i32) {
+        self.int_val = val;
+    }
+}

@@ -10,7 +10,9 @@ use crate::class::{
     make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
     SignatureInfo, TransferMode,
 };
-use crate::util::{bail, c_str, ident, require_api_version, KvParser};
+use crate::util::{
+    bail, c_str, ident, make_function_registered_name_constants, require_api_version, KvParser,
+};
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
@@ -83,6 +85,8 @@ pub fn transform_inherent_impl(
     // Can add extra functions to the end of the impl block.
     let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block, meta.secondary)?;
     let consts = process_godot_constants(&mut impl_block)?;
+
+    let func_export_name_constants = make_function_registered_name_constants(&funcs, &class_name);
 
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
     let docs = crate::docs::make_inherent_impl_docs(&funcs, &consts, &signals);
@@ -174,6 +178,9 @@ pub fn transform_inherent_impl(
             #trait_impl
             #fill_storage
             #class_registration
+            impl #class_name{
+                #( #func_export_name_constants )*
+            }
         };
 
         Ok(result)
@@ -184,6 +191,9 @@ pub fn transform_inherent_impl(
         let result = quote! {
             #impl_block
             #fill_storage
+            impl #class_name{
+                #( #func_export_name_constants )*
+            }
         };
 
         Ok(result)

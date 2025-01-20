@@ -7,10 +7,12 @@
 
 // Note: some code duplication with godot-codegen crate.
 
+use crate::class::FuncDefinition;
 use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use venial::Attribute;
 
 mod kv_parser;
 mod list_parser;
@@ -302,4 +304,51 @@ pub fn venial_parse_meta(
     };
 
     venial::parse_item(input)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// util functions for handling #[func]s and #[var(get=f, set=f)]
+
+pub fn make_function_registered_name_constants(
+    funcs: &[FuncDefinition],
+    class_name: &Ident,
+) -> Vec<TokenStream> {
+    funcs
+        .iter()
+        .map(|func| {
+            make_function_registered_name_constant(
+                class_name,
+                &func.signature_info.method_name,
+                &func.registered_name,
+                &func.external_attributes,
+            )
+        })
+        .collect()
+}
+
+/// funcs can be renamed with `#[func(rename=new_name) fn f();`.
+/// To be able to access the renamed function name at a later point, it is saved in a string constant.
+pub fn make_function_registered_name_constant(
+    class_name: &Ident,
+    func_name: &Ident,
+    exported_name: &Option<String>,
+    attributes: &Vec<Attribute>,
+) -> TokenStream {
+    let const_name = format_function_registered_name_constant(class_name, func_name);
+    let const_value = match &exported_name {
+        Some(renamed) => renamed.to_string(),
+        None => func_name.to_string(),
+    };
+
+    quote! {
+        #(#attributes)*
+        #[doc(hidden)]
+        #[allow(non_upper_case_globals)]
+        pub const #const_name: &str  = #const_value;
+    }
+}
+
+pub fn format_function_registered_name_constant(class_name: &Ident, func_name: &Ident) -> Ident {
+    format_ident!("__gdext_func_{}_{}", class_name, func_name)
 }
