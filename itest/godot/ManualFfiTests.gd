@@ -390,3 +390,63 @@ func test_get_set():
 	assert_eq(obj.set_get, 1000)
 	assert(obj.is_set_called())
 	assert(obj.is_get_called())
+
+
+# Validates the shape of the Class defined in Rust:
+#   In Rust we declared a single property (int_val) and two functions (f1 and f2).
+#   In addition, Godot defines a property with the name of the Class, which acts as the top-level category in the inspector.
+func test_RenamedFunc_shape():
+	# Note: RenamedFunc is located in property_test.rs.
+	var obj: RenamedFunc = RenamedFunc.new()
+
+	# Get baseline Node properties and methods
+	var base_node = Node.new()
+	var node_props = base_node.get_property_list().map(func(p): return p.name)
+	var node_methods = base_node.get_method_list().map(func(m): return m.name)
+	base_node.free()
+	
+	# Get our object's properties and methods
+	var obj_props = obj.get_property_list().map(func(p): return p.name)
+	var obj_methods = obj.get_method_list().map(func(m): return m.name)
+	
+	# Get only the new properties and methods (not in Node)
+	var gdext_props = obj_props.filter(func(name): return not node_props.has(name))
+	var gdext_methods = obj_methods.filter(func(name): return not node_methods.has(name))
+	
+	# Debug print to see what we found
+	#print("GDExt properties: ", gdext_props)
+	#print("GDExt methods: ", gdext_methods)
+	
+	# Assert counts
+	assert_eq(gdext_props.size(), 2, "number of properties should be 2")
+	assert_eq(gdext_methods.size(), 2, "number of methods should be 2")
+	
+	# Assert specific names
+	assert(gdext_props.has("int_val"), "should have a property named 'int_val'")
+	assert(gdext_props.has("RenamedFunc"), "should have a property named 'RenamedFunc'") # godot automatically adds a property of the class name
+	assert(gdext_methods.has("f1"), "should have a method named 'f1'")
+	assert(gdext_methods.has("f2"), "should have a method named 'f2'")
+
+	obj.free()
+
+
+# Validates that the property has been linked to the correct rust get/set functions.
+func test_RenamedFunc_get_set():
+	# Note: RenamedFunc is located in property_test.rs.
+	var obj: RenamedFunc = RenamedFunc.new()
+
+	assert_eq(obj.int_val, 0)
+	assert_eq(obj.f1(), 0)
+
+	obj.int_val = 42;
+	
+	assert_eq(obj.int_val, 42)
+	assert_eq(obj.f1(), 42)
+
+	obj.f2(84)
+	
+	assert_eq(obj.int_val, 84)
+	assert_eq(obj.f1(), 84)
+
+	obj.free()
+

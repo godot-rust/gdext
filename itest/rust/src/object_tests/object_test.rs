@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Needed for Clippy to accept #[cfg(all())]
+#![allow(clippy::non_minimal_cfg)]
+
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -1090,3 +1093,21 @@ fn double_use_reference() {
     double_use.free();
     emitter.free();
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Test that one class can be declared multiple times (using #[cfg]) without conflicts
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct MultipleStructsCfg {}
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+#[cfg(any())]
+struct MultipleStructsCfg {}
+
+#[cfg(any())]
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct MultipleStructsCfg {}
