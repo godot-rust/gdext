@@ -10,6 +10,7 @@ use crate::util::{bail_fn, ident, safe_ident};
 use crate::{util, ParseResult};
 use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote};
+use venial::TypeExpr;
 
 /// Information used for registering a Rust function with Godot.
 pub struct FuncDefinition {
@@ -38,10 +39,12 @@ pub fn make_virtual_callback(
     class_name: &Ident,
     signature_info: &SignatureInfo,
     before_kind: BeforeKind,
+    api_trait: Option<&TypeExpr>,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
 
-    let wrapped_method = make_forwarding_closure(class_name, signature_info, before_kind);
+    let wrapped_method =
+        make_forwarding_closure(class_name, signature_info, before_kind, api_trait);
     let sig_tuple = signature_info.tuple_type();
 
     let call_ctx = make_call_context(
@@ -75,6 +78,7 @@ pub fn make_virtual_callback(
 pub fn make_method_registration(
     class_name: &Ident,
     func_definition: FuncDefinition,
+    api_trait: Option<&TypeExpr>,
 ) -> ParseResult<TokenStream> {
     let signature_info = &func_definition.signature_info;
     let sig_tuple = signature_info.tuple_type();
@@ -86,7 +90,7 @@ pub fn make_method_registration(
     };
 
     let forwarding_closure =
-        make_forwarding_closure(class_name, signature_info, BeforeKind::Without);
+        make_forwarding_closure(class_name, signature_info, BeforeKind::Without, api_trait);
 
     // String literals
     let method_name = &signature_info.method_name;
@@ -209,6 +213,7 @@ fn make_forwarding_closure(
     class_name: &Ident,
     signature_info: &SignatureInfo,
     before_kind: BeforeKind,
+    api_trait: Option<&TypeExpr>,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
     let params = &signature_info.param_idents;
@@ -238,7 +243,16 @@ fn make_forwarding_closure(
             let method_call = if matches!(before_kind, BeforeKind::OnlyBefore) {
                 TokenStream::new()
             } else {
-                quote! { instance.#method_name( #(#params),* ) }
+                match api_trait {
+                    Some(api_trait) => {
+                        let instance_ref = match signature_info.receiver_type {
+                            ReceiverType::Mut => quote! { &mut instance },
+                            _ => quote! { &instance },
+                        };
+                        quote! { <#class_name as #api_trait>::#method_name( #instance_ref, #(#params),* ) }
+                    }
+                    None => quote! { instance.#method_name( #(#params),* ) },
+                }
             };
 
             quote! {
