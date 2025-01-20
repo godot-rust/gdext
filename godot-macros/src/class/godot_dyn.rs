@@ -32,6 +32,24 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
         );
     };
 
+    let mut associated_types = vec![];
+    for impl_member in &decl.body_items {
+        let venial::ImplMember::AssocType(associated_type) = impl_member else {
+            continue;
+        };
+        let Some(type_expr) = &associated_type.initializer_ty else {
+            continue;
+        };
+        let type_name = &associated_type.name;
+        associated_types.push(quote! { #type_name = #type_expr })
+    }
+
+    let associated_impl = if associated_types.is_empty() {
+        None
+    } else {
+        Some(quote! { <#(#associated_types, )*>})
+    };
+
     let class_path = &decl.self_ty;
     let class_name_obj = util::class_name_obj(class_path); //&util::extract_typename(class_path));
     let prv = quote! { ::godot::private };
@@ -41,12 +59,12 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
     let new_code = quote! {
         #decl
 
-        impl ::godot::obj::AsDyn<dyn #trait_path> for #class_path {
-            fn dyn_upcast(&self) -> &(dyn #trait_path + 'static) {
+        impl ::godot::obj::AsDyn<dyn #trait_path #associated_impl> for #class_path {
+            fn dyn_upcast(&self) -> &(dyn #trait_path #associated_impl + 'static) {
                 self
             }
 
-            fn dyn_upcast_mut(&mut self) -> &mut (dyn #trait_path + 'static) {
+            fn dyn_upcast_mut(&mut self) -> &mut (dyn #trait_path #associated_impl + 'static) {
                 self
             }
         }
@@ -54,12 +72,12 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
             item: #prv::PluginItem::DynTraitImpl {
-                dyn_trait_typeid: std::any::TypeId::of::<dyn #trait_path>(),
+                dyn_trait_typeid: std::any::TypeId::of::<dyn #trait_path #associated_impl>(),
                 erased_dynify_fn: {
                     fn dynify_fn(obj: ::godot::obj::Gd<::godot::classes::Object>) -> #prv::ErasedDynGd {
                         // SAFETY: runtime class type is statically known here and linked to the `class_name` field of the plugin.
                         let obj = unsafe { obj.try_cast::<#class_path>().unwrap_unchecked() };
-                        let obj = obj.into_dyn::<dyn #trait_path>();
+                        let obj = obj.into_dyn::<dyn #trait_path #associated_impl>();
                         let obj = obj.upcast::<::godot::classes::Object>();
 
                         #prv::ErasedDynGd {
