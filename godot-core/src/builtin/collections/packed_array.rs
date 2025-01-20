@@ -13,6 +13,7 @@ use godot_ffi as sys;
 
 use crate::builtin::*;
 use crate::meta::{AsArg, ToGodot};
+use std::mem::{size_of, MaybeUninit};
 use std::{fmt, ops, ptr};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -483,6 +484,15 @@ macro_rules! impl_packed_array {
         }
 
         #[doc = concat!("Creates a `", stringify!($PackedArray), "` from an iterator.")]
+        ///
+        /// # Performance note
+        /// This uses the lower bound from `Iterator::size_hint()` to allocate memory up front. If
+        /// the iterator returns more than that number of elements, it falls back to reading
+        /// elements into a fixed-size buffer before adding them all efficiently as a batch.
+        ///
+        /// # Panics
+        /// - If the iterator's `size_hint()` returns an incorrect lower bound (which is a breach
+        ///   of the `Iterator` protocol).
         impl FromIterator<$Element> for $PackedArray {
             fn from_iter<I: IntoIterator<Item = $Element>>(iter: I) -> Self {
                 let mut array = $PackedArray::default();
@@ -491,16 +501,88 @@ macro_rules! impl_packed_array {
             }
         }
 
-        #[doc = concat!("Extends a`", stringify!($PackedArray), "` with the contents of an iterator")]
+        #[doc = concat!("Extends a`", stringify!($PackedArray), "` with the contents of an iterator.")]
+        ///
+        /// # Performance note
+        /// This uses the lower bound from `Iterator::size_hint()` to allocate memory up front. If
+        /// the iterator returns more than that number of elements, it falls back to reading
+        /// elements into a fixed-size buffer before adding them all efficiently as a batch.
+        ///
+        /// # Panics
+        /// - If the iterator's `size_hint()` returns an incorrect lower bound (which is a breach
+        ///   of the `Iterator` protocol).
         impl Extend<$Element> for $PackedArray {
             fn extend<I: IntoIterator<Item = $Element>>(&mut self, iter: I) {
-                // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
-                // Otherwise we could use it to pre-allocate based on `iter.size_hint()`.
+                // Naive implementation:
                 //
-                // A faster implementation using `resize()` and direct pointer writes might still be
-                // possible.
-                for item in iter.into_iter() {
-                    self.push(meta::ParamType::owned_to_arg(item));
+                //     for item in iter.into_iter() {
+                //         self.push(meta::ParamType::owned_to_arg(item));
+                //     }
+                //
+                // This takes 6.1 µs for 1000 i32 elements in release mode.
+
+                let mut iter = iter.into_iter();
+                // Cache the length to avoid repeated Godot API calls.
+                let mut len = self.len();
+
+                // Fast part.
+                //
+                // Use `Iterator::size_hint()` to pre-allocate the minimum number of elements in
+                // the iterator, then write directly to the resulting slice. We can do this because
+                // `size_hint()` is required by the `Iterator` contract to return correct bounds.
+                // Note that any bugs in it must not result in UB.
+                //
+                // This takes 0.097 µs: 63× as fast as the naive approach.
+                let (size_hint_min, _size_hint_max) = iter.size_hint();
+                if size_hint_min > 0 {
+                    let capacity = len + size_hint_min;
+                    self.resize(capacity);
+                    for out_ref in &mut self.as_mut_slice()[len..] {
+                        *out_ref = iter.next().expect("iterator returned fewer than size_hint().0 elements");
+                    }
+                    len = capacity;
+                }
+
+                // Slower part.
+                //
+                // While the iterator is still not finished, gather elements into a fixed-size
+                // buffer, then add them all at once.
+                //
+                // This takes 0.14 µs: still 44× as fast as the naive approach.
+                //
+                // Note that we can't get by with simple memcpys, because `PackedStringArray`
+                // contains `GString`, which does not implement `Copy`.
+                //
+                // Buffer size: 2 kB is enough for the performance win, without needlessly blowing
+                // up the stack size.
+                const BUFFER_SIZE_BYTES: usize = 2048;
+                const BUFFER_CAPACITY: usize = const_max(
+                    1,
+                    BUFFER_SIZE_BYTES / size_of::<$Element>(),
+                );
+                let mut buf = [const { MaybeUninit::<$Element>::uninit() }; BUFFER_CAPACITY];
+                while let Some(item) = iter.next() {
+                    buf[0].write(item);
+                    let mut buf_len = 1;
+                    while buf_len < BUFFER_CAPACITY {
+                        if let Some(item) = iter.next() {
+                            buf[buf_len].write(item);
+                            buf_len += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                    let capacity = len + buf_len;
+                    self.resize(capacity);
+                    let out_slice = &mut self.as_mut_slice()[len..];
+                    for i in 0..buf_len {
+                        // SAFETY: We called `write()` on items `0..buf_len`, so they are all
+                        // initialized.
+                        let item = unsafe { buf[i].assume_init_read() };
+                        out_slice[i] = item;
+                    }
+                    // At this point, we have moved all initialized values out of the buffer, so
+                    // all of them are uninitialized again, and there are no leaks.
                 }
             }
         }
@@ -1069,5 +1151,14 @@ fn populated_or_err(array: PackedByteArray) -> Result<PackedByteArray, ()> {
         Err(())
     } else {
         Ok(array)
+    }
+}
+
+/// Helper because `usize::max()` is not const.
+const fn const_max(a: usize, b: usize) -> usize {
+    if a > b {
+        a
+    } else {
+        b
     }
 }
