@@ -10,6 +10,7 @@ use crate::{util, ParseResult};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+use venial::TypeExpr;
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`
 pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream> {
@@ -313,6 +314,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     hash_constant: quote! { hashes::#method_name_ident },
                     signature_info,
                     before_kind,
+                    api_trait: Some(trait_path.clone()),
                 });
             }
         }
@@ -333,6 +335,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             hash_constant: quote! { ::godot::sys::known_virtual_hashes::Node::ready },
             signature_info: SignatureInfo::fn_ready(),
             before_kind: BeforeKind::OnlyBefore,
+            api_trait: None,
         };
 
         overridden_virtuals.push(match_arm);
@@ -451,6 +454,7 @@ struct OverriddenVirtualFn<'a> {
     hash_constant: TokenStream,
     signature_info: SignatureInfo,
     before_kind: BeforeKind,
+    api_trait: Option<TypeExpr>,
 }
 
 impl OverriddenVirtualFn<'_> {
@@ -468,8 +472,12 @@ impl OverriddenVirtualFn<'_> {
         let pattern = method_name_str;
 
         // Lazily generate code for the actual work (calling user function).
-        let method_callback =
-            make_virtual_callback(class_name, &self.signature_info, self.before_kind);
+        let method_callback = make_virtual_callback(
+            class_name,
+            &self.signature_info,
+            self.before_kind,
+            self.api_trait.as_ref(),
+        );
 
         quote! {
             #(#cfg_attrs)*

@@ -221,6 +221,7 @@ impl GetterSetterImpl {
                 is_script_virtual: false,
                 rpc_info: None,
             },
+            None,
         );
 
         let export_token = export_token.expect("getter/setter generation should not fail");
