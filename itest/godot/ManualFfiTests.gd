@@ -396,25 +396,25 @@ func test_RenamedFunc_shape():
 	# note: RenamedFunc is in property_test.rs
 	var obj: RenamedFunc = RenamedFunc.new()
 
-	# Get all GDExtension registered properties
-	var properties = obj.get_property_list()
-	var gdext_props = []
-	for prop in properties:
-		if prop.usage == PROPERTY_USAGE_DEFAULT:  # GDExtension props have this usage
-			gdext_props.append(prop.name)
+	# Get baseline Node properties and methods
+	var base_node = Node.new()
+	var node_props = base_node.get_property_list().map(func(p): return p.name)
+	var node_methods = base_node.get_method_list().map(func(m): return m.name)
+	base_node.free()
 	
-	# Get all GDExtension registered methods
-	var methods = obj.get_method_list()
-	var gdext_methods = []
-	for method in methods:
-		if method.flags == METHOD_FLAG_NORMAL:  # GDExtension methods have this flag
-			gdext_methods.append(method.name)
+	# Get our object's properties and methods
+	var obj_props = obj.get_property_list().map(func(p): return p.name)
+	var obj_methods = obj.get_method_list().map(func(m): return m.name)
 	
-	# Assert total number of GDExtension members
-	assert_eq(gdext_props.size(), 1)
-	assert_eq(gdext_methods.size(), 2)
+	# Get only the new properties and methods (not in Node)
+	var gdext_props = obj_props.filter(func(name): return not node_props.has(name))
+	var gdext_methods = obj_methods.filter(func(name): return not node_methods.has(name))
 	
-	# Then check specific names as before
+	# Assert counts
+	assert_eq(1, gdext_props.size())
+	assert_eq(2, gdext_methods.size())
+	
+	# Assert specific names
 	assert(gdext_props.has("int_val"))
 	assert(gdext_methods.has("f1"))
 	assert(gdext_methods.has("f2"))
