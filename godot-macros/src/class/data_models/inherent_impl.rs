@@ -191,7 +191,7 @@ pub fn transform_inherent_impl(
         let result = quote! {
             #impl_block
             #fill_storage
-            impl #class_name{
+            impl #class_name {
                 #( #func_export_name_constants )*
             }
         };
