@@ -178,7 +178,7 @@ pub fn transform_inherent_impl(
             #trait_impl
             #fill_storage
             #class_registration
-            impl #class_name{
+            impl #class_name {
                 #( #func_export_name_constants )*
             }
         };
