@@ -390,3 +390,49 @@ func test_get_set():
 	assert_eq(obj.set_get, 1000)
 	assert(obj.is_set_called())
 	assert(obj.is_get_called())
+
+
+func test_RenamedFunc_shape():
+	# note: RenamedFunc is in property_test.rs
+	var obj: RenamedFunc = RenamedFunc.new()
+
+	# Get baseline Node properties and methods
+	var base_node = Node.new()
+	var node_props = base_node.get_property_list().map(func(p): return p.name)
+	var node_methods = base_node.get_method_list().map(func(m): return m.name)
+	base_node.free()
+	
+	# Get our object's properties and methods
+	var obj_props = obj.get_property_list().map(func(p): return p.name)
+	var obj_methods = obj.get_method_list().map(func(m): return m.name)
+	
+	# Get only the new properties and methods (not in Node)
+	var gdext_props = obj_props.filter(func(name): return not node_props.has(name))
+	var gdext_methods = obj_methods.filter(func(name): return not node_methods.has(name))
+	
+	# Assert counts
+	assert_eq(1, gdext_props.size())
+	assert_eq(2, gdext_methods.size())
+	
+	# Assert specific names
+	assert(gdext_props.has("int_val"))
+	assert(gdext_methods.has("f1"))
+	assert(gdext_methods.has("f2"))
+
+func test_RenamedFunc_get_set():
+	# note: RenamedFunc is in property_test.rs
+	var obj: RenamedFunc = RenamedFunc.new()
+
+	assert_eq(obj.int_val, 0)
+	assert_eq(obj.f1(), 0)
+
+	obj.int_val = 42;
+	
+	assert_eq(obj.int_val, 42)
+	assert_eq(obj.f1(), 42)
+
+	obj.f2(84)
+	
+	assert_eq(obj.int_val, 84)
+	assert_eq(obj.f1(), 84)
+

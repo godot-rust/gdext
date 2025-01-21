@@ -12,6 +12,7 @@ use crate::class::{
     into_signature_info, make_existence_check, make_method_registration, Field, FieldHint,
     FuncDefinition,
 };
+use crate::util::make_function_registered_name_constant;
 use crate::util::KvParser;
 use crate::{util, ParseResult};
 
@@ -200,10 +201,14 @@ impl GetterSetterImpl {
             }
         }
 
+        let constant_declaration =
+            make_function_registered_name_constant(class_name, &function_name, &None, &vec![]);
+
         let function_impl = quote! {
             pub #signature {
                 #function_body
             }
+            #constant_declaration
         };
 
         let signature = util::parse_signature(signature);
