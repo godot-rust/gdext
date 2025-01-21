@@ -396,28 +396,28 @@ func test_RenamedFunc_shape():
 	# note: RenamedFunc is in property_test.rs
 	var obj: RenamedFunc = RenamedFunc.new()
 
-	# Get only declared (non-inherited) properties
+	# Get all GDExtension registered properties
 	var properties = obj.get_property_list()
-	var declared_props = []
+	var gdext_props = []
 	for prop in properties:
-		if not prop.parent_type:
-			declared_props.append(prop.name)
+		if prop.usage == PROPERTY_USAGE_DEFAULT:  # GDExtension props have this usage
+			gdext_props.append(prop.name)
 	
-	# Get only declared (non-inherited) methods
+	# Get all GDExtension registered methods
 	var methods = obj.get_method_list()
-	var declared_methods = []
+	var gdext_methods = []
 	for method in methods:
-		if not method.parent_type:
-			declared_methods.append(method.name)
+		if method.flags == METHOD_FLAG_NORMAL:  # GDExtension methods have this flag
+			gdext_methods.append(method.name)
 	
-	# Assert exact number of properties and methods
-	assert_eq(declared_props.size(), 1)
-	assert_eq(declared_methods.size(), 2)
+	# Assert total number of GDExtension members
+	assert_eq(gdext_props.size(), 1)
+	assert_eq(gdext_methods.size(), 2)
 	
-	# Assert exact names of properties and methods
-	assert(declared_props.has("int_val"))
-	assert(declared_methods.has("f1"))
-	assert(declared_methods.has("f2"))
+	# Then check specific names as before
+	assert(gdext_props.has("int_val"))
+	assert(gdext_methods.has("f1"))
+	assert(gdext_methods.has("f2"))
 
 func test_RenamedFunc_get_set():
 	# note: RenamedFunc is in property_test.rs
@@ -433,9 +433,6 @@ func test_RenamedFunc_get_set():
 
 	obj.f2(84)
 	
-	assert_eq(obj.int_val, 42)
-	assert_eq(obj.f1(), 42)
+	assert_eq(obj.int_val, 84)
+	assert_eq(obj.f1(), 84)
 
-
-func test_is_it_getting_executed():
-	assert_eq(1, 0)
