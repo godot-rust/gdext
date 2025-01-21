@@ -30,10 +30,13 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         );
     }
 
+    let mut modifiers = Vec::new();
     let named_fields = named_fields(class)?;
     let mut struct_cfg = parse_struct_attributes(class)?;
     let mut fields = parse_fields(named_fields, struct_cfg.init_strategy)?;
-    let is_editor_plugin = struct_cfg.is_editor_plugin();
+    if struct_cfg.is_editor_plugin() {
+        modifiers.push(quote! { with_editor_plugin })
+    }
 
     let mut deprecations = std::mem::take(&mut struct_cfg.deprecations);
     deprecations.append(&mut fields.deprecations);
@@ -54,9 +57,9 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         quote! { ClassName::alloc_next_unicode(#class_name_str) }
     };
 
-    let class_name_obj = util::class_name_obj(class_name);
-
-    let is_internal = struct_cfg.is_internal;
+    if struct_cfg.is_internal {
+        modifiers.push(quote! { with_internal })
+    }
     let base_ty = &struct_cfg.base_ty;
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
     let docs = crate::docs::make_definition_docs(
@@ -67,7 +70,6 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
     let base_class = quote! { ::godot::classes::#base_ty };
-    let base_class_name_obj = util::class_name_obj(&base_class);
     let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", base_ty);
 
     let prv = quote! { ::godot::private };
@@ -98,18 +100,12 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
     let mut init_expecter = TokenStream::new();
     let mut godot_init_impl = TokenStream::new();
-    let mut create_fn = quote! { None };
-    let mut recreate_fn = quote! { None };
     let mut is_instantiable = true;
 
     match struct_cfg.init_strategy {
         InitStrategy::Generated => {
             godot_init_impl = make_godot_init_impl(class_name, &fields);
-            create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
-
-            if cfg!(since_api = "4.2") {
-                recreate_fn = quote! { Some(#prv::callbacks::recreate::<#class_name>) };
-            }
+            modifiers.push(quote! { with_generated::<#class_name> });
         }
         InitStrategy::UserDefined => {
             let fn_name = format_ident!("class_{}_must_have_an_init_method", class_name);
@@ -126,14 +122,17 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             is_instantiable = false;
         }
     };
+    if is_instantiable {
+        modifiers.push(quote! { with_instantiable });
+    }
 
-    let default_get_virtual_fn = if has_default_virtual {
-        quote! { Some(#prv::callbacks::default_get_virtual::<#class_name>) }
-    } else {
-        quote! { None }
-    };
+    if has_default_virtual {
+        modifiers.push(quote! { with_default_get_virtual_fn::<#class_name> });
+    }
 
-    let is_tool = struct_cfg.is_tool;
+    if struct_cfg.is_tool {
+        modifiers.push(quote! { with_tool })
+    }
 
     Ok(quote! {
         impl ::godot::obj::GodotClass for #class_name {
@@ -166,39 +165,11 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #( #deprecations )*
         #( #errors )*
 
-        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_obj,
-            item: #prv::PluginItem::Struct {
-                base_class_name: #base_class_name_obj,
-                generated_create_fn: #create_fn,
-                generated_recreate_fn: #recreate_fn,
-                register_properties_fn: #prv::ErasedRegisterFn {
-                    raw: #prv::callbacks::register_user_properties::<#class_name>,
-                },
-                free_fn: #prv::callbacks::free::<#class_name>,
-                default_get_virtual_fn: #default_get_virtual_fn,
-                is_tool: #is_tool,
-                is_editor_plugin: #is_editor_plugin,
-                is_internal: #is_internal,
-                is_instantiable: #is_instantiable,
-                #docs
-            },
-            init_level: {
-                let level = <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL;
-                let base_level = <#base_class as ::godot::obj::GodotClass>::INIT_LEVEL;
-
-                // Sanity check for init levels. Note that this does not cover cases where GodotClass is manually defined;
-                // might make sense to add a run-time check during class registration.
-                assert!(
-                    level >= base_level,
-                    "Class `{class}` has init level `{level:?}`, but its base class has init level `{base_level:?}`.\n\
-                    A class cannot be registered before its base class.",
-                    class = #class_name_str,
-                );
-
-                level
-            }
-        });
+        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin::new::<#class_name>(
+            #prv::PluginItem::Struct(
+                #prv::Struct::new::<#class_name>(#docs)#(.#modifiers())*
+            )
+        ));
 
         #prv::class_macros::#inherits_macro!(#class_name);
     })
