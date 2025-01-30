@@ -40,6 +40,14 @@ pub mod virtual_hashes;
 // - native_structures
 
 pub fn generate_sys_module_file(sys_gen_path: &Path, submit_fn: &mut SubmitFn) {
+    // Don't delegate #[cfg] to generated code; causes issues in release CI, reproducible with:
+    // cargo clippy --features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde
+    let virtual_hashes_mod = if cfg!(since_api = "4.4") {
+        quote! { pub mod virtual_hashes; }
+    } else {
+        quote! {}
+    };
+
     let code = quote! {
         pub mod table_builtins;
         pub mod table_builtins_lifecycle;
@@ -47,8 +55,7 @@ pub fn generate_sys_module_file(sys_gen_path: &Path, submit_fn: &mut SubmitFn) {
         pub mod table_scene_classes;
         pub mod table_editor_classes;
         pub mod table_utilities;
-        #[cfg(since_api = "4.4")]
-        pub mod virtual_hashes;
+        #virtual_hashes_mod
 
         pub mod central;
         pub mod gdextension_interface;
