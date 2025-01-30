@@ -59,7 +59,7 @@
 //!
 //! ## Cargo features
 //!
-//! The following features can be enabled for this crate. All off them are off by default.
+//! The following features can be enabled for this crate. All of them are off by default.
 //!
 //! Avoid `default-features = false` unless you know exactly what you are doing; it will disable some required internal features.
 //!
