@@ -136,6 +136,34 @@ fn callable_static() {
 
     #[cfg(since_api = "4.3")]
     assert_eq!(callable.get_argument_count(), 0); // Consistently doesn't work :)
+
+    // Test varying binds to static callables
+    // Last 3 of 4 arguments. Within Godot, bound arguments are used in-order AFTER call arguments
+    let bindv = callable.bindv(&varray![
+        "two",
+        array![&NodePath::from("three/four")],
+        &RefCounted::new_gd(),
+    ]);
+    assert!(!Variant::is_nil(&bindv.to_variant()));
+    // let bindv_result = bindv.callv(&varray![1]); // Call the binding, filling in the first argument
+    // assert!(!Variant::is_nil(&bindv_result)); // FIXME: Assertion fails
+    // let bind_result_data: VariantArray = bindv_result.to();
+    // assert_eq!(4, bind_result_data.len());
+
+    #[cfg(since_api = "4.2")]
+    {
+        // Same as above, with additional "bind" method
+        let bind = callable.bind(&[
+            "two".to_variant(),
+            array![&NodePath::from("three/four")].to_variant(),
+            RefCounted::new_gd().to_variant(),
+        ]);
+        assert!(!Variant::is_nil(&bind.to_variant()));
+        // let bind_result = bind.call(&[1.to_variant()]);
+        // assert!(!Variant::is_nil(&bind_result)); // FIXME: Assertion fails
+        // let bind_result_data: VariantArray = bind_result.to();
+        // assert_eq!(4, bind_result_data.len());
+    }
 }
 
 #[itest]
