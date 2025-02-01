@@ -41,7 +41,7 @@ pub fn attribute_godot_api(
         )?;
     }
 
-    if decl.self_ty.as_path().is_none() {
+    let Some(self_path) = decl.self_ty.as_path() else {
         return bail!(decl, "invalid Self type for #[godot_api] impl");
     };
 
@@ -57,7 +57,7 @@ pub fn attribute_godot_api(
         transform_trait_impl(decl)
     } else {
         match parse_inherent_impl_attr(meta) {
-            Ok(meta) => transform_inherent_impl(meta, decl),
+            Ok(meta) => transform_inherent_impl(meta, decl, self_path),
             Err(err) => Err(err),
         }
     }

@@ -482,3 +482,58 @@ fn override_export() {
 fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
     assert_eq!(property.get_or_nil(key), expected.to_variant());
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(base=Node, init)]
+struct RenamedFunc {
+    #[var(get = get_int_val, set = set_int_val)]
+    int_val: i32,
+}
+
+#[godot_api]
+impl RenamedFunc {
+    #[func(rename=f1)]
+    pub fn get_int_val(&self) -> i32 {
+        self.int_val
+    }
+
+    #[func(rename=f2)]
+    pub fn set_int_val(&mut self, val: i32) {
+        self.int_val = val;
+    }
+}
+
+#[itest]
+fn test_var_with_renamed_funcs() {
+    let mut obj = RenamedFunc::new_alloc();
+
+    assert_eq!(obj.bind().int_val, 0);
+    assert_eq!(obj.bind().get_int_val(), 0);
+    assert_eq!(obj.call("f1", &[]).to::<i32>(), 0);
+    assert_eq!(obj.get("int_val").to::<i32>(), 0);
+
+    obj.bind_mut().int_val = 42;
+
+    assert_eq!(obj.bind().int_val, 42);
+    assert_eq!(obj.bind().get_int_val(), 42);
+    assert_eq!(obj.call("f1", &[]).to::<i32>(), 42);
+    assert_eq!(obj.get("int_val").to::<i32>(), 42);
+
+    obj.call("f2", &[84.to_variant()]);
+
+    assert_eq!(obj.bind().int_val, 84);
+    assert_eq!(obj.bind().get_int_val(), 84);
+    assert_eq!(obj.call("f1", &[]).to::<i32>(), 84);
+    assert_eq!(obj.get("int_val").to::<i32>(), 84);
+
+    obj.set("int_val", &128.to_variant());
+
+    assert_eq!(obj.bind().int_val, 128);
+    assert_eq!(obj.bind().get_int_val(), 128);
+    assert_eq!(obj.call("f1", &[]).to::<i32>(), 128);
+    assert_eq!(obj.get("int_val").to::<i32>(), 128);
+
+    obj.free();
+}

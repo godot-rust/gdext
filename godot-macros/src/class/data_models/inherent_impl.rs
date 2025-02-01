@@ -10,7 +10,10 @@ use crate::class::{
     make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
     SignatureInfo, TransferMode,
 };
-use crate::util::{bail, c_str, ident, require_api_version, KvParser};
+use crate::util::{
+    bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
+    replace_class_in_path, require_api_version, KvParser,
+};
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
@@ -75,6 +78,7 @@ pub struct InherentImplAttr {
 pub fn transform_inherent_impl(
     meta: InherentImplAttr,
     mut impl_block: venial::Impl,
+    self_path: venial::Path,
 ) -> ParseResult<TokenStream> {
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
@@ -89,6 +93,15 @@ pub fn transform_inherent_impl(
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
 
+    // Container struct holding names of all registered #[func]s.
+    // The struct is declared by #[derive(GodotClass)].
+    let funcs_collection = {
+        let struct_name = format_funcs_collection_struct(&class_name);
+        replace_class_in_path(self_path, struct_name)
+    };
+
+    // For each #[func] in this impl block, create one constant.
+    let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
     let signal_registrations = make_signal_registrations(signals, &class_name_obj);
 
     #[cfg(feature = "codegen-full")]
@@ -164,6 +177,9 @@ pub fn transform_inherent_impl(
             #trait_impl
             #fill_storage
             #class_registration
+            impl #funcs_collection {
+                #( #func_name_constants )*
+            }
         };
 
         Ok(result)
@@ -174,6 +190,9 @@ pub fn transform_inherent_impl(
         let result = quote! {
             #impl_block
             #fill_storage
+            impl #funcs_collection {
+                #( #func_name_constants )*
+            }
         };
 
         Ok(result)
