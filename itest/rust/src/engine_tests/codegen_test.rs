@@ -151,7 +151,7 @@ macro_rules! make_interface_impl {
                 Self { base }
             }
 
-            fn process(&mut self, _: f64) {}
+            fn exit_tree(&mut self) {}
         }
     };
 }
@@ -170,3 +170,16 @@ macro_rules! make_user_api {
 make_class!(CodegenTest3, Node3D);
 make_interface_impl!(CodegenTest3, INode3D);
 make_user_api!(CodegenTest3, take_param, i32);
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Regression tests for ambiguous method calls: https://github.com/godot-rust/gdext/issues/858
+// Also references the above macro-generated class.
+
+#[allow(dead_code)]
+trait TraitA {
+    fn exit_tree(&mut self);
+}
+
+impl TraitA for CodegenTest3 {
+    fn exit_tree(&mut self) {}
+}
