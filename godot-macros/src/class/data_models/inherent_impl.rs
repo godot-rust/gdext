@@ -11,7 +11,7 @@ use crate::class::{
     SignatureInfo, TransferMode,
 };
 use crate::util::{
-    bail, c_str, error_fn, format_func_name_struct_name, ident, make_func_name_constants,
+    bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
     replace_class_in_path, require_api_version, KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
@@ -19,7 +19,6 @@ use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote};
-use venial::Path;
 
 /// Attribute for user-declared function.
 enum ItemAttrType {
@@ -79,6 +78,7 @@ pub struct InherentImplAttr {
 pub fn transform_inherent_impl(
     meta: InherentImplAttr,
     mut impl_block: venial::Impl,
+    self_path: venial::Path,
 ) -> ParseResult<TokenStream> {
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
@@ -93,19 +93,15 @@ pub fn transform_inherent_impl(
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
 
-    // This is the container struct that holds the names of all registered #[func]s.
-    // (The struct is declared by the macro derive_godot_class.)
-    let class_functions_name = format_func_name_struct_name(&class_name);
-    // As the impl block could be of the form "path::class", and we add a second impl block below, we need the full path, not just the class name.
-    let this_class_full_path = impl_block.self_ty.as_path().ok_or(error_fn(
-        "unexpected: the function already checked 'as_path' above in validate_impl",
-        &impl_block,
-    ))?;
-    let class_functions_path: Path =
-        replace_class_in_path(this_class_full_path, class_functions_name);
-    // For each #[func] in this impl block, we create one constant.
-    let func_name_constants = make_func_name_constants(&funcs, &class_name);
+    // Container struct holding names of all registered #[func]s.
+    // The struct is declared by #[derive(GodotClass)].
+    let funcs_collection = {
+        let struct_name = format_funcs_collection_struct(&class_name);
+        replace_class_in_path(self_path, struct_name)
+    };
 
+    // For each #[func] in this impl block, create one constant.
+    let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
     let signal_registrations = make_signal_registrations(signals, &class_name_obj);
 
     #[cfg(feature = "codegen-full")]
@@ -181,8 +177,8 @@ pub fn transform_inherent_impl(
             #trait_impl
             #fill_storage
             #class_registration
-            impl #class_functions_path {
-                #( #func_name_constants  )*
+            impl #funcs_collection {
+                #( #func_name_constants )*
             }
         };
 
@@ -194,8 +190,8 @@ pub fn transform_inherent_impl(
         let result = quote! {
             #impl_block
             #fill_storage
-            impl #class_functions_path {
-                #( #func_name_constants  )*
+            impl #funcs_collection {
+                #( #func_name_constants )*
             }
         };
 

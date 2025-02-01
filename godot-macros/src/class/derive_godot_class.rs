@@ -13,8 +13,8 @@ use crate::class::{
     FieldVar, Fields, SignatureInfo,
 };
 use crate::util::{
-    bail, error, format_func_name_struct_name, ident, path_ends_with_complex, require_api_version,
-    KvParser,
+    bail, error, format_funcs_collection_struct, ident, path_ends_with_complex,
+    require_api_version, KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
@@ -137,11 +137,12 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         modifiers.push(quote! { with_tool })
     }
 
-    // Declares a dummy struct that, for each #[func], holds a constant that maps the rust name to the name under which it is registered in godot.
-    let class_functions_name = format_func_name_struct_name(class_name);
-    let class_functions_struct = quote! {
+    // Declares a "funcs collection" struct that, for holds a constant for each #[func].
+    // That constant maps the Rust name (constant ident) to the Godot registered name (string value).
+    let funcs_collection_struct_name = format_funcs_collection_struct(class_name);
+    let funcs_collection_struct = quote! {
         #[doc(hidden)]
-        pub struct #class_functions_name { }
+        pub struct #funcs_collection_struct_name {}
     };
 
     Ok(quote! {
@@ -167,7 +168,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             type Exportable = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::Exportable;
         }
 
-        #class_functions_struct
+        #funcs_collection_struct
         #godot_init_impl
         #godot_withbase_impl
         #godot_exports_impl

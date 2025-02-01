@@ -12,7 +12,7 @@ use crate::class::{
     into_signature_info, make_existence_check, make_method_registration, Field, FieldHint,
     FuncDefinition,
 };
-use crate::util::make_func_name_constant;
+use crate::util::make_funcs_collection_constant;
 use crate::util::KvParser;
 use crate::{util, ParseResult};
 
@@ -167,7 +167,7 @@ pub struct GetterSetterImpl {
     pub function_name: Ident,
     pub function_impl: TokenStream,
     pub export_token: TokenStream,
-    pub func_name_const: TokenStream,
+    pub funcs_collection_constant: TokenStream,
 }
 
 impl GetterSetterImpl {
@@ -208,7 +208,8 @@ impl GetterSetterImpl {
             }
         };
 
-        let func_name_const = make_func_name_constant(class_name, &function_name, None, &[]);
+        let funcs_collection_constant =
+            make_funcs_collection_constant(class_name, &function_name, None, &[]);
 
         let signature = util::parse_signature(signature);
         let export_token = make_method_registration(
@@ -234,7 +235,7 @@ impl GetterSetterImpl {
             function_name,
             function_impl,
             export_token,
-            func_name_const,
+            funcs_collection_constant,
         }
     }
 
@@ -243,7 +244,7 @@ impl GetterSetterImpl {
             function_name: function_name.clone(),
             function_impl: TokenStream::new(),
             export_token: make_existence_check(function_name),
-            func_name_const: TokenStream::new(),
+            funcs_collection_constant: TokenStream::new(),
         }
     }
 }

@@ -392,10 +392,10 @@ func test_get_set():
 	assert(obj.is_get_called())
 
 
-# Validates the shape of the Class defined in Rust:
-#   In Rust we declared a single property (int_val) and two functions (f1 and f2).
-#   In addition, Godot defines a property with the name of the Class, which acts as the top-level category in the inspector.
-func test_RenamedFunc_shape():
+# Validates the shape of the class defined in Rust:
+# - Rust declares a single property (int_val) and two functions (f1 and f2).
+# - In addition, Godot defines a property with the name of the class, which acts as the top-level category in the inspector UI.
+func test_renamed_func_shape():
 	# Note: RenamedFunc is located in property_test.rs.
 	var obj: RenamedFunc = RenamedFunc.new()
 
@@ -412,18 +412,15 @@ func test_RenamedFunc_shape():
 	# Get only the new properties and methods (not in Node)
 	var gdext_props = obj_props.filter(func(name): return not node_props.has(name))
 	var gdext_methods = obj_methods.filter(func(name): return not node_methods.has(name))
-	
-	# Debug print to see what we found
-	#print("GDExt properties: ", gdext_props)
-	#print("GDExt methods: ", gdext_methods)
-	
+
 	# Assert counts
 	assert_eq(gdext_props.size(), 2, "number of properties should be 2")
 	assert_eq(gdext_methods.size(), 2, "number of methods should be 2")
 	
 	# Assert specific names
 	assert(gdext_props.has("int_val"), "should have a property named 'int_val'")
-	assert(gdext_props.has("RenamedFunc"), "should have a property named 'RenamedFunc'") # godot automatically adds a property of the class name
+	# Godot automatically adds a property of the class name (acts as the top-level category in the inspector UI).
+	assert(gdext_props.has("RenamedFunc"), "should have a property named 'RenamedFunc'")
 	assert(gdext_methods.has("f1"), "should have a method named 'f1'")
 	assert(gdext_methods.has("f2"), "should have a method named 'f2'")
 
@@ -431,7 +428,7 @@ func test_RenamedFunc_shape():
 
 
 # Validates that the property has been linked to the correct rust get/set functions.
-func test_RenamedFunc_get_set():
+func test_renamed_func_get_set():
 	# Note: RenamedFunc is located in property_test.rs.
 	var obj: RenamedFunc = RenamedFunc.new()
 
