@@ -8,29 +8,46 @@
 use std::ffi::c_void;
 
 use godot::builtin::{Array, Dictionary, GString, StringName, Variant, VariantType};
-use godot::classes::{IScriptExtension, Object, Script, ScriptExtension, ScriptLanguage};
+use godot::classes::{
+    IScriptExtension, IScriptLanguageExtension, Object, Script, ScriptExtension, ScriptLanguage,
+    ScriptLanguageExtension,
+};
 use godot::global::{Error, MethodFlags};
 use godot::meta::{ClassName, FromGodot, MethodInfo, PropertyInfo, ToGodot};
 use godot::obj::script::{create_script_instance, ScriptInstance, SiMut};
-use godot::obj::{Base, Gd, WithBaseField};
+use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
 
+use crate::framework::itest;
+
 #[derive(GodotClass)]
-#[class(base = ScriptExtension, init, tool)]
+#[class(base = ScriptExtension, no_init, tool)]
 struct TestScript {
+    language: Gd<TestScriptLanguage>,
     base: Base<ScriptExtension>,
+}
+
+impl TestScript {
+    fn new(language: Gd<TestScriptLanguage>) -> Gd<Self> {
+        Gd::from_init_fn(|base| Self { language, base })
+    }
 }
 
 #[rustfmt::skip]
 #[godot_api]
 impl IScriptExtension for TestScript {
+    
     fn can_instantiate(&self) -> bool {
         true
     }
 
     unsafe fn instance_create(&self, for_object: Gd<Object>) -> *mut c_void {
         create_script_instance(TestScriptInstance::new(self.to_gd().upcast()), for_object)
+    }
+
+    fn get_language(&self) -> Option<Gd<ScriptLanguage>> {
+        Some(self.language.clone().upcast())
     }
 
     fn editor_can_reload_from_file(&mut self) -> bool { unreachable!() }
@@ -51,7 +68,6 @@ impl IScriptExtension for TestScript {
     fn get_method_info(&self, _method: StringName) -> Dictionary { unreachable!() }
     fn is_tool(&self) -> bool { unreachable!() }
     fn is_valid(&self) -> bool { unreachable!() }
-    fn get_language(&self) -> Option<Gd<ScriptLanguage>> { unreachable!() }
     fn has_script_signal(&self, _signall: StringName) -> bool { unreachable!() }
     fn get_script_signal_list(&self) -> Array<Dictionary> { unreachable!() }
     fn has_property_default_value(&self, _property: StringName) -> bool { unreachable!() }
@@ -75,12 +91,18 @@ struct TestScriptInstance {
     prop_list: Vec<PropertyInfo>,
     method_list: Vec<MethodInfo>,
     script: Gd<Script>,
+    script_language: Gd<ScriptLanguage>,
 }
 
 impl TestScriptInstance {
-    fn new(script: Gd<Script>) -> Self {
+    fn new(script: Gd<TestScript>) -> Self {
         Self {
-            script,
+            script_language: {
+                let s = script.bind();
+
+                s.get_language().unwrap()
+            },
+            script: script.upcast(),
             script_property_b: false,
             prop_list: vec![PropertyInfo::new_var::<i64>("script_property_a")],
 
@@ -200,7 +222,7 @@ impl ScriptInstance for TestScriptInstance {
     }
 
     fn get_language(&self) -> Gd<ScriptLanguage> {
-        panic!("language is not implemented")
+        self.script_language.clone()
     }
 
     fn on_refcount_decremented(&self) -> bool {
@@ -221,4 +243,115 @@ impl ScriptInstance for TestScriptInstance {
     fn get_method_argument_count(&self, _method: StringName) -> Option<u32> {
         None
     }
+}
+
+#[derive(GodotClass)]
+#[class(base = ScriptLanguageExtension, tool, init)]
+struct TestScriptLanguage {
+    base: Base<ScriptLanguageExtension>,
+}
+
+#[godot_api]
+impl TestScriptLanguage {
+    // In a real implementation the script would be created by the engine via ScriptLanguageExtension::create_script(), via a
+    // ResourceFormatLoader or by creating a new instance of TestScript. Most likely the script language would be registered as an engine
+    // singleton to make it globally available.
+    #[func]
+    fn new_script(&self) -> Gd<TestScript> {
+        TestScript::new(self.to_gd().cast())
+    }
+}
+
+#[godot_api]
+#[rustfmt::skip]
+impl IScriptLanguageExtension for TestScriptLanguage {
+    fn get_name(&self) -> GString { unreachable!() }
+    fn init_ext(&mut self) { unreachable!() }
+    fn get_type(&self) -> GString { unreachable!() }
+    fn get_extension(&self) -> GString { unreachable!() }
+    fn finish(&mut self) { unreachable!() }
+    fn get_reserved_words(&self) -> godot::prelude::PackedStringArray { unreachable!() }
+    fn is_control_flow_keyword(&self, _keyword: GString) -> bool { unreachable!() }
+    fn get_comment_delimiters(&self) -> godot::prelude::PackedStringArray { unreachable!() }
+    fn get_string_delimiters(&self) -> godot::prelude::PackedStringArray { unreachable!() }
+    fn make_template(&self, _template: GString, _class_name: GString, _base_class_name: GString) -> Option<Gd<Script>> { unreachable!() }
+    fn get_built_in_templates(&self, _object: StringName) -> Array<Dictionary> { unreachable!() }
+    fn is_using_templates(&mut self) -> bool { unreachable!() }
+    fn validate(&self, _script: GString, _path: GString, _validate_functions: bool, _validate_errors: bool, _validate_warnings: bool, _validate_safe_lines: bool) -> Dictionary { unreachable!() }
+    fn validate_path(&self, _path: GString) -> GString { unreachable!() }
+    fn create_script(&self) -> Option<Gd<Object>> { unreachable!() }
+    fn has_named_classes(&self) -> bool { unreachable!() }
+    fn supports_builtin_mode(&self) -> bool { unreachable!() }
+    fn supports_documentation(&self) -> bool { unreachable!() }
+    fn can_inherit_from_file(&self) -> bool { unreachable!() }
+    fn find_function(&self, _class_name: GString, _function_namee: GString) -> i32 { unreachable!() }
+    fn make_function(&self, _class_name: GString, _function_name: GString, _function_args: godot::prelude::PackedStringArray) -> GString { unreachable!() }
+    fn open_in_external_editor(&mut self, _script: Option<Gd<Script>>, _line: i32, _column: i32) -> godot::global::Error { unreachable!() }
+    fn overrides_external_editor(&mut self) -> bool { unreachable!() }
+    fn complete_code(&self, _code: GString,_pathh: GString, _ownerer: Option<Gd<Object>>) -> Dictionary { unreachable!() }
+    fn lookup_code(&self, _code: GString, _symbol: GString, _path: GString, _owner: Option<Gd<Object>>) -> Dictionary { unreachable!() }
+    fn auto_indent_code(&self, _code: GString, _from_linee: i32, _to_line: i32) -> GString { unreachable!() }
+    fn add_global_constant(&mut self, _name: StringName,_valuee: Variant) { unreachable!() }
+    fn add_named_global_constant(&mut self, _name: StringName,_valuee: Variant) { unreachable!() }
+    fn remove_named_global_constant(&mut self, _name: StringName) { unreachable!() }
+    fn thread_enter(&mut self) { unreachable!() }
+    fn thread_exit(&mut self) { unreachable!() }
+    fn debug_get_error(&self) -> GString { unreachable!() }
+    fn debug_get_stack_level_count(&self) -> i32 { unreachable!() }
+    fn debug_get_stack_level_line(&self, _level: i32) -> i32 { unreachable!() }
+    fn debug_get_stack_level_function(&self, _level: i32) -> GString { unreachable!() }
+    fn debug_get_stack_level_locals(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> Dictionary { unreachable!() }
+    fn debug_get_stack_level_members(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> Dictionary { unreachable!() }
+    unsafe fn debug_get_stack_level_instance(&mut self, _level: i32) -> *mut c_void { unreachable!() }
+    fn debug_get_globals(&mut self, _max_subitems: i32,_max_depthh: i32) -> Dictionary { unreachable!() }
+    fn debug_parse_stack_level_expression(&mut self, _level: i32, _expression: GString, _max_subitems: i32, _max_depth: i32) -> GString { unreachable!() }
+    fn debug_get_current_stack_info(&mut self) -> Array<Dictionary> { unreachable!() }
+    fn reload_all_scripts(&mut self) { unreachable!() }
+    fn reload_tool_script(&mut self, _script: Option<Gd<Script>>,_soft_reloadd: bool) { unreachable!() }
+    fn get_recognized_extensions(&self) -> godot::prelude::PackedStringArray { unreachable!() }
+    fn get_public_functions(&self) -> Array<Dictionary> { unreachable!() }
+    fn get_public_constants(&self) -> Dictionary { unreachable!() }
+    fn get_public_annotations(&self) -> Array<Dictionary> { unreachable!() }
+    fn profiling_start(&mut self) { unreachable!() }
+    fn profiling_stop(&mut self) { unreachable!() }
+    unsafe fn profiling_get_accumulated_data(&mut self, _info_array: *mut godot::classes::native::ScriptLanguageExtensionProfilingInfo, _info_max: i32) -> i32 { unreachable!() }
+    unsafe fn profiling_get_frame_data(&mut self, _info_array: *mut godot::classes::native::ScriptLanguageExtensionProfilingInfo, _info_max: i32) -> i32 { unreachable!() }
+    fn frame(&mut self) { unreachable!() }
+    fn handles_global_class_type(&self, _type_: GString) -> bool { unreachable!() }
+    fn get_global_class_name(&self, _path: GString) -> Dictionary { unreachable!() }
+    #[cfg(since_api = "4.3")]
+    fn profiling_set_save_native_calls(&mut self, _enable: bool) { unreachable!() }
+    #[cfg(since_api = "4.3")]
+    fn debug_get_stack_level_source(&self, _level: i32) -> GString { unreachable!() }
+    #[cfg(since_api = "4.3")]
+    fn can_make_function(&self) -> bool { unreachable!() }
+    #[cfg(since_api = "4.3")]
+    fn preferred_file_name_casing(&self) -> godot::classes::script_language::ScriptNameCasing { unreachable!() }
+    #[cfg(since_api = "4.4")]
+    fn reload_scripts(&mut self, _scripts: Array<Variant>, _soft: bool) { unreachable!() }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Test Cases
+
+// Test that [`script_instance_exists`] returns true if a instance of a script exists for the given object.
+#[itest]
+#[cfg(since_api = "4.2")]
+fn script_instance_exists() {
+    let language = TestScriptLanguage::new_alloc();
+    let script = TestScript::new(language.clone());
+    let mut object = Object::new_alloc();
+
+    object.set_script(&script.to_variant());
+
+    let instance_exists = godot::obj::script::script_instance_exists(&object, &script);
+    assert!(instance_exists);
+
+    object.set_script(&Variant::nil());
+
+    let instance_exists = godot::obj::script::script_instance_exists(&object, &script);
+    assert!(!instance_exists);
+
+    object.free();
+    language.free();
 }
