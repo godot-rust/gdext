@@ -282,7 +282,16 @@ fn process_godot_fns(
                     );
                 }
                 if function.return_ty.is_some() {
-                    return attr.bail("return types in #[signal] are not supported", function);
+                    return bail!(
+                        &function.return_ty,
+                        "return types in #[signal] are not supported"
+                    );
+                }
+                if function.body.is_some() {
+                    return bail!(
+                        &function.body,
+                        "#[signal] must not have a body; declare the function with a semicolon"
+                    );
                 }
 
                 let external_attributes = function.attributes.clone();
