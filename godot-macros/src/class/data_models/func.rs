@@ -247,13 +247,18 @@ fn make_forwarding_closure(
                 TokenStream::new()
             } else {
                 match interface_trait {
+                    // impl ITrait for Class {...}
                     Some(interface_trait) => {
                         let instance_ref = match signature_info.receiver_type {
+                            ReceiverType::Ref => quote! { &instance },
                             ReceiverType::Mut => quote! { &mut instance },
-                            _ => quote! { &instance },
+                            _ => unreachable!("unexpected receiver type"), // checked above.
                         };
+
                         quote! { <#class_name as #interface_trait>::#method_name( #instance_ref, #(#params),* ) }
                     }
+
+                    // impl Class {...}
                     None => quote! { instance.#method_name( #(#params),* ) },
                 }
             };
