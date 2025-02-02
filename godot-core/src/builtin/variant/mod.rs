@@ -5,12 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::arg_into_ref;
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
 use crate::meta::error::ConvertError;
-use crate::meta::{ArrayElement, AsArg, FromGodot, ToGodot};
+use crate::meta::{arg_into_ref, ArrayElement, AsArg, FromGodot, ToGodot};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -229,6 +228,18 @@ impl Variant {
         // See Variant::is_zero(), roughly https://github.com/godotengine/godot/blob/master/core/variant/variant.cpp#L859.
 
         unsafe { interface_fn!(variant_booleanize)(self.var_sys()) != 0 }
+    }
+
+    /// Assuming that this is of type `OBJECT`, checks whether the object is dead.
+    ///
+    /// Does not check again that the variant has type `OBJECT`.
+    pub(crate) fn is_object_alive(&self) -> bool {
+        debug_assert_eq!(self.get_type(), VariantType::OBJECT);
+
+        crate::gen::utilities::is_instance_valid(self)
+
+        // In case there are ever problems with this approach, alternative implementation:
+        // self.stringify() != "<Freed Object>".into()
     }
 
     // Conversions from/to Godot C++ `Variant*` pointers
@@ -468,16 +479,18 @@ impl fmt::Display for Variant {
 
 impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Special case for arrays: avoids converting to VariantArray (the only Array type in VariantDispatch), which fails
-        // for typed arrays and causes a panic. This can cause an infinite loop with Debug, or abort.
-        // Can be removed if there's ever a "possibly typed" Array type (e.g. OutArray) in the library.
+        match self.get_type() {
+            // Special case for arrays: avoids converting to VariantArray (the only Array type in VariantDispatch),
+            // which fails for typed arrays and causes a panic. This can cause an infinite loop with Debug, or abort.
+            // Can be removed if there's ever a "possibly typed" Array type (e.g. OutArray) in the library.
+            VariantType::ARRAY => {
+                // SAFETY: type is checked, and only operation is print (out data flow, no covariant in access).
+                let array = unsafe { VariantArray::from_variant_unchecked(self) };
+                array.fmt(f)
+            }
 
-        if self.get_type() == VariantType::ARRAY {
-            // SAFETY: type is checked, and only operation is print (out data flow, no covariant in access).
-            let array = unsafe { VariantArray::from_variant_unchecked(self) };
-            array.fmt(f)
-        } else {
-            VariantDispatch::from_variant(self).fmt(f)
+            // VariantDispatch also includes dead objects via `FreedObject` enumerator, which maps to "<Freed Object>".
+            _ => VariantDispatch::from_variant(self).fmt(f),
         }
     }
 }
