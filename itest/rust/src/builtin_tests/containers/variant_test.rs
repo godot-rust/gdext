@@ -131,6 +131,35 @@ fn variant_bad_conversions() {
 }
 
 #[itest]
+fn variant_dead_object_conversions() {
+    let obj = Node::new_alloc();
+    let variant = obj.to_variant();
+
+    let result = variant.try_to::<Gd<Node>>();
+    let gd = result.expect("Variant::to() with live object should succeed");
+    assert_eq!(gd, obj);
+
+    obj.free();
+
+    // Verify Display + Debug impl.
+    assert_eq!(format!("{variant}"), "<Freed Object>");
+    assert_eq!(format!("{variant:?}"), "<Freed Object>");
+
+    // Variant::try_to().
+    let result = variant.try_to::<Gd<Node>>();
+    let err = result.expect_err("Variant::to() with dead object should fail");
+    assert_eq!(
+        err.to_string(),
+        "variant holds object which is no longer alive: <Freed Object>"
+    );
+
+    // Variant::to().
+    expect_panic("Variant::to() with dead object should panic", || {
+        let _: Gd<Node> = variant.to();
+    });
+}
+
+#[itest]
 fn variant_bad_conversion_error_message() {
     let variant = 123.to_variant();
 

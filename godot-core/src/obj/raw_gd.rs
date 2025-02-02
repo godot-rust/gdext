@@ -42,6 +42,8 @@ impl<T: GodotClass> RawGd<T> {
     /// Initializes this `RawGd<T>` from the object pointer as a **weak ref**, meaning it does not
     /// initialize/increment the reference counter.
     ///
+    /// If `obj` is null or the instance ID query behind the object returns 0, the returned `RawGd<T>` will have the null state.
+    ///
     /// # Safety
     ///
     /// `obj` must be a valid object pointer or a null pointer.
@@ -51,8 +53,12 @@ impl<T: GodotClass> RawGd<T> {
         } else {
             let raw_id = unsafe { interface_fn!(object_get_instance_id)(obj) };
 
-            let instance_id = InstanceId::try_from_u64(raw_id)
-                .expect("constructed RawGd weak pointer with instance ID 0");
+            // During Variant -> RawGd conversion, it can happen that the variant contains a dead object.
+            // It's not quite clear how Godot detects instance_id == 0 here though, since the Variant holds the object as bytes in an array,
+            // and there is no lookup performed.
+            let Some(instance_id) = InstanceId::try_from_u64(raw_id) else {
+                return Self::null();
+            };
 
             // TODO(bromeon): this should query dynamic type of object, which can be different from T (upcast, FromGodot, etc).
             // See comment in ObjectRtti.
@@ -577,17 +583,20 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         let raw = unsafe {
-            // TODO(#234) replace Gd::<Object> with Self when Godot stops allowing illegal conversions
-            // See https://github.com/godot-rust/gdext/issues/158
+            // Uses RawGd<Object> and not Self, because Godot still allows illegal conversions. We thus check with manual casting later on.
+            // See https://github.com/godot-rust/gdext/issues/158.
 
-            // TODO(uninit) - see if we can use from_sys_init()
-
-            // raw_object_init?
             RawGd::<classes::Object>::new_with_uninit(|self_ptr| {
                 let converter = sys::builtin_fn!(object_from_variant);
                 converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
             })
         };
+
+        // Explicitly handle case where object is dead. See RawGd::from_obj_sys_weak() for some edge cases and considerations.
+        if raw.is_null() {
+            // Passing `raw` is not useful, it would just print "null" for the value.
+            return Err(FromVariantError::DeadObject.into_error(variant.clone()));
+        }
 
         raw.with_inc_refcount().owned_cast().map_err(|raw| {
             FromVariantError::WrongClass {
@@ -672,6 +681,9 @@ impl<T: GodotClass> fmt::Debug for RawGd<T> {
 // Reusable functions, also shared with Gd, Variant, ObjectArg.
 
 /// Runs `init_fn` on the address of a pointer (initialized to null), then returns that pointer, possibly still null.
+///
+/// This relies on the fact that an object pointer takes up the same space as the FFI representation of an object (`OpaqueObject`).
+/// The pointer is thus used as an opaque handle, initialized by `init_fn`, so that it represents a valid Godot object afterwards.
 ///
 /// # Safety
 /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
