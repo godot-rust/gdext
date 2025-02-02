@@ -8,7 +8,7 @@
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
-use crate::meta::error::ConvertError;
+use crate::meta::error::{ConvertError, ErrorKind, FromVariantError};
 use crate::meta::{arg_into_ref, ArrayElement, AsArg, FromGodot, ToGodot};
 use godot_ffi as sys;
 use std::{fmt, ptr};
@@ -110,10 +110,47 @@ impl Variant {
     ///
     /// If the variant is not an object, returns `None`.
     ///
-    /// If the object is dead, the instance ID is still returned. Use [`Variant::try_to::<Gd<T>>()`][Self::try_to]
-    /// to retrieve only live objects.
-    #[cfg(since_api = "4.4")]
+    /// # Panics
+    /// If the variant holds an object and that object is dead.
+    ///
+    /// If you want to detect this case, use [`try_to::<Gd<...>>()`](Self::try_to). If you want to retrieve the previous instance ID of a
+    /// freed object for whatever reason, use [`object_id_unchecked()`][Self::object_id_unchecked]. This method is only available from
+    /// Godot 4.4 onwards.
     pub fn object_id(&self) -> Option<crate::obj::InstanceId> {
+        #[cfg(since_api = "4.4")]
+        {
+            assert!(
+                self.get_type() != VariantType::OBJECT || self.is_object_alive(),
+                "Variant::object_id(): object has been freed"
+            );
+            self.object_id_unchecked()
+        }
+
+        #[cfg(before_api = "4.4")]
+        {
+            match self.try_to::<crate::obj::Gd<crate::classes::Object>>() {
+                Ok(obj) => Some(obj.instance_id_unchecked()),
+                Err(c)
+                    if matches!(
+                        c.kind(),
+                        ErrorKind::FromVariant(FromVariantError::DeadObject)
+                    ) =>
+                {
+                    panic!("Variant::object_id(): object has been freed")
+                }
+                _ => None, // other conversion errors
+            }
+        }
+    }
+
+    /// For variants holding an object, returns the object's instance ID.
+    ///
+    /// If the variant is not an object, returns `None`.
+    ///
+    /// If the object is dead, the instance ID is still returned, similar to [`Gd::instance_id_unchecked()`][crate::obj::Gd::instance_id_unchecked].
+    /// Unless you have a very good reason to use this, we recommend using [`object_id()`][Self::object_id] instead.
+    #[cfg(since_api = "4.4")]
+    pub fn object_id_unchecked(&self) -> Option<crate::obj::InstanceId> {
         // SAFETY: safe to call for non-object variants (returns 0).
         let raw_id: u64 = unsafe { interface_fn!(variant_get_object_instance_id)(self.var_sys()) };
 
