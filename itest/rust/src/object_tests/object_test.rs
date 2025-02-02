@@ -536,6 +536,27 @@ fn object_engine_convert_variant_error() {
 }
 
 #[itest]
+fn object_convert_variant_option() {
+    let refc = RefCounted::new_gd();
+    let variant = refc.to_variant();
+
+    // Variant -> Option<Gd>.
+    let gd = Option::<Gd<RefCounted>>::from_variant(&variant);
+    assert_eq!(gd, Some(refc.clone()));
+
+    let nil = Variant::nil();
+    let gd = Option::<Gd<RefCounted>>::from_variant(&nil);
+    assert_eq!(gd, None);
+
+    // Option<Gd> -> Variant.
+    let back = Some(refc).to_variant();
+    assert_eq!(back, variant);
+
+    let back = None::<Gd<RefCounted>>.to_variant();
+    assert_eq!(back, Variant::nil());
+}
+
+#[itest]
 fn object_engine_returned_refcount() {
     let Some(file) = FileAccess::open("res://itest.gdextension", file_access::ModeFlags::READ)
     else {

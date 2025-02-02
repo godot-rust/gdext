@@ -147,7 +147,7 @@ fn variant_dead_object_conversions() {
 
     // Variant::try_to().
     let result = variant.try_to::<Gd<Node>>();
-    let err = result.expect_err("Variant::to() with dead object should fail");
+    let err = result.expect_err("Variant::try_to::<Gd>() with dead object should fail");
     assert_eq!(
         err.to_string(),
         "variant holds object which is no longer alive: <Freed Object>"
@@ -157,6 +157,15 @@ fn variant_dead_object_conversions() {
     expect_panic("Variant::to() with dead object should panic", || {
         let _: Gd<Node> = variant.to();
     });
+
+    // Variant::try_to() -> Option<Gd>.
+    // This conversion does *not* return `None` for dead objects, but an error. `None` is reserved for NIL variants, see object_test.rs.
+    let result = variant.try_to::<Option<Gd<Node>>>();
+    let err = result.expect_err("Variant::try_to::<Option<Gd>>() with dead object should fail");
+    assert_eq!(
+        err.to_string(),
+        "variant holds object which is no longer alive: <Freed Object>"
+    );
 }
 
 #[itest]
