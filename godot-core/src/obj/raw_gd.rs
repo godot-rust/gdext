@@ -53,12 +53,10 @@ impl<T: GodotClass> RawGd<T> {
         } else {
             let raw_id = unsafe { interface_fn!(object_get_instance_id)(obj) };
 
-            // During Variant -> RawGd conversion, it can happen that the variant contains a dead object.
-            // It's not quite clear how Godot detects instance_id == 0 here though, since the Variant holds the object as bytes in an array,
-            // and there is no lookup performed.
-            let Some(instance_id) = InstanceId::try_from_u64(raw_id) else {
-                return Self::null();
-            };
+            // This happened originally during Variant -> RawGd conversion, but at this point it's too late to detect, and UB has already
+            // occurred (the Variant holds the object pointer as bytes in an array, which becomes dangling the moment the actual object dies).
+            let instance_id = InstanceId::try_from_u64(raw_id)
+                .expect("null instance ID when constructing object; this very likely causes UB");
 
             // TODO(bromeon): this should query dynamic type of object, which can be different from T (upcast, FromGodot, etc).
             // See comment in ObjectRtti.
@@ -593,6 +591,12 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
             .into_error(variant.clone()));
         }
 
+        // Check for dead objects *before* converting. Godot doesn't care if the objects are still alive, and hitting
+        // RawGd::from_obj_sys_weak() is too late and causes UB.
+        if !variant.is_object_alive() {
+            return Err(FromVariantError::DeadObject.into_error(variant.clone()));
+        }
+
         let raw = unsafe {
             // Uses RawGd<Object> and not Self, because Godot still allows illegal conversions. We thus check with manual casting later on.
             // See https://github.com/godot-rust/gdext/issues/158.
@@ -602,12 +606,6 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
                 converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
             })
         };
-
-        // Explicitly handle case where object is dead. See RawGd::from_obj_sys_weak() for some edge cases and considerations.
-        if raw.is_null() {
-            // Passing `raw` is not useful, it would just print "null" for the value.
-            return Err(FromVariantError::DeadObject.into_error(variant.clone()));
-        }
 
         raw.with_inc_refcount().owned_cast().map_err(|raw| {
             FromVariantError::WrongClass {

@@ -232,20 +232,17 @@ impl Variant {
         unsafe { interface_fn!(variant_booleanize)(self.var_sys()) != 0 }
     }
 
-    /* If we need to detect dead objects in the future, this is an alternative to try_to().
+    /// Assuming that this is of type `OBJECT`, checks whether the object is dead.
+    ///
+    /// Does not check again that the variant has type `OBJECT`.
+    pub(crate) fn is_object_alive(&self) -> bool {
+        debug_assert_eq!(self.get_type(), VariantType::OBJECT);
 
-    /// # Panics
-    /// In Debug mode, if this variant holds an object that has been freed.
-    fn ensure_alive_if_object(&self) {
-        // There is no dedicated API, however to_string() returns a magic variant for dead objects.
-        // This may of course fail if a string repr matches this exactly, but it's very unlikely.
-        debug_assert_ne!(
-            self.to_string(),
-            "<Freed Object>",
-            "Variant holds pointer to a dead object; all operations on it are invalid"
-        )
+        crate::gen::utilities::is_instance_valid(self)
+
+        // In case there are ever problems with this approach, alternative implementation:
+        // self.stringify() != "<Freed Object>".into()
     }
-    */
 
     // Conversions from/to Godot C++ `Variant*` pointers
     ffi_methods! {
