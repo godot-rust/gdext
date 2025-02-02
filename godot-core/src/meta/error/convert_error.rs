@@ -91,6 +91,10 @@ impl ConvertError {
     pub fn into_erased(self) -> impl Error + Send + Sync {
         ErasedConvertError::from(self)
     }
+
+    pub(crate) fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
 }
 
 impl fmt::Display for ConvertError {

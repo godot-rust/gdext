@@ -239,7 +239,6 @@ fn variant_get_type() {
     assert_eq!(variant.get_type(), VariantType::BASIS)
 }
 
-#[cfg(since_api = "4.4")]
 #[itest]
 fn variant_object_id() {
     let variant = Variant::nil();
@@ -257,7 +256,30 @@ fn variant_object_id() {
     node.free();
 
     // When freed, variant still returns the object ID.
-    assert_eq!(variant.object_id(), Some(id));
+    expect_panic("Variant::object_id() with freed object", || {
+        let _ = variant.object_id();
+    });
+}
+
+#[itest]
+#[cfg(since_api = "4.4")]
+fn variant_object_id_unchecked() {
+    let variant = Variant::nil();
+    assert_eq!(variant.object_id_unchecked(), None);
+
+    let variant = Variant::from(77);
+    assert_eq!(variant.object_id_unchecked(), None);
+
+    let node = Node::new_alloc();
+    let id = node.instance_id();
+
+    let variant = node.to_variant();
+    assert_eq!(variant.object_id_unchecked(), Some(id));
+
+    node.free();
+
+    // When freed, unchecked function will still return old ID.
+    assert_eq!(variant.object_id_unchecked(), Some(id));
 }
 
 #[itest]
