@@ -8,10 +8,8 @@
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
-use crate::classes;
 use crate::meta::error::ConvertError;
 use crate::meta::{arg_into_ref, ArrayElement, AsArg, FromGodot, ToGodot};
-use crate::obj::Gd;
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -491,16 +489,7 @@ impl fmt::Debug for Variant {
                 array.fmt(f)
             }
 
-            // Explicitly handle dead objects, because VariantDispatch::from_variant() will call Variant::to::<Gd<Object>>(),
-            // which panics if the object is dead. This can cause infinite panic loops, if errors (during conversions) print the value.
-            // TODO make VariantDispatch support this.
-            VariantType::OBJECT => {
-                match self.try_to::<Gd<classes::Object>>() {
-                    Ok(obj) => obj.fmt(f),
-                    Err(_e) => write!(f, "<Freed Object>"), // do NOT print error due to recursion.
-                }
-            }
-
+            // VariantDispatch also includes dead objects via `FreedObject` enumerator, which maps to "<Freed Object>".
             _ => VariantDispatch::from_variant(self).fmt(f),
         }
     }
