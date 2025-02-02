@@ -5,12 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::arg_into_ref;
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
-use crate::meta::error::ConvertError;
-use crate::meta::{ArrayElement, AsArg, FromGodot, ToGodot};
+use crate::meta::error::{ConvertError, ErrorKind, FromVariantError};
+use crate::meta::{arg_into_ref, ArrayElement, AsArg, FromGodot, ToGodot};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -111,10 +110,47 @@ impl Variant {
     ///
     /// If the variant is not an object, returns `None`.
     ///
-    /// If the object is dead, the instance ID is still returned. Use [`Variant::try_to::<Gd<T>>()`][Self::try_to]
-    /// to retrieve only live objects.
-    #[cfg(since_api = "4.4")]
+    /// # Panics
+    /// If the variant holds an object and that object is dead.
+    ///
+    /// If you want to detect this case, use [`try_to::<Gd<...>>()`](Self::try_to). If you want to retrieve the previous instance ID of a
+    /// freed object for whatever reason, use [`object_id_unchecked()`][Self::object_id_unchecked]. This method is only available from
+    /// Godot 4.4 onwards.
     pub fn object_id(&self) -> Option<crate::obj::InstanceId> {
+        #[cfg(since_api = "4.4")]
+        {
+            assert!(
+                self.get_type() != VariantType::OBJECT || self.is_object_alive(),
+                "Variant::object_id(): object has been freed"
+            );
+            self.object_id_unchecked()
+        }
+
+        #[cfg(before_api = "4.4")]
+        {
+            match self.try_to::<crate::obj::Gd<crate::classes::Object>>() {
+                Ok(obj) => Some(obj.instance_id_unchecked()),
+                Err(c)
+                    if matches!(
+                        c.kind(),
+                        ErrorKind::FromVariant(FromVariantError::DeadObject)
+                    ) =>
+                {
+                    panic!("Variant::object_id(): object has been freed")
+                }
+                _ => None, // other conversion errors
+            }
+        }
+    }
+
+    /// For variants holding an object, returns the object's instance ID.
+    ///
+    /// If the variant is not an object, returns `None`.
+    ///
+    /// If the object is dead, the instance ID is still returned, similar to [`Gd::instance_id_unchecked()`][crate::obj::Gd::instance_id_unchecked].
+    /// Unless you have a very good reason to use this, we recommend using [`object_id()`][Self::object_id] instead.
+    #[cfg(since_api = "4.4")]
+    pub fn object_id_unchecked(&self) -> Option<crate::obj::InstanceId> {
         // SAFETY: safe to call for non-object variants (returns 0).
         let raw_id: u64 = unsafe { interface_fn!(variant_get_object_instance_id)(self.var_sys()) };
 
@@ -229,6 +265,18 @@ impl Variant {
         // See Variant::is_zero(), roughly https://github.com/godotengine/godot/blob/master/core/variant/variant.cpp#L859.
 
         unsafe { interface_fn!(variant_booleanize)(self.var_sys()) != 0 }
+    }
+
+    /// Assuming that this is of type `OBJECT`, checks whether the object is dead.
+    ///
+    /// Does not check again that the variant has type `OBJECT`.
+    pub(crate) fn is_object_alive(&self) -> bool {
+        debug_assert_eq!(self.get_type(), VariantType::OBJECT);
+
+        crate::gen::utilities::is_instance_valid(self)
+
+        // In case there are ever problems with this approach, alternative implementation:
+        // self.stringify() != "<Freed Object>".into()
     }
 
     // Conversions from/to Godot C++ `Variant*` pointers
@@ -468,16 +516,18 @@ impl fmt::Display for Variant {
 
 impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Special case for arrays: avoids converting to VariantArray (the only Array type in VariantDispatch), which fails
-        // for typed arrays and causes a panic. This can cause an infinite loop with Debug, or abort.
-        // Can be removed if there's ever a "possibly typed" Array type (e.g. OutArray) in the library.
+        match self.get_type() {
+            // Special case for arrays: avoids converting to VariantArray (the only Array type in VariantDispatch),
+            // which fails for typed arrays and causes a panic. This can cause an infinite loop with Debug, or abort.
+            // Can be removed if there's ever a "possibly typed" Array type (e.g. OutArray) in the library.
+            VariantType::ARRAY => {
+                // SAFETY: type is checked, and only operation is print (out data flow, no covariant in access).
+                let array = unsafe { VariantArray::from_variant_unchecked(self) };
+                array.fmt(f)
+            }
 
-        if self.get_type() == VariantType::ARRAY {
-            // SAFETY: type is checked, and only operation is print (out data flow, no covariant in access).
-            let array = unsafe { VariantArray::from_variant_unchecked(self) };
-            array.fmt(f)
-        } else {
-            VariantDispatch::from_variant(self).fmt(f)
+            // VariantDispatch also includes dead objects via `FreedObject` enumerator, which maps to "<Freed Object>".
+            _ => VariantDispatch::from_variant(self).fmt(f),
         }
     }
 }

@@ -25,13 +25,18 @@ use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
 use godot_cell::blocking::{GdCell, MutGuard, RefGuard};
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
-use crate::classes::{Script, ScriptLanguage};
+use crate::classes::{Object, Script, ScriptLanguage};
 use crate::meta::{MethodInfo, PropertyInfo};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
 
 #[cfg(before_api = "4.3")]
 use self::bounded_ptr_list::BoundedPtrList;
+
+#[cfg(since_api = "4.2")]
+use crate::classes::IScriptExtension;
+#[cfg(since_api = "4.2")]
+use crate::obj::Inherits;
 
 /// Implement custom scripts that can be attached to objects in Godot.
 ///
@@ -335,6 +340,40 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
             data_ptr as sys::GDExtensionScriptInstanceDataPtr,
         ) as *mut c_void
     }
+}
+
+/// Checks if an instance of the script exists for a given object.
+///
+/// This function both checks if the passed script matches the one currently assigned to the passed object, as well as verifies that
+/// there is an instance for the script.
+///
+/// Use this function to implement [`IScriptExtension::instance_has`](crate::classes::IScriptExtension::instance_has).
+#[cfg(since_api = "4.2")]
+pub fn script_instance_exists<O, S>(object: &Gd<O>, script: &Gd<S>) -> bool
+where
+    O: Inherits<Object>,
+    S: Inherits<Script> + IScriptExtension + super::Bounds<Declarer = super::bounds::DeclUser>,
+{
+    let object_script_variant = object.upcast_ref().get_script();
+
+    if object_script_variant.is_nil() {
+        return false;
+    }
+
+    let object_script: Gd<Script> = object_script_variant.to();
+
+    if object_script.upcast_ref::<Script>().__object_ptr() != script.upcast_ref().__object_ptr() {
+        return false;
+    }
+
+    let Some(language) = script.bind().get_language() else {
+        return false;
+    };
+
+    let get_instance_fn = sys::interface_fn!(object_get_script_instance);
+    let instance = unsafe { get_instance_fn(object.obj_sys(), language.obj_sys()) };
+
+    !instance.is_null()
 }
 
 /// Mutable/exclusive reference guard for a `T` where `T` implements [`ScriptInstance`].

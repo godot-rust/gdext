@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Parsing the `var` and `export` attributes on fields.
+//! Parses the `#[var]` and `#[export]` attributes on fields.
 
 use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetterImpl, UsageFlags};
+use crate::util::{format_funcs_collection_constant, format_funcs_collection_struct};
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
@@ -38,6 +39,7 @@ impl FieldHint {
 
 pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let mut getter_setter_impls = Vec::new();
+    let mut func_name_consts = Vec::new();
     let mut export_tokens = Vec::new();
 
     for field in &fields.all_fields {
@@ -134,31 +136,45 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             },
         };
 
-        let getter_name = make_getter_setter(
+        // Note: {getter,setter}_tokens can be either a path `Class_Functions::constant_name` or an empty string `""`.
+
+        let getter_tokens = make_getter_setter(
             getter.to_impl(class_name, GetSet::Get, field),
             &mut getter_setter_impls,
+            &mut func_name_consts,
             &mut export_tokens,
+            class_name,
         );
-        let setter_name = make_getter_setter(
+        let setter_tokens = make_getter_setter(
             setter.to_impl(class_name, GetSet::Set, field),
             &mut getter_setter_impls,
+            &mut func_name_consts,
             &mut export_tokens,
+            class_name,
         );
 
         export_tokens.push(quote! {
             ::godot::register::private::#registration_fn::<#class_name, #field_type>(
                 #field_name,
-                #getter_name,
-                #setter_name,
+                #getter_tokens,
+                #setter_tokens,
                 #hint,
                 #usage_flags,
             );
         });
     }
 
+    // For each generated #[func], add a const declaration.
+    // This is the name of the container struct, which is declared by #[derive(GodotClass)].
+    let class_functions_name = format_funcs_collection_struct(class_name);
+
     quote! {
         impl #class_name {
             #(#getter_setter_impls)*
+        }
+
+        impl #class_functions_name {
+            #(#func_name_consts)*
         }
 
         impl ::godot::obj::cap::ImplementsGodotExports for #class_name {
@@ -176,20 +192,22 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
 fn make_getter_setter(
     getter_setter_impl: Option<GetterSetterImpl>,
     getter_setter_impls: &mut Vec<TokenStream>,
+    func_name_consts: &mut Vec<TokenStream>,
     export_tokens: &mut Vec<TokenStream>,
-) -> String {
-    if let Some(getter_impl) = getter_setter_impl {
-        let GetterSetterImpl {
-            function_name,
-            function_impl,
-            export_token,
-        } = getter_impl;
+    class_name: &Ident,
+) -> TokenStream {
+    let Some(gs) = getter_setter_impl else {
+        return quote! { "" };
+    };
 
-        getter_setter_impls.push(function_impl);
-        export_tokens.push(export_token);
+    getter_setter_impls.push(gs.function_impl);
+    func_name_consts.push(gs.funcs_collection_constant);
+    export_tokens.push(gs.export_token);
 
-        function_name.to_string()
-    } else {
-        String::new()
-    }
+    // Getters/setters are, like #[func]s, subject to additional code generation: a constant inside a "funcs collection" struct
+    // stores their Godot name and can be used as an indirection to refer to their true name from other procedural macros.
+    let funcs_collection = format_funcs_collection_struct(class_name);
+    let constant = format_funcs_collection_constant(class_name, &gs.function_name);
+
+    quote! { #funcs_collection::#constant }
 }

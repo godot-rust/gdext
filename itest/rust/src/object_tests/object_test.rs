@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Needed for Clippy to accept #[cfg(all())]
+#![allow(clippy::non_minimal_cfg)]
+
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -530,6 +533,27 @@ fn object_engine_convert_variant_error() {
         err.to_string(),
         format!("cannot convert to class Area2D: {refc:?}")
     );
+}
+
+#[itest]
+fn object_convert_variant_option() {
+    let refc = RefCounted::new_gd();
+    let variant = refc.to_variant();
+
+    // Variant -> Option<Gd>.
+    let gd = Option::<Gd<RefCounted>>::from_variant(&variant);
+    assert_eq!(gd, Some(refc.clone()));
+
+    let nil = Variant::nil();
+    let gd = Option::<Gd<RefCounted>>::from_variant(&nil);
+    assert_eq!(gd, None);
+
+    // Option<Gd> -> Variant.
+    let back = Some(refc).to_variant();
+    assert_eq!(back, variant);
+
+    let back = None::<Gd<RefCounted>>.to_variant();
+    assert_eq!(back, Variant::nil());
 }
 
 #[itest]
@@ -1090,3 +1114,21 @@ fn double_use_reference() {
     double_use.free();
     emitter.free();
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Test that one class can be declared multiple times (using #[cfg]) without conflicts
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct MultipleStructsCfg {}
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+#[cfg(any())]
+struct MultipleStructsCfg {}
+
+#[cfg(any())]
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct MultipleStructsCfg {}

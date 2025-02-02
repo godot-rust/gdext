@@ -131,6 +131,44 @@ fn variant_bad_conversions() {
 }
 
 #[itest]
+fn variant_dead_object_conversions() {
+    let obj = Node::new_alloc();
+    let variant = obj.to_variant();
+
+    let result = variant.try_to::<Gd<Node>>();
+    let gd = result.expect("Variant::to() with live object should succeed");
+    assert_eq!(gd, obj);
+
+    obj.free();
+
+    // Verify Display + Debug impl.
+    assert_eq!(format!("{variant}"), "<Freed Object>");
+    assert_eq!(format!("{variant:?}"), "<Freed Object>");
+
+    // Variant::try_to().
+    let result = variant.try_to::<Gd<Node>>();
+    let err = result.expect_err("Variant::try_to::<Gd>() with dead object should fail");
+    assert_eq!(
+        err.to_string(),
+        "variant holds object which is no longer alive: <Freed Object>"
+    );
+
+    // Variant::to().
+    expect_panic("Variant::to() with dead object should panic", || {
+        let _: Gd<Node> = variant.to();
+    });
+
+    // Variant::try_to() -> Option<Gd>.
+    // This conversion does *not* return `None` for dead objects, but an error. `None` is reserved for NIL variants, see object_test.rs.
+    let result = variant.try_to::<Option<Gd<Node>>>();
+    let err = result.expect_err("Variant::try_to::<Option<Gd>>() with dead object should fail");
+    assert_eq!(
+        err.to_string(),
+        "variant holds object which is no longer alive: <Freed Object>"
+    );
+}
+
+#[itest]
 fn variant_bad_conversion_error_message() {
     let variant = 123.to_variant();
 
@@ -139,11 +177,10 @@ fn variant_bad_conversion_error_message() {
         .expect_err("i32 -> GString conversion should fail");
     assert_eq!(err.to_string(), "cannot convert from INT to STRING: 123");
 
-    // TODO this error isn't great, but unclear whether it can be improved. If not, document.
     let err = variant
         .try_to::<Gd<Node>>()
         .expect_err("i32 -> Gd<Node> conversion should fail");
-    assert_eq!(err.to_string(), "`Gd` cannot be null: null");
+    assert_eq!(err.to_string(), "cannot convert from INT to OBJECT: 123");
 }
 
 #[itest]
@@ -202,7 +239,6 @@ fn variant_get_type() {
     assert_eq!(variant.get_type(), VariantType::BASIS)
 }
 
-#[cfg(since_api = "4.4")]
 #[itest]
 fn variant_object_id() {
     let variant = Variant::nil();
@@ -220,7 +256,30 @@ fn variant_object_id() {
     node.free();
 
     // When freed, variant still returns the object ID.
-    assert_eq!(variant.object_id(), Some(id));
+    expect_panic("Variant::object_id() with freed object", || {
+        let _ = variant.object_id();
+    });
+}
+
+#[itest]
+#[cfg(since_api = "4.4")]
+fn variant_object_id_unchecked() {
+    let variant = Variant::nil();
+    assert_eq!(variant.object_id_unchecked(), None);
+
+    let variant = Variant::from(77);
+    assert_eq!(variant.object_id_unchecked(), None);
+
+    let node = Node::new_alloc();
+    let id = node.instance_id();
+
+    let variant = node.to_variant();
+    assert_eq!(variant.object_id_unchecked(), Some(id));
+
+    node.free();
+
+    // When freed, unchecked function will still return old ID.
+    assert_eq!(variant.object_id_unchecked(), Some(id));
 }
 
 #[itest]

@@ -12,6 +12,13 @@ use godot::prelude::*;
 
 /// *documented* ~ **documented** ~ [AABB] < [pr](https://github.com/godot-rust/gdext/pull/748)
 ///
+/// This is a paragraph. It has some text in it. It's a paragraph. It's quite
+/// long, and wraps multiple lines. It is describing the struct `Player`. Or
+/// maybe perhaps it's describing the module. It's hard to say, really. It even
+/// has some code in it: `let x = 5;`. And some more code: `let y = 6;`. And a
+/// bunch of **bold** and *italic* text with _different_ ways to do it. Don't
+/// forget about [links](https://example.com).
+///
 /// a few tests:
 ///
 /// headings:
@@ -22,17 +29,35 @@ use godot::prelude::*;
 ///
 /// - lists
 /// - like this
+///   - with sublists  
+///     that are multiline
+///     - and subsublists
+/// - and list items
 /// * maybe with `*` as well
+///
+/// [reference-style link][somelink]
 ///
 /// links with back-references:
 ///
-/// Blah blah [^foo]
+/// Blah blah[^foo] Also same reference[^foo]
 /// [^foo]: https://example.org
 ///
 /// footnotes:
 ///
 /// We cannot florbinate the glorb[^florb]
 /// [^florb]: because the glorb doesn't flibble.
+///
+/// Third note in order of use[^1] and fourth [^bignote]
+///
+/// [^1]: This is the third footnote in order of definition.
+/// [^bignote]: Fourth footnote in order of definition.
+/// [^biggernote]: This is the fifth footnote in order of definition.
+///
+/// Fifth note in order of use. [^someothernote]
+///
+/// [^someothernote]: sixth footnote in order of definition.
+///
+/// Sixth footnote in order of use. [^biggernote]
 ///
 /// task lists:
 ///
@@ -48,7 +73,9 @@ use godot::prelude::*;
 ///
 /// images:
 ///
-/// ![Image](http://url/a.png)
+/// ![Image](https://godotengine.org/assets/press/logo_small_color_light.png)
+///
+/// ![Image][image]
 ///
 /// blockquotes:
 ///
@@ -58,6 +85,9 @@ use godot::prelude::*;
 ///
 /// 1. thing one
 /// 2. thing two
+///     1. thing two point one
+///     2. thing two point two
+///     3. thing two point three
 ///
 ///
 /// Something here < this is technically header syntax
@@ -73,6 +103,23 @@ use godot::prelude::*;
 /// #[link_section=".text"]
 /// #[no_mangle]
 /// static main: u64 = 0x31c0678b10;
+/// ```
+///
+/// ```gdscript
+/// extends Node
+///
+/// func _ready():
+///    print("Hello, world!")
+/// ```
+///
+/// ```csharp
+/// using Godot;
+///
+/// public class Player : Node2D
+/// {
+///     [Export]
+///     public float Speed = 400.0f;
+/// }
 /// ```
 ///
 /// Some HTML to make sure it's properly escaped:
@@ -93,6 +140,9 @@ use godot::prelude::*;
 ///
 /// connect
 /// these
+///
+/// [somelink]: https://example.com
+/// [image]: https://godotengine.org/assets/press/logo_small_color_dark.png
 #[derive(GodotClass)]
 #[class(base=Node)]
 pub struct FairlyDocumented {

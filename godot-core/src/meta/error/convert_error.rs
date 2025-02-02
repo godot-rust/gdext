@@ -5,10 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi::VariantType;
 use std::error::Error;
 use std::fmt;
-
-use godot_ffi::VariantType;
 
 use crate::builtin::Variant;
 use crate::meta::{ArrayTypeInfo, ClassName, ToGodot};
@@ -34,6 +33,11 @@ impl ConvertError {
             ..Default::default()
         }
     }
+
+    // /// Create a new custom error for a conversion with the value that failed to convert.
+    // pub(crate) fn with_kind(kind: ErrorKind) -> Self {
+    //     Self { kind, value: None }
+    // }
 
     /// Create a new custom error for a conversion with the value that failed to convert.
     pub(crate) fn with_kind_value<V>(kind: ErrorKind, value: V) -> Self
@@ -86,6 +90,10 @@ impl ConvertError {
     /// Do note that some data might get lost during conversion.
     pub fn into_erased(self) -> impl Error + Send + Sync {
         ErasedConvertError::from(self)
+    }
+
+    pub(crate) fn kind(&self) -> &ErrorKind {
+        &self.kind
     }
 }
 
@@ -323,6 +331,9 @@ pub(crate) enum FromVariantError {
     WrongClass {
         expected: ClassName,
     },
+
+    /// Variant holds an object which is no longer alive.
+    DeadObject,
 }
 
 impl FromVariantError {
@@ -345,6 +356,7 @@ impl fmt::Display for FromVariantError {
             Self::WrongClass { expected } => {
                 write!(f, "cannot convert to class {expected}")
             }
+            Self::DeadObject => write!(f, "variant holds object which is no longer alive"),
         }
     }
 }

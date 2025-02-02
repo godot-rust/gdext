@@ -10,7 +10,10 @@ use crate::class::{
     make_method_registration, make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr,
     RpcMode, SignalDefinition, SignatureInfo, TransferMode,
 };
-use crate::util::{bail, c_str, ident, require_api_version, KvParser};
+use crate::util::{
+    bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
+    replace_class_in_path, require_api_version, KvParser,
+};
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
@@ -80,6 +83,7 @@ pub struct InherentImplAttr {
 pub fn transform_inherent_impl(
     meta: InherentImplAttr,
     mut impl_block: venial::Impl,
+    self_path: venial::Path,
 ) -> ParseResult<TokenStream> {
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
@@ -94,6 +98,15 @@ pub fn transform_inherent_impl(
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
 
+    // Container struct holding names of all registered #[func]s.
+    // The struct is declared by #[derive(GodotClass)].
+    let funcs_collection = {
+        let struct_name = format_funcs_collection_struct(&class_name);
+        replace_class_in_path(self_path, struct_name)
+    };
+
+    // For each #[func] in this impl block, create one constant.
+    let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
     let (signal_registrations, signals_collection_struct) =
         make_signal_registrations(&signals, &class_name, &class_name_obj)?;
 
@@ -104,13 +117,14 @@ pub fn transform_inherent_impl(
 
     // If at least one #[signal] is present, generate both signals() + funcs() and their types.
     // Do not generate otherwise, to save on compile time + scope pollution.
-    let func_collection_struct = signals_collection_struct
+    // TODO remove this.
+    let _func_collection_struct = signals_collection_struct
         .as_ref()
         .map(|_| make_func_collection(&class_name, &funcs));
 
     let method_registrations: Vec<TokenStream> = funcs
         .into_iter()
-        .map(|func_def| make_method_registration(&class_name, func_def))
+        .map(|func_def| make_method_registration(&class_name, func_def, None))
         .collect::<ParseResult<Vec<TokenStream>>>()?;
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
@@ -165,19 +179,9 @@ pub fn transform_inherent_impl(
         };
 
         let class_registration = quote! {
-            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-                class_name: #class_name_obj,
-                item: #prv::PluginItem::InherentImpl(#prv::InherentImpl {
-                    register_methods_constants_fn: #prv::ErasedRegisterFn {
-                        raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
-                    },
-                    register_rpcs_fn: Some(#prv::ErasedRegisterRpcsFn {
-                        raw: #prv::callbacks::register_user_rpcs::<#class_name>,
-                    }),
-                    #docs
-                }),
-                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
-            });
+            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin::new::<#class_name>(
+                #prv::PluginItem::InherentImpl(#prv::InherentImpl::new::<#class_name>(#docs))
+            ));
         };
 
         let result = quote! {
@@ -186,7 +190,9 @@ pub fn transform_inherent_impl(
             #trait_impl
             #fill_storage
             #class_registration
-            #func_collection_struct
+            impl #funcs_collection {
+                #( #func_name_constants )*
+            }
             #signals_collection_struct
         };
 
@@ -198,6 +204,9 @@ pub fn transform_inherent_impl(
         let result = quote! {
             #impl_block
             #fill_storage
+            impl #funcs_collection {
+                #( #func_name_constants )*
+            }
         };
 
         Ok(result)
@@ -304,8 +313,18 @@ fn process_godot_fns(
                         "#[signal] is currently not supported in secondary impl blocks",
                         function,
                     );
-                } else if function.return_ty.is_some() {
-                    return attr.bail("return types in #[signal] are not supported", function);
+                }
+                if function.return_ty.is_some() {
+                    return bail!(
+                        &function.return_ty,
+                        "return types in #[signal] are not supported"
+                    );
+                }
+                if function.body.is_some() {
+                    return bail!(
+                        &function.body,
+                        "#[signal] must not have a body; declare the function with a semicolon"
+                    );
                 }
 
                 let external_attributes = function.attributes.clone();

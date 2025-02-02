@@ -71,17 +71,21 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
         #variant_type_traits
 
         #[allow(dead_code)]
+        // Exhaustive, because only new Godot minor versions add new variants, which need either godot-rust minor bump or `api-*` feature.
         pub enum VariantDispatch {
             Nil,
             #(
                 #variant_ty_enumerators_pascal(#variant_ty_enumerators_rust),
             )*
+            /// Special case of a `Variant` holding an object that has been destroyed.
+            FreedObject,
         }
 
         impl VariantDispatch {
             pub fn from_variant(variant: &Variant) -> Self {
                 match variant.get_type() {
                     VariantType::NIL => Self::Nil,
+                    VariantType::OBJECT if !variant.is_object_alive() => Self::FreedObject,
                     #(
                         VariantType::#variant_ty_enumerators_shout
                             => Self::#variant_ty_enumerators_pascal(variant.to::<#variant_ty_enumerators_rust>()),
@@ -100,6 +104,7 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
                     #(
                         Self::#variant_ty_enumerators_pascal(v) => write!(f, "{v:?}"),
                     )*
+                    Self::FreedObject => write!(f, "<Freed Object>"),
                 }
             }
         }
