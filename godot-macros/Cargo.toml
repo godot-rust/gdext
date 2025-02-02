@@ -12,7 +12,7 @@ homepage = "https://godot-rust.github.io"
 
 [features]
 api-custom = ["godot-bindings/api-custom"]
-register-docs = ["dep:markdown"]
+register-docs = ["dep:markdown", "dep:litrs"]
 codegen-full = ["godot/__codegen-full"]
 
 [lib]
@@ -24,6 +24,7 @@ proc-macro2 = "1.0.80" # Literal::c_string() added in 1.0.80.
 quote = "1.0.29"
 # Enabled by `docs`.
 markdown = { version = "=1.0.0-alpha.21", optional = true }
+litrs = { version = "0.4.1", optional = true }
 # Requires bugfixes from 0.6.1.
 venial = "0.6.1"
 

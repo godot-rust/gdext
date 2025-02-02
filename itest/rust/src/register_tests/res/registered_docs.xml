@@ -2,12 +2,12 @@
 <class name="FairlyDocumented" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 <brief_description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] &lt; [url=https://github.com/godot-rust/gdext/pull/748]pr[/url]</brief_description>
 <description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] &lt; [url=https://github.com/godot-rust/gdext/pull/748]pr[/url][br][br]This is a paragraph. It has some text in it. It&#39;s a paragraph. It&#39;s quite long, and wraps multiple lines. It is describing the struct [code]Player[/code]. Or maybe perhaps it&#39;s describing the module. It&#39;s hard to say, really. It even has some code in it: [code]let x = 5;[/code]. And some more code: [code]let y = 6;[/code]. And a bunch of [b]bold[/b] and [i]italic[/i] text with [i]different[/i] ways to do it. Don&#39;t forget about [url=https://example.com]links[/url].[br][br]a few tests:[br][br]headings:[br][br][b]Some heading[/b][br][br]lists:[br][br]• lists[br]• like this[br]    • with sublists[br]        that are multiline[br]        • and subsublists[br]• and list items[br][br]• maybe with [code]*[/code] as well[br][br][url=https://example.com]reference-style link[/url][br][br]links with back-references:[br][br]Blah blah¹ Also same reference¹[br][br]footnotes:[br][br]We cannot florbinate the glorb²[br][br]Third note in order of use³ and fourth ⁴[br][br]Fifth note in order of use. ⁶[br][br]Sixth footnote in order of use. ⁵[br][br]task lists:[br][br]We must ensure that we&#39;ve completed[br][br]• [ ] task 1[br]• [x] task 2[br][br]tables:[br][br]Header1 | Header2[br]abc | def[br][br]images:[br][br][url=https://godotengine.org/assets/press/logo_small_color_light.png]https://godotengine.org/assets/press/logo_small_color_light.png[/url][br][br][url=https://godotengine.org/assets/press/logo_small_color_dark.png]https://godotengine.org/assets/press/logo_small_color_dark.png[/url][br][br]blockquotes:[br][br]&gt; Some cool thing[br][br]ordered list:[br][br]1. thing one[br]2. thing two[br]    1. thing two point one[br]    2. thing two point two[br]    3. thing two point three[br][br][b]Something here &lt; this is technically header syntax[/b][br][br]And here[br][br]smart punctuation[br][br]codeblocks:[br][br][codeblock lang=rust]#![no_main]
-#[link_section=\&quot;.text\&quot;]
+#[link_section=&quot;.text&quot;]
 #[no_mangle]
 static main: u64 = 0x31c0678b10;[/codeblock][br][br][codeblock lang=gdscript]extends Node
 
 func _ready():
-   print(\&quot;Hello, world!\&quot;)[/codeblock][br][br][codeblock lang=csharp]using Godot;
+   print(&quot;Hello, world!&quot;)[/codeblock][br][br][codeblock lang=csharp]using Godot;
 
 public class Player : Node2D
 {
