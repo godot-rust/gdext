@@ -168,11 +168,10 @@ fn variant_bad_conversion_error_message() {
         .expect_err("i32 -> GString conversion should fail");
     assert_eq!(err.to_string(), "cannot convert from INT to STRING: 123");
 
-    // TODO this error isn't great, but unclear whether it can be improved. If not, document.
     let err = variant
         .try_to::<Gd<Node>>()
         .expect_err("i32 -> Gd<Node> conversion should fail");
-    assert_eq!(err.to_string(), "`Gd` cannot be null: null");
+    assert_eq!(err.to_string(), "cannot convert from INT to OBJECT: 123");
 }
 
 #[itest]

@@ -10,7 +10,7 @@ use std::{fmt, ptr};
 use godot_ffi as sys;
 use sys::{interface_fn, GodotFfi, GodotNullableFfi, PtrcallType};
 
-use crate::builtin::Variant;
+use crate::builtin::{Variant, VariantType};
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
     CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot,
@@ -582,6 +582,17 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
     }
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        let variant_type = variant.get_type();
+
+        // Explicit type check before calling `object_from_variant`, to allow for better error messages.
+        if variant_type != VariantType::OBJECT {
+            return Err(FromVariantError::BadType {
+                expected: VariantType::OBJECT,
+                actual: variant_type,
+            }
+            .into_error(variant.clone()));
+        }
+
         let raw = unsafe {
             // Uses RawGd<Object> and not Self, because Godot still allows illegal conversions. We thus check with manual casting later on.
             // See https://github.com/godot-rust/gdext/issues/158.
