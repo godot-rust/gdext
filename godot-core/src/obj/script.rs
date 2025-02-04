@@ -360,9 +360,10 @@ where
         return false;
     }
 
-    let object_script: Gd<Script> = object_script_variant.to();
-
-    if object_script.upcast_ref::<Script>().__object_ptr() != script.upcast_ref().__object_ptr() {
+    if object_script_variant
+        .object_id()
+        .map_or(true, |instance_id| instance_id != script.instance_id())
+    {
         return false;
     }
 
@@ -371,6 +372,8 @@ where
     };
 
     let get_instance_fn = sys::interface_fn!(object_get_script_instance);
+
+    // SAFETY: Object and language are alive and their sys pointers are valid.
     let instance = unsafe { get_instance_fn(object.obj_sys(), language.obj_sys()) };
 
     !instance.is_null()
