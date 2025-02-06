@@ -254,12 +254,16 @@ fn format_panic_message(location: Option<&std::panic::Location<'_>>, mut msg: St
 
 pub fn set_gdext_hook(godot_print: impl 'static + Send + Sync + Fn() -> bool) {
     std::panic::set_hook(Box::new(move |panic_info| {
+        // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
+        flush_stdout();
+
         let message = extract_panic_message(panic_info.payload());
         let message = format_panic_message(panic_info.location(), message);
         if godot_print() {
             godot_error!("{message}");
         }
         eprintln!("{message}");
+        std::io::Write::flush(&mut std::io::stderr()).expect("flush stderr")
     }));
 }
 
