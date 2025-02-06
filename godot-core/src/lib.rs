@@ -30,8 +30,8 @@ pub mod registry;
 pub mod tools;
 
 mod storage;
+pub use crate::private::{get_gdext_panic_context, set_gdext_hook};
 pub use godot_ffi as sys;
-pub use crate::private::{set_gdext_hook, get_gdext_panic_context};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Validations (see also godot/lib.rs)

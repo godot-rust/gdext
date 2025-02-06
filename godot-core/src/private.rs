@@ -236,7 +236,12 @@ fn format_panic_message(location: Option<&std::panic::Location<'_>>, mut msg: St
     }
 
     let prefix = if let Some(location) = location {
-        format!("{}:{}:{}", location.file(), location.line(), location.column())
+        format!(
+            "{}:{}:{}",
+            location.file(),
+            location.line(),
+            location.column()
+        )
     } else {
         "panic".to_owned()
     };
@@ -290,7 +295,7 @@ impl ContextMessage<'_> {
                 let str = function();
                 *self = ContextMessage::String(str.to_owned());
                 str
-            },
+            }
         }
     }
 }
@@ -314,7 +319,9 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    unsafe fn transmute_lifetime<'a, 'b>(value: &'a dyn Fn() -> String) -> &'static dyn Fn() -> String {
+    unsafe fn transmute_lifetime<'a, 'b>(
+        value: &'a dyn Fn() -> String,
+    ) -> &'static dyn Fn() -> String {
         std::mem::transmute(value)
     }
 
@@ -329,9 +336,14 @@ where
     let _drop_guard = DropGuard;
 
     // SAFETY: value is kept on thread-local value, which will never extend past function
-    let error_context_static: &'static dyn Fn() -> String = unsafe { transmute_lifetime(&error_context) };
-    ERROR_CONTEXT.with(|cell| cell.borrow_mut().push(ContextMessage::Function(error_context_static)));
-    return std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()));
+    let error_context_static: &'static dyn Fn() -> String =
+        unsafe { transmute_lifetime(&error_context) };
+    ERROR_CONTEXT.with(|cell| {
+        cell.borrow_mut()
+            .push(ContextMessage::Function(error_context_static))
+    });
+    return std::panic::catch_unwind(code)
+        .map_err(|payload| extract_panic_message(payload.as_ref()));
 }
 
 // TODO(bromeon): make call_ctx lazy-evaluated (like error_ctx) everywhere;
@@ -343,7 +355,8 @@ pub fn handle_varcall_panic<F, R>(
 ) where
     F: FnOnce() -> Result<R, CallError> + std::panic::UnwindSafe,
 {
-    let outcome: Result<Result<R, CallError>, String> = handle_panic(|| format!("{call_ctx}"), code);
+    let outcome: Result<Result<R, CallError>, String> =
+        handle_panic(|| format!("{call_ctx}"), code);
 
     let call_error = match outcome {
         // All good.
