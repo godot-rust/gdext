@@ -301,11 +301,13 @@ impl ContextMessage<'_> {
 }
 
 thread_local! {
-    static ERROR_CONTEXT: std::cell::RefCell<Vec<ContextMessage<'static>>> = std::cell::RefCell::new(Vec::new());
+    static ERROR_CONTEXT: std::cell::RefCell<Vec<ContextMessage<'static>>> = const {
+        std::cell::RefCell::new(Vec::new())
+    };
 }
 
 pub fn get_gdext_panic_context() -> Option<String> {
-    return ERROR_CONTEXT.with(|vec| vec.borrow_mut().last_mut().map(ContextMessage::get_string));
+    ERROR_CONTEXT.with(|vec| vec.borrow_mut().last_mut().map(ContextMessage::get_string))
 }
 
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
@@ -319,9 +321,7 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    unsafe fn transmute_lifetime<'a, 'b>(
-        value: &'a dyn Fn() -> String,
-    ) -> &'static dyn Fn() -> String {
+    unsafe fn transmute_lifetime(value: &dyn Fn() -> String) -> &'static dyn Fn() -> String {
         std::mem::transmute(value)
     }
 
@@ -342,8 +342,7 @@ where
         cell.borrow_mut()
             .push(ContextMessage::Function(error_context_static))
     });
-    return std::panic::catch_unwind(code)
-        .map_err(|payload| extract_panic_message(payload.as_ref()));
+    std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()))
 }
 
 // TODO(bromeon): make call_ctx lazy-evaluated (like error_ctx) everywhere;
