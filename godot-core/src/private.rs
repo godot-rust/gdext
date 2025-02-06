@@ -23,7 +23,6 @@ use crate::meta::error::CallError;
 use crate::meta::CallContext;
 use crate::sys;
 use std::sync::atomic;
-#[cfg(debug_assertions)]
 use sys::Global;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
