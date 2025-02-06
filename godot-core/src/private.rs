@@ -231,7 +231,7 @@ pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
 }
 
 fn format_panic_message(location: Option<&std::panic::Location<'_>>, mut msg: String) -> String {
-    if let Some(context) = get_error_context() {
+    if let Some(context) = get_gdext_panic_context() {
         msg = format!("{msg}\nContext: {context}");
     }
 
@@ -299,7 +299,7 @@ thread_local! {
     static ERROR_CONTEXT: std::cell::RefCell<Vec<ContextMessage<'static>>> = std::cell::RefCell::new(Vec::new());
 }
 
-pub fn get_error_context() -> Option<String> {
+pub fn get_gdext_panic_context() -> Option<String> {
     return ERROR_CONTEXT.with(|vec| vec.borrow_mut().last_mut().map(ContextMessage::get_string));
 }
 
