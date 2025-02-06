@@ -186,7 +186,7 @@ impl IntegrationTests {
                     // could not be caught, causing UB at the Godot FFI boundary (in practice, this will be a defined Godot crash with
                     // stack trace though).
                     godot_error!("GDScript test panicked");
-                    godot::private::extract_panic_message(e);
+                    godot::private::extract_panic_message(&e);
                     TestOutcome::Failed
                 }
             };
