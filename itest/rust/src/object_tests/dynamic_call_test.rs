@@ -149,11 +149,10 @@ fn dynamic_call_with_panic() {
     assert_eq!(call_error.class_name(), Some("Object"));
     assert_eq!(call_error.method_name(), "call");
 
-    let expected_error_message = format!(
-        "godot-rust function call failed: Object::call(&\"do_panic\")\
+    let expected_error_message = "godot-rust function call failed: Object::call(&\"do_panic\")\
         \n  Source: ObjPayload::do_panic()\
         \n    Reason: do_panic exploded"
-    );
+        .to_owned();
 
     assert_eq!(call_error.to_string(), expected_error_message);
 

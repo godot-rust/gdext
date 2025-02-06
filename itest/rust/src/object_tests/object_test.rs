@@ -925,11 +925,6 @@ impl ObjPayload {
     fn do_panic(&self) {
         panic!("do_panic exploded");
     }
-
-    // Obtain the line number of the panic!() call above; keep equidistant to do_panic() method.
-    pub fn get_panic_line() -> u32 {
-        line!() - 5
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
