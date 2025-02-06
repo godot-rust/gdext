@@ -229,12 +229,16 @@ pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
     }
 }
 
-fn format_panic_message(location: Option<&std::panic::Location<'_>>, mut msg: String) -> String {
+fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: String) -> String {
     if let Some(context) = get_gdext_panic_context() {
         msg = format!("{msg}\nContext: {context}");
     }
 
-    let prefix = if let Some(location) = location {
+    #[cfg(test)]
+    let prefix = "panic";
+
+    #[cfg(not(test))]
+    let prefix = if let Some(location) = _location {
         format!(
             "{}:{}:{}",
             location.file(),
