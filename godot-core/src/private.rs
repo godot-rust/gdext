@@ -230,11 +230,7 @@ fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: S
     }
 
     let prefix = if let Some(location) = _location {
-        format!(
-            "panic {}:{}",
-            location.file(),
-            location.line(),
-        )
+        format!("panic {}:{}", location.file(), location.line(),)
     } else {
         "panic".to_owned()
     };
