@@ -327,7 +327,8 @@ fn print_test_pre(test_case: &str, test_file: String, last_file: &mut Option<Str
     if flush {
         // Flush in GDScript, because its own print may come sooner than Rust prints otherwise.
         // (Strictly speaking, this can also happen from Rust, when Godot prints something. So far, it didn't though...)
-        godot::private::flush_stdout();
+        use std::io::Write;
+        std::io::stdout().flush().expect("flush stdout");
     }
 }
 

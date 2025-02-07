@@ -49,15 +49,16 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
             sys::initialize(get_proc_address, library, config);
         }
 
-        crate::private::set_gdext_hook(
-            #[cfg(feature = "experimental-threads")]
-            || true,
-            #[cfg(not(feature = "experimental-threads"))]
-            {
-                let main_thread = std::thread::current().id();
+        #[cfg(feature = "experimental-threads")]
+        crate::private::set_gdext_hook(|| true);
+        
+        #[cfg(not(feature = "experimental-threads"))]
+        {
+             let main_thread = std::thread::current().id();
+             crate::private::set_gdext_hook(
                 move || std::thread::current().id() == main_thread
-            },
-        );
+            );
+        }
 
         // Currently no way to express failure; could be exposed to E if necessary.
         // No early exit, unclear if Godot still requires output parameters to be set.

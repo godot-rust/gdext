@@ -22,6 +22,7 @@ use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
 use crate::sys;
+use std::io::Write;
 use std::sync::atomic;
 use sys::Global;
 
@@ -178,11 +179,6 @@ pub unsafe fn has_virtual_script_method(
     sys::interface_fn!(object_has_script_method)(sys::to_const_ptr(object_ptr), method_sname) != 0
 }
 
-pub fn flush_stdout() {
-    use std::io::Write;
-    std::io::stdout().flush().expect("flush stdout");
-}
-
 /// Ensure `T` is an editor plugin.
 pub const fn is_editor_plugin<T: crate::obj::Inherits<crate::classes::EditorPlugin>>() {}
 
@@ -234,16 +230,11 @@ fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: S
         msg = format!("{msg}\nContext: {context}");
     }
 
-    #[cfg(test)]
-    let prefix = "panic";
-
-    #[cfg(not(test))]
     let prefix = if let Some(location) = _location {
         format!(
-            "{}:{}:{}",
+            "panic {}:{}",
             location.file(),
             location.line(),
-            location.column()
         )
     } else {
         "panic".to_owned()
@@ -263,7 +254,8 @@ fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: S
 pub fn set_gdext_hook(godot_print: impl 'static + Send + Sync + Fn() -> bool) {
     std::panic::set_hook(Box::new(move |panic_info| {
         // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
-        flush_stdout();
+        // todo - is ignoring `Err` really the best way of handling failure condition?
+        let _ = std::io::stdout().flush();
 
         let message = extract_panic_message(panic_info.payload());
         let message = format_panic_message(panic_info.location(), message);
@@ -271,7 +263,7 @@ pub fn set_gdext_hook(godot_print: impl 'static + Send + Sync + Fn() -> bool) {
             godot_error!("{message}");
         }
         eprintln!("{message}");
-        std::io::Write::flush(&mut std::io::stderr()).expect("flush stderr")
+        let _ = std::io::stderr().flush();
     }));
 }
 
@@ -285,32 +277,17 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
     ERROR_PRINT_LEVEL.load(atomic::Ordering::Relaxed) >= level
 }
 
-enum ContextMessage<'a> {
-    String(String),
-    Function(&'a dyn Fn() -> String),
-}
-
-impl ContextMessage<'_> {
-    fn get_string(&mut self) -> String {
-        match self {
-            ContextMessage::String(string) => string.to_owned(),
-            ContextMessage::Function(function) => {
-                let str = function();
-                *self = ContextMessage::String(str.to_owned());
-                str
-            }
-        }
-    }
-}
-
 thread_local! {
-    static ERROR_CONTEXT: std::cell::RefCell<Vec<ContextMessage<'static>>> = const {
+    // functions stored in ERROR_CONTEXT do not actually have a static lifetime. Values are removed from ERROR_CONTEXT
+    // before they are invalidated, but should not be passed around (as they may be removed later).
+    // i.e. don't use this directly. Use `get_gdext_panic_context` instead, which will always be safe.
+    static ERROR_CONTEXT: std::cell::RefCell<Vec<&'static dyn Fn() -> String>> = const {
         std::cell::RefCell::new(Vec::new())
     };
 }
 
 pub fn get_gdext_panic_context() -> Option<String> {
-    ERROR_CONTEXT.with(|vec| vec.borrow_mut().last_mut().map(ContextMessage::get_string))
+    ERROR_CONTEXT.with(|vec| vec.borrow_mut().last_mut().map(|func| func()))
 }
 
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
@@ -324,7 +301,9 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    unsafe fn transmute_lifetime(value: &dyn Fn() -> String) -> &'static dyn Fn() -> String {
+    /// # SAFETY:
+    /// The returned function must only be used where value is valid
+    unsafe fn assume_static_lifetime(value: &dyn Fn() -> String) -> &'static dyn Fn() -> String {
         std::mem::transmute(value)
     }
 
@@ -340,11 +319,8 @@ where
 
     // SAFETY: value is kept on thread-local value, which will never extend past function
     let error_context_static: &'static dyn Fn() -> String =
-        unsafe { transmute_lifetime(&error_context) };
-    ERROR_CONTEXT.with(|cell| {
-        cell.borrow_mut()
-            .push(ContextMessage::Function(error_context_static))
-    });
+        unsafe { assume_static_lifetime(&error_context) };
+    ERROR_CONTEXT.with(|cell| cell.borrow_mut().push(error_context_static));
     std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()))
 }
 
