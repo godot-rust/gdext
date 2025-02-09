@@ -253,7 +253,8 @@ fn make_builtin_method_definition(
     let ptrcall_invocation = quote! {
         let method_bind = sys::builtin_method_table().#fptr_access;
 
-        <CallSig as PtrcallSignatureTuple>::out_builtin_ptrcall(
+
+        Signature::<CallParams, CallRet>::out_builtin_ptrcall(
             method_bind,
             #builtin_name_str,
             #method_name_str,
@@ -265,7 +266,7 @@ fn make_builtin_method_definition(
     let varcall_invocation = quote! {
         let method_bind = sys::builtin_method_table().#fptr_access;
 
-        <CallSig as VarcallSignatureTuple>::out_builtin_ptrcall_varargs(
+        Signature::<CallParams, CallRet>::out_builtin_ptrcall_varargs(
             method_bind,
             #builtin_name_str,
             #method_name_str,
