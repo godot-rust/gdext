@@ -50,7 +50,7 @@ mod godot_convert;
 mod method_info;
 mod property_info;
 mod sealed;
-mod signature;
+// mod signature;
 mod signature2;
 mod traits;
 
@@ -83,7 +83,7 @@ pub(crate) use crate::{
 pub use signature2::*;
 
 #[cfg(feature = "trace")]
-pub use signature::trace;
+pub use signature2::trace;
 
 pub use method_info::MethodInfo;
 pub use property_info::{PropertyHintInfo, PropertyInfo};
