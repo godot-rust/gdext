@@ -13,12 +13,13 @@
 // See: https://fasterthanli.me/articles/so-you-want-to-live-reload-rust#what-can-prevent-dlclose-from-unloading-a-library
 
 use std::ffi::c_void;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 pub type ThreadAtexitFn = unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void);
 
 static SYSTEM_THREAD_ATEXIT: OnceLock<Option<ThreadAtexitFn>> = OnceLock::new();
-static HOT_RELOADING_ENABLED: OnceLock<bool> = OnceLock::new();
+static HOT_RELOADING_ENABLED: AtomicBool = AtomicBool::new(false);
 
 fn system_thread_atexit() -> &'static Option<ThreadAtexitFn> {
     SYSTEM_THREAD_ATEXIT.get_or_init(|| unsafe {
@@ -29,14 +30,12 @@ fn system_thread_atexit() -> &'static Option<ThreadAtexitFn> {
 
 pub fn enable_hot_reload() {
     // If hot reloading is enabled then we should properly unload the library, so this will only be called once.
-    HOT_RELOADING_ENABLED
-        .set(true)
-        .expect("hot reloading should only be set once")
+    HOT_RELOADING_ENABLED.store(true, Ordering::SeqCst);
 }
 
 pub fn disable_hot_reload() {
     // If hot reloading is disabled then we may call this method multiple times.
-    _ = HOT_RELOADING_ENABLED.set(false)
+    HOT_RELOADING_ENABLED.store(false, Ordering::SeqCst);
 }
 
 pub fn default_set_hot_reload() {
@@ -54,7 +53,7 @@ fn is_hot_reload_enabled() -> bool {
     // destructors exist for good reasons.
     // This is needed for situations like unit-tests, where we may create TLS-destructors without explicitly calling any of the methods
     // that set hot reloading to be enabled or disabled.
-    *HOT_RELOADING_ENABLED.get_or_init(|| false)
+    HOT_RELOADING_ENABLED.load(Ordering::SeqCst)
 }
 
 /// Turns glibc's TLS destructor register function, `__cxa_thread_atexit_impl`,
