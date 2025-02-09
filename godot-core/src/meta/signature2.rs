@@ -20,9 +20,6 @@ use super::{
 
 use godot_ffi::{self as sys, GodotFfi};
 
-#[cfg(feature = "trace")]
-pub use crate::meta::trace;
-
 type CallResult<R> = Result<R, CallError>;
 use super::FromGodot;
 
@@ -496,5 +493,49 @@ impl<'a> CallContext<'a> {
 impl fmt::Display for CallContext<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}::{}", self.class_name, self.function_name)
+    }
+}
+
+#[cfg(feature = "trace")]
+pub mod trace {
+    use std::cell::Cell;
+
+    use crate::meta::CallContext;
+
+    /// Stores information about the current call for diagnostic purposes.
+    pub struct CallReport {
+        pub class: String,
+        pub method: String,
+        pub is_inbound: bool,
+        pub is_ptrcall: bool,
+    }
+
+    pub fn pop() -> CallReport {
+        let lock = TRACE.take();
+        // let th = std::thread::current().id();
+        // println!("trace::pop [{th:?}]...");
+
+        lock.expect("trace::pop() had no prior call stored.")
+    }
+
+    pub(crate) fn push(inbound: bool, ptrcall: bool, call_ctx: &CallContext) {
+        if call_ctx.function_name.contains("notrace") {
+            return;
+        }
+        // let th = std::thread::current().id();
+        // println!("trace::push [{th:?}] - inbound: {inbound}, ptrcall: {ptrcall}, ctx: {call_ctx}");
+
+        let report = CallReport {
+            class: call_ctx.class_name.to_string(),
+            method: call_ctx.function_name.to_string(),
+            is_inbound: inbound,
+            is_ptrcall: ptrcall,
+        };
+
+        TRACE.set(Some(report));
+    }
+
+    thread_local! {
+        static TRACE: Cell<Option<CallReport>> = Cell::default();
     }
 }
