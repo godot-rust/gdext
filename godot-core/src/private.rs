@@ -248,7 +248,10 @@ fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: S
     }
 }
 
-pub fn set_gdext_hook(godot_print: impl 'static + Send + Sync + Fn() -> bool) {
+pub fn set_gdext_hook<F>(godot_print: F)
+where
+    F: Send + Sync + Fn() -> bool + 'static,
+{
     std::panic::set_hook(Box::new(move |panic_info| {
         // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
         let _ignored_result = std::io::stdout().flush();
@@ -276,12 +279,17 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
 }
 
 #[cfg(debug_assertions)]
-struct ScopedFunctionStack(Vec<*const dyn Fn() -> String>);
+struct ScopedFunctionStack {
+    functions: Vec<*const dyn Fn() -> String>,
+}
 
+/// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
+/// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value 
+/// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
 #[cfg(debug_assertions)]
 impl ScopedFunctionStack {
     /// # Safety
-    /// Function must removed (using pop_function) before lifetime is invalidated.
+    /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
     unsafe fn push_function(&mut self, function: &dyn Fn() -> String) {
         /// # Safety
         /// The caller must ensure that the function isn't used past its original lifetime.
@@ -291,19 +299,22 @@ impl ScopedFunctionStack {
         ) -> &'static dyn Fn() -> String {
             std::mem::transmute(value)
         }
-        self.0.push(assume_static_lifetime(function) as *const _);
+        self.functions
+            .push(assume_static_lifetime(function) as *const _);
     }
 
     fn pop_function(&mut self) {
-        self.0.pop();
+        self.functions.pop().expect("function stack is empty!");
     }
 
     fn get_last(&self) -> Option<String> {
-        self.0.last().cloned().map(|pointer| unsafe {
+        self.functions.last().cloned().map(|pointer| {
             // SAFETY:
             // Invariants provided by push_function assert that any and all functions held by ScopedFunctionStack
-            // are removed before they are invalidated; functions must always be valid
-            &*pointer
+            // are removed before they are invalidated; functions must always be valid.
+            unsafe {
+                &*pointer
+            }
         }())
     }
 }
@@ -311,11 +322,11 @@ impl ScopedFunctionStack {
 #[cfg(debug_assertions)]
 thread_local! {
     static ERROR_CONTEXT_STACK: RefCell<ScopedFunctionStack> = const {
-        RefCell::new(ScopedFunctionStack(Vec::new()))
+        RefCell::new(ScopedFunctionStack { functions: Vec::new() })
     }
 }
 
-// Value may return `None` even from panic hook if called from non-godot thread
+// Value may return `None` even from panic hook if called from a non-Godot thread
 pub fn get_gdext_panic_context() -> Option<String> {
     #[cfg(debug_assertions)]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
