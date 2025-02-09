@@ -226,9 +226,10 @@ pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
     }
 }
 
-fn format_panic_message(_location: Option<&std::panic::Location<'_>>, msg: String) -> String {
-    #[cfg(debug_assertions)]
-    let msg = format!("{msg}\nContext: {}", get_gdext_panic_context());
+fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: String) -> String {
+    if let Some(context) = get_gdext_panic_context() {
+        msg = format!("{msg}\nContext: {context}");
+    }
 
     let prefix = if let Some(location) = _location {
         format!("panic {}:{}", location.file(), location.line())
@@ -277,11 +278,11 @@ struct ScopedFunctionStack(Vec<*const dyn Fn() -> String>);
 
 #[cfg(debug_assertions)]
 impl ScopedFunctionStack {
-    /// SAFETY:
+    /// # Safety
     /// Function must removed (using pop_function) before lifetime is invalidated.
     unsafe fn push_function(&mut self, function: &dyn Fn() -> String) {
-        /// SAFETY:
-        /// The returned function must only be used where value is valid
+        /// # Safety
+        /// The caller must ensure that the function isn't used past its original lifetime.
         /// (Invariant must be held by push_function)
         unsafe fn assume_static_lifetime(
             value: &dyn Fn() -> String,
@@ -312,13 +313,10 @@ thread_local! {
     }
 }
 
-pub fn get_gdext_panic_context() -> String {
+// Value may return `None` even from panic hook if called from non-godot thread
+pub fn get_gdext_panic_context() -> Option<String> {
     #[cfg(debug_assertions)]
-    return ERROR_CONTEXT_STACK
-        .with(|cell| cell.borrow().get_last())
-        .expect(
-        "Context stack is empty (get_gdext_panic_context should only be called from panic hook)",
-    );
+    return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
     #[cfg(not(debug_assertions))]
     String::new()
 }
