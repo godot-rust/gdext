@@ -22,6 +22,7 @@ use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
 use crate::sys;
+use std::cell::RefCell;
 use std::io::Write;
 use std::sync::atomic;
 use sys::Global;
@@ -225,15 +226,14 @@ pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
     }
 }
 
-fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: String) -> String {
-    if let Some(context) = get_gdext_panic_context() {
-        msg = format!("{msg}\nContext: {context}");
-    }
+fn format_panic_message(_location: Option<&std::panic::Location<'_>>, msg: String) -> String {
+    #[cfg(debug_assertions)]
+    let msg = format!("{msg}\nContext: {}", get_gdext_panic_context());
 
     let prefix = if let Some(location) = _location {
-        format!("panic {}:{}", location.file(), location.line(),)
+        format!("panic {}:{}", location.file(), location.line())
     } else {
-        "panic".to_owned()
+        "panic".to_string()
     };
 
     // If the message contains newlines, print all of the lines after a line break, and indent them.
@@ -250,8 +250,7 @@ fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: S
 pub fn set_gdext_hook(godot_print: impl 'static + Send + Sync + Fn() -> bool) {
     std::panic::set_hook(Box::new(move |panic_info| {
         // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
-        // todo - is ignoring `Err` really the best way of handling failure condition?
-        let _ = std::io::stdout().flush();
+        let _ignored_result = std::io::stdout().flush();
 
         let message = extract_panic_message(panic_info.payload());
         let message = format_panic_message(panic_info.location(), message);
@@ -259,7 +258,7 @@ pub fn set_gdext_hook(godot_print: impl 'static + Send + Sync + Fn() -> bool) {
             godot_error!("{message}");
         }
         eprintln!("{message}");
-        let _ = std::io::stderr().flush();
+        let _ignored_result = std::io::stderr().flush();
     }));
 }
 
@@ -273,17 +272,55 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
     ERROR_PRINT_LEVEL.load(atomic::Ordering::Relaxed) >= level
 }
 
-thread_local! {
-    // functions stored in ERROR_CONTEXT do not actually have a static lifetime. Values are removed from ERROR_CONTEXT
-    // before they are invalidated, but should not be passed around (as they may be removed later).
-    // i.e. don't use this directly. Use `get_gdext_panic_context` instead, which will always be safe.
-    static ERROR_CONTEXT: std::cell::RefCell<Vec<&'static dyn Fn() -> String>> = const {
-        std::cell::RefCell::new(Vec::new())
-    };
+#[cfg(debug_assertions)]
+struct ScopedFunctionStack(Vec<*const dyn Fn() -> String>);
+
+#[cfg(debug_assertions)]
+impl ScopedFunctionStack {
+    /// SAFETY:
+    /// Function must removed (using pop_function) before lifetime is invalidated.
+    unsafe fn push_function(&mut self, function: &dyn Fn() -> String) {
+        /// SAFETY:
+        /// The returned function must only be used where value is valid
+        /// (Invariant must be held by push_function)
+        unsafe fn assume_static_lifetime(
+            value: &dyn Fn() -> String,
+        ) -> &'static dyn Fn() -> String {
+            std::mem::transmute(value)
+        }
+        self.0.push(assume_static_lifetime(function) as *const _);
+    }
+
+    fn pop_function(&mut self) {
+        self.0.pop();
+    }
+
+    fn get_last(&self) -> Option<String> {
+        return self.0.last().cloned().map(|pointer| unsafe {
+            // SAFETY:
+            // Invariants provided by push_function assert that any and all functions held by ScopedFunctionStack
+            // are removed before they are invalidated; functions must always be valid
+            &*pointer
+        }());
+    }
 }
 
-pub fn get_gdext_panic_context() -> Option<String> {
-    ERROR_CONTEXT.with(|vec| vec.borrow_mut().last_mut().map(|func| func()))
+#[cfg(debug_assertions)]
+thread_local! {
+    static ERROR_CONTEXT_STACK: RefCell<ScopedFunctionStack> = const {
+        RefCell::new(ScopedFunctionStack(Vec::new()))
+    }
+}
+
+pub fn get_gdext_panic_context() -> String {
+    #[cfg(debug_assertions)]
+    return ERROR_CONTEXT_STACK
+        .with(|cell| cell.borrow().get_last())
+        .expect(
+        "Context stack is empty (get_gdext_panic_context should only be called from panic hook)",
+    );
+    #[cfg(not(debug_assertions))]
+    String::new()
 }
 
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
@@ -297,27 +334,17 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    /// # SAFETY:
-    /// The returned function must only be used where value is valid
-    unsafe fn assume_static_lifetime(value: &dyn Fn() -> String) -> &'static dyn Fn() -> String {
-        std::mem::transmute(value)
-    }
-
-    struct DropGuard;
-    impl Drop for DropGuard {
-        fn drop(&mut self) {
-            ERROR_CONTEXT.with(|cell| cell.borrow_mut().pop());
-        }
-    }
-
-    // using a drop guard is *probably* unneeded with catch_unwind, but might as well be safe with unsafe
-    let _drop_guard = DropGuard;
-
-    // SAFETY: value is kept on thread-local value, which will never extend past function
-    let error_context_static: &'static dyn Fn() -> String =
-        unsafe { assume_static_lifetime(&error_context) };
-    ERROR_CONTEXT.with(|cell| cell.borrow_mut().push(error_context_static));
-    std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()))
+    #[cfg(debug_assertions)]
+    ERROR_CONTEXT_STACK.with(|cell| unsafe {
+        // SAFETY:
+        // &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function
+        cell.borrow_mut().push_function(&error_context)
+    });
+    let result =
+        std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()));
+    #[cfg(debug_assertions)]
+    ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
+    return result;
 }
 
 // TODO(bromeon): make call_ctx lazy-evaluated (like error_ctx) everywhere;
