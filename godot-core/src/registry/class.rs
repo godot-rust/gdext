@@ -5,17 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi::join_with;
 use std::collections::HashMap;
 use std::{any, ptr};
 
+use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::error::{ConvertError, FromGodotError};
 use crate::meta::ClassName;
 use crate::obj::{cap, DynGd, Gd, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
-use crate::registry::plugin::{ErasedDynifyFn, ErasedRegisterFn, InherentImpl};
-use crate::{classes, godot_error, sys};
+use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
+use crate::{godot_error, godot_warn, sys};
 use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
 /// Returns a lock to a global map of loaded classes, by initialization level.
@@ -43,9 +45,8 @@ fn global_loaded_classes_by_name() -> GlobalGuard<'static, HashMap<ClassName, Cl
     lock_or_panic(&LOADED_CLASSES_BY_NAME, "loaded classes (by name)")
 }
 
-fn global_dyn_traits_by_typeid(
-) -> GlobalGuard<'static, HashMap<any::TypeId, Vec<DynToClassRelation>>> {
-    static DYN_TRAITS_BY_TYPEID: Global<HashMap<any::TypeId, Vec<DynToClassRelation>>> =
+fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Vec<DynTraitImpl>>> {
+    static DYN_TRAITS_BY_TYPEID: Global<HashMap<any::TypeId, Vec<DynTraitImpl>>> =
         Global::default();
 
     lock_or_panic(&DYN_TRAITS_BY_TYPEID, "dyn traits")
@@ -66,13 +67,22 @@ pub struct LoadedClass {
 // Currently empty, but should already work for per-class queries.
 pub struct ClassMetadata {}
 
-/// Represents a `dyn Trait` implemented (and registered) for a class.
-pub struct DynToClassRelation {
-    implementing_class_name: ClassName,
-    erased_dynify_fn: ErasedDynifyFn,
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
+#[cfg(before_api = "4.2")]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo;
+#[cfg(all(since_api = "4.2", before_api = "4.3"))]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo2;
+#[cfg(all(since_api = "4.3", before_api = "4.4"))]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo3;
+#[cfg(since_api = "4.4")]
+type GodotCreationInfo = sys::GDExtensionClassCreationInfo4;
+
+#[cfg(before_api = "4.4")]
+pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual as sys::Inner>::FnPtr;
+#[cfg(since_api = "4.4")]
+pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual2 as sys::Inner>::FnPtr;
 
 #[derive(Debug)]
 struct ClassRegistrationInfo {
@@ -82,23 +92,18 @@ struct ClassRegistrationInfo {
     register_methods_constants_fn: Option<ErasedRegisterFn>,
     register_properties_fn: Option<ErasedRegisterFn>,
     user_register_fn: Option<ErasedRegisterFn>,
-    default_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is at least one OnReady field)
-    user_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is a `#[godot_api] impl I*`)
+    default_virtual_fn: Option<GodotGetVirtual>, // Optional (set if there is at least one OnReady field)
+    user_virtual_fn: Option<GodotGetVirtual>, // Optional (set if there is a `#[godot_api] impl I*`)
 
     /// Godot low-level class creation parameters.
-    #[cfg(before_api = "4.2")]
-    godot_params: sys::GDExtensionClassCreationInfo,
-    #[cfg(all(since_api = "4.2", before_api = "4.3"))]
-    godot_params: sys::GDExtensionClassCreationInfo2,
-    #[cfg(since_api = "4.3")]
-    godot_params: sys::GDExtensionClassCreationInfo3,
+    godot_params: GodotCreationInfo,
 
     #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
     init_level: InitLevel,
     is_editor_plugin: bool,
 
     /// One entry for each `dyn Trait` implemented (and registered) for this class.
-    dynify_fns_by_trait: HashMap<any::TypeId, ErasedDynifyFn>,
+    dynify_fns_by_trait: HashMap<any::TypeId, DynTraitImpl>,
 
     /// Used to ensure that each component is only filled once.
     component_already_filled: [bool; 4],
@@ -144,15 +149,7 @@ pub fn register_class<
 
     out!("Manually register class {}", std::any::type_name::<T>());
 
-    // This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
-    #[cfg(before_api = "4.2")]
-    type CreationInfo = sys::GDExtensionClassCreationInfo;
-    #[cfg(all(since_api = "4.2", before_api = "4.3"))]
-    type CreationInfo = sys::GDExtensionClassCreationInfo2;
-    #[cfg(since_api = "4.3")]
-    type CreationInfo = sys::GDExtensionClassCreationInfo3;
-
-    let godot_params = CreationInfo {
+    let godot_params = GodotCreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
         notification_func: Some(callbacks::on_notification::<T>),
         reference_func: Some(callbacks::reference::<T>),
@@ -160,7 +157,6 @@ pub fn register_class<
         create_instance_func: Some(callbacks::create::<T>),
         free_instance_func: Some(callbacks::free::<T>),
         get_virtual_func: Some(callbacks::get_virtual::<T>),
-        get_rid_func: None,
         class_userdata: ptr::null_mut(), // will be passed to create fn, but global per class
         ..default_creation_info()
     };
@@ -214,11 +210,30 @@ pub fn auto_register_classes(init_level: InitLevel) {
         fill_class_info(elem.item.clone(), class_info);
     });
 
+    // First register all the loaded classes and dyn traits.
+    // We need all the dyn classes in the registry to properly register DynGd properties;
+    // one can do it directly inside the loop – by locking and unlocking the mutex –
+    // but it is much slower and doesn't guarantee that all the dependent classes will be already loaded in most cases.
+    register_classes_and_dyn_traits(&mut map, init_level);
+
+    // actually register all the classes
+    for info in map.into_values() {
+        register_class_raw(info);
+        out!("Class {class_name} loaded.");
+    }
+
+    out!("All classes for level `{init_level:?}` auto-registered.");
+}
+
+fn register_classes_and_dyn_traits(
+    map: &mut HashMap<ClassName, ClassRegistrationInfo>,
+    init_level: InitLevel,
+) {
     let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
     let mut loaded_classes_by_name = global_loaded_classes_by_name();
     let mut dyn_traits_by_typeid = global_dyn_traits_by_typeid();
 
-    for mut info in map.into_values() {
+    for info in map.values_mut() {
         let class_name = info.class_name;
         out!("Register class:   {class_name} at level `{init_level:?}`");
 
@@ -229,14 +244,11 @@ pub fn auto_register_classes(init_level: InitLevel) {
         let metadata = ClassMetadata {};
 
         // Transpose Class->Trait relations to Trait->Class relations.
-        for (trait_type_id, dynify_fn) in info.dynify_fns_by_trait.drain() {
+        for (trait_type_id, dyn_trait_impl) in info.dynify_fns_by_trait.drain() {
             dyn_traits_by_typeid
                 .entry(trait_type_id)
                 .or_default()
-                .push(DynToClassRelation {
-                    implementing_class_name: class_name,
-                    erased_dynify_fn: dynify_fn,
-                });
+                .push(dyn_trait_impl);
         }
 
         loaded_classes_by_level
@@ -245,13 +257,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
             .push(loaded_class);
 
         loaded_classes_by_name.insert(class_name, metadata);
-
-        register_class_raw(info);
-
-        out!("Class {class_name} loaded.");
     }
-
-    out!("All classes for level `{init_level:?}` auto-registered.");
 }
 
 pub fn unregister_classes(init_level: InitLevel) {
@@ -285,15 +291,16 @@ pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
     }
 }
 
-/// Tries to upgrade a polymorphic `Gd<T>` to `DynGd<T, D>`, where the `T` -> `D` relation is only present via derived objects.
+/// Tries to convert a `Gd<T>` to a `DynGd<T, D>` for some class `T` and trait object `D`, where the trait may only be implemented for
+/// some subclass of `T`.
 ///
-/// This works without direct `T: AsDyn<D>` because it considers `object`'s dynamic type `Td : Inherits<T>`.
+/// This works even when `T` doesn't implement `AsDyn<D>`, as long as the dynamic class of `object` implements `AsDyn<D>`.
 ///
-/// Only direct relations are considered, i.e. the `Td: AsDyn<D>` must be fulfilled (and registered). If any intermediate base class of `Td`
-/// implements the trait `D`, this will not consider it. Base-derived conversions are theoretically possible, but need quite a bit of extra
-/// machinery.
+/// This only looks for an `AsDyn<D>` implementation in the dynamic class; the conversion will fail if the dynamic class doesn't
+/// implement `AsDyn<D>`, even if there exists some superclass that does implement `AsDyn<D>`. This restriction could in theory be
+/// lifted, but would need quite a bit of extra machinery to work.
 pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
-    object: Gd<T>,
+    mut object: Gd<T>,
 ) -> Result<DynGd<T, D>, ConvertError> {
     let typeid = any::TypeId::of::<D>();
     let trait_name = sys::short_type_name::<D>();
@@ -306,31 +313,51 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
 
     // TODO maybe use 2nd hashmap instead of linear search.
     // (probably not pair of typeid/classname, as that wouldn't allow the above check).
-    let dynamic_class = object.dynamic_class_string();
-
     for relation in relations {
-        if dynamic_class == relation.implementing_class_name.to_string_name() {
-            let erased = (relation.erased_dynify_fn)(object.upcast_object());
-
-            // Must succeed, or was registered wrong.
-            let dyn_gd_object = erased.boxed.downcast::<DynGd<classes::Object, D>>();
-
-            // SAFETY: the relation ensures that the **unified** (for storage) pointer was of type `DynGd<classes::Object, D>`.
-            let dyn_gd_object = unsafe { dyn_gd_object.unwrap_unchecked() };
-
-            // SAFETY: the relation ensures that the **original** pointer was of type `DynGd<T, D>`.
-            let dyn_gd_t = unsafe { dyn_gd_object.cast_unchecked::<T>() };
-
-            return Ok(dyn_gd_t);
+        match relation.get_dyn_gd(object) {
+            Ok(dyn_gd) => return Ok(dyn_gd),
+            Err(obj) => object = obj,
         }
     }
 
     let error = FromGodotError::UnimplementedDynTrait {
         trait_name,
-        class_name: dynamic_class.to_string(),
+        class_name: object.dynamic_class_string().to_string(),
     };
 
     Err(error.into_error(object))
+}
+
+/// Responsible for creating hint_string for [`DynGd<T, D>`][crate::obj::DynGd] properties which works with [`PropertyHint::NODE_TYPE`][crate::global::PropertyHint::NODE_TYPE] or [`PropertyHint::RESOURCE_TYPE`][crate::global::PropertyHint::RESOURCE_TYPE].
+///
+/// Godot offers very limited capabilities when it comes to validating properties in the editor if given class isn't a tool.
+/// Proper hint string combined with `PropertyHint::NODE_TYPE` or `PropertyHint::RESOURCE_TYPE` allows to limit selection only to valid classes - those registered as implementors of given `DynGd<T, D>`'s `D` trait.
+///
+/// See also [Godot docs for PropertyHint](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enum-globalscope-propertyhint).
+pub(crate) fn get_dyn_property_hint_string<D>() -> GString
+where
+    D: ?Sized + 'static,
+{
+    let typeid = any::TypeId::of::<D>();
+    let dyn_traits_by_typeid = global_dyn_traits_by_typeid();
+    let Some(relations) = dyn_traits_by_typeid.get(&typeid) else {
+        let trait_name = sys::short_type_name::<D>();
+        godot_warn!(
+            "godot-rust: No class has been linked to trait {trait_name} with #[godot_dyn]."
+        );
+        return GString::default();
+    };
+    assert!(
+        !relations.is_empty(),
+        "Trait {trait_name} has been registered as DynGd Trait \
+        despite no class being related to it \n\
+        **this is a bug, please report it**",
+        trait_name = sys::short_type_name::<D>()
+    );
+
+    GString::from(join_with(relations.iter(), ", ", |dyn_trait| {
+        dyn_trait.class_name().to_cow_str()
+    }))
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
@@ -340,7 +367,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
     // out!("|   reg (before):    {c:?}");
     // out!("|   comp:            {component:?}");
     match item {
-        PluginItem::Struct {
+        PluginItem::Struct(Struct {
             base_class_name,
             generated_create_fn,
             generated_recreate_fn,
@@ -353,7 +380,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             is_instantiable,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
                 docs: _,
-        } => {
+        }) => {
             c.parent_class_name = Some(base_class_name);
             c.default_virtual_fn = default_get_virtual_fn;
             c.register_properties_fn = Some(register_properties_fn);
@@ -410,7 +437,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.register_methods_constants_fn = Some(register_methods_constants_fn);
         }
 
-        PluginItem::ITraitImpl {
+        PluginItem::ITraitImpl(ITraitImpl {
             user_register_fn,
             user_create_fn,
             user_recreate_fn,
@@ -425,7 +452,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             user_property_get_revert_fn,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
                 virtual_method_docs: _,
-        } => {
+        }) => {
             c.user_register_fn = user_register_fn;
 
             // The following unwraps of fill_into() shouldn't panic, since rustc will error if there are
@@ -449,20 +476,17 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.godot_params.free_property_list_func = user_free_property_list_fn;
             c.godot_params.property_can_revert_func = user_property_can_revert_fn;
             c.godot_params.property_get_revert_func = user_property_get_revert_fn;
-            c.user_virtual_fn = Some(get_virtual_fn);
+            c.user_virtual_fn = get_virtual_fn;
         }
-        PluginItem::DynTraitImpl {
-            dyn_trait_typeid,
-            erased_dynify_fn,
-        } => {
-            let prev = c
-                .dynify_fns_by_trait
-                .insert(dyn_trait_typeid, erased_dynify_fn);
+        PluginItem::DynTraitImpl(dyn_trait_impl) => {
+            let type_id = dyn_trait_impl.dyn_trait_typeid();
+
+            let prev = c.dynify_fns_by_trait.insert(type_id, dyn_trait_impl);
 
             assert!(
                 prev.is_none(),
                 "Duplicate registration of {:?} for class {}",
-                dyn_trait_typeid,
+                type_id,
                 c.class_name
             );
         }
@@ -504,23 +528,18 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
         // Try to register class...
 
         #[cfg(before_api = "4.2")]
-        let _: () = interface_fn!(classdb_register_extension_class)(
-            sys::get_library(),
-            class_name.string_sys(),
-            parent_class_name.string_sys(),
-            ptr::addr_of!(info.godot_params),
-        );
+        let register_fn = interface_fn!(classdb_register_extension_class);
 
         #[cfg(all(since_api = "4.2", before_api = "4.3"))]
-        let _: () = interface_fn!(classdb_register_extension_class2)(
-            sys::get_library(),
-            class_name.string_sys(),
-            parent_class_name.string_sys(),
-            ptr::addr_of!(info.godot_params),
-        );
+        let register_fn = interface_fn!(classdb_register_extension_class2);
 
-        #[cfg(since_api = "4.3")]
-        let _: () = interface_fn!(classdb_register_extension_class3)(
+        #[cfg(all(since_api = "4.3", before_api = "4.4"))]
+        let register_fn = interface_fn!(classdb_register_extension_class3);
+
+        #[cfg(since_api = "4.4")]
+        let register_fn = interface_fn!(classdb_register_extension_class4);
+
+        let _: () = register_fn(
             sys::get_library(),
             class_name.string_sys(),
             parent_class_name.string_sys(),
@@ -681,7 +700,7 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
     }
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(all(since_api = "4.3", before_api = "4.4"))]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo3 {
     sys::GDExtensionClassCreationInfo3 {
         is_virtual: false as u8,
@@ -706,6 +725,35 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo3 {
         get_virtual_call_data_func: None,
         call_virtual_with_data_func: None,
         get_rid_func: None,
+        class_userdata: ptr::null_mut(),
+    }
+}
+
+#[cfg(since_api = "4.4")]
+fn default_creation_info() -> sys::GDExtensionClassCreationInfo4 {
+    sys::GDExtensionClassCreationInfo4 {
+        is_virtual: false as u8,
+        is_abstract: false as u8,
+        is_exposed: sys::conv::SYS_TRUE,
+        is_runtime: sys::conv::SYS_TRUE,
+        icon_path: ptr::null(),
+        set_func: None,
+        get_func: None,
+        get_property_list_func: None,
+        free_property_list_func: None,
+        property_can_revert_func: None,
+        property_get_revert_func: None,
+        validate_property_func: None,
+        notification_func: None,
+        to_string_func: None,
+        reference_func: None,
+        unreference_func: None,
+        create_instance_func: None,
+        free_instance_func: None,
+        recreate_instance_func: None,
+        get_virtual_func: None,
+        get_virtual_call_data_func: None,
+        call_virtual_with_data_func: None,
         class_userdata: ptr::null_mut(),
     }
 }

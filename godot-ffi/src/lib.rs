@@ -60,6 +60,8 @@ pub use gen::table_editor_classes::*;
 pub use gen::table_scene_classes::*;
 pub use gen::table_servers_classes::*;
 pub use gen::table_utilities::*;
+#[cfg(since_api = "4.4")]
+pub use gen::virtual_hashes as known_virtual_hashes;
 
 // Other
 pub use extras::*;

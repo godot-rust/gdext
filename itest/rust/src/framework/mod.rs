@@ -144,6 +144,14 @@ pub fn expect_panic(context: &str, code: impl FnOnce()) {
     );
 }
 
+pub fn expect_debug_panic_or_release_ok(_context: &str, code: impl FnOnce()) {
+    #[cfg(debug_assertions)]
+    expect_panic(_context, code);
+
+    #[cfg(not(debug_assertions))]
+    code()
+}
+
 /// Synchronously run a thread and return result. Panics are propagated to caller thread.
 #[track_caller]
 pub fn quick_thread<R, F>(f: F) -> R

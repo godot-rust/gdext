@@ -34,10 +34,11 @@ Commands:
     dok           generate docs and open in browser
 
 Options:
-    -h, --help          print this help text
-    --double            run check with double-precision
-    -f, --filter <arg>  only run integration tests which contain any of the
-                        args (comma-separated). requires itest.
+    -h, --help               print this help text
+    --double                 run check with double-precision
+    -f, --filter <arg>       only run integration tests which contain any of the
+                             args (comma-separated). requires itest.
+    -a, --api-version <ver>  specify the Godot API version to use (e.g. 4.3, 4.3.1).
 
 Examples:
     check.sh fmt clippy
@@ -50,6 +51,7 @@ EOF
 # Terminal color codes.
 RED='\033[1;31m'
 CYAN='\033[1;36m'
+YELLOW='\033[1;33m'
 END='\033[0m'
 
 ################################################################################
@@ -59,6 +61,22 @@ END='\033[0m'
 # Drop-in replacement for `echo` that outputs to stderr and adds a newline.
 function log() {
     echo "$@" >&2
+}
+
+# Converts a x.x.x version string to a feature string.
+# e.g. 4.3.0 -> godot/api-4-3, 4.3.1 -> godot/api-4-3-1
+function version_to_feature() {
+    echo "godot/api-$(echo "$1" | sed 's/\./-/g' | sed 's/-0$//')"
+}
+
+# Validates that the given string is a valid x.x.x version string.
+# Allow for .0 to be dropped (e.g. 4.3 is equivalent to 4.3.0).
+function validate_version_string() {
+    if [[ ! "$1" =~ ^4\.[0-9]+(\.[0-9]+)?$ ]]; then
+        log "Invalid Godot version string '$1'."
+        log "The version string should be in the form 'x.x.x' or 'x.x' and the major version should be at least 4."
+        exit 2
+    fi
 }
 
 # Echoes the given command to stderr, then executes it.
@@ -78,9 +96,10 @@ function findGodot() {
     # $godotBin previously detected.
     if [[ -v godotBin ]]; then
         return
+    fi
 
     # User-defined GODOT4_BIN.
-    elif [[ -n "$GODOT4_BIN" ]]; then
+    if [[ -n "$GODOT4_BIN" ]]; then
         log "Using environment variable GODOT4_BIN=$(printf %q "$GODOT4_BIN")"
         godotBin="$GODOT4_BIN"
 
@@ -95,7 +114,7 @@ function findGodot() {
         log "Found 'godot4.bat' script"
         godotBin="godot4.bat"
 
-    # This should come last: only use this as a last resort as `godot` may refer to a 
+    # This should come last: only use this as a last resort as `godot` may refer to a
     # Godot 3.x installation.
     elif command -v godot >/dev/null; then
         # Check if `godot` actually is Godot 4.x
@@ -157,7 +176,7 @@ function cmd_test() {
 function cmd_itest() {
     findGodot && \
         run cargo build -p itest "${extraCargoArgs[@]}" && \
-        run "$godotBin" --path itest/godot --headless -- "[${extraArgs[@]}]"
+        run "$godotBin" $GODOT_ARGS --path itest/godot --headless -- "[${extraArgs[@]}]"
 }
 
 function cmd_doc() {
@@ -176,10 +195,11 @@ function cmd_dok() {
 # `itest` compilations and `check.sh` runs. Note that this means some runs are different from CI.
 extraCargoArgs=("--no-default-features")
 cmds=()
-nextArgIsFilter=false
 extraArgs=()
+apiVersion=""
 
-for arg in "$@"; do
+while [[ $# -gt 0 ]]; do
+    arg="$1"
     case "$arg" in
         -h | --help | help)
             echo "$HELP_TEXT"
@@ -196,28 +216,80 @@ for arg in "$@"; do
             ;;
         -f | --filter)
             if [[ "${cmds[*]}" =~ itest ]]; then
-                nextArgIsFilter=true
+                if [[ -z "$2" ]]; then
+                    log "-f/--filter requires an argument."
+                    exit 2
+                fi
+
+                extraArgs+=("$2")
+                shift
             else
                 log "-f/--filter requires 'itest' to be specified as a command."
                 exit 2
             fi
             ;;
-        *)
-            if $nextArgIsFilter; then
-                extraArgs+=("$arg")
-                nextArgIsFilter=false
-            else
-                log "Unrecognized argument '$arg'. Use '$0 --help' to see what's available."
+        -a | --api-version)
+            if [[ -z "$2" || "$2" == -* ]]; then
+                log "-a/--api-version requires an argument."
                 exit 2
             fi
+
+            apiVersion="$2"
+            validate_version_string "$apiVersion"
+
+            apiFeature=$(version_to_feature "$apiVersion")
+            extraCargoArgs+=("--features" "$apiFeature")
+
+            log "Using Godot API version $apiVersion with feature $apiFeature"
+
+            # Remove "clippy" from the default commands if the API version is specified
+            # since it can produce unexpected errors.
+            DEFAULT_COMMANDS=("${DEFAULT_COMMANDS[@]/clippy}")
+
+            shift
+            ;;
+        *)
+            log "Unrecognized argument '$arg'. Use '$0 --help' to see what's available."
+            exit 2
             ;;
     esac
+    shift
 done
 
 # Default if no commands are explicitly given.
 if [[ ${#cmds[@]} -eq 0 ]]; then
     cmds=("${DEFAULT_COMMANDS[@]}")
 fi
+
+# Filter out any empty strings and note if clippy will be run.
+filtered_commands=()
+runClippy=0
+for cmd in "${cmds[@]}"; do
+    if [[ -n "$cmd" ]]; then
+        filtered_commands+=("$cmd")
+
+        if [[ "$cmd" == "clippy" ]]; then
+            runClippy=1
+        fi
+    fi
+done
+cmds=("${filtered_commands[@]}")
+
+# Display warning about using clippy if an API version was provided.
+if [[ "${#apiFeature[@]}" -ne 0 ]]; then
+    log
+    # Show different warning depending on if clippy was explicitly requested.
+    if [[ "$runClippy" -eq 1 ]]; then
+        log -e "${YELLOW}Warning: Clippy may produce unexpected errors when testing against a specific API version.${END}"
+    else
+        log -e "${YELLOW}Warning: Clippy is disabled by default when using a specific Godot API version.${END}"
+    fi
+    log -e "${YELLOW}For more information, see ${CYAN}https://github.com/godot-rust/gdext/pull/1016#issuecomment-2629002047${END}"
+    log
+fi
+
+log "Checks to run: ${cmds[*]}"
+log
 
 ################################################################################
 # Execution and summary

@@ -8,8 +8,8 @@
 use godot_ffi as sys;
 
 use crate::builtin::{inner, GString, StringName, Variant, VariantArray};
-use crate::classes::Object;
-use crate::meta::{AsArg, CallContext, GodotType, ToGodot};
+use crate::classes;
+use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::Bounds;
 use crate::obj::{Gd, GodotClass, InstanceId};
@@ -23,13 +23,12 @@ type CallableCustomInfo = sys::GDExtensionCallableCustomInfo2;
 
 /// A `Callable` represents a function in Godot.
 ///
-/// Usually a callable is a reference to an `Object` and a method name, this is a standard callable. But can
-/// also be a custom callable, which is usually created from `bind`, `unbind`, or a GDScript lambda. See
-/// [`Callable::is_custom`].
-///
-/// Currently, it is impossible to use `bind` and `unbind` in GDExtension, see [godot-cpp#802].
-///
-/// [godot-cpp#802]: https://github.com/godotengine/godot-cpp/issues/802
+/// Callables can be created in many ways:
+/// - From an `Object` and a (non-static) method name. This is a _standard_ callable.
+/// - From a GDScript class name and a static function name. (This typically works because classes are instances of `GDScript`).
+/// - From a GDScript lambda function.
+/// - By modifying an existing `Callable` with [`bind()`][Self::bind] or [`unbind()`][Self::unbind].
+/// - By creating a custom callable from Rust.
 ///
 /// # Godot docs
 ///
@@ -43,7 +42,7 @@ impl Callable {
         Self { opaque }
     }
 
-    /// Create a callable for the method `object::method_name`.
+    /// Create a callable for the non-static method `object.method_name`.
     ///
     /// See also [`Gd::callable()`].
     ///
@@ -62,6 +61,60 @@ impl Callable {
                 let args = [raw.as_arg_ptr(), method_name.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
+        }
+    }
+
+    /// Create a callable for the static method `class_name::function` (single-threaded).
+    ///
+    /// Allows you to call static functions through `Callable`.
+    ///
+    /// Note that due to varying support across different engine versions, the resulting `Callable` has unspecified behavior for
+    /// methods such as [`method_name()`][Self::method_name], [`object()`][Self::object], [`object_id()`][Self::object_id] or
+    /// [`get_argument_count()`][Self::arg_len] among others. It is recommended to only use this for calling the function.
+    ///
+    /// # Compatibility
+    /// Up until and including Godot 4.3, this method has some limitations:
+    /// - [`is_valid()`][Self::is_valid] will return `false`, even though the call itself succeeds.
+    /// - You cannot use statics to connect signals to such callables. Use the new typed signal API instead.
+    pub fn from_local_static(
+        class_name: impl meta::AsArg<StringName>,
+        function_name: impl meta::AsArg<StringName>,
+    ) -> Self {
+        meta::arg_into_owned!(class_name);
+        meta::arg_into_owned!(function_name);
+
+        // Modern implementation: use ClassDb::class_call_static().
+        #[cfg(since_api = "4.4")]
+        {
+            let callable_name = format!("{class_name}.{function_name}");
+
+            Self::from_local_fn(&callable_name, move |args| {
+                let args = args.iter().cloned().cloned().collect::<Vec<_>>();
+
+                let result: Variant = classes::ClassDb::singleton().class_call_static(
+                    &class_name,
+                    &function_name,
+                    args.as_slice(),
+                );
+                Ok(result)
+            })
+        }
+
+        // Polyfill for <= Godot 4.3: use GDScript expressions.
+        #[cfg(before_api = "4.4")]
+        {
+            use crate::obj::NewGd;
+
+            let code = format!(
+                "static func __callable():\n\treturn Callable({class_name}, \"{function_name}\")"
+            );
+
+            let mut script = classes::GDScript::new_gd();
+            script.set_source_code(&code);
+            script.reload();
+
+            let callable = script.call("__callable", &[]);
+            callable.to()
         }
     }
 
@@ -94,7 +147,7 @@ impl Callable {
     pub fn from_local_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: AsArg<GString>,
+        S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
@@ -129,7 +182,7 @@ impl Callable {
     pub fn from_sync_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: AsArg<GString>,
+        S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
@@ -258,6 +311,7 @@ impl Callable {
     /// _Godot equivalent: `get_method`_
     ///
     /// [godot#73052]: https://github.com/godotengine/godot/issues/73052
+    #[doc(alias = "get_method")]
     pub fn method_name(&self) -> Option<StringName> {
         let method_name = self.as_inner().get_method();
         if method_name.is_empty() {
@@ -273,11 +327,11 @@ impl Callable {
     /// target or not). Also returns `None` if the object is dead. You can differentiate these two cases using [`object_id()`][Self::object_id].
     ///
     /// _Godot equivalent: `get_object`_
-    pub fn object(&self) -> Option<Gd<Object>> {
+    pub fn object(&self) -> Option<Gd<classes::Object>> {
         // Increment refcount because we're getting a reference, and `InnerCallable::get_object` doesn't
         // increment the refcount.
         self.as_inner().get_object().map(|mut object| {
-            <Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
+            <classes::Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
             object
         })
     }
@@ -335,19 +389,28 @@ impl Callable {
         self.as_inner().is_valid()
     }
 
+    /// Returns a copy of the callable, ignoring `args` user arguments.
+    ///
+    /// Despite its name, this does **not** directly undo previous `bind()` calls. See
+    /// [Godot docs](https://docs.godotengine.org/en/latest/classes/class_callable.html#class-callable-method-unbind) for up-to-date semantics.
     pub fn unbind(&self, args: usize) -> Callable {
         self.as_inner().unbind(args as i64)
     }
 
     #[cfg(since_api = "4.3")]
-    #[doc(alias = "get_argument_count")]
-    pub fn arg_len(&self) -> usize {
+    pub fn get_argument_count(&self) -> usize {
         self.as_inner().get_argument_count() as usize
     }
 
-    #[doc(alias = "get_bound_arguments_count")]
-    pub fn bound_args_len(&self) -> i64 {
-        self.as_inner().get_bound_arguments_count()
+    /// Get number of bound arguments.
+    ///
+    /// Note: for Godot < 4.4, this function returns incorrect results when applied on a callable that used `unbind()`.
+    /// See [#98713](https://github.com/godotengine/godot/pull/98713) for details.
+    pub fn get_bound_arguments_count(&self) -> usize {
+        // This does NOT fix the bug before Godot 4.4, just cap it at zero. unbind() will still erroneously decrease the bound arguments count.
+        let alleged_count = self.as_inner().get_bound_arguments_count();
+
+        alleged_count.max(0) as usize
     }
 
     #[doc(hidden)]
@@ -482,7 +545,7 @@ mod custom_callable {
             let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
             c.to_string()
         };
-        let ctx = CallContext::custom_callable(name.as_str());
+        let ctx = meta::CallContext::custom_callable(name.as_str());
 
         crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
             // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
@@ -508,7 +571,7 @@ mod custom_callable {
             let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
             w.name.to_string()
         };
-        let ctx = CallContext::custom_callable(name.as_str());
+        let ctx = meta::CallContext::custom_callable(name.as_str());
 
         crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
             // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.

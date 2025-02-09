@@ -7,8 +7,9 @@
 
 // Note: some code duplication with godot-codegen crate.
 
+use crate::class::FuncDefinition;
 use crate::ParseResult;
-use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, Ident, Literal, Punct, Spacing, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 
@@ -141,7 +142,7 @@ fn delimiter_opening_char(delimiter: Delimiter) -> char {
 /// declaration of the form `impl MyTrait for SomeType`. The type `SomeType` is irrelevant in this example.
 pub(crate) fn is_impl_named(original_impl: &venial::Impl, name: &str) -> bool {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-    extract_typename(trait_name).map_or(false, |seg| seg.ident == name)
+    extract_typename(trait_name).is_some_and(|seg| seg.ident == name)
 }
 
 /// Validates either:
@@ -166,30 +167,31 @@ pub(crate) fn validate_impl(
     validate_self(original_impl, attr)
 }
 
-/// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name
-/// of `Trait` begins with `I`.
+/// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name of `Trait` begins with `I`.
+///
+/// Returns `(class_name, trait_path, trait_base_class)`, e.g. `(MyClass, godot::prelude::INode3D, Node3D)`.
 pub(crate) fn validate_trait_impl_virtual<'a>(
     original_impl: &'a venial::Impl,
     attr: &str,
-) -> ParseResult<(Ident, &'a venial::TypeExpr)> {
+) -> ParseResult<(Ident, &'a venial::TypeExpr, Ident)> {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
     let typename = extract_typename(trait_name);
 
     // Validate trait
-    if !typename
+    let Some(base_class) = typename
         .as_ref()
-        .map_or(false, |seg| seg.ident.to_string().starts_with('I'))
-    {
+        .and_then(|seg| seg.ident.to_string().strip_prefix('I').map(ident))
+    else {
         return bail!(
             original_impl,
             "#[{attr}] for trait impls requires a virtual method trait (trait name should start with 'I')",
         );
-    }
+    };
 
     // Validate self
     validate_self(original_impl, attr).map(|class_name| {
         // let trait_name = typename.unwrap(); // unwrap: already checked in 'Validate trait'
-        (class_name, trait_name)
+        (class_name, trait_name, base_class)
     })
 }
 
@@ -227,27 +229,36 @@ pub(crate) fn path_is_single(path: &[TokenTree], expected: &str) -> bool {
 
 pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
     // Could also use TypeExpr::as_path(), or fn below this one.
-    path.last()
-        .map(|last| last.to_string() == expected)
-        .unwrap_or(false)
+    path.last().is_some_and(|last| last.to_string() == expected)
 }
 
 pub(crate) fn path_ends_with_complex(path: &venial::TypeExpr, expected: &str) -> bool {
-    path.as_path()
-        .map(|path| {
-            path.segments
-                .last()
-                .map_or(false, |seg| seg.ident == expected)
-        })
-        .unwrap_or(false)
+    path.as_path().is_some_and(|path| {
+        path.segments
+            .last()
+            .is_some_and(|seg| seg.ident == expected)
+    })
 }
 
 pub(crate) fn extract_cfg_attrs(
     attrs: &[venial::Attribute],
 ) -> impl IntoIterator<Item = &venial::Attribute> {
     attrs.iter().filter(|attr| {
-        attr.get_single_path_segment()
-            .map_or(false, |name| name == "cfg")
+        let Some(attr_name) = attr.get_single_path_segment() else {
+            return false;
+        };
+
+        // #[cfg(condition)]
+        if attr_name == "cfg" {
+            return true;
+        }
+
+        // #[cfg_attr(condition, attributes...)]. Multiple attributes can be seperated by comma.
+        if attr_name == "cfg_attr" && attr.value.to_token_stream().to_string().contains("cfg(") {
+            return true;
+        }
+
+        false
     })
 }
 
@@ -305,4 +316,98 @@ pub fn venial_parse_meta(
     };
 
     venial::parse_item(input)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// util functions for handling #[func]s and #[var(get=f, set=f)]
+
+pub fn make_funcs_collection_constants(
+    funcs: &[FuncDefinition],
+    class_name: &Ident,
+) -> Vec<TokenStream> {
+    funcs
+        .iter()
+        .map(|func| {
+            // The constant needs the same #[cfg] attribute(s) as the function, so that it is only active if the function is also active.
+            let cfg_attributes = extract_cfg_attrs(&func.external_attributes)
+                .into_iter()
+                .collect::<Vec<_>>();
+
+            make_funcs_collection_constant(
+                class_name,
+                &func.signature_info.method_name,
+                func.registered_name.as_ref(),
+                &cfg_attributes,
+            )
+        })
+        .collect()
+}
+
+/// Returns a `const` declaration for the funcs collection struct.
+///
+/// User-defined functions can be renamed with `#[func(rename=new_name)]`. To be able to access the renamed function name from another macro,
+/// a constant is used as indirection.
+pub fn make_funcs_collection_constant(
+    class_name: &Ident,
+    func_name: &Ident,
+    registered_name: Option<&String>,
+    attributes: &[&venial::Attribute],
+) -> TokenStream {
+    let const_name = format_funcs_collection_constant(class_name, func_name);
+    let const_value = match &registered_name {
+        Some(renamed) => renamed.to_string(),
+        None => func_name.to_string(),
+    };
+
+    let doc_comment =
+        format!("The Rust function `{func_name}` is registered with Godot as `{const_value}`.");
+
+    quote! {
+        #(#attributes)*
+        #[doc = #doc_comment]
+        #[doc(hidden)]
+        #[allow(non_upper_case_globals)]
+        pub const #const_name: &str  = #const_value;
+    }
+}
+
+/// Converts `path::class` to `path::new_class`.
+pub fn replace_class_in_path(path: venial::Path, new_class: Ident) -> venial::Path {
+    match path.segments.as_slice() {
+        // Can't happen, you have at least one segment (the class name).
+        [] => unreachable!("empty path"),
+
+        [_single] => venial::Path {
+            segments: vec![venial::PathSegment {
+                ident: new_class,
+                generic_args: None,
+                tk_separator_colons: None,
+            }],
+        },
+
+        [path @ .., _last] => {
+            let mut segments = vec![];
+            segments.extend(path.iter().cloned());
+            segments.push(venial::PathSegment {
+                ident: new_class,
+                generic_args: None,
+                tk_separator_colons: Some([
+                    Punct::new(':', Spacing::Joint),
+                    Punct::new(':', Spacing::Alone),
+                ]),
+            });
+            venial::Path { segments }
+        }
+    }
+}
+
+/// Returns the name of the constant inside the func "collection" struct.
+pub fn format_funcs_collection_constant(_class_name: &Ident, func_name: &Ident) -> Ident {
+    format_ident!("{func_name}")
+}
+
+/// Returns the name of the struct used as collection for all function name constants.
+pub fn format_funcs_collection_struct(class_name: &Ident) -> Ident {
+    format_ident!("__gdext_{class_name}_Funcs")
 }

@@ -68,6 +68,36 @@ func test_export():
 	obj.free()
 	node.free()
 
+func test_export_dyn_gd():
+	var dyn_gd_exporter = RefcDynGdExporter.new()
+
+	# NodeHealth is valid candidate both for `empty` and `second` fields.
+	var node = NodeHealth.new()
+	dyn_gd_exporter.first = node
+	assert_eq(dyn_gd_exporter.first, node)
+
+	dyn_gd_exporter.second = node
+	assert_eq(dyn_gd_exporter.second, node)
+
+	# RefcHealth is valid candidate for `first` field.
+	var refc = RefcHealth.new()
+	dyn_gd_exporter.first = refc
+	assert_eq(dyn_gd_exporter.first, refc)
+	node.free()
+
+func test_export_dyn_gd_should_fail_for_wrong_type():
+	if runs_release():
+		return
+
+	var dyn_gd_exporter = RefcDynGdExporter.new()
+	var refc = RefcHealth.new()
+
+	disable_error_messages()
+	dyn_gd_exporter.second = refc # Should fail.
+	enable_error_messages()
+
+	assert_fail("`DynGdExporter.second` should only accept NodeHealth and only if it implements `InstanceIdProvider` trait")
+
 class MockObjGd extends Object:
 	var i: int = 0
 
@@ -360,3 +390,60 @@ func test_get_set():
 	assert_eq(obj.set_get, 1000)
 	assert(obj.is_set_called())
 	assert(obj.is_get_called())
+
+
+# Validates the shape of the class defined in Rust:
+# - Rust declares a single property (int_val) and two functions (f1 and f2).
+# - In addition, Godot defines a property with the name of the class, which acts as the top-level category in the inspector UI.
+func test_renamed_func_shape():
+	# Note: RenamedFunc is located in property_test.rs.
+	var obj: RenamedFunc = RenamedFunc.new()
+
+	# Get baseline Node properties and methods
+	var base_node = Node.new()
+	var node_props = base_node.get_property_list().map(func(p): return p.name)
+	var node_methods = base_node.get_method_list().map(func(m): return m.name)
+	base_node.free()
+	
+	# Get our object's properties and methods
+	var obj_props = obj.get_property_list().map(func(p): return p.name)
+	var obj_methods = obj.get_method_list().map(func(m): return m.name)
+	
+	# Get only the new properties and methods (not in Node)
+	var gdext_props = obj_props.filter(func(name): return not node_props.has(name))
+	var gdext_methods = obj_methods.filter(func(name): return not node_methods.has(name))
+
+	# Assert counts
+	assert_eq(gdext_props.size(), 2, "number of properties should be 2")
+	assert_eq(gdext_methods.size(), 2, "number of methods should be 2")
+	
+	# Assert specific names
+	assert(gdext_props.has("int_val"), "should have a property named 'int_val'")
+	# Godot automatically adds a property of the class name (acts as the top-level category in the inspector UI).
+	assert(gdext_props.has("RenamedFunc"), "should have a property named 'RenamedFunc'")
+	assert(gdext_methods.has("f1"), "should have a method named 'f1'")
+	assert(gdext_methods.has("f2"), "should have a method named 'f2'")
+
+	obj.free()
+
+
+# Validates that the property has been linked to the correct rust get/set functions.
+func test_renamed_func_get_set():
+	# Note: RenamedFunc is located in property_test.rs.
+	var obj: RenamedFunc = RenamedFunc.new()
+
+	assert_eq(obj.int_val, 0)
+	assert_eq(obj.f1(), 0)
+
+	obj.int_val = 42;
+	
+	assert_eq(obj.int_val, 42)
+	assert_eq(obj.f1(), 42)
+
+	obj.f2(84)
+	
+	assert_eq(obj.int_val, 84)
+	assert_eq(obj.f1(), 84)
+
+	obj.free()
+

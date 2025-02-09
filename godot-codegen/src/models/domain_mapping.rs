@@ -419,20 +419,31 @@ impl ClassMethod {
         ctx: &mut Context,
     ) -> Option<Self> {
         assert!(method.is_virtual);
-        assert!(
-            method.hash.is_none(),
-            "hash present for virtual class method"
-        );
+
+        // Hash for virtual methods is available from Godot 4.4, see https://github.com/godotengine/godot/pull/100674.
+        let direction = FnDirection::Virtual {
+            #[cfg(since_api = "4.4")]
+            hash: {
+                let hash_i64 = method.hash.unwrap_or_else(|| {
+                    panic!(
+                        "virtual class methods must have a hash since Godot 4.4; missing: {}.{}",
+                        class_name.godot_ty, method.name
+                    )
+                });
+
+                // TODO see if we can use u32 everywhere.
+                hash_i64.try_into().unwrap_or_else(|_| {
+                    panic!(
+                        "virtual method {}.{} has hash {} that is out of range for u32",
+                        class_name.godot_ty, method.name, hash_i64
+                    )
+                })
+            },
+        };
 
         let rust_method_name = Self::make_virtual_method_name(class_name, &method.name);
 
-        Self::from_json_inner(
-            method,
-            rust_method_name,
-            class_name,
-            FnDirection::Virtual,
-            ctx,
-        )
+        Self::from_json_inner(method, rust_method_name, class_name, direction, ctx)
     }
 
     fn from_json_inner(

@@ -36,12 +36,14 @@ pub struct FuncDefinition {
 // Virtual methods are non-static by their nature; so there's no support for static ones.
 pub fn make_virtual_callback(
     class_name: &Ident,
-    signature_info: SignatureInfo,
+    signature_info: &SignatureInfo,
     before_kind: BeforeKind,
+    interface_trait: Option<&venial::TypeExpr>,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
 
-    let wrapped_method = make_forwarding_closure(class_name, &signature_info, before_kind);
+    let wrapped_method =
+        make_forwarding_closure(class_name, signature_info, before_kind, interface_trait);
     let sig_tuple = signature_info.tuple_type();
 
     let call_ctx = make_call_context(
@@ -75,6 +77,7 @@ pub fn make_virtual_callback(
 pub fn make_method_registration(
     class_name: &Ident,
     func_definition: FuncDefinition,
+    interface_trait: Option<&venial::TypeExpr>,
 ) -> ParseResult<TokenStream> {
     let signature_info = &func_definition.signature_info;
     let sig_tuple = signature_info.tuple_type();
@@ -85,8 +88,12 @@ pub fn make_method_registration(
         Err(msg) => return bail_fn(msg, &signature_info.method_name),
     };
 
-    let forwarding_closure =
-        make_forwarding_closure(class_name, signature_info, BeforeKind::Without);
+    let forwarding_closure = make_forwarding_closure(
+        class_name,
+        signature_info,
+        BeforeKind::Without,
+        interface_trait,
+    );
 
     // String literals
     let method_name = &signature_info.method_name;
@@ -192,6 +199,7 @@ impl SignatureInfo {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum BeforeKind {
     /// Default: just call the method.
     Without,
@@ -208,6 +216,7 @@ fn make_forwarding_closure(
     class_name: &Ident,
     signature_info: &SignatureInfo,
     before_kind: BeforeKind,
+    interface_trait: Option<&venial::TypeExpr>,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
     let params = &signature_info.param_idents;
@@ -237,7 +246,21 @@ fn make_forwarding_closure(
             let method_call = if matches!(before_kind, BeforeKind::OnlyBefore) {
                 TokenStream::new()
             } else {
-                quote! { instance.#method_name( #(#params),* ) }
+                match interface_trait {
+                    // impl ITrait for Class {...}
+                    Some(interface_trait) => {
+                        let instance_ref = match signature_info.receiver_type {
+                            ReceiverType::Ref => quote! { &instance },
+                            ReceiverType::Mut => quote! { &mut instance },
+                            _ => unreachable!("unexpected receiver type"), // checked above.
+                        };
+
+                        quote! { <#class_name as #interface_trait>::#method_name( #instance_ref, #(#params),* ) }
+                    }
+
+                    // impl Class {...}
+                    None => quote! { instance.#method_name( #(#params),* ) },
+                }
             };
 
             quote! {

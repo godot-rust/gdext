@@ -49,7 +49,6 @@
 
 use crate::obj::cap::GodotDefault;
 use crate::obj::{Bounds, Gd, GodotClass, RawGd};
-use crate::registry::callbacks;
 use crate::storage::{InstanceCache, Storage};
 use crate::{out, sys};
 use private::Sealed;
@@ -273,8 +272,7 @@ impl MemDynamic {
     /// Check whether dynamic type is ref-counted.
     fn inherits_refcounted<T: GodotClass>(obj: &RawGd<T>) -> bool {
         obj.instance_id_unchecked()
-            .map(|id| id.is_ref_counted())
-            .unwrap_or(false)
+            .is_some_and(|id| id.is_ref_counted())
     }
 }
 impl Sealed for MemDynamic {}
@@ -302,8 +300,7 @@ impl DynMemory for MemDynamic {
         out!("  MemDyn::dec   <{}>", std::any::type_name::<T>());
         if obj
             .instance_id_unchecked()
-            .map(|id| id.is_ref_counted())
-            .unwrap_or(false)
+            .is_some_and(|id| id.is_ref_counted())
         {
             // Will call `RefCounted::unreference()` which checks for liveness.
             MemRefCounted::maybe_dec_ref(obj)
@@ -418,10 +415,7 @@ impl Declarer for DeclUser {
     where
         T: GodotDefault + Bounds<Declarer = Self>,
     {
-        unsafe {
-            let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
-            Gd::from_obj_sys(object_ptr)
-        }
+        Gd::default_instance()
     }
 }
 

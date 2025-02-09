@@ -10,8 +10,69 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.2.0](#v020), [v0.2.1](#v021)
+- [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.2.3](https://docs.rs/godot/0.2.3)
+
+_30 January 2025_
+
+### 🌻 Features
+
+- Map `Vector2.Axis` and `Vector2i.Axis` to `Vector2Axis` enum ([#1012](https://github.com/godot-rust/gdext/pull/1012))
+- Implement `Var` and `Export` for `DynGd<T, D>` ([#998](https://github.com/godot-rust/gdext/pull/998))
+- Support associated types in `#[godot_dyn]` ([#1022](https://github.com/godot-rust/gdext/pull/1022))
+- Add `Aabb::intersect_ray()` ([#1001](https://github.com/godot-rust/gdext/pull/1001))
+- FFI: compatibility layer for virtual methods ([#991](https://github.com/godot-rust/gdext/pull/991), [#1007](https://github.com/godot-rust/gdext/pull/1007))
+- FFI: postinit create, icon paths ([#991](https://github.com/godot-rust/gdext/pull/991))
+
+### 🧹 Quality of life
+
+- Follow clippy 1.84; limit `NodePath::subpath()` polyfill again ([#1010](https://github.com/godot-rust/gdext/pull/1010))
+- Remove dead binding code regarding Godot 4.0 ([#1014](https://github.com/godot-rust/gdext/pull/1014))
+- API consistency for bounding boxes ([#1001](https://github.com/godot-rust/gdext/pull/1001))
+- Document and refactor `PluginItem` related stuff ([#1003](https://github.com/godot-rust/gdext/pull/1003))
+
+### 🛠️ Bugfixes
+
+- Fix nightly compiler warnings about `#[cfg(before_api = "4.3")]` in the generated `#[godot_api]` impl ([#995](https://github.com/godot-rust/gdext/pull/995))
+- Fix `#[derive(Var)]` generating incorrect `hint_string` for enums ([#1011](https://github.com/godot-rust/gdext/pull/1011))
+
+### 📚 Documentation
+
+- Document + test limitations of `Callable::from_local_static()` ([#1004](https://github.com/godot-rust/gdext/pull/1004))
+- Document builtin API design ([#999](https://github.com/godot-rust/gdext/pull/999))
+
+
+## [v0.2.2](https://docs.rs/godot/0.2.2)
+
+_31 December 2024_
+
+### 🌻 Features
+
+- Feature parity with Godot builtin types
+  - `Vector2i` ([#978](https://github.com/godot-rust/gdext/pull/978))
+  - `Projection` ([#983](https://github.com/godot-rust/gdext/pull/983))
+  - `Callable` ([#979](https://github.com/godot-rust/gdext/pull/979))
+  - `Quaternion` ([#981](https://github.com/godot-rust/gdext/pull/981))
+  - `GString` + `StringName` ([#980](https://github.com/godot-rust/gdext/pull/980))
+  - `NodePath` ([#982](https://github.com/godot-rust/gdext/pull/982))
+  - `PackedByteArray` ([#994](https://github.com/godot-rust/gdext/pull/994))
+- Support static functions in `Callable` ([#989](https://github.com/godot-rust/gdext/pull/989))
+- Codegen can directly expose `Inner*` builtin methods ([#976](https://github.com/godot-rust/gdext/pull/976))
+- Generate builtin methods with varargs ([#977](https://github.com/godot-rust/gdext/pull/977))
+
+### 🧹 Quality of life
+
+- More accurately provide spans to errors in the `GodotClass` macro ([#920](https://github.com/godot-rust/gdext/pull/920))
+- Improve some proc-macro attribute error messages ([#971](https://github.com/godot-rust/gdext/pull/971))
+- Add required virtual method `IScriptInstance::get_doc_class_name()` in test ([#975](https://github.com/godot-rust/gdext/pull/975))
+- Clean up `Callable` + tests, fix `check.sh test` ([#990](https://github.com/godot-rust/gdext/pull/990))
+
+### 📚 Documentation
+
+- Improve docs in `DynGd` (re-enrichment) + Cargo features ([#969](https://github.com/godot-rust/gdext/pull/969))
 
 
 ## [v0.2.1](https://docs.rs/godot/0.2.1)

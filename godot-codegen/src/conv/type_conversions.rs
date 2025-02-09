@@ -75,10 +75,14 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
 }
 
 fn to_hardcoded_rust_enum(ty: &str) -> Option<&str> {
+    // Some types like Vector2[i].Axis may not appear in Godot's current JSON, but they are encountered
+    // in custom Godot builds, e.g. when extending PhysicsServer2D.
     let result = match ty {
         //"enum::Error" => "GodotError",
         "enum::Variant.Type" => "VariantType",
         "enum::Variant.Operator" => "VariantOperator",
+        "enum::Vector2.Axis" => "Vector2Axis",
+        "enum::Vector2i.Axis" => "Vector2Axis",
         "enum::Vector3.Axis" => "Vector3Axis",
         "enum::Vector3i.Axis" => "Vector3Axis",
         _ => return None,

@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GodotFfi};
+use godot_ffi::{ffi_methods, GdextBuild, GodotFfi};
 
 use crate::builtin::inner;
 
@@ -28,6 +28,10 @@ use super::{GString, StringName};
 /// | General purpose   | [`GString`][crate::builtin::GString]       |
 /// | Interned names    | [`StringName`][crate::builtin::StringName] |
 /// | Scene-node paths  | **`NodePath`**                             |
+///
+/// # Godot docs
+///
+/// [`NodePath` (stable)](https://docs.godotengine.org/en/stable/classes/class_nodepath.html)
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
 }
@@ -37,8 +41,80 @@ impl NodePath {
         Self { opaque }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.as_inner().is_empty()
+    /// Returns the node name at position `index`.
+    ///
+    /// If you want to get a property name instead, check out [`get_subname()`][Self::get_subname].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// let path = NodePath::from("../RigidBody2D/Sprite2D");
+    /// godot_print!("{}", path.get_name(0)); // ".."
+    /// godot_print!("{}", path.get_name(1)); // "RigidBody2D"
+    /// godot_print!("{}", path.get_name(2)); // "Sprite"
+    /// ```
+    ///
+    /// # Panics
+    /// In Debug mode, if `index` is out of bounds. In Release, a Godot error is generated and the result is unspecified (but safe).
+    pub fn get_name(&self, index: usize) -> StringName {
+        let inner = self.as_inner();
+        let index = index as i64;
+
+        debug_assert!(
+            index < inner.get_name_count(),
+            "NodePath '{self}': name at index {index} is out of bounds"
+        );
+
+        inner.get_name(index)
+    }
+
+    /// Returns the node subname (property) at position `index`.
+    ///
+    /// If you want to get a node name instead, check out [`get_name()`][Self::get_name].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// let path = NodePath::from("Sprite2D:texture:resource_name");
+    /// godot_print!("{}", path.get_subname(0)); // "texture"
+    /// godot_print!("{}", path.get_subname(1)); // "resource_name"
+    /// ```
+    ///
+    /// # Panics
+    /// In Debug mode, if `index` is out of bounds. In Release, a Godot error is generated and the result is unspecified (but safe).
+    pub fn get_subname(&self, index: usize) -> StringName {
+        let inner = self.as_inner();
+        let index = index as i64;
+
+        debug_assert!(
+            index < inner.get_subname_count(),
+            "NodePath '{self}': subname at index {index} is out of bounds"
+        );
+
+        inner.get_subname(index)
+    }
+
+    /// Returns the number of node names in the path. Property subnames are not included.
+    pub fn get_name_count(&self) -> usize {
+        self.as_inner()
+            .get_name_count()
+            .try_into()
+            .expect("Godot name counts are non-negative ints")
+    }
+
+    /// Returns the number of property names ("subnames") in the path. Each subname in the node path is listed after a colon character (`:`).
+    pub fn get_subname_count(&self) -> usize {
+        self.as_inner()
+            .get_subname_count()
+            .try_into()
+            .expect("Godot subname counts are non-negative ints")
+    }
+
+    /// Returns the total number of names + subnames.
+    ///
+    /// This method does not exist in Godot and is provided in Rust for convenience.
+    pub fn get_total_count(&self) -> usize {
+        self.get_name_count() + self.get_subname_count()
     }
 
     /// Returns a 32-bit integer hash value representing the string.
@@ -47,6 +123,44 @@ impl NodePath {
             .hash()
             .try_into()
             .expect("Godot hashes are uint32_t")
+    }
+
+    /// Returns the range `begin..exclusive_end` as a new `NodePath`.
+    ///
+    /// The absolute value of `begin` and `exclusive_end` will be clamped to [`get_total_count()`][Self::get_total_count].
+    /// So, to express "until the end", you can simply pass a large value for `exclusive_end`, such as `i32::MAX`.
+    ///
+    /// If either `begin` or `exclusive_end` are negative, they will be relative to the end of the `NodePath`.  \
+    /// For example, `path.subpath(0, -2)` is a shorthand for `path.subpath(0, path.get_total_count() - 2)`.
+    ///
+    /// _Godot equivalent: `slice`_
+    ///
+    /// # Compatibility
+    /// The `slice()` behavior for Godot <= 4.3 is unintuitive, see [#100954](https://github.com/godotengine/godot/pull/100954). godot-rust
+    /// automatically changes this to the fixed version for Godot 4.4+, even when used in older versions. So, the behavior is always the same.
+    // i32 used because it can be negative and many Godot APIs use this, see https://github.com/godot-rust/gdext/pull/982/files#r1893732978.
+    #[cfg(since_api = "4.3")]
+    #[doc(alias = "slice")]
+    pub fn subpath(&self, begin: i32, exclusive_end: i32) -> NodePath {
+        // Polyfill for bug https://github.com/godotengine/godot/pull/100954, fixed in 4.4.
+        let begin = if GdextBuild::since_api("4.4") {
+            begin
+        } else {
+            let name_count = self.get_name_count() as i32;
+            let subname_count = self.get_subname_count() as i32;
+            let total_count = name_count + subname_count;
+
+            let mut begin = begin.clamp(-total_count, total_count);
+            if begin < 0 {
+                begin += total_count;
+            }
+            if begin > name_count {
+                begin += 1;
+            }
+            begin
+        };
+
+        self.as_inner().slice(begin as i64, exclusive_end as i64)
     }
 
     crate::meta::declare_arg_method! {

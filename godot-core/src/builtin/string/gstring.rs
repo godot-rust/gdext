@@ -5,14 +5,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::convert::Infallible;
+use std::ffi::c_char;
+use std::fmt;
 use std::fmt::Write;
-use std::{convert::Infallible, ffi::c_char, fmt, str::FromStr};
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::{inner, NodePath, StringName};
+use crate::builtin::{inner, NodePath, StringName, Variant};
+use crate::meta::AsArg;
+use crate::{impl_shared_string_api, meta};
 
 /// Godot's reference counted string type.
 ///
@@ -56,6 +60,10 @@ use crate::builtin::{inner, NodePath, StringName};
 /// | General purpose   | **`GString`**                              |
 /// | Interned names    | [`StringName`][crate::builtin::StringName] |
 /// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
+///
+/// # Godot docs
+///
+/// [`String` (stable)](https://docs.godotengine.org/en/stable/classes/class_string.html)
 #[doc(alias = "String")]
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]
@@ -64,17 +72,17 @@ pub struct GString {
 }
 
 impl GString {
-    /// Construct a new empty GString.
+    /// Construct a new empty `GString`.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Number of characters in the string.
+    ///
+    /// _Godot equivalent: `length`_
+    #[doc(alias = "length")]
     pub fn len(&self) -> usize {
         self.as_inner().length().try_into().unwrap()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.as_inner().is_empty()
     }
 
     /// Returns a 32-bit integer hash value representing the string.
@@ -85,7 +93,7 @@ impl GString {
             .expect("Godot hashes are uint32_t")
     }
 
-    /// Gets the UTF-32 character slice from a [`GString`].
+    /// Gets the UTF-32 character slice from a `GString`.
     pub fn chars(&self) -> &[char] {
         // SAFETY: Godot 4.1 ensures valid UTF-32, making interpreting as char slice safe.
         // See https://github.com/godotengine/godot/pull/74760.
@@ -94,7 +102,7 @@ impl GString {
             let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
             let ptr = interface_fn!(string_operator_index_const)(s, 0);
 
-            // Even when len == 0, from_raw_parts requires ptr != 0
+            // Even when len == 0, from_raw_parts requires ptr != null.
             if ptr.is_null() {
                 return &[];
             }
@@ -151,7 +159,7 @@ impl GString {
         self.move_return_ptr(dst, sys::PtrcallType::Standard);
     }
 
-    crate::meta::declare_arg_method! {
+    meta::declare_arg_method! {
         /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::meta::AsArg] parameter.
         ///
         /// This is a convenient way to convert arguments of similar string types.
@@ -192,7 +200,7 @@ unsafe impl GodotFfi for GString {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(GString);
+meta::impl_godot_as_self!(GString);
 
 impl_builtin_traits! {
     for GString {
@@ -203,6 +211,12 @@ impl_builtin_traits! {
         Ord => string_operator_less;
         Hash;
     }
+}
+
+impl_shared_string_api! {
+    builtin: GString,
+    find_builder: ExGStringFind,
+    split_builder: ExGStringSplit,
 }
 
 impl fmt::Display for GString {
@@ -301,7 +315,7 @@ impl From<GString> for String {
     }
 }
 
-impl FromStr for GString {
+impl std::str::FromStr for GString {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

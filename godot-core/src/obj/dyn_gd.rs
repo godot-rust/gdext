@@ -7,10 +7,11 @@
 
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
-use crate::meta::{FromGodot, GodotConvert, ToGodot};
+use crate::meta::{ClassName, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits};
-use crate::registry::class::try_dynify_object;
+use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
+use crate::registry::property::{Export, Var};
 use crate::{meta, sys};
 use std::{fmt, ops};
 
@@ -477,4 +478,35 @@ where
     T: GodotClass,
     D: ?Sized + 'static,
 {
+}
+
+impl<T, D> Var for DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn get_property(&self) -> Self::Via {
+        self.obj.get_property()
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
+        *self = <Self as FromGodot>::from_godot(value);
+    }
+}
+
+impl<T, D> Export for DynGd<T, D>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    D: ?Sized + 'static,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo {
+            hint_string: get_dyn_property_hint_string::<D>(),
+            ..<Gd<T> as Export>::export_hint()
+        }
+    }
+    fn as_node_class() -> Option<ClassName> {
+        <Gd<T> as Export>::as_node_class()
+    }
 }

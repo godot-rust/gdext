@@ -30,6 +30,16 @@ pub struct Quaternion {
 }
 
 impl Quaternion {
+    /// The identity quaternion, representing no rotation. This has the same rotation as [`Basis::IDENTITY`].
+    ///
+    /// If a [`Vector3`] is rotated (multiplied) by this quaternion, it does not change.
+    pub const IDENTITY: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+        w: 1.0,
+    };
+
     pub fn new(x: real, y: real, z: real, w: real) -> Self {
         Self { x, y, z, w }
     }
@@ -54,9 +64,28 @@ impl Quaternion {
         Self::new(x, y, z, w)
     }
 
-    // TODO: Constructors.
-    // pub fn from_vector_vector(arc_to: Vector3, arc_from: Vector3) -> Self {}
-    // pub fn from_basis(basis: Basis) -> Self {}
+    /// Constructs a Quaternion representing the shortest arc between `arc_from` and `arc_to`.
+    ///
+    /// These can be imagined as two points intersecting a unit sphere's surface, with a radius of 1.0.
+    ///
+    // This is an undocumented assumption of Godot's as well.
+    /// The inputs must be unit vectors.
+    ///
+    /// For near-singular cases (`arc_from`≈`arc_to` or `arc_from`≈-`arc_to`) the current implementation is only accurate to about
+    /// 0.001, or better if `double-precision` is enabled.
+    ///
+    /// *Godot equivalent: `Quaternion(arc_from: Vector3, arc_to: Vector3)`*
+    pub fn from_rotation_arc(arc_from: Vector3, arc_to: Vector3) -> Self {
+        debug_assert!(
+            arc_from.is_normalized(),
+            "input 1 (`arc_from`) in `Quaternion::from_rotation_arc` must be a unit vector"
+        );
+        debug_assert!(
+            arc_to.is_normalized(),
+            "input 2 (`arc_to`) in `Quaternion::from_rotation_arc` must be a unit vector"
+        );
+        <Self as GlamConv>::Glam::from_rotation_arc(arc_from.to_glam(), arc_to.to_glam()).to_front()
+    }
 
     pub fn angle_to(self, to: Self) -> real {
         self.glam2(&to, RQuat::angle_between)
@@ -66,7 +95,7 @@ impl Quaternion {
         self.glam2(&with, RQuat::dot)
     }
 
-    pub fn to_exp(self) -> Self {
+    pub fn exp(self) -> Self {
         let mut v = Vector3::new(self.x, self.y, self.z);
         let theta = v.length();
         v = v.normalized();
@@ -76,6 +105,11 @@ impl Quaternion {
         } else {
             Self::from_axis_angle(v, theta)
         }
+    }
+
+    #[deprecated = "Renamed to `Quaternion::exp()`"]
+    pub fn to_exp(self) -> Self {
+        self.exp()
     }
 
     pub fn from_euler(euler: Vector3) -> Self {
@@ -113,8 +147,25 @@ impl Quaternion {
         }
     }
 
+    /// Returns the rotation of the matrix in euler angles, with the order `YXZ`.
+    ///
+    /// See [`get_euler_with()`](Self::get_euler_with) for custom angle orders.
+    pub fn get_euler(self) -> Vector3 {
+        self.get_euler_with(EulerOrder::YXZ)
+    }
+
+    /// Returns the rotation of the matrix in euler angles.
+    ///
+    /// The order of the angles are given by `order`. To use the default order `YXZ`, see [`get_euler()`](Self::get_euler).
+    ///
+    /// _Godot equivalent: `Quaternion.get_euler()`_
+    pub fn get_euler_with(self, order: EulerOrder) -> Vector3 {
+        Basis::from_quaternion(self).get_euler_with(order)
+    }
+
+    #[deprecated = "Renamed to `get_euler()` + `get_euler_with()`"]
     pub fn to_euler(self, order: EulerOrder) -> Vector3 {
-        Basis::from_quat(self).to_euler(order)
+        self.get_euler_with(order)
     }
 
     pub fn inverse(self) -> Self {

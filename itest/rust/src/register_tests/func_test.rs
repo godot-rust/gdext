@@ -130,6 +130,22 @@ impl GdSelfObj {
         compile_error!("Removed by #[cfg]")
     }
 
+    // Why `panic = "abort"`: we need a condition that always evaluates to true, and #[cfg_attr(true)] is still experimental.
+    // (https://github.com/rust-lang/rust/issues/131204)
+    #[cfg_attr(any(panic = "abort", panic = "unwind"), cfg(any()))]
+    #[func]
+    fn cfg_removes_duplicate_function_impl() -> bool {
+        compile_error!("Removed by #[cfg]")
+    }
+
+    #[func]
+    // Why `panic = "abort"`: we need a condition that always evaluates to true, and #[cfg_attr(true)] is still experimental.
+    // (https://github.com/rust-lang/rust/issues/131204)
+    #[cfg_attr(any(panic = "abort", panic = "unwind"), cfg(any()))]
+    fn cfg_removes_duplicate_function_impl() -> bool {
+        compile_error!("Removed by #[cfg]")
+    }
+
     #[cfg(any())]
     #[func]
     fn cfg_removes_function() -> bool {

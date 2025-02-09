@@ -495,7 +495,10 @@ impl<T: ArrayElement> Array<T> {
     /// Array elements are copied to the slice, but any reference types (such as `Array`,
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
     /// [`subarray_deep()`][Self::subarray_deep] instead.
+    ///
+    /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
+    // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
     pub fn subarray_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
         self.subarray_impl(begin, end, step, false)
     }
@@ -511,7 +514,10 @@ impl<T: ArrayElement> Array<T> {
     /// All nested arrays and dictionaries are duplicated and will not be shared with the original
     /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
     /// shallow copy, use [`subarray_shallow()`][Self::subarray_shallow] instead.
+    ///
+    /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
+    // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
     pub fn subarray_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
         self.subarray_impl(begin, end, step, true)
     }

@@ -7,6 +7,7 @@
 
 mod array;
 mod dictionary;
+mod extend_buffer;
 mod packed_array;
 
 // Re-export in godot::builtin.

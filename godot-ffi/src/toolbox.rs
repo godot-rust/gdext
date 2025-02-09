@@ -8,6 +8,7 @@
 //! Functions and macros that are not very specific to gdext, but come in handy.
 
 use crate as sys;
+use std::fmt::{Display, Write};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros
@@ -162,22 +163,35 @@ where
     join_with(iter, ", ", |item| format!("{item:?}"))
 }
 
-pub fn join_with<T, I, F>(mut iter: I, sep: &str, mut format_elem: F) -> String
+pub fn join_with<T, I, F, S>(mut iter: I, sep: &str, mut format_elem: F) -> String
 where
     I: Iterator<Item = T>,
-    F: FnMut(&T) -> String,
+    F: FnMut(&T) -> S,
+    S: Display,
 {
     let mut result = String::new();
 
     if let Some(first) = iter.next() {
-        result.push_str(&format_elem(&first));
+        // write! propagates error only if given formatter fails.
+        // String formatting by itself is an infallible operation.
+        // Read more at: https://doc.rust-lang.org/stable/std/fmt/index.html#formatting-traits
+        write!(&mut result, "{first}", first = format_elem(&first))
+            .expect("Formatter should not fail!");
         for item in iter {
-            result.push_str(sep);
-            result.push_str(&format_elem(&item));
+            write!(&mut result, "{sep}{item}", item = format_elem(&item))
+                .expect("Formatter should not fail!");
         }
     }
-
     result
+}
+
+pub fn i64_to_ordering(value: i64) -> std::cmp::Ordering {
+    match value {
+        -1 => std::cmp::Ordering::Less,
+        0 => std::cmp::Ordering::Equal,
+        1 => std::cmp::Ordering::Greater,
+        _ => panic!("cannot convert value {value} to cmp::Ordering"),
+    }
 }
 
 /*
@@ -218,7 +232,7 @@ fn strip_module_paths(full_name: &str) -> String {
                 result.push(c);
 
                 // Handle spaces after commas for readability.
-                if c == ',' && chars.peek().map_or(false, |&next_c| next_c != ' ') {
+                if c == ',' && chars.peek().is_some_and(|&next_c| next_c != ' ') {
                     result.push(' ');
                 }
             }
@@ -251,9 +265,9 @@ fn strip_module_paths(full_name: &str) -> String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Private helpers
 
-/// Metafunction to extract inner function pointer types from all the bindgen Option<F> type names.
+/// Metafunction to extract inner function pointer types from all the bindgen `Option<F>` type names.
 /// Needed for `unsafe_cast_fn_ptr` macro.
-pub(crate) trait Inner: Sized {
+pub trait Inner: Sized {
     type FnPtr: Sized;
 }
 

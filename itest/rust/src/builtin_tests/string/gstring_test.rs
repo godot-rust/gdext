@@ -7,8 +7,8 @@
 
 use std::collections::HashSet;
 
-use crate::framework::itest;
-use godot::builtin::GString;
+use crate::framework::{expect_debug_panic_or_release_ok, itest};
+use godot::builtin::{GString, PackedStringArray};
 
 // TODO use tests from godot-rust/gdnative
 
@@ -72,12 +72,36 @@ fn string_chars() {
     assert_eq!(string.chars(), empty_char_slice);
     assert_eq!(string, GString::from(empty_char_slice));
 
-    let string = String::from("some_string");
+    let string = String::from("ö🍎A💡");
     let string_chars: Vec<char> = string.chars().collect();
     let gstring = GString::from(string);
 
-    assert_eq!(string_chars, gstring.chars().to_vec());
+    assert_eq!(gstring.chars(), string_chars.as_slice());
+    assert_eq!(
+        gstring.chars(),
+        &[
+            char::from_u32(0x00F6).unwrap(),
+            char::from_u32(0x1F34E).unwrap(),
+            char::from(65),
+            char::from_u32(0x1F4A1).unwrap(),
+        ]
+    );
+
     assert_eq!(gstring, GString::from(string_chars.as_slice()));
+}
+
+#[itest]
+fn string_unicode_at() {
+    let s = GString::from("ö🍎A💡");
+    assert_eq!(s.unicode_at(0), 'ö');
+    assert_eq!(s.unicode_at(1), '🍎');
+    assert_eq!(s.unicode_at(2), 'A');
+    assert_eq!(s.unicode_at(3), '💡');
+
+    // Release mode: out-of-bounds prints Godot error, but returns 0.
+    expect_debug_panic_or_release_ok("unicode_at() out-of-bounds panics", || {
+        assert_eq!(s.unicode_at(4), '\0');
+    });
 }
 
 #[itest]
@@ -112,4 +136,138 @@ fn string_with_null() {
 
         assert_eq!(left, right);
     }
+}
+
+#[itest]
+fn string_substr() {
+    let string = GString::from("stable");
+    assert_eq!(string.substr(..), "stable".into());
+    assert_eq!(string.substr(1..), "table".into());
+    assert_eq!(string.substr(..4), "stab".into());
+    assert_eq!(string.substr(..=3), "stab".into());
+    assert_eq!(string.substr(2..5), "abl".into());
+    assert_eq!(string.substr(2..=4), "abl".into());
+}
+
+#[itest]
+fn string_find() {
+    let s = GString::from("Hello World");
+
+    assert_eq!(s.find("o"), Some(4));
+
+    // Forward
+    assert_eq!(s.find_ex("o").done(), Some(4));
+    assert_eq!(s.find_ex("O").done(), None);
+    assert_eq!(s.find_ex("O").n().done(), Some(4));
+    assert_eq!(s.find_ex("O").n().from(4).done(), Some(4));
+    assert_eq!(s.find_ex("O").n().from(5).done(), Some(7));
+
+    // Reverse
+    assert_eq!(s.find_ex("o").r().done(), Some(7));
+    assert_eq!(s.find_ex("O").r().done(), None);
+    assert_eq!(s.find_ex("O").r().n().done(), Some(7));
+    assert_eq!(s.find_ex("O").r().n().from(7).done(), Some(7));
+    assert_eq!(s.find_ex("O").r().n().from(6).done(), Some(4));
+}
+
+#[itest]
+fn string_split() {
+    let s = GString::from("Hello World");
+    assert_eq!(s.split(" "), packed(&["Hello", "World"]));
+    assert_eq!(
+        s.split(""),
+        packed(&["H", "e", "l", "l", "o", " ", "W", "o", "r", "l", "d"])
+    );
+    assert_eq!(s.split_ex(" ").done(), packed(&["Hello", "World"]));
+    assert_eq!(s.split_ex("world").done(), packed(&["Hello World"]));
+
+    // Empty divisions
+    assert_eq!(s.split_ex("l").done(), packed(&["He", "", "o Wor", "d"]));
+    assert_eq!(
+        s.split_ex("l").disallow_empty().done(),
+        packed(&["He", "o Wor", "d"])
+    );
+
+    // Max-split
+    assert_eq!(
+        s.split_ex("l").maxsplit(1).done(),
+        packed(&["He", "lo World"])
+    );
+    assert_eq!(
+        s.split_ex("l").maxsplit(2).done(),
+        packed(&["He", "", "o World"])
+    );
+
+    // Reverse max-split
+    assert_eq!(
+        s.split_ex("l").maxsplit_r(1).done(),
+        packed(&["Hello Wor", "d"])
+    );
+}
+
+#[itest]
+fn string_count() {
+    let s = GString::from("Long sentence with Sentry guns.");
+    assert_eq!(s.count("sent", ..), 1);
+    assert_eq!(s.count("en", 6..), 3);
+    assert_eq!(s.count("en", 7..), 2);
+    assert_eq!(s.count("en", 6..=6), 0);
+    assert_eq!(s.count("en", 6..=7), 1);
+    assert_eq!(s.count("en", 6..8), 1);
+    assert_eq!(s.count("en", 7..8), 0);
+    assert_eq!(s.count("en", ..8), 1);
+    assert_eq!(s.count("en", ..10), 1);
+    assert_eq!(s.count("en", ..11), 2);
+    assert_eq!(s.count("en", ..=10), 2);
+
+    assert_eq!(s.countn("sent", ..), 2);
+}
+
+#[itest]
+fn string_erase() {
+    let s = GString::from("Hello World");
+    assert_eq!(s.erase(..), GString::new());
+    assert_eq!(s.erase(4..4), s);
+    assert_eq!(s.erase(2..=2), "Helo World".into());
+    assert_eq!(s.erase(1..=3), "Ho World".into());
+    assert_eq!(s.erase(1..4), "Ho World".into());
+    assert_eq!(s.erase(..6), "World".into());
+    assert_eq!(s.erase(5..), "Hello".into());
+}
+
+#[itest]
+fn string_insert() {
+    let s = GString::from("H World");
+    assert_eq!(s.insert(1, "i"), "Hi World".into());
+    assert_eq!(s.insert(1, "ello"), "Hello World".into());
+    assert_eq!(s.insert(7, "."), "H World.".into());
+    assert_eq!(s.insert(0, "¿"), "¿H World".into());
+
+    // Special behavior in Godot, but maybe the idea is to allow large constants to mean "end".
+    assert_eq!(s.insert(123, "!"), "H World!".into());
+}
+
+#[itest]
+fn string_pad() {
+    let s = GString::from("123");
+    assert_eq!(s.lpad(5, '0'), "00123".into());
+    assert_eq!(s.lpad(2, ' '), "123".into());
+    assert_eq!(s.lpad(4, ' '), " 123".into());
+
+    assert_eq!(s.rpad(5, '+'), "123++".into());
+    assert_eq!(s.rpad(2, ' '), "123".into());
+    assert_eq!(s.rpad(4, ' '), "123 ".into());
+
+    let s = GString::from("123.456");
+    assert_eq!(s.pad_decimals(5), "123.45600".into());
+    assert_eq!(s.pad_decimals(2), "123.45".into()); // note: Godot rounds down
+
+    assert_eq!(s.pad_zeros(5), "00123.456".into());
+    assert_eq!(s.pad_zeros(2), "123.456".into());
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+fn packed(strings: &[&str]) -> PackedStringArray {
+    strings.iter().map(|&s| GString::from(s)).collect()
 }

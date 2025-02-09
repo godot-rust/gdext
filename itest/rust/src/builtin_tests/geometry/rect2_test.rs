@@ -48,7 +48,7 @@ fn rect2_inner_equivalence() {
                 inner_rect.intersects(other, false),
             );
             assert_eq!(
-                rect.intersection(other).unwrap_or_default(),
+                rect.intersect(other).unwrap_or_default(),
                 inner_rect.intersection(other),
             );
             assert_eq_approx!(rect.merge(other), inner_rect.merge(other));
@@ -56,7 +56,7 @@ fn rect2_inner_equivalence() {
 
         for vec in vectors {
             assert_eq_approx!(rect.expand(vec), inner_rect.expand(vec));
-            assert_eq!(rect.has_point(vec), inner_rect.has_point(vec));
+            assert_eq!(rect.contains_point(vec), inner_rect.has_point(vec));
         }
 
         for grow in grow_values {
