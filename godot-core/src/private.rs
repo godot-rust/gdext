@@ -259,6 +259,8 @@ pub fn set_gdext_hook(godot_print: impl 'static + Send + Sync + Fn() -> bool) {
             godot_error!("{message}");
         }
         eprintln!("{message}");
+        #[cfg(debug_assertions)]
+        eprintln!("{}", std::backtrace::Backtrace::capture());
         let _ignored_result = std::io::stderr().flush();
     }));
 }
@@ -318,7 +320,7 @@ pub fn get_gdext_panic_context() -> Option<String> {
     #[cfg(debug_assertions)]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
     #[cfg(not(debug_assertions))]
-    String::new()
+    None
 }
 
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
