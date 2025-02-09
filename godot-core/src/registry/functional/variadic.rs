@@ -14,7 +14,7 @@
 use crate::builtin::Variant;
 use crate::meta;
 
-pub trait AsFunc<I, Ps> {
+pub trait AsFunc<I, Ps>: 'static {
     fn call(&mut self, maybe_instance: I, params: Ps);
 }
 
@@ -22,7 +22,7 @@ macro_rules! impl_signal_recipient {
     ($( $args:ident : $Ps:ident ),*) => {
         // Global and associated functions.
         impl<F, R, $($Ps,)*> AsFunc<(), ( $($Ps,)* )> for F
-            where F: FnMut( $($Ps,)* ) -> R
+            where F: FnMut( $($Ps,)* ) -> R + 'static
         {
             fn call(&mut self, _no_instance: (), ($($args,)*): ( $($Ps,)* )) {
                 self($($args,)*);
@@ -31,7 +31,7 @@ macro_rules! impl_signal_recipient {
 
         // Methods.
         impl<F, R, C, $($Ps,)*> AsFunc<&mut C, ( $($Ps,)* )> for F
-            where F: FnMut( &mut C, $($Ps,)* ) -> R
+            where F: FnMut( &mut C, $($Ps,)* ) -> R + 'static
         {
             fn call(&mut self, instance: &mut C, ($($args,)*): ( $($Ps,)* )) {
                 self(instance, $($args,)*);

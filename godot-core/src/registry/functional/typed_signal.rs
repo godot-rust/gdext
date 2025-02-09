@@ -7,12 +7,15 @@
 
 // Maybe move this to builtin::functional module?
 
-use crate::builtin::{Callable, Variant};
+use crate::builtin::{Callable, GString, Variant};
+use crate::classes::object::ConnectFlags;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
+use crate::registry::functional::connect_builder::ConnectBuilder;
 use crate::registry::functional::{AsFunc, ParamTuple};
-use crate::{classes, sys};
+use crate::{classes, meta, sys};
 use std::borrow::Cow;
 use std::fmt;
+use std::marker::PhantomData;
 
 #[doc(hidden)]
 pub enum ObjectRef<'a, C: GodotClass> {
@@ -45,22 +48,26 @@ where
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub struct TypedSignal<'a, C: GodotClass, Ps> {
+pub struct TypedSignal<'c, C: GodotClass, Ps> {
     //signal: Signal,
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
-    owner: ObjectRef<'a, C>,
+    owner: ObjectRef<'c, C>,
     name: Cow<'static, str>,
-    _signature: std::marker::PhantomData<Ps>,
+    _signature: PhantomData<Ps>,
 }
 
-impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
+impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
     #[doc(hidden)]
-    pub fn new(owner: ObjectRef<'a, C>, name: &'static str) -> Self {
+    pub fn new(owner: ObjectRef<'c, C>, name: &'static str) -> Self {
         Self {
             owner,
             name: Cow::Borrowed(name),
-            _signature: std::marker::PhantomData,
+            _signature: PhantomData,
         }
+    }
+
+    pub(crate) fn receiver_object(&self) -> Gd<C> {
+        self.owner.to_owned()
     }
 
     pub fn emit(&mut self, params: Ps) {
@@ -83,7 +90,7 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
     /// To connect to a method of the own object `self`, use [`connect_self()`][Self::connect_self].
     pub fn connect<F>(&mut self, mut function: F)
     where
-        F: AsFunc<(), Ps> + 'static,
+        F: AsFunc<(), Ps>,
     {
         let callable_name = std::any::type_name_of_val(&function);
 
@@ -94,18 +101,13 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
             Ok(Variant::nil())
         };
 
-        let name = self.name.as_ref();
-        let callable = Callable::from_local_fn(callable_name, godot_fn);
-
-        self.owner.with_object_mut(|obj| {
-            obj.connect(name, &callable);
-        });
+        self.inner_connect_local(callable_name, godot_fn);
     }
 
     /// Connect a method (member function) with `&mut self` as the first parameter.
     pub fn connect_self<F>(&mut self, mut function: F)
     where
-        for<'c> F: AsFunc<&'c mut C, Ps> + 'static,
+        for<'c_rcv> F: AsFunc<&'c_rcv mut C, Ps>,
     {
         // When using sys::short_type_name() in the future, make sure global "func" and member "MyClass::func" are rendered as such.
         // PascalCase heuristic should then be good enough.
@@ -127,12 +129,7 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
             Ok(Variant::nil())
         };
 
-        let name = self.name.as_ref();
-        let callable = Callable::from_local_fn(callable_name, godot_fn);
-
-        self.owner.with_object_mut(|obj| {
-            obj.connect(name, &callable);
-        });
+        self.inner_connect_local(callable_name, godot_fn);
     }
 
     /// Connect a method (member function) with any `Gd<T>` (not `self`) as the first parameter.
@@ -141,7 +138,7 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
     pub fn connect_obj<F, OtherC>(&mut self, object: &Gd<OtherC>, mut function: F)
     where
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
-        for<'c> F: AsFunc<&'c mut OtherC, Ps> + 'static,
+        for<'c_rcv> F: AsFunc<&'c_rcv mut OtherC, Ps>,
     {
         let callable_name = std::any::type_name_of_val(&function);
 
@@ -156,12 +153,37 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
             Ok(Variant::nil())
         };
 
-        let name = self.name.as_ref();
+        self.inner_connect_local(callable_name, godot_fn);
+    }
+
+    fn inner_connect_local<F>(&mut self, callable_name: impl meta::AsArg<GString>, godot_fn: F)
+    where
+        F: FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
+    {
+        let signal_name = self.name.as_ref();
         let callable = Callable::from_local_fn(callable_name, godot_fn);
 
         self.owner.with_object_mut(|obj| {
-            obj.connect(name, &callable);
+            obj.connect(signal_name, &callable);
         });
+    }
+
+    pub(super) fn connect_untyped(&mut self, callable: &Callable, flags: Option<ConnectFlags>) {
+        use crate::obj::EngineEnum;
+
+        let signal_name = self.name.as_ref();
+
+        self.owner.with_object_mut(|obj| {
+            let mut c = obj.connect_ex(signal_name, &callable);
+            if let Some(flags) = flags {
+                c = c.flags(flags.ord() as u32);
+            }
+            c.done();
+        });
+    }
+
+    pub fn connect_builder(&mut self) -> ConnectBuilder<'_, 'c, C, (), Ps, ()> {
+        ConnectBuilder::new(self)
     }
 }
 
@@ -176,8 +198,8 @@ impl<'a, C: WithBaseField, Ps: ParamTuple> TypedSignal<'a, C, Ps> {
 pub struct Func<R, Ps> {
     godot_function_name: &'static str,
     callable_kind: CallableKind,
-    _return_type: std::marker::PhantomData<R>,
-    _param_types: std::marker::PhantomData<Ps>,
+    _return_type: PhantomData<R>,
+    _param_types: PhantomData<Ps>,
 }
 
 enum CallableKind {
@@ -199,8 +221,8 @@ impl<R, Ps> Func<R, Ps> {
         Self {
             godot_function_name: method_godot_name,
             callable_kind: CallableKind::Method { bound_object },
-            _return_type: std::marker::PhantomData,
-            _param_types: std::marker::PhantomData,
+            _return_type: PhantomData,
+            _param_types: PhantomData,
         }
     }
 
@@ -212,8 +234,8 @@ impl<R, Ps> Func<R, Ps> {
         Self {
             godot_function_name: method_godot_name,
             callable_kind: CallableKind::StaticFunction { class_godot_name },
-            _return_type: std::marker::PhantomData,
-            _param_types: std::marker::PhantomData,
+            _return_type: PhantomData,
+            _param_types: PhantomData,
         }
     }
 
