@@ -297,12 +297,12 @@ impl ScopedFunctionStack {
     }
 
     fn get_last(&self) -> Option<String> {
-        return self.0.last().cloned().map(|pointer| unsafe {
+        self.0.last().cloned().map(|pointer| unsafe {
             // SAFETY:
             // Invariants provided by push_function assert that any and all functions held by ScopedFunctionStack
             // are removed before they are invalidated; functions must always be valid
             &*pointer
-        }());
+        }())
     }
 }
 
@@ -342,7 +342,7 @@ where
         std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()));
     #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
-    return result;
+    result
 }
 
 // TODO(bromeon): make call_ctx lazy-evaluated (like error_ctx) everywhere;
