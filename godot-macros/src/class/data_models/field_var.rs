@@ -213,7 +213,7 @@ impl GetterSetter {
             GetterSetter::Custom(function_name) => {
                 Some(GetterSetterImpl::from_custom_impl(function_name))
             }
-            GetterSetter::Ex(function_name) => {
+            GetterSetter::Ex(_function_name) => {
                 assert!(matches!(kind, GetSet::SetEx(_)));
                 Some(GetterSetterImpl::from_generated_impl(
                     class_name, kind, notify, field,
