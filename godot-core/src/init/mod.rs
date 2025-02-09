@@ -49,12 +49,14 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
             sys::initialize(get_proc_address, library, config);
         }
 
+        // With experimental-features enabled, we can always print panics to godot_print!
         #[cfg(feature = "experimental-threads")]
         crate::private::set_gdext_hook(|| true);
 
         #[cfg(not(feature = "experimental-threads"))]
         {
             let main_thread = std::thread::current().id();
+            // Without experimental-features enabled, we can only print panics with godot_print! if the panic occurs on the main (godot) thread
             crate::private::set_gdext_hook(move || std::thread::current().id() == main_thread);
         }
 
