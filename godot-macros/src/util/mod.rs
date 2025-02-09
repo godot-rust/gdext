@@ -107,13 +107,10 @@ pub fn parse_signature(mut signature: TokenStream) -> venial::Function {
     reduce_to_signature(&function_item)
 }
 
-/// Returns a type expression that can be used as a `VarcallSignatureTuple`.
-pub fn make_signature_tuple_type(
-    ret_type: &TokenStream,
-    param_types: &[venial::TypeExpr],
-) -> TokenStream {
+/// Returns a type expression that can be used as a `ParamTuple`.
+pub fn make_signature_param_type(param_types: &[venial::TypeExpr]) -> TokenStream {
     quote::quote! {
-        (#ret_type, #(#param_types),*)
+        (#(#param_types,)*)
     }
 }
 

@@ -16,7 +16,7 @@ use std::thread::ThreadId;
 use crate::builtin::{Callable, RustCallable, Signal, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta::sealed::Sealed;
-use crate::meta::ParamTuple;
+use crate::meta::InParamTuple;
 use crate::obj::{EngineBitfield, Gd, GodotClass, WithSignals};
 use crate::registry::signal::TypedSignal;
 
@@ -32,15 +32,15 @@ pub(crate) use crate::impl_dynamic_send;
 /// - If one of the signal arguments is `!Send`, but the signal was emitted on a different thread.
 /// - The future's `Drop` implementation can cause a non-unwinding panic in rare cases, should the signal object be freed at the same time
 ///   as the future is dropped. Make sure to keep signal objects alive until there are no pending futures anymore.
-pub struct SignalFuture<R: ParamTuple + IntoDynamicSend>(FallibleSignalFuture<R>);
+pub struct SignalFuture<R: InParamTuple + IntoDynamicSend>(FallibleSignalFuture<R>);
 
-impl<R: ParamTuple + IntoDynamicSend> SignalFuture<R> {
+impl<R: InParamTuple + IntoDynamicSend> SignalFuture<R> {
     fn new(signal: Signal) -> Self {
         Self(FallibleSignalFuture::new(signal))
     }
 }
 
-impl<R: ParamTuple + IntoDynamicSend> Future for SignalFuture<R> {
+impl<R: InParamTuple + IntoDynamicSend> Future for SignalFuture<R> {
     type Output = R;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -110,7 +110,7 @@ impl<R: IntoDynamicSend> PartialEq for SignalFutureResolver<R> {
     }
 }
 
-impl<R: ParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R> {
+impl<R: InParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R> {
     fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
         let waker = {
             let mut data = self.data.lock().unwrap();
@@ -185,13 +185,13 @@ impl<T> SignalFutureState<T> {
 /// - If one of the signal arguments is `!Send`, but the signal was emitted on a different thread.
 /// - The future's `Drop` implementation can cause a non-unwinding panic in rare cases, should the signal object be freed at the same time
 ///   as the future is dropped. Make sure to keep signal objects alive until there are no pending futures anymore.
-pub struct FallibleSignalFuture<R: ParamTuple + IntoDynamicSend> {
+pub struct FallibleSignalFuture<R: InParamTuple + IntoDynamicSend> {
     data: Arc<Mutex<SignalFutureData<R::Target>>>,
     callable: SignalFutureResolver<R>,
     signal: Signal,
 }
 
-impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
+impl<R: InParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
     fn new(signal: Signal) -> Self {
         debug_assert!(
             !signal.is_null(),
@@ -214,6 +214,7 @@ impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
             signal,
         }
     }
+
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<Result<R, FallibleSignalFutureError>> {
         let mut data = self.data.lock().unwrap();
 
@@ -256,7 +257,7 @@ impl Display for FallibleSignalFutureError {
 
 impl std::error::Error for FallibleSignalFutureError {}
 
-impl<R: ParamTuple + IntoDynamicSend> Future for FallibleSignalFuture<R> {
+impl<R: InParamTuple + IntoDynamicSend> Future for FallibleSignalFuture<R> {
     type Output = Result<R, FallibleSignalFutureError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -264,7 +265,7 @@ impl<R: ParamTuple + IntoDynamicSend> Future for FallibleSignalFuture<R> {
     }
 }
 
-impl<R: ParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
+impl<R: InParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
     fn drop(&mut self) {
         // The callable might alredy be destroyed, this occurs during engine shutdown.
         if self.signal.is_null() {
@@ -301,7 +302,7 @@ impl Signal {
     ///
     /// Since the `Signal` type does not contain information on the signal argument types, the future output type has to be inferred from
     /// the call to this function.
-    pub fn to_fallible_future<R: ParamTuple + IntoDynamicSend>(&self) -> FallibleSignalFuture<R> {
+    pub fn to_fallible_future<R: InParamTuple + IntoDynamicSend>(&self) -> FallibleSignalFuture<R> {
         FallibleSignalFuture::new(self.clone())
     }
 
@@ -312,12 +313,12 @@ impl Signal {
     ///
     /// Since the `Signal` type does not contain information on the signal argument types, the future output type has to be inferred from
     /// the call to this function.
-    pub fn to_future<R: ParamTuple + IntoDynamicSend>(&self) -> SignalFuture<R> {
+    pub fn to_future<R: InParamTuple + IntoDynamicSend>(&self) -> SignalFuture<R> {
         SignalFuture::new(self.clone())
     }
 }
 
-impl<C: WithSignals, R: ParamTuple + IntoDynamicSend> TypedSignal<'_, C, R> {
+impl<C: WithSignals, R: InParamTuple + IntoDynamicSend> TypedSignal<'_, C, R> {
     /// Creates a fallible future for this signal.
     ///
     /// The future will resolve the next time the signal is emitted.
@@ -335,7 +336,7 @@ impl<C: WithSignals, R: ParamTuple + IntoDynamicSend> TypedSignal<'_, C, R> {
     }
 }
 
-impl<C: WithSignals, R: ParamTuple + IntoDynamicSend> IntoFuture for &TypedSignal<'_, C, R> {
+impl<C: WithSignals, R: InParamTuple + IntoDynamicSend> IntoFuture for &TypedSignal<'_, C, R> {
     type Output = R;
 
     type IntoFuture = SignalFuture<R>;
@@ -349,7 +350,7 @@ impl<C: WithSignals, R: ParamTuple + IntoDynamicSend> IntoFuture for &TypedSigna
 ///
 /// This allows to turn any implementor into a type that is `Send`, but requires to also implement [`DynamicSend`] as well.
 /// The later trait will verify if a value can actually be sent between threads at runtime.
-pub trait IntoDynamicSend: Sealed {
+pub trait IntoDynamicSend: Sealed + 'static {
     type Target: DynamicSend<Inner = Self>;
 
     fn into_dynamic_send(self) -> Self::Target;

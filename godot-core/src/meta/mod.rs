@@ -48,6 +48,7 @@ mod array_type_info;
 mod class_name;
 mod godot_convert;
 mod method_info;
+mod param_tuple;
 mod property_info;
 mod signature;
 mod traits;
@@ -61,8 +62,7 @@ pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
-#[cfg(since_api = "4.2")]
-pub use crate::registry::signal::variadic::ParamTuple;
+pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple};
 
 pub(crate) use array_type_info::ArrayTypeInfo;
 pub(crate) use traits::{
