@@ -172,6 +172,9 @@ fn gdext_on_level_deinit(level: InitLevel) {
         // If lowest level is unloaded, call global deinitialization.
         // No business logic by itself, but ensures consistency if re-initialization (hot-reload on Linux) occurs.
 
+        #[cfg(since_api = "4.2")]
+        crate::builtin::async_runtime::cleanup();
+
         // Garbage-collect various statics.
         // SAFETY: this is the last time meta APIs are used.
         unsafe {
