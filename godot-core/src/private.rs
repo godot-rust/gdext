@@ -226,12 +226,15 @@ pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
     }
 }
 
-fn format_panic_message(_location: Option<&std::panic::Location<'_>>, mut msg: String) -> String {
+#[doc(hidden)]
+pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
+    let mut msg = extract_panic_message(panic_info.payload());
+
     if let Some(context) = get_gdext_panic_context() {
         msg = format!("{msg}\nContext: {context}");
     }
 
-    let prefix = if let Some(location) = _location {
+    let prefix = if let Some(location) = panic_info.location() {
         format!("panic {}:{}", location.file(), location.line())
     } else {
         "panic".to_string()
@@ -256,8 +259,7 @@ where
         // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
         let _ignored_result = std::io::stdout().flush();
 
-        let message = extract_panic_message(panic_info.payload());
-        let message = format_panic_message(panic_info.location(), message);
+        let message = format_panic_message(panic_info);
         if godot_print() {
             godot_error!("{message}");
         }
