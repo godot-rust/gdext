@@ -286,7 +286,7 @@ struct ScopedFunctionStack {
 }
 
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
-/// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value 
+/// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
 /// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
 #[cfg(debug_assertions)]
 impl ScopedFunctionStack {

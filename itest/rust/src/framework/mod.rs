@@ -125,19 +125,17 @@ pub fn passes_filter(filters: &[String], test_name: &str) -> bool {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Toolbox for tests
-pub fn expect_panic(context: &str, code: impl FnOnce()) {
-    use std::panic;
-
-    // Exchange panic hook, to disable printing during expected panics. Also disable gdext's panic printing.
-    let _drop_guard = DropGuard {
-        hook: Some(std::panic::take_hook()),
-    };
+pub fn suppress_panic_log<R>(callback: impl FnOnce() -> R) -> R {
+    let hook = std::panic::take_hook();
     set_hook(Box::new(|_| { /* suppress panic hook; do nothing */ }));
-    return callback();
+    let res = callback();
+    set_hook(hook);
+    res
 }
 
 pub fn expect_panic(context: &str, code: impl FnOnce()) {
-    let panic = suppress_panic_log(move || std::panic::catch_unwind(std::panic::AssertUnwindSafe(code)));
+    let panic =
+        suppress_panic_log(move || std::panic::catch_unwind(std::panic::AssertUnwindSafe(code)));
 
     assert!(
         panic.is_err(),

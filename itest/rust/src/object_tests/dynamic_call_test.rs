@@ -147,7 +147,8 @@ fn dynamic_call_with_panic() {
 
     std::panic::set_hook(Box::new(move |panic_info| {
         let error_message = godot::private::format_panic_message(panic_info);
-        *panic_message_clone.lock().unwrap() = Some(error_message);
+        *panic_message_clone.lock().unwrap() =
+            Some((error_message, godot::private::get_gdext_panic_context()));
     }));
 
     let mut obj = ObjPayload::new_alloc();
@@ -164,8 +165,12 @@ fn dynamic_call_with_panic() {
         .to_string();
 
     assert_eq!(call_error.to_string(), expected_error_message);
-    
-    let panic_message = panic_message.lock().unwrap().clone().expect("expected panic");
+
+    let (panic_message, error_context) = panic_message
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("expected panic");
     let mut path = "itest/rust/src/object_tests/object_test.rs".to_string();
     if cfg!(target_os = "windows") {
         path = path.replace('/', "\\")
@@ -173,7 +178,12 @@ fn dynamic_call_with_panic() {
     // Obtain line number dynamically, avoids tedious maintenance on code reorganization.
     let line = ObjPayload::get_panic_line();
 
-    let expected_panic_message = format!("[panic {path}:{line}] {expected_error_message}");
+    let expected_panic_message = format!(
+        "[panic {path}:{line}]\n  do_panic exploded{}",
+        error_context
+            .map(|context| format!("\n  Context: {context}"))
+            .unwrap_or_default()
+    );
 
     assert_eq!(panic_message, expected_panic_message);
 
