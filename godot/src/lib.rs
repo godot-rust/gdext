@@ -35,6 +35,7 @@
 //! * [`tools`], higher-level utilities that extend the generated code, e.g. `load<T>()`.
 //! * [`meta`], fundamental information about types, properties and conversions.
 //! * [`init`], entry point and global library configuration.
+//! * [`task`], integration with async code.
 //!
 //! The [`prelude`] contains often-imported symbols; feel free to `use godot::prelude::*` in your code.
 //! <br><br>
@@ -160,7 +161,7 @@ compile_error!("The feature `double-precision` currently requires `api-custom` d
 // Modules
 
 #[doc(inline)]
-pub use godot_core::{builtin, classes, global, meta, obj, tools};
+pub use godot_core::{builtin, classes, global, meta, obj, task, tools};
 
 #[doc(hidden)]
 pub use godot_core::possibly_docs as docs;
