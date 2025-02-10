@@ -472,6 +472,7 @@ where
 pub mod cap {
     use super::*;
     use crate::builtin::{StringName, Variant};
+    use crate::meta::PropertyInfo;
     use crate::obj::{Base, Bounds, Gd};
     use std::any::Any;
 
@@ -569,6 +570,13 @@ pub mod cap {
     pub trait GodotPropertyGetRevert: GodotClass {
         #[doc(hidden)]
         fn __godot_property_get_revert(&self, property: StringName) -> Option<Variant>;
+    }
+
+    #[doc(hidden)]
+    #[cfg(since_api = "4.2")]
+    pub trait GodotValidateProperty: GodotClass {
+        #[doc(hidden)]
+        fn __godot_validate_property(&self, property: &mut PropertyInfo);
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks

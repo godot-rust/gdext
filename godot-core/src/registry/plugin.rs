@@ -404,6 +404,13 @@ pub struct ITraitImpl {
             r_ret: sys::GDExtensionVariantPtr,
         ) -> sys::GDExtensionBool,
     >,
+    #[cfg(since_api = "4.2")]
+    pub(crate) validate_property_fn: Option<
+        unsafe extern "C" fn(
+            p_instance: sys::GDExtensionClassInstancePtr,
+            p_property: *mut sys::GDExtensionPropertyInfo,
+        ) -> sys::GDExtensionBool,
+    >,
 }
 
 impl ITraitImpl {
@@ -482,6 +489,15 @@ impl ITraitImpl {
         set(
             &mut self.user_property_can_revert_fn,
             callbacks::property_can_revert::<T>,
+        );
+        self
+    }
+
+    #[cfg(since_api = "4.2")]
+    pub fn with_validate_property<T: GodotClass + cap::GodotValidateProperty>(mut self) -> Self {
+        set(
+            &mut self.validate_property_fn,
+            callbacks::validate_property::<T>,
         );
         self
     }

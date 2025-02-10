@@ -155,6 +155,19 @@ impl StringName {
         &*(ptr.cast::<StringName>())
     }
 
+    /// Convert a `StringName` sys pointer to a mutable reference with unbounded lifetime.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must point to a live `StringName` for the duration of `'a`.
+    /// - Must be exclusive - no other reference to given `StringName` instance can exist for the duration of `'a`.
+    pub(crate) unsafe fn borrow_string_sys_mut<'a>(
+        ptr: sys::GDExtensionStringNamePtr,
+    ) -> &'a mut StringName {
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
+        &mut *(ptr.cast::<StringName>())
+    }
+
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerStringName {
         inner::InnerStringName::from_outer(self)

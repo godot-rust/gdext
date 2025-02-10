@@ -452,6 +452,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             user_property_get_revert_fn,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
                 virtual_method_docs: _,
+            #[cfg(since_api = "4.2")]
+            validate_property_fn,
         }) => {
             c.user_register_fn = user_register_fn;
 
@@ -477,6 +479,10 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.godot_params.property_can_revert_func = user_property_can_revert_fn;
             c.godot_params.property_get_revert_func = user_property_get_revert_fn;
             c.user_virtual_fn = get_virtual_fn;
+            #[cfg(since_api = "4.2")]
+            {
+                c.godot_params.validate_property_func = validate_property_fn;
+            }
         }
         PluginItem::DynTraitImpl(dyn_trait_impl) => {
             let type_id = dyn_trait_impl.dyn_trait_typeid();
