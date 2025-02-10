@@ -16,6 +16,9 @@ use crate::out;
 
 pub use sys::GdextBuild;
 
+#[cfg(not(wasm_nothreads))]
+pub use sys::main_thread_id;
+
 #[doc(hidden)]
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
