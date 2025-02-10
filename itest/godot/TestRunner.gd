@@ -66,20 +66,24 @@ func _ready():
 
 	var property_tests = load("res://gen/GenPropertyTests.gd").new()
 
-	var success: bool = rust_runner.run_all_tests(
+	# Run benchmarks after all synchronous and asynchronous tests have completed.
+	var run_benchmarks = func (success: bool):
+		if success:
+			rust_runner.run_all_benchmarks(self)
+
+		var exit_code: int = 0 if success else 1
+		get_tree().quit(exit_code)
+
+	rust_runner.run_all_tests(
 		gdscript_tests,
 		gdscript_suites.size(),
 		allow_focus,
 		self,
 		filters,
-		property_tests
+		property_tests,
+		run_benchmarks
 	)
 
-	if success:
-		rust_runner.run_all_benchmarks(self)
-
-	var exit_code: int = 0 if success else 1
-	get_tree().quit(exit_code)
 
 
 class GDScriptTestCase:
