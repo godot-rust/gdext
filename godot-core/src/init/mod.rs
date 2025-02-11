@@ -56,7 +56,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         #[cfg(not(feature = "experimental-threads"))]
         {
             let main_thread = std::thread::current().id();
-            // Without experimental-features enabled, we can only print panics with godot_print! if the panic occurs on the main (godot) thread
+            // Without experimental-features enabled, we can only print panics with godot_print! if the panic occurs on the main (Godot) thread.
             crate::private::set_gdext_hook(move || std::thread::current().id() == main_thread);
         }
 
