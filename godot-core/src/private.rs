@@ -339,8 +339,7 @@ where
 {
     #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| unsafe {
-        // SAFETY:
-        // &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
+        // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
         cell.borrow_mut().push_function(&error_context)
     });
     let result =
