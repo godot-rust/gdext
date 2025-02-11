@@ -9,7 +9,7 @@ use godot::classes::{Engine, Node, Os};
 use godot::obj::Gd;
 use godot::sys;
 use std::collections::HashSet;
-use std::panic::set_hook;
+use std::panic;
 
 mod bencher;
 mod runner;
@@ -126,16 +126,22 @@ pub fn passes_filter(filters: &[String], test_name: &str) -> bool {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Toolbox for tests
 pub fn suppress_panic_log<R>(callback: impl FnOnce() -> R) -> R {
-    let hook = std::panic::take_hook();
-    set_hook(Box::new(|_| { /* suppress panic hook; do nothing */ }));
+    // Exchange panic hook, to disable printing during expected panics. Also disable gdext's panic printing.
+    let prev_hook = panic::take_hook();
+    panic::set_hook(Box::new(
+        |_panic_info| { /* suppress panic hook; do nothing */ },
+    ));
+    let prev_print_level = godot::private::set_error_print_level(0);
     let res = callback();
-    set_hook(hook);
+    panic::set_hook(prev_hook);
+    godot::private::set_error_print_level(prev_print_level);
     res
 }
 
 pub fn expect_panic(context: &str, code: impl FnOnce()) {
-    let panic =
-        suppress_panic_log(move || std::panic::catch_unwind(std::panic::AssertUnwindSafe(code)));
+    // Generally, types should be unwind safe, and this helps ergonomics in testing (especially around &mut in expect_panic closures).
+    let code = panic::AssertUnwindSafe(code);
+    let panic = suppress_panic_log(move || panic::catch_unwind(code));
 
     assert!(
         panic.is_err(),
