@@ -294,6 +294,7 @@ impl ScopedFunctionStack {
     /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
     unsafe fn push_function(&mut self, function: &dyn Fn() -> String) {
         let function = std::ptr::from_ref(function);
+        #[allow(clippy::unnecessary_cast)]
         let function = function as *const (dyn Fn() -> String + 'static);
         self.functions.push(function);
     }
@@ -307,7 +308,7 @@ impl ScopedFunctionStack {
             // SAFETY:
             // Invariants provided by push_function assert that any and all functions held by ScopedFunctionStack
             // are removed before they are invalidated; functions must always be valid.
-            unsafe { (&*pointer)() }
+            unsafe { (*pointer)() }
         })
     }
 }
