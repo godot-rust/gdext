@@ -31,6 +31,20 @@ pub struct FuncDefinition {
     pub rpc_info: Option<RpcAttr>,
 }
 
+impl FuncDefinition {
+    pub fn rust_ident(&self) -> &Ident {
+        &self.signature_info.method_name
+    }
+
+    pub fn godot_name(&self) -> String {
+        if let Some(name_override) = self.registered_name.as_ref() {
+            name_override.clone()
+        } else {
+            self.rust_ident().to_string()
+        }
+    }
+}
+
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
 // Virtual methods are non-static by their nature; so there's no support for static ones.
@@ -96,13 +110,8 @@ pub fn make_method_registration(
     );
 
     // String literals
-    let method_name = &signature_info.method_name;
     let class_name_str = class_name.to_string();
-    let method_name_str = if let Some(updated_name) = func_definition.registered_name {
-        updated_name
-    } else {
-        method_name.to_string()
-    };
+    let method_name_str = func_definition.godot_name();
 
     let call_ctx = make_call_context(&class_name_str, &method_name_str);
     let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure);
@@ -162,6 +171,96 @@ pub fn make_method_registration(
     Ok(registration)
 }
 
+// See also make_signal_collection().
+pub fn make_func_collection(
+    class_name: &Ident,
+    func_definitions: &[FuncDefinition],
+) -> TokenStream {
+    let instance_collection = format_ident!("{}Funcs", class_name);
+    let static_collection = format_ident!("{}StaticFuncs", class_name);
+
+    let mut instance_collection_methods = vec![];
+    let mut static_collection_methods = vec![];
+
+    for func in func_definitions {
+        let rust_func_name = func.rust_ident();
+        let godot_func_name = func.godot_name();
+
+        let signature_info = &func.signature_info;
+        let generic_args = signature_info.separate_return_params_args();
+
+        // Transport #[cfg] attrs to the FFI glue to ensure functions which were conditionally
+        // removed from compilation don't cause errors.
+        // TODO remove code duplication + double computation, see above.
+        let cfg_attrs = util::extract_cfg_attrs(&func.external_attributes)
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        if func.signature_info.receiver_type == ReceiverType::Static {
+            static_collection_methods.push(quote! {
+                #(#cfg_attrs)*
+                // Use `&self` here to enable `.` chaining, such as in MyClass::static_funcs().my_func().
+                fn #rust_func_name(self) -> ::godot::register::Func<#generic_args> {
+                    let class_name = <#class_name as ::godot::obj::GodotClass>::class_name();
+                    ::godot::register::Func::from_static_function(class_name.to_cow_str(), #godot_func_name)
+                }
+            });
+        } else {
+            instance_collection_methods.push(quote! {
+                #(#cfg_attrs)*
+                fn #rust_func_name(self) -> ::godot::register::Func<#generic_args> {
+                    ::godot::register::Func::from_instance_method(self.obj, #godot_func_name)
+                }
+            });
+        }
+    }
+
+    quote! {
+        #[non_exhaustive] // Prevent direct instantiation.
+        #[allow(non_camel_case_types)]
+        pub struct #instance_collection {
+            // Could use #class_name instead of Object, but right now the inner Func<..> type anyway uses Object.
+            obj: ::godot::obj::Gd<::godot::classes::Object>,
+        }
+
+        impl #instance_collection {
+            #[doc(hidden)]
+            pub fn __internal(obj: ::godot::obj::Gd<::godot::classes::Object>) -> Self {
+                Self { obj }
+            }
+
+            #( #instance_collection_methods )*
+        }
+
+        #[non_exhaustive] // Prevent direct instantiation.
+        #[allow(non_camel_case_types)]
+        pub struct #static_collection {}
+
+        impl #static_collection {
+            #[doc(hidden)]
+            pub fn __internal() -> Self {
+                Self {}
+            }
+
+            #( #static_collection_methods )*
+        }
+
+        impl ::godot::obj::cap::WithFuncs for #class_name {
+            type FuncCollection = #instance_collection;
+            type StaticFuncCollection = #static_collection;
+
+            fn funcs(&self) -> Self::FuncCollection {
+                let obj = <Self as ::godot::obj::WithBaseField>::to_gd(self);
+                Self::FuncCollection::__internal(obj.upcast())
+            }
+
+            fn static_funcs() -> Self::StaticFuncCollection {
+                Self::StaticFuncCollection::__internal()
+            }
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
@@ -193,9 +292,16 @@ impl SignatureInfo {
         }
     }
 
+    // The below functions share quite a bit of tokenization. If ever we run into codegen slowness, we could cache/reuse identical
+    // sub-expressions.
+
     pub fn tuple_type(&self) -> TokenStream {
         // Note: for GdSelf receivers, first parameter is not even part of SignatureInfo anymore.
         util::make_signature_tuple_type(&self.ret_type, &self.param_types)
+    }
+
+    pub fn separate_return_params_args(&self) -> TokenStream {
+        util::make_signature_generic_args(&self.ret_type, &self.param_types)
     }
 }
 

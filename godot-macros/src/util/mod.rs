@@ -117,6 +117,18 @@ pub fn make_signature_tuple_type(
     }
 }
 
+/// Returns a type expression `R, Params` (without parentheses) that can be used as two separate generic args.
+///
+/// `Params` is a `(P1, P2, P3, ...)` tuple.
+pub fn make_signature_generic_args(
+    ret_type: &TokenStream,
+    param_types: &[venial::TypeExpr],
+) -> TokenStream {
+    quote::quote! {
+        #ret_type, (#(#param_types,)*)
+    }
+}
+
 fn is_punct(tt: &TokenTree, c: char) -> bool {
     match tt {
         TokenTree::Punct(punct) => punct.as_char() == c,

@@ -26,7 +26,6 @@ use std::sync::atomic;
 #[cfg(debug_assertions)]
 use std::sync::{Arc, Mutex};
 use sys::Global;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 
@@ -120,6 +119,16 @@ pub(crate) fn call_error_remove(in_error: &sys::GDExtensionCallError) -> Option<
 
     call_error
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Functional and signal APIs
+
+// pub fn emit_signal<T>(obj: &mut BaseMut<T>, varargs: &[Variant])
+// where
+//     T: GodotClass<Declarer = bounds::DeclEngine> + Inherits<crate::classes::Object>,
+// {
+//     obj.upcast_mut().emit_signal(varargs);
+// }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Plugin and global state handling
