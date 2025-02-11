@@ -170,7 +170,8 @@ fn dynamic_call_with_panic() {
         .lock()
         .unwrap()
         .clone()
-        .expect("expected panic");
+        .expect("panic message/context absent");
+
     let mut path = "itest/rust/src/object_tests/object_test.rs".to_string();
     if cfg!(target_os = "windows") {
         path = path.replace('/', "\\")
