@@ -253,10 +253,10 @@ pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
 
 pub fn set_gdext_hook<F>(godot_print: F)
 where
-    F: Send + Sync + Fn() -> bool + 'static,
+    F: Fn() -> bool + Send + Sync + 'static,
 {
     std::panic::set_hook(Box::new(move |panic_info| {
-        // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
+        // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed.
         let _ignored_result = std::io::stdout().flush();
 
         let message = format_panic_message(panic_info);
@@ -293,16 +293,9 @@ impl ScopedFunctionStack {
     /// # Safety
     /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
     unsafe fn push_function(&mut self, function: &dyn Fn() -> String) {
-        /// # Safety
-        /// The caller must ensure that the function isn't used past its original lifetime.
-        /// (Invariant must be held by push_function)
-        unsafe fn assume_static_lifetime(
-            value: &dyn Fn() -> String,
-        ) -> &'static dyn Fn() -> String {
-            std::mem::transmute(value)
-        }
-        self.functions
-            .push(assume_static_lifetime(function) as *const _);
+        let function = std::ptr::from_ref(function);
+        let function = function as *const (dyn Fn() -> String + 'static);
+        self.functions.push(function);
     }
 
     fn pop_function(&mut self) {
@@ -314,10 +307,8 @@ impl ScopedFunctionStack {
             // SAFETY:
             // Invariants provided by push_function assert that any and all functions held by ScopedFunctionStack
             // are removed before they are invalidated; functions must always be valid.
-            unsafe {
-                &*pointer
-            }
-        }())
+            unsafe { (&*pointer)() }
+        })
     }
 }
 
@@ -328,7 +319,7 @@ thread_local! {
     }
 }
 
-// Value may return `None` even from panic hook if called from a non-Godot thread
+// Value may return `None`, even from panic hook, if called from a non-Godot thread.
 pub fn get_gdext_panic_context() -> Option<String> {
     #[cfg(debug_assertions)]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
@@ -350,7 +341,7 @@ where
     #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| unsafe {
         // SAFETY:
-        // &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function
+        // &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
         cell.borrow_mut().push_function(&error_context)
     });
     let result =
