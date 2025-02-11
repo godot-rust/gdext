@@ -280,14 +280,14 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
     ERROR_PRINT_LEVEL.load(atomic::Ordering::Relaxed) >= level
 }
 
+/// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
+/// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
+/// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
 #[cfg(debug_assertions)]
 struct ScopedFunctionStack {
     functions: Vec<*const dyn Fn() -> String>,
 }
 
-/// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
-/// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
-/// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
 #[cfg(debug_assertions)]
 impl ScopedFunctionStack {
     /// # Safety
