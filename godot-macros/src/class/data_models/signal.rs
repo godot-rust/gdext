@@ -42,14 +42,15 @@ pub fn make_signal_registrations(
             };
         }
 
+        let param_list = quote! { (#(#param_types,)*) };
         let signature_tuple = util::make_signature_tuple_type(&quote! { () }, &param_types);
         let indexes = 0..param_types.len();
         let param_array_decl = quote! {
             [
                 // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
                 #(
-                    <#signature_tuple as godot::meta::VarcallSignatureTuple>
-                        ::param_property_info(#indexes, #param_names),
+                    <#param_list as godot::meta::ParamList>
+                        ::property_info(#indexes, #param_names),
                 )*
             ]
         };

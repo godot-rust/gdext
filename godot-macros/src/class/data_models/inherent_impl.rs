@@ -412,7 +412,8 @@ fn add_virtual_script_call(
     };
     let method_name_cstr = c_str(&method_name_str);
 
-    let sig_tuple = signature_info.tuple_type();
+    let call_params = signature_info.params_type();
+    let call_ret = &signature_info.ret_type;
     let arg_names = &signature_info.param_idents;
 
     let (object_ptr, receiver);
@@ -432,10 +433,11 @@ fn add_virtual_script_call(
 
         if has_virtual_override {
             // Dynamic dispatch.
-            type CallSig = #sig_tuple;
+            type CallParams = #call_params;
+            type CallRet = #call_ret;
             let args = (#( #arg_names, )*);
             unsafe {
-                <CallSig as ::godot::meta::VarcallSignatureTuple>::out_script_virtual_call(
+                ::godot::meta::Signature::<CallParams, CallRet>::out_script_virtual_call(
                     #class_name_str,
                     #method_name_str,
                     method_sname_ptr,

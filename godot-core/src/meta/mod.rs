@@ -51,6 +51,7 @@ mod method_info;
 mod property_info;
 mod sealed;
 mod signature;
+mod signature2;
 mod traits;
 
 pub mod error;
@@ -72,8 +73,11 @@ pub(crate) use crate::{
     impl_godot_as_self,
 };
 
+// #[doc(hidden)]
+// pub use signature::*;
+
 #[doc(hidden)]
-pub use signature::*;
+pub use signature2::*;
 
 #[cfg(feature = "trace")]
 pub use signature::trace;
