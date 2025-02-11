@@ -330,7 +330,7 @@ impl CallableRefcountTest {
 #[cfg(since_api = "4.2")]
 pub mod custom_callable {
     use super::*;
-    use crate::framework::{assert_eq_self, quick_thread, ThreadCrosser};
+    use crate::framework::{assert_eq_self, quick_thread, suppress_panic_log, ThreadCrosser};
     use godot::builtin::{Dictionary, RustCallable};
     use godot::sys;
     use godot::sys::GdextBuild;
@@ -543,7 +543,9 @@ pub mod custom_callable {
         let received = Arc::new(AtomicU32::new(0));
         let received_callable = received.clone();
         let callable = Callable::from_local_fn("test", move |_args| {
-            panic!("TEST: {}", received_callable.fetch_add(1, Ordering::SeqCst))
+            suppress_panic_log(|| {
+                panic!("TEST: {}", received_callable.fetch_add(1, Ordering::SeqCst))
+            })
         });
 
         assert_eq!(Variant::nil(), callable.callv(&varray![]));

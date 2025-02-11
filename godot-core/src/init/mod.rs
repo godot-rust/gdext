@@ -46,6 +46,17 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
             sys::initialize(get_proc_address, library, config);
         }
 
+        // With experimental-features enabled, we can always print panics to godot_print!
+        #[cfg(feature = "experimental-threads")]
+        crate::private::set_gdext_hook(|| true);
+
+        // Without experimental-features enabled, we can only print panics with godot_print! if the panic occurs on the main (Godot) thread.
+        #[cfg(not(feature = "experimental-threads"))]
+        {
+            let main_thread = std::thread::current().id();
+            crate::private::set_gdext_hook(move || std::thread::current().id() == main_thread);
+        }
+
         // Currently no way to express failure; could be exposed to E if necessary.
         // No early exit, unclear if Godot still requires output parameters to be set.
         let success = true;
@@ -65,7 +76,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         success as u8
     };
 
-    let ctx = || "error when loading GDExtension library";
+    let ctx = || "error when loading GDExtension library".to_string();
     let is_success = crate::private::handle_panic(ctx, init_code);
 
     is_success.unwrap_or(0)
