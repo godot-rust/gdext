@@ -89,4 +89,8 @@ pub use property_info::{PropertyHintInfo, PropertyInfo};
 /// Must not use meta facilities (e.g. `ClassName`) after this call.
 pub(crate) unsafe fn cleanup() {
     class_name::cleanup();
+    // drop all pending tasks from async runtime. Futures have to be dropped before deinit.
+    // Should be moved somewhere more appropriate.
+    #[cfg(since_api = "4.2")]
+    crate::builtin::ASYNC_RUNTIME.take();
 }

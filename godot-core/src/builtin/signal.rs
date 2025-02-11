@@ -19,6 +19,9 @@ use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
 use sys::{ffi_methods, GodotFfi};
 
+#[cfg(since_api = "4.2")]
+pub use futures::*;
+
 /// A `Signal` represents a signal of an Object instance in Godot.
 ///
 /// Signals are composed of a reference to an `Object` and the name of the signal on this object.
@@ -211,5 +214,312 @@ impl fmt::Debug for Signal {
 impl fmt::Display for Signal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_variant())
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------
+// Implementation of a rust future for Godot Signals
+#[cfg(since_api = "4.2")]
+mod futures {
+    use std::fmt::Display;
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::sync::{Arc, Mutex};
+    use std::task::{Context, Poll, Waker};
+
+    use crate::builtin::{Callable, RustCallable, Variant};
+    use crate::classes::object::ConnectFlags;
+    use crate::meta::FromGodot;
+    use crate::obj::EngineEnum;
+
+    use super::Signal;
+
+    pub struct SignalFuture<R: FromSignalArgs> {
+        state: Arc<Mutex<(Option<R>, Option<Waker>)>>,
+        callable: Callable,
+        signal: Signal,
+    }
+
+    impl<R: FromSignalArgs> SignalFuture<R> {
+        fn new(signal: Signal) -> Self {
+            let state = Arc::new(Mutex::new((None, Option::<Waker>::None)));
+            let callback_state = state.clone();
+
+            // the callable currently requires that the return value is Sync + Send
+            let callable = Callable::from_local_fn("async_task", move |args: &[&Variant]| {
+                let mut lock = callback_state.lock().unwrap();
+                let waker = lock.1.take();
+
+                lock.0.replace(R::from_args(args));
+                drop(lock);
+
+                if let Some(waker) = waker {
+                    waker.wake();
+                }
+
+                Ok(Variant::nil())
+            });
+
+            signal.connect(&callable, ConnectFlags::ONE_SHOT.ord() as i64);
+
+            Self {
+                state,
+                callable,
+                signal,
+            }
+        }
+    }
+
+    impl<R: FromSignalArgs> Future for SignalFuture<R> {
+        type Output = R;
+
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            let mut lock = self.state.lock().unwrap();
+
+            if let Some(result) = lock.0.take() {
+                return Poll::Ready(result);
+            }
+
+            lock.1.replace(cx.waker().clone());
+
+            Poll::Pending
+        }
+    }
+
+    impl<R: FromSignalArgs> Drop for SignalFuture<R> {
+        fn drop(&mut self) {
+            if !self.callable.is_valid() {
+                return;
+            }
+
+            if self.signal.object().is_none() {
+                return;
+            }
+
+            if self.signal.is_connected(&self.callable) {
+                self.signal.disconnect(&self.callable);
+            }
+        }
+    }
+
+    struct GuaranteedSignalFutureResolver<R> {
+        state: Arc<Mutex<(GuaranteedSignalFutureState<R>, Option<Waker>)>>,
+    }
+
+    impl<R> Clone for GuaranteedSignalFutureResolver<R> {
+        fn clone(&self) -> Self {
+            Self {
+                state: self.state.clone(),
+            }
+        }
+    }
+
+    impl<R> GuaranteedSignalFutureResolver<R> {
+        fn new(state: Arc<Mutex<(GuaranteedSignalFutureState<R>, Option<Waker>)>>) -> Self {
+            Self { state }
+        }
+    }
+
+    impl<R> std::hash::Hash for GuaranteedSignalFutureResolver<R> {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            state.write_usize(Arc::as_ptr(&self.state) as usize);
+        }
+    }
+
+    impl<R> PartialEq for GuaranteedSignalFutureResolver<R> {
+        fn eq(&self, other: &Self) -> bool {
+            Arc::ptr_eq(&self.state, &other.state)
+        }
+    }
+
+    impl<R: FromSignalArgs> RustCallable for GuaranteedSignalFutureResolver<R> {
+        fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
+            let mut lock = self.state.lock().unwrap();
+            let waker = lock.1.take();
+
+            lock.0 = GuaranteedSignalFutureState::Ready(R::from_args(args));
+            drop(lock);
+
+            if let Some(waker) = waker {
+                waker.wake();
+            }
+
+            Ok(Variant::nil())
+        }
+    }
+
+    impl<R> Display for GuaranteedSignalFutureResolver<R> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(
+                f,
+                "GuaranteedSignalFutureResolver::<{}>",
+                std::any::type_name::<R>()
+            )
+        }
+    }
+
+    // this resolver will resolve the future when it's being dropped (i.e. the engine removes all connected signal callables). This is very unusual.
+    impl<R> Drop for GuaranteedSignalFutureResolver<R> {
+        fn drop(&mut self) {
+            let mut lock = self.state.lock().unwrap();
+
+            if !matches!(lock.0, GuaranteedSignalFutureState::Pending) {
+                return;
+            }
+
+            lock.0 = GuaranteedSignalFutureState::Dead;
+
+            if let Some(ref waker) = lock.1 {
+                waker.wake_by_ref();
+            }
+        }
+    }
+
+    #[derive(Default)]
+    enum GuaranteedSignalFutureState<T> {
+        #[default]
+        Pending,
+        Ready(T),
+        Dead,
+        Dropped,
+    }
+
+    impl<T> GuaranteedSignalFutureState<T> {
+        fn take(&mut self) -> Self {
+            let new_value = match self {
+                Self::Pending => Self::Pending,
+                Self::Ready(_) | Self::Dead => Self::Dead,
+                Self::Dropped => Self::Dropped,
+            };
+
+            std::mem::replace(self, new_value)
+        }
+    }
+
+    /// The guaranteed signal future will always resolve, but might resolve to `None` if the owning object is freed
+    /// before the signal is emitted.
+    ///
+    /// This is inconsistent with how awaiting signals in Godot work and how async works in rust. The behavior was requested as part of some
+    /// user feedback for the initial POC.
+    pub struct GuaranteedSignalFuture<R: FromSignalArgs> {
+        state: Arc<Mutex<(GuaranteedSignalFutureState<R>, Option<Waker>)>>,
+        callable: GuaranteedSignalFutureResolver<R>,
+        signal: Signal,
+    }
+
+    impl<R: FromSignalArgs> GuaranteedSignalFuture<R> {
+        fn new(signal: Signal) -> Self {
+            let state = Arc::new(Mutex::new((
+                GuaranteedSignalFutureState::Pending,
+                Option::<Waker>::None,
+            )));
+
+            // the callable currently requires that the return value is Sync + Send
+            let callable = GuaranteedSignalFutureResolver::new(state.clone());
+
+            signal.connect(
+                &Callable::from_custom(callable.clone()),
+                ConnectFlags::ONE_SHOT.ord() as i64,
+            );
+
+            Self {
+                state,
+                callable,
+                signal,
+            }
+        }
+    }
+
+    impl<R: FromSignalArgs> Future for GuaranteedSignalFuture<R> {
+        type Output = Option<R>;
+
+        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            let mut lock = self.state.lock().unwrap();
+
+            lock.1.replace(cx.waker().clone());
+
+            let value = lock.0.take();
+
+            match value {
+                GuaranteedSignalFutureState::Pending => Poll::Pending,
+                GuaranteedSignalFutureState::Dropped => unreachable!(),
+                GuaranteedSignalFutureState::Dead => Poll::Ready(None),
+                GuaranteedSignalFutureState::Ready(value) => Poll::Ready(Some(value)),
+            }
+        }
+    }
+
+    impl<R: FromSignalArgs> Drop for GuaranteedSignalFuture<R> {
+        fn drop(&mut self) {
+            if self.signal.object().is_none() {
+                return;
+            }
+
+            self.state.lock().unwrap().0 = GuaranteedSignalFutureState::Dropped;
+
+            let gd_callable = Callable::from_custom(self.callable.clone());
+
+            if self.signal.is_connected(&gd_callable) {
+                self.signal.disconnect(&gd_callable);
+            }
+        }
+    }
+
+    pub trait FromSignalArgs: Sync + Send + 'static {
+        fn from_args(args: &[&Variant]) -> Self;
+    }
+
+    impl<R: FromGodot + Sync + Send + 'static> FromSignalArgs for R {
+        fn from_args(args: &[&Variant]) -> Self {
+            args.first()
+                .map(|arg| (*arg).to_owned())
+                .unwrap_or_default()
+                .to()
+        }
+    }
+
+    // more of these should be generated via macro to support more than two signal arguments
+    impl<R1: FromGodot + Sync + Send + 'static, R2: FromGodot + Sync + Send + 'static>
+        FromSignalArgs for (R1, R2)
+    {
+        fn from_args(args: &[&Variant]) -> Self {
+            (args[0].to(), args[0].to())
+        }
+    }
+
+    impl Signal {
+        pub fn to_guaranteed_future<R: FromSignalArgs>(&self) -> GuaranteedSignalFuture<R> {
+            GuaranteedSignalFuture::new(self.clone())
+        }
+
+        pub fn to_future<R: FromSignalArgs>(&self) -> SignalFuture<R> {
+            SignalFuture::new(self.clone())
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use std::{
+            hash::{DefaultHasher, Hash, Hasher},
+            sync::Arc,
+        };
+
+        use super::GuaranteedSignalFutureResolver;
+
+        #[test]
+        fn guaranteed_future_waker_cloned_hash() {
+            let waker_a = GuaranteedSignalFutureResolver::<u8>::new(Arc::default());
+            let waker_b = waker_a.clone();
+
+            let mut hasher = DefaultHasher::new();
+            waker_a.hash(&mut hasher);
+            let hash_a = hasher.finish();
+
+            let mut hasher = DefaultHasher::new();
+            waker_b.hash(&mut hasher);
+            let hash_b = hasher.finish();
+
+            assert_eq!(hash_a, hash_b);
+        }
     }
 }

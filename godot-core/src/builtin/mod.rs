@@ -155,6 +155,8 @@ pub mod __prelude_reexport {
     use super::*;
 
     pub use aabb::*;
+    #[cfg(since_api = "4.2")]
+    pub use async_runtime::*;
     pub use basis::*;
     pub use callable::*;
     pub use collections::containers::*;
@@ -203,6 +205,8 @@ mod macros;
 
 // Other modules
 mod aabb;
+#[cfg(since_api = "4.2")]
+mod async_runtime;
 mod basis;
 mod callable;
 mod collections;
