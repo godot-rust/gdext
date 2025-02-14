@@ -344,7 +344,7 @@ jobs:
             os: ubuntu-22.04
             artifact-name: linux-4.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            #godot-prebuilt-patch: '4.3.x'
+            godot-prebuilt-patch: '4.3'
 
           - name: linux-4.2
             os: ubuntu-22.04
