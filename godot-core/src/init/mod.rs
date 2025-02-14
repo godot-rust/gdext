@@ -27,7 +27,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise, this could cause the default
     // behavior to kick in and disable hot reloading.
     #[cfg(target_os = "linux")]
-    match E::override_hot_reload {
+    match E::OVERRIDE_HOT_RELOAD {
         None => sys::linux_reload_workaround::default_set_hot_reload(),
         Some(true) => sys::linux_reload_workaround::enable_hot_reload(),
         Some(false) => sys::linux_reload_workaround::disable_hot_reload(),
