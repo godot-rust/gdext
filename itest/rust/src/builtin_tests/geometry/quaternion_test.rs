@@ -41,11 +41,11 @@ fn quaternion_from_axis_angle() {
     assert_eq_approx!(quat.w, 0.877583);
 
     // 2. Should panic if axis is not normalized.
-    expect_panic("Quaternion axis {axis:?} is not normalized.", || {
+    expect_panic("Quaternion axis (0, 0, 0) is not normalized.", || {
         Quaternion::from_axis_angle(Vector3::ZERO, 1.0);
     });
 
-    expect_panic("Quaternion axis {axis:?} is not normalized.", || {
+    expect_panic("Quaternion axis (0, 0.7, 0) is not normalized.", || {
         Quaternion::from_axis_angle(Vector3::UP * 0.7, 1.0);
     });
 }

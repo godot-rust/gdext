@@ -84,6 +84,9 @@ use binding::{
     initialize_class_scene_method_table, initialize_class_server_method_table, runtime_metadata,
 };
 
+#[cfg(not(wasm_nothreads))]
+static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::new();
+
 /// Stage of the Godot initialization process.
 ///
 /// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
@@ -166,6 +169,14 @@ pub unsafe fn initialize(
         "Godot version against which gdext was compiled: {}",
         GdextBuild::godot_static_version_string()
     );
+
+    // We want to initialize the main thread ID as early as possible.
+    //
+    // SAFETY: We set the main thread ID exactly once here and never again.
+    #[cfg(not(wasm_nothreads))]
+    unsafe {
+        MAIN_THREAD_ID.set(std::thread::current().id())
+    };
 
     // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
     interface_init::ensure_static_runtime_compatibility(get_proc_address);
@@ -378,6 +389,32 @@ pub unsafe fn godot_has_feature(
     }
 
     return_ptr
+}
+
+/// Get the [`ThreadId`](std::thread::ThreadId) of the main thread.
+///
+/// # Panics
+/// - If it is called before the engine bindings have been initialized.
+#[cfg(not(wasm_nothreads))]
+pub fn main_thread_id() -> std::thread::ThreadId {
+    assert!(
+        MAIN_THREAD_ID.is_initialized(),
+        "Godot engine not available; make sure you are not calling it from unit/doc tests"
+    );
+
+    // SAFETY: We initialized the cell during library initialization, before any other code is executed.
+    let thread_id = unsafe { MAIN_THREAD_ID.get_unchecked() };
+
+    *thread_id
+}
+
+/// Check if the current thread is the main thread.
+///
+/// # Panics
+/// - If it is called before the engine bindings have been initialized.
+#[cfg(not(wasm_nothreads))]
+pub fn is_main_thread() -> bool {
+    std::thread::current().id() == main_thread_id()
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
