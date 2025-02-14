@@ -24,8 +24,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     init: *mut sys::GDExtensionInitialization,
 ) -> sys::GDExtensionBool {
     // Make sure the first thing we do is check whether hot reloading should be enabled or not. This is to ensure that if we do anything to
-    // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise, this could cause the default
-    // behavior to kick in and disable hot reloading.
+    // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise, this will panic.
     #[cfg(target_os = "linux")]
     match E::OVERRIDE_HOT_RELOAD {
         None => sys::linux_reload_workaround::default_set_hot_reload(),
@@ -34,7 +33,6 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     }
 
     let init_code = || {
-
         let tool_only_in_editor = match E::editor_run_behavior() {
             EditorRunBehavior::ToolClassesOnly => true,
             EditorRunBehavior::AllClasses => false,
@@ -235,7 +233,7 @@ fn gdext_on_level_deinit(level: InitLevel) {
 // FIXME intra-doc link
 #[doc(alias = "entry_symbol", alias = "entry_point")]
 pub unsafe trait ExtensionLibrary {
-    /// Whether to enable hot reloading of this library. Return `None` to use the default behavior.
+    /// Whether to enable hot reloading of this library. Set `None` to use the default behavior.
     ///
     /// Enabling this will ensure that the library can be hot reloaded. If this is disabled then hot reloading may still work, but there is no
     /// guarantee. Enabling this may also lead to memory leaks, so it should not be enabled for builds that are intended to be final builds.

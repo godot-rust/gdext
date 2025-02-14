@@ -54,7 +54,9 @@ fn is_hot_reload_enabled() -> bool {
     // destructors exist for good reasons.
     // This is needed for situations like unit-tests, where we may create TLS-destructors without explicitly calling any of the methods
     // that set hot reloading to be enabled or disabled.
-    *HOT_RELOADING_ENABLED.get().expect("hot reloading status has not yet been marked as enabled/disabled")
+    *HOT_RELOADING_ENABLED
+        .get()
+        .expect("hot reloading status has not yet been marked as enabled/disabled")
 }
 
 /// Turns glibc's TLS destructor register function, `__cxa_thread_atexit_impl`,
