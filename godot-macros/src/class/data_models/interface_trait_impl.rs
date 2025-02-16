@@ -25,6 +25,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
     let mut set_property_impl = TokenStream::new();
     let mut get_property_list_impl = TokenStream::new();
     let mut property_get_revert_impl = TokenStream::new();
+    let mut validate_property_impl = TokenStream::new();
 
     let mut modifiers = Vec::new();
 
@@ -207,6 +208,24 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                 modifiers.push((cfg_attrs, ident("with_property_get_revert")));
             }
 
+            #[cfg(since_api = "4.2")]
+            "validate_property" => {
+                let inactive_class_early_return = make_inactive_class_check(TokenStream::new());
+                validate_property_impl = quote! {
+                    #(#cfg_attrs)*
+                    impl ::godot::obj::cap::GodotValidateProperty for #class_name {
+                        fn __godot_validate_property(&self, property: &mut ::godot::meta::PropertyInfo) {
+                            use ::godot::obj::UserClass as _;
+
+                            #inactive_class_early_return
+
+                            <Self as #trait_path>::validate_property(self, property);
+                        }
+                    }
+                };
+                modifiers.push((cfg_attrs, ident("with_validate_property")));
+            }
+
             // Other virtual methods, like ready, process etc.
             method_name_str => {
                 #[cfg(since_api = "4.4")]
@@ -317,6 +336,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
         #set_property_impl
         #get_property_list_impl
         #property_get_revert_impl
+        #validate_property_impl
 
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
 

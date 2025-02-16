@@ -119,6 +119,18 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
             unimplemented!()
         }
 
+        /// Called whenever Godot retrieves value of property. Allows to customize existing properties.
+        /// Every property info goes through this method, except properties **added** with `get_property_list()`.
+        ///
+        /// Exposed `property` here is a shared mutable reference obtained (and returned to) from Godot.
+        ///
+        /// See also in the Godot docs:
+        /// * [`Object::_validate_property`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-validate-property)
+        #[cfg(since_api = "4.2")]
+        fn validate_property(&self, property: &mut crate::meta::PropertyInfo) {
+            unimplemented!()
+        }
+
         /// Called by Godot to tell if a property has a custom revert or not.
         ///
         /// Return `None` for no custom revert, and return `Some(value)` to specify the custom revert.

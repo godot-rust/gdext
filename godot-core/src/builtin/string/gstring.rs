@@ -148,6 +148,17 @@ impl GString {
         *boxed
     }
 
+    /// Convert a `GString` sys pointer to a mutable reference with unbounded lifetime.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must point to a live `GString` for the duration of `'a`.
+    /// - Must be exclusive - no other reference to given `GString` instance can exist for the duration of `'a`.
+    pub(crate) unsafe fn borrow_string_sys_mut<'a>(ptr: sys::GDExtensionStringPtr) -> &'a mut Self {
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
+        &mut *(ptr.cast::<GString>())
+    }
+
     /// Moves this string into a string sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
     ///
     /// # Safety
