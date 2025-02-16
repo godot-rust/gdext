@@ -23,7 +23,7 @@ use crate::registry::property::{Export, Var};
 /// It should be used as it would be a value itself and lack thereof treated as a logical error.
 ///
 /// `#[init]` can be used to provide default values – for example default Resources supposed to be filled by user.
-/// One can create new instance and set its required properties after the init, albeit [`Option<Gd<T>>`](option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be preferred instead for late initialization.
+/// One can create new instance and set its required properties after the init, albeit [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be preferred instead for late initialization.
 ///
 /// # Example - auto-generated init
 ///

@@ -17,7 +17,7 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 ## [v0.3.0](https://docs.rs/godot/0.3.0)
 
 ### 🌻 Features
-- Add `OnEditor<Gd<T>>` - a wrapper for exporting non-optional `Gd<T>` which shouldn't be null ([#PullRequestNumber]()).
+- Add `OnEditor<Gd<T>>` - a wrapper for exporting non-optional `Gd<T>` which shouldn't be null ([#1051](https://github.com/godot-rust/gdext/pull/1051)).
   - 🌊 `Gd<T>` no longer implements export; It can be used as an `#[export]` only in tandem with `Option<Gd<T>>` or `OnEditor<Gd<T>>`.
 
 
