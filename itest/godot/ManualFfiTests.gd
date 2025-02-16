@@ -69,7 +69,7 @@ func test_export():
 	node.free()
 
 func test_export_dyn_gd():
-	var dyn_gd_exporter = RefcDynGdExporter.new()
+	var dyn_gd_exporter = RefcDynGdVarDeclarer.new()
 
 	# NodeHealth is valid candidate both for `empty` and `second` fields.
 	var node = NodeHealth.new()
@@ -89,7 +89,7 @@ func test_export_dyn_gd_should_fail_for_wrong_type():
 	if runs_release():
 		return
 
-	var dyn_gd_exporter = RefcDynGdExporter.new()
+	var dyn_gd_exporter = RefcDynGdVarDeclarer.new()
 	var refc = RefcHealth.new()
 
 	disable_error_messages()
@@ -321,6 +321,7 @@ func test_option_export():
 	assert_eq(obj.optional_export, null)
 
 	test_node.free()
+	obj.free()
 
 func test_func_rename():
 	var func_rename := FuncObj.new()
