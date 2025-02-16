@@ -10,6 +10,7 @@
 use godot_ffi as sys;
 
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
+use crate::obj::{bounds, Bounds, Gd, GodotClass};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -151,6 +152,21 @@ where
 {
     fn export_hint() -> PropertyHintInfo {
         T::export_hint()
+    }
+}
+
+impl<T> Export for Option<Gd<T>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    Option<Gd<T>>: Var,
+{
+    fn export_hint() -> PropertyHintInfo {
+        Gd::<T>::export_hint()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        Gd::<T>::as_node_class()
     }
 }
 

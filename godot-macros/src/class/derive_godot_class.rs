@@ -288,7 +288,55 @@ fn make_user_class_impl(
         }
     };
 
-    let default_virtual_fn = if all_fields.iter().any(|field| field.is_onready) {
+    // TODO: Don't run OnEditor logic in release mode.
+    let oneditor_panic_inits = {
+        // Despite the name OnEditor shouldn't panic in the editor for tool classes.
+        let editor_check = quote! { ::godot::classes::Engine::singleton().is_editor_hint() };
+
+        // Inform the user which fields haven't been set, instead of panicking on the very first one. Useful for debugging.
+        let on_editor_fields_checks = all_fields
+            .iter()
+            .filter(|&field| field.is_oneditor)
+            .map(|field| {
+                let field = &field.name;
+                let warning_message =
+                    format! { "godot-rust: OnEditor field {field} hasn't been initialized."};
+                quote! {
+
+                if this.#field.is_invalid() {
+                    ::godot::global::godot_warn!(#warning_message);
+                    is_oneditor_properly_initialized = false;
+                }
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if !on_editor_fields_checks.is_empty() {
+            quote! {
+                fn __are_oneditor_fields_initalized(this: &#class_name) -> bool {
+                    if #editor_check {
+                        return true;
+                    }
+
+                    let mut is_oneditor_properly_initialized: bool = true;
+                    #( #on_editor_fields_checks )*
+
+                    is_oneditor_properly_initialized
+                }
+
+                if !__are_oneditor_fields_initalized(&self) {
+                    panic!("godot-rust: OnEditor fields must be properly initialized before ready.")
+                }
+            }
+        } else {
+            TokenStream::new()
+        }
+    };
+
+    let default_virtual_fn = if all_fields
+        .iter()
+        .any(|field| field.is_onready || field.is_oneditor)
+    {
         let tool_check = util::make_virtual_tool_check();
         let signature_info = SignatureInfo::fn_ready();
 
@@ -336,6 +384,7 @@ fn make_user_class_impl(
             }
 
             fn __before_ready(&mut self) {
+                #oneditor_panic_inits
                 #rpc_registrations
                 #onready_inits
             }
@@ -459,6 +508,11 @@ fn parse_fields(
         // OnReady<T> type inference
         if path_ends_with_complex(&field.ty, "OnReady") {
             field.is_onready = true;
+        }
+
+        // OnEditor<T> type inference
+        if path_ends_with_complex(&field.ty, "OnEditor") {
+            field.is_oneditor = true;
         }
 
         // #[init]

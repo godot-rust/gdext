@@ -1,0 +1,87 @@
+/*
+ * Copyright (c) godot-rust; Bromeon and contributors.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+use crate::framework::{expect_panic, itest};
+use godot::classes::notify::NodeNotification;
+use godot::classes::{INode, Node};
+use godot::register::{godot_api, GodotClass};
+
+use godot::obj::{Gd, NewAlloc, OnEditor};
+
+#[itest]
+fn oneditor_deref() {
+    let mut on_editor = OnEditor::new(42);
+    assert_eq!(*on_editor, 42);
+
+    *on_editor = 44;
+    assert_eq!(*on_editor, 44);
+}
+
+#[itest]
+fn oneditor_no_value_panic_on_deref() {
+    expect_panic("Deref on null fails", || {
+        let on_editor_panic: OnEditor<i64> = OnEditor::default();
+        let _ref: &i64 = &on_editor_panic;
+    });
+
+    expect_panic("DerefMut on null fails", || {
+        let mut on_editor_panic: OnEditor<i64> = OnEditor::default();
+        let _ref: &mut i64 = &mut on_editor_panic;
+    });
+}
+
+#[itest]
+fn oneditor_default() {
+    let mut obj = OnEditorDefault::new_alloc();
+    obj.notify(NodeNotification::READY);
+    assert!(!obj.bind().default_value.is_invalid());
+    obj.bind_mut().default_value.clone().free();
+    obj.free();
+}
+
+#[itest]
+fn oneditor_panic_on_ready() {
+    let mut obj = OnEditorNoDefault::new_alloc();
+    // causes the panic which is NOT propagated to godot-rust but prevents `ready` from being run.
+    obj.notify(NodeNotification::READY);
+    assert!(!obj.bind().was_ready_run);
+    obj.free();
+}
+
+#[itest]
+fn oneditor_no_panic_on_ready_with_late_init() {
+    let mut obj = OnEditorNoDefault::new_alloc();
+    obj.bind_mut().no_default_value = OnEditor::new(Node::new_alloc());
+    obj.notify(NodeNotification::READY);
+    assert!(obj.bind().was_ready_run);
+    obj.bind_mut().no_default_value.clone().free();
+    obj.free();
+}
+
+#[derive(GodotClass)]
+#[class(init, base=Node)]
+struct OnEditorNoDefault {
+    #[export]
+    no_default_value: OnEditor<Gd<Node>>,
+    #[var]
+    was_ready_run: bool,
+}
+
+#[godot_api]
+impl INode for OnEditorNoDefault {
+    fn ready(&mut self) {
+        self.was_ready_run = true;
+    }
+}
+
+#[derive(GodotClass)]
+#[class(init, base=Node)]
+struct OnEditorDefault {
+    #[export]
+    #[init(val = OnEditor::new(Node::new_alloc()))]
+    default_value: OnEditor<Gd<Node>>,
+}

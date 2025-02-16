@@ -23,7 +23,7 @@ use crate::obj::{
     InstanceId, RawGd,
 };
 use crate::private::callbacks;
-use crate::registry::property::{Export, Var};
+use crate::registry::property::Var;
 use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -545,6 +545,40 @@ impl<T: GodotClass> Gd<T> {
         // Do not increment ref-count; assumed to be return value from FFI.
         sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
     }
+
+    /// Provides `export_hint` to be used in exports with `Option<Gd<T>>` and `OnEditor<Gd<T>>`.
+    ///
+    /// `Gd<T>` by itself is non-nullable which works badly with Godot editor and might lead to
+    /// unavoidable memory leaks – thus the need to handle `#[export]` with algebraic types.
+    ///
+    /// See also: [#892](https://github.com/godot-rust/gdext/issues/892#issuecomment-2628955463)
+    #[doc(hidden)]
+    pub(crate) fn export_hint() -> PropertyHintInfo
+    where
+        T: Bounds<Exportable = bounds::Yes>,
+    {
+        let hint = if T::inherits::<classes::Resource>() {
+            PropertyHint::RESOURCE_TYPE
+        } else if T::inherits::<classes::Node>() {
+            PropertyHint::NODE_TYPE
+        } else {
+            unreachable!("classes not inheriting from Resource or Node should not be exportable")
+        };
+
+        // Godot does this by default too; the hint is needed when the class is a resource/node,
+        // but doesn't seem to make a difference otherwise.
+        let hint_string = T::class_name().to_gstring();
+
+        PropertyHintInfo { hint, hint_string }
+    }
+
+    #[doc(hidden)]
+    pub(crate) fn as_node_class() -> Option<ClassName>
+    where
+        T: Bounds<Exportable = bounds::Yes>,
+    {
+        T::inherits::<classes::Node>().then(|| T::class_name())
+    }
 }
 
 /// _The methods in this impl block are only available for objects `T` that are manually managed,
@@ -794,8 +828,6 @@ impl<T: GodotClass> GodotType for Gd<T> {
 
 impl<T: GodotClass> ArrayElement for Gd<T> {
     fn element_type_string() -> String {
-        // See also impl Export for Gd<T>.
-
         let hint = if T::inherits::<classes::Resource>() {
             Some(PropertyHint::RESOURCE_TYPE)
         } else if T::inherits::<classes::Node>() {
@@ -894,8 +926,6 @@ impl<T: GodotClass> Clone for Gd<T> {
     }
 }
 
-// TODO: Do we even want to implement `Var` and `Export` for `Gd<T>`? You basically always want to use `Option<Gd<T>>` because the editor
-// may otherwise try to set the object to a null value.
 impl<T: GodotClass> Var for Gd<T> {
     fn get_property(&self) -> Self::Via {
         self.to_godot()
@@ -906,33 +936,7 @@ impl<T: GodotClass> Var for Gd<T> {
     }
 }
 
-impl<T> Export for Gd<T>
-where
-    T: GodotClass + Bounds<Exportable = bounds::Yes>,
-{
-    fn export_hint() -> PropertyHintInfo {
-        let hint = if T::inherits::<classes::Resource>() {
-            PropertyHint::RESOURCE_TYPE
-        } else if T::inherits::<classes::Node>() {
-            PropertyHint::NODE_TYPE
-        } else {
-            unreachable!("classes not inheriting from Resource or Node should not be exportable")
-        };
-
-        // Godot does this by default too; the hint is needed when the class is a resource/node,
-        // but doesn't seem to make a difference otherwise.
-        let hint_string = T::class_name().to_gstring();
-
-        PropertyHintInfo { hint, hint_string }
-    }
-
-    #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
-        T::inherits::<classes::Node>().then(|| T::class_name())
-    }
-}
-
-// Trait impls Property, Export and TypeStringHint for Option<Gd<T>> are covered by blanket impl for Option<T>
+// Trait impl Export for `Gd<T>` is covered by the impl for Option<Gd<T>> and OnEditor<Gd<T>>.
 
 impl<T: GodotClass> PartialEq for Gd<T> {
     /// ⚠️ Returns whether two `Gd` pointers point to the same object.

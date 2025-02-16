@@ -503,10 +503,10 @@ where
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo {
             hint_string: get_dyn_property_hint_string::<D>(),
-            ..<Gd<T> as Export>::export_hint()
+            ..Gd::<T>::export_hint()
         }
     }
     fn as_node_class() -> Option<ClassName> {
-        <Gd<T> as Export>::as_node_class()
+        Gd::<T>::as_node_class()
     }
 }

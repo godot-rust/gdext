@@ -12,10 +12,11 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, CowArg,
-    FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType, PropertyHintInfo, RefArg,
-    ToGodot,
+    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ClassName,
+    CowArg, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType, PropertyHintInfo,
+    RefArg, ToGodot,
 };
+use crate::obj::{bounds, Bounds, Gd, GodotClass};
 use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -1085,9 +1086,9 @@ impl<T: ArrayElement> Var for Array<T> {
     }
 }
 
-impl<T> Export for Array<T>
+impl<T: Export> Export for Array<T>
 where
-    T: ArrayElement + Export,
+    T: ArrayElement,
 {
     fn export_hint() -> PropertyHintInfo {
         // If T == Variant, then we return "Array" builtin type hint.
@@ -1096,6 +1097,21 @@ where
         } else {
             PropertyHintInfo::export_array_element::<T>()
         }
+    }
+}
+
+impl<T: GodotClass> Export for Array<Gd<T>>
+where
+    T: Bounds<Exportable = bounds::Yes>,
+    Gd<T>: ArrayElement,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_array_element::<Gd<T>>()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        Gd::<T>::as_node_class()
     }
 }
 
