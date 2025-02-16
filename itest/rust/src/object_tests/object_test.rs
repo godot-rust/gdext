@@ -26,7 +26,7 @@ use godot::sys::{self, interface_fn, GodotFfi};
 use crate::framework::{expect_panic, itest, TestContext};
 
 // TODO:
-// * make sure that ptrcalls are used when possible (ie. when type info available; maybe GDScript integration test)
+// * make sure that ptrcalls are used when possible (i.e. when type info available; maybe GDScript integration test)
 // * Deref impl for user-defined types
 
 #[itest]

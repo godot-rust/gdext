@@ -10,6 +10,7 @@ use crate::global::{PropertyHint, PropertyUsageFlags};
 use crate::meta::{
     element_godot_type_name, ArrayElement, ClassName, GodotType, PackedArrayElement,
 };
+use crate::obj::{EngineBitfield, EngineEnum};
 use crate::registry::property::{Export, Var};
 use crate::sys;
 use godot_ffi::VariantType;
@@ -192,6 +193,52 @@ impl PropertyInfo {
         unsafe {
             let _name = StringName::from_owned_string_sys(info.name);
             let _hint_string = GString::from_owned_string_sys(info.hint_string);
+        }
+    }
+
+    /// Moves its values into given `GDExtensionPropertyInfo`, dropping previous values if necessary.
+    ///
+    /// # Safety
+    ///
+    /// * `property_info_ptr` must be valid.
+    ///
+    pub(crate) unsafe fn move_into_property_info_ptr(
+        self,
+        property_info_ptr: *mut sys::GDExtensionPropertyInfo,
+    ) {
+        let ptr = &mut *property_info_ptr;
+
+        ptr.usage = u32::try_from(self.usage.ord()).expect("usage.ord()");
+        ptr.hint = u32::try_from(self.hint_info.hint.ord()).expect("hint.ord()");
+        ptr.type_ = self.variant_type.sys();
+
+        *StringName::borrow_string_sys_mut(ptr.name) = self.property_name;
+        *GString::borrow_string_sys_mut(ptr.hint_string) = self.hint_info.hint_string;
+
+        if self.class_name != ClassName::none() {
+            *StringName::borrow_string_sys_mut(ptr.class_name) = self.class_name.to_string_name();
+        }
+    }
+
+    /// Creates copy of given `sys::GDExtensionPropertyInfo`.
+    ///
+    /// # Safety
+    ///
+    /// * `property_info_ptr` must be valid.
+    pub(crate) unsafe fn new_from_sys(
+        property_info_ptr: *mut sys::GDExtensionPropertyInfo,
+    ) -> Self {
+        let ptr = *property_info_ptr;
+
+        Self {
+            variant_type: VariantType::from_sys(ptr.type_),
+            class_name: ClassName::none(),
+            property_name: StringName::new_from_string_sys(ptr.name),
+            hint_info: PropertyHintInfo {
+                hint: PropertyHint::from_ord(ptr.hint.to_owned() as i32),
+                hint_string: GString::new_from_string_sys(ptr.hint_string),
+            },
+            usage: PropertyUsageFlags::from_ord(ptr.usage as u64),
         }
     }
 }

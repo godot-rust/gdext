@@ -52,7 +52,7 @@
 //!    ways to achieve the same has downsides: users wonder if a subtle difference exists, or if all options are in fact identical.
 //!    It's unclear which one is the "preferred" option. Recognizing other people's code becomes harder, because there tend to be dialects.
 //! 2. It's often a purely stylistic choice, without functional benefits. Someone may want to write `(1, 2).into()` instead of
-//!    `Vector2::new(1, 2)`. This is not strong enough of a reason -- if brevity is of concern, a function `vec2(1, 2)` does the job better.
+//!    `Vector2i::new(1, 2)`. This is not strong enough of a reason -- if brevity is of concern, a function `vec2i(1, 2)` does the job better.
 //! 3. `From` is less explicit than a named conversion function. If you see `string.to_variant()` or `color.to_hsv()`, you immediately
 //!    know the target type. `string.into()` and `color.into()` lose that aspect. Even with `(1, 2).into()`, you'd first have to check whether
 //!    `From` is only converting the tuple, or if it _also_ provides an `i32`-to-`f32` cast, thus resulting in `Vector2` instead of `Vector2i`.
@@ -62,8 +62,8 @@
 //!    Temporarily commenting out such non-local code breaks the declaration line, too. To make matters worse, turbofish `.into::<Type>()` isn't
 //!    possible either.
 //! 5. Rust itself [requires](https://doc.rust-lang.org/std/convert/trait.From.html#when-to-implement-from) that `From` conversions are
-//!    infallible, lossless, value-preserving and obvious. This rules out a lot of scenarios such as `Basis::to_quaternion()` (which only maintains
-//!    the rotation part, not scale) or `Color::try_to_hsv()` (which is fallible and lossy).
+//!    infallible, lossless, value-preserving and obvious. This rules out a lot of scenarios such as `DynGd::to_gd()` (which only maintains
+//!    the class part, not trait) or `Color::try_to_hsv()` (which is fallible and lossy).
 //!
 //! One main reason to support `From` is to allow generic programming, in particular `impl Into<T>` parameters. This is also the reason
 //! why the string types have historically implemented the trait. But this became less relevant with the advent of

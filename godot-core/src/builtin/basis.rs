@@ -124,8 +124,13 @@ impl Basis {
     /// Create a `Basis` from a `Quaternion`.
     ///
     /// _Godot equivalent: `Basis(Quaternion from)`_
-    pub fn from_quat(quat: Quaternion) -> Self {
+    pub fn from_quaternion(quat: Quaternion) -> Self {
         RMat3::from_quat(quat.to_glam()).to_front()
+    }
+
+    #[deprecated = "Renamed to `from_quaternion()`"]
+    pub fn from_quat(quat: Quaternion) -> Self {
+        Self::from_quaternion(quat)
     }
 
     /// Create a `Basis` from three angles `a`, `b`, and `c` interpreted
@@ -162,21 +167,18 @@ impl Basis {
     /// (implies +X is right).
     ///
     /// _Godot equivalent: `Basis.looking_at()`_
-    pub fn new_looking_at(target: Vector3, up: Vector3, use_model_front: bool) -> Self {
+    pub fn looking_at(target: Vector3, up: Vector3, use_model_front: bool) -> Self {
         super::inner::InnerBasis::looking_at(target, up, use_model_front)
+    }
+
+    #[deprecated = "Renamed to `looking_at()`"]
+    pub fn new_looking_at(target: Vector3, up: Vector3, use_model_front: bool) -> Self {
+        Self::looking_at(target, up, use_model_front)
     }
 
     /// Creates a `[Vector3; 3]` with the columns of the `Basis`.
     pub fn to_cols(&self) -> [Vector3; 3] {
         self.transposed().rows
-    }
-
-    /// Creates a [`Quaternion`] representing the same rotation as this basis.
-    ///
-    /// _Godot equivalent: `Basis.get_rotation_quaternion()`_
-    #[doc(alias = "get_rotation_quaternion")]
-    pub fn to_quat(&self) -> Quaternion {
-        RQuat::from_mat3(&self.orthonormalized().to_glam()).to_front()
     }
 
     const fn to_rows_array(self) -> [real; 9] {
@@ -196,11 +198,24 @@ impl Basis {
         [ax, bx, cx, ay, by, cy, az, bz, cz]
     }
 
+    /// Creates a [`Quaternion`] representing the same rotation as this basis.
+    ///
+    /// _Godot equivalent: `Basis.get_rotation_quaternion()`_
+    #[doc(alias = "get_rotation_quaternion")]
+    pub fn get_quaternion(&self) -> Quaternion {
+        RQuat::from_mat3(&self.orthonormalized().to_glam()).to_front()
+    }
+
+    #[deprecated = "Renamed to `get_quaternion()`"]
+    pub fn to_quat(&self) -> Quaternion {
+        self.get_quaternion()
+    }
+
     /// Returns the scale of the matrix.
     ///
     /// _Godot equivalent: `Basis.get_scale()`_
     #[must_use]
-    pub fn scale(&self) -> Vector3 {
+    pub fn get_scale(&self) -> Vector3 {
         let det = self.determinant();
         let det_sign = if det < 0.0 { -1.0 } else { 1.0 };
 
@@ -211,12 +226,24 @@ impl Basis {
         ) * det_sign
     }
 
+    #[deprecated = "Renamed to `get_scale()`"]
+    pub fn scale(&self) -> Vector3 {
+        self.get_scale()
+    }
+
+    /// Returns the rotation of the matrix in euler angles, with the order `YXZ`.
+    ///
+    /// See [`get_euler_with()`](Self::get_euler_with) for custom angle orders.
+    pub fn get_euler(&self) -> Vector3 {
+        self.get_euler_with(EulerOrder::YXZ)
+    }
+
     /// Returns the rotation of the matrix in euler angles.
     ///
-    /// The order of the angles are given by `order`.
+    /// The order of the angles are given by `order`. To use the default order `YXZ`, see [`get_euler()`](Self::get_euler).
     ///
     /// _Godot equivalent: `Basis.get_euler()`_
-    pub fn to_euler(&self, order: EulerOrder) -> Vector3 {
+    pub fn get_euler_with(&self, order: EulerOrder) -> Vector3 {
         use glam::swizzles::Vec3Swizzles as _;
 
         let col_a = self.col_a().to_glam();
@@ -274,6 +301,11 @@ impl Basis {
             }
         }
         .to_front()
+    }
+
+    #[deprecated = "Renamed to `get_euler()` + `get_euler_with()`"]
+    pub fn to_euler(&self, order: EulerOrder) -> Vector3 {
+        self.get_euler_with(order)
     }
 
     fn is_between_neg1_1(f: real) -> Ordering {
@@ -416,10 +448,10 @@ impl Basis {
     /// _Godot equivalent: `Basis.slerp()`_
     #[must_use]
     pub fn slerp(&self, other: &Self, weight: real) -> Self {
-        let from = self.to_quat();
-        let to = other.to_quat();
+        let from = self.get_quaternion();
+        let to = other.get_quaternion();
 
-        let mut result = Self::from_quat(from.slerp(to, weight));
+        let mut result = Self::from_quaternion(from.slerp(to, weight));
 
         for i in 0..3 {
             result.rows[i] *= self.rows[i].length().lerp(other.rows[i].length(), weight);
@@ -649,7 +681,7 @@ mod test {
         let to_rotation: Basis = Basis::from_euler(rot_order, original_euler);
 
         // Euler from rotation
-        let euler_from_rotation: Vector3 = to_rotation.to_euler(rot_order);
+        let euler_from_rotation: Vector3 = to_rotation.get_euler_with(rot_order);
         let rotation_from_computed_euler: Basis = Basis::from_euler(rot_order, euler_from_rotation);
 
         let res: Basis = to_rotation.inverse() * rotation_from_computed_euler;
@@ -670,7 +702,7 @@ mod test {
         );
 
         // Double check `to_rotation` decomposing with XYZ rotation order.
-        let euler_xyz_from_rotation: Vector3 = to_rotation.to_euler(EulerOrder::XYZ);
+        let euler_xyz_from_rotation: Vector3 = to_rotation.get_euler_with(EulerOrder::XYZ);
         let rotation_from_xyz_computed_euler: Basis =
             Basis::from_euler(EulerOrder::XYZ, euler_xyz_from_rotation);
 

@@ -472,6 +472,7 @@ where
 pub mod cap {
     use super::*;
     use crate::builtin::{StringName, Variant};
+    use crate::meta::PropertyInfo;
     use crate::obj::{Base, Bounds, Gd};
     use std::any::Any;
 
@@ -571,6 +572,13 @@ pub mod cap {
         fn __godot_property_get_revert(&self, property: StringName) -> Option<Variant>;
     }
 
+    #[doc(hidden)]
+    #[cfg(since_api = "4.2")]
+    pub trait GodotValidateProperty: GodotClass {
+        #[doc(hidden)]
+        fn __godot_validate_property(&self, property: &mut PropertyInfo);
+    }
+
     // Move one level up, like WithBaseField?
     pub trait WithFuncs {
         type FuncCollection;
@@ -601,7 +609,7 @@ pub mod cap {
         /// fn damage_taken(&mut self, amount: i32);
         /// ```
         /// ...then you can access the signal as `self.signals().damage_taken()`, which returns an object with the following API:
-        ///  
+        ///
         /// | Method signature | Description |
         /// |------------------|-------------|
         /// | `connect(f: impl FnMut(i32))` | Connects global or associated function, or a closure. |

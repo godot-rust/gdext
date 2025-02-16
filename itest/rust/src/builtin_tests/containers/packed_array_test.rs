@@ -276,8 +276,53 @@ fn packed_array_insert() {
     assert_eq!(array.to_vec(), vec![3, 1, 2, 4]);
 }
 
+fn test_extend<F, I>(make_iter: F)
+where
+    F: Fn(i32) -> I,
+    I: Iterator<Item = i32>,
+{
+    // The logic in `extend()` is not trivial, so we test it for a wide range of sizes: powers of two, also plus and minus one.
+    // This includes zero. We go up to 2^12, which is 4096, because the internal buffer is currently 2048 bytes (512 `i32`s)
+    // and we want to be future-proof in case it's ever enlarged.
+    let lengths = (0..12i32)
+        .flat_map(|i| {
+            let b = 1 << i;
+            [b - 1, b, b + 1]
+        })
+        .collect::<Vec<_>>();
+
+    for &len_a in &lengths {
+        for &len_b in &lengths {
+            let iter = make_iter(len_b);
+            let mut array = PackedInt32Array::from_iter(0..len_a);
+            array.extend(iter);
+            let expected = (0..len_a).chain(0..len_b).collect::<Vec<_>>();
+            assert_eq!(array.to_vec(), expected, "len_a = {len_a}, len_b = {len_b}",);
+        }
+    }
+}
+
 #[itest]
-fn packed_array_extend() {
+fn packed_array_extend_known_size() {
+    // Create an iterator whose `size_hint()` returns `(len, Some(len))`.
+    test_extend(|len| 0..len);
+}
+
+#[itest]
+fn packed_array_extend_unknown_size() {
+    // Create an iterator whose `size_hint()` returns `(0, None)`.
+    test_extend(|len| {
+        let mut item = 0;
+        std::iter::from_fn(move || {
+            let result = if item < len { Some(item) } else { None };
+            item += 1;
+            result
+        })
+    });
+}
+
+#[itest]
+fn packed_array_extend_array() {
     let mut array = PackedByteArray::from(&[1, 2]);
     let other = PackedByteArray::from(&[3, 4]);
     array.extend_array(&other);

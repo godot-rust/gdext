@@ -144,15 +144,19 @@ fn basis_equiv() {
         assert_eq_approx!(real::from_f64(inner), outer, "function: {name}\n");
     }
 
-    assert_eq_approx!(inner.get_scale(), outer.scale(), "function: get_scale\n");
+    assert_eq_approx!(
+        inner.get_scale(),
+        outer.get_scale(),
+        "function: get_scale\n"
+    );
     assert_eq_approx!(
         inner.get_euler(EulerOrder::XYZ as i64),
-        outer.to_euler(EulerOrder::XYZ),
+        outer.get_euler_with(EulerOrder::XYZ),
         "function: get_euler\n"
     );
     assert_eq_approx!(
         inner.get_rotation_quaternion(),
-        outer.to_quat(),
+        outer.get_quaternion(),
         "function: get_rotation_quaternion\n"
     )
 }

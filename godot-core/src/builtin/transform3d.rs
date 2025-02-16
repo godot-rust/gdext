@@ -137,16 +137,16 @@ impl Transform3D {
     /// a given weight (on the range of 0.0 to 1.0).
     #[must_use]
     pub fn interpolate_with(&self, other: &Self, weight: real) -> Self {
-        let src_scale = self.basis.scale();
-        let src_rot = self.basis.to_quat().normalized();
+        let src_scale = self.basis.get_scale();
+        let src_rot = self.basis.get_quaternion().normalized();
         let src_loc = self.origin;
 
-        let dst_scale = other.basis.scale();
-        let dst_rot = other.basis.to_quat().normalized();
+        let dst_scale = other.basis.get_scale();
+        let dst_rot = other.basis.get_quaternion().normalized();
         let dst_loc = other.origin;
 
         let mut basis = Basis::from_scale(src_scale.lerp(dst_scale, weight));
-        basis = Basis::from_quat(src_rot.slerp(dst_rot, weight)) * basis;
+        basis = Basis::from_quaternion(src_rot.slerp(dst_rot, weight)) * basis;
 
         Self {
             basis,
@@ -163,7 +163,7 @@ impl Transform3D {
     #[must_use]
     pub fn looking_at(&self, target: Vector3, up: Vector3, use_model_front: bool) -> Self {
         Self {
-            basis: Basis::new_looking_at(target - self.origin, up, use_model_front),
+            basis: Basis::looking_at(target - self.origin, up, use_model_front),
             origin: self.origin,
         }
     }
