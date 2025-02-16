@@ -9,5 +9,6 @@ mod connect_builder;
 mod typed_signal;
 mod variadic;
 
+pub use connect_builder::*;
 pub use typed_signal::*;
 pub use variadic::*;

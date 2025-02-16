@@ -98,15 +98,6 @@ fn signal_symbols_external() {
     let receiver = Receiver::new_alloc();
     sig.connect_obj(&receiver, Receiver::receiver_1_mut);
 
-    let local_tracker = Rc::new(Cell::new(0));
-    {
-        let local_tracker = local_tracker.clone();
-        let mut sig = emitter.signals().emitter_1();
-        sig.connect_builder()
-            .function(move |i| local_tracker.set(i))
-            .done();
-    }
-
     // Emit signal.
     sig.emit(987);
 
@@ -122,10 +113,75 @@ fn signal_symbols_external() {
         "Emit failed (other object method)"
     );
 
-    // Check that closures set up with builder are invoked.
-    assert_eq!(local_tracker.get(), 987, "Emit failed (builder local)");
-
     receiver.free();
+    emitter.free();
+}
+
+// "External" means connect/emit happens from outside the class, via Gd::signals().
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_external_builder() {
+    let emitter = Emitter::new_alloc();
+    let mut sig = emitter.signals().emitter_1();
+
+    // Self-modifying method.
+    sig.connect_builder()
+        .object_self()
+        .method_mut(Emitter::self_receive)
+        .done();
+
+    // Connect to other object.
+    let receiver_mut = Receiver::new_alloc();
+    sig.connect_builder()
+        .object(&receiver_mut)
+        .method_mut(Receiver::receiver_1_mut)
+        .done();
+
+    // Connect to yet another object, immutable receiver.
+    let receiver_immut = Receiver::new_alloc();
+    sig.connect_builder()
+        .object(&receiver_immut)
+        .method_immut(Receiver::receiver_1)
+        .done();
+
+    let tracker = Rc::new(Cell::new(0));
+    {
+        let tracker = tracker.clone();
+        sig.connect_builder()
+            .function(move |i| tracker.set(i))
+            .done();
+    }
+
+    // Emit signal.
+    sig.emit(552);
+
+    // Check that closure is invoked.
+    assert_eq!(tracker.get(), 552, "Emit failed (closure)");
+
+    // Check that self instance method (mut) is invoked.
+    assert_eq!(
+        emitter.bind().last_received,
+        552,
+        "Emit failed (mut method)"
+    );
+
+    // Check that *other* instance method is invoked.
+    assert!(
+        receiver_immut.bind().used[1].get(),
+        "Emit failed (other object, immut method)"
+    );
+
+    // Check that *other* instance method is invoked.
+    assert!(
+        receiver_mut.bind().used[1].get(),
+        "Emit failed (other object, mut method)"
+    );
+
+    // Check that closures set up with builder are invoked.
+    assert_eq!(tracker.get(), 552, "Emit failed (builder local)");
+
+    receiver_immut.free();
+    receiver_mut.free();
     emitter.free();
 }
 
@@ -250,7 +306,6 @@ impl Receiver {
         assert_eq!(arg1, 987);
     }
 
-    // TODO remove as soon as shared-ref emitter receivers are supported.
     fn receiver_1_mut(&mut self, arg1: i64) {
         self.used[1].set(true);
         assert_eq!(arg1, 987);

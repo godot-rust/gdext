@@ -15,6 +15,16 @@ use crate::{meta, sys};
 ///
 /// Allows a high degree of customization for connecting signals, while maintaining complete type safety.
 ///
+/// <div class="warning">
+/// <strong>Warning:</strong>
+/// Exact type parameters are subject to change and not part of the public API. We could annotate <code>#[doc(hidden)]</code>, but it would make
+/// things harder to understand. Thus, try not to name the <code>ConnectBuilder</code> type in your code; most connection setup doesn't need it.
+/// </div>
+// If naming the type becomes a requirement, there may be some options:
+// - Use a type alias in the module or TypedSignal, exposing only public parameters. This would work for constructor, but not all transformations.
+// - Pack multiple types together into "type lists", i.e. custom structs carrying the type state. For a user, this would appear as one type,
+// - which could also be #[doc(hidden)]. However, this may make the trait resolution more complex and worsen error messages, so not done now.
+///
 /// # Builder stages
 ///
 /// The builder API has a well-defined flow and is separated in stages. In each stage, you have certain builder methods available that you can
@@ -27,12 +37,14 @@ use crate::{meta, sys};
 /// - [`object`][Self::object]: If you want to connect a method, running on a separate object.
 ///
 /// ## Stage 2 (conditional)
-/// Required iff `object_self` or `object` was called in stage 2.
+/// Required iff _(if and only if)_ `object_self` or `object` was called in stage 1.
 /// - [`method_mut`][Self::method_mut]: Connect a `&mut self` method.
+/// - [`method_immut`][Self::method_immut]: Connect a `&self` method.
 ///
 /// ## Stage 3
 /// All these methods are optional, and they can be combined.
-/// - [`sync`][Self::sync]: If the signal connection should be callable across threads.  \
+// Use HTML link due to conditional compilation; renders badly if target symbol is unavailable.
+/// - [`sync`](#method.sync): If the signal connection should be callable across threads.  \
 ///   Requires `Send` + `Sync` bounds on the provided function/method, and is only available for the `experimental-threads` Cargo feature.
 /// - [`name`][Self::name]: Name of the `Callable` (for debug purposes).  \
 ///   If not specified, the Rust function name is used. This is typically a good default, but not very readable for closures.
@@ -94,6 +106,7 @@ impl<'ts, 'c, CSig: WithBaseField, Ps: ParamTuple> ConnectBuilder<'ts, 'c, CSig,
         }
     }
 
+    /// **Stage 1:** prepare for a method taking `self` (the class declaring the `#[signal]`).
     pub fn object_self(self) -> ConnectBuilder<'ts, 'c, CSig, Gd<CSig>, Ps, ()> {
         let receiver_obj: Gd<CSig> = self.parent_sig.receiver_object();
 
@@ -105,15 +118,16 @@ impl<'ts, 'c, CSig: WithBaseField, Ps: ParamTuple> ConnectBuilder<'ts, 'c, CSig,
         }
     }
 
+    /// **Stage 1:** prepare for a method taking any `Gd<T>` object.
     pub fn object<C: GodotClass>(
         self,
-        object: Gd<C>,
+        object: &Gd<C>,
     ) -> ConnectBuilder<'ts, 'c, CSig, Gd<C>, Ps, ()> {
         ConnectBuilder {
             parent_sig: self.parent_sig,
             data: self.data,
             godot_fn: (),
-            receiver_obj: object,
+            receiver_obj: object.clone(),
         }
     }
 }
@@ -159,14 +173,58 @@ impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: ParamTuple>
             receiver_obj: (),
         }
     }
+
+    /// **Stage 2:** method taking `&self`.
+    pub fn method_immut<F>(
+        self,
+        mut method_with_shared_self: F,
+    ) -> ConnectBuilder<
+        'ts,
+        'c,
+        /* CSig = */ CSig,
+        /* CRcv: again reset to unit type, after object has been captured in closure. */
+        (),
+        /* Ps = */ Ps,
+        /* GodotFn = */ impl FnMut(&[&Variant]) -> Result<Variant, ()>,
+    >
+    where
+        CRcv: GodotClass + Bounds<Declarer = bounds::DeclUser>,
+        for<'c_rcv> F: AsFunc<&'c_rcv CRcv, Ps>,
+    {
+        let gd: Gd<CRcv> = self.receiver_obj;
+
+        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
+            let args = Ps::from_variant_array(variant_args);
+            let guard = gd.bind();
+            let instance = &*guard;
+            method_with_shared_self.call(instance, args);
+
+            Ok(Variant::nil())
+        };
+
+        let mut data = self.data;
+        data.callable_name = Some(sys::short_type_name::<F>().into());
+
+        ConnectBuilder {
+            parent_sig: self.parent_sig,
+            data,
+            godot_fn,
+            receiver_obj: (),
+        }
+    }
 }
 
+#[allow(clippy::needless_lifetimes)] // 'ts + 'c are used conditionally.
 impl<'ts, 'c, CSig, CRcv, Ps, GodotFn> ConnectBuilder<'ts, 'c, CSig, CRcv, Ps, GodotFn>
 where
     CSig: WithBaseField,
     Ps: ParamTuple,
     GodotFn: FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
 {
+    /// **Stage 3:** allow signal to be called across threads.
+    ///
+    /// Requires `Send` + `Sync` bounds on the previously provided function/method, and is only available for the `experimental-threads`
+    /// Cargo feature.
     #[cfg(feature = "experimental-threads")]
     pub fn sync(
         self,
@@ -208,7 +266,7 @@ where
         }
     }
 
-    /// Name of the `Callable`, mostly used for debugging.
+    /// **Stage 3:** Name of the `Callable`, mostly used for debugging.
     ///
     /// If not provided, the Rust type name of the function/method is used.
     pub fn name(mut self, name: impl meta::AsArg<GString>) -> Self {
@@ -222,7 +280,7 @@ where
         self
     }
 
-    /// Add one or multiple flags to the connection, possibly combined with `|` operator.
+    /// **Stage 3:** add one or multiple flags to the connection, possibly combined with `|` operator.
     pub fn flags(mut self, flags: ConnectFlags) -> Self {
         assert!(
             self.data.connect_flags.is_none(),
@@ -233,6 +291,10 @@ where
         self
     }
 
+    /// Finalize the builder.
+    ///
+    /// Actually connects the signal with the provided function/method. Consumes this builder instance and returns the mutable borrow of
+    /// the parent [`TypedSignal`] for further use.
     pub fn done(self) {
         let Self {
             parent_sig,

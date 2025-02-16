@@ -174,7 +174,7 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
         let signal_name = self.name.as_ref();
 
         self.owner.with_object_mut(|obj| {
-            let mut c = obj.connect_ex(signal_name, &callable);
+            let mut c = obj.connect_ex(signal_name, callable);
             if let Some(flags) = flags {
                 c = c.flags(flags.ord() as u32);
             }

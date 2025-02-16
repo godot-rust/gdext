@@ -29,11 +29,20 @@ macro_rules! impl_signal_recipient {
             }
         }
 
-        // Methods.
+        // Methods with mutable receiver - &mut self.
         impl<F, R, C, $($Ps,)*> AsFunc<&mut C, ( $($Ps,)* )> for F
             where F: FnMut( &mut C, $($Ps,)* ) -> R + 'static
         {
             fn call(&mut self, instance: &mut C, ($($args,)*): ( $($Ps,)* )) {
+                self(instance, $($args,)*);
+            }
+        }
+
+        // Methods with immutable receiver - &self.
+        impl<F, R, C, $($Ps,)*> AsFunc<&C, ( $($Ps,)* )> for F
+            where F: FnMut( &C, $($Ps,)* ) -> R + 'static
+        {
+            fn call(&mut self, instance: &C, ($($args,)*): ( $($Ps,)* )) {
                 self(instance, $($args,)*);
             }
         }
