@@ -296,7 +296,7 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
             #( #collection_struct_methods )*
         }
 
-        impl ::godot::obj::cap::WithSignals for #class_name {
+        impl ::godot::obj::WithSignals for #class_name {
             type SignalCollection<'a> = #collection_struct_name<'a>;
 
             fn signals(&mut self) -> Self::SignalCollection<'_> {

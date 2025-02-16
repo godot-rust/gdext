@@ -18,10 +18,9 @@ use crate::meta::{
     ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
     ParamType, PropertyHintInfo, RefArg, ToGodot,
 };
-use crate::obj::cap::WithSignals;
 use crate::obj::{
     bounds, cap, Bounds, DynGd, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits,
-    InstanceId, RawGd,
+    InstanceId, RawGd, WithSignals,
 };
 use crate::private::callbacks;
 use crate::registry::property::{Export, Var};

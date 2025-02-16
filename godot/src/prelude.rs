@@ -33,8 +33,8 @@ pub use super::obj::{
 
 // Make trait methods available.
 pub use super::obj::cap::WithFuncs as _; // funcs()
-pub use super::obj::cap::WithSignals as _; // signals()
-pub use super::obj::WithBaseField as _; // base(), base_mut(), to_gd()
+pub use super::obj::WithBaseField as _;
+pub use super::obj::WithSignals as _; // signals() // base(), base_mut(), to_gd()
 
 pub use super::obj::EngineBitfield as _;
 pub use super::obj::EngineEnum as _;
