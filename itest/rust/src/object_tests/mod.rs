@@ -18,6 +18,7 @@ mod init_level_test;
 mod object_arg_test;
 mod object_swap_test;
 mod object_test;
+mod oneditor_test;
 mod onready_test;
 mod property_template_test;
 mod property_test;

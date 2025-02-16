@@ -82,6 +82,22 @@ pub trait Export: Var {
     }
 }
 
+/// Marker trait to identify `GodotType`s that can be directly used with an `#[export]`.
+///
+/// Implemented pretty much for all the [`GodotTypes`][GodotType] that are not [`GodotClass`].
+/// Provides a few blanket implementations and, by itself, has no implications
+/// for the [`Var`] or [`Export`] traits.
+///
+/// Some Godot Types which are inherently non-nullable (e.g., `Gd<T>`),
+/// might have their value set to null by the editor. Additionally, Godot must generate
+/// initial, default value for such properties, causing memory leaks.
+///
+/// Non-algebraic types that don't implement `BuiltinExport` shouldn't be used directly as an `#[export]`
+/// and must be handled using associated algebraic types, such as:
+/// * [`Option<T>`], which represents optional value that can be null when used.
+/// * [`OnEditor<T>`][crate::obj::OnEditor], which represents value that must not be null when used.
+pub trait BuiltinExport {}
+
 /// This function only exists as a place to add doc-tests for the `Export` trait.
 ///
 /// Test with export of exportable type should succeed:
@@ -158,6 +174,8 @@ where
         T::export_hint()
     }
 }
+
+impl<T> BuiltinExport for Option<T> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Export machinery
@@ -432,6 +450,7 @@ mod export_impls {
         ($Ty:ty) => {
             impl_property_by_godot_convert!(@property $Ty);
             impl_property_by_godot_convert!(@export $Ty);
+            impl_property_by_godot_convert!(@builtin $Ty);
         };
 
         (@property $Ty:ty) => {
@@ -453,6 +472,10 @@ mod export_impls {
                 }
             }
         };
+
+        (@builtin $Ty:ty) => {
+            impl BuiltinExport for $Ty {}
+        }
     }
 
     // Bounding Boxes
