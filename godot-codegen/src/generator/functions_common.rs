@@ -308,6 +308,7 @@ pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnRecei
     let (param, param_lifetime_a) = match qualifier {
         FnQualifier::Const => (quote! { &self, }, quote! { &'a self, }),
         FnQualifier::Mut => (quote! { &mut self, }, quote! { &'a mut self, }),
+        FnQualifier::GdSelf => (quote! { this: Gd<Self>, }, quote! { this: Gd<Self>, }),
         FnQualifier::Static => (quote! {}, quote! {}),
         FnQualifier::Global => (quote! {}, quote! {}),
     };
@@ -316,6 +317,9 @@ pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnRecei
     if matches!(qualifier, FnQualifier::Static) {
         ffi_arg = quote! { std::ptr::null_mut() };
         self_prefix = quote! { Self:: };
+    } else if matches!(qualifier, FnQualifier::Static) {
+        ffi_arg = ffi_arg_in;
+        self_prefix = quote! { this. };
     } else {
         ffi_arg = ffi_arg_in;
         self_prefix = quote! { self. };

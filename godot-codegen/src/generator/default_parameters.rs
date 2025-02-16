@@ -211,8 +211,8 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
     let builder_mut = match sig.qualifier() {
         FnQualifier::Const | FnQualifier::Static => quote! {},
         FnQualifier::Mut => quote! { mut },
-        FnQualifier::Global => {
-            unreachable!("default parameters not supported for global methods; {sig}")
+        FnQualifier::Global | FnQualifier::GdSelf => {
+            unreachable!("default parameters not supported for global or gdself methods; {sig}")
         }
     };
 

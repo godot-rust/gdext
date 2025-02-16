@@ -11,6 +11,7 @@ use crate::{util, ParseResult};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+use venial::FnParam;
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`
 pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream> {
@@ -211,7 +212,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             method_name_str => {
                 #[cfg(since_api = "4.4")]
                 let method_name_ident = method.name.clone();
-                let method = util::reduce_to_signature(method);
+                let mut method = util::reduce_to_signature(method);
 
                 // Godot-facing name begins with underscore.
                 //
@@ -223,7 +224,14 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     format!("_{method_name_str}")
                 };
 
-                let signature_info = into_signature_info(method, &class_name, false);
+                // Some virtual methods are GdSelf, but none are static, so if the first param isn't a receiver (&self, etc) it's GdSelf
+                let is_gd_self = matches!(method.params.first(), Some((FnParam::Typed(_), _)));
+                if is_gd_self {
+                    // The GdSelf receiver is handled by `into_signature_info`
+                    method.params.inner.remove(0);
+                }
+
+                let signature_info = into_signature_info(method, &class_name, is_gd_self);
 
                 // Overridden ready() methods additionally have an additional `__before_ready()` call (for OnReady inits).
                 let before_kind = if method_name_str == "ready" {
