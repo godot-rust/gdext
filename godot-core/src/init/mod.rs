@@ -68,8 +68,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         success as u8
     };
 
-    let ctx = || "error when loading GDExtension library";
-    let is_success = crate::private::handle_panic(ctx, init_code);
+    let is_success = std::panic::catch_unwind(init_code);
 
     is_success.unwrap_or(0)
 }
