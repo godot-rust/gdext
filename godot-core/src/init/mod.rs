@@ -68,6 +68,10 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         success as u8
     };
 
+    // Use std::panic::catch_unwind instead of handle_panic: handle_panic uses TLS, which
+    // calls `thread_atexit` on linux, which sets the hot reloading flag on linux.
+    // Using std::panic::catch_unwind avoids this, although we lose out on context information
+    // for debugging.
     let is_success = std::panic::catch_unwind(init_code);
 
     is_success.unwrap_or(0)
