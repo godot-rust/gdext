@@ -64,15 +64,36 @@ impl Callable {
         }
     }
 
+    /// Create a callable for a method on any [`Variant`].
+    ///
+    /// Allows to dynamically call methods on builtin types (e.g. `String.md5_text`). Note that Godot method names are used, not Rust ones.
+    /// If the variant type is `Object`, the behavior will match that of `from_object_method()`.
+    ///
+    /// If the builtin type does not have the method, the returned callable will be invalid.
+    ///
+    /// Static builtin methods (e.g. `String.humanize_size`) are not supported in reflection as of Godot 4.4. For static _class_ functions,
+    /// use [`from_local_static()`][Self::from_local_static] instead.
+    ///
+    /// _Godot equivalent: `Callable.create(Variant variant, StringName method)`_
+    pub fn from_variant_method<S>(variant: &Variant, method_name: S) -> Self
+    where
+        S: meta::AsArg<StringName>,
+    {
+        meta::arg_into_ref!(method_name);
+        inner::InnerCallable::create(variant, method_name)
+    }
+
     /// Create a callable for the static method `class_name::function` (single-threaded).
     ///
     /// Allows you to call static functions through `Callable`.
     ///
+    /// Does not support built-in types (such as `String`), only classes.
+    ///
+    /// # Compatibility
     /// Note that due to varying support across different engine versions, the resulting `Callable` has unspecified behavior for
     /// methods such as [`method_name()`][Self::method_name], [`object()`][Self::object], [`object_id()`][Self::object_id] or
     /// [`get_argument_count()`][Self::arg_len] among others. It is recommended to only use this for calling the function.
     ///
-    /// # Compatibility
     /// Up until and including Godot 4.3, this method has some limitations:
     /// - [`is_valid()`][Self::is_valid] will return `false`, even though the call itself succeeds.
     /// - You cannot use statics to connect signals to such callables. Use the new typed signal API instead.
