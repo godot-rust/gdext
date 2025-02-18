@@ -483,9 +483,22 @@ fn array_sort_custom() {
     assert_eq!(a, array![4, 3, 2, 1]);
 }
 
+#[itest(focus)]
+#[cfg(since_api = "4.2")]
+fn array_bsearch_by() {
+    let a: Array<i32> = array![1, 2, 4, 5];
+
+    assert_eq!(a.bsearch_by(|e| e.cmp(&2)), Ok(1));
+    assert_eq!(a.bsearch_by(|e| e.cmp(&4)), Ok(2));
+
+    assert_eq!(a.bsearch_by(|e| e.cmp(&0)), Err(0));
+    assert_eq!(a.bsearch_by(|e| e.cmp(&3)), Err(2));
+    assert_eq!(a.bsearch_by(|e| e.cmp(&9)), Err(4));
+}
+
 #[itest]
 #[cfg(since_api = "4.2")]
-fn array_binary_search_custom() {
+fn array_bsearch_custom() {
     let a = array![5, 4, 2, 1];
     let func = backwards_sort_callable();
     assert_eq!(a.bsearch_custom(1, &func), 3);

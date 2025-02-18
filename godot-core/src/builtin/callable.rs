@@ -155,6 +155,24 @@ impl Callable {
         })
     }
 
+    #[cfg(since_api = "4.2")]
+    pub(crate) fn with_scoped_fn<S, F, Fc, R>(name: S, rust_function: F, callable_usage: Fc) -> R
+    where
+        S: meta::AsArg<GString>,
+        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+        Fc: FnOnce(&Callable) -> R,
+    {
+        meta::arg_into_owned!(name);
+
+        let callable = Self::from_fn_wrapper(FnWrapper {
+            rust_function,
+            name,
+            thread_id: Some(std::thread::current().id()),
+        });
+
+        callable_usage(&callable)
+    }
+
     /// Create callable from **thread-safe** Rust function or closure.
     ///
     /// `name` is used for the string representation of the closure, which helps debugging.

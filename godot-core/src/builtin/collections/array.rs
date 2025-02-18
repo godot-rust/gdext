@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt;
 use std::marker::PhantomData;
+use std::{cmp, fmt};
 
 use crate::builtin::*;
 use crate::meta;
@@ -612,37 +612,80 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
-    /// Finds the index of an existing value in a sorted array using binary search.
-    /// Equivalent of `bsearch` in GDScript.
+    /// Finds the index of a value in a sorted array using binary search.
     ///
-    /// If the value is not present in the array, returns the insertion index that
-    /// would maintain sorting order.
+    /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
     ///
-    /// Calling `bsearch` on an unsorted array results in unspecified behavior.
+    /// Calling `bsearch` on an unsorted array results in unspecified behavior. Consider using `sort()` to ensure the sorting
+    /// order is compatible with your callable's ordering.
     pub fn bsearch(&self, value: impl AsArg<T>) -> usize {
         meta::arg_into_ref!(value: T);
 
         to_usize(self.as_inner().bsearch(&value.to_variant(), true))
     }
 
-    /// Finds the index of an existing value in a sorted array using binary search.
-    /// Equivalent of `bsearch_custom` in GDScript.
+    /// Finds the index of a value in a sorted array using binary search, with type-safe custom predicate.
     ///
-    /// Takes a `Callable` and uses the return value of it to perform binary search.
+    /// The comparator function should return an ordering that indicates whether its argument is `Less`, `Equal` or `Greater` the desired value.
+    /// For example, for an ascending-ordered array, a simple predicate searching for a constant value would be `|elem| elem.cmp(&4)`.
+    /// See also [`slice::binary_search_by()`].
     ///
-    /// If the value is not present in the array, returns the insertion index that
-    /// would maintain sorting order.
+    /// If the value is found, returns `Ok(index)` with its index. Otherwise, returns `Err(index)`, where `index` is the insertion index
+    /// that would maintain sorting order.
     ///
-    /// Calling `bsearch_custom` on an unsorted array results in unspecified behavior.
+    /// Calling `bsearch_by` on an unsorted array results in unspecified behavior. Consider using [`sort_by()`] to ensure
+    /// the sorting order is compatible with your callable's ordering.
+    #[cfg(since_api = "4.2")]
+    pub fn bsearch_by<F>(&self, mut func: F) -> Result<usize, usize>
+    where
+        F: FnMut(&T) -> cmp::Ordering + 'static,
+    {
+        // Early exit; later code relies on index 0 being present.
+        if self.is_empty() {
+            return Err(0);
+        }
+
+        // We need one dummy element of type T, because Godot's bsearch_custom() checks types (so Variant::nil() can't be passed).
+        // Optimization: roundtrip Variant -> T -> Variant could be avoided, but anyone needing speed would use Rust binary search...
+        let ignored_value = self.at(0);
+        let ignored_value = <T as ParamType>::owned_to_arg(ignored_value);
+
+        let godot_comparator = |args: &[&Variant]| {
+            let value = T::from_variant(&args[0]);
+            let is_less = matches!(func(&value), cmp::Ordering::Less);
+
+            Ok(is_less.to_variant())
+        };
+
+        let debug_name = std::any::type_name::<F>();
+        let index = Callable::with_scoped_fn(debug_name, godot_comparator, |pred| {
+            self.bsearch_custom(ignored_value, pred)
+        });
+
+        if let Some(value_at_index) = self.get(index) {
+            if func(&value_at_index) == cmp::Ordering::Equal {
+                return Ok(index);
+            }
+        }
+
+        Err(index)
+    }
+
+    /// Finds the index of a value in a sorted array using binary search, with `Callable` custom predicate.
     ///
-    /// Consider using `sort_custom()` to ensure the sorting order is compatible with
-    /// your callable's ordering
-    pub fn bsearch_custom(&self, value: impl AsArg<T>, func: &Callable) -> usize {
+    /// The callable `pred` takes two elements `(a, b)` and should return if `a < b` (strictly less).
+    /// For a type-safe version, check out [`bsearch_by()`][Self::bsearch_by].
+    ///
+    /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
+    ///
+    /// Calling `bsearch_custom` on an unsorted array results in unspecified behavior. Consider using `sort_custom()` to ensure
+    /// the sorting order is compatible with your callable's ordering.
+    pub fn bsearch_custom(&self, value: impl AsArg<T>, pred: &Callable) -> usize {
         meta::arg_into_ref!(value: T);
 
         to_usize(
             self.as_inner()
-                .bsearch_custom(&value.to_variant(), func, true),
+                .bsearch_custom(&value.to_variant(), pred, true),
         )
     }
 
