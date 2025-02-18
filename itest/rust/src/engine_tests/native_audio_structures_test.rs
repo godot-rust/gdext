@@ -15,7 +15,6 @@ use godot::classes::{
     AudioStreamGeneratorPlayback, AudioStreamPlayer, Engine, IAudioEffect, IAudioEffectInstance,
     SceneTree,
 };
-use godot::global::godot_print;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 

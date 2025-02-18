@@ -92,6 +92,7 @@ impl ConvertError {
         ErasedConvertError::from(self)
     }
 
+    #[allow(dead_code)] // only used in Godot <= 4.4.
     pub(crate) fn kind(&self) -> &ErrorKind {
         &self.kind
     }
