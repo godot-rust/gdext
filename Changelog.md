@@ -9,20 +9,9 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 
 ## Quick navigation
-- [v0.3.0](#v030)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
 
-
-## [v0.3.0](https://docs.rs/godot/0.3.0)
-
-### 🌻 Features
-- Add `OnEditor<Gd<T>>` - a wrapper for exporting non-optional `Gd<T>` which shouldn't be null ([#1051](https://github.com/godot-rust/gdext/pull/1051)).
-  - 🌊 `Gd<T>` no longer implements export; It can be used as an `#[export]` only in tandem with `Option<Gd<T>>` or `OnEditor<Gd<T>>`.
-
-
-### 🛠️ Bugfixes
-- 🌊 `Option<Gd<T>>` and `OnEditor<Gd<T>>` can no longer be used as an Export for Resource-based classes.
 
 ## [v0.2.3](https://docs.rs/godot/0.2.3)
 
