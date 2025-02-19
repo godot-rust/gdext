@@ -40,7 +40,7 @@ use crate::registry::property::Var;
 ///     #[export]
 ///     editor_field: OnEditor<Gd<Resource>>,
 ///     #[export]
-///     #[init(val = OnEditor::new(Node::new_alloc()))]
+///     #[init(val = OnEditor::init(Node::new_alloc()))]
 ///     required_with_default: OnEditor<Gd<Node>>,
 ///     // Does **NOT** require base field to work.
 ///     base: Base<Node>,
@@ -75,7 +75,7 @@ use crate::registry::property::Var;
 ///     fn init(base: Base<Node>) -> Self {
 ///        Self {
 ///            base,
-///            required_node: OnEditor::new(Node::new_alloc()),
+///            required_node: OnEditor::init(Node::new_alloc()),
 ///        }
 ///     }
 /// }
@@ -98,7 +98,7 @@ use crate::registry::property::Var;
 ///     // Would cause the panic:
 ///     // this.add_child(&my_node_to_add);
 ///     // Note: Remember that nodes are manually managed. They will leak memory if not added to tree and/or pruned.
-///     my_node_to_add.bind_mut().required_node = OnEditor::new(Node::new_alloc());
+///     my_node_to_add.bind_mut().required_node = OnEditor::init(Node::new_alloc());
 ///     // Will not cause the panic.
 ///     this.add_child(&my_node_to_add);
 /// }
@@ -106,12 +106,12 @@ use crate::registry::property::Var;
 ///
 /// # Using `OnEditor<T>` with other GodotTypes
 ///
-/// `OnEditor<T>` can be used with other built-ins to provide an extra validation logic and making sure that given properties has been set.
+/// `OnEditor<T>` can be used with other built-ins to provide extra validation logic and making sure that given properties has been set.
 /// Example usage might be checking if entities has been granted proper generated ids.
 ///
-/// In such cases the default  value which will be deemed invalid **must** be specified with `#[init(val = OnEditor::uninit(...)].
+/// In such cases the default value which will be deemed invalid **must** be specified with `#[init(val = OnEditor::uninit(...)]`.
 /// Accessing uninitialized value will cause the panic.
-/// To initialize given value simply replace it with `OnEditor::new(…)`.
+/// To initialize given value simply replace it with `OnEditor::init(…)`.
 ///
 /// ## Example - using `OnEditor` with primitives
 ///
@@ -130,7 +130,7 @@ use crate::registry::property::Var;
 ///     let mut my_node_to_add = SomeClassThatCanBeInstantiatedInCode::new_alloc();
 ///     // Would cause the panic:
 ///     // this.add_child(&my_node_to_add);
-///     my_node_to_add.bind_mut().some_primitive = OnEditor::new(45);
+///     my_node_to_add.bind_mut().some_primitive = OnEditor::init(45);
 ///     // Will not cause the panic.
 ///     this.add_child(&my_node_to_add);
 /// }
@@ -155,7 +155,7 @@ enum OnEditorState<T> {
 }
 
 impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
-    pub fn new(val: T) -> Self {
+    pub fn init(val: T) -> Self {
         OnEditor {
             inner: OnEditorState::Initialized(val),
         }

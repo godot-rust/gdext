@@ -14,7 +14,7 @@ use godot::obj::{Gd, NewAlloc, OnEditor};
 
 #[itest]
 fn oneditor_deref() {
-    let mut on_editor = OnEditor::new(42);
+    let mut on_editor = OnEditor::init(42);
     assert_eq!(*on_editor, 42);
 
     *on_editor = 44;
@@ -63,8 +63,8 @@ fn oneditor_panic_on_ready() {
 #[itest]
 fn oneditor_no_panic_on_ready_with_late_init() {
     let mut obj = OnEditorNoDefault::new_alloc();
-    obj.bind_mut().no_default_value = OnEditor::new(Node::new_alloc());
-    obj.bind_mut().some_primitive = OnEditor::new(64);
+    obj.bind_mut().no_default_value = OnEditor::init(Node::new_alloc());
+    obj.bind_mut().some_primitive = OnEditor::init(64);
     obj.notify(NodeNotification::READY);
     assert!(obj.bind().was_ready_run);
     obj.bind_mut().no_default_value.clone().free();
@@ -94,6 +94,6 @@ impl INode for OnEditorNoDefault {
 #[class(init, base=Node)]
 struct OnEditorDefault {
     #[export]
-    #[init(val = OnEditor::new(Node::new_alloc()))]
+    #[init(val = OnEditor::init(Node::new_alloc()))]
     default_value: OnEditor<Gd<Node>>,
 }
