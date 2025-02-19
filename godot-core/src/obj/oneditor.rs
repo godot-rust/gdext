@@ -5,9 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo};
-use crate::obj::{bounds, Bounds, Gd, GodotClass};
-use crate::registry::property::{Export, Var};
+use crate::meta::{FromGodot, GodotConvert};
+use crate::registry::property::Var;
 
 // Possible areas for improvement that can be explored:
 // - Check if it makes sense to add `OnEditor<T>` support for primitives as well (such as ids and whatnot – "invalid" value such as `-1` or Vector(NaN, NaN, NaN) should represent null/None in such cases).
@@ -106,7 +105,7 @@ pub enum OnEditor<T> {
     Initialized(T),
 }
 
-impl<T: GodotConvert + Var + FromGodot> OnEditor<T> {
+impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
     pub fn new(val: T) -> Self {
         OnEditor::Initialized(val)
     }
@@ -132,14 +131,22 @@ impl<T: GodotConvert + Var + FromGodot> OnEditor<T> {
     }
 
     #[doc(hidden)]
-    pub(crate) fn set_property(&mut self, value: Option<T::Via>) {
-        match value {
-            None => *self = OnEditor::Null,
-            Some(value) => {
-                if let OnEditor::Initialized(current_value) = self {
-                    current_value.set_property(value)
-                } else {
-                    *self = OnEditor::Initialized(FromGodot::from_godot(value))
+    pub(crate) fn set_property(&mut self, value: Option<T::Via>)
+    where
+        T::Via: PartialEq,
+    {
+        match (value, &mut *self) {
+            (None, _) => *self = OnEditor::Null,
+            (Some(value), OnEditor::Initialized(current_value)) => {
+                current_value.set_property(value)
+            }
+            (Some(value), OnEditor::Null) => {
+                *self = OnEditor::Initialized(FromGodot::from_godot(value))
+            }
+            (Some(value), OnEditor::Uninitialized(current_value)) => {
+                let value = FromGodot::from_godot(value);
+                if value != *current_value {
+                    *self = OnEditor::Initialized(value)
                 }
             }
         }
@@ -166,53 +173,5 @@ impl<T> std::ops::DerefMut for OnEditor<T> {
             }
             OnEditor::Initialized(v) => v,
         }
-    }
-}
-
-// Blanket implementations for nullable types.
-// Don't provide blanket implementations for primitives.
-
-#[doc(hidden)]
-#[allow(clippy::derivable_impls)]
-impl<T: GodotClass> Default for OnEditor<Gd<T>> {
-    fn default() -> Self {
-        OnEditor::Null
-    }
-}
-
-impl<T: GodotClass> GodotConvert for OnEditor<Gd<T>>
-where
-    Gd<T>: GodotConvert,
-    Option<<Gd<T> as GodotConvert>::Via>: GodotType,
-{
-    type Via = Option<<Gd<T> as GodotConvert>::Via>;
-}
-
-impl<T> Var for OnEditor<Gd<T>>
-where
-    T: GodotClass,
-    OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
-{
-    fn get_property(&self) -> Self::Via {
-        self.get_property()
-    }
-
-    fn set_property(&mut self, value: Self::Via) {
-        self.set_property(value)
-    }
-}
-
-impl<T> Export for OnEditor<Gd<T>>
-where
-    T: GodotClass + Bounds<Exportable = bounds::Yes>,
-    OnEditor<Gd<T>>: Var,
-{
-    fn export_hint() -> PropertyHintInfo {
-        Gd::<T>::export_hint()
-    }
-
-    #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
-        Gd::<T>::as_node_class()
     }
 }

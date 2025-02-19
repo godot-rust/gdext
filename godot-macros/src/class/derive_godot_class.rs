@@ -291,6 +291,7 @@ fn make_user_class_impl(
     };
 
     // Perform before-ready check only in debug mode.
+    // TODO - make sure if it shouldn't be hidden with another feature flag (for libraries running in editor, such as plugins).
     #[cfg(debug_assertions)]
     let oneditor_panic_inits = {
         // Despite its name OnEditor shouldn't panic in the editor for tool classes.

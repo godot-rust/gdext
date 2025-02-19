@@ -20,10 +20,10 @@ use crate::meta::{
 };
 use crate::obj::{
     bounds, cap, Bounds, DynGd, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits,
-    InstanceId, RawGd,
+    InstanceId, OnEditor, RawGd,
 };
 use crate::private::callbacks;
-use crate::registry::property::Var;
+use crate::registry::property::{Export, Var};
 use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -936,7 +936,65 @@ impl<T: GodotClass> Var for Gd<T> {
     }
 }
 
-// Trait impl Export for `Gd<T>` is covered by the impl for Option<Gd<T>> and OnEditor<Gd<T>>.
+impl<T> Export for Option<Gd<T>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    Option<Gd<T>>: Var,
+{
+    fn export_hint() -> PropertyHintInfo {
+        Gd::<T>::export_hint()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        Gd::<T>::as_node_class()
+    }
+}
+
+#[doc(hidden)]
+#[allow(clippy::derivable_impls)]
+impl<T: GodotClass> Default for OnEditor<Gd<T>> {
+    fn default() -> Self {
+        OnEditor::Null
+    }
+}
+
+impl<T: GodotClass> GodotConvert for OnEditor<Gd<T>>
+where
+    Gd<T>: GodotConvert,
+    Option<<Gd<T> as GodotConvert>::Via>: GodotType,
+{
+    type Via = Option<<Gd<T> as GodotConvert>::Via>;
+}
+
+impl<T> Var for OnEditor<Gd<T>>
+where
+    T: GodotClass,
+    OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
+{
+    fn get_property(&self) -> Self::Via {
+        OnEditor::<Gd<T>>::get_property(self)
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        OnEditor::<Gd<T>>::set_property(self, value)
+    }
+}
+
+impl<T> Export for OnEditor<Gd<T>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    OnEditor<Gd<T>>: Var,
+{
+    fn export_hint() -> PropertyHintInfo {
+        Gd::<T>::export_hint()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        Gd::<T>::as_node_class()
+    }
+}
 
 impl<T: GodotClass> PartialEq for Gd<T> {
     /// ⚠️ Returns whether two `Gd` pointers point to the same object.
