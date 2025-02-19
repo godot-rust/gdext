@@ -7,7 +7,7 @@
 
 use crate::framework::{expect_panic, itest};
 use godot::classes::notify::NodeNotification;
-use godot::classes::{INode, Node};
+use godot::classes::{INode, Node, RefCounted};
 use godot::register::{godot_api, GodotClass};
 
 use godot::obj::{Gd, NewAlloc, OnEditor};
@@ -22,15 +22,23 @@ fn oneditor_deref() {
 }
 
 #[itest]
-fn oneditor_no_value_panic_on_deref() {
-    expect_panic("Deref on null fails", || {
-        let on_editor_panic: OnEditor<i64> = OnEditor::default();
+fn oneditor_no_value_panic_on_deref_primitive() {
+    expect_panic("Deref on null fails for primitive", || {
+        let on_editor_panic: OnEditor<i64> = OnEditor::uninit(0);
         let _ref: &i64 = &on_editor_panic;
     });
+    expect_panic("Deref on null fails for Gd class", || {
+        let on_editor_panic: OnEditor<Gd<RefCounted>> = OnEditor::default();
+        let _ref: &Gd<RefCounted> = &on_editor_panic;
+    });
 
-    expect_panic("DerefMut on null fails", || {
-        let mut on_editor_panic: OnEditor<i64> = OnEditor::default();
+    expect_panic("DerefMut on null fails for primitive", || {
+        let mut on_editor_panic: OnEditor<i64> = OnEditor::uninit(0);
         let _ref: &mut i64 = &mut on_editor_panic;
+    });
+    expect_panic("DerefMut on null fails for Gd class", || {
+        let mut on_editor_panic: OnEditor<Gd<RefCounted>> = OnEditor::default();
+        let _ref: &mut Gd<RefCounted> = &mut on_editor_panic;
     });
 }
 
@@ -56,6 +64,7 @@ fn oneditor_panic_on_ready() {
 fn oneditor_no_panic_on_ready_with_late_init() {
     let mut obj = OnEditorNoDefault::new_alloc();
     obj.bind_mut().no_default_value = OnEditor::new(Node::new_alloc());
+    obj.bind_mut().some_primitive = OnEditor::new(64);
     obj.notify(NodeNotification::READY);
     assert!(obj.bind().was_ready_run);
     obj.bind_mut().no_default_value.clone().free();
@@ -65,6 +74,9 @@ fn oneditor_no_panic_on_ready_with_late_init() {
 #[derive(GodotClass)]
 #[class(init, base=Node)]
 struct OnEditorNoDefault {
+    #[var]
+    #[init(val = OnEditor::uninit(0))]
+    some_primitive: OnEditor<i64>,
     #[export]
     no_default_value: OnEditor<Gd<Node>>,
     #[var]

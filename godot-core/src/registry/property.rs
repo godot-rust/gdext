@@ -10,7 +10,7 @@
 use godot_ffi as sys;
 
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
-use crate::obj::{bounds, Bounds, Gd, GodotClass};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, OnEditor};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -445,6 +445,12 @@ mod export_impls {
             impl_property_by_godot_convert!(@export $Ty);
         };
 
+        ($Ty:ty, oneditor) => {
+            impl_property_by_godot_convert!(@property $Ty);
+            impl_property_by_godot_convert!(@export $Ty);
+            impl_property_by_godot_convert!(@oneditor $Ty);
+        };
+
         (@property $Ty:ty) => {
             impl Var for $Ty {
                 fn get_property(&self) -> Self::Via {
@@ -464,6 +470,22 @@ mod export_impls {
                 }
             }
         };
+
+        (@oneditor $Ty: ty) => {
+            impl GodotConvert for OnEditor<$Ty> {
+                type Via = <$Ty as GodotConvert>::Via;
+            }
+
+            impl Var for OnEditor<$Ty> {
+                fn get_property(&self) -> Self::Via {
+                    self.get_property().expect("Primitives can not be null.")
+                }
+
+                fn set_property(&mut self, value: Self::Via) {
+                    self.set_property(Some(value))
+                }
+            }
+        }
     }
 
     // Bounding Boxes
@@ -515,7 +537,7 @@ mod export_impls {
 
     // Primitives
     impl_property_by_godot_convert!(f64);
-    impl_property_by_godot_convert!(i64);
+    impl_property_by_godot_convert!(i64, oneditor);
     impl_property_by_godot_convert!(bool);
 
     // Godot uses f64 internally for floats, and if Godot tries to pass an invalid f32 into a rust property

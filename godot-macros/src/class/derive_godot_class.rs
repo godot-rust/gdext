@@ -261,6 +261,7 @@ fn make_user_class_impl(
     #[cfg(feature = "codegen-full")]
     let rpc_registrations =
         quote! { ::godot::register::private::auto_register_rpcs::<#class_name>(self); };
+    let mut run_before_ready = false;
     #[cfg(not(feature = "codegen-full"))]
     let rpc_registrations = TokenStream::new();
 
@@ -276,6 +277,7 @@ fn make_user_class_impl(
             });
 
         if let Some(first) = onready_fields.next() {
+            run_before_ready = true;
             quote! {
                 {
                     let base = <Self as godot::obj::WithBaseField>::to_gd(self).upcast();
@@ -288,9 +290,10 @@ fn make_user_class_impl(
         }
     };
 
-    // TODO: Don't run OnEditor logic in release mode.
+    // Perform before-ready check only in debug mode.
+    #[cfg(debug_assertions)]
     let oneditor_panic_inits = {
-        // Despite the name OnEditor shouldn't panic in the editor for tool classes.
+        // Despite its name OnEditor shouldn't panic in the editor for tool classes.
         let editor_check = quote! { ::godot::classes::Engine::singleton().is_editor_hint() };
 
         // Inform the user which fields haven't been set, instead of panicking on the very first one. Useful for debugging.
@@ -302,7 +305,6 @@ fn make_user_class_impl(
                 let warning_message =
                     format! { "godot-rust: OnEditor field {field} hasn't been initialized."};
                 quote! {
-
                 if this.#field.is_invalid() {
                     ::godot::global::godot_warn!(#warning_message);
                     is_oneditor_properly_initialized = false;
@@ -312,6 +314,7 @@ fn make_user_class_impl(
             .collect::<Vec<_>>();
 
         if !on_editor_fields_checks.is_empty() {
+            run_before_ready = true;
             quote! {
                 fn __are_oneditor_fields_initalized(this: &#class_name) -> bool {
                     if #editor_check {
@@ -333,10 +336,10 @@ fn make_user_class_impl(
         }
     };
 
-    let default_virtual_fn = if all_fields
-        .iter()
-        .any(|field| field.is_onready || field.is_oneditor)
-    {
+    #[cfg(not(debug_assertions))]
+    let oneditor_panic_inits = TokenStream::new();
+
+    let default_virtual_fn = if run_before_ready {
         let tool_check = util::make_virtual_tool_check();
         let signature_info = SignatureInfo::fn_ready();
 
