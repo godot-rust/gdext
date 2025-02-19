@@ -9,21 +9,26 @@ use crate::meta::{FromGodot, GodotConvert};
 use crate::registry::property::Var;
 
 // Possible areas for improvement that can be explored:
-// - Check if it makes sense to add `OnEditor<T>` support for primitives as well (such as ids and whatnot – "invalid" value such as `-1` or Vector(NaN, NaN, NaN) should represent null/None in such cases).
-// - Should we provide something similar to [`from_base_fn()`](crate::OnReady::from_base_fn)? Right now it is just a simple wrapper for Option that helps to organize code and provides ergonomic improvements – on another hand more elaborate late initialization logic should be handled either by Option or OnReady.
-// - Skipping `OnEditor::new(…)` in `#[init=val(…)]` - it is nothing but noise since OnEditor has only two logical states – "HasValue" (Some) and "Invalid" (None). Might be confusing, since nothing else follows such pattern.
+// - Should we provide something similar to [`from_base_fn()`](crate::OnReady::from_base_fn)? In general more elaborate late initialization logic should be handled either by Option or OnReady.
+// - Adding `OnEditor` section to `init(…)`. Might be noisy and unnecessary, since OnEditor, for now, avoids elaborate late initialization logic.
 
 /// Represents exported property which must not be null and must be set via the editor – or associated code – before use.
 /// Allows to use `Gd<T>` – which by itself never holds null objects – as an `#[export]` which should not be null during the runtime.
 ///
-/// Panics during access if value hasn't been set. Checks if value has been set before the `ready` is being run and panics if `OnEditor` fields are not properly initialized.
-/// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]`.
+/// Panics during access if value hasn't been set. Checks if value has been set before the `ready` is being run and panics if any of `OnEditor` fields is not properly initialized.
+/// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
 /// It should be used as it would be a value itself and lack thereof treated as a logical error.
 ///
 /// `#[init]` can be used to provide default values.
 /// One can create new instance and set its required properties after the init, albeit [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be preferred instead for late initialization.
 ///
-/// # Example - auto-generated init
+/// # Using `OnEditor<T>` with `Gd<T>` and `DynGd<T, D>`
+///
+/// Primarily use of `OnEditor<Gd<T>>` is exposing properties to the Godot editor.
+///
+/// One can provide default values for `OnEditor` using `#[init]`.
+///
+/// ## Example - auto-generated init
 ///
 /// ```
 ///  use godot::prelude::*;
@@ -51,7 +56,7 @@ use crate::registry::property::Var;
 /// }
 /// ```
 ///
-/// # Example - user-generated init
+/// ## Example - user-generated init
 ///
 /// ```
 ///  use godot::prelude::*;
@@ -75,7 +80,7 @@ use crate::registry::property::Var;
 /// }
 ///```
 ///
-/// # Example - Late init
+/// ## Example - Late init
 ///
 /// ```
 ///  use godot::prelude::*;
@@ -91,12 +96,50 @@ use crate::registry::property::Var;
 ///     let mut my_node_to_add = SomeClassThatCanBeInstantiatedInCode::new_alloc();
 ///     // Would cause the panic:
 ///     // this.add_child(&my_node_to_add);
+///     // Note: Remember that nodes are manually managed. They will leak memory if not added to tree and/or pruned.
 ///     my_node_to_add.bind_mut().required_node = OnEditor::new(Node::new_alloc());
 ///     // Will not cause the panic.
 ///     this.add_child(&my_node_to_add);
 /// }
 /// ```
-#[doc(alias = "impl<T> export for Gd<T>", alias = "gd_export")]
+///
+/// # Using `OnEditor<T>` with other GodotTypes
+///
+/// `OnEditor<T>` can be used with other built-ins to provide an extra validation logic and making sure that given properties has been set.
+/// Example usage might be checking if entities has been granted proper generated ids.
+///
+/// In such cases user must specify value which will be deemed invalid. Accessing uninitialized value will cause the panic.
+/// To initialize given value simply replace it with `Onready::new(…)`.
+///
+/// ## Example - using `OnEditor` with primitives
+///
+/// ```
+///  use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct SomeClassThatCanBeInstantiatedInCode {
+///     #[export]
+///     #[init(val = OnEditor::uninit(42))]
+///     some_primitive: OnEditor<i64>,
+/// }
+///
+/// fn foo(mut this: Gd<Node>) {
+///     let mut my_node_to_add = SomeClassThatCanBeInstantiatedInCode::new_alloc();
+///     // Would cause the panic:
+///     // this.add_child(&my_node_to_add);
+///     my_node_to_add.bind_mut().some_primitive = OnEditor::new(45);
+///     // Will not cause the panic.
+///     this.add_child(&my_node_to_add);
+/// }
+/// ```
+///
+#[doc(
+    alias = "impl<T> export for Gd<T>",
+    alias = "gd_export",
+    alias = "dyn_gd_export",
+    alias = "impl<T, D> export for DynGd<T, D>"
+)]
 pub enum OnEditor<T> {
     // Represents uninitialized, null value.
     Null,
@@ -122,6 +165,7 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
         }
     }
 
+    /// `Var::get_property` implementation that works both for nullable and non-nullable types.
     #[doc(hidden)]
     pub(crate) fn get_property(&self) -> Option<T::Via> {
         match self {
@@ -130,6 +174,7 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
         }
     }
 
+    /// `Var::set_property` implementation that works both for nullable and non-nullable types.
     #[doc(hidden)]
     pub(crate) fn set_property(&mut self, value: Option<T::Via>)
     where
