@@ -541,9 +541,7 @@ where
     }
 
     fn set_property(&mut self, value: Self::Via) {
-        // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
         OnEditor::<DynGd<T, D>>::set_property(self, value)
-        // *self = <Self as FromGodot>::from_godot(value);
     }
 }
 
