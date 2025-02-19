@@ -955,7 +955,7 @@ where
 #[allow(clippy::derivable_impls)]
 impl<T: GodotClass> Default for OnEditor<Gd<T>> {
     fn default() -> Self {
-        OnEditor::Null
+        OnEditor::null()
     }
 }
 

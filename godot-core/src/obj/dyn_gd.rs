@@ -516,10 +516,10 @@ where
 impl<T, D> Default for OnEditor<DynGd<T, D>>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     fn default() -> Self {
-        OnEditor::Null
+        OnEditor::null()
     }
 }
 

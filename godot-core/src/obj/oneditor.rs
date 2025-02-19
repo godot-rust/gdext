@@ -11,6 +11,7 @@ use crate::registry::property::Var;
 // Possible areas for improvement that can be explored:
 // - Should we provide something similar to [`from_base_fn()`](crate::OnReady::from_base_fn)? In general more elaborate late initialization logic should be handled either by Option or OnReady.
 // - Adding `OnEditor` section to `init(…)`. Might be noisy and unnecessary, since OnEditor, for now, avoids elaborate late initialization logic.
+// - Should we keep "invalid" value for primitives?
 
 /// Represents exported property which must not be null and must be set via the editor – or associated code – before use.
 /// Allows to use `Gd<T>` – which by itself never holds null objects – as an `#[export]` which should not be null during the runtime.
@@ -140,7 +141,11 @@ use crate::registry::property::Var;
     alias = "dyn_gd_export",
     alias = "impl<T, D> export for DynGd<T, D>"
 )]
-pub enum OnEditor<T> {
+pub struct OnEditor<T> {
+    inner: OnEditorState<T>,
+}
+
+enum OnEditorState<T> {
     // Represents uninitialized, null value.
     Null,
     // Represents initialized, invalid value.
@@ -150,27 +155,40 @@ pub enum OnEditor<T> {
 
 impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
     pub fn new(val: T) -> Self {
-        OnEditor::Initialized(val)
+        OnEditor {
+            inner: OnEditorState::Initialized(val),
+        }
     }
 
     pub fn uninit(val: T) -> Self {
-        OnEditor::Uninitialized(val)
+        OnEditor {
+            inner: OnEditorState::Uninitialized(val),
+        }
+    }
+
+    #[doc(hidden)]
+    pub(crate) fn null() -> Self {
+        OnEditor {
+            inner: OnEditorState::Null,
+        }
     }
 
     #[doc(hidden)]
     pub fn is_invalid(&self) -> bool {
-        match self {
-            OnEditor::Null | OnEditor::Uninitialized(_) => true,
-            OnEditor::Initialized(_) => false,
+        match self.inner {
+            OnEditorState::Null | OnEditorState::Uninitialized(_) => true,
+            OnEditorState::Initialized(_) => false,
         }
     }
 
     /// `Var::get_property` implementation that works both for nullable and non-nullable types.
     #[doc(hidden)]
     pub(crate) fn get_property(&self) -> Option<T::Via> {
-        match self {
-            OnEditor::Null => None,
-            OnEditor::Uninitialized(val) | OnEditor::Initialized(val) => Some(val.get_property()),
+        match &self.inner {
+            OnEditorState::Null => None,
+            OnEditorState::Uninitialized(val) | OnEditorState::Initialized(val) => {
+                Some(val.get_property())
+            }
         }
     }
 
@@ -180,18 +198,18 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
     where
         T::Via: PartialEq,
     {
-        match (value, &mut *self) {
-            (None, _) => *self = OnEditor::Null,
-            (Some(value), OnEditor::Initialized(current_value)) => {
+        match (value, &mut self.inner) {
+            (None, _) => self.inner = OnEditorState::Null,
+            (Some(value), OnEditorState::Initialized(current_value)) => {
                 current_value.set_property(value)
             }
-            (Some(value), OnEditor::Null) => {
-                *self = OnEditor::Initialized(FromGodot::from_godot(value))
+            (Some(value), OnEditorState::Null) => {
+                self.inner = OnEditorState::Initialized(FromGodot::from_godot(value))
             }
-            (Some(value), OnEditor::Uninitialized(current_value)) => {
+            (Some(value), OnEditorState::Uninitialized(current_value)) => {
                 let value = FromGodot::from_godot(value);
                 if value != *current_value {
-                    *self = OnEditor::Initialized(value)
+                    self.inner = OnEditorState::Initialized(value)
                 }
             }
         }
@@ -201,22 +219,22 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
 impl<T> std::ops::Deref for OnEditor<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        match &self {
-            OnEditor::Null | OnEditor::Uninitialized(_) => {
+        match &self.inner {
+            OnEditorState::Null | OnEditorState::Uninitialized(_) => {
                 panic!("godot-rust: OnEditor field hasn't been initialized.")
             }
-            OnEditor::Initialized(v) => v,
+            OnEditorState::Initialized(v) => v,
         }
     }
 }
 
 impl<T> std::ops::DerefMut for OnEditor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            OnEditor::Null | OnEditor::Uninitialized(_) => {
+        match &mut self.inner {
+            OnEditorState::Null | OnEditorState::Uninitialized(_) => {
                 panic!("godot-rust: OnEditor field hasn't been initialized.")
             }
-            OnEditor::Initialized(v) => v,
+            OnEditorState::Initialized(v) => v,
         }
     }
 }
