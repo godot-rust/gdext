@@ -13,21 +13,21 @@ use crate::registry::property::Var;
 // - Adding `OnEditor` section to `init(…)`. Might be noisy and unnecessary, since OnEditor, for now, avoids elaborate late initialization logic.
 // - Should we keep "invalid" value for primitives?
 
-/// Represents exported property which must not be null and must be set via the editor – or associated code – before use.
-/// Allows to use `Gd<T>` – which by itself never holds null objects – as an `#[export]` which should not be null during the runtime.
+/// Represents an exported property that must not be null and must be set via the editor or associated code before use.
+/// Allows to use `Gd<T>`, which by itself never holds null objects, as an `#[export]` that should not be null during runtime.
 ///
-/// Panics during access if value hasn't been set. Checks if value has been set before the `ready` is being run and panics if any of `OnEditor` fields is not properly initialized.
+/// Panics during access if value hasn't been set.
+/// Checks if value has been set before the `ready` is being run and panics if any of `OnEditor` fields is not properly initialized (this logic is exclusive to Nodes).
 /// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
 /// It should be used as it would be a value itself and lack thereof treated as a logical error.
 ///
-/// `#[init]` can be used to provide default values.
-/// One can create new instance and set its required properties after the init, albeit [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be preferred instead for late initialization.
+/// A new instance can be created and have its required properties set after initialization,
+/// though [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be preferred for late initialization.
 ///
 /// # Using `OnEditor<T>` with `Gd<T>` and `DynGd<T, D>`
 ///
-/// Primarily use of `OnEditor<Gd<T>>` is exposing properties to the Godot editor.
-///
-/// One can provide default values for `OnEditor` using `#[init]`.
+/// Exposing properties to the Godot editor is primary use of the `OnEditor<Gd<T>>`.
+/// Default values – used in case if no value will be set via the editor – can be provided with `#[init(val = ...)]`.
 ///
 /// ## Example - auto-generated init
 ///
@@ -109,8 +109,9 @@ use crate::registry::property::Var;
 /// `OnEditor<T>` can be used with other built-ins to provide an extra validation logic and making sure that given properties has been set.
 /// Example usage might be checking if entities has been granted proper generated ids.
 ///
-/// In such cases user must specify value which will be deemed invalid. Accessing uninitialized value will cause the panic.
-/// To initialize given value simply replace it with `Onready::new(…)`.
+/// In such cases the default  value which will be deemed invalid **must** be specified with `#[init(val = OnEditor::uninit(...)].
+/// Accessing uninitialized value will cause the panic.
+/// To initialize given value simply replace it with `OnEditor::new(…)`.
 ///
 /// ## Example - using `OnEditor` with primitives
 ///
