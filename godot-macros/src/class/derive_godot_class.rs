@@ -253,6 +253,73 @@ fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     }
 }
 
+fn make_onready_init(all_fields: &[Field]) -> TokenStream {
+    let mut onready_fields = all_fields
+        .iter()
+        .filter(|&field| field.is_onready)
+        .map(|field| {
+            let field = &field.name;
+            quote! {
+                ::godot::private::auto_init(&mut self.#field, &base);
+            }
+        });
+
+    if let Some(first) = onready_fields.next() {
+        quote! {
+            {
+                let base = <Self as godot::obj::WithBaseField>::to_gd(self).upcast();
+                #first
+                #( #onready_fields )*
+            }
+        }
+    } else {
+        TokenStream::new()
+    }
+}
+
+fn make_oneditor_panic_inits(class_name: &Ident, all_fields: &[Field]) -> TokenStream {
+    // Despite its name OnEditor shouldn't panic in the editor for tool classes.
+    let editor_check = quote! { ::godot::classes::Engine::singleton().is_editor_hint() };
+
+    // Inform the user which fields haven't been set, instead of panicking on the very first one. Useful for debugging.
+    let on_editor_fields_checks = all_fields
+        .iter()
+        .filter(|&field| field.is_oneditor)
+        .map(|field| {
+            let field = &field.name;
+            let warning_message =
+                format! { "godot-rust: OnEditor field {field} hasn't been initialized."};
+            quote! {
+            if this.#field.is_invalid() {
+                ::godot::global::godot_warn!(#warning_message);
+                is_oneditor_properly_initialized = false;
+            }
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if !on_editor_fields_checks.is_empty() {
+        quote! {
+            fn __are_oneditor_fields_initalized(this: &#class_name) -> bool {
+                if #editor_check {
+                    return true;
+                }
+
+                let mut is_oneditor_properly_initialized: bool = true;
+                #( #on_editor_fields_checks )*
+
+                is_oneditor_properly_initialized
+            }
+
+            if !__are_oneditor_fields_initalized(&self) {
+                panic!("godot-rust: OnEditor fields must be properly initialized before ready.")
+            }
+        }
+    } else {
+        TokenStream::new()
+    }
+}
+
 fn make_user_class_impl(
     class_name: &Ident,
     is_tool: bool,
@@ -261,84 +328,20 @@ fn make_user_class_impl(
     #[cfg(feature = "codegen-full")]
     let rpc_registrations =
         quote! { ::godot::register::private::auto_register_rpcs::<#class_name>(self); };
-    let mut run_before_ready = false;
     #[cfg(not(feature = "codegen-full"))]
     let rpc_registrations = TokenStream::new();
 
-    let onready_inits = {
-        let mut onready_fields = all_fields
-            .iter()
-            .filter(|&field| field.is_onready)
-            .map(|field| {
-                let field = &field.name;
-                quote! {
-                    ::godot::private::auto_init(&mut self.#field, &base);
-                }
-            });
+    let onready_inits = make_onready_init(all_fields);
 
-        if let Some(first) = onready_fields.next() {
-            run_before_ready = true;
-            quote! {
-                {
-                    let base = <Self as godot::obj::WithBaseField>::to_gd(self).upcast();
-                    #first
-                    #( #onready_fields )*
-                }
-            }
-        } else {
-            TokenStream::new()
-        }
-    };
-
-    // Perform before-ready check only in debug mode.
+    // Perform before-ready oneditor check only in debug mode.
     // TODO - make sure if it shouldn't be hidden with another feature flag (for libraries running in editor, such as plugins).
     #[cfg(debug_assertions)]
-    let oneditor_panic_inits = {
-        // Despite its name OnEditor shouldn't panic in the editor for tool classes.
-        let editor_check = quote! { ::godot::classes::Engine::singleton().is_editor_hint() };
-
-        // Inform the user which fields haven't been set, instead of panicking on the very first one. Useful for debugging.
-        let on_editor_fields_checks = all_fields
-            .iter()
-            .filter(|&field| field.is_oneditor)
-            .map(|field| {
-                let field = &field.name;
-                let warning_message =
-                    format! { "godot-rust: OnEditor field {field} hasn't been initialized."};
-                quote! {
-                if this.#field.is_invalid() {
-                    ::godot::global::godot_warn!(#warning_message);
-                    is_oneditor_properly_initialized = false;
-                }
-                }
-            })
-            .collect::<Vec<_>>();
-
-        if !on_editor_fields_checks.is_empty() {
-            run_before_ready = true;
-            quote! {
-                fn __are_oneditor_fields_initalized(this: &#class_name) -> bool {
-                    if #editor_check {
-                        return true;
-                    }
-
-                    let mut is_oneditor_properly_initialized: bool = true;
-                    #( #on_editor_fields_checks )*
-
-                    is_oneditor_properly_initialized
-                }
-
-                if !__are_oneditor_fields_initalized(&self) {
-                    panic!("godot-rust: OnEditor fields must be properly initialized before ready.")
-                }
-            }
-        } else {
-            TokenStream::new()
-        }
-    };
+    let oneditor_panic_inits = make_oneditor_panic_inits(class_name, all_fields);
 
     #[cfg(not(debug_assertions))]
     let oneditor_panic_inits = TokenStream::new();
+
+    let run_before_ready = !onready_inits.is_empty() || !oneditor_panic_inits.is_empty();
 
     let default_virtual_fn = if run_before_ready {
         let tool_check = util::make_virtual_tool_check();

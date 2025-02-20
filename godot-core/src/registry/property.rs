@@ -77,6 +77,10 @@ pub trait Export: Var {
     }
 }
 
+/// Lorem ipsum dolores dei etc etc
+/// A marker type that marks primitives such as i64 which are not nullable and whatnot
+pub trait BuiltinGodotType {}
+
 /// This function only exists as a place to add doc-tests for the `Export` trait.
 ///
 /// Test with export of exportable type should succeed:
@@ -427,12 +431,7 @@ mod export_impls {
         ($Ty:ty) => {
             impl_property_by_godot_convert!(@property $Ty);
             impl_property_by_godot_convert!(@export $Ty);
-        };
-
-        ($Ty:ty, oneditor) => {
-            impl_property_by_godot_convert!(@property $Ty);
-            impl_property_by_godot_convert!(@export $Ty);
-            impl_property_by_godot_convert!(@oneditor $Ty);
+            impl_property_by_godot_convert!(@builtin $Ty);
         };
 
         (@property $Ty:ty) => {
@@ -455,33 +454,15 @@ mod export_impls {
             }
         };
 
-        (@oneditor $Ty: ty) => {
-            impl GodotConvert for crate::obj::OnEditor<$Ty> {
-                type Via = <$Ty as GodotConvert>::Via;
-            }
-
-            impl Var for crate::obj::OnEditor<$Ty> {
-                fn get_property(&self) -> Self::Via {
-                    self.get_property().expect("Primitives can not be null.")
-                }
-
-                fn set_property(&mut self, value: Self::Via) {
-                    self.set_property(Some(value))
-                }
-            }
-
-            impl Export for crate::obj::OnEditor<$Ty> {
-                fn export_hint() -> PropertyHintInfo {
-                    <$Ty>::export_hint()
-                }
-            }
+        (@builtin $Ty:ty) => {
+            impl BuiltinGodotType for $Ty {}
         }
     }
 
     // Bounding Boxes
     impl_property_by_godot_convert!(Aabb);
-    impl_property_by_godot_convert!(Rect2, oneditor);
-    impl_property_by_godot_convert!(Rect2i, oneditor);
+    impl_property_by_godot_convert!(Rect2);
+    impl_property_by_godot_convert!(Rect2i);
 
     // Matrices
     impl_property_by_godot_convert!(Basis);
@@ -490,21 +471,21 @@ mod export_impls {
     impl_property_by_godot_convert!(Projection);
 
     // Vectors
-    impl_property_by_godot_convert!(Vector2, oneditor);
-    impl_property_by_godot_convert!(Vector2i, oneditor);
-    impl_property_by_godot_convert!(Vector3, oneditor);
-    impl_property_by_godot_convert!(Vector3i, oneditor);
-    impl_property_by_godot_convert!(Vector4, oneditor);
-    impl_property_by_godot_convert!(Vector4i, oneditor);
+    impl_property_by_godot_convert!(Vector2);
+    impl_property_by_godot_convert!(Vector2i);
+    impl_property_by_godot_convert!(Vector3);
+    impl_property_by_godot_convert!(Vector3i);
+    impl_property_by_godot_convert!(Vector4);
+    impl_property_by_godot_convert!(Vector4i);
 
     // Misc Math
-    impl_property_by_godot_convert!(Quaternion, oneditor);
-    impl_property_by_godot_convert!(Plane, oneditor);
+    impl_property_by_godot_convert!(Quaternion);
+    impl_property_by_godot_convert!(Plane);
 
     // Stringy Types
-    impl_property_by_godot_convert!(GString, oneditor);
-    impl_property_by_godot_convert!(StringName, oneditor);
-    impl_property_by_godot_convert!(NodePath, oneditor);
+    impl_property_by_godot_convert!(GString);
+    impl_property_by_godot_convert!(StringName);
+    impl_property_by_godot_convert!(NodePath);
 
     impl_property_by_godot_convert!(Color);
 
@@ -526,24 +507,24 @@ mod export_impls {
     impl_property_by_godot_convert!(PackedColorArray, no_export);
 
     // Primitives
-    impl_property_by_godot_convert!(f64, oneditor);
-    impl_property_by_godot_convert!(i64, oneditor);
+    impl_property_by_godot_convert!(f64);
+    impl_property_by_godot_convert!(i64);
     impl_property_by_godot_convert!(bool);
 
     // Godot uses f64 internally for floats, and if Godot tries to pass an invalid f32 into a rust property
     // then the property will just round the value or become inf.
-    impl_property_by_godot_convert!(f32, oneditor);
+    impl_property_by_godot_convert!(f32);
 
     // Godot uses i64 internally for integers, and if Godot tries to pass an invalid integer into a property
     // accepting one of the below values then rust will panic. In the editor this will appear as the property
     // failing to be set to a value and an error printed in the console. During runtime this will crash the
     // program and print the panic from rust stating that the property cannot store the value.
-    impl_property_by_godot_convert!(i32, oneditor);
-    impl_property_by_godot_convert!(i16, oneditor);
-    impl_property_by_godot_convert!(i8, oneditor);
-    impl_property_by_godot_convert!(u32, oneditor);
-    impl_property_by_godot_convert!(u16, oneditor);
-    impl_property_by_godot_convert!(u8, oneditor);
+    impl_property_by_godot_convert!(i32);
+    impl_property_by_godot_convert!(i16);
+    impl_property_by_godot_convert!(i8);
+    impl_property_by_godot_convert!(u32);
+    impl_property_by_godot_convert!(u16);
+    impl_property_by_godot_convert!(u8);
 
     // Callables and Signals are useless when exported to the editor, so we only need to make them available as
     // properties.

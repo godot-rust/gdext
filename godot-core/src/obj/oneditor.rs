@@ -5,21 +5,26 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::meta::{FromGodot, GodotConvert};
-use crate::registry::property::Var;
+use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo};
+use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
+use crate::registry::class::get_dyn_property_hint_string;
+use crate::registry::property::{BuiltinGodotType, Export, Var};
 
 // Possible areas for improvement that can be explored:
 // - Should we provide something similar to [`from_base_fn()`](crate::OnReady::from_base_fn)? In general more elaborate late initialization logic should be handled either by Option or OnReady.
 // - Adding `OnEditor` section to `init(…)`. Might be noisy and unnecessary, since OnEditor, for now, avoids elaborate late initialization logic.
 // - Should we keep "invalid" value for primitives?
 
-/// Represents an exported property that must not be null and must be set via the editor or associated code before use.
-/// Allows to use `Gd<T>`, which by itself never holds null objects, as an `#[export]` that should not be null during runtime.
+/// Exported property that must be initialized in the editor (or associated code) before use.
 ///
-/// Panics during access if value hasn't been set.
-/// Checks if value has been set before the `ready` is being run and panics if any of `OnEditor` fields is not properly initialized (this logic is exclusive to Nodes).
+/// Allows to use `Gd<T>`, which by itself never holds null objects, as an `#[export]` that should not be null during runtime.
+/// As such, it can be used as a more ergonomic way of `Option<Gd<T>>` which _assumes_ initialization.
+///
+/// Panics during access if uninitialized.
+/// When used inside a node class, `OnEditor` checks if a value has been set before `ready()` is run, and panics otherwise.
+///
 /// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
-/// It should be used as it would be a value itself and lack thereof treated as a logical error.
+/// Once initialized, it can be used almost as if it were a `T` value itself, due to `Deref`/`DerefMut` impls.
 ///
 /// A new instance can be created and have its required properties set after initialization,
 /// though [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be preferred for late initialization.
@@ -39,9 +44,11 @@ use crate::registry::property::Var;
 /// struct MyClass {
 ///     #[export]
 ///     editor_field: OnEditor<Gd<Resource>>,
+///
 ///     #[export]
 ///     #[init(val = OnEditor::init(Node::new_alloc()))]
 ///     required_with_default: OnEditor<Gd<Node>>,
+///
 ///     // Does **NOT** require base field to work.
 ///     base: Base<Node>,
 /// }
@@ -49,12 +56,17 @@ use crate::registry::property::Var;
 /// #[godot_api]
 /// impl INode for MyClass {
 ///     fn ready(&mut self) {
-///         // Field `required_with_default` can be either default value - specified in `#[init]` or value set via the Godot Editor.
+///         // Field `required_with_default` can be either default value, specified in `#[init]`
+///         // or value set via the Godot Editor.
 ///        assert_eq!(self.required_with_default.get_class(), GString::from("Node"));
-///         // Will always be valid and must be set via editor – an additional check is being run before ready to make sure that given value can't be null.
+///
+///         // Will always be valid and must be set via editor
+///         // an additional check is being run before ready
+///         // to make sure that given value can't be null.
 ///         let some_variant = self.editor_field.get_meta("SomeName");
 ///     }
 /// }
+///
 /// ```
 ///
 /// ## Example - user-generated init
@@ -67,6 +79,7 @@ use crate::registry::property::Var;
 /// struct MyClass {
 ///     #[export]
 ///     required_node: OnEditor<Gd<Node>>,
+///
 ///     base: Base<Node>
 /// }
 ///
@@ -95,10 +108,14 @@ use crate::registry::property::Var;
 ///
 /// fn foo(mut this: Gd<Node>) {
 ///     let mut my_node_to_add = SomeClassThatCanBeInstantiatedInCode::new_alloc();
+///
 ///     // Would cause the panic:
 ///     // this.add_child(&my_node_to_add);
-///     // Note: Remember that nodes are manually managed. They will leak memory if not added to tree and/or pruned.
+///
+///     // Note: Remember that nodes are manually managed.
+///     // They will leak memory if not added to tree and/or pruned.
 ///     my_node_to_add.bind_mut().required_node = OnEditor::init(Node::new_alloc());
+///
 ///     // Will not cause the panic.
 ///     this.add_child(&my_node_to_add);
 /// }
@@ -136,21 +153,16 @@ use crate::registry::property::Var;
 /// }
 /// ```
 ///
-#[doc(
-    alias = "impl<T> export for Gd<T>",
-    alias = "gd_export",
-    alias = "dyn_gd_export",
-    alias = "impl<T, D> export for DynGd<T, D>"
-)]
 pub struct OnEditor<T> {
     inner: OnEditorState<T>,
 }
 
 enum OnEditorState<T> {
-    // Represents uninitialized, null value.
+    /// Uninitialized null value.
     Null,
-    // Represents initialized, invalid value.
+    /// Uninitialized state, but with a value marked as invalid.
     Uninitialized(T),
+    /// Initialized with a value.
     Initialized(T),
 }
 
@@ -184,7 +196,7 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
 
     /// `Var::get_property` implementation that works both for nullable and non-nullable types.
     #[doc(hidden)]
-    pub(crate) fn get_property(&self) -> Option<T::Via> {
+    pub(crate) fn get_property_inner(&self) -> Option<T::Via> {
         match &self.inner {
             OnEditorState::Null => None,
             OnEditorState::Uninitialized(val) | OnEditorState::Initialized(val) => {
@@ -195,7 +207,7 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
 
     /// `Var::set_property` implementation that works both for nullable and non-nullable types.
     #[doc(hidden)]
-    pub(crate) fn set_property(&mut self, value: Option<T::Via>)
+    pub(crate) fn set_property_inner(&mut self, value: Option<T::Via>)
     where
         T::Via: PartialEq,
     {
@@ -237,5 +249,111 @@ impl<T> std::ops::DerefMut for OnEditor<T> {
             }
             OnEditorState::Initialized(v) => v,
         }
+    }
+}
+
+impl<T> GodotConvert for OnEditor<T>
+where
+    T: GodotConvert<Via = T> + GodotType + BuiltinGodotType,
+{
+    type Via = T::Via;
+}
+
+impl<T> Var for OnEditor<T>
+where
+    OnEditor<T>: GodotConvert<Via = T>,
+    T: GodotConvert<Via = T> + BuiltinGodotType + Var + FromGodot + PartialEq,
+{
+    fn get_property(&self) -> Self::Via {
+        OnEditor::<T>::get_property_inner(self).expect("dd")
+    }
+
+    fn set_property(&mut self, value: T) {
+        OnEditor::<T>::set_property_inner(self, Some(value));
+    }
+}
+
+impl<T> Export for OnEditor<T>
+where
+    OnEditor<T>: Var,
+    T: GodotConvert<Via = T> + BuiltinGodotType + Export,
+{
+    fn export_hint() -> PropertyHintInfo {
+        T::export_hint()
+    }
+}
+
+impl<T: GodotClass> GodotConvert for OnEditor<Gd<T>>
+where
+    Option<<Gd<T> as GodotConvert>::Via>: GodotType,
+{
+    type Via = Option<<Gd<T> as GodotConvert>::Via>;
+}
+
+impl<T> Var for OnEditor<Gd<T>>
+where
+    T: GodotClass,
+    OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
+{
+    fn get_property(&self) -> Self::Via {
+        OnEditor::<Gd<T>>::get_property_inner(self)
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        OnEditor::<Gd<T>>::set_property_inner(self, value)
+    }
+}
+
+impl<T> Export for OnEditor<Gd<T>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    OnEditor<Gd<T>>: Var,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_gd::<T>()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
+    }
+}
+
+impl<T, D> GodotConvert for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    type Via = Option<<DynGd<T, D> as GodotConvert>::Via>;
+}
+
+impl<T, D> Var for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn get_property(&self) -> Self::Via {
+        OnEditor::<DynGd<T, D>>::get_property_inner(self)
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        OnEditor::<DynGd<T, D>>::set_property_inner(self, value)
+    }
+}
+
+impl<T, D> Export for OnEditor<DynGd<T, D>>
+where
+    OnEditor<DynGd<T, D>>: Var,
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    D: ?Sized + 'static,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo {
+            hint_string: get_dyn_property_hint_string::<D>(),
+            ..PropertyHintInfo::export_gd::<T>()
+        }
+    }
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }

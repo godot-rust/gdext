@@ -545,40 +545,6 @@ impl<T: GodotClass> Gd<T> {
         // Do not increment ref-count; assumed to be return value from FFI.
         sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
     }
-
-    /// Provides `export_hint` to be used in exports with `Option<Gd<T>>` and `OnEditor<Gd<T>>`.
-    ///
-    /// `Gd<T>` by itself is non-nullable which works badly with Godot editor and might lead to
-    /// unavoidable memory leaks – thus the need to handle `#[export]` with algebraic types.
-    ///
-    /// See also: [#892](https://github.com/godot-rust/gdext/issues/892#issuecomment-2628955463)
-    #[doc(hidden)]
-    pub(crate) fn export_hint() -> PropertyHintInfo
-    where
-        T: Bounds<Exportable = bounds::Yes>,
-    {
-        let hint = if T::inherits::<classes::Resource>() {
-            PropertyHint::RESOURCE_TYPE
-        } else if T::inherits::<classes::Node>() {
-            PropertyHint::NODE_TYPE
-        } else {
-            unreachable!("classes not inheriting from Resource or Node should not be exportable")
-        };
-
-        // Godot does this by default too; the hint is needed when the class is a resource/node,
-        // but doesn't seem to make a difference otherwise.
-        let hint_string = T::class_name().to_gstring();
-
-        PropertyHintInfo { hint, hint_string }
-    }
-
-    #[doc(hidden)]
-    pub(crate) fn as_node_class() -> Option<ClassName>
-    where
-        T: Bounds<Exportable = bounds::Yes>,
-    {
-        T::inherits::<classes::Node>().then(|| T::class_name())
-    }
 }
 
 /// _The methods in this impl block are only available for objects `T` that are manually managed,
@@ -942,12 +908,12 @@ where
     Option<Gd<T>>: Var,
 {
     fn export_hint() -> PropertyHintInfo {
-        Gd::<T>::export_hint()
+        PropertyHintInfo::export_gd::<T>()
     }
 
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassName> {
-        Gd::<T>::as_node_class()
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }
 
@@ -956,43 +922,6 @@ where
 impl<T: GodotClass> Default for OnEditor<Gd<T>> {
     fn default() -> Self {
         OnEditor::null()
-    }
-}
-
-impl<T: GodotClass> GodotConvert for OnEditor<Gd<T>>
-where
-    Gd<T>: GodotConvert,
-    Option<<Gd<T> as GodotConvert>::Via>: GodotType,
-{
-    type Via = Option<<Gd<T> as GodotConvert>::Via>;
-}
-
-impl<T> Var for OnEditor<Gd<T>>
-where
-    T: GodotClass,
-    OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
-{
-    fn get_property(&self) -> Self::Via {
-        OnEditor::<Gd<T>>::get_property(self)
-    }
-
-    fn set_property(&mut self, value: Self::Via) {
-        OnEditor::<Gd<T>>::set_property(self, value)
-    }
-}
-
-impl<T> Export for OnEditor<Gd<T>>
-where
-    T: GodotClass + Bounds<Exportable = bounds::Yes>,
-    OnEditor<Gd<T>>: Var,
-{
-    fn export_hint() -> PropertyHintInfo {
-        Gd::<T>::export_hint()
-    }
-
-    #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
-        Gd::<T>::as_node_class()
     }
 }
 

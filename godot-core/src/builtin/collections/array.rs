@@ -1086,9 +1086,9 @@ impl<T: ArrayElement> Var for Array<T> {
     }
 }
 
-impl<T: Export> Export for Array<T>
+impl<T> Export for Array<T>
 where
-    T: ArrayElement,
+    T: ArrayElement + Export,
 {
     fn export_hint() -> PropertyHintInfo {
         // If T == Variant, then we return "Array" builtin type hint.
@@ -1103,7 +1103,6 @@ where
 impl<T: GodotClass> Export for Array<Gd<T>>
 where
     T: Bounds<Exportable = bounds::Yes>,
-    Gd<T>: ArrayElement,
 {
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo::export_array_element::<Gd<T>>()
@@ -1111,7 +1110,7 @@ where
 
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassName> {
-        Gd::<T>::as_node_class()
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }
 
