@@ -7,9 +7,14 @@
 
 //! Registration support for property types.
 
+use crate::classes;
+use crate::global::PropertyHint;
 use godot_ffi as sys;
+use godot_ffi::VariantType;
+use std::fmt::Display;
 
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
+use crate::obj::{EngineEnum, GodotClass};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -547,5 +552,32 @@ pub(crate) fn builtin_type_string<T: GodotType>() -> String {
         format!("{}:", variant_type.sys())
     } else {
         format!("{}:{}", variant_type.sys(), T::godot_type_name())
+    }
+}
+
+/// Creates `hint_string` to be used for given `GodotClass` when used as an `ArrayElement`.
+pub(crate) fn object_export_element_type_string<T>(class_hint: impl Display) -> String
+where
+    T: GodotClass,
+{
+    let hint = if T::inherits::<classes::Resource>() {
+        Some(PropertyHint::RESOURCE_TYPE)
+    } else if T::inherits::<classes::Node>() {
+        Some(PropertyHint::NODE_TYPE)
+    } else {
+        None
+    };
+
+    // Exportable classes (Resource/Node based) include the {RESOURCE|NODE}_TYPE hint + the class name.
+    if let Some(export_hint) = hint {
+        format!(
+            "{variant}/{hint}:{class}",
+            variant = VariantType::OBJECT.ord(),
+            hint = export_hint.ord(),
+            class = class_hint
+        )
+    } else {
+        // Previous impl: format!("{variant}:", variant = VariantType::OBJECT.ord())
+        unreachable!("element_type_string() should only be invoked for exportable classes")
     }
 }
