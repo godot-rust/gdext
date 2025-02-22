@@ -9,7 +9,7 @@ use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassName, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
-use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits};
+use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor};
 use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
 use crate::registry::property::{Export, Var};
 use crate::{meta, sys};
@@ -495,7 +495,18 @@ where
     }
 }
 
-impl<T, D> Export for DynGd<T, D>
+#[allow(clippy::derivable_impls)]
+impl<T, D> Default for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn default() -> Self {
+        OnEditor::null()
+    }
+}
+
+impl<T, D> Export for Option<DynGd<T, D>>
 where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
@@ -503,10 +514,50 @@ where
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo {
             hint_string: get_dyn_property_hint_string::<D>(),
-            ..<Gd<T> as Export>::export_hint()
+            ..PropertyHintInfo::export_gd::<T>()
+        }
+    }
+
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
+    }
+}
+
+impl<T, D> GodotConvert for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    type Via = Option<<DynGd<T, D> as GodotConvert>::Via>;
+}
+
+impl<T, D> Var for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn get_property(&self) -> Self::Via {
+        OnEditor::<DynGd<T, D>>::get_property_inner(self)
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        OnEditor::<DynGd<T, D>>::set_property_inner(self, value)
+    }
+}
+
+impl<T, D> Export for OnEditor<DynGd<T, D>>
+where
+    OnEditor<DynGd<T, D>>: Var,
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    D: ?Sized + 'static,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo {
+            hint_string: get_dyn_property_hint_string::<D>(),
+            ..PropertyHintInfo::export_gd::<T>()
         }
     }
     fn as_node_class() -> Option<ClassName> {
-        <Gd<T> as Export>::as_node_class()
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }

@@ -20,7 +20,7 @@ use crate::meta::{
 };
 use crate::obj::{
     bounds, cap, Bounds, DynGd, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits,
-    InstanceId, RawGd,
+    InstanceId, OnEditor, RawGd,
 };
 use crate::private::callbacks;
 use crate::registry::property::{Export, Var};
@@ -794,8 +794,6 @@ impl<T: GodotClass> GodotType for Gd<T> {
 
 impl<T: GodotClass> ArrayElement for Gd<T> {
     fn element_type_string() -> String {
-        // See also impl Export for Gd<T>.
-
         let hint = if T::inherits::<classes::Resource>() {
             Some(PropertyHint::RESOURCE_TYPE)
         } else if T::inherits::<classes::Node>() {
@@ -894,8 +892,6 @@ impl<T: GodotClass> Clone for Gd<T> {
     }
 }
 
-// TODO: Do we even want to implement `Var` and `Export` for `Gd<T>`? You basically always want to use `Option<Gd<T>>` because the editor
-// may otherwise try to set the object to a null value.
 impl<T: GodotClass> Var for Gd<T> {
     fn get_property(&self) -> Self::Via {
         self.to_godot()
@@ -906,33 +902,64 @@ impl<T: GodotClass> Var for Gd<T> {
     }
 }
 
-impl<T> Export for Gd<T>
+impl<T> Export for Option<Gd<T>>
 where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    Option<Gd<T>>: Var,
 {
     fn export_hint() -> PropertyHintInfo {
-        let hint = if T::inherits::<classes::Resource>() {
-            PropertyHint::RESOURCE_TYPE
-        } else if T::inherits::<classes::Node>() {
-            PropertyHint::NODE_TYPE
-        } else {
-            unreachable!("classes not inheriting from Resource or Node should not be exportable")
-        };
-
-        // Godot does this by default too; the hint is needed when the class is a resource/node,
-        // but doesn't seem to make a difference otherwise.
-        let hint_string = T::class_name().to_gstring();
-
-        PropertyHintInfo { hint, hint_string }
+        PropertyHintInfo::export_gd::<T>()
     }
 
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassName> {
-        T::inherits::<classes::Node>().then(|| T::class_name())
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }
 
-// Trait impls Property, Export and TypeStringHint for Option<Gd<T>> are covered by blanket impl for Option<T>
+#[allow(clippy::derivable_impls)]
+impl<T: GodotClass> Default for OnEditor<Gd<T>> {
+    fn default() -> Self {
+        OnEditor::null()
+    }
+}
+
+impl<T> GodotConvert for OnEditor<Gd<T>>
+where
+    T: GodotClass,
+    Option<<Gd<T> as GodotConvert>::Via>: GodotType,
+{
+    type Via = Option<<Gd<T> as GodotConvert>::Via>;
+}
+
+impl<T> Var for OnEditor<Gd<T>>
+where
+    T: GodotClass,
+    OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
+{
+    fn get_property(&self) -> Self::Via {
+        OnEditor::<Gd<T>>::get_property_inner(self)
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        OnEditor::<Gd<T>>::set_property_inner(self, value)
+    }
+}
+
+impl<T> Export for OnEditor<Gd<T>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    OnEditor<Gd<T>>: Var,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_gd::<T>()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
+    }
+}
 
 impl<T: GodotClass> PartialEq for Gd<T> {
     /// ⚠️ Returns whether two `Gd` pointers point to the same object.

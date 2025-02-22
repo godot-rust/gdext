@@ -97,7 +97,7 @@ impl OptionFfiTest {
 }
 
 #[derive(GodotClass)]
-#[class(init)]
+#[class(init, base=Node)]
 struct OptionExportFfiTest {
     #[var]
     optional: Option<Gd<Node>>,

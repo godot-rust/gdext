@@ -12,10 +12,11 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, CowArg,
-    FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType, PropertyHintInfo, RefArg,
-    ToGodot,
+    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ClassName,
+    CowArg, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType, PropertyHintInfo,
+    RefArg, ToGodot,
 };
+use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
 use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -1096,6 +1097,33 @@ where
         } else {
             PropertyHintInfo::export_array_element::<T>()
         }
+    }
+}
+
+impl<T: GodotClass> Export for Array<Gd<T>>
+where
+    T: Bounds<Exportable = bounds::Yes>,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_array_element::<Gd<T>>()
+    }
+
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
+    }
+}
+
+impl<T: GodotClass, D> Export for Array<DynGd<T, D>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    D: ?Sized + 'static,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_array_element::<DynGd<T, D>>()
+    }
+
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }
 

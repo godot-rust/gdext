@@ -77,6 +77,9 @@ pub trait Export: Var {
     }
 }
 
+/// Marker trait to identify non-nullable `GodotType`s that can be directly used with `#[export]` and `#[var]`.
+pub trait DirectExport {}
+
 /// This function only exists as a place to add doc-tests for the `Export` trait.
 ///
 /// Test with export of exportable type should succeed:
@@ -427,6 +430,7 @@ mod export_impls {
         ($Ty:ty) => {
             impl_property_by_godot_convert!(@property $Ty);
             impl_property_by_godot_convert!(@export $Ty);
+            impl_property_by_godot_convert!(@builtin $Ty);
         };
 
         (@property $Ty:ty) => {
@@ -448,6 +452,10 @@ mod export_impls {
                 }
             }
         };
+
+        (@builtin $Ty:ty) => {
+            impl DirectExport for $Ty {}
+        }
     }
 
     // Bounding Boxes
