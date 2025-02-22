@@ -917,11 +917,46 @@ where
     }
 }
 
-#[doc(hidden)]
 #[allow(clippy::derivable_impls)]
 impl<T: GodotClass> Default for OnEditor<Gd<T>> {
     fn default() -> Self {
         OnEditor::null()
+    }
+}
+
+impl<T: GodotClass> GodotConvert for OnEditor<Gd<T>>
+where
+    Option<<Gd<T> as GodotConvert>::Via>: GodotType,
+{
+    type Via = Option<<Gd<T> as GodotConvert>::Via>;
+}
+
+impl<T> Var for OnEditor<Gd<T>>
+where
+    T: GodotClass,
+    OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
+{
+    fn get_property(&self) -> Self::Via {
+        OnEditor::<Gd<T>>::get_property_inner(self)
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        OnEditor::<Gd<T>>::set_property_inner(self, value)
+    }
+}
+
+impl<T> Export for OnEditor<Gd<T>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    OnEditor<Gd<T>>: Var,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_gd::<T>()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }
 

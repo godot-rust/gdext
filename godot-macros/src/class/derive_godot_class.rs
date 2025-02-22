@@ -594,6 +594,37 @@ fn parse_fields(
                 });
             }
 
+            // #[init(uninit = val)]
+            if let Some(invalid_representation) = parser.handle_expr("uninit")? {
+                let mut is_well_formed = true;
+                if !field.is_oneditor {
+                    is_well_formed = false;
+                    errors.push(error!(
+                        parser.span(),
+                        "The key `uninit` in attribute #[init] requires field of type `OnEditor<T>`"
+                    ));
+                }
+
+                if field.default_val.is_some() {
+                    is_well_formed = false;
+                    errors.push(error!(
+				        parser.span(),
+				        "The key `uninit` in attribute #[init] is mutually exclusive with the keys `default` and `val`"
+			        ));
+                }
+
+                let default_val = if is_well_formed {
+                    quote! { OnEditor::uninit(#invalid_representation) }
+                } else {
+                    quote! { todo!() }
+                };
+
+                field.default_val = Some(FieldDefault {
+                    default_val,
+                    span: parser.span(),
+                });
+            }
+
             parser.finish()?;
         }
 

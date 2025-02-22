@@ -16,7 +16,7 @@ use crate::meta::{
     CowArg, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType, PropertyHintInfo,
     RefArg, ToGodot,
 };
-use crate::obj::{bounds, Bounds, Gd, GodotClass};
+use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
 use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -1106,6 +1106,21 @@ where
 {
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo::export_array_element::<Gd<T>>()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
+    }
+}
+
+impl<T: GodotClass, D> Export for Array<DynGd<T, D>>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    D: ?Sized + 'static,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_array_element::<DynGd<T, D>>()
     }
 
     #[doc(hidden)]

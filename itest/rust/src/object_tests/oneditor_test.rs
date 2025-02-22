@@ -14,7 +14,8 @@ use godot::obj::{Gd, NewAlloc, OnEditor};
 
 #[itest]
 fn oneditor_deref() {
-    let mut on_editor = OnEditor::init(42);
+    let mut on_editor = OnEditor::uninit(0);
+    on_editor.init(42);
     assert_eq!(*on_editor, 42);
 
     *on_editor = 44;
@@ -43,17 +44,9 @@ fn oneditor_no_value_panic_on_deref_primitive() {
 }
 
 #[itest]
-fn oneditor_default() {
-    let mut obj = OnEditorDefault::new_alloc();
-    obj.notify(NodeNotification::READY);
-    assert!(!obj.bind().default_value.is_invalid());
-    obj.bind_mut().default_value.clone().free();
-    obj.free();
-}
-
-#[itest]
 fn oneditor_panic_on_ready() {
     let mut obj = OnEditorNoDefault::new_alloc();
+
     // causes the panic which is NOT propagated to godot-rust but prevents `ready` from being run.
     obj.notify(NodeNotification::READY);
     assert!(!obj.bind().was_ready_run);
@@ -61,25 +54,28 @@ fn oneditor_panic_on_ready() {
 }
 
 #[itest]
-fn oneditor_no_panic_on_ready_with_late_init() {
+fn oneditor_no_panic_on_ready() {
     let mut obj = OnEditorNoDefault::new_alloc();
-    obj.bind_mut().no_default_value = OnEditor::init(Node::new_alloc());
-    obj.bind_mut().some_primitive = OnEditor::init(64);
+    obj.bind_mut().node_field.init(Node::new_alloc());
+    obj.bind_mut().some_primitive.init(64);
     obj.notify(NodeNotification::READY);
     assert!(obj.bind().was_ready_run);
-    obj.bind_mut().no_default_value.clone().free();
+    obj.bind_mut().node_field.clone().free();
     obj.free();
 }
 
 #[derive(GodotClass)]
 #[class(init, base=Node)]
 struct OnEditorNoDefault {
-    #[var]
-    #[init(val = OnEditor::uninit(0))]
+    #[export]
+    #[init(uninit = 0)]
     some_primitive: OnEditor<i64>,
     #[export]
-    no_default_value: OnEditor<Gd<Node>>,
-    #[var]
+    node_field: OnEditor<Gd<Node>>,
+
+    // HACK: While panic before ready will prevent method from being run
+    // it will not be propagated further.
+    // We use this value to check if ready has been prevented from being run and vice versa.
     was_ready_run: bool,
 }
 
@@ -88,12 +84,4 @@ impl INode for OnEditorNoDefault {
     fn ready(&mut self) {
         self.was_ready_run = true;
     }
-}
-
-#[derive(GodotClass)]
-#[class(init, base=Node)]
-struct OnEditorDefault {
-    #[export]
-    #[init(val = OnEditor::init(Node::new_alloc()))]
-    default_value: OnEditor<Gd<Node>>,
 }

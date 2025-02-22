@@ -77,9 +77,8 @@ pub trait Export: Var {
     }
 }
 
-/// Lorem ipsum dolores dei etc etc
-/// A marker type that marks primitives such as i64 which are not nullable and whatnot
-pub trait BuiltinGodotType {}
+/// Marker trait to identify non-nullable `GodotType`s that can be directly used with `#[export]` and `#[var]`.
+pub trait DirectExport {}
 
 /// This function only exists as a place to add doc-tests for the `Export` trait.
 ///
@@ -455,7 +454,7 @@ mod export_impls {
         };
 
         (@builtin $Ty:ty) => {
-            impl BuiltinGodotType for $Ty {}
+            impl DirectExport for $Ty {}
         }
     }
 
