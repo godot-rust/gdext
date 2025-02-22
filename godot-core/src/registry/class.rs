@@ -9,7 +9,6 @@ use godot_ffi::join_with;
 use std::collections::HashMap;
 use std::{any, ptr};
 
-use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::error::{ConvertError, FromGodotError};
 use crate::meta::ClassName;
@@ -334,7 +333,7 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
 /// Proper hint string combined with `PropertyHint::NODE_TYPE` or `PropertyHint::RESOURCE_TYPE` allows to limit selection only to valid classes - those registered as implementors of given `DynGd<T, D>`'s `D` trait.
 ///
 /// See also [Godot docs for PropertyHint](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enum-globalscope-propertyhint).
-pub(crate) fn get_dyn_property_hint_string<D>() -> GString
+pub(crate) fn get_dyn_property_hint_string<D>() -> String
 where
     D: ?Sized + 'static,
 {
@@ -345,7 +344,7 @@ where
         godot_warn!(
             "godot-rust: No class has been linked to trait {trait_name} with #[godot_dyn]."
         );
-        return GString::default();
+        return String::new();
     };
     assert!(
         !relations.is_empty(),
@@ -355,9 +354,9 @@ where
         trait_name = sys::short_type_name::<D>()
     );
 
-    GString::from(join_with(relations.iter(), ", ", |dyn_trait| {
+    join_with(relations.iter(), ", ", |dyn_trait| {
         dyn_trait.class_name().to_cow_str()
-    }))
+    })
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
