@@ -177,9 +177,9 @@ pub fn make_function_definition(
     let call_sig_decl = {
         let return_ty = &sig.return_value().type_tokens();
 
-        // Build <'a0, 'a1, ...> for lifetimes.
         quote! {
-            type CallSig #callsig_lifetime_args = ( #return_ty, #(#param_types),* );
+            type CallRet = #return_ty;
+            type CallParams #callsig_lifetime_args = (#(#param_types,)*);
         }
     };
 

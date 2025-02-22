@@ -650,54 +650,6 @@ impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3,
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Information about function and method calls.
 
-// Lazy Display, so we don't create tens of thousands of extra string literals.
-#[derive(Clone)]
-#[doc(hidden)] // currently exposed in godot::meta
-pub struct CallContext<'a> {
-    pub(crate) class_name: Cow<'a, str>,
-    pub(crate) function_name: &'a str,
-}
-
-impl<'a> CallContext<'a> {
-    /// Call from Godot into a user-defined #[func] function.
-    pub const fn func(class_name: &'a str, function_name: &'a str) -> Self {
-        Self {
-            class_name: Cow::Borrowed(class_name),
-            function_name,
-        }
-    }
-
-    /// Call from Godot into a custom Callable.
-    pub fn custom_callable(function_name: &'a str) -> Self {
-        Self {
-            class_name: Cow::Borrowed("<Callable>"),
-            function_name,
-        }
-    }
-
-    /// Outbound call from Rust into the engine, class/builtin APIs.
-    pub const fn outbound(class_name: &'a str, function_name: &'a str) -> Self {
-        Self {
-            class_name: Cow::Borrowed(class_name),
-            function_name,
-        }
-    }
-
-    /// Outbound call from Rust into the engine, via Gd methods.
-    pub fn gd<T: GodotClass>(function_name: &'a str) -> Self {
-        Self {
-            class_name: T::class_name().to_cow_str(),
-            function_name,
-        }
-    }
-}
-
-impl fmt::Display for CallContext<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}::{}", self.class_name, self.function_name)
-    }
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trace diagnostics for integration tests
 #[cfg(feature = "trace")]

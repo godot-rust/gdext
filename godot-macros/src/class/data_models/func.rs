@@ -44,7 +44,8 @@ pub fn make_virtual_callback(
 
     let wrapped_method =
         make_forwarding_closure(class_name, signature_info, before_kind, interface_trait);
-    let sig_tuple = signature_info.tuple_type();
+    let sig_params = signature_info.params_type();
+    let sig_ret = &signature_info.ret_type;
 
     let call_ctx = make_call_context(
         class_name.to_string().as_str(),
@@ -55,7 +56,8 @@ pub fn make_virtual_callback(
     quote! {
         {
             use ::godot::sys;
-            type Sig = #sig_tuple;
+            type CallParams = #sig_params;
+            type CallRet = #sig_ret;
 
             unsafe extern "C" fn virtual_fn(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
@@ -80,7 +82,8 @@ pub fn make_method_registration(
     interface_trait: Option<&venial::TypeExpr>,
 ) -> ParseResult<TokenStream> {
     let signature_info = &func_definition.signature_info;
-    let sig_tuple = signature_info.tuple_type();
+    let sig_params = signature_info.params_type();
+    let sig_ret = &signature_info.ret_type;
 
     let is_script_virtual = func_definition.is_script_virtual;
     let method_flags = match make_method_flags(signature_info.receiver_type, is_script_virtual) {
@@ -128,7 +131,8 @@ pub fn make_method_registration(
             use ::godot::builtin::{StringName, Variant};
             use ::godot::sys;
 
-            type Sig = #sig_tuple;
+            type CallParams = #sig_params;
+            type CallRet = #sig_ret;
 
             let method_name = StringName::from(#method_name_str);
 
@@ -137,7 +141,7 @@ pub fn make_method_registration(
 
             // SAFETY: varcall_fn + ptrcall_fn interpret their in/out parameters correctly.
             let method_info = unsafe {
-                ClassMethodInfo::from_signature::<#class_name, Sig>(
+                ClassMethodInfo::from_signature::<#class_name, CallParams, CallRet>(
                     method_name,
                     Some(varcall_fn),
                     Some(ptrcall_fn),
@@ -196,6 +200,11 @@ impl SignatureInfo {
     pub fn tuple_type(&self) -> TokenStream {
         // Note: for GdSelf receivers, first parameter is not even part of SignatureInfo anymore.
         util::make_signature_tuple_type(&self.ret_type, &self.param_types)
+    }
+
+    pub fn params_type(&self) -> TokenStream {
+        let param_types = &self.param_types;
+        quote! { (#(#param_types,)*) }
     }
 }
 
@@ -493,7 +502,7 @@ fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> To
     };
 
     quote! {
-         <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+        ::godot::meta::Signature::<CallParams, CallRet>::in_ptrcall(
             instance_ptr,
             &call_ctx,
             args_ptr,
@@ -507,7 +516,7 @@ fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> To
 /// Generate code for a `varcall()` call expression.
 fn make_varcall_invocation(wrapped_method: &TokenStream) -> TokenStream {
     quote! {
-        <Sig as ::godot::meta::VarcallSignatureTuple>::in_varcall(
+        ::godot::meta::Signature::<CallParams, CallRet>::in_varcall(
             instance_ptr,
             &call_ctx,
             args_ptr,
