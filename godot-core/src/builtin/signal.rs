@@ -19,6 +19,16 @@ use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
 use sys::{ffi_methods, GodotFfi};
 
+#[cfg(since_api = "4.2")]
+mod futures;
+
+#[cfg(since_api = "4.2")]
+pub use futures::{FromSignalArgs, SignalFuture, TrySignalFuture, TrySignalFutureError};
+
+// Only exported for itest.
+#[cfg(all(since_api = "4.2", feature = "trace"))]
+pub use futures::SignalFutureResolver;
+
 /// A `Signal` represents a signal of an Object instance in Godot.
 ///
 /// Signals are composed of a reference to an `Object` and the name of the signal on this object.
