@@ -924,8 +924,9 @@ impl<T: GodotClass> Default for OnEditor<Gd<T>> {
     }
 }
 
-impl<T: GodotClass> GodotConvert for OnEditor<Gd<T>>
+impl<T> GodotConvert for OnEditor<Gd<T>>
 where
+    T: GodotClass,
     Option<<Gd<T> as GodotConvert>::Via>: GodotType,
 {
     type Via = Option<<Gd<T> as GodotConvert>::Via>;

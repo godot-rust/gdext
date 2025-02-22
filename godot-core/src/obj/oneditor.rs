@@ -190,7 +190,6 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
     /// Creates new uninitialized `OnEditor<T>` value for nullable GodotTypes.
     ///
     /// Not a part of public API – available only via `Default` implementation on `OnEditor<Gd<T>>` and `OnEditor<DynGd<D, T>>`.
-    #[doc(hidden)]
     pub(crate) fn null() -> Self {
         OnEditor {
             inner: OnEditorState::Null,
@@ -206,7 +205,6 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
     }
 
     /// `Var::get_property` implementation that works both for nullable and non-nullable types.
-    #[doc(hidden)]
     pub(crate) fn get_property_inner(&self) -> Option<T::Via> {
         match &self.inner {
             OnEditorState::Null => None,
@@ -217,7 +215,6 @@ impl<T: GodotConvert + Var + FromGodot + PartialEq> OnEditor<T> {
     }
 
     /// `Var::set_property` implementation that works both for nullable and non-nullable types.
-    #[doc(hidden)]
     pub(crate) fn set_property_inner(&mut self, value: Option<T::Via>)
     where
         T::Via: PartialEq,

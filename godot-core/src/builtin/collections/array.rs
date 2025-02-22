@@ -1108,7 +1108,6 @@ where
         PropertyHintInfo::export_array_element::<Gd<T>>()
     }
 
-    #[doc(hidden)]
     fn as_node_class() -> Option<ClassName> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
@@ -1123,7 +1122,6 @@ where
         PropertyHintInfo::export_array_element::<DynGd<T, D>>()
     }
 
-    #[doc(hidden)]
     fn as_node_class() -> Option<ClassName> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
