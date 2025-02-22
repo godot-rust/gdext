@@ -112,10 +112,12 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
                 .then(String::new)
                 .unwrap_or_else(|| format!("<methods>{methods}{virtual_methods}</methods>"));
 
-            let brief = description
-                .split_once("[br]")
-                .map(|(x, _)| x)
-                .unwrap_or_default();
+            let (brief, mut description) = match description
+                .split_once("[br]") {
+                    Some((brief, description)) => (brief, description),
+                    None => (description, ""),
+                };
+            description = description.trim_start_matches("[br]");
 
             format!(r#"<?xml version="1.0" encoding="UTF-8"?>
 <class name="{class}" inherits="{base}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
