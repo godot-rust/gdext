@@ -15,18 +15,14 @@ use crate::registry::property::{DirectExport, Export, Var};
 ///
 /// Panics during access if uninitialized.
 /// When used inside a node class, `OnEditor` checks if a value has been set before `ready()` is run, and panics otherwise.
-///
-/// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
 /// Once initialized, it can be used almost as if it was a `T` value itself, due to `Deref`/`DerefMut` impls.
 ///
-/// `OnEditor<T>` directly supports two workflows – setting given property via the Editor or doing so via code before the first use.
-/// The latter should be limited to use cases involving builder or factory patterns.
+/// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
+/// Initializing `OnEditor` values via code before the first use is supported but should be limited to use cases involving builder or factory patterns.
 ///
 /// [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be used for any other late initialization logic.
 ///
 /// # Using `OnEditor<T>` with `Gd<T>` and `DynGd<T, D>`
-///
-/// Exposing properties to the Godot editor is primary use of the `OnEditor<Gd<T>>`.
 ///
 /// ## Example - auto-generated init
 ///
@@ -129,8 +125,8 @@ use crate::registry::property::{DirectExport, Export, Var};
 /// #[derive(GodotClass)]
 /// #[class(init, base = Node)]
 /// struct SomeClassThatCanBeInstantiatedInCode {
-///     // Given initial value will be represented by `42` in the editor.
-///     // Will cause panic if not set via the editor or code.
+///     // Uninitialized value will be represented by `42` in the editor.
+///     // Will cause panic if not set via the editor or code before use.
 ///     #[export]
 ///     #[init(uninit = 42)]
 ///     some_primitive: OnEditor<i64>,
@@ -146,6 +142,7 @@ use crate::registry::property::{DirectExport, Export, Var};
 ///
 ///     // Will not cause the panic.
 ///     this.add_child(&my_node);
+///
 ///     my_node
 /// }
 /// ```
