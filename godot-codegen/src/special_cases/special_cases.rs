@@ -855,6 +855,19 @@ pub fn is_enum_exhaustive(class_name: Option<&TyName>, enum_name: &str) -> bool 
     }
 }
 
+/// Certain virtual methods can make it very difficult to avoid double bind issues
+/// if they take &self or &mut self.
+///
+/// These methods take Gd<Self> as a receiver so the implementer can decide when to bind
+/// and unbind them.
+pub fn is_virtual_method_gdself(class_name: &TyName, method: &str) -> bool {
+    match (class_name.godot_ty.as_str(), method) {
+        ("MultiplayerAPIExtension", "poll") => true,
+
+        _ => false,
+    }
+}
+
 /// Whether an enum can be combined with another enum (return value) for bitmasking purposes.
 ///
 /// If multiple masks are ever necessary, this can be extended to return a slice instead of Option.
