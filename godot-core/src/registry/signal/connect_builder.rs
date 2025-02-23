@@ -7,9 +7,9 @@
 
 use crate::builtin::{Callable, GString, Variant};
 use crate::classes::object::ConnectFlags;
+use crate::meta;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
 use crate::registry::signal::{SignalReceiver, TypedSignal};
-use crate::{meta, sys};
 
 /// Type-state builder for customizing signal connections.
 ///
@@ -88,19 +88,13 @@ impl<'ts, 'c, CSig: WithBaseField, Ps: meta::ParamTuple> ConnectBuilder<'ts, 'c,
     where
         F: SignalReceiver<(), Ps>,
     {
-        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
-            let args = Ps::from_variant_array(variant_args);
+        let godot_fn = make_godot_fn(move |args| {
             function.call((), args);
-
-            Ok(Variant::nil())
-        };
-
-        let mut data = self.data;
-        data.callable_name = Some(sys::short_type_name::<F>().into());
+        });
 
         ConnectBuilder {
             parent_sig: self.parent_sig,
-            data,
+            data: self.data.with_callable_name::<F>(),
             godot_fn,
             receiver_obj: (),
         }
@@ -153,22 +147,15 @@ impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: meta::ParamTuple>
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut CRcv, Ps>,
     {
         let mut gd: Gd<CRcv> = self.receiver_obj;
-
-        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
-            let args = Ps::from_variant_array(variant_args);
+        let godot_fn = make_godot_fn(move |args| {
             let mut guard = gd.bind_mut();
             let instance = &mut *guard;
             method_with_mut_self.call(instance, args);
-
-            Ok(Variant::nil())
-        };
-
-        let mut data = self.data;
-        data.callable_name = Some(sys::short_type_name::<F>().into());
+        });
 
         ConnectBuilder {
             parent_sig: self.parent_sig,
-            data,
+            data: self.data.with_callable_name::<F>(),
             godot_fn,
             receiver_obj: (),
         }
@@ -192,22 +179,15 @@ impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: meta::ParamTuple>
         for<'c_rcv> F: SignalReceiver<&'c_rcv CRcv, Ps>,
     {
         let gd: Gd<CRcv> = self.receiver_obj;
-
-        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
-            let args = Ps::from_variant_array(variant_args);
+        let godot_fn = make_godot_fn(move |args| {
             let guard = gd.bind();
             let instance = &*guard;
             method_with_shared_self.call(instance, args);
-
-            Ok(Variant::nil())
-        };
-
-        let mut data = self.data;
-        data.callable_name = Some(sys::short_type_name::<F>().into());
+        });
 
         ConnectBuilder {
             parent_sig: self.parent_sig,
-            data,
+            data: self.data.with_callable_name::<F>(),
             godot_fn,
             receiver_obj: (),
         }
@@ -315,7 +295,7 @@ where
         #[cfg(not(feature = "experimental-threads"))]
         let callable = Callable::from_local_fn(callable_name, godot_fn);
 
-        parent_sig.connect_untyped(&callable, data.connect_flags);
+        parent_sig.inner_connect_untyped(&callable, data.connect_flags);
     }
 }
 
@@ -336,9 +316,36 @@ struct BuilderData {
 }
 
 impl BuilderData {
+    fn with_callable_name<F>(mut self) -> Self {
+        self.callable_name = Some(make_callable_name::<F>());
+        self
+    }
+
     fn callable_name_ref(&self) -> &GString {
         self.callable_name
             .as_ref()
             .expect("Signal connect name not set; this is a bug.")
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub(super) fn make_godot_fn<Ps, F>(mut input: F) -> impl FnMut(&[&Variant]) -> Result<Variant, ()>
+where
+    F: FnMut(Ps),
+    Ps: meta::ParamTuple,
+{
+    move |variant_args: &[&Variant]| -> Result<Variant, ()> {
+        let args = Ps::from_variant_array(variant_args);
+        input(args);
+
+        Ok(Variant::nil())
+    }
+}
+
+pub(super) fn make_callable_name<F>() -> GString {
+    // When using sys::short_type_name() in the future, make sure global "func" and member "MyClass::func" are rendered as such.
+    // PascalCase heuristic should then be good enough.
+
+    std::any::type_name::<F>().into()
 }
