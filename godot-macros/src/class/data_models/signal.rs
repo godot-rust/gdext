@@ -257,7 +257,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #(#signal_cfg_attrs)*
         impl #individual_struct_name<'_> {
             pub fn emit(&mut self, #emit_params) {
-                self.typed.emit((#( #param_names, )*));
+                self.typed.emit_tuple((#( #param_names, )*));
             }
         }
 

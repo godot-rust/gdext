@@ -5,19 +5,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// Maybe move this to builtin::functional module?
-
 use crate::builtin::{Callable, GString, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
-use crate::registry::functional::{AsFunc, ConnectBuilder, ParamTuple};
+use crate::registry::signal::{ConnectBuilder, SignalReceiver};
 use crate::{classes, meta};
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
+/// Links to a Godot object, either via reference (for `&mut self` uses) or via `Gd`.
 #[doc(hidden)]
 pub enum ObjectRef<'a, C: GodotClass> {
-    /// Helpful for emit: reuse `&self` from within the `impl` block, goes through `base()` re-borrowing and thus allows re-entrant calls
+    /// Helpful for emit: reuse `&mut self` from within the `impl` block, goes through `base_mut()` re-borrowing and thus allows re-entrant calls
     /// through Godot.
     Internal { obj_mut: &'a mut C },
 
@@ -46,15 +45,38 @@ where
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Type-safe version of a Godot signal.
+///
+/// Short-lived type, only valid in the scope of its surrounding object type `C`, for lifetime `'c`. The generic argument `Ps` represents
+/// the parameters of the signal, thus ensuring the type safety.
+///
+/// The [`WithSignals::signals()`][crate::obj::WithSignals::signals] collection returns multiple signals with distinct, code-generated types,
+/// but they all implement `Deref` and `DerefMut` to `TypedSignal`. This allows you to either use the concrete APIs of the generated types,
+/// or the more generic ones of `TypedSignal`.
+///
+/// # Connecting a signal to a receiver
+/// Receiver functions are functions that are called when a signal is emitted. You can connect a signal in many different ways:
+/// - [`connect()`][Self::connect] for global functions, associated functions or closures.
+/// - [`connect_self()`][Self::connect_self] for methods with `&mut self` as the first parameter.
+/// - [`connect_obj()`][Self::connect_obj] for methods with any `Gd<T>` (not `self`) as the first parameter.
+/// - [`connect_builder()`][Self::connect_builder] for more complex setups.
+///
+/// # Emitting a signal
+/// Code-generated signal types provide a method `emit(...)`, which adopts the names and types of the `#[signal]` parameter list.
+/// In most cases, that's the method you are looking for.
+///
+/// For generic use, you can also use [`emit_tuple()`][Self::emit_tuple], which does not provide parameter names.
+///
+/// # More information
+/// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a detailed introduction and examples.
 pub struct TypedSignal<'c, C: GodotClass, Ps> {
-    //signal: Signal,
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
     owner: ObjectRef<'c, C>,
     name: Cow<'static, str>,
     _signature: PhantomData<Ps>,
 }
 
-impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
+impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     #[doc(hidden)]
     pub fn new(owner: ObjectRef<'c, C>, name: &'static str) -> Self {
         Self {
@@ -68,11 +90,15 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
         self.owner.to_owned()
     }
 
-    pub fn emit(&mut self, params: Ps) {
+    /// Emit the signal with the given parameters.
+    ///
+    /// This is intended for generic use. Typically, you'll want to use the more specific `emit()` method of the code-generated signal
+    /// type, which also has named parameters.
+    pub fn emit_tuple(&mut self, args: Ps) {
         let name = self.name.as_ref();
 
         self.owner.with_object_mut(|obj| {
-            obj.emit_signal(name, &params.to_variant_array());
+            obj.emit_signal(name, &args.to_variant_array());
         });
     }
 
@@ -85,10 +111,11 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
     /// sig.connect(|arg| { /* closure */ });
     /// ```
     ///
-    /// To connect to a method of the own object `self`, use [`connect_self()`][Self::connect_self].
+    /// To connect to a method of the own object `self`, use [`connect_self()`][Self::connect_self].  \
+    /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
     pub fn connect<F>(&mut self, mut function: F)
     where
-        F: AsFunc<(), Ps>,
+        F: SignalReceiver<(), Ps>,
     {
         let callable_name = std::any::type_name_of_val(&function);
 
@@ -103,9 +130,12 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
     }
 
     /// Connect a method (member function) with `&mut self` as the first parameter.
+    ///
+    /// To connect to methods on other objects, use [`connect_obj()`][Self::connect_obj].  \
+    /// If you need a `&self` receiver, cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
     pub fn connect_self<F>(&mut self, mut function: F)
     where
-        for<'c_rcv> F: AsFunc<&'c_rcv mut C, Ps>,
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
     {
         // When using sys::short_type_name() in the future, make sure global "func" and member "MyClass::func" are rendered as such.
         // PascalCase heuristic should then be good enough.
@@ -132,11 +162,12 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
 
     /// Connect a method (member function) with any `Gd<T>` (not `self`) as the first parameter.
     ///
-    /// To connect to methods on the same object, use [`connect_self()`][Self::connect_self].
+    /// To connect to methods on the same object that declares the `#[signal]`, use [`connect_self()`][Self::connect_self].  \
+    /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
     pub fn connect_obj<F, OtherC>(&mut self, object: &Gd<OtherC>, mut function: F)
     where
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
-        for<'c_rcv> F: AsFunc<&'c_rcv mut OtherC, Ps>,
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
     {
         let callable_name = std::any::type_name_of_val(&function);
 
@@ -152,6 +183,14 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
         };
 
         self.inner_connect_local(callable_name, godot_fn);
+    }
+
+    /// Fully customizable connection setup.
+    ///
+    /// The returned builder provides several methods to configure how to connect the signal. It needs to be finalized with a call to
+    /// [`ConnectBuilder::done()`].
+    pub fn connect_builder(&mut self) -> ConnectBuilder<'_, 'c, C, (), Ps, ()> {
+        ConnectBuilder::new(self)
     }
 
     fn inner_connect_local<F>(&mut self, callable_name: impl meta::AsArg<GString>, godot_fn: F)
@@ -178,9 +217,5 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
             }
             c.done();
         });
-    }
-
-    pub fn connect_builder(&mut self) -> ConnectBuilder<'_, 'c, C, (), Ps, ()> {
-        ConnectBuilder::new(self)
     }
 }
