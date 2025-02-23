@@ -31,16 +31,34 @@ struct Reloadable {
     // HOT-RELOAD: uncomment this to add a new exported field (also update init() below).
     // #[export]
     // some_string: GString,
+    base: Base<Node>,
 }
 
 #[godot_api]
 impl INode for Reloadable {
-    fn init(_base: Base<Self::Base>) -> Self {
+    fn init(base: Base<Self::Base>) -> Self {
         // HOT-RELOAD: change values to initialize with different defaults.
         Self {
             favorite_planet: Planet::Earth,
             //some_string: "Hello, world!".into(),
+            base,
         }
+    }
+
+    fn ready(&mut self) {
+        let tree = self.base().get_tree().unwrap();
+
+        godot_print!("starting async task!");
+
+        godot_task(async move {
+            let signal = Signal::from_object_signal(&tree, "physics_frame");
+
+            loop {
+                let result = signal.to_try_future::<()>().await;
+
+                godot_print!("[Async Task] signal result: {:?}", result);
+            }
+        });
     }
 }
 
@@ -53,8 +71,9 @@ impl Reloadable {
 
     #[func]
     fn from_string(s: GString) -> Gd<Self> {
-        Gd::from_object(Reloadable {
+        Gd::from_init_fn(|base| Reloadable {
             favorite_planet: Planet::from_godot(s),
+            base,
         })
     }
 }

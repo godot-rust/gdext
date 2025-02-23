@@ -207,6 +207,7 @@ impl<R: FromSignalArgs> TrySignalFuture<R> {
     }
 }
 
+#[derive(Debug)]
 pub struct TrySignalFutureError;
 
 impl<R: FromSignalArgs> Future for TrySignalFuture<R> {

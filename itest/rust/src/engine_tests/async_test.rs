@@ -78,3 +78,12 @@ fn resolver_callabable_equality() {
     assert_ne!(callable, unrelated_callable);
     assert_ne!(cloned_callable, unrelated_callable);
 }
+
+#[itest]
+fn async_cleanup(ctx: &TestContext) {
+    let signal = Signal::from_object_signal(&ctx.scene_tree, "child_entered");
+
+    godot_task(async move {
+        signal.to_future::<()>().await;
+    });
+}
