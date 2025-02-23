@@ -310,13 +310,19 @@ fn process_godot_fns(
                 if function.return_ty.is_some() {
                     return bail!(
                         &function.return_ty,
-                        "return types in #[signal] are not supported"
+                        "#[signal] does not support return types"
                     );
                 }
                 if function.body.is_some() {
                     return bail!(
                         &function.body,
                         "#[signal] must not have a body; declare the function with a semicolon"
+                    );
+                }
+                if function.vis_marker.is_some() {
+                    return bail!(
+                        &function.vis_marker,
+                        "#[signal] must not have a visibility specifier; signals are always public"
                     );
                 }
 
@@ -576,7 +582,7 @@ where
                 // Safe unwrap, since #[signal] must be present if we got to this point.
                 let mut parser = KvParser::parse(attributes, "signal")?.unwrap();
 
-                // Private #[__signal(no_builder)]
+                // Private #[signal(__no_builder)]
                 let no_builder = parser.handle_alone("__no_builder")?;
 
                 parser.finish()?;

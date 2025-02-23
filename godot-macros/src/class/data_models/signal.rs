@@ -77,7 +77,7 @@ impl<'a> SignalDetails<'a> {
 
         let param_tuple = quote! { ( #( #param_types, )* ) };
         let signal_name = &original_decl.name;
-        let individual_struct_name = format_ident!("{}_{}", class_name, signal_name);
+        let individual_struct_name = format_ident!("__godot_Signal_{}_{}", class_name, signal_name);
 
         Ok(Self {
             original_decl,
@@ -200,10 +200,11 @@ impl SignalCollection {
         } = details;
 
         self.collection_methods.push(quote! {
+            // Deliberately not #[doc(hidden)] for IDE completion.
             #(#signal_cfg_attrs)*
             fn #signal_name(self) -> #individual_struct_name<'a> {
                 #individual_struct_name {
-                    typed: ::godot::register::TypedSignal::new(self.object, #signal_name_str)
+                    typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
             }
         });
@@ -224,23 +225,29 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         class_name,
         param_names,
         param_tuple,
-        // signal_name,
         signal_cfg_attrs,
         individual_struct_name,
         ..
     } = details;
 
-    // let module_name = format_ident!("__godot_signal_{class_name}_{signal_name}");
-
-    // Module + re-export.
-    // Could also keep contained in module to reduce namespace pollution, but might make docs a bit more nested.
+    // Define the individual types + trait impls. The idea was originally to use a module to reduce namespace pollution:
+    //   let module_name = format_ident!("__godot_signal_{class_name}_{signal_name}");
+    //   #(#signal_cfg_attrs)* pub mod #module_name { use super::*; ... }
+    //   #(#signal_cfg_attrs)* pub(crate) use #module_name::#individual_struct_name;
+    // However, there are some challenges:
+    // - Visibility becomes a pain to handle (rustc doesn't like re-exporting private symbols as pub, and we can't know the visibility of the
+    //   surrounding class struct). Having signals always-public is much less of a headache, requires less choice on the user side
+    //   (pub/pub(crate)/nothing on #[signal]), and likely good enough for the moment.
+    // - Not yet clear if we should have each signal + related types in separate module. If #[signal] is supported in #[godot_api(secondary)]
+    //   impl blocks, then we would have to group them by the impl block. Rust doesn't allow partial modules, so they'd need to have individual
+    //   names as well, possibly explicitly chosen by the user.
+    //
+    // For now, #[doc(hidden)] is used in some places to limit namespace pollution at least in IDEs + docs. This also means that the generated
+    // code is less observable by the user. If someone comes up with a good idea to handle all this, let us know :)
     quote! {
-        // #(#signal_cfg_attrs)*
-        // mod #module_name {
-
-        // TODO make pub without running into "private type `MySignal` in public interface" errors.
         #(#signal_cfg_attrs)*
         #[allow(non_camel_case_types)]
+        #[doc(hidden)] // Signal struct is hidden, but the method returning it is not (IDE completion).
         struct #individual_struct_name<'a> {
             #[doc(hidden)]
             typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
@@ -269,27 +276,26 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
                 &mut self.typed
             }
         }
-
-        // #(#signal_cfg_attrs)*
-        // pub(crate) use #module_name::#individual_struct_name;
     }
 }
 
-// See also make_func_collection().
+/// Generates a unspecified-name struct holding methods to access each signal.
 fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> Option<TokenStream> {
     if collection.is_empty() {
         return None;
     }
 
-    let collection_struct_name = format_ident!("{}Signals", class_name);
+    let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
     let collection_struct_methods = &collection.collection_methods;
     let individual_structs = collection.individual_structs;
 
     let code = quote! {
         #[allow(non_camel_case_types)]
+        #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
         pub struct #collection_struct_name<'a> {
             // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
-            object: ::godot::register::ObjectRef<'a, #class_name>
+            #[doc(hidden)] // Necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
+            __internal_obj: ::godot::register::ObjectRef<'a, #class_name>
         }
 
         impl<'a> #collection_struct_name<'a> {
@@ -301,14 +307,14 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
 
             fn signals(&mut self) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
-                    object: ::godot::register::ObjectRef::Internal { obj_mut: self }
+                    __internal_obj: ::godot::register::ObjectRef::Internal { obj_mut: self }
                 }
             }
 
             #[doc(hidden)]
             fn __signals_from_external(external: &Gd<Self>) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
-                    object: ::godot::register::ObjectRef::External { gd: external.clone() }
+                    __internal_obj: ::godot::register::ObjectRef::External { gd: external.clone() }
                 }
             }
         }
