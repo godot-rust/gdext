@@ -32,7 +32,7 @@ pub trait SignalReceiver<I, Ps>: 'static {
 ///
 /// Each tuple element is one parameter. This trait provides conversions to and from `Variant` arrays.
 // Re-exported under crate::meta. Might be worth splitting, but depends a bit on SignatureVarcall/Ptrcall refactoring.
-pub trait ParamTuple {
+pub trait ParamTuple: 'static {
     fn to_variant_array(&self) -> Vec<Variant>;
     fn from_variant_array(array: &[&Variant]) -> Self;
 }
@@ -47,7 +47,7 @@ macro_rules! impl_signal_recipient {
 
         impl<$($Ps),*> ParamTuple for ($($Ps,)*)
         where
-            $($Ps: meta::ToGodot + meta::FromGodot),*
+            $($Ps: meta::ToGodot + meta::FromGodot + 'static),*
         {
             fn to_variant_array(&self) -> Vec<Variant> {
                 let ($($args,)*) = self;

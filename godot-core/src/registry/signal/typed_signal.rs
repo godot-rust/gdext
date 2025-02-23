@@ -5,10 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{Callable, GString, Variant};
+use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
-use crate::registry::signal::{ConnectBuilder, SignalReceiver};
+use crate::registry::signal::{make_callable_name, make_godot_fn, ConnectBuilder, SignalReceiver};
 use crate::{classes, meta};
 use std::borrow::Cow;
 use std::marker::PhantomData;
@@ -117,16 +117,11 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     where
         F: SignalReceiver<(), Ps>,
     {
-        let callable_name = std::any::type_name_of_val(&function);
-
-        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
-            let args = Ps::from_variant_array(variant_args);
+        let godot_fn = make_godot_fn(move |args| {
             function.call((), args);
+        });
 
-            Ok(Variant::nil())
-        };
-
-        self.inner_connect_local(callable_name, godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn);
     }
 
     /// Connect a method (member function) with `&mut self` as the first parameter.
@@ -137,27 +132,14 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     where
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
     {
-        // When using sys::short_type_name() in the future, make sure global "func" and member "MyClass::func" are rendered as such.
-        // PascalCase heuristic should then be good enough.
-        let callable_name = std::any::type_name_of_val(&function);
-
-        let object = self.owner.to_owned();
-        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
-            let args = Ps::from_variant_array(variant_args);
-
-            // let mut function = function;
-            // function.call(instance, args);
-            let mut object = object.clone();
-
-            // TODO: how to avoid another bind, when emitting directly from Rust?
-            let mut instance = object.bind_mut();
+        let mut gd = self.owner.to_owned();
+        let godot_fn = make_godot_fn(move |args| {
+            let mut instance = gd.bind_mut();
             let instance = &mut *instance;
             function.call(instance, args);
+        });
 
-            Ok(Variant::nil())
-        };
-
-        self.inner_connect_local(callable_name, godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn);
     }
 
     /// Connect a method (member function) with any `Gd<T>` (not `self`) as the first parameter.
@@ -169,20 +151,14 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
     {
-        let callable_name = std::any::type_name_of_val(&function);
-
-        let mut object = object.clone();
-        let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
-            let args = Ps::from_variant_array(variant_args);
-
-            let mut instance = object.bind_mut();
+        let mut gd = object.clone();
+        let godot_fn = make_godot_fn(move |args| {
+            let mut instance = gd.bind_mut();
             let instance = &mut *instance;
             function.call(instance, args);
+        });
 
-            Ok(Variant::nil())
-        };
-
-        self.inner_connect_local(callable_name, godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn);
     }
 
     /// Fully customizable connection setup.
@@ -193,19 +169,32 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         ConnectBuilder::new(self)
     }
 
-    fn inner_connect_local<F>(&mut self, callable_name: impl meta::AsArg<GString>, godot_fn: F)
-    where
-        F: FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
-    {
-        let signal_name = self.name.as_ref();
-        let callable = Callable::from_local_fn(callable_name, godot_fn);
+    /// Directly connect a Rust callable `godot_fn`, with a name based on `F`.
+    ///
+    /// This exists as a short-hand for the connect methods on [`TypedSignal`] and avoids the generic instantiation of the full-blown
+    /// type state builder for simple + common connections, thus hopefully being a tiny bit lighter on compile times.
+    fn inner_connect_godot_fn<F>(
+        &mut self,
+        godot_fn: impl FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
+    ) {
+        let callable_name = make_callable_name::<F>();
+        let callable = Callable::from_local_fn(&callable_name, godot_fn);
 
+        let signal_name = self.name.as_ref();
         self.owner.with_object_mut(|obj| {
             obj.connect(signal_name, &callable);
         });
     }
 
-    pub(super) fn connect_untyped(&mut self, callable: &Callable, flags: Option<ConnectFlags>) {
+    /// Connect an untyped callable, with optional flags.
+    ///
+    /// Used by [`ConnectBuilder::done()`]. Any other type-state (such as thread-local/sync, callable debug name, etc.) are baked into
+    /// `callable` and thus type-erased into runtime logic.
+    pub(super) fn inner_connect_untyped(
+        &mut self,
+        callable: &Callable,
+        flags: Option<ConnectFlags>,
+    ) {
         use crate::obj::EngineBitfield;
 
         let signal_name = self.name.as_ref();
