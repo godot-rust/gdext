@@ -120,9 +120,10 @@ pub trait ScriptInstance: Sized {
         args: &[&Variant],
     ) -> Result<Variant, sys::GDExtensionCallErrorType>;
 
-    /// Identifies the script instance as a placeholder. If this function and
-    /// [IScriptExtension::is_placeholder_fallback_enabled](crate::classes::IScriptExtension::is_placeholder_fallback_enabled) return true,
-    /// Godot will call [`Self::property_set_fallback`] instead of [`Self::set_property`].
+    /// Identifies the script instance as a placeholder, routing property writes to a fallback if applicable.
+    ///
+    /// If this function and [IScriptExtension::is_placeholder_fallback_enabled] return true, Godot will call [`Self::property_set_fallback`]
+    /// instead of [`Self::set_property`].
     fn is_placeholder(&self) -> bool;
 
     /// Validation function for the engine to verify if the script exposes a certain method.
@@ -157,8 +158,7 @@ pub trait ScriptInstance: Sized {
     /// The engine may call this function if it failed to get a property value via [`ScriptInstance::get_property`] or the native type's getter.
     fn property_get_fallback(&self, name: StringName) -> Option<Variant>;
 
-    /// The engine may call this function if
-    /// [`IScriptExtension::is_placeholder_fallback_enabled`](crate::classes::IScriptExtension::is_placeholder_fallback_enabled) is enabled.
+    /// The engine may call this function if [`IScriptExtension::is_placeholder_fallback_enabled`] is enabled.
     fn property_set_fallback(this: SiMut<Self>, name: StringName, value: &Variant) -> bool;
 
     /// This function will be called to handle calls to [`Object::get_method_argument_count`](crate::classes::Object::get_method_argument_count)
@@ -347,7 +347,7 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
 /// This function both checks if the passed script matches the one currently assigned to the passed object, as well as verifies that
 /// there is an instance for the script.
 ///
-/// Use this function to implement [`IScriptExtension::instance_has`](crate::classes::IScriptExtension::instance_has).
+/// Use this function to implement [`IScriptExtension::instance_has`].
 #[cfg(since_api = "4.2")]
 pub fn script_instance_exists<O, S>(object: &Gd<O>, script: &Gd<S>) -> bool
 where

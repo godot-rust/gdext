@@ -5,38 +5,217 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
 use godot::classes::{Object, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
+use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithSignals};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
+use godot::sys::Global;
 use std::cell::Cell;
-
-use crate::framework::itest;
+use std::rc::Rc;
 
 #[itest]
 fn signal_basic_connect_emit() {
     let mut emitter = Emitter::new_alloc();
     let receiver = Receiver::new_alloc();
 
-    let args = [
-        vec![],
-        vec![987.to_variant()],
-        vec![receiver.to_variant(), SIGNAL_ARG_STRING.to_variant()],
-    ];
+    emitter.connect("signal_unit", &receiver.callable("receive_unit"));
+    emitter.emit_signal("signal_unit", &[]);
+    assert_eq!(receiver.bind().last_received(), LastReceived::Unit);
 
-    for (i, arg) in args.iter().enumerate() {
-        let signal_name = format!("emitter_{i}");
-        let receiver_name = format!("receiver_{i}");
+    emitter.connect("signal_int", &receiver.callable("receive_int"));
+    emitter.emit_signal("signal_int", &[1278.to_variant()]);
+    assert_eq!(receiver.bind().last_received(), LastReceived::Int(1278));
 
-        emitter.connect(&signal_name, &receiver.callable(&receiver_name));
-        emitter.emit_signal(&signal_name, arg);
-
-        assert!(receiver.bind().used[i].get());
-    }
+    let emitter_variant = emitter.to_variant();
+    emitter.connect("signal_obj", &receiver.callable("receive_obj"));
+    emitter.emit_signal("signal_obj", &[emitter_variant]);
+    assert_eq!(
+        receiver.bind().last_received(),
+        LastReceived::Object(emitter.instance_id())
+    );
 
     receiver.free();
+    emitter.free();
+}
+
+// "Internal" means connect/emit happens from within the class, via self.signals().
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_internal() {
+    let mut emitter = Emitter::new_alloc();
+
+    // Connect signals from inside.
+    let tracker = Rc::new(Cell::new(0));
+    let mut internal = emitter.bind_mut();
+    internal.connect_signals_internal(tracker.clone());
+    drop(internal);
+
+    emitter.bind_mut().emit_signals_internal();
+
+    // Check that closure is invoked.
+    assert_eq!(tracker.get(), 1234, "Emit failed (closure)");
+
+    // Check that instance method is invoked.
+    assert_eq!(
+        emitter.bind().last_received_int,
+        1234,
+        "Emit failed (method)"
+    );
+
+    // Check that static function is invoked.
+    assert_eq!(
+        *LAST_STATIC_FUNCTION_ARG.lock(),
+        1234,
+        "Emit failed (static function)"
+    );
+
+    emitter.free();
+}
+
+// "External" means connect/emit happens from outside the class, via Gd::signals().
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_external() {
+    let emitter = Emitter::new_alloc();
+    let mut sig = emitter.signals().signal_int();
+
+    // Local function; deliberately use a !Send type.
+    let tracker = Rc::new(Cell::new(0));
+    {
+        let tracker = tracker.clone();
+        sig.connect(move |i| {
+            tracker.set(i);
+        });
+    }
+
+    // Self-modifying method.
+    sig.connect_self(Emitter::self_receive);
+
+    // Connect to other object.
+    let receiver = Receiver::new_alloc();
+    sig.connect_obj(&receiver, Receiver::receive_int_mut);
+
+    // Emit signal (now via tuple).
+    sig.emit_tuple((987,));
+
+    // Check that closure is invoked.
+    assert_eq!(tracker.get(), 987, "Emit failed (closure)");
+
+    // Check that instance method is invoked.
+    assert_eq!(
+        emitter.bind().last_received_int,
+        987,
+        "Emit failed (method)"
+    );
+
+    // Check that *other* instance method is invoked.
+    assert_eq!(
+        receiver.bind().last_received(),
+        LastReceived::IntMut(987),
+        "Emit failed (other object method)"
+    );
+
+    receiver.free();
+    emitter.free();
+}
+
+// "External" means connect/emit happens from outside the class, via Gd::signals().
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_external_builder() {
+    let emitter = Emitter::new_alloc();
+    let mut sig = emitter.signals().signal_int();
+
+    // Self-modifying method.
+    sig.connect_builder()
+        .object_self()
+        .method_mut(Emitter::self_receive)
+        .done();
+
+    // Connect to other object.
+    let receiver_mut = Receiver::new_alloc();
+    sig.connect_builder()
+        .object(&receiver_mut)
+        .method_mut(Receiver::receive_int_mut)
+        .done();
+
+    // Connect to yet another object, immutable receiver.
+    let receiver_immut = Receiver::new_alloc();
+    sig.connect_builder()
+        .object(&receiver_immut)
+        .method_immut(Receiver::receive_int)
+        .done();
+
+    let tracker = Rc::new(Cell::new(0));
+    {
+        let tracker = tracker.clone();
+        sig.connect_builder()
+            .function(move |i| tracker.set(i))
+            .done();
+    }
+
+    // Emit signal.
+    sig.emit(552);
+
+    // Check that closure is invoked.
+    assert_eq!(tracker.get(), 552, "Emit failed (closure)");
+
+    // Check that self instance method (mut) is invoked.
+    assert_eq!(
+        emitter.bind().last_received_int,
+        552,
+        "Emit failed (mut method)"
+    );
+
+    // Check that *other* instance method is invoked.
+    assert_eq!(
+        receiver_immut.bind().last_received(),
+        LastReceived::Int(552),
+        "Emit failed (other object, immut method)"
+    );
+
+    // Check that *other* instance method is invoked.
+    assert_eq!(
+        receiver_mut.bind().last_received(),
+        LastReceived::IntMut(552),
+        "Emit failed (other object, mut method)"
+    );
+
+    // Check that closures set up with builder are invoked.
+    assert_eq!(tracker.get(), 552, "Emit failed (builder local)");
+
+    receiver_immut.free();
+    receiver_mut.free();
+    emitter.free();
+}
+
+#[cfg(all(since_api = "4.2", feature = "experimental-threads"))]
+#[itest]
+fn signal_symbols_sync() {
+    use std::sync::{Arc, Mutex};
+
+    let emitter = Emitter::new_alloc();
+    let mut sig = emitter.signals().signal_int();
+
+    let sync_tracker = Arc::new(Mutex::new(0));
+    {
+        let sync_tracker = sync_tracker.clone();
+        sig.connect_builder()
+            .function(move |i| *sync_tracker.lock().unwrap() = i)
+            .sync()
+            .done();
+    }
+
+    sig.emit(1143);
+    assert_eq!(
+        *sync_tracker.lock().unwrap(),
+        1143,
+        "Emit failed (builder sync)"
+    );
+
     emitter.free();
 }
 
@@ -63,52 +242,104 @@ fn signal_construction_and_id() {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helper types
 
+/// Global sets the value of the received argument and whether it was a static function.
+static LAST_STATIC_FUNCTION_ARG: Global<i64> = Global::default();
+
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct Emitter {}
+struct Emitter {
+    _base: Base<Object>,
+    #[cfg(since_api = "4.2")]
+    last_received_int: i64,
+}
 
 #[godot_api]
 impl Emitter {
     #[signal]
-    fn emitter_0();
+    fn signal_unit();
 
     #[signal]
-    fn emitter_1(arg1: i64);
+    fn signal_int(arg1: i64);
 
     #[signal]
-    fn emitter_2(arg1: Gd<Object>, arg2: GString);
+    fn signal_obj(arg1: Gd<Object>, arg2: GString);
+
+    #[func]
+    fn self_receive(&mut self, arg1: i64) {
+        #[cfg(since_api = "4.2")]
+        {
+            self.last_received_int = arg1;
+        }
+    }
+
+    #[func]
+    fn self_receive_static(arg1: i64) {
+        *LAST_STATIC_FUNCTION_ARG.lock() = arg1;
+    }
+
+    // "Internal" means connect/emit happens from within the class (via &mut self).
+
+    #[cfg(since_api = "4.2")]
+    fn connect_signals_internal(&mut self, tracker: Rc<Cell<i64>>) {
+        let mut sig = self.signals().signal_int();
+        sig.connect_self(Self::self_receive);
+        sig.connect(Self::self_receive_static);
+        sig.connect(move |i| tracker.set(i));
+    }
+
+    #[cfg(since_api = "4.2")]
+    fn emit_signals_internal(&mut self) {
+        self.signals().signal_int().emit(1234);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
+enum LastReceived {
+    #[default]
+    Nothing,
+    Unit,
+    Int(i64),
+    IntMut(i64),
+    Object(InstanceId),
 }
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
 struct Receiver {
-    used: [Cell<bool>; 3],
+    last_received: Cell<LastReceived>,
     base: Base<Object>,
 }
-
 #[godot_api]
 impl Receiver {
+    fn last_received(&self) -> LastReceived {
+        self.last_received.get()
+    }
+
+    // Note: asserting inside #[func] will be caught by FFI layer and not cause a call-site panic, thus not fail the test.
+    // Therefore, store received values and check them manually in the test.
+
     #[func]
-    fn receiver_0(&self) {
-        self.used[0].set(true);
+    fn receive_unit(&self) {
+        self.last_received.set(LastReceived::Unit);
     }
 
     #[func]
-    fn receiver_1(&self, arg1: i64) {
-        self.used[1].set(true);
-        assert_eq!(arg1, 987);
+    fn receive_int(&self, arg1: i64) {
+        self.last_received.set(LastReceived::Int(arg1));
+    }
+
+    fn receive_int_mut(&mut self, arg1: i64) {
+        self.last_received.set(LastReceived::IntMut(arg1));
     }
 
     #[func]
-    fn receiver_2(&self, arg1: Gd<Object>, arg2: GString) {
-        assert_eq!(self.base().clone(), arg1);
-        assert_eq!(SIGNAL_ARG_STRING, arg2.to_string());
-
-        self.used[2].set(true);
+    fn receive_obj(&self, obj: Gd<Object>) {
+        self.last_received
+            .set(LastReceived::Object(obj.instance_id()));
     }
 }
-
-const SIGNAL_ARG_STRING: &str = "Signal string arg";
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // 4.2+ custom callables
