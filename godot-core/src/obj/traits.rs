@@ -613,15 +613,6 @@ pub mod cap {
         fn __godot_validate_property(&self, property: &mut PropertyInfo);
     }
 
-    // Move one level up, like WithBaseField?
-    pub trait WithFuncs {
-        type FuncCollection;
-        type StaticFuncCollection;
-
-        fn static_funcs() -> Self::StaticFuncCollection;
-        fn funcs(&self) -> Self::FuncCollection;
-    }
-
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
     pub trait ImplementsGodotApi: GodotClass {
         #[doc(hidden)]

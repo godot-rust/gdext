@@ -6,9 +6,9 @@
  */
 
 use crate::class::{
-    into_signature_info, make_constant_registration, make_func_collection,
-    make_method_registration, make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr,
-    RpcMode, SignalDefinition, SignatureInfo, TransferMode,
+    into_signature_info, make_constant_registration, make_method_registration,
+    make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
+    SignatureInfo, TransferMode,
 };
 use crate::util::{
     bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
@@ -114,13 +114,6 @@ pub fn transform_inherent_impl(
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
     #[cfg(not(feature = "codegen-full"))]
     let rpc_registrations = TokenStream::new();
-
-    // If at least one #[signal] is present, generate both signals() + funcs() and their types.
-    // Do not generate otherwise, to save on compile time + scope pollution.
-    // TODO remove this.
-    let _func_collection_struct = signals_collection_struct
-        .as_ref()
-        .map(|_| make_func_collection(&class_name, &funcs));
 
     let method_registrations: Vec<TokenStream> = funcs
         .into_iter()

@@ -10,11 +10,9 @@
 use crate::builtin::{Callable, GString, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
-use crate::registry::functional::connect_builder::ConnectBuilder;
-use crate::registry::functional::{AsFunc, ParamTuple};
-use crate::{classes, meta, sys};
+use crate::registry::functional::{AsFunc, ConnectBuilder, ParamTuple};
+use crate::{classes, meta};
 use std::borrow::Cow;
-use std::fmt;
 use std::marker::PhantomData;
 
 #[doc(hidden)]
@@ -184,92 +182,5 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
 
     pub fn connect_builder(&mut self) -> ConnectBuilder<'_, 'c, C, (), Ps, ()> {
         ConnectBuilder::new(self)
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Type-safe `#[func]` reference that is readily callable.
-///
-/// Can be either a static function of a class, or a method which is bound to a concrete object.
-///
-/// This can be seen as a more type-safe variant of Godot's `Callable`, which can carry intermediate information about function signatures (e.g.
-/// when connecting signals).
-pub struct Func<R, Ps> {
-    godot_function_name: &'static str,
-    callable_kind: CallableKind,
-    _return_type: PhantomData<R>,
-    _param_types: PhantomData<Ps>,
-}
-
-enum CallableKind {
-    StaticFunction {
-        // Maybe class name can be moved out (and also be useful for methods), e.g. Debug impl or so.
-        class_godot_name: Cow<'static, str>,
-    },
-    Method {
-        bound_object: Gd<classes::Object>,
-    },
-}
-
-impl<R, Ps> Func<R, Ps> {
-    #[doc(hidden)]
-    pub fn from_instance_method(
-        bound_object: Gd<classes::Object>,
-        method_godot_name: &'static str,
-    ) -> Self {
-        Self {
-            godot_function_name: method_godot_name,
-            callable_kind: CallableKind::Method { bound_object },
-            _return_type: PhantomData,
-            _param_types: PhantomData,
-        }
-    }
-
-    #[doc(hidden)]
-    pub fn from_static_function(
-        class_godot_name: Cow<'static, str>,
-        method_godot_name: &'static str,
-    ) -> Self {
-        Self {
-            godot_function_name: method_godot_name,
-            callable_kind: CallableKind::StaticFunction { class_godot_name },
-            _return_type: PhantomData,
-            _param_types: PhantomData,
-        }
-    }
-
-    pub fn to_callable(&self) -> Callable {
-        match &self.callable_kind {
-            CallableKind::StaticFunction { class_godot_name } => {
-                let class_name = class_godot_name.as_ref();
-                Callable::from_local_static(class_name, self.godot_function_name)
-            }
-            CallableKind::Method { bound_object } => {
-                Callable::from_object_method(bound_object, self.godot_function_name)
-            }
-        }
-    }
-}
-
-impl<R, Ps> fmt::Debug for Func<R, Ps> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let r = sys::short_type_name::<R>();
-        let ps = sys::short_type_name::<Ps>();
-
-        let (obj_or_class, is_static);
-        match &self.callable_kind {
-            CallableKind::StaticFunction { class_godot_name } => {
-                obj_or_class = class_godot_name.to_string();
-                is_static = "; static";
-            }
-            CallableKind::Method { bound_object } => {
-                obj_or_class = format!("{bound_object:?}");
-                is_static = "";
-            }
-        };
-
-        let function = self.godot_function_name;
-        write!(f, "Func({obj_or_class}.{function}{is_static}; {ps} -> {r})")
     }
 }
