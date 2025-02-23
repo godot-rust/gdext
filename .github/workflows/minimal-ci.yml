@@ -96,6 +96,7 @@ jobs:
           components: clippy
 
       - name: "Check clippy"
+        # TODO(Rust 1.86): remove -A clippy::precedence; see https://github.com/godot-rust/gdext/pull/1055.
         run: |
           cargo clippy --all-targets $CLIPPY_FEATURES -- \
           -D clippy::suspicious \
@@ -105,7 +106,8 @@ jobs:
           -D clippy::dbg_macro \
           -D clippy::todo \
           -D clippy::unimplemented \
-          -D warnings
+          -D warnings \
+          -A clippy::precedence
           
 
   unit-test:

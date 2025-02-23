@@ -142,6 +142,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let funcs_collection_struct_name = format_funcs_collection_struct(class_name);
     let funcs_collection_struct = quote! {
         #[doc(hidden)]
+        #[allow(non_camel_case_types)]
         pub struct #funcs_collection_struct_name {}
     };
 

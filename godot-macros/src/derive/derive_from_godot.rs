@@ -75,6 +75,7 @@ fn make_fromgodot_for_int_enum(
                 #(
                     // Interesting: using let instead of const would introduce a runtime bug. Its values cannot be used in match lhs (binding).
                     // However, bindings silently shadow variables, so the first match arm always runs; no warning in generated proc-macro code.
+                    #[allow(non_upper_case_globals)]
                     const #ord_variables: #int = #discriminants;
                 )*
 
