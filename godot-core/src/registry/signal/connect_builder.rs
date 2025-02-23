@@ -8,7 +8,7 @@
 use crate::builtin::{Callable, GString, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
-use crate::registry::functional::{AsFunc, ParamTuple, TypedSignal};
+use crate::registry::signal::{SignalReceiver, TypedSignal};
 use crate::{meta, sys};
 
 /// Type-state builder for customizing signal connections.
@@ -63,7 +63,7 @@ pub struct ConnectBuilder<'ts, 'c, CSig: GodotClass, CRcv, Ps, GodotFn> {
     godot_fn: GodotFn,
 }
 
-impl<'ts, 'c, CSig: WithBaseField, Ps: ParamTuple> ConnectBuilder<'ts, 'c, CSig, (), Ps, ()> {
+impl<'ts, 'c, CSig: WithBaseField, Ps: meta::ParamTuple> ConnectBuilder<'ts, 'c, CSig, (), Ps, ()> {
     pub(super) fn new(parent_sig: &'ts mut TypedSignal<'c, CSig, Ps>) -> Self {
         ConnectBuilder {
             parent_sig,
@@ -86,7 +86,7 @@ impl<'ts, 'c, CSig: WithBaseField, Ps: ParamTuple> ConnectBuilder<'ts, 'c, CSig,
         /* GodotFn= */ impl FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
     >
     where
-        F: AsFunc<(), Ps>,
+        F: SignalReceiver<(), Ps>,
     {
         let godot_fn = move |variant_args: &[&Variant]| -> Result<Variant, ()> {
             let args = Ps::from_variant_array(variant_args);
@@ -132,7 +132,7 @@ impl<'ts, 'c, CSig: WithBaseField, Ps: ParamTuple> ConnectBuilder<'ts, 'c, CSig,
     }
 }
 
-impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: ParamTuple>
+impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: meta::ParamTuple>
     ConnectBuilder<'ts, 'c, CSig, Gd<CRcv>, Ps, ()>
 {
     /// **Stage 2:** method taking `&mut self`.
@@ -150,7 +150,7 @@ impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: ParamTuple>
     >
     where
         CRcv: GodotClass + Bounds<Declarer = bounds::DeclUser>,
-        for<'c_rcv> F: AsFunc<&'c_rcv mut CRcv, Ps>,
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut CRcv, Ps>,
     {
         let mut gd: Gd<CRcv> = self.receiver_obj;
 
@@ -189,7 +189,7 @@ impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: ParamTuple>
     >
     where
         CRcv: GodotClass + Bounds<Declarer = bounds::DeclUser>,
-        for<'c_rcv> F: AsFunc<&'c_rcv CRcv, Ps>,
+        for<'c_rcv> F: SignalReceiver<&'c_rcv CRcv, Ps>,
     {
         let gd: Gd<CRcv> = self.receiver_obj;
 
@@ -218,7 +218,7 @@ impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: ParamTuple>
 impl<'ts, 'c, CSig, CRcv, Ps, GodotFn> ConnectBuilder<'ts, 'c, CSig, CRcv, Ps, GodotFn>
 where
     CSig: WithBaseField,
-    Ps: ParamTuple,
+    Ps: meta::ParamTuple,
     GodotFn: FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
 {
     /// **Stage 3:** allow signal to be called across threads.

@@ -53,9 +53,6 @@ fn signal_symbols_internal() {
     internal.connect_signals_internal(tracker.clone());
     drop(internal);
 
-    // let check = Signal::from_object_signal(&emitter, "emitter_1");
-    // dbg!(check.connections());
-
     emitter.bind_mut().emit_signals_internal();
 
     // Check that closure is invoked.
@@ -97,8 +94,8 @@ fn signal_symbols_external() {
     let receiver = Receiver::new_alloc();
     sig.connect_obj(&receiver, Receiver::receiver_1_mut);
 
-    // Emit signal.
-    sig.emit(987);
+    // Emit signal (now via tuple).
+    sig.emit_tuple((987,));
 
     // Check that closure is invoked.
     assert_eq!(tracker.get(), 987, "Emit failed (closure)");
@@ -317,10 +314,6 @@ impl Receiver {
 
         self.used[2].set(true);
     }
-
-    // This should probably have a dedicated key such as #[godot_api(func_refs)] or so...
-    #[signal]
-    fn _just_here_to_generate_funcs();
 }
 
 const SIGNAL_ARG_STRING: &str = "Signal string arg";
