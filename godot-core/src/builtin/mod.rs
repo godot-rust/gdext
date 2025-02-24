@@ -155,6 +155,10 @@ pub mod __prelude_reexport {
     use super::*;
 
     pub use aabb::*;
+    #[cfg(all(since_api = "4.2", feature = "trace"))]
+    pub use async_runtime::is_godot_task_panicked;
+    #[cfg(since_api = "4.2")]
+    pub use async_runtime::{godot_task, TaskHandle};
     pub use basis::*;
     pub use callable::*;
     pub use collections::containers::*;
@@ -203,6 +207,8 @@ mod macros;
 
 // Other modules
 mod aabb;
+#[cfg(since_api = "4.2")]
+pub(crate) mod async_runtime;
 mod basis;
 mod callable;
 mod collections;

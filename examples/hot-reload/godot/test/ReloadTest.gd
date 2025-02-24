@@ -27,6 +27,8 @@ func _ready() -> void:
 	retained_obj = Reloadable.from_string("Mars")
 	var planet = retained_obj.favorite_planet
 
+	self.add_child(retained_obj)
+
 	print("[GD Editor] Sanity check: initial number is ", num, "; planet is ", planet)
 	
 	var extensions = GDExtensionManager.get_loaded_extensions()
@@ -103,5 +105,3 @@ func _hot_reload():
 func fail(s: String) -> void:
 	print("::error::[GD Editor] ", s) # GitHub Action syntax
 	get_tree().quit(1)
-
-
