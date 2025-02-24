@@ -9,7 +9,7 @@ use godot_ffi::join_with;
 use std::collections::HashMap;
 use std::{any, ptr};
 
-use crate::builtin::GString;
+use crate::classes::ClassDb;
 use crate::init::InitLevel;
 use crate::meta::error::{ConvertError, FromGodotError};
 use crate::meta::ClassName;
@@ -17,7 +17,7 @@ use crate::obj::{cap, DynGd, Gd, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
-use crate::{godot_error, godot_warn, sys};
+use crate::{classes, godot_error, godot_warn, sys};
 use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
 /// Returns a lock to a global map of loaded classes, by initialization level.
@@ -244,7 +244,10 @@ fn register_classes_and_dyn_traits(
         let metadata = ClassMetadata {};
 
         // Transpose Class->Trait relations to Trait->Class relations.
-        for (trait_type_id, dyn_trait_impl) in info.dynify_fns_by_trait.drain() {
+        for (trait_type_id, mut dyn_trait_impl) in info.dynify_fns_by_trait.drain() {
+            // Note: Must be done after filling out the class info since plugins are being iterated in unspecified order.
+            dyn_trait_impl.parent_class_name = info.parent_class_name;
+
             dyn_traits_by_typeid
                 .entry(trait_type_id)
                 .or_default()
@@ -331,21 +334,29 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
 /// Responsible for creating hint_string for [`DynGd<T, D>`][crate::obj::DynGd] properties which works with [`PropertyHint::NODE_TYPE`][crate::global::PropertyHint::NODE_TYPE] or [`PropertyHint::RESOURCE_TYPE`][crate::global::PropertyHint::RESOURCE_TYPE].
 ///
 /// Godot offers very limited capabilities when it comes to validating properties in the editor if given class isn't a tool.
-/// Proper hint string combined with `PropertyHint::NODE_TYPE` or `PropertyHint::RESOURCE_TYPE` allows to limit selection only to valid classes - those registered as implementors of given `DynGd<T, D>`'s `D` trait.
+/// Proper hint string combined with `PropertyHint::RESOURCE_TYPE` allows to limit selection only to valid classes - those registered as implementors of given `DynGd<T, D>`'s `D` trait.
+/// Godot editor allows to export only one node type with `PropertyHint::NODE_TYPE` – therefore we are returning only the base class.
 ///
 /// See also [Godot docs for PropertyHint](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enum-globalscope-propertyhint).
-pub(crate) fn get_dyn_property_hint_string<D>() -> GString
+pub(crate) fn get_dyn_property_hint_string<T, D>() -> String
 where
+    T: GodotClass,
     D: ?Sized + 'static,
 {
+    // Exporting multiple node types is not supported.
+    if T::inherits::<classes::Node>() {
+        return T::class_name().to_string();
+    }
+
     let typeid = any::TypeId::of::<D>();
     let dyn_traits_by_typeid = global_dyn_traits_by_typeid();
+
     let Some(relations) = dyn_traits_by_typeid.get(&typeid) else {
         let trait_name = sys::short_type_name::<D>();
         godot_warn!(
             "godot-rust: No class has been linked to trait {trait_name} with #[godot_dyn]."
         );
-        return GString::default();
+        return String::new();
     };
     assert!(
         !relations.is_empty(),
@@ -354,10 +365,25 @@ where
         **this is a bug, please report it**",
         trait_name = sys::short_type_name::<D>()
     );
+    let relations_iter = relations.iter();
 
-    GString::from(join_with(relations.iter(), ", ", |dyn_trait| {
+    // Include only implementors inheriting given T.
+    // For example – don't include Nodes or Objects while creating hint_string for Resource.
+    let relations_iter = relations_iter.filter_map(|implementor| {
+        // TODO – check if caching it (using is_derived_base_cached) yields any benefits.
+        if ClassDb::singleton().is_parent_class(
+            &implementor.parent_class_name?.to_string_name(),
+            &T::class_name().to_string_name(),
+        ) {
+            Some(implementor)
+        } else {
+            None
+        }
+    });
+
+    join_with(relations_iter, ", ", |dyn_trait| {
         dyn_trait.class_name().to_cow_str()
-    }))
+    })
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).

@@ -514,6 +514,7 @@ impl InstanceIdProvider for foreign::NodeHealth {
 struct RefcDynGdExporter {
     #[var]
     first: Option<DynGd<Object, dyn Health>>,
+    // Using DynGd with concrete type foreign::NodeHealth doesn't give benefits over Gd, but is allowed in godot-rust 0.2.x.
     #[export]
     second: Option<DynGd<foreign::NodeHealth, dyn InstanceIdProvider<Id = InstanceId>>>,
 }
