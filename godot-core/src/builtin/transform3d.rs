@@ -396,7 +396,7 @@ unsafe impl GodotFfi for Transform3D {
 
 crate::meta::impl_godot_as_self!(Transform3D);
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 
@@ -493,7 +493,7 @@ mod test {
         );
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let transform = Transform3D::default();

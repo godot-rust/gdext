@@ -16,9 +16,9 @@ use crate::obj::{Gd, GodotClass, InstanceId};
 use std::{fmt, ptr};
 use sys::{ffi_methods, GodotFfi};
 
-#[cfg(all(since_api = "4.2", before_api = "4.3"))]
+#[cfg(all(since_api = "4.2", before_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.2", before_api = "4.3"))))]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo;
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo2;
 
 /// A `Callable` represents a function in Godot.
@@ -118,7 +118,7 @@ impl Callable {
         }
     }
 
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     fn default_callable_custom_info() -> CallableCustomInfo {
         CallableCustomInfo {
             callable_userdata: ptr::null_mut(),
@@ -132,7 +132,7 @@ impl Callable {
             // Op < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
             less_than_func: None,
             to_string_func: None,
-            #[cfg(since_api = "4.3")]
+            #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
             get_argument_count_func: None,
         }
     }
@@ -143,7 +143,7 @@ impl Callable {
     ///
     /// This constructor only allows the callable to be invoked from the same thread as creating it. If you need to invoke it from any thread,
     /// use [`from_sync_fn`][Self::from_sync_fn] instead (requires crate feature `experimental-threads`; only enable if really needed).
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub fn from_local_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
@@ -177,7 +177,7 @@ impl Callable {
     ///     Ok(sum.to_variant())
     /// });
     /// ```
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     #[cfg(feature = "experimental-threads")]
     pub fn from_sync_fn<F, S>(name: S, rust_function: F) -> Self
     where
@@ -194,7 +194,7 @@ impl Callable {
     }
 
     #[deprecated = "Now split into from_local_fn (single-threaded) and from_sync_fn (multi-threaded)."]
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub fn from_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
@@ -211,7 +211,7 @@ impl Callable {
     /// Create a highly configurable callable from Rust.
     ///
     /// See [`RustCallable`] for requirements on the type.
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub fn from_custom<C: RustCallable>(callable: C) -> Self {
         // Could theoretically use `dyn` but would need:
         // - double boxing
@@ -231,7 +231,7 @@ impl Callable {
         Self::from_custom_info(info)
     }
 
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     fn from_fn_wrapper<F>(inner: FnWrapper<F>) -> Self
     where
         F: FnMut(&[&Variant]) -> Result<Variant, ()>,
@@ -249,7 +249,7 @@ impl Callable {
         Self::from_custom_info(info)
     }
 
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     fn from_custom_info(mut info: CallableCustomInfo) -> Callable {
         // SAFETY: callable_custom_create() is a valid way of creating callables.
         unsafe {
@@ -397,7 +397,7 @@ impl Callable {
         self.as_inner().unbind(args as i64)
     }
 
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub fn get_argument_count(&self) -> usize {
         self.as_inner().get_argument_count() as usize
     }
@@ -481,14 +481,14 @@ impl fmt::Display for Callable {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Callbacks for custom implementations
 
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 use custom_callable::*;
 
 use crate::meta;
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub use custom_callable::RustCallable;
 
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 mod custom_callable {
     use super::*;
     use crate::builtin::GString;

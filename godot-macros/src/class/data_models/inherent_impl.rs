@@ -88,9 +88,9 @@ pub fn transform_inherent_impl(
     let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block, meta.secondary)?;
     let consts = process_godot_constants(&mut impl_block)?;
 
-    #[cfg(all(feature = "register-docs", since_api = "4.3"))]
+    #[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
     let docs = crate::docs::make_inherent_impl_docs(&funcs, &consts, &signals);
-    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
+    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))] #[cfg_attr(published_docs, doc(cfg(not(all(feature = "register-docs", since_api = "4.3")))))]
     let docs = quote! {};
 
     // Container struct holding names of all registered #[func]s.
@@ -104,9 +104,9 @@ pub fn transform_inherent_impl(
     let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
     let signal_registrations = make_signal_registrations(signals, &class_name_obj);
 
-    #[cfg(feature = "codegen-full")]
+    #[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
-    #[cfg(not(feature = "codegen-full"))]
+    #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
     let rpc_registrations = TokenStream::new();
 
     let method_registrations: Vec<TokenStream> = funcs

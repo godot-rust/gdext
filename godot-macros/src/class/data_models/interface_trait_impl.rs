@@ -33,9 +33,9 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
 
     let prv = quote! { ::godot::private };
 
-    #[cfg(all(feature = "register-docs", since_api = "4.3"))]
+    #[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
     let docs = crate::docs::make_virtual_impl_docs(&original_impl.body_items);
-    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
+    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))] #[cfg_attr(published_docs, doc(cfg(not(all(feature = "register-docs", since_api = "4.3")))))]
     let docs = quote! {};
 
     for item in original_impl.body_items.iter() {
@@ -228,7 +228,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
 
             // Other virtual methods, like ready, process etc.
             method_name_str => {
-                #[cfg(since_api = "4.4")]
+                #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
                 let method_name_ident = method.name.clone();
                 let method = util::reduce_to_signature(method);
 
@@ -261,7 +261,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     // If ever the `I*` verbatim validation is relaxed (it won't work with use-renames or other weird edge cases), the approach
                     // with known_virtual_hashes module could be changed to something like the following (GodotBase = nearest Godot base class):
                     // __get_virtual_hash::<Self::GodotBase>("method")
-                    #[cfg(since_api = "4.4")]
+                    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
                     hash_constant: quote! { hashes::#method_name_ident },
                     signature_info,
                     before_kind,
@@ -282,7 +282,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             cfg_attrs: vec![],
             method_name: "_ready".to_string(),
             // Can't use `hashes::ready` here, as the base class might not be `Node` (see above why such a branch is still added).
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             hash_constant: quote! { ::godot::sys::known_virtual_hashes::Node::ready },
             signature_info: SignatureInfo::fn_ready(),
             before_kind: BeforeKind::OnlyBefore,
@@ -384,7 +384,7 @@ fn is_possibly_node_class(trait_base_class: &Ident) -> bool {
 struct OverriddenVirtualFn<'a> {
     cfg_attrs: Vec<&'a venial::Attribute>,
     method_name: String,
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     hash_constant: TokenStream,
     signature_info: SignatureInfo,
     before_kind: BeforeKind,
@@ -396,13 +396,13 @@ impl OverriddenVirtualFn<'_> {
         let cfg_attrs = self.cfg_attrs.iter();
         let method_name_str = self.method_name.as_str();
 
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         let pattern = {
             let hash_constant = &self.hash_constant;
             quote! { (#method_name_str, #hash_constant) }
         };
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         let pattern = method_name_str;
 
         // Lazily generate code for the actual work (calling user function).
@@ -420,7 +420,7 @@ impl OverriddenVirtualFn<'_> {
     }
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 fn make_inactive_class_check(return_value: TokenStream) -> TokenStream {
     quote! {
         if ::godot::private::is_class_inactive(Self::__config().is_tool) {
@@ -429,7 +429,7 @@ fn make_inactive_class_check(return_value: TokenStream) -> TokenStream {
     }
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 fn make_inactive_class_check(_return_value: TokenStream) -> TokenStream {
     TokenStream::new()
 }

@@ -72,7 +72,7 @@ impl ClassNameSource {
         match self {
             ClassNameSource::Owned(s) => StringName::from(s),
 
-            #[cfg(since_api = "4.2")]
+            #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
             ClassNameSource::Borrowed(cstr) => StringName::from(*cstr),
             #[cfg(before_api = "4.2")] // no C-string support for StringName.
             ClassNameSource::Borrowed(cstr) => StringName::from(ascii_cstr_to_str(cstr)),
@@ -125,7 +125,7 @@ impl ClassName {
         let global_index = *map.entry(type_id).or_insert_with(|| {
             let name = init_fn();
 
-            #[cfg(before_api = "4.4")]
+            #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
             assert!(
                 name.is_ascii(),
                 "In Godot < 4.4, class name must be ASCII: '{name}'"

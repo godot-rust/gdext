@@ -288,7 +288,7 @@ macro_rules! impl_shared_string_api {
             /// (`_`) before any other character. Useful when sorting folders or file names.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filenocasecmp_to()`](Self::filenocasecmp_to).
-            #[cfg(since_api = "4.3")]
+            #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
             pub fn filecasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().filecasecmp_to(to))
             }
@@ -299,7 +299,7 @@ macro_rules! impl_shared_string_api {
             /// (`_`) before any other character. Useful when sorting folders or file names.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
-            #[cfg(since_api = "4.3")]
+            #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
             pub fn filenocasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().filenocasecmp_to(to))
             }

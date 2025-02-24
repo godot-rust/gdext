@@ -174,7 +174,7 @@ impl StringName {
     }
 
     /// Increment ref-count. This may leak memory if used wrongly.
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     fn inc_ref(&self) {
         std::mem::forget(self.clone());
     }
@@ -245,13 +245,13 @@ unsafe impl Send for StringName {}
 impl_rust_string_conv!(StringName);
 
 impl From<&str> for StringName {
-    #[cfg(before_api = "4.2")]
+    #[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
     fn from(string: &str) -> Self {
         let intermediate = GString::from(string);
         Self::from(&intermediate)
     }
 
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     fn from(string: &str) -> Self {
         let utf8 = string.as_bytes();
 
@@ -317,7 +317,7 @@ impl From<NodePath> for StringName {
     }
 }
 
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 impl From<&'static std::ffi::CStr> for StringName {
     /// Creates a `StringName` from a static ASCII/Latin-1 `c"string"`.
     ///
@@ -407,7 +407,7 @@ impl Ord for TransientStringNameOrd<'_> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // serde support
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use super::*;
     use serde::de::{Error, Visitor};

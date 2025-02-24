@@ -485,11 +485,11 @@ impl ApproxEq for Aabb {
     }
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let aabb = super::Aabb::default();
@@ -783,7 +783,7 @@ mod test {
 
     #[test]
     #[should_panic]
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     fn test_intersect_ray_zero_dir_inside() {
         let aabb = Aabb {
             position: Vector3::new(-1.5, 2.0, -2.5),
@@ -795,7 +795,7 @@ mod test {
 
     #[test]
     #[should_panic]
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     fn test_intersect_ray_zero_dir_outside() {
         let aabb = Aabb {
             position: Vector3::new(-1.5, 2.0, -2.5),

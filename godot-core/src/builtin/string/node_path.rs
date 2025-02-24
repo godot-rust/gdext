@@ -139,7 +139,7 @@ impl NodePath {
     /// The `slice()` behavior for Godot <= 4.3 is unintuitive, see [#100954](https://github.com/godotengine/godot/pull/100954). godot-rust
     /// automatically changes this to the fixed version for Godot 4.4+, even when used in older versions. So, the behavior is always the same.
     // i32 used because it can be negative and many Godot APIs use this, see https://github.com/godot-rust/gdext/pull/982/files#r1893732978.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     #[doc(alias = "slice")]
     pub fn subpath(&self, begin: i32, exclusive_end: i32) -> NodePath {
         // Polyfill for bug https://github.com/godotengine/godot/pull/100954, fixed in 4.4.
@@ -289,7 +289,7 @@ impl From<StringName> for NodePath {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use super::*;
     use serde::de::{Error, Visitor};

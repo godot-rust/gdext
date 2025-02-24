@@ -317,7 +317,7 @@ impl std::fmt::Display for Plane {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use crate::assert_eq_approx;
     use crate::assert_ne_approx;
@@ -726,7 +726,7 @@ mod test {
         );
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let plane = Plane {

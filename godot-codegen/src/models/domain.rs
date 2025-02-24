@@ -226,23 +226,23 @@ pub enum BuildConfiguration {
 }
 
 impl BuildConfiguration {
-    #[cfg(feature = "double-precision")]
+    #[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
     pub fn is_applicable(self) -> bool {
         matches!(self, Self::Double32 | Self::Double64)
     }
 
-    #[cfg(not(feature = "double-precision"))]
+    #[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
     pub fn is_applicable(self) -> bool {
         matches!(self, Self::Float32 | Self::Float64)
     }
 
     // Rewrite the above using #[cfg].
-    #[cfg(feature = "double-precision")]
+    #[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
     pub fn all_applicable() -> [BuildConfiguration; 2] {
         [BuildConfiguration::Double32, BuildConfiguration::Double64]
     }
 
-    #[cfg(not(feature = "double-precision"))]
+    #[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
     pub fn all_applicable() -> [BuildConfiguration; 2] {
         [BuildConfiguration::Float32, BuildConfiguration::Float64]
     }
@@ -448,7 +448,7 @@ pub enum FnDirection {
     /// Godot -> Rust.
     Virtual {
         // Since PR https://github.com/godotengine/godot/pull/100674, virtual methods have a compat hash, too.
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         hash: u32,
     },
 

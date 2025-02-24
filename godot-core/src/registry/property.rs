@@ -498,7 +498,7 @@ mod export_impls {
     impl_property_by_godot_convert!(PackedStringArray, no_export);
     impl_property_by_godot_convert!(PackedVector2Array, no_export);
     impl_property_by_godot_convert!(PackedVector3Array, no_export);
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     impl_property_by_godot_convert!(PackedVector4Array, no_export);
     impl_property_by_godot_convert!(PackedColorArray, no_export);
 

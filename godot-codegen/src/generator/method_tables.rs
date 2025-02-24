@@ -247,7 +247,7 @@ impl MethodInitGroup {
         }
     }
 
-    #[cfg(not(feature = "codegen-lazy-fptrs"))]
+    #[cfg(not(feature = "codegen-lazy-fptrs"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-lazy-fptrs"))))]
     fn function_name(&self) -> Ident {
         format_ident!("load_{}_methods", self.class_name)
     }
@@ -302,7 +302,7 @@ fn make_named_method_table(info: NamedMethodTable) -> TokenStream {
     }
 }
 
-#[cfg(not(feature = "codegen-lazy-fptrs"))]
+#[cfg(not(feature = "codegen-lazy-fptrs"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-lazy-fptrs"))))]
 fn make_method_table(info: IndexedMethodTable) -> TokenStream {
     let IndexedMethodTable {
         table_name,
@@ -416,7 +416,7 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
     }
 }
 
-#[cfg(feature = "codegen-lazy-fptrs")]
+#[cfg(feature = "codegen-lazy-fptrs")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-lazy-fptrs")))]
 fn make_method_table(info: IndexedMethodTable) -> TokenStream {
     let IndexedMethodTable {
         table_name,

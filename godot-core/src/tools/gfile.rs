@@ -412,10 +412,10 @@ impl GFile {
     /// </div>
     #[doc(alias = "get_real")]
     pub fn read_real(&mut self) -> std::io::Result<real> {
-        #[cfg(feature = "double-precision")]
+        #[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
         let val = self.fa.get_double();
 
-        #[cfg(not(feature = "double-precision"))]
+        #[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
         let val = self.fa.get_float();
 
         self.check_error()?;
@@ -531,10 +531,10 @@ impl GFile {
     pub fn write_real(&mut self, value: real) -> std::io::Result<()> {
         // FileAccess::store_real() does not accept an actual real_t; work around this.
 
-        #[cfg(feature = "double-precision")]
+        #[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
         self.fa.store_double(value);
 
-        #[cfg(not(feature = "double-precision"))]
+        #[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
         self.fa.store_float(value);
 
         self.clear_file_length();

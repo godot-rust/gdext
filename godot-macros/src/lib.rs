@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,7 +14,7 @@
 mod bench;
 mod class;
 mod derive;
-#[cfg(all(feature = "register-docs", since_api = "4.3"))]
+#[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
 mod docs;
 mod gdextension;
 mod itest;

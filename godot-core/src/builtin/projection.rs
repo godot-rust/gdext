@@ -664,7 +664,7 @@ impl std::fmt::Display for Projection {
     }
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     // TODO(bromeon): reduce code duplication
 
@@ -1110,7 +1110,7 @@ mod test {
         }
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let projection = Projection::IDENTITY;

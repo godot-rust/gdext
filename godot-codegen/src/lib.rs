@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -21,7 +22,7 @@ mod models;
 mod special_cases;
 mod util;
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests;
 
 use crate::context::Context;
@@ -51,12 +52,12 @@ fn write_file(path: &Path, contents: String) {
         .unwrap_or_else(|e| panic!("failed to write code file to {};\n\t{}", path.display(), e));
 }
 
-#[cfg(not(feature = "codegen-rustfmt"))]
+#[cfg(not(feature = "codegen-rustfmt"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-rustfmt"))))]
 fn submit_fn(path: PathBuf, tokens: TokenStream) {
     write_file(&path, formatter::format_tokens(tokens));
 }
 
-#[cfg(feature = "codegen-rustfmt")]
+#[cfg(feature = "codegen-rustfmt")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-rustfmt")))]
 mod rustfmt {
     use super::*;
     use std::process::Command;
@@ -92,7 +93,7 @@ mod rustfmt {
     static FILES_TO_RUSTFMT: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 }
 
-#[cfg(feature = "codegen-rustfmt")]
+#[cfg(feature = "codegen-rustfmt")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-rustfmt")))]
 pub(crate) use rustfmt::*;
 
 pub fn generate_sys_files(

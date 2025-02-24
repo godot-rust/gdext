@@ -455,9 +455,9 @@ impl<T: GodotClass> Gd<T> {
     {
         unsafe {
             // Default value (and compat one) for `p_notify_postinitialize` is true in Godot.
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             let object_ptr = callbacks::create::<T>(std::ptr::null_mut(), sys::conv::SYS_TRUE);
-            #[cfg(before_api = "4.4")]
+            #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
             let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
 
             Gd::from_obj_sys(object_ptr)

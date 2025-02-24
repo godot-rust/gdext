@@ -251,7 +251,7 @@ macro_rules! impl_float_ext {
 impl_float_ext!(f32, std::f32::consts, from_f32);
 impl_float_ext!(f64, std::f64::consts, from_f64);
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use crate::assert_eq_approx;
 

@@ -222,7 +222,7 @@ impl PackedArrayElement for f32 {}
 impl PackedArrayElement for f64 {}
 impl PackedArrayElement for builtin::Vector2 {}
 impl PackedArrayElement for builtin::Vector3 {}
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl PackedArrayElement for builtin::Vector4 {}
 impl PackedArrayElement for builtin::Color {}
 impl PackedArrayElement for builtin::GString {}

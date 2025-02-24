@@ -220,7 +220,7 @@ pub struct JsonClassMethod {
     pub is_vararg: bool,
     pub is_static: bool,
     pub is_virtual: bool,
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub is_required: Option<bool>, // Only virtual functions have this field.
     pub hash: Option<i64>,
     pub return_value: Option<JsonMethodReturn>,

@@ -51,7 +51,7 @@ pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
     });
 }
 
-//#[cfg(target_os = "macos")]
+//#[cfg(target_os = "macos")] #[cfg_attr(published_docs, doc(cfg(target_os = "macos")))]
 fn configure_platform_specific(builder: bindgen::Builder) -> bindgen::Builder {
     // On macOS arm64 architecture, we currently get the following error. Tried using different LLVM versions.
     // Not clear if bindgen can be configured in a better way.

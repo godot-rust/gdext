@@ -16,7 +16,7 @@ use crate::out;
 
 pub use sys::GdextBuild;
 
-#[cfg(not(wasm_nothreads))]
+#[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
 pub use sys::{is_main_thread, main_thread_id};
 
 #[doc(hidden)]
@@ -30,7 +30,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         // Make sure the first thing we do is check whether hot reloading should be enabled or not. This is to ensure that if we do anything to
         // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise, this could cause the default
         // behavior to kick in and disable hot reloading.
-        #[cfg(target_os = "linux")]
+        #[cfg(target_os = "linux")] #[cfg_attr(published_docs, doc(cfg(target_os = "linux")))]
         match E::override_hot_reload() {
             None => sys::linux_reload_workaround::default_set_hot_reload(),
             Some(true) => sys::linux_reload_workaround::enable_hot_reload(),

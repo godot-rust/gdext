@@ -104,7 +104,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let (cfg_attributes, cfg_inner_attributes);
     if class.is_experimental {
         cfg_attributes = quote! {
-            // #[cfg(feature = "experimental-godot-api")]
+            // #[cfg(feature = "experimental-godot-api")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-godot-api")))]
             #[cfg_attr(published_docs, doc(cfg(feature = "experimental-godot-api")))]
         };
         cfg_inner_attributes = quote! {

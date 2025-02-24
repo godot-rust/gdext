@@ -75,7 +75,7 @@ pub(crate) use crate::{
 #[doc(hidden)]
 pub use signature::*;
 
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub use signature::trace;
 
 pub use method_info::MethodInfo;

@@ -150,7 +150,7 @@ macro_rules! plugin_foreach {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use std::collections::HashSet;
     plugin_registry!(V: &'static str);

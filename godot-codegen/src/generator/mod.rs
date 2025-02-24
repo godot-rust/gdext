@@ -28,7 +28,7 @@ pub mod notifications;
 pub mod utility_functions;
 pub mod virtual_traits;
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub mod virtual_hashes;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

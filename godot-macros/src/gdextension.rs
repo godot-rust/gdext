@@ -56,7 +56,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
 
         // This cfg cannot be checked from the outer proc-macro since its 'target' is the build
         // host. See: https://github.com/rust-lang/rust/issues/42587
-        #[cfg(target_os = "emscripten")]
+        #[cfg(target_os = "emscripten")] #[cfg_attr(published_docs, doc(cfg(target_os = "emscripten")))]
         fn emscripten_preregistration() {
             // Module is documented here[1] by emscripten, so perhaps we can consider it a part
             // of its public API? In any case for now we mutate global state directly in order
@@ -109,7 +109,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             init: *mut ::godot::sys::GDExtensionInitialization,
         ) -> ::godot::sys::GDExtensionBool {
             // Required due to the lack of a constructor facility such as .init_array in rust wasm
-            #[cfg(target_os = "emscripten")]
+            #[cfg(target_os = "emscripten")] #[cfg_attr(published_docs, doc(cfg(target_os = "emscripten")))]
             emscripten_preregistration();
 
             ::godot::init::__gdext_load_library::<#impl_ty>(

@@ -279,7 +279,7 @@ impl GlamType for RVec3 {
     }
 }
 
-#[cfg(not(feature = "double-precision"))]
+#[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
 impl GlamType for glam::Vec3A {
     type Mapped = Vector3;
 
@@ -296,7 +296,7 @@ impl GlamConv for Vector3 {
     type Glam = RVec3;
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
     use crate::builtin::math::assert_eq_approx;
@@ -412,7 +412,7 @@ mod test {
         assert_eq_approx!(sum_refs, Vector3::new(12.0, 15.0, 18.0));
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let vector = Vector3::default();

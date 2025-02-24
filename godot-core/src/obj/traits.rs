@@ -573,7 +573,7 @@ pub mod cap {
     }
 
     #[doc(hidden)]
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub trait GodotValidateProperty: GodotClass {
         #[doc(hidden)]
         fn __godot_validate_property(&self, property: &mut PropertyInfo);
@@ -599,7 +599,7 @@ pub mod cap {
         #[doc(hidden)]
         fn __virtual_call(
             name: &str,
-            #[cfg(since_api = "4.4")] hash: u32,
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))] hash: u32,
         ) -> sys::GDExtensionClassCallVirtual;
     }
 }

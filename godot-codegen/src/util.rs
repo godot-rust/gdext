@@ -38,14 +38,14 @@ pub fn c_str(string: &str) -> Literal {
     Literal::c_string(&c_string)
 }
 
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub fn make_string_name(identifier: &str) -> TokenStream {
     let lit = c_str(identifier);
 
     quote! { StringName::from(#lit) }
 }
 
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 pub fn make_string_name(identifier: &str) -> TokenStream {
     quote! {
         StringName::from(#identifier)
