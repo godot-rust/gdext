@@ -16,6 +16,25 @@
 
 #![cfg_attr(test, allow(unused))]
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Validations
+
+// More validations in godot crate. #[cfg]s are checked in godot-core.
+
+#[cfg(all(feature = "codegen-lazy-fptrs", feature = "experimental-threads"))]
+compile_error!(
+    "Cannot combine `lazy-function-tables` and `experimental-threads` features;\n\
+    thread safety for lazy-loaded function pointers is not yet implemented."
+);
+
+#[cfg(all(
+    feature = "experimental-wasm-nothreads",
+    feature = "experimental-threads"
+))]
+compile_error!("Cannot use 'experimental-threads' with a nothreads Wasm build yet.");
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 // Output of generated code. Mimics the file structure, symbols are re-exported.
 #[rustfmt::skip]
 #[allow(
