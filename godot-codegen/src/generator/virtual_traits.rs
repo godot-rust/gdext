@@ -157,7 +157,10 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
 
     // Virtual methods are never static.
     let qualifier = method.qualifier();
-    assert!(matches!(qualifier, FnQualifier::Mut | FnQualifier::Const));
+    assert!(matches!(
+        qualifier,
+        FnQualifier::Mut | FnQualifier::Const | FnQualifier::GdSelf
+    ));
 
     let definition = functions_common::make_function_definition(
         method,

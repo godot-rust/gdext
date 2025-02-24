@@ -462,6 +462,7 @@ pub enum FnDirection {
 pub enum FnQualifier {
     Mut,    // &mut self
     Const,  // &self
+    GdSelf, // Gd<Self>
     Static, // Self
     Global, // (nothing) // TODO remove?
 }
