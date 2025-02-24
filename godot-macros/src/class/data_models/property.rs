@@ -7,7 +7,7 @@
 
 //! Parses the `#[var]` and `#[export]` attributes on fields.
 
-use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetterImpl, UsageFlags};
+use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetter, GetterSetterImpl, UsageFlags};
 use crate::util::{format_funcs_collection_constant, format_funcs_collection_struct};
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
@@ -70,6 +70,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let FieldVar {
             getter,
             setter,
+            notify,
             hint,
             mut usage_flags,
             ..
@@ -139,14 +140,18 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         // Note: {getter,setter}_tokens can be either a path `Class_Functions::constant_name` or an empty string `""`.
 
         let getter_tokens = make_getter_setter(
-            getter.to_impl(class_name, GetSet::Get, field),
+            getter.to_impl(class_name, GetSet::Get, None, field),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,
             class_name,
         );
+        let setter_kind = match &setter {
+            GetterSetter::Ex(ident) => GetSet::SetEx(ident.clone()),
+            _ => GetSet::Set,
+        };
         let setter_tokens = make_getter_setter(
-            setter.to_impl(class_name, GetSet::Set, field),
+            setter.to_impl(class_name, setter_kind, notify, field),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,

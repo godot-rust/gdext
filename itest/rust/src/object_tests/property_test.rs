@@ -537,3 +537,82 @@ fn test_var_with_renamed_funcs() {
 
     obj.free();
 }
+
+// ---------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(base=Node, init)]
+struct NotifyTest {
+    #[var(notify = on_change)]
+    a: i32,
+    #[var(notify = on_change)]
+    b: i32,
+
+    pub call_count: u32,
+}
+
+impl NotifyTest {
+    fn on_change(&mut self) {
+        self.call_count += 1;
+    }
+}
+
+#[itest]
+fn test_var_notify() {
+    let mut class = NotifyTest::new_alloc();
+
+    assert_eq!(class.bind().call_count, 0);
+
+    class.call("set_a", &[3.to_variant()]);
+    assert_eq!(class.bind().a, 3);
+    assert_eq!(class.bind().call_count, 1);
+
+    class.call("set_b", &[5.to_variant()]);
+    assert_eq!(class.bind().b, 5);
+    assert_eq!(class.bind().call_count, 2);
+
+    class.free();
+}
+
+// ---------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(base=Node, init)]
+struct SetExTest {
+    #[var(set_ex = custom_set)]
+    a: i32,
+    #[var(set_ex = custom_set)]
+    b: i32,
+
+    pub call_count: u32,
+}
+
+impl SetExTest {
+    fn custom_set<T>(&mut self, update: godot::meta::property_update::PropertyUpdate<Self, T>) {
+        // pre-set checks
+
+        update.set(self);
+
+        // post-set actions
+        self.call_count += 1;
+    }
+}
+
+#[itest]
+fn test_var_set_ex() {
+    let mut class = NotifyTest::new_alloc();
+
+    assert_eq!(class.bind().call_count, 0);
+
+    class.call("set_a", &[3.to_variant()]);
+    assert_eq!(class.bind().a, 3);
+    assert_eq!(class.bind().call_count, 1);
+
+    class.call("set_b", &[5.to_variant()]);
+    assert_eq!(class.bind().b, 5);
+    assert_eq!(class.bind().call_count, 2);
+
+    class.free();
+}
+
+// ---------------------------------------------------------------
