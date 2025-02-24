@@ -186,7 +186,7 @@ impl IntegrationTests {
                     // could not be caught, causing UB at the Godot FFI boundary (in practice, this will be a defined Godot crash with
                     // stack trace though).
                     godot_error!("GDScript test panicked");
-                    godot::private::extract_panic_message(e);
+                    godot::private::extract_panic_message(&e);
                     TestOutcome::Failed
                 }
             };
@@ -327,7 +327,8 @@ fn print_test_pre(test_case: &str, test_file: String, last_file: &mut Option<Str
     if flush {
         // Flush in GDScript, because its own print may come sooner than Rust prints otherwise.
         // (Strictly speaking, this can also happen from Rust, when Godot prints something. So far, it didn't though...)
-        godot::private::flush_stdout();
+        use std::io::Write;
+        std::io::stdout().flush().expect("flush stdout");
     }
 }
 

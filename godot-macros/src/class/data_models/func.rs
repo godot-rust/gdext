@@ -473,7 +473,7 @@ fn make_ptrcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> Toke
         ) {
             let call_ctx = #call_ctx;
             let _success = ::godot::private::handle_panic(
-                || &call_ctx,
+                || format!("{call_ctx}"),
                 || #invocation
             );
 
