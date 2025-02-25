@@ -179,6 +179,7 @@ pub mod init {
 /// Register/export Rust symbols to Godot: classes, methods, enums...
 pub mod register {
     pub use godot_core::registry::property;
+    pub use godot_core::registry::signal::*;
     pub use godot_macros::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
 
     #[cfg(feature = "__codegen-full")]

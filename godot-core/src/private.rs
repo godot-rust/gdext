@@ -26,7 +26,6 @@ use std::sync::atomic;
 #[cfg(debug_assertions)]
 use std::sync::{Arc, Mutex};
 use sys::Global;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 

@@ -210,9 +210,14 @@ impl<T: GodotClass> RawGd<T> {
     //     self.as_target_mut()
     // }
 
-    pub(crate) fn as_object(&self) -> &classes::Object {
+    pub(crate) fn as_object_ref(&self) -> &classes::Object {
         // SAFETY: Object is always a valid upcast target.
         unsafe { self.as_upcast_ref() }
+    }
+
+    pub(crate) fn as_object_mut(&mut self) -> &mut classes::Object {
+        // SAFETY: Object is always a valid upcast target.
+        unsafe { self.as_upcast_mut() }
     }
 
     /// # Panics

@@ -360,12 +360,8 @@ pub fn make_funcs_collection_constant(
         None => func_name.to_string(),
     };
 
-    let doc_comment =
-        format!("The Rust function `{func_name}` is registered with Godot as `{const_value}`.");
-
     quote! {
         #(#attributes)*
-        #[doc = #doc_comment]
         #[doc(hidden)]
         #[allow(non_upper_case_globals)]
         pub const #const_name: &str  = #const_value;
@@ -409,5 +405,5 @@ pub fn format_funcs_collection_constant(_class_name: &Ident, func_name: &Ident) 
 
 /// Returns the name of the struct used as collection for all function name constants.
 pub fn format_funcs_collection_struct(class_name: &Ident) -> Ident {
-    format_ident!("__gdext_{class_name}_Funcs")
+    format_ident!("__godot_{class_name}_Funcs")
 }

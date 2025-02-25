@@ -20,7 +20,7 @@ use crate::meta::{
 };
 use crate::obj::{
     bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    RawGd,
+    RawGd, WithSignals,
 };
 use crate::private::callbacks;
 use crate::registry::property::{object_export_element_type_string, Export, Var};
@@ -325,6 +325,11 @@ impl<T: GodotClass> Gd<T> {
     pub(crate) fn upcast_object(self) -> Gd<classes::Object> {
         self.owned_cast()
             .expect("Upcast to Object failed. This is a bug; please report it.")
+    }
+
+    /// Equivalent to [`upcast_mut::<Object>()`][Self::upcast_mut], but without bounds.
+    pub(crate) fn upcast_object_mut(&mut self) -> &mut classes::Object {
+        self.raw.as_object_mut()
     }
 
     /// **Upcast shared-ref:** access this object as a shared reference to a base class.
@@ -697,6 +702,23 @@ where
     /// shape.set_owner(Gd::null_arg());
     pub fn null_arg() -> impl crate::meta::AsObjectArg<T> {
         crate::meta::ObjectNullArg(std::marker::PhantomData)
+    }
+}
+
+impl<T> Gd<T>
+where
+    T: WithSignals,
+{
+    /// Access user-defined signals of this object.
+    ///
+    /// For classes that have at least one `#[signal]` defined, returns a collection of signal names. Each returned signal has a specialized
+    /// API for connecting and emitting signals in a type-safe way. This method is the equivalent of [`WithSignals::signals()`], but when
+    /// called externally (not from `self`). If you are within the `impl` of a class, use `self.signals()` directly instead.
+    ///
+    /// If you haven't already, read the [book chapter about signals](https://godot-rust.github.io/book/register/signals.html) for a
+    /// walkthrough.
+    pub fn signals(&self) -> T::SignalCollection<'_> {
+        T::__signals_from_external(self)
     }
 }
 

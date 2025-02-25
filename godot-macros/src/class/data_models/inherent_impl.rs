@@ -23,7 +23,7 @@ use quote::{format_ident, quote};
 /// Attribute for user-declared function.
 enum ItemAttrType {
     Func(FuncAttr, Option<RpcAttr>),
-    Signal(venial::AttributeValue),
+    Signal(SignalAttr, venial::AttributeValue),
     Const(#[allow(dead_code)] venial::AttributeValue),
 }
 
@@ -42,7 +42,7 @@ enum AttrParseResult {
     Func(FuncAttr),
     Rpc(RpcAttr),
     FuncRpc(FuncAttr, RpcAttr),
-    Signal(venial::AttributeValue),
+    Signal(SignalAttr, venial::AttributeValue),
     Const(#[allow(dead_code)] venial::AttributeValue),
 }
 
@@ -53,7 +53,7 @@ impl AttrParseResult {
             // If only `#[rpc]` is present, we assume #[func] with default values.
             AttrParseResult::Rpc(rpc) => ItemAttrType::Func(FuncAttr::default(), Some(rpc)),
             AttrParseResult::FuncRpc(func, rpc) => ItemAttrType::Func(func, Some(rpc)),
-            AttrParseResult::Signal(signal) => ItemAttrType::Signal(signal),
+            AttrParseResult::Signal(signal, attr_val) => ItemAttrType::Signal(signal, attr_val),
             AttrParseResult::Const(constant) => ItemAttrType::Const(constant),
         }
     }
@@ -64,6 +64,11 @@ struct FuncAttr {
     pub rename: Option<String>,
     pub is_virtual: bool,
     pub has_gd_self: bool,
+}
+
+#[derive(Default)]
+struct SignalAttr {
+    pub no_builder: bool,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -102,7 +107,8 @@ pub fn transform_inherent_impl(
 
     // For each #[func] in this impl block, create one constant.
     let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
-    let signal_registrations = make_signal_registrations(signals, &class_name_obj);
+    let (signal_registrations, signals_collection_struct) =
+        make_signal_registrations(&signals, &class_name, &class_name_obj)?;
 
     #[cfg(feature = "codegen-full")]
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
@@ -180,6 +186,7 @@ pub fn transform_inherent_impl(
             impl #funcs_collection {
                 #( #func_name_constants )*
             }
+            #signals_collection_struct
         };
 
         Ok(result)
@@ -293,23 +300,29 @@ fn process_godot_fns(
                 });
             }
 
-            ItemAttrType::Signal(ref _attr_val) => {
+            ItemAttrType::Signal(ref signal, ref _attr_val) => {
                 if is_secondary_impl {
                     return attr.bail(
-                        "#[signal] is not currently supported in secondary impl blocks",
+                        "#[signal] is currently not supported in secondary impl blocks",
                         function,
                     );
                 }
                 if function.return_ty.is_some() {
                     return bail!(
                         &function.return_ty,
-                        "return types in #[signal] are not supported"
+                        "#[signal] does not support return types"
                     );
                 }
                 if function.body.is_some() {
                     return bail!(
                         &function.body,
                         "#[signal] must not have a body; declare the function with a semicolon"
+                    );
+                }
+                if function.vis_marker.is_some() {
+                    return bail!(
+                        &function.vis_marker,
+                        "#[signal] must not have a visibility specifier; signals are always public"
                     );
                 }
 
@@ -319,6 +332,7 @@ fn process_godot_fns(
                 signal_definitions.push(SignalDefinition {
                     signature: sig,
                     external_attributes,
+                    has_builder: !signal.no_builder,
                 });
 
                 removed_indexes.push(index);
@@ -361,7 +375,7 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
                 ItemAttrType::Func(_, _) => {
                     return bail!(constant, "#[func] and #[rpc] can only be used on functions")
                 }
-                ItemAttrType::Signal(_) => {
+                ItemAttrType::Signal(_, _) => {
                     return bail!(constant, "#[signal] can only be used on functions")
                 }
                 ItemAttrType::Const(_) => {
@@ -483,7 +497,7 @@ where
         let parsed_attr = match attr_name {
             // #[func]
             name if name == "func" => {
-                // Safe unwrap since #[func] must be present if we got to this point
+                // Safe unwrap, since #[func] must be present if we got to this point.
                 let mut parser = KvParser::parse(attributes, "func")?.unwrap();
 
                 // #[func(rename = MyClass)]
@@ -564,10 +578,28 @@ where
             }
 
             // #[signal]
-            name if name == "signal" => AttrParseResult::Signal(attr.value.clone()),
+            name if name == "signal" => {
+                // Safe unwrap, since #[signal] must be present if we got to this point.
+                let mut parser = KvParser::parse(attributes, "signal")?.unwrap();
+
+                // Private #[signal(__no_builder)]
+                let no_builder = parser.handle_alone("__no_builder")?;
+
+                parser.finish()?;
+
+                let signal_attr = SignalAttr { no_builder };
+
+                AttrParseResult::Signal(signal_attr, attr.value.clone())
+            }
 
             // #[constant]
-            name if name == "constant" => AttrParseResult::Const(attr.value.clone()),
+            name if name == "constant" => {
+                // Ensure no keys are present.
+                let parser = KvParser::parse(attributes, "constant")?.unwrap();
+                parser.finish()?;
+
+                AttrParseResult::Const(attr.value.clone())
+            }
 
             // Ignore unknown attributes.
             _ => continue,

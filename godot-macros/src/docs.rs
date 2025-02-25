@@ -250,7 +250,7 @@ pub fn make_method_docs(method: &FuncDefinition) -> Option<String> {
     let name = method
         .registered_name
         .clone()
-        .unwrap_or_else(|| method.signature_info.method_name.to_string());
+        .unwrap_or_else(|| method.rust_ident().to_string());
     let ret = method.signature_info.ret_type.to_token_stream().to_string();
     let params = params(
         method

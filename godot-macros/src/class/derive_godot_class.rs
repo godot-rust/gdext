@@ -329,12 +329,14 @@ fn make_user_class_impl(
 
     let user_class_impl = quote! {
         impl ::godot::obj::UserClass for #class_name {
+            #[doc(hidden)]
             fn __config() -> ::godot::private::ClassConfig {
                 ::godot::private::ClassConfig {
                     is_tool: #is_tool,
                 }
             }
 
+            #[doc(hidden)]
             fn __before_ready(&mut self) {
                 #rpc_registrations
                 #onready_inits

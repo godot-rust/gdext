@@ -122,6 +122,9 @@ pub fn passes_filter(filters: &[String], test_name: &str) -> bool {
     filters.is_empty() || filters.iter().any(|x| test_name.contains(x))
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Toolbox for tests
+
 pub fn expect_panic(context: &str, code: impl FnOnce()) {
     use std::panic;
 

@@ -20,7 +20,7 @@ pub struct ReentrantClass {
 
 #[godot_api]
 impl ReentrantClass {
-    #[signal]
+    #[signal(__no_builder)]
     fn some_signal();
 
     #[func]

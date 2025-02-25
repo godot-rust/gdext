@@ -31,6 +31,20 @@ pub struct FuncDefinition {
     pub rpc_info: Option<RpcAttr>,
 }
 
+impl FuncDefinition {
+    pub fn rust_ident(&self) -> &Ident {
+        &self.signature_info.method_name
+    }
+
+    pub fn godot_name(&self) -> String {
+        if let Some(name_override) = self.registered_name.as_ref() {
+            name_override.clone()
+        } else {
+            self.rust_ident().to_string()
+        }
+    }
+}
+
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
 // Virtual methods are non-static by their nature; so there's no support for static ones.
@@ -96,13 +110,8 @@ pub fn make_method_registration(
     );
 
     // String literals
-    let method_name = &signature_info.method_name;
     let class_name_str = class_name.to_string();
-    let method_name_str = if let Some(updated_name) = func_definition.registered_name {
-        updated_name
-    } else {
-        method_name.to_string()
-    };
+    let method_name_str = func_definition.godot_name();
 
     let call_ctx = make_call_context(&class_name_str, &method_name_str);
     let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure);
@@ -192,6 +201,9 @@ impl SignatureInfo {
             ret_type: quote! { () },
         }
     }
+
+    // The below functions share quite a bit of tokenization. If ever we run into codegen slowness, we could cache/reuse identical
+    // sub-expressions.
 
     pub fn tuple_type(&self) -> TokenStream {
         // Note: for GdSelf receivers, first parameter is not even part of SignatureInfo anymore.
