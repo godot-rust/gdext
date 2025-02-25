@@ -9,7 +9,7 @@ use godot::builtin::{dict, Color, Dictionary, GString, Variant, VariantType};
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
-use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd};
+use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd, OnEditor};
 use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
@@ -44,7 +44,7 @@ struct HasProperty {
     object_val: Option<Gd<Object>>,
 
     #[var]
-    texture_val: Gd<Texture>,
+    texture_val: OnEditor<Gd<Texture>>,
 
     #[var(get = get_texture_val, set = set_texture_val, hint = RESOURCE_TYPE, hint_string = "Texture")]
     texture_val_rw: Option<Gd<Texture>>,
@@ -139,7 +139,7 @@ impl INode for HasProperty {
             int_val_setter: 0,
             object_val: None,
             string_val: GString::new(),
-            texture_val: Texture::new_gd(),
+            texture_val: OnEditor::default(),
             texture_val_rw: None,
         }
     }
