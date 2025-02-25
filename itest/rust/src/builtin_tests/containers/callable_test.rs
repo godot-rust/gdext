@@ -98,27 +98,15 @@ fn callable_object_method() {
 }
 
 #[itest]
+#[cfg(since_api = "4.4")]
 fn callable_static() {
     let callable = Callable::from_local_static("CallableTestObj", "concat_array");
 
-    // Test current behavior in <4.4 and >=4.4. Although our API explicitly leaves it unspecified, we then notice change in implementation.
-    if cfg!(since_api = "4.4") {
-        assert_eq!(callable.object(), None);
-        assert_eq!(callable.object_id(), None);
-        assert_eq!(callable.method_name(), None);
-        assert!(callable.is_custom());
-        assert!(callable.is_valid());
-    } else {
-        assert!(callable.object().is_some());
-        assert!(callable.object_id().is_some());
-        assert_eq!(callable.method_name(), Some("concat_array".into()));
-        assert_eq!(callable.to_string(), "GDScriptNativeClass::concat_array");
-        assert!(!callable.is_custom());
-
-        // Surprisingly false, but call still works (see test below).
-        // What DOESN'T work is connecting 4.3 static methods to signals via this approach.
-        assert!(!callable.is_valid());
-    }
+    assert_eq!(callable.object(), None);
+    assert_eq!(callable.object_id(), None);
+    assert_eq!(callable.method_name(), None);
+    assert!(callable.is_custom());
+    assert!(callable.is_valid());
 
     assert!(!callable.is_null());
 
@@ -136,34 +124,32 @@ fn callable_static() {
 
     #[cfg(since_api = "4.3")]
     assert_eq!(callable.get_argument_count(), 0); // Consistently doesn't work :)
+}
 
-    // Test varying binds to static callables
-    // Last 3 of 4 arguments. Within Godot, bound arguments are used in-order AFTER call arguments
+// Regression test, see https://github.com/godot-rust/gdext/pull/1029.
+#[itest]
+#[cfg(since_api = "4.4")]
+fn callable_static_bind() {
+    let callable = Callable::from_local_static("CallableTestObj", "concat_array");
+    assert!(callable.is_valid());
+
+    // Test varying binds to static callables.
+    // Last 3 of 4 arguments. Within Godot, bound arguments are used in-order AFTER call arguments.
     let bindv = callable.bindv(&varray![
         "two",
         array![&NodePath::from("three/four")],
         &RefCounted::new_gd(),
     ]);
-    assert!(!Variant::is_nil(&bindv.to_variant()));
-    // let bindv_result = bindv.callv(&varray![1]); // Call the binding, filling in the first argument
-    // assert!(!Variant::is_nil(&bindv_result)); // FIXME: Assertion fails
-    // let bind_result_data: VariantArray = bindv_result.to();
-    // assert_eq!(4, bind_result_data.len());
+    assert!(bindv.is_valid());
 
-    #[cfg(since_api = "4.2")]
-    {
-        // Same as above, with additional "bind" method
-        let bind = callable.bind(&[
-            "two".to_variant(),
-            array![&NodePath::from("three/four")].to_variant(),
-            RefCounted::new_gd().to_variant(),
-        ]);
-        assert!(!Variant::is_nil(&bind.to_variant()));
-        // let bind_result = bind.call(&[1.to_variant()]);
-        // assert!(!Variant::is_nil(&bind_result)); // FIXME: Assertion fails
-        // let bind_result_data: VariantArray = bind_result.to();
-        // assert_eq!(4, bind_result_data.len());
-    }
+    assert!(!bindv.to_variant().is_nil());
+    let args = varray![1];
+    let bindv_result = bindv.callv(&args);
+
+    assert!(!bindv_result.is_nil());
+
+    let bind_result_data: VariantArray = bindv_result.to();
+    assert_eq!(4, bind_result_data.len());
 }
 
 #[itest]
