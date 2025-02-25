@@ -5,13 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::Variant;
+use crate::builtin::{GString, Variant};
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassName, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits};
 use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
-use crate::registry::property::{Export, Var};
+use crate::registry::property::{object_export_element_type_string, Export, Var};
 use crate::{meta, sys};
 use std::{fmt, ops};
 
@@ -478,6 +478,10 @@ where
     T: GodotClass,
     D: ?Sized + 'static,
 {
+    fn element_type_string() -> String {
+        let hint_string = get_dyn_property_hint_string::<T, D>();
+        object_export_element_type_string::<T>(hint_string)
+    }
 }
 
 impl<T, D> Var for DynGd<T, D>
@@ -502,7 +506,7 @@ where
 {
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo {
-            hint_string: get_dyn_property_hint_string::<D>(),
+            hint_string: GString::from(get_dyn_property_hint_string::<T, D>()),
             ..<Gd<T> as Export>::export_hint()
         }
     }

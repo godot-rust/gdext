@@ -143,23 +143,18 @@ pub mod __docs;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Validations
 
-#[cfg(all(feature = "lazy-function-tables", feature = "experimental-threads"))]
-compile_error!("Thread safety for lazy function pointers is not yet implemented.");
-
-#[cfg(all(
-    feature = "experimental-wasm-nothreads",
-    feature = "experimental-threads"
-))]
-compile_error!("Cannot use 'experimental-threads' with a nothreads Wasm build yet.");
+// Many validations are moved to godot-ffi. #[cfg]s are not emitted in this crate, so move checks for those up to godot-core.
 
 #[cfg(all(target_family = "wasm", not(feature = "experimental-wasm")))]
-compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in mind that this is work in progress");
+compile_error!(
+    "Wasm target requires opt-in via `experimental-wasm` Cargo feature;\n\
+    keep in mind that this is work in progress."
+);
 
 // See also https://github.com/godotengine/godot/issues/86346.
+// Could technically be moved to godot-codegen to reduce time-to-failure slightly, but would scatter validations even more.
 #[cfg(all(feature = "double-precision", not(feature = "api-custom")))]
 compile_error!("The feature `double-precision` currently requires `api-custom` due to incompatibilities in the GDExtension API JSON.");
-
-// Note: #[cfg]s are not emitted in this crate, so move checks for those up to godot-core.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Modules

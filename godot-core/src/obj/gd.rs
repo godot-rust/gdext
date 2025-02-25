@@ -9,7 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
-use sys::{static_assert_eq_size_align, SysPtr as _, VariantType};
+use sys::{static_assert_eq_size_align, SysPtr as _};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
@@ -19,11 +19,11 @@ use crate::meta::{
     ParamType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
-    bounds, cap, Bounds, DynGd, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits,
-    InstanceId, RawGd, WithSignals,
+    bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
+    RawGd, WithSignals,
 };
 use crate::private::callbacks;
-use crate::registry::property::{Export, Var};
+use crate::registry::property::{object_export_element_type_string, Export, Var};
 use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -817,27 +817,7 @@ impl<T: GodotClass> GodotType for Gd<T> {
 impl<T: GodotClass> ArrayElement for Gd<T> {
     fn element_type_string() -> String {
         // See also impl Export for Gd<T>.
-
-        let hint = if T::inherits::<classes::Resource>() {
-            Some(PropertyHint::RESOURCE_TYPE)
-        } else if T::inherits::<classes::Node>() {
-            Some(PropertyHint::NODE_TYPE)
-        } else {
-            None
-        };
-
-        // Exportable classes (Resource/Node based) include the {RESOURCE|NODE}_TYPE hint + the class name.
-        if let Some(export_hint) = hint {
-            format!(
-                "{variant}/{hint}:{class}",
-                variant = VariantType::OBJECT.ord(),
-                hint = export_hint.ord(),
-                class = T::class_name()
-            )
-        } else {
-            // Previous impl: format!("{variant}:", variant = VariantType::OBJECT.ord())
-            unreachable!("element_type_string() should only be invoked for exportable classes")
-        }
+        object_export_element_type_string::<T>(T::class_name())
     }
 }
 

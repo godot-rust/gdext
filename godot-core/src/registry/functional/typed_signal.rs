@@ -167,7 +167,7 @@ impl<'c, C: WithBaseField, Ps: ParamTuple> TypedSignal<'c, C, Ps> {
     }
 
     pub(super) fn connect_untyped(&mut self, callable: &Callable, flags: Option<ConnectFlags>) {
-        use crate::obj::EngineEnum;
+        use crate::obj::EngineBitfield;
 
         let signal_name = self.name.as_ref();
 

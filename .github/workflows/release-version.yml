@@ -133,7 +133,8 @@ jobs:
           -D clippy::dbg_macro \
           -D clippy::todo \
           -D clippy::unimplemented \
-          -D warnings
+          -D warnings \
+          -A clippy::precedence
 
   rustfmt:
     runs-on: ubuntu-latest
