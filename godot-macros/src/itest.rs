@@ -8,7 +8,7 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::util::{bail, path_ends_with, KvParser};
+use crate::util::{bail, extract_typename, ident, path_ends_with, KvParser};
 use crate::ParseResult;
 
 pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
@@ -17,19 +17,20 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
         _ => return bail!(&input_item, "#[itest] can only be applied to functions"),
     };
 
+    let mut attr = KvParser::parse_required(&func.attributes, "itest", &func.name)?;
+    let skipped = attr.handle_alone("skip")?;
+    let focused = attr.handle_alone("focus")?;
+    let is_async = attr.handle_alone("async")?;
+    attr.finish()?;
+
     // Note: allow attributes for things like #[rustfmt] or #[clippy]
     if func.generic_params.is_some()
         || func.params.len() > 1
-        || func.return_ty.is_some()
+        || (func.return_ty.is_some() && !is_async)
         || func.where_clause.is_some()
     {
         return bad_signature(&func);
     }
-
-    let mut attr = KvParser::parse_required(&func.attributes, "itest", &func.name)?;
-    let skipped = attr.handle_alone("skip")?;
-    let focused = attr.handle_alone("focus")?;
-    attr.finish()?;
 
     if skipped && focused {
         return bail!(
@@ -47,9 +48,13 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
             // Correct parameter type (crude macro check) -> reuse parameter name
             if path_ends_with(&param.ty.tokens, "TestContext") {
                 param.to_token_stream()
+            } else if is_async {
+                return bad_async_signature(&func);
             } else {
                 return bad_signature(&func);
             }
+        } else if is_async {
+            return bad_async_signature(&func);
         } else {
             return bad_signature(&func);
         }
@@ -57,14 +62,35 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
         quote! { __unused_context: &crate::framework::TestContext }
     };
 
+    if is_async
+        && func
+            .return_ty
+            .as_ref()
+            .and_then(extract_typename)
+            .map_or(true, |segment| segment.ident != "TaskHandle")
+    {
+        return bad_async_signature(&func);
+    }
+
     let body = &func.body;
 
+    let (return_tokens, test_case_ty, plugin_name);
+    if is_async {
+        return_tokens = quote! { -> ::godot::builtin::TaskHandle };
+        test_case_ty = quote! { crate::framework::AsyncRustTestCase };
+        plugin_name = ident("__GODOT_ASYNC_ITEST");
+    } else {
+        return_tokens = TokenStream::new();
+        test_case_ty = quote! { crate::framework::RustTestCase };
+        plugin_name = ident("__GODOT_ITEST");
+    };
+
     Ok(quote! {
-        pub fn #test_name(#param) {
+        pub fn #test_name(#param) #return_tokens {
             #body
         }
 
-        ::godot::sys::plugin_add!(__GODOT_ITEST in crate::framework; crate::framework::RustTestCase {
+        ::godot::sys::plugin_add!(#plugin_name in crate::framework; #test_case_ty {
             name: #test_name_str,
             skipped: #skipped,
             focused: #focused,
@@ -81,6 +107,16 @@ fn bad_signature(func: &venial::Function) -> Result<TokenStream, venial::Error> 
         "#[itest] function must have one of these signatures:\
         \n  fn {f}() {{ ... }}\
         \n  fn {f}(ctx: &TestContext) {{ ... }}",
+        f = func.name,
+    )
+}
+
+fn bad_async_signature(func: &venial::Function) -> Result<TokenStream, venial::Error> {
+    bail!(
+        func,
+        "#[itest(async)] function must have one of these signatures:\
+        \n  fn {f}() -> TaskHandle {{ ... }}\
+        \n  fn {f}(ctx: &TestContext) -> TaskHandle {{ ... }}",
         f = func.name,
     )
 }
