@@ -92,6 +92,7 @@ impl ConvertError {
         ErasedConvertError::from(self)
     }
 
+    #[cfg(before_api = "4.4")]
     pub(crate) fn kind(&self) -> &ErrorKind {
         &self.kind
     }

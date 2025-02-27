@@ -8,7 +8,7 @@
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
-use crate::meta::error::{ConvertError, ErrorKind, FromVariantError};
+use crate::meta::error::ConvertError;
 use crate::meta::{arg_into_ref, ArrayElement, AsArg, FromGodot, ToGodot};
 use godot_ffi as sys;
 use std::{fmt, ptr};
@@ -128,6 +128,7 @@ impl Variant {
 
         #[cfg(before_api = "4.4")]
         {
+            use crate::meta::error::{ErrorKind, FromVariantError};
             match self.try_to::<crate::obj::Gd<crate::classes::Object>>() {
                 Ok(obj) => Some(obj.instance_id_unchecked()),
                 Err(c)
