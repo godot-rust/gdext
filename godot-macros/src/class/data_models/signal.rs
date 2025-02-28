@@ -202,7 +202,7 @@ impl SignalCollection {
         self.collection_methods.push(quote! {
             // Deliberately not #[doc(hidden)] for IDE completion.
             #(#signal_cfg_attrs)*
-            fn #signal_name(self) -> #individual_struct_name<'a> {
+            pub fn #signal_name(self) -> #individual_struct_name<'a> {
                 #individual_struct_name {
                     typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
@@ -248,7 +248,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #(#signal_cfg_attrs)*
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Signal struct is hidden, but the method returning it is not (IDE completion).
-        struct #individual_struct_name<'a> {
+        pub struct #individual_struct_name<'a> {
             #[doc(hidden)]
             typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
         }
