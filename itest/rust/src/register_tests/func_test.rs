@@ -70,7 +70,7 @@ impl FuncObj {
 
 #[derive(GodotClass)]
 #[class(base=RefCounted)]
-struct GdSelfObj {
+pub struct GdSelfObj {
     internal_value: i32,
 
     base: Base<RefCounted>,
