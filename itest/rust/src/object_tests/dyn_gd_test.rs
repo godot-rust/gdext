@@ -507,24 +507,37 @@ impl InstanceIdProvider for foreign::NodeHealth {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Check if DynGd can be properly exported
+// Checks if DynGd can be properly used as a `#[var]`.
+// All classes can be used as a `#[var]` for `DynGd<T, D>`.
 
 #[derive(GodotClass)]
 #[class(init)]
-struct RefcDynGdExporter {
+struct RefcDynGdVarDeclarer {
     #[var]
     first: Option<DynGd<Object, dyn Health>>,
-    // Using DynGd with concrete type foreign::NodeHealth doesn't give benefits over Gd, but is allowed in godot-rust 0.2.x.
-    #[export]
+    #[var]
     second: Option<DynGd<foreign::NodeHealth, dyn InstanceIdProvider<Id = InstanceId>>>,
 }
 
 // Implementation created only to register the DynGd `HealthWithAssociatedType<HealthType=f32>` trait.
 // Pointless trait, but tests proper conversion.
 #[godot_dyn]
-impl InstanceIdProvider for RefcDynGdExporter {
+impl InstanceIdProvider for RefcDynGdVarDeclarer {
     type Id = f32;
     fn get_id_dynamic(&self) -> Self::Id {
         42.0
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Checks if `#[export]`s for DynGd can be properly auto-generated.
+// Only built-in classes can be used as an `#[export]` for `DynGd<T, D>`.
+
+#[derive(GodotClass)]
+#[class(init, base=Node)]
+struct DynGdExporter {
+    #[export]
+    first: Option<DynGd<Resource, dyn Health>>,
+    #[export]
+    second: OnEditor<DynGd<Resource, dyn Health>>,
 }

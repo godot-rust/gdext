@@ -10,9 +10,10 @@ use crate::global::{PropertyHint, PropertyUsageFlags};
 use crate::meta::{
     element_godot_type_name, ArrayElement, ClassName, GodotType, PackedArrayElement,
 };
-use crate::obj::{EngineBitfield, EngineEnum};
+use crate::obj::{bounds, Bounds, EngineBitfield, EngineEnum, GodotClass};
+use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
-use crate::sys;
+use crate::{classes, sys};
 use godot_ffi::VariantType;
 
 /// Describes a property in Godot.
@@ -301,5 +302,43 @@ impl PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
             hint_string: GString::from(T::element_type_string()),
         }
+    }
+
+    pub fn export_gd<T>() -> Self
+    where
+        T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    {
+        let hint = if T::inherits::<classes::Resource>() {
+            PropertyHint::RESOURCE_TYPE
+        } else if T::inherits::<classes::Node>() {
+            PropertyHint::NODE_TYPE
+        } else {
+            unreachable!("classes not inheriting from Resource or Node should not be exportable")
+        };
+
+        // Godot does this by default too; the hint is needed when the class is a resource/node,
+        // but doesn't seem to make a difference otherwise.
+        let hint_string = T::class_name().to_gstring();
+
+        Self { hint, hint_string }
+    }
+
+    pub fn export_dyn_gd<T, D>() -> Self
+    where
+        T: GodotClass + Bounds<Exportable = bounds::Yes>,
+        D: ?Sized + 'static,
+    {
+        PropertyHintInfo {
+            hint_string: GString::from(get_dyn_property_hint_string::<T, D>()),
+            ..PropertyHintInfo::export_gd::<T>()
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn object_as_node_class<T>() -> Option<ClassName>
+    where
+        T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    {
+        T::inherits::<classes::Node>().then(|| T::class_name())
     }
 }
