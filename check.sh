@@ -165,6 +165,8 @@ function cmd_clippy() {
 }
 
 function cmd_klippy() {
+    # TODO(Rust 1.86): remove `-A clippy::precedence`.
+
     run cargo clippy --fix --all-targets "${extraCargoArgs[@]}" -- \
         -D clippy::suspicious \
         -D clippy::style \
@@ -173,7 +175,8 @@ function cmd_klippy() {
         -D clippy::dbg_macro \
         -D clippy::todo \
         -D clippy::unimplemented \
-        -D warnings
+        -D warnings \
+        -A clippy::precedence
 }
 
 function cmd_test() {
