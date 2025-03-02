@@ -8,7 +8,7 @@
 use std::collections::HashSet;
 
 use crate::framework::{assert_eq_self, itest};
-use godot::builtin::{GString, NodePath, StringName};
+use godot::builtin::{Encoding, GString, NodePath, StringName};
 
 #[itest]
 fn string_name_default() {
@@ -162,3 +162,16 @@ fn string_name_with_null() {
         assert_eq!(left, right);
     }
 }
+
+// Byte and C-string conversions.
+crate::generate_string_bytes_and_cstr_tests!(
+    builtin: StringName,
+    tests: [
+        string_name_from_bytes_ascii,
+        string_name_from_cstr_ascii,
+        string_name_from_bytes_latin1,
+        string_name_from_cstr_latin1,
+        string_name_from_bytes_utf8,
+        string_name_from_cstr_utf8,
+    ]
+);
