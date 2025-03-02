@@ -8,9 +8,10 @@
 use std::fmt;
 
 use godot_ffi as sys;
+use godot_ffi::interface_fn;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::{inner, GString, NodePath, Variant};
+use crate::builtin::{inner, Encoding, GString, NodePath, Variant};
 use crate::meta::AsArg;
 use crate::{impl_shared_string_api, meta};
 
@@ -58,6 +59,70 @@ pub struct StringName {
 impl StringName {
     fn from_opaque(opaque: sys::types::OpaqueStringName) -> Self {
         Self { opaque }
+    }
+
+    /// Convert string from bytes with given encoding, returning `Err` on validation errors.
+    ///
+    /// Intermediate `NUL` characters are not accepted in Godot and always return `Err`.
+    ///
+    /// Some notes on the encodings:
+    /// - **Latin-1:** Since every byte is a valid Latin-1 character, no validation besides the `NUL` byte is performed.
+    ///   It is your responsibility to ensure that the input is valid Latin-1.
+    /// - **ASCII**: Subset of Latin-1, which is additionally validated to be valid, non-`NUL` ASCII characters.
+    /// - **UTF-8**: The input is validated to be UTF-8.
+    ///
+    /// Specifying incorrect encoding is safe, but may result in unintended string values.
+    pub fn try_from_bytes(bytes: &[u8], encoding: Encoding) -> Option<Self> {
+        match encoding {
+            Encoding::Ascii => {
+                // ASCII is a subset of UTF-8, and UTF-8 has a more direct implementation than Latin-1; thus use UTF-8 via `From<&str>`.
+                if bytes.is_ascii() && !bytes.contains(&0) {
+                    // SAFETY: ASCII is a subset of UTF-8 and was just verified.
+                    let ascii = unsafe { std::str::from_utf8_unchecked(bytes) };
+                    Some(Self::from(ascii))
+                } else {
+                    None
+                }
+            }
+            Encoding::Latin1 => {
+                // This branch is short-circuited if invoked for CStr and Godot 4.2+, which uses `string_name_new_with_latin1_chars`
+                // (requires nul-termination). In general, fall back to GString conversion.
+                GString::try_from_bytes(bytes, Encoding::Latin1).map(Self::from)
+            }
+            Encoding::Utf8 => {
+                // from_utf8() also checks for intermediate NUL bytes.
+                let utf8 = std::str::from_utf8(bytes);
+                utf8.ok().map(StringName::from)
+            }
+        }
+    }
+
+    /// Convert string from bytes with given encoding, returning `None` on validation errors.
+    ///
+    /// Convenience function for [`try_from_bytes()`](Self::try_from_bytes); see its docs for more information.
+    ///
+    /// When called with `Encoding::Latin1`, this can be slightly more efficient than `try_from_bytes()`.
+    pub fn try_from_cstr(cstr: &std::ffi::CStr, encoding: Encoding) -> Option<Self> {
+        // Short-circuit the direct Godot 4.2 function for Latin-1, which takes a null-terminated C string.
+        #[cfg(since_api = "4.2")]
+        if encoding == Encoding::Latin1 {
+            // Note: CStr guarantees no intermediate NUL bytes, so we don't need to check for them.
+
+            let is_static = sys::conv::SYS_FALSE;
+            let s = unsafe {
+                Self::new_with_string_uninit(|string_ptr| {
+                    let ctor = interface_fn!(string_name_new_with_latin1_chars);
+                    ctor(
+                        string_ptr,
+                        cstr.as_ptr() as *const std::ffi::c_char,
+                        is_static,
+                    );
+                })
+            };
+            return Some(s);
+        }
+
+        Self::try_from_bytes(cstr.to_bytes(), encoding)
     }
 
     /// Number of characters in the string.
