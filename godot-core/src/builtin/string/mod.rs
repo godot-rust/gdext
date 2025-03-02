@@ -55,6 +55,20 @@ impl FromGodot for String {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Encoding
+
+/// Specifies string encoding.
+///
+/// Used in functions such as [`GString::try_from_bytes()`][GString::try_from_bytes] to handle multiple input string encodings.
+#[non_exhaustive]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Encoding {
+    Ascii,
+    Latin1,
+    Utf8,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Returns a tuple of `(from, len)` from a Rust range.
 ///
