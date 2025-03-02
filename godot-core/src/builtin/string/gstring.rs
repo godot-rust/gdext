@@ -15,6 +15,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use crate::builtin::string::Encoding;
 use crate::builtin::{inner, NodePath, StringName, Variant};
+use crate::meta::error::StringError;
 use crate::meta::AsArg;
 use crate::{impl_shared_string_api, meta};
 
@@ -88,21 +89,23 @@ impl GString {
     /// - **UTF-8**: The input is validated to be UTF-8.
     ///
     /// Specifying incorrect encoding is safe, but may result in unintended string values.
-    pub fn try_from_bytes(bytes: &[u8], encoding: Encoding) -> Option<Self> {
+    pub fn try_from_bytes(bytes: &[u8], encoding: Encoding) -> Result<Self, StringError> {
         match encoding {
             Encoding::Ascii => {
                 // If the bytes are ASCII, we can fall back to Latin-1, which is always valid (except for NUL).
                 // is_ascii() does *not* check for the NUL byte, so the check in the Latin-1 branch is still necessary.
                 if bytes.is_ascii() {
                     Self::try_from_bytes(bytes, Encoding::Latin1)
+                        .map_err(|_e| StringError::new("intermediate NUL byte in ASCII string"))
                 } else {
-                    None
+                    Err(StringError::new("invalid ASCII"))
                 }
             }
             Encoding::Latin1 => {
                 // Intermediate NUL bytes are not accepted in Godot. Both ASCII + Latin-1 encodings need to explicitly check for this.
                 if bytes.contains(&0) {
-                    return None;
+                    // Error overwritten when called from ASCII branch.
+                    return Err(StringError::new("intermediate NUL byte in Latin-1 string"));
                 }
 
                 let s = unsafe {
@@ -115,20 +118,22 @@ impl GString {
                         );
                     })
                 };
-                Some(s)
+                Ok(s)
             }
             Encoding::Utf8 => {
                 // from_utf8() also checks for intermediate NUL bytes.
                 let utf8 = std::str::from_utf8(bytes);
-                utf8.ok().map(GString::from)
+
+                utf8.map(GString::from)
+                    .map_err(|e| StringError::with_source("invalid UTF-8", e))
             }
         }
     }
 
-    /// Convert string from C-string with given encoding, returning `None` on validation errors.
+    /// Convert string from C-string with given encoding, returning `Err` on validation errors.
     ///
     /// Convenience function for [`try_from_bytes()`](Self::try_from_bytes); see its docs for more information.
-    pub fn try_from_cstr(cstr: &std::ffi::CStr, encoding: Encoding) -> Option<Self> {
+    pub fn try_from_cstr(cstr: &std::ffi::CStr, encoding: Encoding) -> Result<Self, StringError> {
         Self::try_from_bytes(cstr.to_bytes(), encoding)
     }
 

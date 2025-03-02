@@ -27,14 +27,20 @@ macro_rules! generate_string_bytes_and_cstr_tests {
             assert_eq!(ascii.len(), 5);
 
             let ascii_nul = <$T>::try_from_bytes(b"Hello\0", Encoding::Ascii);
-            assert_eq!(ascii_nul, None, "intermediate NUL byte is not valid ASCII"); // at end, but still not NUL terminator.
+            let ascii_nul = ascii_nul.expect_err("intermediate NUL byte is not valid ASCII"); // at end, but still not NUL terminator.
+            assert_eq!(
+                ascii_nul.to_string(),
+                "intermediate NUL byte in ASCII string"
+            );
 
             let latin1 = <$T>::try_from_bytes(b"/\xF0\xF5\xBE", Encoding::Ascii);
-            assert_eq!(latin1, None, "Latin-1 is *not* valid ASCII");
+            let latin1 = latin1.expect_err("Latin-1 is *not* valid ASCII");
+            assert_eq!(latin1.to_string(), "invalid ASCII");
 
             let utf8 =
                 <$T>::try_from_bytes(b"\xF6\xF0\x9F\x8D\x8E\xF0\x9F\x92\xA1", Encoding::Ascii);
-            assert_eq!(utf8, None, "UTF-8 is *not* valid ASCII");
+            let utf8 = utf8.expect_err("UTF-8 is *not* valid ASCII");
+            assert_eq!(utf8.to_string(), "invalid ASCII");
         }
 
         #[itest]
@@ -45,10 +51,12 @@ macro_rules! generate_string_bytes_and_cstr_tests {
             assert_eq!(ascii.len(), 5);
 
             let latin1 = <$T>::try_from_cstr(c"/ðõ¾", Encoding::Ascii);
-            assert_eq!(latin1, None, "Latin-1 is *not* valid ASCII");
+            let latin1 = latin1.expect_err("Latin-1 is *not* valid ASCII");
+            assert_eq!(latin1.to_string(), "invalid ASCII");
 
             let utf8 = <$T>::try_from_cstr(c"ö🍎A💡", Encoding::Ascii);
-            assert_eq!(utf8, None, "UTF-8 is *not* valid ASCII");
+            let utf8 = utf8.expect_err("UTF-8 is *not* valid ASCII");
+            assert_eq!(utf8.to_string(), "invalid ASCII");
         }
 
         #[itest]
@@ -64,9 +72,10 @@ macro_rules! generate_string_bytes_and_cstr_tests {
             assert_eq!(latin1.len(), 4);
 
             let latin1_nul = <$T>::try_from_bytes(b"/\0\xF0\xF5\xBE", Encoding::Latin1);
+            let latin1_nul = latin1_nul.expect_err("intermediate NUL byte is not valid Latin-1");
             assert_eq!(
-                latin1_nul, None,
-                "intermediate NUL byte is not valid Latin-1"
+                latin1_nul.to_string(),
+                "intermediate NUL byte in Latin-1 string"
             );
 
             // UTF-8 -> Latin-1: always succeeds, even if result is garbage, since every byte is a valid Latin-1 character.
@@ -107,7 +116,12 @@ macro_rules! generate_string_bytes_and_cstr_tests {
             assert_eq!(ascii.len(), 5);
 
             let latin1 = <$T>::try_from_bytes(b"/\xF0\xF5\xBE", Encoding::Utf8);
-            assert_eq!(latin1, None, "Latin-1 is *not* valid UTF-8");
+            let latin1 = latin1.expect_err("Latin-1 is *not* valid UTF-8");
+            // Note: depends on exact output of std's Utf8Error; might need format!() if that changes.
+            assert_eq!(
+                latin1.to_string(),
+                "invalid UTF-8: invalid utf-8 sequence of 1 bytes from index 1"
+            );
 
             let utf8 = <$T>::try_from_bytes(
                 b"\xC3\xB6\xF0\x9F\x8D\x8E\x41\xF0\x9F\x92\xA1",
@@ -118,7 +132,11 @@ macro_rules! generate_string_bytes_and_cstr_tests {
             assert_eq!(utf8.len(), 4);
 
             let utf8_nul = <$T>::try_from_bytes(b"\xC3\0A", Encoding::Utf8);
-            assert_eq!(utf8_nul, None, "intermediate NUL byte is not valid UTF-8");
+            let utf8_nul = utf8_nul.expect_err("intermediate NUL byte is not valid UTF-8");
+            assert_eq!(
+                utf8_nul.to_string(),
+                "invalid UTF-8: invalid utf-8 sequence of 1 bytes from index 0"
+            );
         }
 
         #[itest]

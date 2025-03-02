@@ -4,7 +4,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
 use std::fmt;
 
 use godot_ffi as sys;
@@ -12,6 +11,7 @@ use godot_ffi::interface_fn;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::{inner, Encoding, GString, NodePath, Variant};
+use crate::meta::error::StringError;
 use crate::meta::AsArg;
 use crate::{impl_shared_string_api, meta};
 
@@ -72,16 +72,18 @@ impl StringName {
     /// - **UTF-8**: The input is validated to be UTF-8.
     ///
     /// Specifying incorrect encoding is safe, but may result in unintended string values.
-    pub fn try_from_bytes(bytes: &[u8], encoding: Encoding) -> Option<Self> {
+    pub fn try_from_bytes(bytes: &[u8], encoding: Encoding) -> Result<Self, StringError> {
         match encoding {
             Encoding::Ascii => {
                 // ASCII is a subset of UTF-8, and UTF-8 has a more direct implementation than Latin-1; thus use UTF-8 via `From<&str>`.
-                if bytes.is_ascii() && !bytes.contains(&0) {
-                    // SAFETY: ASCII is a subset of UTF-8 and was just verified.
-                    let ascii = unsafe { std::str::from_utf8_unchecked(bytes) };
-                    Some(Self::from(ascii))
+                if !bytes.is_ascii() {
+                    Err(StringError::new("invalid ASCII"))
+                } else if bytes.contains(&0) {
+                    Err(StringError::new("intermediate NUL byte in ASCII string"))
                 } else {
-                    None
+                    // SAFETY: ASCII is a subset of UTF-8 and was verified above.
+                    let ascii = unsafe { std::str::from_utf8_unchecked(bytes) };
+                    Ok(Self::from(ascii))
                 }
             }
             Encoding::Latin1 => {
@@ -92,17 +94,19 @@ impl StringName {
             Encoding::Utf8 => {
                 // from_utf8() also checks for intermediate NUL bytes.
                 let utf8 = std::str::from_utf8(bytes);
-                utf8.ok().map(StringName::from)
+
+                utf8.map(StringName::from)
+                    .map_err(|e| StringError::with_source("invalid UTF-8", e))
             }
         }
     }
 
-    /// Convert string from bytes with given encoding, returning `None` on validation errors.
+    /// Convert string from bytes with given encoding, returning `Err` on validation errors.
     ///
     /// Convenience function for [`try_from_bytes()`](Self::try_from_bytes); see its docs for more information.
     ///
     /// When called with `Encoding::Latin1`, this can be slightly more efficient than `try_from_bytes()`.
-    pub fn try_from_cstr(cstr: &std::ffi::CStr, encoding: Encoding) -> Option<Self> {
+    pub fn try_from_cstr(cstr: &std::ffi::CStr, encoding: Encoding) -> Result<Self, StringError> {
         // Short-circuit the direct Godot 4.2 function for Latin-1, which takes a null-terminated C string.
         #[cfg(since_api = "4.2")]
         if encoding == Encoding::Latin1 {
@@ -119,7 +123,7 @@ impl StringName {
                     );
                 })
             };
-            return Some(s);
+            return Ok(s);
         }
 
         Self::try_from_bytes(cstr.to_bytes(), encoding)

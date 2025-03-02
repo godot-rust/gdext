@@ -35,10 +35,10 @@ mod containers {
 }
 
 mod string {
-    mod string_test_macros;
     mod gstring_test;
     mod node_path_test;
     mod string_name_test;
+    mod string_test_macros;
 }
 
 mod script {

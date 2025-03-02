@@ -10,7 +10,9 @@
 mod call_error;
 mod convert_error;
 mod io_error;
+mod string_error;
 
 pub use call_error::*;
 pub use convert_error::*;
 pub use io_error::*;
+pub use string_error::*;
