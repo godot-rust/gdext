@@ -651,7 +651,7 @@ impl<T: ArrayElement> Array<T> {
         let ignored_value = <T as ParamType>::owned_to_arg(ignored_value);
 
         let godot_comparator = |args: &[&Variant]| {
-            let value = T::from_variant(&args[0]);
+            let value = T::from_variant(args[0]);
             let is_less = matches!(func(&value), cmp::Ordering::Less);
 
             Ok(is_less.to_variant())
@@ -697,20 +697,55 @@ impl<T: ArrayElement> Array<T> {
 
     /// Sorts the array.
     ///
-    /// Note: The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
-    /// This means that values considered equal may have their order changed when using `sort_unstable`.
+    /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
+    /// This means that values considered equal may have their order changed when using `sort_unstable`. For most variant types,
+    /// this distinction should not matter though.
+    ///
+    /// _Godot equivalent: `Array.sort()`_
     #[doc(alias = "sort")]
     pub fn sort_unstable(&mut self) {
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort();
     }
 
-    /// Sorts the array.
+    /// Sorts the array, using a type-safe comparator.
     ///
-    /// Uses the provided `Callable` to determine ordering.
+    /// The predicate expects two parameters `(a, b)` and should return an ordering relation. For example, simple ascending ordering of the
+    /// elements themselves would be achieved with `|a, b| a.cmp(b)`.
     ///
-    /// Note: The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
-    /// This means that values considered equal may have their order changed when using `sort_unstable_custom`.
+    /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
+    /// This means that values considered equal may have their order changed when using `sort_unstable_by`. For most variant types,
+    /// this distinction should not matter though.
+    #[cfg(since_api = "4.2")]
+    pub fn sort_unstable_by<F>(&mut self, mut func: F)
+    where
+        F: FnMut(&T, &T) -> cmp::Ordering,
+    {
+        let godot_comparator = |args: &[&Variant]| {
+            let lhs = T::from_variant(args[0]);
+            let rhs = T::from_variant(args[1]);
+            let is_less = matches!(func(&lhs, &rhs), cmp::Ordering::Less);
+
+            Ok(is_less.to_variant())
+        };
+
+        let debug_name = std::any::type_name::<F>();
+        Callable::with_scoped_fn(debug_name, godot_comparator, |pred| {
+            self.sort_unstable_custom(pred)
+        });
+    }
+
+    /// Sorts the array, using type-unsafe `Callable` comparator.
+    ///
+    /// For a type-safe variant of this method, use [`sort_unstable_by()`][Self::sort_unstable_by].
+    ///
+    /// The callable expects two parameters `(lhs, rhs)` and should return a bool `lhs < rhs`.
+    ///
+    /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
+    /// This means that values considered equal may have their order changed when using `sort_unstable_custom`.For most variant types,
+    /// this distinction should not matter though.
+    ///
+    /// _Godot equivalent: `Array.sort_custom()`_
     #[doc(alias = "sort_custom")]
     pub fn sort_unstable_custom(&mut self, func: &Callable) {
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
