@@ -171,11 +171,17 @@ jobs:
 
           # Linux compat
 
-          - name: linux-4.1
+          - name: linux-4.4
             os: ubuntu-22.04
-            artifact-name: linux-4.1
+            artifact-name: linux-4.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.1.4'
+            godot-prebuilt-patch: '4.4'
+
+          - name: linux-4.3
+            os: ubuntu-22.04
+            artifact-name: linux-4.3
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: '4.3'
 
           - name: linux-4.2
             os: ubuntu-22.04
@@ -183,11 +189,11 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.2.2'
 
-          - name: linux-4.3
+          - name: linux-4.1
             os: ubuntu-22.04
-            artifact-name: linux-4.3
+            artifact-name: linux-4.1
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.3'
+            godot-prebuilt-patch: '4.1.4'
 
           # Memory checkers
 
@@ -239,7 +245,7 @@ jobs:
       - name: "Install Godot"
         uses: ./.github/composite/godot-install
         with:
-          artifact-name: godot-linux-4.3
+          artifact-name: godot-linux-4.4
           godot-binary: godot.linuxbsd.editor.dev.x86_64
 
       - name: "Run examples for short time"
