@@ -8,7 +8,7 @@
 use std::collections::HashSet;
 
 use crate::framework::{expect_debug_panic_or_release_ok, itest};
-use godot::builtin::{GString, PackedStringArray};
+use godot::builtin::{Encoding, GString, PackedStringArray};
 
 // TODO use tests from godot-rust/gdnative
 
@@ -150,7 +150,7 @@ fn string_substr() {
 }
 
 #[itest]
-fn string_find() {
+fn gstring_find() {
     let s = GString::from("Hello World");
 
     assert_eq!(s.find("o"), Some(4));
@@ -171,7 +171,7 @@ fn string_find() {
 }
 
 #[itest]
-fn string_split() {
+fn gstring_split() {
     let s = GString::from("Hello World");
     assert_eq!(s.split(" "), packed(&["Hello", "World"]));
     assert_eq!(
@@ -206,7 +206,7 @@ fn string_split() {
 }
 
 #[itest]
-fn string_count() {
+fn gstring_count() {
     let s = GString::from("Long sentence with Sentry guns.");
     assert_eq!(s.count("sent", ..), 1);
     assert_eq!(s.count("en", 6..), 3);
@@ -224,7 +224,7 @@ fn string_count() {
 }
 
 #[itest]
-fn string_erase() {
+fn gstring_erase() {
     let s = GString::from("Hello World");
     assert_eq!(s.erase(..), GString::new());
     assert_eq!(s.erase(4..4), s);
@@ -236,7 +236,7 @@ fn string_erase() {
 }
 
 #[itest]
-fn string_insert() {
+fn gstring_insert() {
     let s = GString::from("H World");
     assert_eq!(s.insert(1, "i"), "Hi World".into());
     assert_eq!(s.insert(1, "ello"), "Hello World".into());
@@ -248,7 +248,7 @@ fn string_insert() {
 }
 
 #[itest]
-fn string_pad() {
+fn gstring_pad() {
     let s = GString::from("123");
     assert_eq!(s.lpad(5, '0'), "00123".into());
     assert_eq!(s.lpad(2, ' '), "123".into());
@@ -266,7 +266,21 @@ fn string_pad() {
     assert_eq!(s.pad_zeros(2), "123.456".into());
 }
 
+// Byte and C-string conversions.
+crate::generate_string_bytes_and_cstr_tests!(
+    builtin: GString,
+    tests: [
+        gstring_from_bytes_ascii,
+        gstring_from_cstr_ascii,
+        gstring_from_bytes_latin1,
+        gstring_from_cstr_latin1,
+        gstring_from_bytes_utf8,
+        gstring_from_cstr_utf8,
+    ]
+);
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helpers
 
 fn packed(strings: &[&str]) -> PackedStringArray {
     strings.iter().map(|&s| GString::from(s)).collect()
