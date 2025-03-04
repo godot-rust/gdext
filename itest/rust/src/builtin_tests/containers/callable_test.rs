@@ -7,7 +7,8 @@
 
 use crate::framework::itest;
 use godot::builtin::{
-    array, varray, Array, Callable, GString, NodePath, StringName, Variant, VariantArray, Vector2,
+    array, dict, varray, Array, Callable, Color, GString, NodePath, StringName, Variant,
+    VariantArray, Vector2,
 };
 use godot::classes::{Node2D, Object, RefCounted};
 use godot::init::GdextBuild;
@@ -95,6 +96,43 @@ fn callable_object_method() {
     drop(object);
     assert_eq!(callable.object_id(), Some(object_id));
     assert_eq!(callable.object(), None);
+}
+
+#[itest]
+#[cfg(since_api = "4.3")]
+fn callable_variant_method() {
+    // Dictionary
+    let dict = dict! { "one": 1, "value": 2 };
+    let dict_get = Callable::from_variant_method(&dict.to_variant(), "get");
+    assert_eq!(dict_get.call(&["one".to_variant()]), 1.to_variant());
+
+    // GString
+    let string = GString::from("some string").to_variant();
+    let string_md5 = Callable::from_variant_method(&string, "md5_text");
+    assert_eq!(
+        string_md5.call(&[]),
+        "5ac749fbeec93607fc28d666be85e73a".to_variant()
+    );
+
+    // Object
+    let obj = CallableTestObj::new_gd().to_variant();
+    let obj_stringify = Callable::from_variant_method(&obj, "stringify_int");
+    assert_eq!(obj_stringify.call(&[10.to_variant()]), "10".to_variant());
+
+    // Vector3
+    let vector = Vector2::new(-1.2, 2.5).to_variant();
+    let vector_round = Callable::from_variant_method(&vector, "round");
+    assert_eq!(vector_round.call(&[]), Vector2::new(-1.0, 3.0).to_variant());
+
+    // Color
+    let color = Color::from_rgba8(255, 0, 127, 255).to_variant();
+    let color_to_html = Callable::from_variant_method(&color, "to_html");
+    assert_eq!(color_to_html.call(&[]), "ff007fff".to_variant());
+
+    // Color - invalid method.
+    let color = Color::from_rgba8(255, 0, 127, 255).to_variant();
+    let color_to_html = Callable::from_variant_method(&color, "to_htmI");
+    assert!(!color_to_html.is_valid());
 }
 
 #[itest]
