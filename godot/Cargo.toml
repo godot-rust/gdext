@@ -38,6 +38,7 @@ api-4-2 = ["godot-core/api-4-2"]
 api-4-2-1 = ["godot-core/api-4-2-1"]
 api-4-2-2 = ["godot-core/api-4-2-2"]
 api-4-3 = ["godot-core/api-4-3"]
+api-4-4 = ["godot-core/api-4-4"]
 # ]]
 
 default = ["__codegen-full"]
