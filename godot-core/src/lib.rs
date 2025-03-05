@@ -34,6 +34,7 @@ pub mod task {}
 pub mod tools;
 
 mod storage;
+pub use crate::private::{get_gdext_panic_context, set_gdext_hook};
 pub use godot_ffi as sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
