@@ -54,10 +54,12 @@ mod signature;
 mod traits;
 
 pub mod error;
+pub mod property_update;
 
 pub use args::*;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
+pub use property_update::PropertyUpdate;
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
 #[cfg(since_api = "4.2")]
