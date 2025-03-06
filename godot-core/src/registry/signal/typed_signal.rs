@@ -207,4 +207,8 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
             c.done();
         });
     }
+
+    pub(crate) fn to_untyped(&self) -> crate::builtin::Signal {
+        crate::builtin::Signal::from_object_signal(&self.receiver_object(), &*self.name)
+    }
 }

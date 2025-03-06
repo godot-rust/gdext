@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#[cfg(since_api = "4.2")]
+mod async_test;
 mod codegen_enums_test;
 mod codegen_test;
 mod engine_enum_test;
