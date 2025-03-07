@@ -11,7 +11,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// Exported property that must be initialized in the editor (or associated code) before use.
 ///
 /// Allows to use `Gd<T>`, which by itself never holds null objects, as an `#[export]` that should not be null during runtime.
-/// As such, it can be used as a more ergonomic way of `Option<Gd<T>>` which _assumes_ initialization.
+/// As such, it can be used as a more ergonomic version of `Option<Gd<T>>` which _assumes_ initialization.
 ///
 /// Panics during access if uninitialized.
 /// When used inside a node class, `OnEditor` checks if a value has been set before `ready()` is run, and panics otherwise.
@@ -147,6 +147,11 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// }
 /// ```
 ///
+/// # Using `OnEditor<T>` with `#[class(tool)]`
+///
+/// When used with `#[class(tool)]`, the before-ready checks are omitted.
+/// Otherwise, `OnEditor<T>` behaves the same — accessing an uninitialized value
+/// will cause a panic.
 pub struct OnEditor<T> {
     inner: OnEditorState<T>,
 }
@@ -160,7 +165,7 @@ pub(crate) enum OnEditorState<T> {
     Initialized(T),
 }
 
-impl<T: GodotConvert + FromGodot + PartialEq> OnEditor<T> {
+impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
     /// Initializes invalid `OnEditor<T>` with given value.
     ///
     /// # Panics
@@ -183,7 +188,7 @@ impl<T: GodotConvert + FromGodot + PartialEq> OnEditor<T> {
     /// If this value is not changed in the editor, accessing it from Rust will cause a panic.
     pub fn new_invalid(val: T) -> Self
     where
-        T: BuiltinExport,
+        T::Via: BuiltinExport,
     {
         OnEditor {
             inner: OnEditorState::Uninitialized(val),
@@ -208,14 +213,11 @@ impl<T: GodotConvert + FromGodot + PartialEq> OnEditor<T> {
     }
 
     /// `Var::get_property` implementation that works both for nullable and non-nullable types.
-    pub(crate) fn get_property_inner(
-        &self,
-        get_property_fn: impl FnOnce(&T) -> T::Via,
-    ) -> Option<T::Via> {
+    pub(crate) fn get_property_inner(&self) -> Option<T::Via> {
         match &self.inner {
             OnEditorState::Null => None,
             OnEditorState::Uninitialized(val) | OnEditorState::Initialized(val) => {
-                Some(get_property_fn(val))
+                Some(val.get_property())
             }
         }
     }
@@ -224,17 +226,11 @@ impl<T: GodotConvert + FromGodot + PartialEq> OnEditor<T> {
     ///
     /// All the state transitions are valid, since it is being run only in the editor.
     /// See also [`Option::set_property()`].
-    pub(crate) fn set_property_inner(
-        &mut self,
-        value: Option<T::Via>,
-        set_property_fn: impl FnOnce(&mut T, T::Via),
-    ) where
-        T::Via: PartialEq,
-    {
+    pub(crate) fn set_property_inner(&mut self, value: Option<T::Via>) {
         match (value, &mut self.inner) {
             (None, _) => self.inner = OnEditorState::Null,
             (Some(value), OnEditorState::Initialized(current_value)) => {
-                set_property_fn(current_value, value)
+                current_value.set_property(value);
             }
             (Some(value), OnEditorState::Null) => {
                 self.inner = OnEditorState::Initialized(FromGodot::from_godot(value))
@@ -274,31 +270,33 @@ impl<T> std::ops::DerefMut for OnEditor<T> {
 
 impl<T> GodotConvert for OnEditor<T>
 where
-    T: GodotType + GodotConvert<Via = T> + BuiltinExport,
+    T: GodotConvert,
+    T::Via: GodotType + BuiltinExport,
 {
     type Via = T::Via;
 }
 
 impl<T> Var for OnEditor<T>
 where
-    OnEditor<T>: GodotConvert<Via = T>,
-    T: GodotConvert<Via = T> + BuiltinExport + Var + FromGodot + PartialEq,
+    OnEditor<T>: GodotConvert<Via = T::Via>,
+    T: Var + FromGodot + PartialEq,
+    T::Via: BuiltinExport,
 {
     fn get_property(&self) -> Self::Via {
         // Will never fail – `PrimitiveGodotType` can not be represented by the `OnEditorState::Null`.
-        OnEditor::<T>::get_property_inner(self, T::get_property)
-            .expect("DirectExport is not nullable.")
+        OnEditor::<T>::get_property_inner(self).expect("DirectExport is not nullable.")
     }
 
-    fn set_property(&mut self, value: T) {
-        OnEditor::<T>::set_property_inner(self, Some(value), T::set_property);
+    fn set_property(&mut self, value: T::Via) {
+        OnEditor::<T>::set_property_inner(self, Some(value));
     }
 }
 
 impl<T> Export for OnEditor<T>
 where
     OnEditor<T>: Var,
-    T: GodotConvert<Via = T> + BuiltinExport + Export,
+    T: GodotConvert + Export,
+    T::Via: BuiltinExport,
 {
     fn export_hint() -> PropertyHintInfo {
         T::export_hint()

@@ -139,12 +139,51 @@ use std::{fmt, ops};
 ///
 /// # `#[export]` for `DynGd<T, D>`
 ///
-/// Exporting `DynGd<T, D>` is possible only via algebraic types such as [`OnEditor`] or [`Option`].
+/// Exporting `DynGd<T, D>` is possible only via [`OnEditor`] or [`Option`].
 /// `DynGd<T, D>` can also be exported directly as an element of an array such as `Array<DynGd<T, D>>`.
 ///
 /// Since `DynGd<T, D>` expresses shared functionality `D` among classes inheriting `T`,
 /// `#[export]` for `DynGd<T, D>` where `T` is a concrete Rust class is not allowed.
-/// Consider using `Gd<T>` instead in such cases.
+///
+/// ```compile_fail
+///
+///  use godot::prelude::*;
+///
+/// trait Health { /* ... */ }
+///
+/// #[derive(GodotClass)]
+/// # #[class(init)]
+/// struct Monster { /* ... */ }
+///
+/// #[godot_dyn]
+/// impl Health for Monster { /* ... */ }
+///
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct MyClass {
+///     #[export]
+///     dyn_concrete: Option<DynGd<Monster, dyn Health>>,
+/// }
+/// ```
+///
+/// Consider using `Gd<T>` instead in such cases:
+///
+/// ```
+///  use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct Monster { /* ... */ }
+///
+/// /* ... */
+///
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct MyClass {
+///     #[export]
+///     dyn_concrete: Option<Gd<Monster>>,
+/// }
+/// ```
 ///
 /// ## Node based classes
 ///
@@ -154,7 +193,7 @@ use std::{fmt, ops};
 /// ## Resource based classes
 ///
 /// `#[export]` for a `DynGd<T, D>` allows you to limit the available choices to implementors of a given trait `D` whose base inherits the specified `T`
-/// (for example, `#[export] DynGd<Resource, dyn MyTrait>` won't include Rust classes with an Object base, even if they implement `MyTrait`).
+/// (for example, `#[export] Option<DynGd<Resource, dyn MyTrait>>` won't include Rust classes with an Object base, even if they implement `MyTrait`).
 pub struct DynGd<T, D>
 where
     // T does _not_ require AsDyn<D> here. Otherwise, it's impossible to upcast (without implementing the relation for all base classes).
@@ -291,22 +330,6 @@ where
     #[must_use]
     pub fn into_gd(self) -> Gd<T> {
         self.obj
-    }
-
-    /// Implementation shared between `OnEditor<DynGd<T, D>>` and `Option<DynGd<T, D>>`.
-    #[doc(hidden)]
-    fn set_property(&mut self, value: <Self as GodotConvert>::Via)
-    where
-        D: 'static,
-    {
-        // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
-        *self = <Self as FromGodot>::from_godot(value);
-    }
-
-    /// Implementation shared between `OnEditor<DynGd<T, D>>` and `Option<DynGd<T, D>>`.
-    #[doc(hidden)]
-    fn get_property(&self) -> <Self as GodotConvert>::Via {
-        self.obj.to_godot()
     }
 }
 
@@ -519,21 +542,18 @@ where
     }
 }
 
-impl<T, D> Var for Option<DynGd<T, D>>
+impl<T, D> Var for DynGd<T, D>
 where
     T: GodotClass,
     D: ?Sized + 'static,
 {
     fn get_property(&self) -> Self::Via {
-        self.as_ref().map(|this| this.get_property())
+        self.obj.get_property()
     }
 
     fn set_property(&mut self, value: Self::Via) {
-        match (value, self.as_mut()) {
-            (Some(new_value), Some(current_value)) => current_value.set_property(new_value),
-            (Some(new_value), _) => *self = Some(<DynGd<T, D> as FromGodot>::from_godot(new_value)),
-            (None, _) => *self = None,
-        }
+        // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
+        *self = <Self as FromGodot>::from_godot(value);
     }
 }
 
@@ -579,12 +599,12 @@ where
     D: ?Sized + 'static,
 {
     fn get_property(&self) -> Self::Via {
-        OnEditor::<DynGd<T, D>>::get_property_inner(self, <DynGd<T, D>>::get_property)
+        OnEditor::<DynGd<T, D>>::get_property_inner(self)
     }
 
     fn set_property(&mut self, value: Self::Via) {
         // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
-        OnEditor::<DynGd<T, D>>::set_property_inner(self, value, <DynGd<T, D>>::set_property)
+        OnEditor::<DynGd<T, D>>::set_property_inner(self, value)
     }
 }
 

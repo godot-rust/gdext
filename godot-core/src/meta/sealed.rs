@@ -11,7 +11,7 @@
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::traits::{ArrayElement, GodotNullableFfi, GodotType};
-use crate::obj::{DynGd, Gd, GodotClass, OnEditor, RawGd};
+use crate::obj::{DynGd, Gd, GodotClass, RawGd};
 
 pub trait Sealed {}
 impl Sealed for Aabb {}
@@ -72,4 +72,3 @@ where
     T::Ffi: GodotNullableFfi,
 {
 }
-impl<T> Sealed for OnEditor<T> where T: GodotType {}

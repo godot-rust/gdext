@@ -549,18 +549,6 @@ impl<T: GodotClass> Gd<T> {
         // Do not increment ref-count; assumed to be return value from FFI.
         sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
     }
-
-    /// Implementation shared between `OnEditor<Gd<T>>` and `Option<Gd<T>`.
-    #[doc(hidden)]
-    fn set_property(&mut self, new_value: <Self as GodotConvert>::Via) {
-        *self = FromGodot::from_godot(new_value);
-    }
-
-    /// Implementation shared between `OnEditor<Gd<T>>` and `Option<Gd<T>`.
-    #[doc(hidden)]
-    fn get_property(&self) -> <Self as GodotConvert>::Via {
-        self.to_godot()
-    }
 }
 
 /// _The methods in this impl block are only available for objects `T` that are manually managed,
@@ -907,17 +895,13 @@ impl<T: GodotClass> Clone for Gd<T> {
     }
 }
 
-impl<T: GodotClass> Var for Option<Gd<T>> {
+impl<T: GodotClass> Var for Gd<T> {
     fn get_property(&self) -> Self::Via {
-        self.as_ref().map(<Gd<T>>::get_property)
+        self.to_godot()
     }
 
     fn set_property(&mut self, value: Self::Via) {
-        match (value, self.as_mut()) {
-            (Some(new_value), Some(current_value)) => current_value.set_property(new_value),
-            (Some(new_value), _) => *self = Some(<Gd<T> as FromGodot>::from_godot(new_value)),
-            (None, _) => *self = None,
-        }
+        *self = FromGodot::from_godot(value)
     }
 }
 
@@ -956,11 +940,11 @@ where
     OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
 {
     fn get_property(&self) -> Self::Via {
-        OnEditor::<Gd<T>>::get_property_inner(self, <Gd<T>>::get_property)
+        OnEditor::<Gd<T>>::get_property_inner(self)
     }
 
     fn set_property(&mut self, value: Self::Via) {
-        OnEditor::<Gd<T>>::set_property_inner(self, value, <Gd<T>>::set_property)
+        OnEditor::<Gd<T>>::set_property_inner(self, value)
     }
 }
 
