@@ -15,6 +15,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///
 /// Panics during access if uninitialized.
 /// When used inside a node class, `OnEditor` checks if a value has been set before `ready()` is run, and panics otherwise.
+/// This validation is performed for all `OnEditor` fields declared in a given `GodotClass`, regardless of whether they are `#[var]`, `#[export]`, or neither.
 /// Once initialized, it can be used almost as if it was a `T` value itself, due to `Deref`/`DerefMut` impls.
 ///
 /// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
