@@ -14,7 +14,7 @@ workflowFile="$1"
 artifactName="$2"
 outFilename="$3"
 
-echo "Download artifact: workflow $workflowFile; artifact $artifactName..."
+echo "Download artifact: $workflowFile > $artifactName..."
 
 # Find latest **successful** workflow run for the specified workflow file.
 workflowRunId=$(curl -s -H "Accept: application/vnd.github+json" \
