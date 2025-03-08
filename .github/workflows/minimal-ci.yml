@@ -29,6 +29,10 @@ env:
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
 
+permissions:
+  actions: read
+
+
 defaults:
   run:
     shell: bash
