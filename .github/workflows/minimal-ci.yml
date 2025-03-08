@@ -33,11 +33,6 @@ defaults:
   run:
     shell: bash
 
-# If a new commit is pushed before the old one's CI has completed (on the same branch), abort previous run
-concurrency:
-  group: ${{ github.head_ref }}
-  cancel-in-progress: true
-
 jobs:
 
   rustfmt:
