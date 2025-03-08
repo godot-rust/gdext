@@ -365,16 +365,17 @@ where
         **this is a bug, please report it**",
         trait_name = sys::short_type_name::<D>()
     );
-    let relations_iter = relations.iter();
 
     // Include only implementors inheriting given T.
     // For example – don't include Nodes or Objects while creating hint_string for Resource.
-    let relations_iter = relations_iter.filter_map(|implementor| {
+    let relations_iter = relations.iter().filter_map(|implementor| {
         // TODO – check if caching it (using is_derived_base_cached) yields any benefits.
-        if ClassDb::singleton().is_parent_class(
-            &implementor.parent_class_name?.to_string_name(),
-            &T::class_name().to_string_name(),
-        ) {
+        if implementor.parent_class_name? == T::class_name()
+            || ClassDb::singleton().is_parent_class(
+                &implementor.parent_class_name?.to_string_name(),
+                &T::class_name().to_string_name(),
+            )
+        {
             Some(implementor)
         } else {
             None
