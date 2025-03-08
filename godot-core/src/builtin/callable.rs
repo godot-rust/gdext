@@ -540,7 +540,9 @@ mod custom_callable {
     ///
     /// Since callables can be invoked from anywhere, they must be self-contained (`'static`) and thread-safe (`Send + Sync`).
     /// They also should implement `Display` for the Godot string representation.
-    /// Furthermore, `PartialEq` and `Hash` are required for equality checks and usage as a key in a `Dictionary`.
+    /// Furthermore, `Hash` is required for usage as a key in a `Dictionary` and for checking signal connections –
+    /// Godot considers a custom callable to be connected to a signal if a callable with the same hash is already connected to that signal.
+    /// Finally, `PartialEq` is necessary for equality checks.
     pub trait RustCallable: 'static + PartialEq + Hash + fmt::Display + Send + Sync {
         /// Invokes the callable with the given arguments as `Variant` references.
         ///
