@@ -142,48 +142,9 @@ use std::{fmt, ops};
 /// Exporting `DynGd<T, D>` is possible only via [`OnEditor`] or [`Option`].
 /// `DynGd<T, D>` can also be exported directly as an element of an array such as `Array<DynGd<T, D>>`.
 ///
-/// Since `DynGd<T, D>` expresses shared functionality `D` among classes inheriting `T`,
-/// `#[export]` for `DynGd<T, D>` where `T` is a concrete Rust class is not allowed.
-///
-/// ```compile_fail
-///
-///  use godot::prelude::*;
-///
-/// trait Health { /* ... */ }
-///
-/// #[derive(GodotClass)]
-/// # #[class(init)]
-/// struct Monster { /* ... */ }
-///
-/// #[godot_dyn]
-/// impl Health for Monster { /* ... */ }
-///
-/// #[derive(GodotClass)]
-/// #[class(init, base = Node)]
-/// struct MyClass {
-///     #[export]
-///     dyn_concrete: Option<DynGd<Monster, dyn Health>>,
-/// }
-/// ```
-///
-/// Consider using `Gd<T>` instead in such cases:
-///
-/// ```
-///  use godot::prelude::*;
-///
-/// #[derive(GodotClass)]
-/// #[class(init, base = Node)]
-/// struct Monster { /* ... */ }
-///
-/// /* ... */
-///
-/// #[derive(GodotClass)]
-/// #[class(init, base = Node)]
-/// struct MyClass {
-///     #[export]
-///     dyn_concrete: Option<Gd<Monster>>,
-/// }
-/// ```
+/// Since `DynGd<T, D>` represents shared functionality `D` across classes inheriting from `T`,
+/// consider using `#[export] Gd<T>` instead of `#[export] DynGd<T, D>`
+/// in cases when `T` is a concrete Rust `GodotClass`.
 ///
 /// ## Node based classes
 ///
@@ -562,7 +523,7 @@ where
 /// Consider exporting `Option<Gd<T>>` instead of `Option<DynGd<T, D>>` for user-declared GDExtension classes.
 impl<T, D> Export for Option<DynGd<T, D>>
 where
-    T: GodotClass + Bounds<Exportable = bounds::Yes, Declarer = bounds::DeclEngine>,
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
 {
     fn export_hint() -> PropertyHintInfo {
@@ -599,12 +560,12 @@ where
     D: ?Sized + 'static,
 {
     fn get_property(&self) -> Self::Via {
-        OnEditor::<DynGd<T, D>>::get_property_inner(self)
+        Self::get_property_inner(self)
     }
 
     fn set_property(&mut self, value: Self::Via) {
         // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
-        OnEditor::<DynGd<T, D>>::set_property_inner(self, value)
+        Self::set_property_inner(self, value)
     }
 }
 
@@ -613,8 +574,8 @@ where
 /// Consider exporting `OnEditor<Gd<T>>` instead of `OnEditor<DynGd<T, D>>` for user-declared GDExtension classes.
 impl<T, D> Export for OnEditor<DynGd<T, D>>
 where
-    OnEditor<DynGd<T, D>>: Var,
-    T: GodotClass + Bounds<Exportable = bounds::Yes, Declarer = bounds::DeclEngine>,
+    Self: Var,
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
 {
     fn export_hint() -> PropertyHintInfo {

@@ -937,21 +937,20 @@ where
 impl<T> Var for OnEditor<Gd<T>>
 where
     T: GodotClass,
-    OnEditor<Gd<T>>: GodotConvert<Via = Option<<Gd<T> as GodotConvert>::Via>>,
 {
     fn get_property(&self) -> Self::Via {
-        OnEditor::<Gd<T>>::get_property_inner(self)
+        Self::get_property_inner(self)
     }
 
     fn set_property(&mut self, value: Self::Via) {
-        OnEditor::<Gd<T>>::set_property_inner(self, value)
+        Self::set_property_inner(self, value)
     }
 }
 
 impl<T> Export for OnEditor<Gd<T>>
 where
+    Self: Var,
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
-    OnEditor<Gd<T>>: Var,
 {
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo::export_gd::<T>()

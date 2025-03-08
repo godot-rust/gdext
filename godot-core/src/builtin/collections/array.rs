@@ -1102,9 +1102,9 @@ where
 
 impl<T: ArrayElement> BuiltinExport for Array<T> {}
 
-impl<T: GodotClass> Export for Array<Gd<T>>
+impl<T> Export for Array<Gd<T>>
 where
-    T: Bounds<Exportable = bounds::Yes>,
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
 {
     fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo::export_array_element::<Gd<T>>()
@@ -1121,7 +1121,7 @@ where
 /// Consider exporting `Array<Gd<T>>` instead of `Array<DynGd<T, D>>` for user-declared GDExtension classes.
 impl<T: GodotClass, D> Export for Array<DynGd<T, D>>
 where
-    T: GodotClass + Bounds<Exportable = bounds::Yes, Declarer = bounds::DeclEngine>,
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
 {
     fn export_hint() -> PropertyHintInfo {

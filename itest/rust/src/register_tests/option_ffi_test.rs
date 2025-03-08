@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::classes::{Node, Object, RefCounted};
+use godot::classes::{Node, Object, RefCounted, Resource};
 use godot::meta::GodotType;
 use godot::obj::{Gd, NewAlloc, NewGd, RawGd};
 use godot::register::{godot_api, GodotClass};
@@ -97,11 +97,11 @@ impl OptionFfiTest {
 }
 
 #[derive(GodotClass)]
-#[class(init, base=Node)]
+#[class(init)]
 struct OptionExportFfiTest {
     #[var]
     optional: Option<Gd<Node>>,
 
     #[export]
-    optional_export: Option<Gd<Node>>,
+    optional_export: Option<Gd<Resource>>,
 }

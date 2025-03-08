@@ -309,11 +309,12 @@ func test_option_export():
 	assert_eq(obj.optional_export, null)
 
 	var test_node := Node.new()
+	var test_resource := Resource.new()
 
 	obj.optional = test_node
-	obj.optional_export = test_node
+	obj.optional_export = test_resource
 	assert_eq(obj.optional, test_node)
-	assert_eq(obj.optional_export, test_node)
+	assert_eq(obj.optional_export, test_resource)
 
 	obj.optional = null
 	obj.optional_export = null
@@ -321,7 +322,6 @@ func test_option_export():
 	assert_eq(obj.optional_export, null)
 
 	test_node.free()
-	obj.free()
 
 func test_func_rename():
 	var func_rename := FuncObj.new()

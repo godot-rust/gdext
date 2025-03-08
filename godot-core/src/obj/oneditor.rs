@@ -166,6 +166,9 @@ pub(crate) enum OnEditorState<T> {
     Initialized(T),
 }
 
+/// `OnEditor<T>` is usable only for properties – which is enforced via `Var` and `FromGodot` bounds.
+///
+/// Furthermore, `PartialEq` is needed to compare against uninitialized sentinel values.
 impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
     /// Initializes invalid `OnEditor<T>` with given value.
     ///
