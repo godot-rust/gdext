@@ -10,7 +10,7 @@ name: Minimal CI
 # Includes basic checks to catch most common errors, but is followed by merge queue (full-ci).
 
 on:
-  push
+  push:
   pull_request:
     branches:
       - master
