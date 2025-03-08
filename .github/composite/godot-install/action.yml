@@ -45,10 +45,12 @@ runs:
       # curl https://nightly.link/Bromeon/godot4-nightly/actions/runs/4910907653/${{ inputs.artifact-name }}.zip \
       run: |
         if [[ $ARTIFACT_NAME == *"nightly"* ]]; then
-          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-nightly/master/$ARTIFACT_NAME.zip"
+          workflow="compile-godot-nightly"
         else
-          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-stable/master/$ARTIFACT_NAME.zip"
+          workflow="compile-godot-stable"
         fi
+
+        .github/other/download-artifact.sh "$workflow" "$ARTIFACT_NAME" "artifact.zip"
         
         curl "$url" -Lo artifact.zip --retry 3
         unzip artifact.zip -d $RUNNER_DIR/godot_bin

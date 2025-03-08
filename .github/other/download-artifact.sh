@@ -3,16 +3,16 @@
 set -e
 
 REPO="Bromeon/godot4-nightly"
-OUT_FILENAME="artifact.zip"
 
-if [ "$#" -lt 2 ]; then
-  echo "Error: Both workflowFile and artifactName arguments are required." >&2
-  echo "Usage: $0 <workflowFile> <artifactName>" >&2
+if [ "$#" -lt 3 ]; then
+  echo "Error: missing arguments." >&2
+  echo "Usage: $0 <workflowFile> <artifactName> <outFilename>" >&2
   exit 1
 fi
 
 workflowFile="$1"
 artifactName="$2"
+outFilename="$3"
 
 echo "Download artifact: workflow $workflowFile; artifact $artifactName..."
 
@@ -45,9 +45,11 @@ fi
 echo "Found artifact '$artifactName' in run $workflowRunId."
 
 # Download the artifact by following the redirect URL.
-curl --fail-with-body -L -o "$OUT_FILENAME" "$downloadUrl" || {
+curl --fail-with-body -L -o "$outFilename" "$downloadUrl" || {
   # When failed, print response body.
-  cat "$OUT_FILENAME"
+  cat "$outFilename"
+  echo "::error::Failed to download artifact '$artifactName' from workflow '$workflowFile'."
+  exit 1
 }
 
-echo "Downloaded artifact '${artifactName}' to $OUT_FILENAME."
+echo "Downloaded artifact '${artifactName}' to $outFilename."
