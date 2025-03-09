@@ -60,11 +60,17 @@ pub fn make_sname_ptr(identifier: &str) -> TokenStream {
 pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
     // Work around wrong classification in https://github.com/godotengine/godot/issues/86206.
     fn override_editor(class_name: &str) -> bool {
-        cfg!(before_api = "4.3")
-            && matches!(
-                class_name,
-                "ResourceImporterOggVorbis" | "ResourceImporterMP3"
-            )
+        match class_name {
+            // https://github.com/godotengine/godot/issues/103867
+            "OpenXRInteractionProfileEditorBase"
+            | "OpenXRInteractionProfileEditor"
+            | "OpenXRBindingModifierEditor" => cfg!(before_api = "4.5"),
+
+            // https://github.com/godotengine/godot/issues/86206
+            "ResourceImporterOggVorbis" | "ResourceImporterMP3" => cfg!(before_api = "4.3"),
+
+            _ => false,
+        }
     }
 
     if special_cases::is_class_level_server(&class.name) {
