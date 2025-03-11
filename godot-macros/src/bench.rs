@@ -50,7 +50,7 @@ pub fn attribute_bench(input_decl: venial::Item) -> ParseResult<TokenStream> {
             }
         }
 
-        ::godot::sys::plugin_add!(__GODOT_BENCH in crate::framework; crate::framework::RustBenchmark {
+        ::godot::sys::plugin_add!(crate::framework::__GODOT_BENCH; crate::framework::RustBenchmark {
             name: #bench_name_str,
             file: std::file!(),
             line: std::line!(),

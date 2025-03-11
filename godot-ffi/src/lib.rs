@@ -61,11 +61,6 @@ mod plugins;
 mod string_cache;
 mod toolbox;
 
-// See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
-// and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
-#[doc(hidden)]
-pub use paste;
-
 #[doc(hidden)]
 #[cfg(target_family = "wasm")]
 pub use gensym::gensym;

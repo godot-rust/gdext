@@ -172,7 +172,7 @@ pub fn transform_inherent_impl(
         };
 
         let class_registration = quote! {
-            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin::new::<#class_name>(
+            ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
                 #prv::PluginItem::InherentImpl(#prv::InherentImpl::new::<#class_name>(#docs))
             ));
         };
