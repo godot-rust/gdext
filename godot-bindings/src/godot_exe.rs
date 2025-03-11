@@ -65,6 +65,7 @@ pub fn write_gdextension_headers(
 
         // Regenerate API JSON if first time or Godot version is different.
         // Note: read_godot_version() already panics if 4.0 is still in use; no need to check again.
+        // This also validates whether we run a Debug build.
         let _version = read_godot_version(&godot_bin);
 
         // if !c_header_path.exists() || has_version_changed(&version) {
@@ -110,7 +111,7 @@ pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
     let output = execute(cmd, "read Godot version");
     let stdout = std::str::from_utf8(&output.stdout).expect("convert Godot version to UTF-8");
 
-    match parse_godot_version(stdout) {
+    let version = match parse_godot_version(stdout) {
         Ok(parsed) => {
             assert_eq!(
                 parsed.major,
@@ -131,7 +132,35 @@ pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
             // Don't treat this as fatal error
             panic!("failed to parse Godot version '{stdout}': {e}")
         }
+    };
+
+    // `--dump-extension-api`, `--dump-gdextension-interface` etc. are only available in Debug builds (editor, debug export template).
+    // If we try to run them in release builds, Godot tries to run, causing a popup alert with an unhelpful message:
+    //   Error: Couldn't load project data at path ".". Is the .pck file missing?
+    //
+    // Thus, we check early and exit with a helpful message.
+    if !is_godot_debug_build(godot_bin) {
+        panic!("`api-custom` needs a Godot debug build (editor or debug export template); detected release build");
     }
+
+    version
+}
+
+/// True if Godot is a debug build (editor or debug export template), false otherwise (release export template).
+fn is_godot_debug_build(godot_bin: &Path) -> bool {
+    // The `--version` command does not contain information about debug/release, but we can see if the `--help` output lists the command
+    // `--dump-extension-api`. This seems to be reliable down to Godot 4.1.
+
+    let mut cmd = Command::new(godot_bin);
+    cmd.arg("--help");
+
+    let haystack = execute(cmd, "Godot CLI help to check debug/release");
+    let needle = b"--dump-extension-api";
+
+    haystack
+        .stdout
+        .windows(needle.len())
+        .any(|window| window == needle)
 }
 
 fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
