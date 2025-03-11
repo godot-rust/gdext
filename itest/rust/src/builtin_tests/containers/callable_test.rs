@@ -384,6 +384,7 @@ pub mod custom_callable {
     use super::*;
     use crate::framework::{assert_eq_self, quick_thread, ThreadCrosser};
     use godot::builtin::{Dictionary, RustCallable};
+    use godot::prelude::Signal;
     use godot::sys;
     use godot::sys::GdextBuild;
     use std::fmt;
@@ -611,6 +612,41 @@ pub mod custom_callable {
         assert_eq!(Variant::nil(), callable.callv(&varray![]));
 
         assert_eq!(1, received.load(Ordering::SeqCst));
+    }
+
+    #[itest]
+    fn callable_is_connected() {
+        let tracker = Tracker::new();
+        let tracker2 = Tracker::new();
+
+        // Adder hash depends on its sum.
+        let some_callable = Callable::from_custom(Adder::new_tracked(3, tracker));
+        let identical_callable = Callable::from_custom(Adder::new_tracked(3, tracker2));
+
+        let obj = RefCounted::new_gd();
+        let signal = Signal::from_object_signal(&obj, "script_changed");
+        signal.connect(&some_callable, 0);
+
+        // Given Custom Callable is connected to signal
+        // if callable with the very same hash is already connected.
+        assert!(signal.is_connected(&some_callable));
+        assert!(signal.is_connected(&identical_callable));
+
+        let change = [2.to_variant()];
+
+        // Change the hash.
+        signal.emit(&change);
+
+        // The hash, dependent on `Adder.sum` has been changed.
+        // `identical_callable` is considered NOT connected.
+        assert!(signal.is_connected(&some_callable));
+        assert!(!signal.is_connected(&identical_callable));
+
+        identical_callable.call(&change);
+
+        // The hashes are, once again, identical.
+        assert!(signal.is_connected(&some_callable));
+        assert!(signal.is_connected(&identical_callable));
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------------------
