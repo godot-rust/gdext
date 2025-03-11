@@ -350,11 +350,8 @@ pub(crate) fn load_class_method(
 
     if method.is_null() {
         panic!(
-            "Failed to load class method {}::{} (hash {}).\n\
-            Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
-            class_name,
-            method_name,
-            hash
+            "Failed to load class method {}::{} (hash {}).{INFO}",
+            class_name, method_name, hash
         )
     }
 
@@ -421,7 +418,7 @@ pub(crate) fn read_version_string(version_ptr: &sys::GDExtensionGodotVersion) ->
         .to_string()
 }
 
-const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html";
+const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/toolchain/compatibility.html";
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Private abstractions
