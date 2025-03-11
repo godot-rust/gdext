@@ -58,7 +58,6 @@ macro_rules! impl_packed_array {
             $($trait_impls:tt)*
         },
     ) => {
-        // TODO expand type names in doc comments (use e.g. `paste` crate)
         #[doc = concat!("Implements Godot's `", stringify!($PackedArray), "` type,")]
         #[doc = concat!("which is a space-efficient array of `", stringify!($Element), "`s.")]
         ///

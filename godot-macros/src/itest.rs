@@ -64,7 +64,7 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
             #body
         }
 
-        ::godot::sys::plugin_add!(__GODOT_ITEST in crate::framework; crate::framework::RustTestCase {
+        ::godot::sys::plugin_add!(crate::framework::__GODOT_ITEST; crate::framework::RustTestCase {
             name: #test_name_str,
             skipped: #skipped,
             focused: #focused,
