@@ -403,7 +403,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         return;
     };
 
-    let error_context = || "Godot async task failed";
+    let error_context = || "Godot async task failed".to_string();
 
     // If Future::poll() panics, the future is immediately dropped and cannot be accessed again,
     // thus any state that may not have been unwind-safe cannot be observed later.

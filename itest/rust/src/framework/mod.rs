@@ -9,6 +9,7 @@ use godot::classes::{Engine, Node, Os};
 use godot::obj::Gd;
 use godot::sys;
 use std::collections::HashSet;
+use std::panic;
 
 mod bencher;
 mod runner;
@@ -171,21 +172,30 @@ pub fn passes_filter(filters: &[String], test_name: &str) -> bool {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Toolbox for tests
 
-pub fn expect_panic(context: &str, code: impl FnOnce()) {
-    use std::panic;
-
-    // Exchange panic hook, to disable printing during expected panics. Also disable gdext's panic printing.
+/// Swaps panic hooks, to disable printing during expected panics. Also disables gdext's panic printing.
+pub fn suppress_panic_log<R>(callback: impl FnOnce() -> R) -> R {
+    // DISABLE following lines to *temporarily* debug panics.
+    // Note that they currently print "itest `{}` failed", even if the test doesn't fail (which isn't usually relevant in suppressed mode).
     let prev_hook = panic::take_hook();
-    panic::set_hook(Box::new(|_panic_info| {}));
-    let prev_print_level = godot::private::set_error_print_level(0);
+    panic::set_hook(Box::new(
+        |_panic_info| { /* suppress panic hook; do nothing */ },
+    ));
 
+    // Keep following lines.
+    let prev_print_level = godot::private::set_error_print_level(0);
+    let res = callback();
+    godot::private::set_error_print_level(prev_print_level);
+
+    // DISABLE following line to *temporarily* debug panics.
+    panic::set_hook(prev_hook);
+
+    res
+}
+
+pub fn expect_panic(context: &str, code: impl FnOnce()) {
     // Generally, types should be unwind safe, and this helps ergonomics in testing (especially around &mut in expect_panic closures).
     let code = panic::AssertUnwindSafe(code);
-
-    // Run code that should panic, restore hook + gdext panic printing.
-    let panic = panic::catch_unwind(code);
-    panic::set_hook(prev_hook);
-    godot::private::set_error_print_level(prev_print_level);
+    let panic = suppress_panic_log(move || panic::catch_unwind(code));
 
     assert!(
         panic.is_err(),

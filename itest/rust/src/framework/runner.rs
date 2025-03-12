@@ -310,7 +310,7 @@ impl IntegrationTests {
                     // could not be caught, causing UB at the Godot FFI boundary (in practice, this will be a defined Godot crash with
                     // stack trace though).
                     godot_error!("GDScript test panicked");
-                    godot::private::extract_panic_message(e);
+                    godot::private::extract_panic_message(&e);
                     TestOutcome::Failed
                 }
             };
@@ -444,8 +444,11 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
         return TestOutcome::Skipped;
     }
 
-    // Explicit type to prevent tests from returning a value
+    // This will appear in all panics, but those inside expect_panic() are suppressed.
+    // So the "itest failed" message will only appear for unexpected panics, where tests indeed fail.
     let err_context = || format!("itest `{}` failed", test.name);
+
+    // Explicit type to prevent tests from returning a value.
     let success: Result<(), _> = godot::private::handle_panic(err_context, || (test.function)(ctx));
 
     TestOutcome::from_bool(success.is_ok())
@@ -523,7 +526,8 @@ fn print_test_pre(test_case: &str, test_file: &str, last_file: Option<&str>, flu
     if flush {
         // Flush in GDScript, because its own print may come sooner than Rust prints otherwise.
         // (Strictly speaking, this can also happen from Rust, when Godot prints something. So far, it didn't though...)
-        godot::private::flush_stdout();
+        use std::io::Write;
+        std::io::stdout().flush().expect("flush stdout");
     }
 }
 
