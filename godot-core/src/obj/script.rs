@@ -362,7 +362,7 @@ where
 
     if object_script_variant
         .object_id()
-        .map_or(true, |instance_id| instance_id != script.instance_id())
+        .is_none_or(|instance_id| instance_id != script.instance_id())
     {
         return false;
     }

@@ -193,6 +193,6 @@ where
     }
 
     fn is_null(&self) -> bool {
-        self.shared_ref.map_or(true, T::is_null)
+        self.shared_ref.is_none_or(T::is_null)
     }
 }
