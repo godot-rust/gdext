@@ -171,16 +171,24 @@ pub fn passes_filter(filters: &[String], test_name: &str) -> bool {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Toolbox for tests
+
+/// Swaps panic hooks, to disable printing during expected panics. Also disables gdext's panic printing.
 pub fn suppress_panic_log<R>(callback: impl FnOnce() -> R) -> R {
-    // Exchange panic hook, to disable printing during expected panics. Also disable gdext's panic printing.
+    // DISABLE following lines to *temporarily* debug panics.
+    // Note that they currently print "itest `{}` failed", even if the test doesn't fail (which isn't usually relevant in suppressed mode).
     let prev_hook = panic::take_hook();
     panic::set_hook(Box::new(
         |_panic_info| { /* suppress panic hook; do nothing */ },
     ));
+
+    // Keep following lines.
     let prev_print_level = godot::private::set_error_print_level(0);
     let res = callback();
-    panic::set_hook(prev_hook);
     godot::private::set_error_print_level(prev_print_level);
+
+    // DISABLE following line to *temporarily* debug panics.
+    panic::set_hook(prev_hook);
+
     res
 }
 

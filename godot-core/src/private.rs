@@ -225,7 +225,6 @@ pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
     }
 }
 
-#[doc(hidden)]
 pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
     let mut msg = extract_panic_message(panic_info.payload());
 

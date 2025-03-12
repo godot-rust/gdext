@@ -140,6 +140,8 @@ fn dynamic_call_parameter_mismatch() {
     obj.free();
 }
 
+// There seems to be a weird bug where running *only* this test with #[itest(focus)] causes panic, which then causes a
+// follow-up failure of Gd::bind_mut(), preventing benchmarks from being run. Doesn't happen with #[itest], when running all.
 #[itest]
 fn dynamic_call_with_panic() {
     let panic_message = Arc::new(Mutex::new(None));
@@ -176,13 +178,20 @@ fn dynamic_call_with_panic() {
     if cfg!(target_os = "windows") {
         path = path.replace('/', "\\")
     }
-    // Obtain line number dynamically, avoids tedious maintenance on code reorganization.
+
+    // Obtain line number dynamically -- avoids tedious maintenance on code reorganization.
     let line = ObjPayload::get_panic_line();
     let context = error_context
         .map(|context| format!("\n  Context: {context}"))
         .unwrap_or_default();
 
-    let expected_panic_message = format!("[panic {path}:{line}]\n  do_panic exploded{context}");
+    // In Debug, there is a context -> message is multi-line -> '\n' is inserted after [panic ...].
+    // In Release, simpler message -> single line -> no '\n'.
+    let expected_panic_message = if cfg!(debug_assertions) {
+        format!("[panic {path}:{line}]\n  do_panic exploded{context}")
+    } else {
+        format!("[panic {path}:{line}]  do_panic exploded")
+    };
 
     assert_eq!(panic_message, expected_panic_message);
 

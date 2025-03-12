@@ -444,8 +444,11 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
         return TestOutcome::Skipped;
     }
 
-    // Explicit type to prevent tests from returning a value
+    // This will appear in all panics, but those inside expect_panic() are suppressed.
+    // So the "itest failed" message will only appear for unexpected panics, where tests indeed fail.
     let err_context = || format!("itest `{}` failed", test.name);
+
+    // Explicit type to prevent tests from returning a value.
     let success: Result<(), _> = godot::private::handle_panic(err_context, || (test.function)(ctx));
 
     TestOutcome::from_bool(success.is_ok())
