@@ -37,14 +37,21 @@ fn start_async_task() -> TaskHandle {
     object.add_user_signal("custom_signal");
 
     let task_handle = task::spawn(async move {
-        let signal_future: SignalFuture<(u8,)> = signal.to_future();
-        let (result,) = signal_future.await;
+        let signal_future: SignalFuture<(u8, Gd<RefCounted>)> = signal.to_future();
+        let (result, object) = signal_future.await;
 
         assert_eq!(result, 10);
+        assert!(object.is_instance_valid());
+
         drop(object_ref);
     });
 
-    object.emit_signal("custom_signal", &[10.to_variant()]);
+    let ref_counted_arg = RefCounted::new_gd();
+
+    object.emit_signal(
+        "custom_signal",
+        &[10.to_variant(), ref_counted_arg.to_variant()],
+    );
 
     task_handle
 }

@@ -17,7 +17,9 @@ mod futures;
 pub(crate) use async_runtime::cleanup;
 
 pub use async_runtime::{spawn, TaskHandle};
-pub use futures::{FallibleSignalFuture, FallibleSignalFutureError, SignalFuture};
+pub use futures::{
+    AssertSafeSend, FallibleSignalFuture, FallibleSignalFutureError, IntoMaybeSend, SignalFuture,
+};
 
 // Only exported for itest.
 #[cfg(feature = "trace")]
