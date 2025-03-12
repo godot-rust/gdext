@@ -10,7 +10,7 @@
 use crate::classes;
 use crate::global::PropertyHint;
 use godot_ffi as sys;
-use godot_ffi::VariantType;
+use godot_ffi::{GodotNullableFfi, VariantType};
 use std::fmt::Display;
 
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
@@ -82,6 +82,30 @@ pub trait Export: Var {
     }
 }
 
+/// Marker trait to identify `GodotType`s that can be directly used with an `#[export]`.
+///
+/// Implemented pretty much for all the [`GodotTypes`][GodotType] that are not [`GodotClass`].
+/// Provides a few blanket implementations and, by itself, has no implications
+/// for the [`Var`] or [`Export`] traits.
+///
+/// Types which don't implement the `BuiltinExport` trait can't be used directly as an `#[export]`
+/// and must be handled using associated algebraic types, such as:
+/// * [`Option<T>`], which represents optional value that can be null when used.
+/// * [`OnEditor<T>`][crate::obj::OnEditor], which represents value that must not be null when used.
+// Some Godot Types which are inherently non-nullable (e.g., `Gd<T>`),
+// might have their value set to null by the editor. Additionally, Godot must generate
+// initial, default value for such properties, causing memory leaks.
+// Such `GodotType`s don't implement `BuiltinExport`.
+//
+// Note: This marker trait is required to create a blanket implementation
+// for `OnEditor<T>` where `T` is anything other than `GodotClass`.
+// An alternative approach would involve introducing an extra associated type
+// to `GodotType` trait. However, this would not be ideal — `GodotType` is used
+// in contexts unrelated to `#[export]`, and adding unnecessary complexity
+// should be avoided. Since Rust does not yet support specialization (i.e. negative trait bounds),
+// this `MarkerTrait` serves as the intended solution to recognize aforementioned types.
+pub trait BuiltinExport {}
+
 /// This function only exists as a place to add doc-tests for the `Export` trait.
 ///
 /// Test with export of exportable type should succeed:
@@ -107,6 +131,30 @@ pub trait Export: Var {
 /// struct Foo {
 ///     #[export]
 ///     obj: Option<Gd<Object>>,
+/// }
+/// ```
+///
+/// Neither `Gd<T>` nor `DynGd<T, D>` can be used with an `#[export]` directly:
+///
+/// ```compile_fail
+///  use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct MyClass {
+///     #[export]
+///     editor_property: Gd<Resource>,
+/// }
+/// ```
+///
+/// ```compile_fail
+///  use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct MyClass {
+///     #[export]
+///     editor_property: DynGd<Node, dyn Display>,
 /// }
 /// ```
 ///
@@ -157,6 +205,13 @@ where
     fn export_hint() -> PropertyHintInfo {
         T::export_hint()
     }
+}
+
+impl<T> BuiltinExport for Option<T>
+where
+    T: GodotType,
+    T::Ffi: GodotNullableFfi,
+{
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -432,6 +487,7 @@ mod export_impls {
         ($Ty:ty) => {
             impl_property_by_godot_convert!(@property $Ty);
             impl_property_by_godot_convert!(@export $Ty);
+            impl_property_by_godot_convert!(@builtin $Ty);
         };
 
         (@property $Ty:ty) => {
@@ -453,6 +509,10 @@ mod export_impls {
                 }
             }
         };
+
+        (@builtin $Ty:ty) => {
+            impl BuiltinExport for $Ty {}
+        }
     }
 
     // Bounding Boxes

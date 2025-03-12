@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{GString, Variant};
+use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassName, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
-use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits};
+use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor};
 use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
 use crate::registry::property::{object_export_element_type_string, Export, Var};
 use crate::{meta, sys};
@@ -136,6 +136,25 @@ use std::{fmt, ops};
 /// godot-rust achieves this thanks to the registration done by `#[godot_dyn]`: the library knows for which classes `Health` is implemented,
 /// and it can query the dynamic type of the object. Based on that type, it can find the `impl Health` implementation matching the correct class.
 /// Behind the scenes, everything is wired up correctly so that you can restore the original `DynGd` even after it has passed through Godot.
+///
+/// # `#[export]` for `DynGd<T, D>`
+///
+/// Exporting `DynGd<T, D>` is possible only via [`OnEditor`] or [`Option`].
+/// `DynGd<T, D>` can also be exported directly as an element of an array such as `Array<DynGd<T, D>>`.
+///
+/// Since `DynGd<T, D>` represents shared functionality `D` across classes inheriting from `T`,
+/// consider using `#[export] Gd<T>` instead of `#[export] DynGd<T, D>`
+/// in cases when `T` is a concrete Rust `GodotClass`.
+///
+/// ## Node based classes
+///
+/// `#[export]` for a `DynGd<T, D>` works identically to `#[export]` `Gd<T>` for `T` inheriting Node classes.
+/// Godot will report an error if the conversion fails, but it will only do so when accessing the given value.
+///
+/// ## Resource based classes
+///
+/// `#[export]` for a `DynGd<T, D>` allows you to limit the available choices to implementors of a given trait `D` whose base inherits the specified `T`
+/// (for example, `#[export] Option<DynGd<Resource, dyn MyTrait>>` won't include Rust classes with an Object base, even if they implement `MyTrait`).
 pub struct DynGd<T, D>
 where
     // T does _not_ require AsDyn<D> here. Otherwise, it's impossible to upcast (without implementing the relation for all base classes).
@@ -499,18 +518,72 @@ where
     }
 }
 
-impl<T, D> Export for DynGd<T, D>
+/// `#[export]` for `Option<DynGd<T, D>>` is available only for `T` being Engine class (such as Node or Resource).
+///
+/// Consider exporting `Option<Gd<T>>` instead of `Option<DynGd<T, D>>` for user-declared GDExtension classes.
+impl<T, D> Export for Option<DynGd<T, D>>
 where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
 {
     fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo {
-            hint_string: GString::from(get_dyn_property_hint_string::<T, D>()),
-            ..<Gd<T> as Export>::export_hint()
-        }
+        PropertyHintInfo::export_dyn_gd::<T, D>()
     }
+
+    #[doc(hidden)]
     fn as_node_class() -> Option<ClassName> {
-        <Gd<T> as Export>::as_node_class()
+        PropertyHintInfo::object_as_node_class::<T>()
+    }
+}
+
+impl<T, D> Default for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn default() -> Self {
+        OnEditor::gd_invalid()
+    }
+}
+
+impl<T, D> GodotConvert for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+    type Via = Option<<DynGd<T, D> as GodotConvert>::Via>;
+}
+
+impl<T, D> Var for OnEditor<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn get_property(&self) -> Self::Via {
+        Self::get_property_inner(self)
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
+        Self::set_property_inner(self, value)
+    }
+}
+
+/// `#[export]` for `OnEditor<DynGd<T, D>>` is available only for `T` being Engine class (such as Node or Resource).
+///
+/// Consider exporting `OnEditor<Gd<T>>` instead of `OnEditor<DynGd<T, D>>` for user-declared GDExtension classes.
+impl<T, D> Export for OnEditor<DynGd<T, D>>
+where
+    Self: Var,
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+    D: ?Sized + 'static,
+{
+    fn export_hint() -> PropertyHintInfo {
+        PropertyHintInfo::export_dyn_gd::<T, D>()
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        PropertyHintInfo::object_as_node_class::<T>()
     }
 }

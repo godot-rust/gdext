@@ -28,7 +28,7 @@ pub use super::tools::{load, save, try_load, try_save, GFile};
 pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
 pub use super::obj::{
     AsDyn, Base, DynGd, DynGdMut, DynGdRef, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    OnReady,
+    OnEditor, OnReady,
 };
 
 // Make trait methods available.
