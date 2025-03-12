@@ -154,11 +154,17 @@ fn make_docs_from_attributes(doc: &[Attribute]) -> Option<String> {
 }
 
 fn make_signal_docs(signal: &SignalDefinition) -> Option<String> {
-    let name = &signal.signature.name;
-    let params = params(signal.signature.params.iter().filter_map(|(x, _)| match x {
-        FnParam::Receiver(_) => None,
-        FnParam::Typed(y) => Some((&y.name, &y.ty)),
-    }));
+    let name = &signal.fn_signature.name;
+    let params = params(
+        signal
+            .fn_signature
+            .params
+            .iter()
+            .filter_map(|(x, _)| match x {
+                FnParam::Receiver(_) => None,
+                FnParam::Typed(y) => Some((&y.name, &y.ty)),
+            }),
+    );
     let desc = make_docs_from_attributes(&signal.external_attributes)?;
     Some(format!(
         r#"
@@ -251,7 +257,11 @@ pub fn make_method_docs(method: &FuncDefinition) -> Option<String> {
         .registered_name
         .clone()
         .unwrap_or_else(|| method.rust_ident().to_string());
-    let ret = method.signature_info.ret_type.to_token_stream().to_string();
+    let ret = method
+        .signature_info
+        .return_type
+        .to_token_stream()
+        .to_string();
     let params = params(
         method
             .signature_info

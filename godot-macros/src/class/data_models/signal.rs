@@ -12,8 +12,8 @@ use quote::{format_ident, quote};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {
-    /// The signal's function signature.
-    pub signature: venial::Function,
+    /// The signal's function signature (simplified, not original declaration).
+    pub fn_signature: venial::Function,
 
     /// The signal's non-gdext attributes (all except #[signal]).
     pub external_attributes: Vec<venial::Attribute>,
@@ -24,8 +24,8 @@ pub struct SignalDefinition {
 
 /// Extracted syntax info for a declared signal.
 struct SignalDetails<'a> {
-    /// `fn my_signal(i: i32, s: GString)`
-    original_decl: &'a venial::Function,
+    /// `fn my_signal(i: i32, s: GString)` -- simplified from original declaration.
+    fn_signature: &'a venial::Function,
     /// `MyClass`
     class_name: &'a Ident,
     /// `i32`, `GString`
@@ -44,11 +44,13 @@ struct SignalDetails<'a> {
     signal_cfg_attrs: Vec<&'a venial::Attribute>,
     /// `MyClass_MySignal`
     individual_struct_name: Ident,
+    /// Visibility, e.g. `pub(crate)`
+    vis_marker: Option<venial::VisMarker>,
 }
 
 impl<'a> SignalDetails<'a> {
     pub fn extract(
-        original_decl: &'a venial::Function,
+        fn_signature: &'a venial::Function, // *Not* the original #[signal], just the signature part (no attributes, body, etc).
         class_name: &'a Ident,
         external_attributes: &'a [venial::Attribute],
     ) -> ParseResult<SignalDetails<'a>> {
@@ -56,7 +58,7 @@ impl<'a> SignalDetails<'a> {
         let mut param_names = vec![];
         let mut param_names_str = vec![];
 
-        for (param, _punct) in original_decl.params.inner.iter() {
+        for (param, _punct) in fn_signature.params.inner.iter() {
             match param {
                 venial::FnParam::Typed(param) => {
                     param_types.push(param.ty.clone());
@@ -76,20 +78,21 @@ impl<'a> SignalDetails<'a> {
             .collect();
 
         let param_tuple = quote! { ( #( #param_types, )* ) };
-        let signal_name = &original_decl.name;
+        let signal_name = &fn_signature.name;
         let individual_struct_name = format_ident!("__godot_Signal_{}_{}", class_name, signal_name);
 
         Ok(Self {
-            original_decl,
+            fn_signature,
             class_name,
             param_types,
             param_names,
             param_names_str,
             param_tuple,
             signal_name,
-            signal_name_str: original_decl.name.to_string(),
+            signal_name_str: fn_signature.name.to_string(),
             signal_cfg_attrs,
             individual_struct_name,
+            vis_marker: fn_signature.vis_marker.clone(),
         })
     }
 }
@@ -104,12 +107,12 @@ pub fn make_signal_registrations(
 
     for signal in signals {
         let SignalDefinition {
-            signature,
+            fn_signature,
             external_attributes,
             has_builder,
         } = signal;
 
-        let details = SignalDetails::extract(signature, class_name, external_attributes)?;
+        let details = SignalDetails::extract(fn_signature, class_name, external_attributes)?;
 
         // Callable custom functions are only supported in 4.2+, upon which custom signals rely.
         #[cfg(since_api = "4.2")]
@@ -196,13 +199,19 @@ impl SignalCollection {
             signal_name_str,
             signal_cfg_attrs,
             individual_struct_name,
+            vis_marker,
             ..
         } = details;
 
         self.collection_methods.push(quote! {
             // Deliberately not #[doc(hidden)] for IDE completion.
             #(#signal_cfg_attrs)*
-            fn #signal_name(self) -> #individual_struct_name<'a> {
+            // Note: this could be `pub` always and would still compile (maybe warning with the following message).
+            //   associated function `SignalCollection::my_signal` is reachable at visibility `pub(crate)`
+            //
+            // However, it would still lead to a compile error when declaring the individual signal struct `pub` (or any other
+            // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
+            #vis_marker fn #signal_name(self) -> #individual_struct_name<'a> {
                 #individual_struct_name {
                     typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
@@ -219,7 +228,7 @@ impl SignalCollection {
 }
 
 fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
-    let emit_params = &details.original_decl.params;
+    let emit_params = &details.fn_signature.params;
 
     let SignalDetails {
         class_name,
@@ -227,6 +236,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         param_tuple,
         signal_cfg_attrs,
         individual_struct_name,
+        vis_marker,
         ..
     } = details;
 
@@ -235,9 +245,9 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
     //   #(#signal_cfg_attrs)* pub mod #module_name { use super::*; ... }
     //   #(#signal_cfg_attrs)* pub(crate) use #module_name::#individual_struct_name;
     // However, there are some challenges:
-    // - Visibility becomes a pain to handle (rustc doesn't like re-exporting private symbols as pub, and we can't know the visibility of the
-    //   surrounding class struct). Having signals always-public is much less of a headache, requires less choice on the user side
-    //   (pub/pub(crate)/nothing on #[signal]), and likely good enough for the moment.
+    // - Visibility is a pain to handle: rustc doesn't like re-exporting private symbols as pub, and we can't know the visibility of the
+    //   surrounding class struct. Users must explicitly declare #[signal]s `pub` if they want wider visibility; this must not exceed the
+    //   visibility of the class itself.
     // - Not yet clear if we should have each signal + related types in separate module. If #[signal] is supported in #[godot_api(secondary)]
     //   impl blocks, then we would have to group them by the impl block. Rust doesn't allow partial modules, so they'd need to have individual
     //   names as well, possibly explicitly chosen by the user.
@@ -248,7 +258,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #(#signal_cfg_attrs)*
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Signal struct is hidden, but the method returning it is not (IDE completion).
-        struct #individual_struct_name<'a> {
+        #vis_marker struct #individual_struct_name<'a> {
             #[doc(hidden)]
             typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
         }

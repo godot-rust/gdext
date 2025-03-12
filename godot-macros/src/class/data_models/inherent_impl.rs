@@ -319,18 +319,14 @@ fn process_godot_fns(
                         "#[signal] must not have a body; declare the function with a semicolon"
                     );
                 }
-                if function.vis_marker.is_some() {
-                    return bail!(
-                        &function.vis_marker,
-                        "#[signal] must not have a visibility specifier; signals are always public"
-                    );
-                }
 
                 let external_attributes = function.attributes.clone();
-                let sig = util::reduce_to_signature(function);
+
+                let mut fn_signature = util::reduce_to_signature(function);
+                fn_signature.vis_marker = function.vis_marker.clone();
 
                 signal_definitions.push(SignalDefinition {
-                    signature: sig,
+                    fn_signature,
                     external_attributes,
                     has_builder: !signal.no_builder,
                 });

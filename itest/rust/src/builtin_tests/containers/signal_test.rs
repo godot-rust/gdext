@@ -245,51 +245,59 @@ fn signal_construction_and_id() {
 /// Global sets the value of the received argument and whether it was a static function.
 static LAST_STATIC_FUNCTION_ARG: Global<i64> = Global::default();
 
-#[derive(GodotClass)]
-#[class(init, base=Object)]
-struct Emitter {
-    _base: Base<Object>,
-    #[cfg(since_api = "4.2")]
-    last_received_int: i64,
-}
+// Separate module to test signal visibility.
+use emitter::Emitter;
 
-#[godot_api]
-impl Emitter {
-    #[signal]
-    fn signal_unit();
+mod emitter {
+    use super::*;
 
-    #[signal]
-    fn signal_int(arg1: i64);
-
-    #[signal]
-    fn signal_obj(arg1: Gd<Object>, arg2: GString);
-
-    #[func]
-    fn self_receive(&mut self, arg1: i64) {
+    #[derive(GodotClass)]
+    #[class(init, base=Object)]
+    pub struct Emitter {
+        _base: Base<Object>,
         #[cfg(since_api = "4.2")]
-        {
-            self.last_received_int = arg1;
+        pub last_received_int: i64,
+    }
+
+    #[godot_api]
+    impl Emitter {
+        #[signal]
+        fn signal_unit();
+
+        // Public to demonstrate usage inside module.
+        #[signal]
+        pub fn signal_int(arg1: i64);
+
+        #[signal]
+        fn signal_obj(arg1: Gd<Object>, arg2: GString);
+
+        #[func]
+        pub fn self_receive(&mut self, arg1: i64) {
+            #[cfg(since_api = "4.2")]
+            {
+                self.last_received_int = arg1;
+            }
         }
-    }
 
-    #[func]
-    fn self_receive_static(arg1: i64) {
-        *LAST_STATIC_FUNCTION_ARG.lock() = arg1;
-    }
+        #[func]
+        fn self_receive_static(arg1: i64) {
+            *LAST_STATIC_FUNCTION_ARG.lock() = arg1;
+        }
 
-    // "Internal" means connect/emit happens from within the class (via &mut self).
+        // "Internal" means connect/emit happens from within the class (via &mut self).
 
-    #[cfg(since_api = "4.2")]
-    fn connect_signals_internal(&mut self, tracker: Rc<Cell<i64>>) {
-        let mut sig = self.signals().signal_int();
-        sig.connect_self(Self::self_receive);
-        sig.connect(Self::self_receive_static);
-        sig.connect(move |i| tracker.set(i));
-    }
+        #[cfg(since_api = "4.2")]
+        pub fn connect_signals_internal(&mut self, tracker: Rc<Cell<i64>>) {
+            let mut sig = self.signals().signal_int();
+            sig.connect_self(Self::self_receive);
+            sig.connect(Self::self_receive_static);
+            sig.connect(move |i| tracker.set(i));
+        }
 
-    #[cfg(since_api = "4.2")]
-    fn emit_signals_internal(&mut self) {
-        self.signals().signal_int().emit(1234);
+        #[cfg(since_api = "4.2")]
+        pub fn emit_signals_internal(&mut self) {
+            self.signals().signal_int().emit(1234);
+        }
     }
 }
 
