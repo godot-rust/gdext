@@ -65,11 +65,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     }
     let base_ty = &struct_cfg.base_ty;
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
-    let docs = crate::docs::make_definition_docs(
-        base_ty.to_string(),
-        &class.attributes,
-        &fields.all_fields,
-    );
+    let docs =
+        crate::docs::document_struct(base_ty.to_string(), &class.attributes, &fields.all_fields);
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
     let base_class = quote! { ::godot::classes::#base_ty };

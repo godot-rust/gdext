@@ -94,7 +94,7 @@ pub fn transform_inherent_impl(
     let consts = process_godot_constants(&mut impl_block)?;
 
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
-    let docs = crate::docs::make_inherent_impl_docs(&funcs, &consts, &signals);
+    let docs = crate::docs::document_inherent_impl(&funcs, &consts, &signals);
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
 
