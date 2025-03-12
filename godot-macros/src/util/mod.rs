@@ -83,7 +83,7 @@ pub(crate) use require_api_version;
 
 pub fn reduce_to_signature(function: &venial::Function) -> venial::Function {
     let mut reduced = function.clone();
-    reduced.vis_marker = None; // TODO needed?
+    reduced.vis_marker = None; // retained outside in the case of #[signal].
     reduced.attributes.clear();
     reduced.tk_semicolon = None;
     reduced.body = None;

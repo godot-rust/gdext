@@ -264,8 +264,9 @@ mod emitter {
         #[signal]
         fn signal_unit();
 
+        // Public to demonstrate usage inside module.
         #[signal]
-        fn signal_int(arg1: i64);
+        pub fn signal_int(arg1: i64);
 
         #[signal]
         fn signal_obj(arg1: Gd<Object>, arg2: GString);

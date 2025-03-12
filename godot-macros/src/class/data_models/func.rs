@@ -188,7 +188,7 @@ pub struct SignatureInfo {
     pub receiver_type: ReceiverType,
     pub param_idents: Vec<Ident>,
     pub param_types: Vec<venial::TypeExpr>,
-    pub ret_type: TokenStream,
+    pub return_type: TokenStream,
 }
 
 impl SignatureInfo {
@@ -198,7 +198,7 @@ impl SignatureInfo {
             receiver_type: ReceiverType::Mut,
             param_idents: vec![],
             param_types: vec![],
-            ret_type: quote! { () },
+            return_type: quote! { () },
         }
     }
 
@@ -207,7 +207,7 @@ impl SignatureInfo {
 
     pub fn tuple_type(&self) -> TokenStream {
         // Note: for GdSelf receivers, first parameter is not even part of SignatureInfo anymore.
-        util::make_signature_tuple_type(&self.ret_type, &self.param_types)
+        util::make_signature_tuple_type(&self.return_type, &self.param_types)
     }
 }
 
@@ -392,7 +392,7 @@ pub(crate) fn into_signature_info(
         receiver_type,
         param_idents,
         param_types,
-        ret_type,
+        return_type: ret_type,
     }
 }
 

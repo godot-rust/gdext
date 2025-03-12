@@ -774,6 +774,9 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// method, you can access all declared signals in `self.signals().some_signal()` or `gd.signals().some_signal()`. The returned object is
 /// of type [`TypedSignal`], which provides further APIs for emitting and connecting, among others.
 ///
+/// Visibility of signals **must not exceed class visibility**. If your class is private (as above) and you declare your signal as `pub fn`,
+/// you will get a compile error "can't leak private type".
+///
 /// A detailed explanation with examples is available in the [book chapter _Registering signals_](https://godot-rust.github.io/book/register/signals.html).
 ///
 /// [`WithSignals`]: ../obj/trait.WithSignals.html
