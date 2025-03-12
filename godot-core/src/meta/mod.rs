@@ -49,9 +49,10 @@ mod class_name;
 mod godot_convert;
 mod method_info;
 mod property_info;
-mod sealed;
 mod signature;
 mod traits;
+
+pub(crate) mod sealed;
 
 pub mod error;
 

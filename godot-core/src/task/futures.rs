@@ -11,26 +11,34 @@ use std::future::{Future, IntoFuture};
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll, Waker};
+use std::thread::ThreadId;
 
 use crate::builtin::{Callable, RustCallable, Signal, Variant};
 use crate::classes::object::ConnectFlags;
+use crate::meta::sealed::Sealed;
 use crate::meta::ParamTuple;
-use crate::obj::{EngineBitfield, WithBaseField};
+use crate::obj::{EngineBitfield, Gd, GodotClass, WithBaseField};
 use crate::registry::signal::TypedSignal;
+
+pub(crate) use crate::impl_dynamic_send;
 
 /// The panicking counter part to the [`FallibleSignalFuture`].
 ///
 /// This future works in the same way as `FallibleSignalFuture`, but panics when the signal object is freed, instead of resolving to a
 /// [`Result::Err`].
-pub struct SignalFuture<R: ParamTuple + Sync + Send>(FallibleSignalFuture<R>);
+///
+/// # Panics
+/// - If the signal object is freed before the signal has been emitted.
+/// - If one of the signal arguments is `!Send`, but the signal was emitted on a different thread.
+pub struct SignalFuture<R: ParamTuple + IntoDynamicSend>(FallibleSignalFuture<R>);
 
-impl<R: ParamTuple + Sync + Send> SignalFuture<R> {
+impl<R: ParamTuple + IntoDynamicSend> SignalFuture<R> {
     fn new(signal: Signal) -> Self {
         Self(FallibleSignalFuture::new(signal))
     }
 }
 
-impl<R: ParamTuple + Sync + Send> Future for SignalFuture<R> {
+impl<R: ParamTuple + IntoDynamicSend> Future for SignalFuture<R> {
     type Output = R;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -62,12 +70,11 @@ impl<T> Default for SignalFutureData<T> {
 }
 
 // Only public for itest.
-#[cfg_attr(feature = "trace", derive(Default))]
-pub struct SignalFutureResolver<R> {
-    data: Arc<Mutex<SignalFutureData<R>>>,
+pub struct SignalFutureResolver<R: IntoDynamicSend> {
+    data: Arc<Mutex<SignalFutureData<R::Target>>>,
 }
 
-impl<R> Clone for SignalFutureResolver<R> {
+impl<R: IntoDynamicSend> Clone for SignalFutureResolver<R> {
     fn clone(&self) -> Self {
         Self {
             data: self.data.clone(),
@@ -75,29 +82,37 @@ impl<R> Clone for SignalFutureResolver<R> {
     }
 }
 
-impl<R> SignalFutureResolver<R> {
-    fn new(data: Arc<Mutex<SignalFutureData<R>>>) -> Self {
+/// For itest to construct and test a resolver.
+#[cfg(feature = "trace")]
+pub fn create_test_signal_future_resolver<R: IntoDynamicSend>() -> SignalFutureResolver<R> {
+    SignalFutureResolver {
+        data: Arc::new(Mutex::new(SignalFutureData::default())),
+    }
+}
+
+impl<R: IntoDynamicSend> SignalFutureResolver<R> {
+    fn new(data: Arc<Mutex<SignalFutureData<R::Target>>>) -> Self {
         Self { data }
     }
 }
 
-impl<R> std::hash::Hash for SignalFutureResolver<R> {
+impl<R: IntoDynamicSend> std::hash::Hash for SignalFutureResolver<R> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_usize(Arc::as_ptr(&self.data) as usize);
     }
 }
 
-impl<R> PartialEq for SignalFutureResolver<R> {
+impl<R: IntoDynamicSend> PartialEq for SignalFutureResolver<R> {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.data, &other.data)
     }
 }
 
-impl<R: ParamTuple + Sync + Send> RustCallable for SignalFutureResolver<R> {
+impl<R: ParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R> {
     fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
         let waker = {
             let mut data = self.data.lock().unwrap();
-            data.state = SignalFutureState::Ready(R::from_variant_array(args));
+            data.state = SignalFutureState::Ready(R::from_variant_array(args).into_dynamic_send());
 
             // We no longer need the waker after we resolved. If the future is polled again, we'll also get a new waker.
             data.waker.take()
@@ -111,7 +126,7 @@ impl<R: ParamTuple + Sync + Send> RustCallable for SignalFutureResolver<R> {
     }
 }
 
-impl<R> Display for SignalFutureResolver<R> {
+impl<R: IntoDynamicSend> Display for SignalFutureResolver<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SignalFutureResolver::<{}>", std::any::type_name::<R>())
     }
@@ -119,7 +134,7 @@ impl<R> Display for SignalFutureResolver<R> {
 
 // This resolver will change the futures state when it's being dropped (i.e. the engine removes all connected signal callables). By marking
 // the future as dead we can resolve it to an error value the next time it gets polled.
-impl<R> Drop for SignalFutureResolver<R> {
+impl<R: IntoDynamicSend> Drop for SignalFutureResolver<R> {
     fn drop(&mut self) {
         let mut data = self.data.lock().unwrap();
 
@@ -163,13 +178,16 @@ impl<T> SignalFutureState<T> {
 /// A future that tries to resolve as soon as the provided Godot signal was emitted.
 ///
 /// The future might resolve to an error if the signal object is freed before the signal is emitted.
-pub struct FallibleSignalFuture<R: ParamTuple + Sync + Send> {
-    data: Arc<Mutex<SignalFutureData<R>>>,
+///
+/// # Panics
+/// - If one of the signal arguments is `!Send`, but the signal was emitted on a different thread.
+pub struct FallibleSignalFuture<R: ParamTuple + IntoDynamicSend> {
+    data: Arc<Mutex<SignalFutureData<R::Target>>>,
     callable: SignalFutureResolver<R>,
     signal: Signal,
 }
 
-impl<R: ParamTuple + Sync + Send> FallibleSignalFuture<R> {
+impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
     fn new(signal: Signal) -> Self {
         debug_assert!(
             !signal.is_null(),
@@ -199,11 +217,20 @@ impl<R: ParamTuple + Sync + Send> FallibleSignalFuture<R> {
 
         let value = data.state.take();
 
+        // Drop the data mutex lock to prevent the mutext from getting poisoned by the potential later panic.
+        drop(data);
+
         match value {
             SignalFutureState::Pending => Poll::Pending,
             SignalFutureState::Dropped => unreachable!(),
             SignalFutureState::Dead => Poll::Ready(Err(FallibleSignalFutureError)),
-            SignalFutureState::Ready(value) => Poll::Ready(Ok(value)),
+            SignalFutureState::Ready(value) => {
+                let Some(value) = DynamicSend::extract_if_safe(value) else {
+                    panic!("the awaited signal was not emitted on the main-thread, but contained a non Send argument");
+                };
+
+                Poll::Ready(Ok(value))
+            }
         }
     }
 }
@@ -225,7 +252,7 @@ impl Display for FallibleSignalFutureError {
 
 impl std::error::Error for FallibleSignalFutureError {}
 
-impl<R: ParamTuple + Sync + Send> Future for FallibleSignalFuture<R> {
+impl<R: ParamTuple + IntoDynamicSend> Future for FallibleSignalFuture<R> {
     type Output = Result<R, FallibleSignalFutureError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -233,7 +260,7 @@ impl<R: ParamTuple + Sync + Send> Future for FallibleSignalFuture<R> {
     }
 }
 
-impl<R: ParamTuple + Sync + Send> Drop for FallibleSignalFuture<R> {
+impl<R: ParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
     fn drop(&mut self) {
         // The callable might alredy be destroyed, this occurs during engine shutdown.
         if self.signal.object().is_none() {
@@ -264,7 +291,7 @@ impl Signal {
     ///
     /// Since the `Signal` type does not contain information on the signal argument types, the future output type has to be inferred from
     /// the call to this function.
-    pub fn to_fallible_future<R: ParamTuple + Sync + Send>(&self) -> FallibleSignalFuture<R> {
+    pub fn to_fallible_future<R: ParamTuple + IntoDynamicSend>(&self) -> FallibleSignalFuture<R> {
         FallibleSignalFuture::new(self.clone())
     }
 
@@ -275,12 +302,12 @@ impl Signal {
     ///
     /// Since the `Signal` type does not contain information on the signal argument types, the future output type has to be inferred from
     /// the call to this function.
-    pub fn to_future<R: ParamTuple + Sync + Send>(&self) -> SignalFuture<R> {
+    pub fn to_future<R: ParamTuple + IntoDynamicSend>(&self) -> SignalFuture<R> {
         SignalFuture::new(self.clone())
     }
 }
 
-impl<C: WithBaseField, R: ParamTuple + Sync + Send> TypedSignal<'_, C, R> {
+impl<C: WithBaseField, R: ParamTuple + IntoDynamicSend> TypedSignal<'_, C, R> {
     /// Creates a fallible future for this signal.
     ///
     /// The future will resolve the next time the signal is emitted.
@@ -298,7 +325,7 @@ impl<C: WithBaseField, R: ParamTuple + Sync + Send> TypedSignal<'_, C, R> {
     }
 }
 
-impl<C: WithBaseField, R: ParamTuple + Sync + Send> IntoFuture for &TypedSignal<'_, C, R> {
+impl<C: WithBaseField, R: ParamTuple + IntoDynamicSend> IntoFuture for &TypedSignal<'_, C, R> {
     type Output = R;
 
     type IntoFuture = SignalFuture<R>;
@@ -308,10 +335,160 @@ impl<C: WithBaseField, R: ParamTuple + Sync + Send> IntoFuture for &TypedSignal<
     }
 }
 
+/// Convert a value into a type that is [`Send`] at compile-time while the value might not be.
+///
+/// This allows to turn any implementor into a type that is `Send`, but requires to also implement [`DynamicSend`] as well.
+/// The later trait will verify if a value can actually be sent between threads at runtime.
+pub trait IntoDynamicSend: Sealed {
+    type Target: DynamicSend<Inner = Self>;
+
+    fn into_dynamic_send(self) -> Self::Target;
+}
+
+/// Runtime-checked `Send` capability.
+///
+/// Implemented for types that need a static `Send` bound, but where it is determined at runtime whether sending a value was
+/// actually safe. Only allows to extract the value if sending across threads is safe, thus fulfilling the `Send` supertrait.
+///
+/// # Safety
+/// The implementor has to guarantee that `extract_if_safe` returns `None`, if the value has been sent between threads while being `!Send`.
+///
+/// To uphold the `Send` supertrait guarantees, no public API apart from `extract_if_safe` must exist that would give access to the inner value from another thread.
+pub unsafe trait DynamicSend: Send + Sealed {
+    type Inner;
+
+    fn extract_if_safe(self) -> Option<Self::Inner>;
+}
+
+/// Value that can be sent across threads, but only accessed on its original thread.
+pub struct ThreadConfined<T> {
+    value: T,
+    thread_id: ThreadId,
+}
+
+// SAFETY: This type can always be sent across threads, but the inner value can only be accessed on its original thread.
+unsafe impl<T> Send for ThreadConfined<T> {}
+
+impl<T> ThreadConfined<T> {
+    pub(crate) fn new(value: T) -> Self {
+        Self {
+            value,
+            thread_id: std::thread::current().id(),
+        }
+    }
+
+    pub(crate) fn extract(self) -> Option<T> {
+        (self.thread_id == std::thread::current().id()).then_some(self.value)
+    }
+}
+
+unsafe impl<T: GodotClass> DynamicSend for ThreadConfined<Gd<T>> {
+    type Inner = Gd<T>;
+
+    fn extract_if_safe(self) -> Option<Self::Inner> {
+        self.extract()
+    }
+}
+
+impl<T: GodotClass> Sealed for ThreadConfined<Gd<T>> {}
+
+impl<T: GodotClass> IntoDynamicSend for Gd<T> {
+    type Target = ThreadConfined<Self>;
+
+    fn into_dynamic_send(self) -> Self::Target {
+        ThreadConfined::new(self)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Generated impls
+
+#[macro_export(local_inner_macros)]
+macro_rules! impl_dynamic_send {
+    (Send; $($ty:ty),+) => {
+        $(
+            unsafe impl $crate::task::DynamicSend for $ty {
+                type Inner = Self;
+
+                fn extract_if_safe(self) -> Option<Self::Inner> {
+                    Some(self)
+                }
+            }
+
+            impl $crate::task::IntoDynamicSend for $ty {
+                type Target = Self;
+                fn into_dynamic_send(self) -> Self::Target {
+                    self
+                }
+            }
+        )+
+    };
+
+    (Send; builtin::{$($ty:ident),+}) => {
+        impl_dynamic_send!(Send; $($crate::builtin::$ty),+);
+    };
+
+    (tuple; $($arg:ident: $ty:ident),*) => {
+        unsafe impl<$($ty: $crate::task::DynamicSend ),*> $crate::task::DynamicSend for ($($ty,)*) {
+            type Inner = ($($ty::Inner,)*);
+
+            fn extract_if_safe(self) -> Option<Self::Inner> {
+                #[allow(non_snake_case)]
+                let ($($arg,)*) = self;
+
+                #[allow(clippy::unused_unit)]
+                match ($($arg.extract_if_safe(),)*) {
+                    ($(Some($arg),)*) => Some(($($arg,)*)),
+
+                    #[allow(unreachable_patterns)]
+                    _ => None,
+                }
+            }
+        }
+
+        impl<$($ty: $crate::task::IntoDynamicSend),*> $crate::task::IntoDynamicSend for ($($ty,)*) {
+            type Target = ($($ty::Target,)*);
+
+            fn into_dynamic_send(self) -> Self::Target {
+                #[allow(non_snake_case)]
+                let ($($arg,)*) = self;
+
+                #[allow(clippy::unused_unit)]
+                ($($arg.into_dynamic_send(),)*)
+            }
+        }
+    };
+
+    (!Send; $($ty:ident),+) => {
+        $(
+            impl $crate::meta::sealed::Sealed for $crate::task::ThreadConfined<$crate::builtin::$ty> {}
+
+            unsafe impl $crate::task::DynamicSend for $crate::task::ThreadConfined<$crate::builtin::$ty> {
+                type Inner = $crate::builtin::$ty;
+
+                fn extract_if_safe(self) -> Option<Self::Inner> {
+                    self.extract()
+                }
+            }
+
+            impl $crate::task::IntoDynamicSend for $crate::builtin::$ty {
+                type Target = $crate::task::ThreadConfined<$crate::builtin::$ty>;
+
+                fn into_dynamic_send(self) -> Self::Target {
+                    $crate::task::ThreadConfined::new(self)
+                }
+            }
+        )+
+    };
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::sys;
     use std::sync::Arc;
+
+    use crate::classes::Object;
+    use crate::obj::Gd;
+    use crate::sys;
 
     use super::SignalFutureResolver;
 
@@ -319,7 +496,7 @@ mod tests {
     /// Callables that are equal to their original version but have separate reference counting.
     #[test]
     fn future_resolver_cloned_hash() {
-        let resolver_a = SignalFutureResolver::<u8>::new(Arc::default());
+        let resolver_a = SignalFutureResolver::<(Gd<Object>, i64)>::new(Arc::default());
         let resolver_b = resolver_a.clone();
 
         let hash_a = sys::hash_value(&resolver_a);

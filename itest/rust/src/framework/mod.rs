@@ -203,6 +203,49 @@ pub fn expect_panic(context: &str, code: impl FnOnce()) {
     );
 }
 
+pin_project_lite::pin_project! {
+    pub struct ExpectPanicFuture<T: std::future::Future> {
+        context: &'static str,
+        #[pin]
+        future: T,
+    }
+}
+
+impl<T: std::future::Future> std::future::Future for ExpectPanicFuture<T> {
+    type Output = ();
+
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let projection = self.project();
+        let future = projection.future;
+
+        // Run code that should panic, restore hook + gdext panic printing.
+        let panic = suppress_panic_log(move || {
+            panic::catch_unwind(panic::AssertUnwindSafe(move || future.poll(cx)))
+        });
+
+        match panic {
+            Ok(std::task::Poll::Pending) => std::task::Poll::Pending,
+            Err(_) => std::task::Poll::Ready(()),
+            Ok(std::task::Poll::Ready(_)) => {
+                panic!(
+                    "code should have panicked but did not: {}",
+                    projection.context
+                );
+            }
+        }
+    }
+}
+
+pub fn expect_async_panic<T: std::future::Future>(
+    context: &'static str,
+    future: T,
+) -> ExpectPanicFuture<T> {
+    ExpectPanicFuture { context, future }
+}
+
 pub fn expect_debug_panic_or_release_ok(_context: &str, code: impl FnOnce()) {
     #[cfg(debug_assertions)]
     expect_panic(_context, code);

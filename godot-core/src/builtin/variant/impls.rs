@@ -166,12 +166,171 @@ mod impls {
     impl_ffi_variant!(ref PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant);
     impl_ffi_variant!(ref PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant);
     impl_ffi_variant!(ref PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant);
-    #[cfg(since_api = "4.3")]
-    impl_ffi_variant!(ref PackedVector4Array, packed_vector4_array_to_variant, packed_vector4_array_from_variant);
     impl_ffi_variant!(ref PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
+
+    #[cfg(since_api = "4.2")]
+    mod api_4_2 {
+        use crate::task::impl_dynamic_send;
+
+        impl_dynamic_send!(
+            Send;
+            bool, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64
+        );
+
+        impl_dynamic_send!(
+            Send;
+            builtin::{
+                StringName, Transform2D, Transform3D, Vector2, Vector2i, Vector2Axis,
+                Vector3, Vector3i, Vector3Axis, Vector4, Vector4i, Rect2, Rect2i, Plane, Quaternion, Aabb, Basis, Projection, Color, Rid
+            }
+        );
+
+        impl_dynamic_send!(
+            !Send;
+            Variant, GString, Dictionary, VariantArray, Callable, NodePath, PackedByteArray, PackedInt32Array, PackedInt64Array, PackedFloat32Array,
+            PackedFloat64Array, PackedStringArray, PackedVector2Array, PackedVector3Array, PackedColorArray, Signal
+        );
+
+        // This should be kept in sync with crate::registry::signal::variadic.
+        impl_dynamic_send!(tuple; );
+        impl_dynamic_send!(tuple; arg1: A1);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8);
+        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9);
+    }
+
+    #[cfg(since_api = "4.3")]
+    mod api_4_3 {
+        use crate::task::impl_dynamic_send;
+
+        use super::*;
+
+        impl_ffi_variant!(ref PackedVector4Array, packed_vector4_array_to_variant, packed_vector4_array_from_variant);
+
+        impl_dynamic_send!(!Send; PackedVector4Array);
+    }
 }
+
+// Compile time check that we cover all the Variant types with trait implementations for:
+// - IntoDynamicSend
+// - DynamicSend
+// - GodotType
+// - ArrayElement
+const _: () = {
+    use crate::classes::Object;
+    use crate::obj::{Gd, IndexEnum};
+
+    #[cfg(before_api = "4.2")]
+    const fn variant_type<T: GodotType + ArrayElement>() -> VariantType {
+        <T::Ffi as sys::GodotFfi>::VARIANT_TYPE
+    }
+
+    #[cfg(since_api = "4.2")]
+    const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + ArrayElement>(
+    ) -> VariantType {
+        <T::Ffi as sys::GodotFfi>::VARIANT_TYPE
+    }
+
+    const NIL: VariantType = variant_type::<Variant>();
+    const BOOL: VariantType = variant_type::<bool>();
+    const I64: VariantType = variant_type::<i64>();
+    const F64: VariantType = variant_type::<f64>();
+    const GSTRING: VariantType = variant_type::<GString>();
+
+    const VECTOR2: VariantType = variant_type::<Vector2>();
+    const VECTOR2I: VariantType = variant_type::<Vector2i>();
+    const RECT2: VariantType = variant_type::<Rect2>();
+    const RECT2I: VariantType = variant_type::<Rect2i>();
+    const VECTOR3: VariantType = variant_type::<Vector3>();
+    const VECTOR3I: VariantType = variant_type::<Vector3i>();
+    const TRANSFORM2D: VariantType = variant_type::<Transform2D>();
+    const TRANSFORM3D: VariantType = variant_type::<Transform3D>();
+    const VECTOR4: VariantType = variant_type::<Vector4>();
+    const VECTOR4I: VariantType = variant_type::<Vector4i>();
+    const PLANE: VariantType = variant_type::<Plane>();
+    const QUATERNION: VariantType = variant_type::<Quaternion>();
+    const AABB: VariantType = variant_type::<Aabb>();
+    const BASIS: VariantType = variant_type::<Basis>();
+    const PROJECTION: VariantType = variant_type::<Projection>();
+    const COLOR: VariantType = variant_type::<Color>();
+    const STRING_NAME: VariantType = variant_type::<StringName>();
+    const NODE_PATH: VariantType = variant_type::<NodePath>();
+    const RID: VariantType = variant_type::<Rid>();
+    const OBJECT: VariantType = variant_type::<Gd<Object>>();
+    const CALLABLE: VariantType = variant_type::<Callable>();
+    const SIGNAL: VariantType = variant_type::<Signal>();
+    const DICTIONARY: VariantType = variant_type::<Dictionary>();
+    const ARRAY: VariantType = variant_type::<VariantArray>();
+    const PACKED_BYTE_ARRAY: VariantType = variant_type::<PackedByteArray>();
+    const PACKED_INT32_ARRAY: VariantType = variant_type::<PackedInt32Array>();
+    const PACKED_INT64_ARRAY: VariantType = variant_type::<PackedInt64Array>();
+    const PACKED_FLOAT32_ARRAY: VariantType = variant_type::<PackedFloat32Array>();
+    const PACKED_FLOAT64_ARRAY: VariantType = variant_type::<PackedFloat64Array>();
+    const PACKED_STRING_ARRAY: VariantType = variant_type::<PackedStringArray>();
+    const PACKED_VECTOR2_ARRAY: VariantType = variant_type::<PackedVector2Array>();
+    const PACKED_VECTOR3_ARRAY: VariantType = variant_type::<PackedVector3Array>();
+    const PACKED_COLOR_ARRAY: VariantType = variant_type::<PackedColorArray>();
+
+    #[cfg(since_api = "4.3")]
+    const PACKED_VECTOR4_ARRAY: VariantType = variant_type::<PackedVector4Array>();
+
+    const MAX: i32 = VariantType::ENUMERATOR_COUNT as i32;
+
+    // The matched value is not relevant, we just want to ensure that the full list from 0 to MAX is covered.
+    #[deny(unreachable_patterns)]
+    match VariantType::STRING {
+        VariantType { ord: i32::MIN..0 } => panic!("ord is out of defined range!"),
+        NIL => (),
+        BOOL => (),
+        I64 => (),
+        F64 => (),
+        GSTRING => (),
+        VECTOR2 => (),
+        VECTOR2I => (),
+        RECT2 => (),
+        RECT2I => (),
+        VECTOR3 => (),
+        VECTOR3I => (),
+        TRANSFORM2D => (),
+        VECTOR4 => (),
+        VECTOR4I => (),
+        PLANE => (),
+        QUATERNION => (),
+        AABB => (),
+        BASIS => (),
+        TRANSFORM3D => (),
+        PROJECTION => (),
+        COLOR => (),
+        STRING_NAME => (),
+        NODE_PATH => (),
+        RID => (),
+        OBJECT => (),
+        CALLABLE => (),
+        SIGNAL => (),
+        DICTIONARY => (),
+        ARRAY => (),
+        PACKED_BYTE_ARRAY => (),
+        PACKED_INT32_ARRAY => (),
+        PACKED_INT64_ARRAY => (),
+        PACKED_FLOAT32_ARRAY => (),
+        PACKED_FLOAT64_ARRAY => (),
+        PACKED_STRING_ARRAY => (),
+        PACKED_VECTOR2_ARRAY => (),
+        PACKED_VECTOR3_ARRAY => (),
+        PACKED_COLOR_ARRAY => (),
+
+        #[cfg(since_api = "4.3")]
+        PACKED_VECTOR4_ARRAY => (),
+        VariantType { ord: MAX.. } => panic!("ord is out of defined range!"),
+    }
+};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Explicit impls
