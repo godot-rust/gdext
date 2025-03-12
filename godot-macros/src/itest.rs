@@ -67,7 +67,7 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
             .return_ty
             .as_ref()
             .and_then(extract_typename)
-            .map_or(true, |segment| segment.ident != "TaskHandle")
+            .is_none_or(|segment| segment.ident != "TaskHandle")
     {
         return bad_async_signature(&func);
     }

@@ -19,7 +19,7 @@ on:
 
 env:
   # Keep this a variable for easy search&replace.
-  MSRV: 1.80
+  MSRV: 1.85
 
 jobs:
   notify-docs:
