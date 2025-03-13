@@ -14,7 +14,7 @@ use godot::obj::{Gd, NewAlloc, OnEditor};
 
 #[itest]
 fn oneditor_deref() {
-    let mut on_editor = OnEditor::new_invalid(0);
+    let mut on_editor = OnEditor::from_sentinel(0);
     on_editor.init(42);
     assert_eq!(*on_editor, 42);
 
@@ -25,7 +25,7 @@ fn oneditor_deref() {
 #[itest]
 fn oneditor_no_value_panic_on_deref_primitive() {
     expect_panic("Deref on null fails for primitive", || {
-        let on_editor_panic: OnEditor<i64> = OnEditor::new_invalid(0);
+        let on_editor_panic: OnEditor<i64> = OnEditor::from_sentinel(0);
         let _ref: &i64 = &on_editor_panic;
     });
     expect_panic("Deref on null fails for Gd class", || {
@@ -34,7 +34,7 @@ fn oneditor_no_value_panic_on_deref_primitive() {
     });
 
     expect_panic("DerefMut on null fails for primitive", || {
-        let mut on_editor_panic: OnEditor<i64> = OnEditor::new_invalid(0);
+        let mut on_editor_panic: OnEditor<i64> = OnEditor::from_sentinel(0);
         let _ref: &mut i64 = &mut on_editor_panic;
     });
     expect_panic("DerefMut on null fails for Gd class", || {
@@ -68,7 +68,7 @@ fn oneditor_no_panic_on_ready() {
 #[class(init, base=Node)]
 struct OnEditorNoDefault {
     #[export]
-    #[init(invalid = 0)]
+    #[init(sentinel = 0)]
     some_primitive: OnEditor<i64>,
     #[export]
     node_field: OnEditor<Gd<Node>>,

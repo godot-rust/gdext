@@ -114,7 +114,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// `OnEditor<T>` can be used with other built-ins to provide extra validation logic and making sure that given properties has been set.
 /// Example usage might be checking if entities has been granted properly generated id.
 ///
-/// In such cases the value which will be deemed invalid **must** be specified with `#[init(uninit = val)]`.
+/// In such cases the value which will be deemed invalid **must** be specified with `#[init(sentinel = val)]`.
 /// Given `val` will be used to represent uninitialized `OnEditor<T>` in the Godot editor.
 /// Accessing uninitialized value will cause the panic.
 ///
@@ -129,7 +129,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///     // Uninitialized value will be represented by `42` in the editor.
 ///     // Will cause panic if not set via the editor or code before use.
 ///     #[export]
-///     #[init(invalid = 42)]
+///     #[init(sentinel = 42)]
 ///     some_primitive: OnEditor<i64>,
 /// }
 ///
@@ -190,7 +190,7 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
     /// Creates new `OnEditor<T>` with a value that is considered invalid.
     ///
     /// If this value is not changed in the editor, accessing it from Rust will cause a panic.
-    pub fn new_invalid(val: T) -> Self
+    pub fn from_sentinel(val: T) -> Self
     where
         T::Via: BuiltinExport,
     {
