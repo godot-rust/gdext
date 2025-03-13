@@ -114,7 +114,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// `OnEditor<T>` can be used with other built-ins to provide extra validation logic and making sure that given properties has been set.
 /// Example usage might be checking if entities has been granted properly generated id.
 ///
-/// In such cases the value which will be deemed invalid **must** be specified with `#[init(uninit = val)]`.
+/// In such cases the value which will be deemed invalid **must** be specified with `#[init(invalid = val)]`.
 /// Given `val` will be used to represent uninitialized `OnEditor<T>` in the Godot editor.
 /// Accessing uninitialized value will cause the panic.
 ///
