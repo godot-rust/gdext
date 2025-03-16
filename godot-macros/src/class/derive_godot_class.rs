@@ -557,62 +557,32 @@ fn parse_fields(
 
             // #[init(node = "PATH")]
             if let Some(node_path) = parser.handle_expr("node")? {
-                let is_well_formed = field.ensure_preconditions(
-                    Some(FieldCond::IsOnReady),
-                    parser.span(),
+                field.set_default_val_if(
+                    || quote! { OnReady::from_node(#node_path) },
+                    FieldCond::IsOnReady,
+                    &parser,
                     &mut errors,
                 );
-
-                let default_val = if is_well_formed {
-                    quote! { OnReady::from_node(#node_path) }
-                } else {
-                    quote! { todo!() }
-                };
-
-                field.default_val = Some(FieldDefault {
-                    default_val,
-                    span: parser.span(),
-                });
             }
 
             // #[init(load = "PATH")]
             if let Some(resource_path) = parser.handle_expr("load")? {
-                let is_well_formed = field.ensure_preconditions(
-                    Some(FieldCond::IsOnReady),
-                    parser.span(),
+                field.set_default_val_if(
+                    || quote! { OnReady::from_loaded(#resource_path) },
+                    FieldCond::IsOnReady,
+                    &parser,
                     &mut errors,
                 );
-
-                let default_val = if is_well_formed {
-                    quote! { OnReady::from_loaded(#resource_path) }
-                } else {
-                    quote! { todo!() }
-                };
-
-                field.default_val = Some(FieldDefault {
-                    default_val,
-                    span: parser.span(),
-                });
             }
 
             // #[init(sentinel = EXPR)]
             if let Some(sentinel_value) = parser.handle_expr("sentinel")? {
-                let is_well_formed = field.ensure_preconditions(
-                    Some(FieldCond::IsOnEditor),
-                    parser.span(),
+                field.set_default_val_if(
+                    || quote! { OnEditor::from_sentinel(#sentinel_value) },
+                    FieldCond::IsOnEditor,
+                    &parser,
                     &mut errors,
                 );
-
-                let default_val = if is_well_formed {
-                    quote! { OnEditor::from_sentinel(#sentinel_value) }
-                } else {
-                    quote! { todo!() }
-                };
-
-                field.default_val = Some(FieldDefault {
-                    default_val,
-                    span: parser.span(),
-                });
             }
 
             parser.finish()?;
