@@ -592,14 +592,14 @@ fn parse_fields(
                 });
             }
 
-            // #[init(invalid = val)]
-            if let Some(invalid_representation) = parser.handle_expr("invalid")? {
+            // #[init(sentinel = val)]
+            if let Some(sentinel_representation) = parser.handle_expr("sentinel")? {
                 let mut is_well_formed = true;
                 if !field.is_oneditor {
                     is_well_formed = false;
                     errors.push(error!(
                         parser.span(),
-                        "The key `invalid` in attribute #[init] requires field of type `OnEditor<T>`"
+                        "The key `sentinel` in attribute #[init] requires field of type `OnEditor<T>`"
                     ));
                 }
 
@@ -607,12 +607,12 @@ fn parse_fields(
                     is_well_formed = false;
                     errors.push(error!(
 				        parser.span(),
-				        "The key `invalid` in attribute #[init] is mutually exclusive with the keys `default` and `val`"
+				        "The key `sentinel` in attribute #[init] is mutually exclusive with the keys `default` and `val`"
 			        ));
                 }
 
                 let default_val = if is_well_formed {
-                    quote! { OnEditor::new_invalid( #invalid_representation ) }
+                    quote! { OnEditor::from_sentinel( #sentinel_representation ) }
                 } else {
                     quote! { todo!() }
                 };
