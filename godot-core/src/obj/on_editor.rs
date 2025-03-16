@@ -10,55 +10,73 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 
 /// Exported property that must be initialized in the editor (or associated code) before use.
 ///
-/// Allows to use `Gd<T>`, which by itself never holds null objects, as an `#[export]` that should not be null during runtime.
-/// As such, it can be used as a more ergonomic version of `Option<Gd<T>>` which _assumes_ initialization.
+/// Use this type whenever your Rust code cannot provide a value for a field, but expects one to be specified in the Godot editor.
 ///
-/// Panics during access if uninitialized.
+/// If you need automatic initialization during `ready()`, e.g. for loading nodes or resources, use [`OnReady<Gd<T>>`](crate::obj::OnReady)
+/// instead. As a general "maybe initialized" type, `Option<Gd<T>>` is always available, even if more verbose.
+///
+///
+/// # What consitutes "initialized"?
+///
+/// Whether a value is considered initialized or not depends on `T`.
+///
+/// - For objects, a value is initialized if it is not null. Exported object propreties in Godot are nullable, but `Gd<T>` and `DynGd<T, D>` do
+///   not support nullability and can thus not directly be exported with `#[export]`. `OnEditor` can bridge this gap, by expecting users
+///   to set a non-null value, and panicking if they don't.
+/// - For built-in types, a value is initialized if it is different from a user-selected sentinel value (e.g. `-1`).
+///
+/// More on this below (see also table-of-contents sidebar).
+///
+/// # Initialization semantics
+///
+/// Panics during access (`Deref/DerefMut` impls) if uninitialized.
+///
 /// When used inside a node class, `OnEditor` checks if a value has been set before `ready()` is run, and panics otherwise.
 /// This validation is performed for all `OnEditor` fields declared in a given `GodotClass`, regardless of whether they are `#[var]`, `#[export]`, or neither.
-/// Once initialized, it can be used almost as if it was a `T` value itself, due to `Deref`/`DerefMut` impls.
+/// Once initialized, `OnEditor` can be used almost as if it were a `T` value itself, due to `Deref`/`DerefMut` impls.
 ///
-/// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
-/// Initializing `OnEditor` values via code before the first use is supported but should be limited to use cases involving builder or factory patterns.
+/// `OnEditor<T>` should always be used as a struct field, preferably in tandem with an `#[export]` or `#[var]`.
+/// Initializing `OnEditor` values via code before the first use is supported, but should be limited to use cases involving builder or factory patterns.
 ///
-/// [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::on_ready::OnReady) should be used for any other late initialization logic.
 ///
-/// # Using `OnEditor<T>` with `Gd<T>` and `DynGd<T, D>`
+/// # Using `OnEditor` with classes
 ///
-/// ## Example - auto-generated init
+/// You can wrap class smart pointers `Gd<T>` and `DynGd<T, D>` inside `OnEditor`, to make them exportable.
+/// `Gd<T>` itself does not implement the `Export` trait.
+///
+/// ## Example: automatic init
+///
+/// This example uses the `Default` impl, which expects a non-null value to be provided.
 ///
 /// ```
-///  use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init, base = Node)]
-/// struct MyClass {
+/// struct ResourceHolder {
 ///     #[export]
 ///     editor_property: OnEditor<Gd<Resource>>,
 /// }
 ///
 /// #[godot_api]
-/// impl INode for MyClass {
+/// impl INode for ResourceHolder {
 ///     fn ready(&mut self) {
 ///         // Will always be valid and **must** be set via editor.
-///         // Additional check is being run before ready()
+///         // Additional check is being run before ready(),
 ///         // to ensure that given value can't be null.
 ///         let some_variant = self.editor_property.get_meta("SomeName");
 ///     }
 /// }
-///
 /// ```
 ///
-/// ## Example - user-generated init
+/// ## Example: user-defined init
 ///
-/// Uninitialized `OnEditor<Gd<T>>` and `OnEditor<DynGd<T, D>>` can be created with `OnEditor<...>::default()`.
+/// Uninitialized `OnEditor<Gd<T>>` and `OnEditor<DynGd<T, D>>` can be created with `OnEditor::default()`.
 ///
 /// ```
-///  use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(base = Node)]
-/// struct MyClass {
+/// struct NodeHolder {
 ///     #[export]
 ///     required_node: OnEditor<Gd<Node>>,
 ///
@@ -66,7 +84,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// }
 ///
 /// #[godot_api]
-/// impl INode for MyClass {
+/// impl INode for NodeHolder {
 ///     fn init(base: Base<Node>) -> Self {
 ///        Self {
 ///            base,
@@ -76,14 +94,13 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// }
 ///```
 ///
-/// ## Example - factory pattern
+/// ## Example: factory pattern
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init, base = Node)]
-/// struct SomeClass {
+/// struct NodeHolder {
 ///     #[export]
 ///     required_node: OnEditor<Gd<Node>>,
 /// }
@@ -92,40 +109,42 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///     mut this: Gd<Node>,
 ///     some_class_scene: Gd<PackedScene>,
 ///     some_node: Gd<Node>,
-/// ) -> Gd<SomeClass> {
-///     let mut my_node = some_class_scene.instantiate_as::<SomeClass>();
+/// ) -> Gd<NodeHolder> {
+///     let mut my_node = some_class_scene.instantiate_as::<NodeHolder>();
 ///
-///     // Would cause the panic:
+///     // Would cause a panic:
 ///     // this.add_child(&my_node);
 ///
-///     // Note: Remember that nodes are manually managed.
-///     // They will leak memory if not added to tree and/or pruned.
+///     // It's possible to initialize the value programmatically, although typically
+///     // it is set in the editor and stored in a .tscn file.
+///     // Note: nodes are manually managed and leak memory unless tree-attached or freed.
 ///     my_node.bind_mut().required_node.init(some_node);
 ///
-///     // Will not cause the panic.
+///     // Will not panic, since the node is initialized now.
 ///     this.add_child(&my_node);
 ///
 ///     my_node
 /// }
 /// ```
 ///
-/// # Using `OnEditor<T>` with other GodotTypes
+/// # Using `OnEditor` with built-in types
 ///
-/// `OnEditor<T>` can be used with other built-ins to provide extra validation logic and making sure that given properties has been set.
-/// Example usage might be checking if entities has been granted properly generated id.
+/// `OnEditor<T>` can be used with any `#[export]`-enabled builtins, to provide domain-specific validation logic.
+/// An example might be to check whether a game entity has been granted a non-zero ID.
 ///
-/// In such cases the value which will be deemed invalid **must** be specified with `#[init(sentinel = val)]`.
-/// Given `val` will be used to represent uninitialized `OnEditor<T>` in the Godot editor.
-/// Accessing uninitialized value will cause the panic.
+/// To detect whether a value has been set in the editor, `OnEditor<T>` uses a _sentinel value_. This is a special marker value for
+/// "uninitialized" and is selected by the user. For example, a sentinel value of `-1` or `0` might be used to represent an uninitialized `i32`.
 ///
-/// ## Example - using `OnEditor` with primitives
+/// There is deliberately no `Default` implementation for `OnEditor` with builtins, as the sentinel is highly domain-specific.
+///
+/// ## Example
 ///
 /// ```
-///  use godot::prelude::*;
+/// use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
 /// #[class(init, base = Node)]
-/// struct SomeClassThatCanBeInstantiatedInCode {
+/// struct IntHolder {
 ///     // Uninitialized value will be represented by `42` in the editor.
 ///     // Will cause panic if not set via the editor or code before use.
 ///     #[export]
@@ -133,26 +152,27 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///     some_primitive: OnEditor<i64>,
 /// }
 ///
-/// fn create_and_add(mut this: Gd<Node>, val: i64) -> Gd<SomeClassThatCanBeInstantiatedInCode> {
-///     let mut my_node = SomeClassThatCanBeInstantiatedInCode::new_alloc();
+/// fn create_and_add(mut this: Gd<Node>, val: i64) -> Gd<IntHolder> {
+///     let mut my_node = IntHolder::new_alloc();
 ///
-///     // Would cause the panic:
+///     // Would cause a panic:
 ///     // this.add_child(&my_node);
 ///
+///     // It's possible to initialize the value programmatically, although typically
+///     // it is set in the editor and stored in a .tscn file.
 ///     my_node.bind_mut().some_primitive.init(val);
 ///
-///     // Will not cause the panic.
+///     // Will not panic, since the node is initialized now.
 ///     this.add_child(&my_node);
 ///
 ///     my_node
 /// }
 /// ```
 ///
-/// # Using `OnEditor<T>` with `#[class(tool)]`
+/// # Using `OnEditor` with `#[class(tool)]`
 ///
 /// When used with `#[class(tool)]`, the before-ready checks are omitted.
-/// Otherwise, `OnEditor<T>` behaves the same — accessing an uninitialized value
-/// will cause a panic.
+/// Otherwise, `OnEditor<T>` behaves the same — accessing an uninitialized value will cause a panic.
 pub struct OnEditor<T> {
     inner: OnEditorState<T>,
 }

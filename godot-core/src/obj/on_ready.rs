@@ -19,7 +19,12 @@ use std::mem;
 /// Godot in particular encourages initialization inside `ready()`, e.g. to access the scene tree after a node is inserted into it.
 /// The alternative to using this pattern is [`Option<T>`][option], which needs to be explicitly unwrapped with `unwrap()` or `expect()` each time.
 ///
-/// `OnReady<T>` should always be used as a field. There are two modes to use it:
+/// If you have a value that you expect to be initialized in the Godot editor, use [`OnEditor<T>`][crate::obj::OnEditor] instead.
+/// As a general "maybe initialized" type, `Option<Gd<T>>` is always available, even if more verbose.
+///
+/// # Late-init semantics
+///
+/// `OnReady<T>` should always be used as a struct field. There are two modes to use it:
 ///
 /// 1. **Automatic mode, using [`new()`](OnReady::new), [`from_base_fn()`](OnReady::from_base_fn),
 ///    [`from_node()`][Self::from_node] or [`from_loaded()`][Self::from_loaded].**<br>
@@ -114,7 +119,9 @@ pub struct OnReady<T> {
 impl<T: Inherits<Node>> OnReady<Gd<T>> {
     /// Variant of [`OnReady::new()`], fetching the node located at `path` before `ready()`.
     ///
-    /// This is the functional equivalent of the GDScript pattern `@onready var node = $NODE_PATH`.
+    /// This is the functional equivalent of:
+    /// - the GDScript pattern `@onready var node = $NODE_PATH`.
+    /// - the Rust method [`Node::get_node_as()`].
     ///
     /// When used with `#[class(init)]`, the field can be annotated with `#[init(node = "NODE_PATH")]` to call this constructor.
     ///
@@ -138,7 +145,9 @@ impl<T: Inherits<Node>> OnReady<Gd<T>> {
 impl<T: Inherits<Resource>> OnReady<Gd<T>> {
     /// Variant of [`OnReady::new()`], loading the resource stored at `path` before `ready()`.
     ///
-    /// This is the functional equivalent of the GDScript pattern `@onready var res = load(...)`.
+    /// This is the functional equivalent of:
+    /// - the GDScript pattern `@onready var res = load(...)`.
+    /// - the Rust function [`tools::load()`][crate::tools::load].
     ///
     /// When used with `#[class(init)]`, the field can be annotated with `#[init(load = "FILE_PATH")]` to call this constructor.
     ///
