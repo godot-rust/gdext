@@ -14,7 +14,7 @@ use std::task::{Context, Poll, Waker};
 
 use crate::builtin::{Callable, RustCallable, Signal, Variant};
 use crate::classes::object::ConnectFlags;
-use crate::meta::ParamTuple;
+use crate::meta::InParamTuple;
 use crate::obj::{EngineBitfield, WithBaseField};
 use crate::registry::signal::TypedSignal;
 
@@ -22,15 +22,15 @@ use crate::registry::signal::TypedSignal;
 ///
 /// This future works in the same way as `FallibleSignalFuture`, but panics when the signal object is freed, instead of resolving to a
 /// [`Result::Err`].
-pub struct SignalFuture<R: ParamTuple + Sync + Send>(FallibleSignalFuture<R>);
+pub struct SignalFuture<R: InParamTuple + Sync + Send + 'static>(FallibleSignalFuture<R>);
 
-impl<R: ParamTuple + Sync + Send> SignalFuture<R> {
+impl<R: InParamTuple + Sync + Send + 'static> SignalFuture<R> {
     fn new(signal: Signal) -> Self {
         Self(FallibleSignalFuture::new(signal))
     }
 }
 
-impl<R: ParamTuple + Sync + Send> Future for SignalFuture<R> {
+impl<R: InParamTuple + Sync + Send + 'static> Future for SignalFuture<R> {
     type Output = R;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -93,7 +93,7 @@ impl<R> PartialEq for SignalFutureResolver<R> {
     }
 }
 
-impl<R: ParamTuple + Sync + Send> RustCallable for SignalFutureResolver<R> {
+impl<R: InParamTuple + Sync + Send + 'static> RustCallable for SignalFutureResolver<R> {
     fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
         let waker = {
             let mut data = self.data.lock().unwrap();
@@ -163,13 +163,13 @@ impl<T> SignalFutureState<T> {
 /// A future that tries to resolve as soon as the provided Godot signal was emitted.
 ///
 /// The future might resolve to an error if the signal object is freed before the signal is emitted.
-pub struct FallibleSignalFuture<R: ParamTuple + Sync + Send> {
+pub struct FallibleSignalFuture<R: InParamTuple + Sync + Send + 'static> {
     data: Arc<Mutex<SignalFutureData<R>>>,
     callable: SignalFutureResolver<R>,
     signal: Signal,
 }
 
-impl<R: ParamTuple + Sync + Send> FallibleSignalFuture<R> {
+impl<R: InParamTuple + Sync + Send + 'static> FallibleSignalFuture<R> {
     fn new(signal: Signal) -> Self {
         debug_assert!(
             !signal.is_null(),
@@ -225,7 +225,7 @@ impl Display for FallibleSignalFutureError {
 
 impl std::error::Error for FallibleSignalFutureError {}
 
-impl<R: ParamTuple + Sync + Send> Future for FallibleSignalFuture<R> {
+impl<R: InParamTuple + Sync + Send + 'static> Future for FallibleSignalFuture<R> {
     type Output = Result<R, FallibleSignalFutureError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -233,7 +233,7 @@ impl<R: ParamTuple + Sync + Send> Future for FallibleSignalFuture<R> {
     }
 }
 
-impl<R: ParamTuple + Sync + Send> Drop for FallibleSignalFuture<R> {
+impl<R: InParamTuple + Sync + Send + 'static> Drop for FallibleSignalFuture<R> {
     fn drop(&mut self) {
         // The callable might alredy be destroyed, this occurs during engine shutdown.
         if self.signal.object().is_none() {
@@ -264,7 +264,9 @@ impl Signal {
     ///
     /// Since the `Signal` type does not contain information on the signal argument types, the future output type has to be inferred from
     /// the call to this function.
-    pub fn to_fallible_future<R: ParamTuple + Sync + Send>(&self) -> FallibleSignalFuture<R> {
+    pub fn to_fallible_future<R: InParamTuple + Sync + Send + 'static>(
+        &self,
+    ) -> FallibleSignalFuture<R> {
         FallibleSignalFuture::new(self.clone())
     }
 
@@ -275,17 +277,20 @@ impl Signal {
     ///
     /// Since the `Signal` type does not contain information on the signal argument types, the future output type has to be inferred from
     /// the call to this function.
-    pub fn to_future<R: ParamTuple + Sync + Send>(&self) -> SignalFuture<R> {
+    pub fn to_future<R: InParamTuple + Sync + Send>(&self) -> SignalFuture<R> {
         SignalFuture::new(self.clone())
     }
 }
 
-impl<C: WithBaseField, R: ParamTuple + Sync + Send> TypedSignal<'_, C, R> {
+impl<C: WithBaseField, R: InParamTuple + Sync + Send> TypedSignal<'_, C, R> {
     /// Creates a fallible future for this signal.
     ///
     /// The future will resolve the next time the signal is emitted.
     /// See [`FallibleSignalFuture`] for details.
-    pub fn to_fallible_future(&self) -> FallibleSignalFuture<R> {
+    pub fn to_fallible_future(&self) -> FallibleSignalFuture<R>
+    where
+        R: 'static,
+    {
         FallibleSignalFuture::new(self.to_untyped())
     }
 
@@ -298,7 +303,9 @@ impl<C: WithBaseField, R: ParamTuple + Sync + Send> TypedSignal<'_, C, R> {
     }
 }
 
-impl<C: WithBaseField, R: ParamTuple + Sync + Send> IntoFuture for &TypedSignal<'_, C, R> {
+impl<C: WithBaseField, R: InParamTuple + Sync + Send + 'static> IntoFuture
+    for &TypedSignal<'_, C, R>
+{
     type Output = R;
 
     type IntoFuture = SignalFuture<R>;
