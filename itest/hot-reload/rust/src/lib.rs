@@ -23,32 +23,18 @@ unsafe impl ExtensionLibrary for HotReload {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass)]
-#[class(base=Node)]
+#[class(init, base=Node)]
 struct Reloadable {
     #[export]
+    #[init(val = Planet::Earth)]
     favorite_planet: Planet,
-    //
-    // HOT-RELOAD: uncomment this to add a new exported field (also update init() below).
-    // #[export]
-    // some_string: GString,
-}
-
-#[godot_api]
-impl INode for Reloadable {
-    fn init(_base: Base<Self::Base>) -> Self {
-        // HOT-RELOAD: change values to initialize with different defaults.
-        Self {
-            favorite_planet: Planet::Earth,
-            //some_string: "Hello, world!".into(),
-        }
-    }
 }
 
 #[godot_api]
 impl Reloadable {
-    #[rustfmt::skip] // easier replacement by test.
     #[func]
-    // HOT-RELOAD: change returned value for dynamic code change.
+    #[rustfmt::skip]
+    // DO NOT MODIFY FOLLOWING LINE -- replaced by hot-reload test. Hence #[rustfmt::skip] above.
     fn get_number(&self) -> i64 { 100 }
 
     #[func]
@@ -67,7 +53,4 @@ enum Planet {
     Earth,
     Mars,
     Venus,
-    //
-    // HOT-RELOAD: uncomment this to extend enum.
-    //Jupiter,
 }

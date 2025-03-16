@@ -4,13 +4,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+rel="."
+
 # Restore un-reloaded files on exit (for local testing).
 cleanedUp=0 # avoid recursion if cleanup fails
 cleanup() {
   if [[ $cleanedUp -eq 0 ]]; then
     cleanedUp=1
     echo "[Bash]      Cleanup..."
-    git checkout --quiet ../../rust/src/lib.rs ../rust.gdextension ../MainScene.tscn || true # ignore errors here
+    git checkout --quiet $rel/../rust/src/lib.rs $rel/rust.gdextension $rel/MainScene.tscn || true # ignore errors here
   fi
 }
 
@@ -20,12 +22,12 @@ trap cleanup EXIT
 echo "[Bash]      Start hot-reload integration test..."
 
 # Restore un-reloaded file (for local testing).
-git checkout --quiet ../../rust/src/lib.rs ../rust.gdextension
+git checkout --quiet $rel/../rust/src/lib.rs $rel/rust.gdextension
 
 # Set up editor file which has scene open, so @tool script loads at startup. Also copy scene file that holds a script.
-mkdir -p ../.godot/editor
-cp editor_layout.cfg ../.godot/editor/editor_layout.cfg
-cp MainScene.tscn ../MainScene.tscn
+mkdir -p $rel/.godot/editor
+cp editor_layout.cfg $rel/.godot/editor/editor_layout.cfg
+cp MainScene.tscn $rel/MainScene.tscn
 
 # Compile original Rust source.
 cargoArgs=""
@@ -35,7 +37,7 @@ cargo build -p hot-reload $cargoArgs
 # Wait briefly so artifacts are present on file system.
 sleep 0.5
 
-$GODOT4_BIN -e --headless --path .. &
+$GODOT4_BIN -e --headless --path $rel &
 pid=$!
 echo "[Bash]      Wait for Godot ready (PID $pid)..."
 

@@ -410,7 +410,7 @@ jobs:
           
       - name: "Build and test hot-reload"
         if: ${{ matrix.with-hot-reload }}
-        working-directory: itest/hot-reload/godot/test
+        working-directory: itest/hot-reload/godot
         # Repeat a few times, our hot reload integration test can sometimes be a bit flaky.
         run: $RETRY ./run-test.sh
         shell: bash
