@@ -22,7 +22,7 @@ use std::mem;
 /// `OnReady<T>` should always be used as a field. There are two modes to use it:
 ///
 /// 1. **Automatic mode, using [`new()`](OnReady::new), [`from_base_fn()`](OnReady::from_base_fn) or
-///    [`node()`](OnReady::<Gd<T>>::node).**<br>
+///    [`node()`](OnReady::<Gd<T>>::from_node).**<br>
 ///    Before `ready()` is called, all `OnReady` fields constructed with the above methods are automatically initialized,
 ///    in the order of declaration. This means that you can safely access them in `ready()`.<br><br>
 /// 2. **Manual mode, using [`manual()`](Self::manual).**<br>
@@ -86,8 +86,10 @@ use std::mem;
 /// #[class(init, base = Node)]
 /// struct MyClass {
 ///    base: Base<Node>,
+///
 ///    #[init(node = "ChildPath")]
 ///    auto: OnReady<Gd<Node2D>>,
+///
 ///    #[init(val = OnReady::manual())]
 ///    manual: OnReady<i32>,
 /// }
@@ -119,10 +121,15 @@ impl<T: GodotClass + Inherits<Node>> OnReady<Gd<T>> {
     ///
     /// Note that the panic will only happen if and when the node enters the SceneTree for the first time
     ///  (i.e.: it receives the `READY` notification).
-    pub fn node(path: impl AsArg<NodePath>) -> Self {
+    pub fn from_node(path: impl AsArg<NodePath>) -> Self {
         arg_into_owned!(path);
 
         Self::from_base_fn(move |base| base.get_node_as(&path))
+    }
+
+    #[deprecated = "Renamed to `from_node`."]
+    pub fn node(path: impl AsArg<NodePath>) -> Self {
+        Self::from_node(path)
     }
 }
 

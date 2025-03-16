@@ -563,8 +563,8 @@ fn parse_fields(
                     errors.push(error!(
                         parser.span(),
                         "The key `node` in attribute #[init] requires field of type `OnReady<T>`\n\
-				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(val = OnReady::node(\"NodePath\"))], \
+				         Hint: the syntax #[init(node = \"NodePath\")] is equivalent to \
+				         #[init(val = OnReady::from_node(\"NodePath\"))], \
 				         which can only be assigned to fields of type `OnReady<T>`"
                     ));
                 }
@@ -574,14 +574,14 @@ fn parse_fields(
                     errors.push(error!(
 				        parser.span(),
 				        "The key `node` in attribute #[init] is mutually exclusive with the keys `default` and `val`\n\
-				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(val = OnReady::node(\"NodePath\"))], \
+				         Hint: the syntax #[init(node = \"NodePath\")] is equivalent to \
+				         #[init(val = OnReady::from_node(\"NodePath\"))], \
 				         both aren't allowed since they would override each other"
 			        ));
                 }
 
                 let default_val = if is_well_formed {
-                    quote! { OnReady::node(#node_path) }
+                    quote! { OnReady::from_node(#node_path) }
                 } else {
                     quote! { todo!() }
                 };
@@ -607,7 +607,7 @@ fn parse_fields(
                     is_well_formed = false;
                     errors.push(error!(
 				        parser.span(),
-				        "The key `sentinel` in attribute #[init] is mutually exclusive with the keys `default` and `val`"
+				        "The key `sentinel` in attribute #[init] is mutually exclusive with the key `val`"
 			        ));
                 }
 

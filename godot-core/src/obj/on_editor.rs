@@ -21,7 +21,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// `OnEditor<T>` should always be used as a property, preferably in tandem with an `#[export]` or `#[var]`.
 /// Initializing `OnEditor` values via code before the first use is supported but should be limited to use cases involving builder or factory patterns.
 ///
-/// [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::onready::OnReady) should be used for any other late initialization logic.
+/// [`Option<Gd<T>>`](std::option) and [`OnReady<Gd<T>>`](crate::obj::on_ready::OnReady) should be used for any other late initialization logic.
 ///
 /// # Using `OnEditor<T>` with `Gd<T>` and `DynGd<T, D>`
 ///
