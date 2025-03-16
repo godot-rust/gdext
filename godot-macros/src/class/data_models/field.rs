@@ -6,6 +6,7 @@
  */
 
 use crate::class::{FieldExport, FieldVar};
+use crate::util::error;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 
@@ -37,6 +38,48 @@ impl Field {
             span: field.span(),
         }
     }
+
+    #[must_use]
+    pub fn ensure_preconditions(
+        &self,
+        cond: Option<FieldCond>,
+        span: Span,
+        errors: &mut Vec<venial::Error>,
+    ) -> bool {
+        let prev_size = errors.len();
+
+        if self.default_val.is_some() {
+            errors.push(error!(
+                span,
+                "#[init] can have at most one key among `val|node|load`"
+            ));
+        }
+
+        match cond {
+            Some(FieldCond::IsOnReady) if !self.is_onready => {
+                errors.push(error!(
+                    span,
+                    "used #[init(…)] pattern requires field type `OnReady<T>`"
+                ));
+            }
+
+            Some(FieldCond::IsOnEditor) if !self.is_oneditor => {
+                errors.push(error!(
+                    span,
+                    "used #[init(…)] pattern requires field type `OnEditor<T>`"
+                ));
+            }
+
+            _ => {}
+        }
+
+        errors.len() == prev_size
+    }
+}
+
+pub enum FieldCond {
+    IsOnReady,
+    IsOnEditor,
 }
 
 pub struct Fields {

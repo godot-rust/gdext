@@ -9,8 +9,8 @@ use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
 
 use crate::class::{
-    make_property_impl, make_virtual_callback, BeforeKind, Field, FieldDefault, FieldExport,
-    FieldVar, Fields, SignatureInfo,
+    make_property_impl, make_virtual_callback, BeforeKind, Field, FieldCond, FieldDefault,
+    FieldExport, FieldVar, Fields, SignatureInfo,
 };
 use crate::util::{
     bail, error, format_funcs_collection_struct, ident, path_ends_with_complex,
@@ -530,7 +530,7 @@ fn parse_fields(
                 );
             }
 
-            // #[init(val = expr)]
+            // #[init(val = EXPR)]
             if let Some(default) = parser.handle_expr("val")? {
                 field.default_val = Some(FieldDefault {
                     default_val: default,
@@ -555,30 +555,13 @@ fn parse_fields(
                 })
             }
 
-            // #[init(node = "NodePath")]
+            // #[init(node = "PATH")]
             if let Some(node_path) = parser.handle_expr("node")? {
-                let mut is_well_formed = true;
-                if !field.is_onready {
-                    is_well_formed = false;
-                    errors.push(error!(
-                        parser.span(),
-                        "The key `node` in attribute #[init] requires field of type `OnReady<T>`\n\
-				         Hint: the syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(val = OnReady::from_node(\"NodePath\"))], \
-				         which can only be assigned to fields of type `OnReady<T>`"
-                    ));
-                }
-
-                if field.default_val.is_some() {
-                    is_well_formed = false;
-                    errors.push(error!(
-				        parser.span(),
-				        "The key `node` in attribute #[init] is mutually exclusive with the keys `default` and `val`\n\
-				         Hint: the syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(val = OnReady::from_node(\"NodePath\"))], \
-				         both aren't allowed since they would override each other"
-			        ));
-                }
+                let is_well_formed = field.ensure_preconditions(
+                    Some(FieldCond::IsOnReady),
+                    parser.span(),
+                    &mut errors,
+                );
 
                 let default_val = if is_well_formed {
                     quote! { OnReady::from_node(#node_path) }
@@ -592,27 +575,36 @@ fn parse_fields(
                 });
             }
 
-            // #[init(sentinel = val)]
-            if let Some(sentinel_representation) = parser.handle_expr("sentinel")? {
-                let mut is_well_formed = true;
-                if !field.is_oneditor {
-                    is_well_formed = false;
-                    errors.push(error!(
-                        parser.span(),
-                        "The key `sentinel` in attribute #[init] requires field of type `OnEditor<T>`"
-                    ));
-                }
-
-                if field.default_val.is_some() {
-                    is_well_formed = false;
-                    errors.push(error!(
-				        parser.span(),
-				        "The key `sentinel` in attribute #[init] is mutually exclusive with the key `val`"
-			        ));
-                }
+            // #[init(load = "PATH")]
+            if let Some(resource_path) = parser.handle_expr("load")? {
+                let is_well_formed = field.ensure_preconditions(
+                    Some(FieldCond::IsOnReady),
+                    parser.span(),
+                    &mut errors,
+                );
 
                 let default_val = if is_well_formed {
-                    quote! { OnEditor::from_sentinel( #sentinel_representation ) }
+                    quote! { OnReady::from_loaded(#resource_path) }
+                } else {
+                    quote! { todo!() }
+                };
+
+                field.default_val = Some(FieldDefault {
+                    default_val,
+                    span: parser.span(),
+                });
+            }
+
+            // #[init(sentinel = EXPR)]
+            if let Some(sentinel_value) = parser.handle_expr("sentinel")? {
+                let is_well_formed = field.ensure_preconditions(
+                    Some(FieldCond::IsOnEditor),
+                    parser.span(),
+                    &mut errors,
+                );
+
+                let default_val = if is_well_formed {
+                    quote! { OnEditor::from_sentinel(#sentinel_value) }
                 } else {
                     quote! { todo!() }
                 };
@@ -649,6 +641,9 @@ fn parse_fields(
             if let Some(override_onready) = handle_opposite_keys(&mut parser, "onready", "hint")? {
                 field.is_onready = override_onready;
             }
+
+            // Not yet implemented for OnEditor.
+
             parser.finish()?;
         }
 
