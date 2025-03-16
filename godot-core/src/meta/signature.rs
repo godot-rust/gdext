@@ -7,39 +7,36 @@
 
 use std::{borrow::Cow, fmt, marker::PhantomData};
 
-use crate::{
-    builtin::Variant,
-    obj::{GodotClass, InstanceId},
-};
-
-use super::{
-    error::{CallError, ConvertError},
-    godot_convert::try_from_ffi,
-    GodotConvert, GodotType, InParamTuple, OutParamTuple, ParamTuple, PropertyInfo, ToGodot,
-};
+use crate::builtin::Variant;
+use crate::meta::error::{CallError, ConvertError};
+use crate::meta::godot_convert::try_from_ffi;
+use crate::meta::{FromGodot, GodotType, InParamTuple, OutParamTuple, ToGodot};
+use crate::obj::{GodotClass, InstanceId};
 
 use godot_ffi::{self as sys, GodotFfi};
 
 pub(super) type CallResult<R> = Result<R, CallError>;
-use super::FromGodot;
 
 //mod impls;
 
+/// A full signature for a function.
+///
+/// For in-calls (that is, calls from the Godot engine to Rust code) `Params` will implement [`InParamTuple`] and `Ret`
+/// will implement [`ToGodot`].
+///
+/// For out-calls (that is calls from Rust code to the Godot engine) `Params` will implement [`OutParamTuple`] and `Ret`
+/// will implement [`FromGodot`].
 pub struct Signature<Params, Ret> {
     _p: PhantomData<Params>,
     _r: PhantomData<Ret>,
 }
 
-impl<Params, Ret: GodotConvert> Signature<Params, Ret> {
-    fn return_info() -> Option<crate::registry::method::MethodParamOrReturnInfo> {
-        Ret::Via::return_info()
-    }
-}
-
 /// In-calls:
 ///
-/// Calls going from the Godot engine to rust code.
+/// Calls going from the Godot engine to Rust code.
+#[deny(unsafe_op_in_unsafe_fn)]
 impl<Params: InParamTuple, Ret: ToGodot> Signature<Params, Ret> {
+    /// Receive a varcall from the Godot engine.
     #[inline]
     pub unsafe fn in_varcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
@@ -56,10 +53,12 @@ impl<Params: InParamTuple, Ret: ToGodot> Signature<Params, Ret> {
         #[cfg(feature = "trace")]
         trace::push(true, false, &call_ctx);
 
-        let args = Params::from_varcall_args(args_ptr, call_ctx)?;
+        // SAFETY: TODO.
+        let args = unsafe { Params::from_varcall_args(args_ptr, call_ctx)? };
 
         let rust_result = func(instance_ptr, args);
-        varcall_return::<Ret>(rust_result, ret, err);
+        // SAFETY: TODO.
+        unsafe { varcall_return::<Ret>(rust_result, ret, err) };
         Ok(())
     }
 
@@ -77,18 +76,20 @@ impl<Params: InParamTuple, Ret: ToGodot> Signature<Params, Ret> {
         #[cfg(feature = "trace")]
         trace::push(true, true, &call_ctx);
 
-        let args = Params::from_ptrcall_args(args_ptr, call_type, call_ctx);
+        // SAFETY: TODO.
+        let args = unsafe { Params::from_ptrcall_args(args_ptr, call_type, call_ctx) };
 
         // SAFETY:
         // `ret` is always a pointer to an initialized value of type $R
         // TODO: double-check the above
-        ptrcall_return::<Ret>(func(instance_ptr, args), ret, call_ctx, call_type)
+        unsafe { ptrcall_return::<Ret>(func(instance_ptr, args), ret, call_ctx, call_type) }
     }
 }
 
 /// Out-calls:
 ///
 /// Calls going from the rust code to the Godot engine.
+#[deny(unsafe_op_in_unsafe_fn)]
 impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
     #[inline]
     pub unsafe fn out_class_varcall(
@@ -116,19 +117,22 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
             variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys));
             variant_ptrs.extend(varargs.iter().map(Variant::var_sys));
 
-            Variant::new_with_var_uninit_result(|return_ptr| {
-                let mut err = sys::default_call_error();
-                class_fn(
-                    method_bind.0,
-                    object_ptr,
-                    variant_ptrs.as_ptr(),
-                    variant_ptrs.len() as i64,
-                    return_ptr,
-                    std::ptr::addr_of_mut!(err),
-                );
+            // SAFETY: TODO.
+            unsafe {
+                Variant::new_with_var_uninit_result(|return_ptr| {
+                    let mut err = sys::default_call_error();
+                    class_fn(
+                        method_bind.0,
+                        object_ptr,
+                        variant_ptrs.as_ptr(),
+                        variant_ptrs.len() as i64,
+                        return_ptr,
+                        std::ptr::addr_of_mut!(err),
+                    );
 
-                CallError::check_out_varcall(&call_ctx, err, &explicit_args, varargs)
-            })
+                    CallError::check_out_varcall(&call_ctx, err, &explicit_args, varargs)
+                })
+            }
         });
 
         variant.and_then(|v| {
@@ -154,17 +158,20 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         let object_call_script_method = sys::interface_fn!(object_call_script_method);
 
         let variant = args.with_args(|_, sys_args| {
-            Variant::new_with_var_uninit(|return_ptr| {
-                let mut err = sys::default_call_error();
-                object_call_script_method(
-                    object_ptr,
-                    method_sname_ptr,
-                    sys_args.as_ptr(),
-                    sys_args.len() as i64,
-                    return_ptr,
-                    std::ptr::addr_of_mut!(err),
-                );
-            })
+            // SAFETY: TODO.
+            unsafe {
+                Variant::new_with_var_uninit(|return_ptr| {
+                    let mut err = sys::default_call_error();
+                    object_call_script_method(
+                        object_ptr,
+                        method_sname_ptr,
+                        sys_args.as_ptr(),
+                        sys_args.len() as i64,
+                        return_ptr,
+                        std::ptr::addr_of_mut!(err),
+                    );
+                })
+            }
         });
 
         let result = <Ret as FromGodot>::try_from_variant(&variant);
@@ -188,9 +195,12 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
             type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
 
             // Important: this calls from_sys_init_default().
-            new_from_ptrcall::<Ret>(|return_ptr| {
-                utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
-            })
+            // SAFETY: TODO.
+            unsafe {
+                new_from_ptrcall::<Ret>(|return_ptr| {
+                    utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
+                })
+            }
         });
 
         result.unwrap_or_else(|err| return_error::<Ret>(&call_ctx, err))
@@ -214,14 +224,17 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
             type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
 
             // Important: this calls from_sys_init_default().
-            new_from_ptrcall::<Ret>(|return_ptr| {
-                builtin_fn(
-                    type_ptr,
-                    type_ptrs.as_ptr(),
-                    return_ptr,
-                    type_ptrs.len() as i32,
-                );
-            })
+            // SAFETY: TODO.
+            unsafe {
+                new_from_ptrcall::<Ret>(|return_ptr| {
+                    builtin_fn(
+                        type_ptr,
+                        type_ptrs.as_ptr(),
+                        return_ptr,
+                        type_ptrs.len() as i32,
+                    );
+                })
+            }
         });
 
         result.unwrap_or_else(|err| return_error::<Ret>(&call_ctx, err))
@@ -247,14 +260,17 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         let class_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
         let result = args.with_ptr_args(|explicit_args| {
-            new_from_ptrcall::<Ret>(|return_ptr| {
-                class_fn(
-                    method_bind.0,
-                    object_ptr,
-                    explicit_args.as_ptr(),
-                    return_ptr,
-                );
-            })
+            // SAFETY: TODO.
+            unsafe {
+                new_from_ptrcall::<Ret>(|return_ptr| {
+                    class_fn(
+                        method_bind.0,
+                        object_ptr,
+                        explicit_args.as_ptr(),
+                        return_ptr,
+                    );
+                })
+            }
         });
 
         result.unwrap_or_else(|err| return_error::<Ret>(&call_ctx, err))
@@ -273,14 +289,17 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         // $crate::out!("out_builtin_ptrcall: {call_ctx}");
 
         let result = args.with_ptr_args(|explicit_args| {
-            new_from_ptrcall::<Ret>(|return_ptr| {
-                builtin_fn(
-                    type_ptr,
-                    explicit_args.as_ptr(),
-                    return_ptr,
-                    explicit_args.len() as i32,
-                );
-            })
+            // SAFETY: TODO.
+            unsafe {
+                new_from_ptrcall::<Ret>(|return_ptr| {
+                    builtin_fn(
+                        type_ptr,
+                        explicit_args.as_ptr(),
+                        return_ptr,
+                        explicit_args.len() as i32,
+                    );
+                })
+            }
         });
 
         result.unwrap_or_else(|err| return_error::<Ret>(&call_ctx, err))
@@ -296,13 +315,16 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         // $crate::out!("out_utility_ptrcall: {call_ctx}");
 
         let result = args.with_ptr_args(|explicit_args| {
-            new_from_ptrcall::<Ret>(|return_ptr| {
-                utility_fn(
-                    return_ptr,
-                    explicit_args.as_ptr(),
-                    explicit_args.len() as i32,
-                );
-            })
+            // SAFETY: TODO.
+            unsafe {
+                new_from_ptrcall::<Ret>(|return_ptr| {
+                    utility_fn(
+                        return_ptr,
+                        explicit_args.as_ptr(),
+                        explicit_args.len() as i32,
+                    );
+                })
+            }
         });
 
         result.unwrap_or_else(|err| return_error::<Ret>(&call_ctx, err))
