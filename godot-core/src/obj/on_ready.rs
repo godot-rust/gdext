@@ -5,10 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::NodePath;
-use crate::classes::Node;
+use crate::builtin::{GString, NodePath};
+use crate::classes::{Node, Resource};
 use crate::meta::{arg_into_owned, AsArg, GodotConvert};
-use crate::obj::{Gd, GodotClass, Inherits};
+use crate::obj::{Gd, Inherits};
 use crate::registry::property::Var;
 use std::fmt::{self, Debug, Formatter};
 use std::mem;
@@ -19,12 +19,17 @@ use std::mem;
 /// Godot in particular encourages initialization inside `ready()`, e.g. to access the scene tree after a node is inserted into it.
 /// The alternative to using this pattern is [`Option<T>`][option], which needs to be explicitly unwrapped with `unwrap()` or `expect()` each time.
 ///
-/// `OnReady<T>` should always be used as a field. There are two modes to use it:
+/// If you have a value that you expect to be initialized in the Godot editor, use [`OnEditor<T>`][crate::obj::OnEditor] instead.
+/// As a general "maybe initialized" type, `Option<Gd<T>>` is always available, even if more verbose.
 ///
-/// 1. **Automatic mode, using [`new()`](OnReady::new), [`from_base_fn()`](OnReady::from_base_fn) or
-///    [`node()`](OnReady::<Gd<T>>::node).**<br>
+/// # Late-init semantics
+///
+/// `OnReady<T>` should always be used as a struct field. There are two modes to use it:
+///
+/// 1. **Automatic mode, using [`new()`](OnReady::new), [`from_base_fn()`](OnReady::from_base_fn),
+///    [`from_node()`][Self::from_node] or [`from_loaded()`][Self::from_loaded].**<br>
 ///    Before `ready()` is called, all `OnReady` fields constructed with the above methods are automatically initialized,
-///    in the order of declaration. This means that you can safely access them in `ready()`.<br><br>
+///    in the order of declaration. This means that you can safely access them in `ready()`.<br>
 /// 2. **Manual mode, using [`manual()`](Self::manual).**<br>
 ///    These fields are left uninitialized until you call [`init()`][Self::init] on them. This is useful if you need more complex
 ///    initialization scenarios than a closure allows. If you forget initialization, a panic will occur on first access.
@@ -86,8 +91,10 @@ use std::mem;
 /// #[class(init, base = Node)]
 /// struct MyClass {
 ///    base: Base<Node>,
+///
 ///    #[init(node = "ChildPath")]
 ///    auto: OnReady<Gd<Node2D>>,
+///
 ///    #[init(val = OnReady::manual())]
 ///    manual: OnReady<i32>,
 /// }
@@ -109,20 +116,50 @@ pub struct OnReady<T> {
     state: InitState<T>,
 }
 
-impl<T: GodotClass + Inherits<Node>> OnReady<Gd<T>> {
+impl<T: Inherits<Node>> OnReady<Gd<T>> {
     /// Variant of [`OnReady::new()`], fetching the node located at `path` before `ready()`.
     ///
-    /// This is the functional equivalent of the GDScript pattern `@onready var node = $NodePath`.
+    /// This is the functional equivalent of:
+    /// - the GDScript pattern `@onready var node = $NODE_PATH`.
+    /// - the Rust method [`Node::get_node_as()`].
     ///
-    /// # Panics
-    /// - If `path` does not point to a valid node.
+    /// When used with `#[class(init)]`, the field can be annotated with `#[init(node = "NODE_PATH")]` to call this constructor.
+    ///
+    /// # Panics (deferred)
+    /// - If `path` does not point to a valid node, or its type is not a `T` or a subclass.
     ///
     /// Note that the panic will only happen if and when the node enters the SceneTree for the first time
-    ///  (i.e.: it receives the `READY` notification).
-    pub fn node(path: impl AsArg<NodePath>) -> Self {
+    /// (i.e. it receives the `READY` notification).
+    pub fn from_node(path: impl AsArg<NodePath>) -> Self {
         arg_into_owned!(path);
 
         Self::from_base_fn(move |base| base.get_node_as(&path))
+    }
+
+    #[deprecated = "Renamed to `from_node`."]
+    pub fn node(path: impl AsArg<NodePath>) -> Self {
+        Self::from_node(path)
+    }
+}
+
+impl<T: Inherits<Resource>> OnReady<Gd<T>> {
+    /// Variant of [`OnReady::new()`], loading the resource stored at `path` before `ready()`.
+    ///
+    /// This is the functional equivalent of:
+    /// - the GDScript pattern `@onready var res = load(...)`.
+    /// - the Rust function [`tools::load()`][crate::tools::load].
+    ///
+    /// When used with `#[class(init)]`, the field can be annotated with `#[init(load = "FILE_PATH")]` to call this constructor.
+    ///
+    /// # Panics (deferred)
+    /// - If the resource does not exist at `path`, cannot be loaded or is not compatible with type `T`.
+    ///
+    /// Note that the panic will only happen if and when the node enters the SceneTree for the first time
+    /// (i.e. it receives the `READY` notification).
+    pub fn from_loaded(path: impl AsArg<GString>) -> Self {
+        arg_into_owned!(path);
+
+        Self::new(move || crate::tools::load(&path))
     }
 }
 
@@ -168,7 +205,7 @@ impl<T> OnReady<T> {
     ///
     /// # Panics
     /// - If `init()` was called before.
-    /// - If this object was already provided with a closure during construction, in [`Self::new()`].
+    /// - If this object was already provided with a closure during construction, in [`Self::new()`] or any other automatic constructor.
     pub fn init(&mut self, value: T) {
         match &self.state {
             InitState::ManualUninitialized { .. } => {

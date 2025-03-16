@@ -16,8 +16,8 @@ mod dyn_gd;
 mod gd;
 mod guards;
 mod instance_id;
-mod oneditor;
-mod onready;
+mod on_editor;
+mod on_ready;
 mod raw_gd;
 mod traits;
 
@@ -28,8 +28,8 @@ pub use dyn_gd::DynGd;
 pub use gd::*;
 pub use guards::{BaseMut, BaseRef, DynGdMut, DynGdRef, GdMut, GdRef};
 pub use instance_id::*;
-pub use oneditor::*;
-pub use onready::*;
+pub use on_editor::*;
+pub use on_ready::*;
 pub use raw_gd::*;
 pub use traits::*;
 

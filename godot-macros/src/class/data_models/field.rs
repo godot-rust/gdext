@@ -6,8 +6,9 @@
  */
 
 use crate::class::{FieldExport, FieldVar};
+use crate::util::{error, KvParser};
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 
 pub struct Field {
     pub name: Ident,
@@ -37,6 +38,76 @@ impl Field {
             span: field.span(),
         }
     }
+
+    /// For a previously performed check, either pastes the generated code, or a syntactically valid fallback.
+    ///
+    /// In case of incorrect proc-macro usage, it's nice if the resulting generated code is still syntactically valid, to not trip over
+    /// IDEs and static analysis tools. So, in case of errors, a syntactically valid placeholder is generated.
+    pub fn set_default_val_if(
+        &mut self,
+        default_expr: impl FnOnce() -> TokenStream,
+        precondition: FieldCond,
+        parser: &KvParser,
+        errors: &mut Vec<venial::Error>,
+    ) {
+        debug_assert!(
+            self.default_val.is_none(),
+            "default already set; check precondition"
+        );
+
+        let span = parser.span();
+        let is_well_formed = self.ensure_preconditions(precondition, span, errors);
+
+        let default_val = if is_well_formed {
+            default_expr()
+        } else {
+            quote! { todo!() }
+        };
+
+        self.default_val = Some(FieldDefault { default_val, span });
+    }
+
+    fn ensure_preconditions(
+        &self,
+        cond: FieldCond,
+        span: Span,
+        errors: &mut Vec<venial::Error>,
+    ) -> bool {
+        let prev_size = errors.len();
+
+        if self.default_val.is_some() {
+            errors.push(error!(
+                span,
+                "#[init] can have at most one key among `val|node|load`"
+            ));
+        }
+
+        match cond {
+            FieldCond::IsOnReady if !self.is_onready => {
+                errors.push(error!(
+                    span,
+                    "used #[init(…)] pattern requires field type `OnReady<T>`"
+                ));
+            }
+
+            FieldCond::IsOnEditor if !self.is_oneditor => {
+                errors.push(error!(
+                    span,
+                    "used #[init(…)] pattern requires field type `OnEditor<T>`"
+                ));
+            }
+
+            _ => {}
+        }
+
+        errors.len() == prev_size
+    }
+}
+
+pub enum FieldCond {
+    // None, - enable once needed.
+    IsOnReady,
+    IsOnEditor,
 }
 
 pub struct Fields {

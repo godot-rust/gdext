@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Integration of OnReady with #[init(load = "PATH")] is tested in save_load_test.rs.
+
 use crate::framework::{expect_panic, itest};
 use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node};
