@@ -48,8 +48,7 @@ but already covers a _Hello World_ setup as well as several more in-depth chapte
 
 To consult the API reference, have a look at the online [API Docs].
 
-Furthermore, we provide a small example game in the [`examples/dodge-the-creeps` directory][dodge-the-creeps].  
-The example [`examples/hot-reload`][hot-reload] demonstrates hot-reloading in the Godot editor.
+Furthermore, we provide some practical examples and small games in the [demo-projects] repository.
 
 If you need help, join our [Discord] server and ask in the `#help` channel!
 
@@ -80,8 +79,7 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 [Website]: https://godot-rust.github.io
 [`gdnative`]: https://github.com/godot-rust/gdnative
 [book]: https://godot-rust.github.io/book
-[dodge-the-creeps]: examples/dodge-the-creeps
-[hot-reload]: examples/hot-reload
+[demo-projects]: https://github.com/godot-rust/demo-projects
 [iOS]: https://github.com/godot-rust/gdext/issues/498
 [mpl]: https://www.mozilla.org/en-US/MPL
 [philosophy]: https://godot-rust.github.io/book/contribute/philosophy.html
