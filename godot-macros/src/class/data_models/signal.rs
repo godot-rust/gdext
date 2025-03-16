@@ -148,7 +148,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
         [
             // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
             #(
-                <#param_list as godot::meta::ParamList>
+                <#param_list as godot::meta::ParamTuple>
                     ::property_info(#indexes, #param_names_str),
             )*
         ]

@@ -10,7 +10,7 @@ use sys::interface_fn;
 
 use crate::builtin::{StringName, Variant};
 use crate::global::MethodFlags;
-use crate::meta::{ClassName, GodotConvert, GodotType, ParamList, PropertyInfo};
+use crate::meta::{ClassName, GodotConvert, GodotType, ParamTuple, PropertyInfo};
 use crate::obj::GodotClass;
 
 /// Info relating to an argument or return type in a method.
@@ -53,7 +53,7 @@ impl ClassMethodInfo {
     /// `call_func` and `ptrcall_func`, if provided, must:
     ///
     /// - Follow the behavior expected from the `method_flags`.
-    pub unsafe fn from_signature<C: GodotClass, Params: ParamList, Ret: GodotConvert>(
+    pub unsafe fn from_signature<C: GodotClass, Params: ParamTuple, Ret: GodotConvert>(
         method_name: StringName,
         call_func: sys::GDExtensionClassMethodCall,
         ptrcall_func: sys::GDExtensionClassMethodPtrCall,

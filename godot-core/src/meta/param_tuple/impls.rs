@@ -5,16 +5,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::CallResult;
-use super::{InParamList, OutParamList, ParamList};
 use crate::builtin::Variant;
-use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
+use crate::meta::signature;
+use crate::meta::{
+    FromGodot, GodotConvert, GodotFfiVariant, GodotType, InParamTuple, OutParamTuple, ParamTuple,
+    ToGodot,
+};
 use godot_ffi as sys;
 use std::fmt;
 
-macro_rules! impl_param_list_for_tuple {
+macro_rules! impl_param_tuple {
     ($Len:literal; $(($p:ident, $n:tt): $P:ident),+) => {
-        impl<$($P),+> ParamList for ($($P,)+) where $($P: GodotConvert + fmt::Debug),+ {
+        impl<$($P),+> ParamTuple for ($($P,)+) where $($P: GodotConvert + fmt::Debug),+ {
             const LEN: usize = $Len;
 
             fn property_info(index: usize, param_name: &str) -> crate::meta::PropertyInfo {
@@ -48,14 +50,14 @@ macro_rules! impl_param_list_for_tuple {
             }
         }
 
-        impl<$($P),+> InParamList for ($($P,)+) where $($P: FromGodot + fmt::Debug),+ {
+        impl<$($P),+> InParamTuple for ($($P,)+) where $($P: FromGodot + fmt::Debug),+ {
             unsafe fn from_varcall_args(
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 call_ctx: &crate::meta::CallContext,
-            ) -> CallResult<Self> {
+            ) -> signature::CallResult<Self> {
                 let args = (
                     $(
-                        super::varcall_arg::<$P, $n>(args_ptr, call_ctx)?,
+                        signature::varcall_arg::<$P, $n>(args_ptr, call_ctx)?,
                     )+
                 );
 
@@ -69,13 +71,25 @@ macro_rules! impl_param_list_for_tuple {
             ) -> Self {
                 (
                     $(
-                        super::ptrcall_arg::<$P, $n>(args_ptr, call_ctx, call_type),
+                        signature::ptrcall_arg::<$P, $n>(args_ptr, call_ctx, call_type),
                     )+
+                )
+            }
+
+            fn from_variant_array(array: &[&Variant]) -> Self {
+                assert_array_length::<Self>(array);
+                let mut iter = array.iter();
+                (
+                    $(
+                        <$P>::from_variant(
+                            iter.next().unwrap_or_else(|| panic!("ParamTuple: {} access out-of-bounds (len {})", stringify!($p), array.len()))
+                    ),
+                    )*
                 )
             }
         }
 
-        impl<$($P),+> OutParamList for ($($P,)+) where $($P: ToGodot + fmt::Debug),+ {
+        impl<$($P),+> OutParamTuple for ($($P,)+) where $($P: ToGodot + fmt::Debug),+ {
             fn with_args<F, R>(self, f: F) -> R
             where
                 F: FnOnce(&[crate::builtin::Variant], &[godot_ffi::GDExtensionConstVariantPtr]) -> R,
@@ -119,26 +133,34 @@ macro_rules! impl_param_list_for_tuple {
 
                 f(&ptr_args)
             }
+
+            fn to_variant_array(&self) -> Vec<Variant> {
+                let ($($p,)*) = self;
+
+                vec![
+                    $( $p.to_variant(), )*
+                ]
+            }
         }
     };
 }
 
-impl_param_list_for_tuple!(1; (p0, 0): P0);
-impl_param_list_for_tuple!(2; (p0, 0): P0, (p1, 1): P1);
-impl_param_list_for_tuple!(3; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2);
-impl_param_list_for_tuple!(4; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3);
-impl_param_list_for_tuple!(5; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4);
-impl_param_list_for_tuple!(6; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5);
-impl_param_list_for_tuple!(7; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6);
-impl_param_list_for_tuple!(8; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7);
-impl_param_list_for_tuple!(9; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8);
-impl_param_list_for_tuple!(10; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9);
-impl_param_list_for_tuple!(11; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10);
-impl_param_list_for_tuple!(12; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11);
-impl_param_list_for_tuple!(13; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12);
-impl_param_list_for_tuple!(14; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12, (p13, 13): P13);
+impl_param_tuple!(1; (p0, 0): P0);
+impl_param_tuple!(2; (p0, 0): P0, (p1, 1): P1);
+impl_param_tuple!(3; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2);
+impl_param_tuple!(4; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3);
+impl_param_tuple!(5; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4);
+impl_param_tuple!(6; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5);
+impl_param_tuple!(7; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6);
+impl_param_tuple!(8; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7);
+impl_param_tuple!(9; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8);
+impl_param_tuple!(10; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9);
+impl_param_tuple!(11; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10);
+impl_param_tuple!(12; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11);
+impl_param_tuple!(13; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12);
+impl_param_tuple!(14; (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12, (p13, 13): P13);
 
-impl ParamList for () {
+impl ParamTuple for () {
     const LEN: usize = 0;
 
     fn property_info(_index: usize, _param_name: &str) -> crate::meta::PropertyInfo {
@@ -157,24 +179,29 @@ impl ParamList for () {
     }
 }
 
-impl InParamList for () {
+impl InParamTuple for () {
     unsafe fn from_varcall_args(
-        args_ptr: *const godot_ffi::GDExtensionConstVariantPtr,
-        call_ctx: &crate::meta::CallContext,
-    ) -> CallResult<Self> {
+        _args_ptr: *const godot_ffi::GDExtensionConstVariantPtr,
+        _call_ctx: &crate::meta::CallContext,
+    ) -> signature::CallResult<Self> {
         Ok(())
     }
 
     unsafe fn from_ptrcall_args(
-        args_ptr: *const godot_ffi::GDExtensionConstTypePtr,
-        call_type: godot_ffi::PtrcallType,
-        call_ctx: &crate::meta::CallContext,
+        _args_ptr: *const godot_ffi::GDExtensionConstTypePtr,
+        _call_type: godot_ffi::PtrcallType,
+        _call_ctx: &crate::meta::CallContext,
     ) -> Self {
+        ()
+    }
+
+    fn from_variant_array(array: &[&Variant]) -> Self {
+        assert_array_length::<()>(array);
         ()
     }
 }
 
-impl OutParamList for () {
+impl OutParamTuple for () {
     fn with_args<F, R>(self, f: F) -> R
     where
         F: FnOnce(&[crate::builtin::Variant], &[godot_ffi::GDExtensionConstVariantPtr]) -> R,
@@ -188,4 +215,18 @@ impl OutParamList for () {
     {
         f(&[])
     }
+
+    fn to_variant_array(&self) -> Vec<Variant> {
+        vec![]
+    }
+}
+
+fn assert_array_length<P: ParamTuple>(array: &[&Variant]) {
+    assert_eq!(
+        array.len(),
+        P::LEN,
+        "array {array:?} has wrong length, expected {} got {}",
+        P::LEN,
+        array.len()
+    );
 }
