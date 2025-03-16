@@ -287,10 +287,7 @@ impl<C: WithBaseField, R: InParamTuple + Sync + Send> TypedSignal<'_, C, R> {
     ///
     /// The future will resolve the next time the signal is emitted.
     /// See [`FallibleSignalFuture`] for details.
-    pub fn to_fallible_future(&self) -> FallibleSignalFuture<R>
-    where
-        R: 'static,
-    {
+    pub fn to_fallible_future(&self) -> FallibleSignalFuture<R> {
         FallibleSignalFuture::new(self.to_untyped())
     }
 

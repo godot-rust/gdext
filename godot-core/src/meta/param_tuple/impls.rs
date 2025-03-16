@@ -41,12 +41,13 @@ macro_rules! impl_param_tuple {
             }
 
             fn format_args(&self) -> String {
-                let mut string = String::new();
-                $(
-                    string.push_str(&format!("{:?}, ", self.$n));
-                )*
-                string.remove(string.len() - 2); // remove trailing ", "
-                string
+                let ($($p,)*) = self;
+                format!(
+                    // This repeat expression is basically just `"{$p:?}"`, the rest is only needed so that
+                    // the repeat separator can be `", "` instead of `,`.
+                    concat!("" $(, "{", stringify!($p), ":?}" ,)", "*),
+                    $($p=$p),*
+                )
             }
         }
 

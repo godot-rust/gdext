@@ -69,8 +69,6 @@ pub(crate) use traits::{
     element_godot_type_name, element_variant_type, GodotFfiVariant, GodotNullableFfi,
 };
 
-use crate::registry::method::MethodParamOrReturnInfo;
-
 pub(crate) use crate::{
     arg_into_owned, arg_into_ref, declare_arg_method, impl_asarg_by_ref, impl_asarg_by_value,
     impl_godot_as_self,
