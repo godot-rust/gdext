@@ -11,9 +11,10 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector3Axis;
-use crate::builtin::{inner, real, Basis, RVec3, Vector2, Vector3i};
+use crate::builtin::{inner, real, Basis, RVec3, Transform3D, Vector2, Vector3i};
 
 use std::fmt;
+use std::ops::Mul;
 
 /// Vector used for 3D math using floating point coordinates.
 ///
@@ -248,6 +249,14 @@ impl_vector3_vector4_fns!(Vector3, (x, y, z));
 
 impl_vector_operators!(Vector3, real, (x, y, z));
 
+impl Mul<Transform3D> for Vector3 {
+    type Output = Self;
+
+    fn mul(self, rhs: Transform3D) -> Self::Output {
+        rhs.glam2(&self, |t, v| t.inverse().transform_point3(v))
+    }
+}
+
 /// Formats the vector like Godot: `(x, y, z)`.
 impl fmt::Display for Vector3 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -410,6 +419,21 @@ mod test {
 
         assert_eq_approx!(sum, Vector3::new(12.0, 15.0, 18.0));
         assert_eq_approx!(sum_refs, Vector3::new(12.0, 15.0, 18.0));
+    }
+
+    #[test]
+    fn transform_multiplication() {
+        let transform = Transform3D::new(Basis::IDENTITY, Vector3::new(5., 50., 0.5))
+            .rotated(Vector3::new(1.0, 2.0, 3.0).normalized(), 1.0);
+        let vector = Vector3::new(10., 100., 1.0);
+        assert_eq_approx!(
+            transform * vector,
+            Vector3::new(-81.93149, 111.8101, 59.27044)
+        );
+        assert_eq_approx!(
+            vector * transform,
+            Vector3::new(74.41499, 11.49629, 3.03081)
+        );
     }
 
     #[cfg(feature = "serde")]

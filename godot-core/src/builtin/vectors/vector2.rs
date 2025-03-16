@@ -11,9 +11,10 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
-use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i};
+use crate::builtin::{inner, real, RAffine2, RVec2, Transform2D, Vector2i};
 
 use std::fmt;
+use std::ops::Mul;
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -177,6 +178,14 @@ impl_vector2_vector3_fns!(Vector2, (x, y));
 
 impl_vector_operators!(Vector2, real, (x, y));
 
+impl Mul<Transform2D> for Vector2 {
+    type Output = Self;
+
+    fn mul(self, rhs: Transform2D) -> Self::Output {
+        rhs.glam2(&self, |t, v| t.inverse().transform_point2(v))
+    }
+}
+
 /// Formats the vector like Godot: `(x, y)`.
 impl fmt::Display for Vector2 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -233,6 +242,20 @@ mod test {
         assert_eq!(vector.sign(), Vector2::new(1., -1.));
         let vector = Vector2::new(0.1, 0.0);
         assert_eq!(vector.sign(), Vector2::new(1., 0.));
+    }
+
+    #[test]
+    fn transform_multiplication() {
+        let transform = Transform2D::from_cols(
+            Vector2::new(1.0, 0.0),
+            Vector2::new(0.0, 1.0),
+            Vector2::new(5.0, 50.0),
+        )
+        .rotated(1.0);
+
+        let vector = Vector2::new(10.0, 100.0);
+        assert_eq_approx!(transform * vector, Vector2::new(-118.1161, 93.6674));
+        assert_eq_approx!(vector * transform, Vector2::new(84.55011, -4.38448));
     }
 
     #[cfg(feature = "serde")]
