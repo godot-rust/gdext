@@ -8,9 +8,15 @@ rel="."
 
 # Restore un-reloaded files on exit (for local testing).
 cleanedUp=0 # avoid recursion if cleanup fails
+godotPid=0 # kill previous instance if necessary
+
 cleanup() {
   if [[ $cleanedUp -eq 0 ]]; then
     cleanedUp=1
+    if [[ $godotPid -ne 0 ]]; then
+      echo "[Bash]      Kill Godot (PID $godotPid)..."
+      kill $godotPid || true # ignore errors here
+    fi
     echo "[Bash]      Cleanup..."
     git checkout --quiet $rel/../rust/src/lib.rs $rel/rust.gdextension $rel/MainScene.tscn || true # ignore errors here
   fi
@@ -27,7 +33,7 @@ git checkout --quiet $rel/../rust/src/lib.rs $rel/rust.gdextension
 # Set up editor file which has scene open, so @tool script loads at startup. Also copy scene file that holds a script.
 mkdir -p $rel/.godot/editor
 cp editor_layout.cfg $rel/.godot/editor/editor_layout.cfg
-cp MainScene.tscn $rel/MainScene.tscn
+#cp MainScene.tscn $rel/MainScene.tscn
 
 # Compile original Rust source.
 cargoArgs=""
@@ -38,8 +44,8 @@ cargo build -p hot-reload $cargoArgs
 sleep 0.5
 
 $GODOT4_BIN -e --headless --path $rel &
-pid=$!
-echo "[Bash]      Wait for Godot ready (PID $pid)..."
+godotPid=$!
+echo "[Bash]      Wait for Godot ready (PID $godotPid)..."
 
 $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- await
 $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- replace
@@ -50,9 +56,9 @@ cargo build -p hot-reload $cargoArgs
 $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- notify
 
 echo "[Bash]      Wait for Godot exit..."
-wait $pid
+wait $godotPid
 status=$?
-echo "[Bash]      Godot (PID $pid) has completed with status $status."
+echo "[Bash]      Godot (PID $godotPid) has completed with status $status."
 
 
 
