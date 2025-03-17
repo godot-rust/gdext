@@ -22,8 +22,8 @@ header:
     - '**/*.sh'
     - '.github/**/*.yml'
 
-  paths-ignore:
-    - 'examples'
+#   paths-ignore:
+#     - '...'
 
   comment: on-failure
 

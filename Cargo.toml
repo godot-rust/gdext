@@ -12,8 +12,7 @@ members = [
     # Godot integration
     "itest/rust",
     "itest/repo-tweak",
-    "examples/dodge-the-creeps/rust",
-    "examples/hot-reload/rust",
+    "itest/hot-reload/rust",
 ]
 
 # Note about Jetbrains IDEs: "IDE Sync" (Refresh Cargo projects) may cause static analysis errors such as

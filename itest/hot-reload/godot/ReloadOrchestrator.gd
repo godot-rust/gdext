@@ -29,7 +29,7 @@ func _initialize():
 
 		["replace"]:
 			print("[GD Orch]   Replace source code...")
-			ok = replace_line("../../rust/src/lib.rs")
+			ok = replace_line("../rust/src/lib.rs")
 
 		["notify"]:
 			print("[GD Orch]   Notify Godot about change...")

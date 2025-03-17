@@ -11,4 +11,4 @@ config_version=5
 [application]
 
 config/name="hot-reload"
-config/features=PackedStringArray("4.3", "Forward Plus")
+config/features=PackedStringArray("4.2", "Forward Plus")

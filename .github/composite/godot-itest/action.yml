@@ -109,7 +109,7 @@ runs:
       
         else
           echo "Update compatibility_minimum in .gdextension files to '$apiVersion'..."
-          dirs=("itest" "examples")
+          dirs=("itest")
         
           # Note that this is still hardcoded to 4.1, the start of GDExtension's compatibility promise. This makes it easier for users
           # to use gdext with older Godot versions. There is anyway a runtime check in gdext that checks compatibility again.

@@ -1,9 +1,0 @@
-# The cargo flag "-Zbuild-std" is also required but this cannot yet be specified for specific
-# targets: https://github.com/rust-lang/cargo/issues/8733
-[target.wasm32-unknown-emscripten]
-rustflags = [
-    "-C", "link-args=-sSIDE_MODULE=2",
-    "-C", "link-args=-sUSE_PTHREADS=1",
-    "-C", "target-feature=+atomics,+bulk-memory,+mutable-globals",
-    "-Zlink-native-libraries=no",
-]
