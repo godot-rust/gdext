@@ -7,6 +7,8 @@
 
 #![allow(dead_code)]
 
+// TODO remove niche APIs from minimal codegen, and #[cfg(feature = "codegen-full")] a sub-module.
+
 use crate::framework::{itest, TestContext};
 
 use godot::builtin::{

@@ -114,8 +114,12 @@ impl<'a> Context<'a> {
                     break;
                 }
             }
-            let (nearest_index, nearest_enum_name) =
-                nearest.expect("at least one base must have notifications");
+            let (nearest_index, nearest_enum_name) = nearest.unwrap_or_else(|| {
+                panic!(
+                    "class {}: at least one base must have notifications; possibly, its direct base has been removed from minimal codegen",
+                    class_name.godot_ty
+                )
+            });
 
             // For all bases inheriting most-derived base that has notification constants, reuse the type name.
             for i in (0..nearest_index).rev() {
