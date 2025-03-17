@@ -42,6 +42,12 @@ pub trait GodotConvert {
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 ///
 /// This trait can be derived using the [`#[derive(GodotConvert)]`](../register/derive.GodotConvert.html) macro.
+#[diagnostic::on_unimplemented(
+    message = "passing type `{Self}` to Godot requires `ToGodot` trait, which is usually provided by the library",
+    note = "ToGodot is implemented for built-in types (i32, Vector2, GString, …). For objects, use Gd<T> instead of T.",
+    note = "if you really need a custom representation (for non-class types), implement ToGodot manually or use #[derive(GodotConvert)].",
+    note = "see also: https://godot-rust.github.io/docs/gdext/master/godot/meta"
+)]
 pub trait ToGodot: Sized + GodotConvert {
     /// Target type of [`to_godot()`](ToGodot::to_godot), which can differ from [`Via`][GodotConvert::Via] for pass-by-reference types.
     ///
@@ -76,6 +82,12 @@ pub trait ToGodot: Sized + GodotConvert {
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 ///
 /// This trait can be derived using the [`#[derive(GodotConvert)]`](../register/derive.GodotConvert.html) macro.
+#[diagnostic::on_unimplemented(
+    message = "receiving type `{Self}` from Godot requires `FromGodot` trait, which is usually provided by the library",
+    note = "FromGodot is implemented for built-in types (i32, Vector2, GString, …). For objects, use Gd<T> instead of T.",
+    note = "if you really need a custom representation (for non-class types), implement FromGodot manually or use #[derive(GodotConvert)]",
+    note = "see also: https://godot-rust.github.io/docs/gdext/master/godot/meta"
+)]
 pub trait FromGodot: Sized + GodotConvert {
     /// Converts the Godot representation to this type, returning `Err` on failure.
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError>;

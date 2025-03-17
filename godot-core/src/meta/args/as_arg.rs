@@ -49,9 +49,9 @@ use std::ffi::CStr;
 /// custom types. Classes are already supported through upcasting and [`AsObjectArg`][crate::meta::AsObjectArg].
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
-    note = "If you pass by value, consider borrowing instead.",
+    note = "if you pass by value, consider borrowing instead.",
     note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method.",
-    note = "See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
+    note = "see also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
 )]
 pub trait AsArg<T: ParamType>
 where
