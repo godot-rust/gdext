@@ -230,27 +230,6 @@ jobs:
         run: ./run-test.sh
         shell: bash
 
-  run-examples:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: "Install Rust"
-        uses: ./.github/composite/rust
-
-      # First compile, to fail early in case of compilation errors.
-      - name: "Compile Rust examples (release mode)"
-        run: cargo build --release -p dodge-the-creeps
-
-      - name: "Install Godot"
-        uses: ./.github/composite/godot-install
-        with:
-          artifact-name: godot-linux-4.4
-          godot-binary: godot.linuxbsd.editor.dev.x86_64
-
-      - name: "Run examples for short time"
-        run: ./.github/other/check-example.sh dodge-the-creeps
-
 
   license-guard:
     runs-on: ubuntu-22.04
@@ -281,7 +260,6 @@ jobs:
       - clippy
       - unit-test
       - godot-itest
-      - run-examples
       - license-guard
 
     runs-on: ubuntu-22.04
