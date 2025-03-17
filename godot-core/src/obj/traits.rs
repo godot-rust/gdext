@@ -21,7 +21,7 @@ use godot_ffi as sys;
 /// Normally, you don't need to implement this trait yourself; use [`#[derive(GodotClass)]`](../register/derive.GodotClass.html) instead.
 // Above intra-doc link to the derive-macro only works as HTML, not as symbol link.
 #[diagnostic::on_unimplemented(
-    message = "Only classes registered with Godot are allowed in this context",
+    message = "only classes registered with Godot are allowed in this context",
     note = "you can use `#[derive(GodotClass)]` to register your own structs with Godot",
     note = "see also: https://godot-rust.github.io/book/register/classes.html"
 )]
@@ -262,7 +262,7 @@ pub trait IndexEnum: EngineEnum {
 #[diagnostic::on_unimplemented(
     message = "Class `{Self}` requires a `Base<T>` field",
     label = "missing field `_base: Base<...>` in struct declaration",
-    note = "A base field is required to access the base from within `self`, as well as for #[signal], #[rpc] and #[func(virtual)]",
+    note = "a base field is required to access the base from within `self`, as well as for #[signal], #[rpc] and #[func(virtual)]",
     note = "see also: https://godot-rust.github.io/book/register/classes.html#the-base-field"
 )]
 pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
@@ -527,8 +527,8 @@ pub mod cap {
     #[diagnostic::on_unimplemented(
         message = "Class `{Self}` requires either an `init` constructor, or explicit opt-out",
         label = "needs `init`",
-        note = "To provide a default constructor, use `#[class(init)]` or implement an `init` method",
-        note = "To opt out, use `#[class(no_init)]`",
+        note = "to provide a default constructor, use `#[class(init)]` or implement an `init` method",
+        note = "to opt out, use `#[class(no_init)]`",
         note = "see also: https://godot-rust.github.io/book/register/constructors.html"
     )]
     pub trait GodotDefault: GodotClass {

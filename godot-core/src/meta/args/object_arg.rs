@@ -46,8 +46,8 @@ use std::ptr;
 /// | (null literal)    |                       | `Gd::null_arg()` |
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsObjectArg<{T}>` parameter",
-    note = "If you pass by value, consider borrowing instead.",
-    note = "See also `AsObjectArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsObjectArg.html"
+    note = "if you pass by value, consider borrowing instead.",
+    note = "see also `AsObjectArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsObjectArg.html"
 )]
 pub trait AsObjectArg<T>
 where
