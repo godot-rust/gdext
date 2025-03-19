@@ -723,6 +723,11 @@ where
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait impls
+impl<T: GodotClass> AsRef<Gd<T>> for Gd<T> {
+    fn as_ref(&self) -> &Gd<T> {
+        self
+    }
+}
 
 impl<T: GodotClass> Deref for Gd<T> {
     // Target is always an engine class:
