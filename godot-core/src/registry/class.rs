@@ -216,9 +216,13 @@ pub fn auto_register_classes(init_level: InitLevel) {
     // but it is much slower and doesn't guarantee that all the dependent classes will be already loaded in most cases.
     register_classes_and_dyn_traits(&mut map, init_level);
 
-    // actually register all the classes
+    // Actually register all the classes.
     for info in map.into_values() {
+        #[cfg(feature = "debug-log")]
+        let class_name = info.class_name;
+
         register_class_raw(info);
+
         out!("Class {class_name} loaded.");
     }
 
