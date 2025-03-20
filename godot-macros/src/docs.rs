@@ -11,22 +11,26 @@ use crate::class::{ConstDefinition, Field, FuncDefinition, SignalDefinition};
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 
-/// Returns code containing the doc information of a `#[derive(GodotClass)] struct MyClass` declaration.
+/// Returns code containing the doc information of a `#[derive(GodotClass)] struct MyClass` declaration iff class or any of its members is documented.
 pub fn document_struct(
     base: String,
     description: &[venial::Attribute],
     fields: &[Field],
 ) -> TokenStream {
     let base_escaped = xml_escape(base);
-    let Some(desc_escaped) = attribute_docs_to_bbcode(description).map(xml_escape) else {
-        return quote! { None };
-    };
+    let desc_escaped = attribute_docs_to_bbcode(description)
+        .map(xml_escape)
+        .unwrap_or_default();
 
     let members = fields
         .iter()
         .filter(|field| field.var.is_some() || field.export.is_some())
         .filter_map(format_member_xml)
         .collect::<String>();
+
+    if members.is_empty() && desc_escaped.is_empty() {
+        return quote! { None };
+    }
 
     quote! {
         Some(
