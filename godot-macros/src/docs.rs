@@ -28,18 +28,12 @@ pub fn document_struct(
         .filter_map(format_member_xml)
         .collect::<String>();
 
-    if members.is_empty() && desc_escaped.is_empty() {
-        return quote! { None };
-    }
-
     quote! {
-        Some(
             ::godot::docs::StructDocs {
                 base: #base_escaped,
                 description: #desc_escaped,
                 members: #members,
             }
-        )
     }
 }
 
