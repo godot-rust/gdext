@@ -121,9 +121,7 @@ impl std::fmt::Display for Rid {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rid {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::RID
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::RID;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self;
         fn new_from_sys;

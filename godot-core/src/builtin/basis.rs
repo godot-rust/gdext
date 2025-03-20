@@ -632,9 +632,7 @@ impl Mul<Vector3> for Basis {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Basis {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::BASIS
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::BASIS;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

@@ -47,9 +47,9 @@ macro_rules! impl_ffi_variant {
 
             fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
                 // Type check -- at the moment, a strict match is required.
-                if variant.get_type() != Self::variant_type() {
+                if variant.get_type() != Self::VARIANT_TYPE {
                     return Err(FromVariantError::BadType {
-                        expected: Self::variant_type(),
+                        expected: Self::VARIANT_TYPE,
                         actual: variant.get_type(),
                     }
                     .into_error(variant.clone()));
@@ -244,7 +244,7 @@ impl GodotType for Variant {
 
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
-            variant_type: Self::variant_type(),
+            variant_type: Self::VARIANT_TYPE,
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
             hint_info: PropertyHintInfo::none(),

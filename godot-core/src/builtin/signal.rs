@@ -166,9 +166,7 @@ impl Signal {
 // The `opaque` in `Signal` is just a pair of pointers, and requires no special initialization or cleanup
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Signal {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::SIGNAL
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::SIGNAL;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn new_from_sys;

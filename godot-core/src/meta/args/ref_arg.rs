@@ -122,9 +122,7 @@ unsafe impl<T> GodotFfi for RefArg<'_, T>
 where
     T: GodotFfi,
 {
-    fn variant_type() -> sys::VariantType {
-        T::variant_type()
-    }
+    const VARIANT_TYPE: sys::VariantType = T::VARIANT_TYPE;
 
     unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {
         wrong_direction!(new_from_sys)

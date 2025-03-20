@@ -342,9 +342,7 @@ impl Dictionary {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(dictionary.clone())`.
 unsafe impl GodotFfi for Dictionary {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::DICTIONARY
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::DICTIONARY;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }

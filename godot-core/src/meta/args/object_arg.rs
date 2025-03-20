@@ -274,9 +274,7 @@ where
 {
     // If anything changes here, keep in sync with RawGd impl.
 
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::OBJECT
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::OBJECT;
 
     unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {
         unreachable!("ObjectArg should only be passed *to* Godot, not *from*.")

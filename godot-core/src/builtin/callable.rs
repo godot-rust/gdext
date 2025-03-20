@@ -456,9 +456,7 @@ impl_builtin_traits! {
 // The `opaque` in `Callable` is just a pair of pointers, and requires no special initialization or cleanup
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Callable {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::CALLABLE
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::CALLABLE;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn new_from_sys;

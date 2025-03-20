@@ -195,9 +195,7 @@ impl NodePath {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(node_path.clone())`.
 unsafe impl GodotFfi for NodePath {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::NODE_PATH
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::NODE_PATH;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
