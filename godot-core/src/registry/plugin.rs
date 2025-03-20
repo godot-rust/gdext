@@ -189,12 +189,12 @@ pub struct Struct {
 
     /// Documentation extracted from the struct's RustDoc.
     #[cfg(all(since_api = "4.3", feature = "register-docs"))]
-    pub(crate) docs: Option<StructDocs>,
+    pub(crate) docs: StructDocs,
 }
 
 impl Struct {
     pub fn new<T: GodotClass + cap::ImplementsGodotExports>(
-        #[cfg(all(since_api = "4.3", feature = "register-docs"))] docs: Option<StructDocs>,
+        #[cfg(all(since_api = "4.3", feature = "register-docs"))] docs: StructDocs,
     ) -> Self {
         Self {
             base_class_name: T::Base::class_name(),
