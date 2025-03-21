@@ -626,9 +626,7 @@ macro_rules! impl_packed_array {
         }
 
         unsafe impl GodotFfi for $PackedArray {
-            fn variant_type() -> sys::VariantType {
-                sys::VariantType::$VariantType
-            }
+            const VARIANT_TYPE: sys::VariantType = sys::VariantType::$VariantType;
 
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }

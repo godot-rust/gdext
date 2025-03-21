@@ -605,7 +605,7 @@ mod export_impls {
 pub(crate) fn builtin_type_string<T: GodotType>() -> String {
     use sys::GodotFfi as _;
 
-    let variant_type = T::Ffi::variant_type();
+    let variant_type = T::Ffi::VARIANT_TYPE;
 
     // Godot 4.3 changed representation for type hints, see https://github.com/godotengine/godot/pull/90716.
     if sys::GdextBuild::since_api("4.3") {

@@ -268,9 +268,7 @@ impl StringName {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(string_name.clone())`.
 unsafe impl GodotFfi for StringName {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::STRING_NAME
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::STRING_NAME;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }

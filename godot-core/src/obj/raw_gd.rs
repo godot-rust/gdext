@@ -466,9 +466,7 @@ where
 {
     // If anything changes here, keep in sync with ObjectArg impl.
 
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::OBJECT
-    }
+    const VARIANT_TYPE: sys::VariantType = sys::VariantType::OBJECT;
 
     unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self {
         Self::from_obj_sys_weak(ptr as sys::GDExtensionObjectPtr)

@@ -462,9 +462,7 @@ crate::meta::impl_asarg_by_ref!(Variant);
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
 // `std::mem::swap` is sufficient for returning a value.
 unsafe impl GodotFfi for Variant {
-    fn variant_type() -> VariantType {
-        VariantType::NIL
-    }
+    const VARIANT_TYPE: VariantType = VariantType::NIL;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

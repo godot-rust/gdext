@@ -25,7 +25,7 @@ use std::marker::PhantomData;
 #[doc(hidden)] // shows up in implementors otherwise
 pub unsafe trait GodotFfi {
     #[doc(hidden)]
-    fn variant_type() -> sys::VariantType;
+    const VARIANT_TYPE: sys::VariantType;
 
     #[doc(hidden)]
     fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
@@ -427,17 +427,13 @@ mod scalars {
     }
     */
     unsafe impl GodotFfi for bool {
-        fn variant_type() -> sys::VariantType {
-            sys::VariantType::BOOL
-        }
+        const VARIANT_TYPE: sys::VariantType = sys::VariantType::BOOL;
 
         ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
     }
 
     unsafe impl GodotFfi for i64 {
-        fn variant_type() -> sys::VariantType {
-            sys::VariantType::INT
-        }
+        const VARIANT_TYPE: sys::VariantType = sys::VariantType::INT;
 
         fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
             sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
@@ -447,9 +443,7 @@ mod scalars {
     }
 
     unsafe impl GodotFfi for f64 {
-        fn variant_type() -> sys::VariantType {
-            sys::VariantType::FLOAT
-        }
+        const VARIANT_TYPE: sys::VariantType = sys::VariantType::FLOAT;
 
         fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
             sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE
@@ -459,9 +453,7 @@ mod scalars {
     }
 
     unsafe impl GodotFfi for () {
-        fn variant_type() -> sys::VariantType {
-            sys::VariantType::NIL
-        }
+        const VARIANT_TYPE: sys::VariantType = sys::VariantType::NIL;
 
         unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {
             // Do nothing

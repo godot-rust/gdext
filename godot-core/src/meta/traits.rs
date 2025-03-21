@@ -89,7 +89,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     #[doc(hidden)]
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
-            variant_type: Self::Ffi::variant_type(),
+            variant_type: Self::Ffi::VARIANT_TYPE,
             class_name: Self::class_name(),
             property_name: builtin::StringName::from(property_name),
             hint_info: Self::property_hint_info(),
@@ -188,7 +188,7 @@ pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + meta::ParamType {
 
 #[doc(hidden)]
 pub(crate) fn element_variant_type<T: ArrayElement>() -> VariantType {
-    <T::Via as GodotType>::Ffi::variant_type()
+    <T::Via as GodotType>::Ffi::VARIANT_TYPE
 }
 
 #[doc(hidden)]
