@@ -11,9 +11,6 @@
 //
 // Could be generalized with R return type, and not special-casing `self`. But keep simple until actually needed.
 
-use crate::builtin::Variant;
-use crate::meta;
-
 /// Trait that is implemented for functions that can be connected to signals.
 ///
 // Direct RustDoc link doesn't work, for whatever reason again...
@@ -28,46 +25,11 @@ pub trait SignalReceiver<I, Ps>: 'static {
     fn call(&mut self, maybe_instance: I, params: Ps);
 }
 
-/// Represents a parameter list as Rust tuple.
-///
-/// Each tuple element is one parameter. This trait provides conversions to and from `Variant` arrays.
-// Re-exported under crate::meta. Might be worth splitting, but depends a bit on SignatureVarcall/Ptrcall refactoring.
-pub trait ParamTuple: 'static {
-    fn to_variant_array(&self) -> Vec<Variant>;
-    fn from_variant_array(array: &[&Variant]) -> Self;
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Generated impls
 
 macro_rules! impl_signal_recipient {
     ($( $args:ident : $Ps:ident ),*) => {
-        // --------------------------------------------------------------------------------------------------------------------------------------
-        // ParamTuple
-
-        impl<$($Ps),*> ParamTuple for ($($Ps,)*)
-        where
-            $($Ps: meta::ToGodot + meta::FromGodot + 'static),*
-        {
-            fn to_variant_array(&self) -> Vec<Variant> {
-                let ($($args,)*) = self;
-
-                vec![
-                    $( $args.to_variant(), )*
-                ]
-            }
-
-            #[allow(unused_variables, unused_mut, clippy::unused_unit)]
-            fn from_variant_array(array: &[&Variant]) -> Self {
-               let mut iter = array.iter();
-               ( $(
-                  <$Ps>::from_variant(
-                        iter.next().unwrap_or_else(|| panic!("ParamTuple: {} access out-of-bounds (len {})", stringify!($args), array.len()))
-                  ),
-               )* )
-            }
-        }
-
         // --------------------------------------------------------------------------------------------------------------------------------------
         // SignalReceiver
 

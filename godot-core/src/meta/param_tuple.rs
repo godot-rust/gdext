@@ -1,0 +1,85 @@
+/*
+ * Copyright (c) godot-rust; Bromeon and contributors.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+use crate::builtin::Variant;
+
+use super::{CallContext, CallResult, PropertyInfo};
+use godot_ffi as sys;
+
+mod impls;
+
+/// Represents a parameter list as Rust tuple where each tuple element is one parameter.
+///
+/// This trait only contains metadata for the parameter list, the actual functionality is contained in [`InParamTuple`] and
+/// [`OutParamTuple`].
+pub trait ParamTuple: Sized {
+    /// The number of elements in this parameter list.
+    const LEN: usize;
+
+    /// The property info of the parameter at index `index`.
+    fn property_info(index: usize, param_name: &str) -> PropertyInfo;
+
+    /// The param info of the parameter at index `index`.
+    fn param_info(
+        index: usize,
+        param_name: &str,
+    ) -> Option<crate::registry::method::MethodParamOrReturnInfo>;
+
+    /// Return a string representing the arguments.
+    fn format_args(&self) -> String;
+}
+
+/// Represents a parameter list that is received from some external location (usually Godot).
+///
+/// As an example, this would be used for user-defined functions that will be called from Godot, however this is _not_ used when
+/// calling a Godot function from Rust code.
+pub trait InParamTuple: ParamTuple {
+    /// Converts `args_ptr` to `Self` by first going through [`Variant`].
+    ///
+    /// # Safety
+    ///
+    /// - `args_ptr` must be a pointer to a valid array of length `Self::LEN`
+    /// - each element of `args_ptr` must be a `Variant`
+    unsafe fn from_varcall_args(
+        args_ptr: *const sys::GDExtensionConstVariantPtr,
+        call_ctx: &CallContext,
+    ) -> CallResult<Self>;
+
+    /// Converts `args_ptr` to `Self` directly.
+    ///
+    /// # Safety
+    ///
+    /// - `args_ptr` must be a pointer to a valid array of length `Self::LEN`
+    /// - each element of `args_ptr` must be of the same type as each element of `Self`
+    unsafe fn from_ptrcall_args(
+        args_ptr: *const sys::GDExtensionConstTypePtr,
+        call_type: sys::PtrcallType,
+        call_ctx: &CallContext,
+    ) -> Self;
+
+    /// Converts `array` to `Self` by calling [`from_variant`](crate::meta::FromGodot::from_variant) on each argument.
+    fn from_variant_array(array: &[&Variant]) -> Self;
+}
+
+/// Represents a parameter list that is used to call some external code.
+///
+/// As an example, this would be used to call Godot functions through ffi, however this is _not_ used when Godot calls a user-defined
+/// function.
+pub trait OutParamTuple: ParamTuple {
+    /// Calls `f` with arrays to the values in `self` represented by a `Variant` and a pointer to those variants.
+    fn with_args<F, R>(self, f: F) -> R
+    where
+        F: FnOnce(&[Variant], &[sys::GDExtensionConstVariantPtr]) -> R;
+
+    /// Calls `f` with an array to the values in `self` represented by pointers to the values.
+    fn with_ptr_args<F, R>(self, f: F) -> R
+    where
+        F: FnOnce(&[sys::GDExtensionConstTypePtr]) -> R;
+
+    /// Converts `array` to `Self` by calling [`to_variant`](crate::meta::FromGodot::to_variant) on each argument.
+    fn to_variant_array(&self) -> Vec<Variant>;
+}
