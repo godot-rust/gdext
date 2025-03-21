@@ -86,9 +86,9 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
                 ..
             }) => map.entry(class_name).or_default().virtual_methods = virtual_method_docs,
 
-            PluginItem::Struct(Struct {
-                docs: Some(docs), ..
-            }) => map.entry(class_name).or_default().definition = docs,
+            PluginItem::Struct(Struct { docs, .. }) => {
+                map.entry(class_name).or_default().definition = docs
+            }
 
             _ => (),
         }
