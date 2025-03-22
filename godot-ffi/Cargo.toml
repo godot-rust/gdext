@@ -33,16 +33,14 @@ api-4-3 = ["godot-bindings/api-4-3"]
 api-4-4 = ["godot-bindings/api-4-4"]
 # ]]
 
-# TODO: get rid of gensym, which is implementable with proc-macros. Update cargo-deny.
-# gensym pulls in entire syn for 10 LoC. See https://github.com/regiontog/gensym/blob/master/src/lib.rs.
-# Might however require godot-ffi to depend on godot-macro, which is not ideal...
 [dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2.153"
+libc = "0.2.171"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-gensym = "0.1.1"
+# Only needed for WASM identifier generation.
+godot-macros = { path = "../godot-macros", version = "=0.2.4", features = ["experimental-wasm"] }
 
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings", version = "=0.2.4" }

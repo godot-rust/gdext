@@ -192,7 +192,7 @@ deny = [
 
     # Too heavy in default setup. Can be included for api-custom etc.
     # Note: rand indirectly depends on syn via rand_chacha -> ppv-lite86 -> zerocopy -> zerocopy-derive.
-    { name = "syn", wrappers = ["bindgen", "gensym", "zerocopy-derive"] },
+    { name = "syn", wrappers = ["bindgen", "zerocopy-derive"] },
     { name = "serde", wrappers = ["godot-core", "serde_json"] },
 ]
 
