@@ -25,25 +25,6 @@ macro_rules! plugin_registry {
     };
 }
 
-#[doc(hidden)]
-#[macro_export]
-// Following rustfmt::skip is no longer needed, but there are 2 workarounds good to know, thus preserved.
-// #[allow(clippy::deprecated_cfg_attr)]
-// #[cfg_attr(rustfmt, rustfmt::skip)]
-//   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
-macro_rules! plugin_execute_pre_main_wasm {
-    ($gensym:ident,) => {
-        // Rust presently requires that statics with a custom `#[link_section]` must be a simple
-        // list of bytes on the Wasm target (with no extra levels of indirection such as references).
-        //
-        // As such, instead we export a function with a random name of predictable format to be used by the embedder.
-        #[no_mangle]
-        extern "C" fn $gensym() {
-            __init();
-        }
-    };
-}
-
 /// Executes a block of code before main, by utilising platform specific linker instructions.
 #[doc(hidden)]
 #[macro_export]
@@ -73,8 +54,7 @@ macro_rules! plugin_execute_pre_main {
                 __inner_init
             };
 
-            #[cfg(target_family = "wasm")]
-            $crate::gensym! { $crate::plugin_execute_pre_main_wasm!() }
+            $crate::wasm_declare_init_fn!();
         };
     };
 }
