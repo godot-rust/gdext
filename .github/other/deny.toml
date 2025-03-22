@@ -182,18 +182,16 @@ allow = [
 # List of crates to deny
 # See also: https://github.com/RustSec/advisory-db/issues/173
 deny = [
-    # unmaintained since Feb 20 + https://github.com/noamtashma/owning-ref-unsoundness
-    { name = "owning_ref" },
-
-    # unmaintained since Jul 20, RustSec refuses to acknowledge "because author says maintained"
-    # https://togithub.com/rustsec/advisory-db/pull/891
-    { name = "im" },
-    { name = "im-rc" },
-
     # Too heavy in default setup. Can be included for api-custom etc.
     # Note: rand indirectly depends on syn via rand_chacha -> ppv-lite86 -> zerocopy -> zerocopy-derive.
-    { name = "syn", wrappers = ["bindgen", "gensym", "zerocopy-derive"] },
+    { name = "syn", wrappers = ["bindgen"] },
     { name = "serde", wrappers = ["godot-core", "serde_json"] },
+    { name = "rand" },
+
+    # Unmaintained since Jul 2020, RustSec refuses to acknowledge "because author says maintained".
+    # https://github.com/rustsec/advisory-db/pull/891
+    { name = "im" },
+    { name = "im-rc" },
 ]
 
 # List of features to allow/deny
