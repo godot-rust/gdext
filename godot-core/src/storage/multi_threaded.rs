@@ -14,7 +14,7 @@ use godot_cell::panicking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 use godot_cell::blocking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 
 use crate::obj::{Base, GodotClass};
-use crate::storage::{AtomicLifecycle, Lifecycle, Storage, StorageRefCounted};
+use crate::storage::{AtomicLifecycle, DebugBorrowTracker, Lifecycle, Storage, StorageRefCounted};
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: GdCell<T>,
@@ -23,6 +23,9 @@ pub struct InstanceStorage<T: GodotClass> {
     // Declared after `user_instance`, is dropped last
     pub(super) lifecycle: AtomicLifecycle,
     godot_ref_count: AtomicU32,
+
+    // No-op in Release mode.
+    borrow_tracker: DebugBorrowTracker,
 }
 
 // SAFETY:
@@ -47,6 +50,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             base,
             lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
             godot_ref_count: AtomicU32::new(1),
+            borrow_tracker: DebugBorrowTracker::new(),
         }
     }
 
@@ -58,16 +62,27 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
         &self.base
     }
 
+    // Multi-threaded binds are currently blocking. However, if they still report an error, we follow the single-threaded behavior
+    // of capturing the backtrace. This may be changed as the threading model (#18) evolves.
+
     fn get(&self) -> RefGuard<'_, T> {
-        self.user_instance
+        let guard = self
+            .user_instance
             .borrow()
-            .unwrap_or_else(|e| super::bind_failed::<T>(e))
+            .unwrap_or_else(|e| super::bind_failed::<T>(e, &self.borrow_tracker));
+
+        self.borrow_tracker.track_ref_borrow();
+        guard
     }
 
     fn get_mut(&self) -> MutGuard<'_, T> {
-        self.user_instance
+        let guard = self
+            .user_instance
             .borrow_mut()
-            .unwrap_or_else(|e| super::bind_mut_failed::<T>(e))
+            .unwrap_or_else(|e| super::bind_mut_failed::<T>(e, &self.borrow_tracker));
+
+        self.borrow_tracker.track_mut_borrow();
+        guard
     }
 
     fn get_inaccessible<'a: 'b, 'b>(
