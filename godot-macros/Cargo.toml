@@ -12,8 +12,9 @@ homepage = "https://godot-rust.github.io"
 
 [features]
 api-custom = ["godot-bindings/api-custom"]
-register-docs = ["dep:markdown", "dep:litrs"]
 codegen-full = ["godot/__codegen-full"]
+experimental-wasm = ["dep:libc"]
+register-docs = ["dep:markdown", "dep:litrs"]
 
 [lib]
 proc-macro = true
@@ -25,8 +26,11 @@ quote = "1.0.29"
 # Enabled by `docs`.
 markdown = { version = "=1.0.0-alpha.21", optional = true }
 litrs = { version = "0.4.1", optional = true }
-# Requires bugfixes from 0.6.1.
 venial = "0.6.1"
+
+# Cannot use [target.'cfg(target_family = "wasm")'.dependencies], as proc-macro crates are always compiled for host platform, not target.
+# Thus solved via feature.
+libc = { version = "0.2.171", optional = true }
 
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings", version = "=0.2.4" } # emit_godot_version_cfg

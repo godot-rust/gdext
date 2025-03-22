@@ -15,6 +15,7 @@ mod class;
 mod derive;
 #[cfg(all(feature = "register-docs", since_api = "4.3"))]
 mod docs;
+mod ffi_macros;
 mod gdextension;
 mod itest;
 mod util;
@@ -774,9 +775,6 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// method, you can access all declared signals in `self.signals().some_signal()` or `gd.signals().some_signal()`. The returned object is
 /// of type [`TypedSignal`], which provides further APIs for emitting and connecting, among others.
 ///
-/// Visibility of signals **must not exceed class visibility**. If your class is private (as above) and you declare your signal as `pub fn`,
-/// you will get a compile error "can't leak private type".
-///
 /// A detailed explanation with examples is available in the [book chapter _Registering signals_](https://godot-rust.github.io/book/register/signals.html).
 ///
 /// [`WithSignals`]: ../obj/trait.WithSignals.html
@@ -1051,9 +1049,21 @@ pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Used by godot-ffi
+
+/// Creates an initialization block for Wasm.
+#[proc_macro]
+#[cfg(feature = "experimental-wasm")]
+pub fn wasm_declare_init_fn(input: TokenStream) -> TokenStream {
+    translate_functional(input, ffi_macros::wasm_declare_init_fn)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
 
 type ParseResult<T> = Result<T, venial::Error>;
 
+/// For `#[derive(...)]` derive macros.
 fn translate<F>(input: TokenStream, transform: F) -> TokenStream
 where
     F: FnOnce(venial::Item) -> ParseResult<TokenStream2>,
@@ -1067,6 +1077,7 @@ where
     TokenStream::from(result2)
 }
 
+/// For `#[proc_macro_attribute]` procedural macros.
 fn translate_meta<F>(
     self_name: &str,
     meta: TokenStream,
@@ -1083,6 +1094,18 @@ where
     let result2 = util::venial_parse_meta(&meta2, self_name, &input2)
         .and_then(transform)
         .unwrap_or_else(|e| e.to_compile_error());
+
+    TokenStream::from(result2)
+}
+
+/// For `#[proc_macro]` function-style macros.
+#[cfg(feature = "experimental-wasm")]
+fn translate_functional<F>(input: TokenStream, transform: F) -> TokenStream
+where
+    F: FnOnce(TokenStream2) -> ParseResult<TokenStream2>,
+{
+    let input2 = TokenStream2::from(input);
+    let result2 = transform(input2).unwrap_or_else(|e| e.to_compile_error());
 
     TokenStream::from(result2)
 }

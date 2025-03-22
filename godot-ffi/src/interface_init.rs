@@ -16,6 +16,9 @@
 
 use crate as sys;
 
+#[cfg(not(target_family = "wasm"))]
+use crate::toolbox::read_version_string;
+
 // In WebAssembly, function references and data pointers live in different memory spaces, so trying to read the "memory"
 // at a function pointer (an index into a table) to heuristically determine which API we have (as is done below) won't work.
 #[cfg(target_family = "wasm")]
@@ -145,17 +148,4 @@ pub unsafe fn load_interface(
     get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
 ) -> sys::GDExtensionInterface {
     sys::GDExtensionInterface::load(get_proc_address)
-}
-
-fn read_version_string(version_ptr: &sys::GDExtensionGodotVersion) -> String {
-    let char_ptr = version_ptr.string;
-
-    // SAFETY: `version_ptr` points to a layout-compatible version struct.
-    let c_str = unsafe { std::ffi::CStr::from_ptr(char_ptr) };
-
-    String::from_utf8_lossy(c_str.to_bytes())
-        .as_ref()
-        .strip_prefix("Godot Engine ")
-        .unwrap_or(&String::from_utf8_lossy(c_str.to_bytes()))
-        .to_string()
 }
