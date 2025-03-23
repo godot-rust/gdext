@@ -163,7 +163,7 @@ fn dynamic_call_with_panic() {
 
     let expected_error_message = "godot-rust function call failed: Object::call(&\"do_panic\")\
         \n  Source: ObjPayload::do_panic()\
-        \n    Reason: do_panic exploded"
+        \n    Reason: function panicked: do_panic exploded"
         .to_string();
 
     assert_eq!(call_error.to_string(), expected_error_message);

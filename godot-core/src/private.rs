@@ -17,15 +17,17 @@ pub use sys::out;
 
 #[cfg(feature = "trace")]
 pub use crate::meta::trace;
+#[cfg(debug_assertions)]
+use std::cell::RefCell;
 
 use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
 use crate::sys;
-use std::cell::RefCell;
 use std::io::Write;
 use std::sync::atomic;
 use sys::Global;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 
@@ -249,6 +251,41 @@ pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
     }
 }
 
+// Macro instead of function, to avoid 1 extra frame in backtrace.
+#[cfg(debug_assertions)]
+#[macro_export]
+macro_rules! format_backtrace {
+    ($prefix:expr, $backtrace:expr) => {{
+        use std::backtrace::BacktraceStatus;
+
+        let backtrace = $backtrace;
+
+        match backtrace.status() {
+            BacktraceStatus::Captured => format!("\n[{}]\n{}\n", $prefix, backtrace),
+            BacktraceStatus::Disabled => {
+                "(backtrace disabled, run application with `RUST_BACKTRACE=1` environment variable)"
+                    .to_string()
+            }
+            BacktraceStatus::Unsupported => {
+                "(backtrace unsupported for current platform)".to_string()
+            }
+            _ => "(backtrace status unknown)".to_string(),
+        }
+    }};
+
+    ($prefix:expr) => {
+        $crate::format_backtrace!($prefix, std::backtrace::Backtrace::capture())
+    };
+}
+
+#[cfg(not(debug_assertions))]
+#[macro_export]
+macro_rules! format_backtrace {
+    ($prefix:expr $(, $backtrace:expr)? ) => {
+        String::new()
+    };
+}
+
 pub fn set_gdext_hook<F>(godot_print: F)
 where
     F: Fn() -> bool + Send + Sync + 'static,
@@ -259,11 +296,14 @@ where
 
         let message = format_panic_message(panic_info);
         if godot_print() {
+            // Also prints to stdout/stderr -- do not print twice.
             godot_error!("{message}");
+        } else {
+            eprintln!("{message}");
         }
-        eprintln!("{message}");
-        #[cfg(debug_assertions)]
-        eprintln!("{}", std::backtrace::Backtrace::capture());
+
+        let backtrace = format_backtrace!("panic backtrace");
+        eprintln!("{backtrace}");
         let _ignored_result = std::io::stderr().flush();
     }));
 }
@@ -322,6 +362,7 @@ thread_local! {
 pub fn get_gdext_panic_context() -> Option<String> {
     #[cfg(debug_assertions)]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
+
     #[cfg(not(debug_assertions))]
     None
 }
@@ -337,13 +378,18 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
+    #[cfg(not(debug_assertions))]
+    let _ = error_context; // Unused in Release.
+
     #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| unsafe {
         // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
         cell.borrow_mut().push_function(&error_context)
     });
+
     let result =
         std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()));
+
     #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
     result

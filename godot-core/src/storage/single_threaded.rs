@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::any::type_name;
 use std::cell;
 
 #[cfg(not(feature = "experimental-threads"))]
@@ -15,8 +14,7 @@ use godot_cell::panicking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 use godot_cell::blocking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 
 use crate::obj::{Base, GodotClass};
-use crate::out;
-use crate::storage::{Lifecycle, Storage, StorageRefCounted};
+use crate::storage::{DebugBorrowTracker, Lifecycle, Storage, StorageRefCounted};
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: GdCell<T>,
@@ -25,6 +23,9 @@ pub struct InstanceStorage<T: GodotClass> {
     // Declared after `user_instance`, is dropped last
     pub(super) lifecycle: cell::Cell<Lifecycle>,
     godot_ref_count: cell::Cell<u32>,
+
+    // No-op in Release mode.
+    borrow_tracker: DebugBorrowTracker,
 }
 
 // SAFETY:
@@ -42,12 +43,14 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
         user_instance: Self::Instance,
         base: Base<<Self::Instance as GodotClass>::Base>,
     ) -> Self {
-        out!("    Storage::construct             <{}>", type_name::<T>());
+        super::log_construct::<T>();
+
         Self {
             user_instance: GdCell::new(user_instance),
             base,
             lifecycle: cell::Cell::new(Lifecycle::Alive),
             godot_ref_count: cell::Cell::new(1),
+            borrow_tracker: DebugBorrowTracker::new(),
         }
     }
 
@@ -60,49 +63,32 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     }
 
     fn get(&self) -> RefGuard<'_, T> {
-        self.user_instance.borrow().unwrap_or_else(|err| {
-            panic!(
-                "\
-                    Gd<T>::bind() failed, already bound; T = {}.\n  \
-                    Make sure to use `self.base_mut()` or `self.base()` instead of `self.to_gd()` when possible.\n  \
-                    Details: {err}.\
-                ",
-                type_name::<T>()
-            )
-        })
+        let guard = self
+            .user_instance
+            .borrow()
+            .unwrap_or_else(|e| super::bind_failed::<T>(e, &self.borrow_tracker));
+
+        self.borrow_tracker.track_ref_borrow();
+        guard
     }
 
     fn get_mut(&self) -> MutGuard<'_, T> {
-        self.user_instance.borrow_mut().unwrap_or_else(|err| {
-            panic!(
-                "\
-                    Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
-                    Make sure to use `self.base_mut()` instead of `self.to_gd()` when possible.\n  \
-                    Details: {err}.\
-                ",
-                type_name::<T>()
-            )
-        })
+        let guard = self
+            .user_instance
+            .borrow_mut()
+            .unwrap_or_else(|e| super::bind_mut_failed::<T>(e, &self.borrow_tracker));
+
+        self.borrow_tracker.track_mut_borrow();
+        guard
     }
 
-    fn get_inaccessible<'a: 'b, 'b>(
-        &'a self,
-        value: &'b mut Self::Instance,
-    ) -> InaccessibleGuard<'b, T> {
+    fn get_inaccessible<'stor: 'inst, 'inst>(
+        &'stor self,
+        value: &'inst mut Self::Instance,
+    ) -> InaccessibleGuard<'inst, T> {
         self.user_instance
             .make_inaccessible(value)
-            .unwrap_or_else(|err| {
-                // We should never hit this, except maybe in extreme cases like having more than
-                // `usize::MAX` borrows.
-                panic!(
-                    "\
-                        `base_mut()` failed for type T = {}.\n  \
-                        This is most likely a bug, please report it.\n  \
-                        Details: {err}.\
-                    ",
-                    type_name::<T>()
-                )
-            })
+            .unwrap_or_else(|e| super::bug_inaccessible::<T>(e))
     }
 
     fn get_lifecycle(&self) -> Lifecycle {
@@ -123,33 +109,19 @@ impl<T: GodotClass> StorageRefCounted for InstanceStorage<T> {
         let refc = self.godot_ref_count.get() + 1;
         self.godot_ref_count.set(refc);
 
-        out!(
-            "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
-            refc,
-            type_name::<T>(),
-            //self.user_instance
-        );
+        super::log_inc_ref(self);
     }
 
     fn on_dec_ref(&self) {
         let refc = self.godot_ref_count.get() - 1;
         self.godot_ref_count.set(refc);
 
-        out!(
-            "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
-            refc,
-            type_name::<T>(),
-            //self.user_instance
-        );
+        super::log_dec_ref(self);
     }
 }
 
 impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
-        out!(
-            "    Storage::drop (rc={})           <{:?}>",
-            self.godot_ref_count(),
-            self.base(),
-        );
+        super::log_drop(self);
     }
 }
