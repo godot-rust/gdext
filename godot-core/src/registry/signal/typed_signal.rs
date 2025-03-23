@@ -142,7 +142,7 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     }
 }
 
-impl<'c, C: WithBaseField, Ps: meta::OutParamTuple> TypedSignal<'c, C, Ps> {
+impl<C: WithBaseField, Ps: meta::OutParamTuple> TypedSignal<'_, C, Ps> {
     /// Emit the signal with the given parameters.
     ///
     /// This is intended for generic use. Typically, you'll want to use the more specific `emit()` method of the code-generated signal
@@ -156,7 +156,7 @@ impl<'c, C: WithBaseField, Ps: meta::OutParamTuple> TypedSignal<'c, C, Ps> {
     }
 }
 
-impl<'c, C: WithBaseField, Ps: meta::InParamTuple> TypedSignal<'c, C, Ps> {
+impl<C: WithBaseField, Ps: meta::InParamTuple> TypedSignal<'_, C, Ps> {
     /// Connect a non-member function (global function, associated function or closure).
     ///
     /// Example usages:

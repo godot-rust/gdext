@@ -7,7 +7,7 @@
 
 use crate::builtin::Variant;
 
-use super::{CallContext, CallResult, PropertyInfo};
+use super::{CallContext, CallResult};
 use godot_ffi as sys;
 
 mod impls;
@@ -19,9 +19,6 @@ mod impls;
 pub trait ParamTuple: Sized {
     /// The number of elements in this parameter list.
     const LEN: usize;
-
-    /// The property info of the parameter at index `index`.
-    fn property_info(index: usize, param_name: &str) -> PropertyInfo;
 
     /// The param info of the parameter at index `index`.
     fn param_info(
@@ -42,8 +39,8 @@ pub trait InParamTuple: ParamTuple {
     ///
     /// # Safety
     ///
-    /// - `args_ptr` must be a pointer to a valid array of length `Self::LEN`
-    /// - each element of `args_ptr` must be a `Variant`
+    /// - `args_ptr` must be a pointer to an array of length [`Self::LEN`](ParamTuple::LEN)
+    /// - Each element of `args_ptr` must be reborrowable as a `&Variant` with a lifetime that lasts for the duration of the call.
     unsafe fn from_varcall_args(
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         call_ctx: &CallContext,
@@ -53,7 +50,7 @@ pub trait InParamTuple: ParamTuple {
     ///
     /// # Safety
     ///
-    /// - `args_ptr` must be a pointer to a valid array of length `Self::LEN`
+    /// - `args_ptr` must be a pointer to a valid array of length [`Self::LEN`](ParamTuple::LEN)
     /// - each element of `args_ptr` must be of the same type as each element of `Self`
     unsafe fn from_ptrcall_args(
         args_ptr: *const sys::GDExtensionConstTypePtr,
@@ -70,16 +67,21 @@ pub trait InParamTuple: ParamTuple {
 /// As an example, this would be used to call Godot functions through ffi, however this is _not_ used when Godot calls a user-defined
 /// function.
 pub trait OutParamTuple: ParamTuple {
-    /// Calls `f` with arrays to the values in `self` represented by a `Variant` and a pointer to those variants.
-    fn with_args<F, R>(self, f: F) -> R
+    /// Call `f` on the tuple `self` by first converting `self` to an array of [`Variant`]s.
+    fn with_variants<F, R>(self, f: F) -> R
     where
-        F: FnOnce(&[Variant], &[sys::GDExtensionConstVariantPtr]) -> R;
+        F: FnOnce(&[Variant]) -> R;
 
-    /// Calls `f` with an array to the values in `self` represented by pointers to the values.
-    fn with_ptr_args<F, R>(self, f: F) -> R
+    /// Call `f` on the tuple `self` by first converting `self` to an array of [`Variant`] pointers.
+    fn with_variant_pointers<F, R>(self, f: F) -> R
+    where
+        F: FnOnce(&[sys::GDExtensionConstVariantPtr]) -> R;
+
+    /// Call `f` on the tuple `self` by first converting `self` to an array of Godot type pointers.
+    fn with_type_pointers<F, R>(self, f: F) -> R
     where
         F: FnOnce(&[sys::GDExtensionConstTypePtr]) -> R;
 
-    /// Converts `array` to `Self` by calling [`to_variant`](crate::meta::FromGodot::to_variant) on each argument.
+    /// Converts `array` to `Self` by calling [`to_variant`](crate::meta::ToGodot::to_variant) on each argument.
     fn to_variant_array(&self) -> Vec<Variant>;
 }

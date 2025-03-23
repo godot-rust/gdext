@@ -51,8 +51,7 @@ mod method_info;
 mod param_tuple;
 mod property_info;
 mod sealed;
-// mod signature;
-pub(crate) mod signature;
+mod signature;
 mod traits;
 
 pub mod error;

@@ -141,7 +141,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
         ..
     } = details;
 
-    let param_list = util::make_signature_param_type(&param_types);
+    let param_list = util::make_signature_param_type(param_types);
 
     let indexes = 0..param_types.len();
     let param_property_infos = quote! {
@@ -149,7 +149,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
             // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
             #(
                 <#param_list as godot::meta::ParamTuple>
-                    ::property_info(#indexes, #param_names_str),
+                    ::param_info(#indexes, #param_names_str).unwrap(),
             )*
         ]
     };
@@ -160,10 +160,10 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
         #(#signal_cfg_attrs)*
         unsafe {
             use ::godot::sys;
-            let parameters_info: [::godot::meta::PropertyInfo; #signal_parameters_count] = #param_property_infos;
+            let parameters_info: [::godot::private::MethodParamOrReturnInfo; #signal_parameters_count] = #param_property_infos;
 
             let mut parameters_info_sys: [sys::GDExtensionPropertyInfo; #signal_parameters_count] =
-                std::array::from_fn(|i| parameters_info[i].property_sys());
+                std::array::from_fn(|i| parameters_info[i].info.property_sys());
 
             let signal_name = ::godot::builtin::StringName::from(#signal_name_str);
 

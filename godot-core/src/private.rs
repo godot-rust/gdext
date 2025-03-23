@@ -8,6 +8,7 @@
 pub use crate::gen::classes::class_macros;
 pub use crate::obj::rtti::ObjectRtti;
 pub use crate::registry::callbacks;
+pub use crate::registry::method::MethodParamOrReturnInfo;
 pub use crate::registry::plugin::{
     ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl, PluginItem,
     Struct,

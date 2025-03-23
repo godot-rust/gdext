@@ -15,7 +15,7 @@ use crate::obj::GodotClass;
 
 /// Info relating to an argument or return type in a method.
 pub struct MethodParamOrReturnInfo {
-    info: PropertyInfo,
+    pub info: PropertyInfo,
     metadata: sys::GDExtensionClassMethodArgumentMetadata,
 }
 
