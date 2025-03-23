@@ -16,11 +16,6 @@ use crate::classes;
 use crate::global::PropertyHint;
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 use crate::obj::{EngineEnum, GodotClass};
-
-mod phantom_var;
-
-pub use phantom_var::PhantomVar;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
 
@@ -236,11 +231,13 @@ pub mod export_info_functions {
     use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
     use crate::obj::EngineEnum;
     use crate::registry::property::Export;
+    use crate::sys;
+    use std::fmt::Write;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
     macro_rules! comma_separate_boolean_idents {
-        ($( $ident:ident),* $(,)?) => {
+        ($( $ident:ident ),* $(,)?) => {
             {
                 let mut strings = Vec::new();
 
@@ -261,7 +258,8 @@ pub mod export_info_functions {
     /// You'll never call this function itself, but will instead use the macro `#[export(range=(...))]`, as below.  The syntax is
     /// very similar to Godot's [`@export_range`](https://docs.godotengine.org/en/stable/classes/class_%40gdscript.html#class-gdscript-annotation-export-range).
     /// `min`, `max`, and `step` are `f32` positional arguments, with `step` being optional and defaulting to `1.0`.  The rest of
-    /// the arguments can be written in any order.  The symbols of type `bool` just need to have those symbols written, and those of type `Option<T>` will be written as `{KEY}={VALUE}`, e.g. `suffix="px"`.
+    /// the arguments can be written in any order.  The symbols of type `bool` just need to have those symbols written, and those of type
+    /// `Option<T>` will be written as `{KEY}={VALUE}`, e.g. `suffix="px"`.
     ///
     /// ```
     /// # use godot::prelude::*;
@@ -307,18 +305,19 @@ pub mod export_info_functions {
 
         let mut hint_string = hint_beginning;
         if !rest.is_empty() {
-            hint_string.push_str(&format!(",{rest}"));
+            write!(hint_string, ",{rest}").unwrap();
         }
         if let Some(suffix) = suffix {
-            hint_string.push_str(&format!(",suffix:{suffix}"));
+            write!(hint_string, ",suffix:{suffix}").unwrap();
         }
 
         PropertyHintInfo {
             hint: PropertyHint::RANGE,
-            hint_string: GString::from(&hint_string),
+            hint_string: GString::from(hint_string),
         }
     }
 
+    // See also godot-macros > c_style_enum.rs; some code duplication.
     #[doc(hidden)]
     pub struct ExportValueWithKey<T> {
         variant: String,
@@ -339,15 +338,11 @@ pub mod export_info_functions {
         where
             for<'a> &'a V: Into<Self>,
         {
-            let values = values
-                .iter()
-                .map(|v| v.into().as_hint_string())
-                .collect::<Vec<_>>();
-
-            values.join(",")
+            sys::join_with(values.iter(), ",", |v| (*v).into().as_hint_string())
         }
     }
 
+    /// Allows syntax `("name", None)` and `("name", Some(10))`.
     impl<T, S> From<&(S, Option<T>)> for ExportValueWithKey<T>
     where
         T: Clone,
@@ -355,7 +350,7 @@ pub mod export_info_functions {
     {
         fn from((variant, key): &(S, Option<T>)) -> Self {
             Self {
-                variant: variant.as_ref().into(),
+                variant: variant.as_ref().to_string(),
                 key: key.clone(),
             }
         }
@@ -381,7 +376,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::ENUM,
-            hint_string: GString::from(&hint_string),
+            hint_string: GString::from(hint_string),
         }
     }
 
@@ -390,7 +385,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::EXP_EASING,
-            hint_string: GString::from(&hint_string),
+            hint_string: GString::from(hint_string),
         }
     }
 
@@ -414,7 +409,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::FLAGS,
-            hint_string: GString::from(&hint_string),
+            hint_string: GString::from(hint_string),
         }
     }
 
@@ -493,7 +488,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(&format!("{hint_string}:{filter}")),
+            hint_string: GString::from(format!("{hint_string}:{filter}")),
         }
     }
 

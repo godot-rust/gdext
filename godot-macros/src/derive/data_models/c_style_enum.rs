@@ -122,6 +122,8 @@ impl CStyleEnum {
 
     /// Return a hint string for use with `PropertyHint::ENUM` where the variants are just kept as strings.
     pub fn to_string_hint(&self) -> TokenStream {
+        // See also export_info_functions::slice_as_hint_string(), some code duplication.
+
         let hint_string = self
             .enumerator_names
             .iter()
