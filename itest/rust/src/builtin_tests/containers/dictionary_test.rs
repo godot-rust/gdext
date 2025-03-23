@@ -227,6 +227,29 @@ fn dictionary_at() {
 }
 
 #[itest]
+fn dictionary_set() {
+    let mut dictionary = dict! { "zero": 0, "one": 1 };
+
+    dictionary.set("zero", 2);
+    assert_eq!(dictionary, dict! { "zero": 2, "one": 1 });
+}
+
+#[itest]
+fn dictionary_set_readonly() {
+    let mut dictionary = dict! { "zero": 0, "one": 1 }.into_read_only();
+
+    #[cfg(debug_assertions)]
+    expect_panic("Mutating read-only dictionary in Debug mode", || {
+        dictionary.set("zero", 2);
+    });
+
+    #[cfg(not(debug_assertions))]
+    dictionary.set("zero", 2); // silently fails.
+
+    assert_eq!(dictionary.at("zero"), 0.to_variant());
+}
+
+#[itest]
 fn dictionary_insert() {
     let mut dictionary = dict! {
         "foo": 0,

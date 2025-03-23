@@ -273,6 +273,8 @@ impl<T: ArrayElement> Array<T> {
 
     /// Clears the array, removing all elements.
     pub fn clear(&mut self) {
+        self.debug_ensure_mutable();
+
         // SAFETY: No new values are written to the array, we only remove values from the array.
         unsafe { self.as_inner_mut() }.clear();
     }
@@ -283,6 +285,8 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If `index` is out of bounds.
     pub fn set(&mut self, index: usize, value: impl AsArg<T>) {
+        self.debug_ensure_mutable();
+
         let ptr_mut = self.ptr_mut(index);
 
         meta::arg_into_ref!(value: T);
@@ -298,6 +302,8 @@ impl<T: ArrayElement> Array<T> {
     #[doc(alias = "append")]
     #[doc(alias = "push_back")]
     pub fn push(&mut self, value: impl AsArg<T>) {
+        self.debug_ensure_mutable();
+
         meta::arg_into_ref!(value: T);
 
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
@@ -310,6 +316,8 @@ impl<T: ArrayElement> Array<T> {
     /// On large arrays, this method is much slower than [`push()`][Self::push], as it will move all the array's elements.
     /// The larger the array, the slower `push_front()` will be.
     pub fn push_front(&mut self, value: impl AsArg<T>) {
+        self.debug_ensure_mutable();
+
         meta::arg_into_ref!(value: T);
 
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
@@ -322,6 +330,8 @@ impl<T: ArrayElement> Array<T> {
     /// _Godot equivalent: `pop_back`_
     #[doc(alias = "pop_back")]
     pub fn pop(&mut self) -> Option<T> {
+        self.debug_ensure_mutable();
+
         (!self.is_empty()).then(|| {
             // SAFETY: We do not write any values to the array, we just remove one.
             let variant = unsafe { self.as_inner_mut() }.pop_back();
@@ -334,6 +344,8 @@ impl<T: ArrayElement> Array<T> {
     /// Note: On large arrays, this method is much slower than `pop()` as it will move all the
     /// array's elements. The larger the array, the slower `pop_front()` will be.
     pub fn pop_front(&mut self) -> Option<T> {
+        self.debug_ensure_mutable();
+
         (!self.is_empty()).then(|| {
             // SAFETY: We do not write any values to the array, we just remove one.
             let variant = unsafe { self.as_inner_mut() }.pop_front();
@@ -349,6 +361,8 @@ impl<T: ArrayElement> Array<T> {
     /// # Panics
     /// If `index > len()`.
     pub fn insert(&mut self, index: usize, value: impl AsArg<T>) {
+        self.debug_ensure_mutable();
+
         let len = self.len();
         assert!(
             index <= len,
@@ -371,6 +385,8 @@ impl<T: ArrayElement> Array<T> {
     /// If `index` is out of bounds.
     #[doc(alias = "pop_at")]
     pub fn remove(&mut self, index: usize) -> T {
+        self.debug_ensure_mutable();
+
         self.check_bounds(index);
 
         // SAFETY: We do not write any values to the array, we just remove one.
@@ -385,6 +401,8 @@ impl<T: ArrayElement> Array<T> {
     /// On large arrays, this method is much slower than [`pop()`][Self::pop], as it will move all the array's
     /// elements after the removed element.
     pub fn erase(&mut self, value: impl AsArg<T>) {
+        self.debug_ensure_mutable();
+
         meta::arg_into_ref!(value: T);
 
         // SAFETY: We don't write anything to the array.
@@ -394,6 +412,8 @@ impl<T: ArrayElement> Array<T> {
     /// Assigns the given value to all elements in the array. This can be used together with
     /// `resize` to create an array with a given size and initialized elements.
     pub fn fill(&mut self, value: impl AsArg<T>) {
+        self.debug_ensure_mutable();
+
         meta::arg_into_ref!(value: T);
 
         // SAFETY: The array has type `T` and we're writing values of type `T` to it.
@@ -407,6 +427,8 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`](Array::shrink) instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
+        self.debug_ensure_mutable();
+
         let original_size = self.len();
 
         // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
@@ -437,6 +459,8 @@ impl<T: ArrayElement> Array<T> {
     /// If you want to increase the size of the array, use [`resize`](Array::resize) instead.
     #[doc(alias = "resize")]
     pub fn shrink(&mut self, new_size: usize) -> bool {
+        self.debug_ensure_mutable();
+
         if new_size >= self.len() {
             return false;
         }
@@ -449,6 +473,8 @@ impl<T: ArrayElement> Array<T> {
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
     pub fn extend_array(&mut self, other: &Array<T>) {
+        self.debug_ensure_mutable();
+
         // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
         let other: &VariantArray = unsafe { other.assume_type_ref::<Variant>() };
 
@@ -692,6 +718,8 @@ impl<T: ArrayElement> Array<T> {
 
     /// Reverses the order of the elements in the array.
     pub fn reverse(&mut self) {
+        self.debug_ensure_mutable();
+
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.reverse();
     }
@@ -705,6 +733,8 @@ impl<T: ArrayElement> Array<T> {
     /// _Godot equivalent: `Array.sort()`_
     #[doc(alias = "sort")]
     pub fn sort_unstable(&mut self) {
+        self.debug_ensure_mutable();
+
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort();
     }
@@ -722,6 +752,8 @@ impl<T: ArrayElement> Array<T> {
     where
         F: FnMut(&T, &T) -> cmp::Ordering,
     {
+        self.debug_ensure_mutable();
+
         let godot_comparator = |args: &[&Variant]| {
             let lhs = T::from_variant(args[0]);
             let rhs = T::from_variant(args[1]);
@@ -749,6 +781,8 @@ impl<T: ArrayElement> Array<T> {
     /// _Godot equivalent: `Array.sort_custom()`_
     #[doc(alias = "sort_custom")]
     pub fn sort_unstable_custom(&mut self, func: &Callable) {
+        self.debug_ensure_mutable();
+
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort_custom(func);
     }
@@ -757,14 +791,58 @@ impl<T: ArrayElement> Array<T> {
     /// global random number generator common to methods such as `randi`. Call `randomize` to
     /// ensure that a new seed will be used each time if you want non-reproducible shuffling.
     pub fn shuffle(&mut self) {
+        self.debug_ensure_mutable();
+
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.shuffle();
+    }
+
+    /// Turns the array into a shallow-immutable array.
+    ///
+    /// Makes the array read-only and returns the original array. The array's elements cannot be overridden with different values, and their
+    /// order cannot change. Does not apply to nested elements, such as dictionaries. This operation is irreversible.
+    ///
+    /// In GDScript, arrays are automatically read-only if declared with the `const` keyword.
+    ///
+    /// # Semantics and alternatives
+    /// You can use this in Rust, but the behavior of mutating methods is only validated in a best-effort manner (more than in GDScript though):
+    /// some methods like `set()` panic in Debug mode, when used on a read-only array. There is no guarantee that any attempts to change result
+    /// in feedback; some may silently do nothing.
+    ///
+    /// In Rust, you can use shared references (`&Array<T>`) to prevent mutation. Note however that `Clone` can be used to create another
+    /// reference, through which mutation can still occur. For deep-immutable arrays, you'll need to keep your `Array` encapsulated or directly
+    /// use Rust data structures.
+    ///
+    /// _Godot equivalent: `make_read_only`_
+    #[doc(alias = "make_read_only")]
+    pub fn into_read_only(self) -> Self {
+        // SAFETY: Changes a per-array property, no elements.
+        unsafe { self.as_inner_mut() }.make_read_only();
+        self
+    }
+
+    /// Returns true if the array is read-only.
+    ///
+    /// See [`into_read_only()`][Self::into_read_only].
+    /// In GDScript, arrays are automatically read-only if declared with the `const` keyword.
+    pub fn is_read_only(&self) -> bool {
+        self.as_inner().is_read_only()
+    }
+
+    /// Best-effort mutability check.
+    ///
+    /// # Panics
+    /// In Debug mode, if the array is marked as read-only.
+    fn debug_ensure_mutable(&self) {
+        debug_assert!(
+            !self.is_read_only(),
+            "mutating operation on read-only array"
+        );
     }
 
     /// Asserts that the given index refers to an existing element.
     ///
     /// # Panics
-    ///
     /// If `index` is out of bounds.
     fn check_bounds(&self, index: usize) {
         let len = self.len();
@@ -777,7 +855,6 @@ impl<T: ArrayElement> Array<T> {
     /// Returns a pointer to the element at the given index.
     ///
     /// # Panics
-    ///
     /// If `index` is out of bounds.
     fn ptr(&self, index: usize) -> sys::GDExtensionConstVariantPtr {
         let ptr = self.ptr_or_null(index);

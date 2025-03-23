@@ -252,6 +252,21 @@ fn array_set() {
 }
 
 #[itest]
+fn array_set_readonly() {
+    let mut array = array![1, 2].into_read_only();
+
+    #[cfg(debug_assertions)]
+    expect_panic("Mutating read-only array in Debug mode", || {
+        array.set(0, 3);
+    });
+
+    #[cfg(not(debug_assertions))]
+    array.set(0, 3); // silently fails.
+
+    assert_eq!(array.at(0), 1);
+}
+
+#[itest]
 fn array_push_pop() {
     let mut array = array![1, 2];
 

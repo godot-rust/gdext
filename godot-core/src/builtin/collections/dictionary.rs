@@ -188,6 +188,8 @@ impl Dictionary {
 
     /// Removes all key-value pairs from the dictionary.
     pub fn clear(&mut self) {
+        self.debug_ensure_mutable();
+
         self.as_inner().clear()
     }
 
@@ -197,6 +199,8 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict[key] = value`_
     pub fn set<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) {
+        self.debug_ensure_mutable();
+
         let key = key.to_variant();
 
         // SAFETY: `self.get_ptr_mut(key)` always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
@@ -210,6 +214,8 @@ impl Dictionary {
     /// If you don't need the previous value, use [`set()`][Self::set] instead.
     #[must_use]
     pub fn insert<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) -> Option<Variant> {
+        self.debug_ensure_mutable();
+
         let key = key.to_variant();
         let old_value = self.get(key.clone());
         self.set(key, value);
@@ -222,6 +228,8 @@ impl Dictionary {
     /// _Godot equivalent: `erase`_
     #[doc(alias = "erase")]
     pub fn remove<K: ToGodot>(&mut self, key: K) -> Option<Variant> {
+        self.debug_ensure_mutable();
+
         let key = key.to_variant();
         let old_value = self.get(key.clone());
         self.as_inner().erase(&key);
@@ -257,6 +265,8 @@ impl Dictionary {
     /// _Godot equivalent: `merge`_
     #[doc(alias = "merge")]
     pub fn extend_dictionary(&mut self, other: &Self, overwrite: bool) {
+        self.debug_ensure_mutable();
+
         self.as_inner().merge(other, overwrite)
     }
 
@@ -310,6 +320,48 @@ impl Dictionary {
     /// Use `dict.keys_shared().typed::<K>()` to iterate over `K` keys instead.
     pub fn keys_shared(&self) -> Keys<'_> {
         Keys::new(self)
+    }
+
+    /// Turns the dictionary into a shallow-immutable dictionary.
+    ///
+    /// Makes the dictionary read-only and returns the original dictionary. Disables modification of the dictionary's contents.
+    /// Does not apply to nested content, e.g. elements of nested dictionaries.
+    ///
+    /// In GDScript, dictionaries are automatically read-only if declared with the `const` keyword.
+    ///
+    /// # Semantics and alternatives
+    /// You can use this in Rust, but the behavior of mutating methods is only validated in a best-effort manner (more than in GDScript though):
+    /// some methods like `set()` panic in Debug mode, when used on a read-only dictionary. There is no guarantee that any attempts to change
+    /// result in feedback; some may silently do nothing.
+    ///
+    /// In Rust, you can use shared references (`&Dictionary`) to prevent mutation. Note however that `Clone` can be used to create another
+    /// reference, through which mutation can still occur. For deep-immutable dictionaries, you'll need to keep your `Dictionary` encapsulated
+    /// or directly use Rust data structures.
+    ///
+    /// _Godot equivalent: `make_read_only`_
+    #[doc(alias = "make_read_only")]
+    pub fn into_read_only(self) -> Self {
+        self.as_inner().make_read_only();
+        self
+    }
+
+    /// Returns true if the dictionary is read-only.
+    ///
+    /// See [`into_read_only()`][Self::into_read_only].
+    /// In GDScript, dictionaries are automatically read-only if declared with the `const` keyword.
+    pub fn is_read_only(&self) -> bool {
+        self.as_inner().is_read_only()
+    }
+
+    /// Best-effort mutability check.
+    ///
+    /// # Panics
+    /// In Debug mode, if the array is marked as read-only.
+    fn debug_ensure_mutable(&self) {
+        debug_assert!(
+            !self.is_read_only(),
+            "mutating operation on read-only dictionary"
+        );
     }
 
     #[doc(hidden)]
