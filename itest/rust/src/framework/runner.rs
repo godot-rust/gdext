@@ -140,7 +140,7 @@ impl IntegrationTests {
                 );
 
                 // Calling deferred to break a potentially synchronous call stack and avoid re-entrancy.
-                on_finished.call(&[result.to_variant()]);
+                on_finished.call_deferred(&[result.to_variant()]);
             };
 
             Self::run_async_rust_tests(
