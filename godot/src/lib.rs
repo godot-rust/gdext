@@ -104,14 +104,18 @@
 //!   Support for WebAssembly exports is still a work-in-progress and is not yet well tested. This feature is in place for users
 //!   to explicitly opt in to any instabilities or rough edges that may result.
 //!
-//!   By default, Wasm threads are enabled and require the flag `"-C", "link-args=-sUSE_PTHREADS=1"` in the `wasm32-unknown-unknown` target.
+//!   Please read [Export to Web](https://godot-rust.github.io/book/toolchain/export-web.html) in the book.
+//!
+//!   By default, Wasm threads are enabled and require the flag `"-C", "link-args=-pthread"` in the `wasm32-unknown-unknown` target.
 //!   This must be kept in sync with Godot's Web export settings (threading support enabled). To disable it, use **additionally* the feature
 //!   `experimental-wasm-nothreads`.<br><br>
+//!
+//!   It is recommended to use this feature in combination with `lazy-function-tables` to reduce the size of the generated Wasm binary.
 //!
 //! * **`experimental-wasm-nothreads`**
 //!
 //!   Requires the `experimental-wasm` feature. Disables threading support for WebAssembly exports. This needs to be kept in sync with
-//!   Godot's Web export setting (threading support disabled), and must _not_ use the `"-C", "link-args=-sUSE_PTHREADS=1"` flag in the
+//!   Godot's Web export setting (threading support disabled), and must _not_ use the `"-C", "link-args=-pthread"` flag in the
 //!   `wasm32-unknown-unknown` target.<br><br>
 //!
 //! * **`codegen-rustfmt`**

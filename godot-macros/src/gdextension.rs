@@ -87,7 +87,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
                             console.log(`Patching Module with ${sym}`);
                             Module[sym] = dso_exports[sym];
                         }
-                    } else if (sym.startsWith("rust_gdext_registrant_")) {
+                    } else if (sym.startsWith("__godot_rust_registrant_")) {
                         registrants.push(sym);
                     }
                 }
