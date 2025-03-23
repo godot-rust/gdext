@@ -282,6 +282,48 @@ pub unsafe trait ExtensionLibrary {
         // Nothing by default.
     }
 
+    /// Whether to override the Wasm binary filename used by your GDExtension which the library should expect at runtime. Return `None`
+    /// to use the default where gdext expects either `{YourCrate}.wasm` (default binary name emitted by Rust) or
+    /// `{YourCrate}.threads.wasm` (for builds producing separate single-threaded and multi-threaded binaries).
+    ///
+    /// Upon exporting a game to the web, the library has to know at runtime the exact name of the `.wasm` binary file being used to load
+    /// each GDExtension. By default, Rust exports the binary as `cratename.wasm`, so that is the name checked by godot-rust by default.
+    ///
+    /// However, if you need to rename that binary, you can make the library aware of the new binary name by returning
+    /// `Some("newname.wasm")` (don't forget to **include the `.wasm` extension**).
+    ///
+    /// For example, to have two simultaneous versions, one supporting multi-threading and the other not, you could add a suffix to the
+    /// filename of the Wasm binary of the multi-threaded version in your build process. If you choose the suffix `.threads.wasm`,
+    /// you're in luck as godot-rust already accepts this suffix by default, but let's say you want to use a different suffix, such as
+    /// `-with-threads.wasm`. For this, you can have a `"nothreads"` feature which, when absent, should produce a suffixed binary,
+    /// which can be informed to gdext as follows:
+    ///
+    /// ```no_run
+    /// # use godot::init::*;
+    /// struct MyExtension;
+    ///
+    /// #[gdextension]
+    /// unsafe impl ExtensionLibrary for MyExtension {
+    ///     fn override_wasm_binary() -> Option<&'static str> {
+    ///         // Binary name unchanged ("mycrate.wasm") without thread support.
+    ///         #[cfg(feature = "nothreads")]
+    ///         return None;
+    ///
+    ///         // Tell gdext we add a custom suffix to the binary with thread support.
+    ///         // Please note that this is not needed if "mycrate.threads.wasm" is used.
+    ///         // (You could return `None` as well in that particular case.)
+    ///         #[cfg(not(feature = "nothreads"))]
+    ///         Some("mycrate-with-threads.wasm")
+    ///     }
+    /// }
+    /// ```
+    /// Note that simply overriding this method won't change the name of the Wasm binary produced by Rust automatically: you'll still
+    /// have to rename it by yourself in your build process, as well as specify the updated binary name in your `.gdextension` file.
+    /// This is just to ensure gdext is aware of the new name given to the binary, avoiding runtime errors.
+    fn override_wasm_binary() -> Option<&'static str> {
+        None
+    }
+
     /// Whether to enable hot reloading of this library. Return `None` to use the default behavior.
     ///
     /// Enabling this will ensure that the library can be hot reloaded. If this is disabled then hot reloading may still work, but there is no

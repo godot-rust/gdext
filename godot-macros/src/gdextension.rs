@@ -58,6 +58,13 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
         // host. See: https://github.com/rust-lang/rust/issues/42587
         #[cfg(target_os = "emscripten")]
         fn emscripten_preregistration() {
+            let pkg_name = env!("CARGO_PKG_NAME");
+            let wasm_binary = <#impl_ty as ::godot::init::ExtensionLibrary>::override_wasm_binary()
+                .map_or_else(
+                    || std::string::String::from("null"),
+                    |bin| format!("'{}'", bin.replace("\\", "\\\\").replace("'", "\\'"))
+                );
+
             // Module is documented here[1] by emscripten, so perhaps we can consider it a part
             // of its public API? In any case for now we mutate global state directly in order
             // to get things working.
@@ -69,34 +76,53 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             // involved, but I don't know what guarantees we have here.
             //
             // We should keep an eye out for these sorts of failures!
-            let script = std::ffi::CString::new(concat!(
-                "var pkgName = '", env!("CARGO_PKG_NAME"), "';", r#"
-                var libName = pkgName.replaceAll('-', '_') + '.wasm';
-                if (!(libName in LDSO.loadedLibsByName)) {
-                    // Always print to console, even if the error is suppressed.
-                    console.error(`godot-rust could not find the Wasm module '${libName}', needed to load the '${pkgName}' crate. Please ensure a file named '${libName}' exists in the game's web export files. This may require updating Wasm paths in the crate's corresponding '.gdextension' file, or just renaming the Wasm file to the correct name otherwise.`);
-                    throw new Error(`Wasm module '${libName}' not found. Check the console for more information.`);
-                }
+            let script = format!(
+                r#"var pkgName = '{pkg_name}';
+                var wasmBinary = {wasm_binary};
+                if (wasmBinary === null) {{
+                    var snakePkgName = pkgName.replaceAll('-', '_');
+                    var normalLibName = snakePkgName + '.wasm';
+                    var threadedLibName = snakePkgName + '.threads.wasm';
+                    if (normalLibName in LDSO.loadedLibsByName) {{
+                        var libName = normalLibName;
+                    }} else if (threadedLibName in LDSO.loadedLibsByName) {{
+                        var libName = threadedLibName;
+                    }} else {{
+                        // Always print to console, even if the error is suppressed.
+                        console.error(`godot-rust could not find the Wasm module '${{normalLibName}}' nor '${{threadedLibName}}', one of which is needed by default to load the '${{pkgName}}' crate. This indicates its '.wasm' binary file was renamed to an unexpected name.\n\nPlease ensure its Wasm binary file has one of those names in the game's web export files. This may require updating Wasm paths in the crate's corresponding '.gdextension' file, or just renaming the Wasm file to one of the expected names otherwise.\n\nIf that GDExtension uses a different Wasm filename, please ensure it informs this new name to godot-rust by returning 'Some("newname.wasm")' from 'ExtensionLibrary::override_wasm_binary'.`);
+                        throw new Error(`Wasm module '${{normalLibName}}' not found. Check the console for more information.`);
+                    }}
+                }} else if (!wasmBinary.endsWith(".wasm")) {{
+                    console.error(`godot-rust received an invalid Wasm binary name ('${{wasmBinary}}') from crate '${{pkgName}}', as the '.wasm' extension was missing.\n\nPlease ensure the 'ExtensionLibrary::override_wasm_binary' function for that GDExtension always returns a filename with the '.wasm' extension and try again.`);
+                    throw new Error(`Invalid Wasm module '${{wasmBinary}}' (missing '.wasm' extension). Check the console for more information.`);
+                }} else if (wasmBinary in LDSO.loadedLibsByName) {{
+                    var libName = wasmBinary;
+                }} else {{
+                    console.error(`godot-rust could not find the Wasm module '${{wasmBinary}}', needed to load the '${{pkgName}}' crate. This indicates its '.wasm' binary file was renamed to an unexpected name.\n\nPlease ensure its Wasm binary file is named '${{wasmBinary}}' in the game's web export files. This may require updating Wasm paths in the crate's corresponding '.gdextension' file, or just renaming the Wasm file to the expected name otherwise.`);
+                    throw new Error(`Wasm module '${{wasmBinary}}' not found. Check the console for more information.`);
+                }}
                 var dso = LDSO.loadedLibsByName[libName];
                 // This property was renamed as of emscripten 3.1.34
                 var dso_exports = "module" in dso ? dso["module"] : dso["exports"];
                 var registrants = [];
-                for (sym in dso_exports) {
-                    if (sym.startsWith("dynCall_")) {
-                        if (!(sym in Module)) {
-                            console.log(`Patching Module with ${sym}`);
+                for (sym in dso_exports) {{
+                    if (sym.startsWith("dynCall_")) {{
+                        if (!(sym in Module)) {{
+                            console.log(`Patching Module with ${{sym}}`);
                             Module[sym] = dso_exports[sym];
-                        }
-                    } else if (sym.startsWith("__godot_rust_registrant_")) {
+                        }}
+                    }} else if (sym.startsWith("__godot_rust_registrant_")) {{
                         registrants.push(sym);
-                    }
-                }
-                for (sym of registrants) {
-                    console.log(`Running registrant ${sym}`);
+                    }}
+                }}
+                for (sym of registrants) {{
+                    console.log(`Running registrant ${{sym}}`);
                     dso_exports[sym]();
-                }
+                }}
                 console.log("Added",  registrants.length, "plugins to registry!");
-            "#)).expect("Unable to create CString from script");
+            "#);
+
+            let script = std::ffi::CString::new(script).expect("Unable to create CString from script");
 
             extern "C" { fn emscripten_run_script(script: *const std::ffi::c_char); }
             unsafe { emscripten_run_script(script.as_ptr()); }
