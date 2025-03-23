@@ -296,11 +296,14 @@ where
 
         let message = format_panic_message(panic_info);
         if godot_print() {
+            // Also prints to stdout/stderr -- do not print twice.
             godot_error!("{message}");
+        } else {
+            eprintln!("{message}");
         }
 
         let backtrace = format_backtrace!("panic backtrace");
-        eprintln!("{message}{backtrace}");
+        eprintln!("{backtrace}");
         let _ignored_result = std::io::stderr().flush();
     }));
 }

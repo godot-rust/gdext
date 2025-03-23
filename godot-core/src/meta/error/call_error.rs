@@ -301,7 +301,11 @@ impl CallError {
 
     #[doc(hidden)]
     pub fn failed_by_user_panic(call_ctx: &CallContext, reason: String) -> Self {
-        Self::new(call_ctx, reason, None)
+        // This can cause the panic message to be printed twice in some scenarios (e.g. bind_mut() borrow failure).
+        // But in other cases (e.g. itest `dynamic_call_with_panic`), it is only printed once.
+        // Would need some work to have a consistent experience.
+
+        Self::new(call_ctx, format!("function panicked: {reason}"), None)
     }
 
     fn new(
