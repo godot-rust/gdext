@@ -584,8 +584,11 @@ pub mod custom_callable {
         assert_eq!(hash_count(&at), 1, "hash for a untouched if b is inserted");
         assert_eq!(hash_count(&bt), 1, "hash needed for b dict key");
 
-        // Introduced in https://github.com/godotengine/godot/pull/96797.
-        let eq = if GdextBuild::since_api("4.4") { 2 } else { 1 };
+        let eq = match GdextBuild::godot_runtime_version_triple() {
+            (4, 1..=3, _) => 1,
+            (4, 4, 0) => 2, // changed in https://github.com/godotengine/godot/pull/96797.
+            _ => 1,         // changed in https://github.com/godotengine/godot/pull/103647.
+        };
 
         assert_eq!(eq_count(&at), eq, "hash collision, eq for a needed");
         assert_eq!(eq_count(&bt), eq, "hash collision, eq for b needed");
