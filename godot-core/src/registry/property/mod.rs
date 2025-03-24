@@ -16,6 +16,14 @@ use crate::classes;
 use crate::global::PropertyHint;
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 use crate::obj::{EngineEnum, GodotClass};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Child modules
+
+mod phantom_var;
+
+pub use phantom_var::PhantomVar;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
 
@@ -224,6 +232,7 @@ where
 /// Each function is named the same as the equivalent Godot annotation.  
 /// For instance, `@export_range` in Godot is `fn export_range` here.
 pub mod export_info_functions {
+    use std::fmt;
     use std::fmt::Write;
 
     use godot_ffi::VariantType;
@@ -233,7 +242,7 @@ pub mod export_info_functions {
     use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
     use crate::obj::EngineEnum;
     use crate::registry::property::Export;
-    use crate::sys;
+    use crate::{godot_str, sys};
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
@@ -267,17 +276,18 @@ pub mod export_info_functions {
     /// #[derive(GodotClass)]
     /// #[class(init, base=Node)]
     /// struct MyClassWithRangedValues {
-    ///     #[export(range=(0.0, 400.0, 1.0, or_greater, suffix="px"))]
+    ///     #[export(range=(0, 400, 1, or_greater, suffix="px"))]
     ///     icon_width: i32,
+    ///
     ///     #[export(range=(-180.0, 180.0, degrees))]
     ///     angle: f32,
     /// }
     /// ```
     #[allow(clippy::too_many_arguments)]
-    pub fn export_range(
-        min: f64,
-        max: f64,
-        step: Option<f64>,
+    pub fn export_range<T: Export + fmt::Display>(
+        min: T,
+        max: T,
+        step: Option<T>,
         or_greater: bool,
         or_less: bool,
         exp: bool,
@@ -314,7 +324,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::RANGE,
-            hint_string: GString::from(hint_string),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -377,7 +387,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::ENUM,
-            hint_string: GString::from(hint_string),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -386,7 +396,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::EXP_EASING,
-            hint_string: GString::from(hint_string),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -410,7 +420,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::FLAGS,
-            hint_string: GString::from(hint_string),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -489,14 +499,14 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(format!("{hint_string}:{filter}")),
+            hint_string: godot_str!("{hint_string}:{filter}"),
         }
     }
 
-    pub fn export_placeholder<S: AsRef<str>>(placeholder: S) -> PropertyHintInfo {
+    pub fn export_placeholder(placeholder: &str) -> PropertyHintInfo {
         PropertyHintInfo {
             hint: PropertyHint::PLACEHOLDER_TEXT,
-            hint_string: GString::from(placeholder.as_ref()),
+            hint_string: GString::from(placeholder),
         }
     }
 
