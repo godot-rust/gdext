@@ -13,8 +13,7 @@ use std::rc::Rc;
 
 use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::classes::{
-    file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
-    RefCounted,
+    file_access, Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted,
 };
 #[allow(deprecated)]
 use godot::global::instance_from_id;
@@ -514,10 +513,10 @@ fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
 fn object_engine_convert_variant_nil() {
     let nil = Variant::nil();
 
-    Gd::<Area2D>::try_from_variant(&nil).expect_err("`nil` should not convert to `Gd<Area2D>`");
+    Gd::<Node2D>::try_from_variant(&nil).expect_err("`nil` should not convert to `Gd<Node2D>`");
 
     expect_panic("from_variant(&nil)", || {
-        Gd::<Area2D>::from_variant(&nil);
+        Gd::<Node2D>::from_variant(&nil);
     });
 }
 
@@ -526,12 +525,12 @@ fn object_engine_convert_variant_error() {
     let refc = RefCounted::new_gd();
     let variant = refc.to_variant();
 
-    let err = Gd::<Area2D>::try_from_variant(&variant)
-        .expect_err("`Gd<RefCounted>` should not convert to `Gd<Area2D>`");
+    let err = Gd::<Node2D>::try_from_variant(&variant)
+        .expect_err("`Gd<RefCounted>` should not convert to `Gd<Node2D>`");
 
     assert_eq!(
         err.to_string(),
-        format!("cannot convert to class Area2D: {refc:?}")
+        format!("cannot convert to class Node2D: {refc:?}")
     );
 }
 
@@ -705,9 +704,9 @@ fn object_engine_bad_downcast() {
 
 #[itest]
 fn object_engine_accept_polymorphic() {
-    let mut node = Camera3D::new_alloc();
+    let mut node = Node3D::new_alloc();
     let expected_name = StringName::from("Node name");
-    let expected_class = GString::from("Camera3D");
+    let expected_class = GString::from("Node3D");
 
     node.set_name(expected_name.arg());
 

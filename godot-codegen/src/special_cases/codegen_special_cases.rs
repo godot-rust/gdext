@@ -132,55 +132,62 @@ pub(crate) fn is_utility_function_excluded(
 // Classes for minimal config
 #[cfg(not(feature = "codegen-full"))]
 const SELECTED_CLASSES: &[&str] = &[
-    "Area2D",
-    "ArrayMesh",
-    "BoxMesh",
-    "Camera3D",
-    "CanvasItem",
-    "CanvasLayer",
-    "ClassDB",
-    "CollisionObject2D",
-    "CollisionShape2D",
-    "Control",
-    "EditorPlugin",
-    "EditorExportPlugin",
-    "Engine",
-    "FileAccess",
-    "GDScript",
-    "HTTPRequest",
-    "Image",
-    "ImageTextureLayered",
-    "Input",
-    "InputEvent",
-    "InputEventAction",
-    "MainLoop",
-    "Mesh",
+    // Core class hierarchy
+    "Object",
     "Node",
+    "CanvasItem", // base of Node2D
     "Node2D",
     "Node3D",
-    "Object",
-    "OS",
-    "PackedScene",
-    "PhysicsBody2D",
-    "PrimitiveMesh",
     "RefCounted",
-    "RenderingServer",
     "Resource",
-    "ResourceFormatLoader",
+    //
+    // Runtime + reflection support
+    "ClassDB",
+    "Engine",
+    "OS",
+    //
+    // Editor plugins
+    "EditorPlugin",
+    "EditorExportPlugin",
+    //
+    // I/O and save/load
     "ResourceLoader",
     "ResourceSaver",
-    "RigidBody2D",
+    "FileAccess",
+    //
+    // Scene (node_test, rpc_test)
+    "MainLoop", // base of SceneTree
     "SceneTree",
+    //
+    // Script instances
     "Script",
     "ScriptExtension",
     "ScriptNameCasing",
     "ScriptLanguage",
     "ScriptLanguageExtension",
+    "GDScript",
+    //
+    // Example resources
+    "PackedScene", // manual_extensions
     "Texture",
-    "Texture2DArray",
-    "TextureLayered",
-    "Time", // usage: enum_test.enum_hash()
-    "Timer",
+    //
+    // Meshes (virtual_methods_test)
+    "Mesh",
+    "ArrayMesh", // enum_test, 1 case, but small API
+    "PrimitiveMesh",
+    //
+    // Windowing + Input (virtual_methods_test)
     "Viewport",
     "Window",
+    "Input",
+    "InputEvent",
+    "InputEventAction",
+    //
+    // Godot servers (for RID support)
+    "RenderingServer",
+    //
+    // Misc
+    "Time", // usage: enum_test.enum_hash()
+    "HTTPRequest",
+    "ResourceFormatLoader", // TODO: replace?
 ];
