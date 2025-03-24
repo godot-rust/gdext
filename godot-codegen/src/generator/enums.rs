@@ -372,6 +372,13 @@ fn make_enum_bitwise_operators(enum_: &Enum) -> TokenStream {
                     Self { ord: self.ord | rhs.ord }
                 }
             }
+
+            impl std::ops::BitOrAssign for #name {
+                #[inline]
+                fn bitor_assign(&mut self, rhs: Self) {
+                    *self = *self | rhs;
+                }
+            }
         }
     } else if let Some(mask_enum) = special_cases::as_enum_bitmaskable(enum_) {
         // Enum that has an accompanying bitfield for masking.
