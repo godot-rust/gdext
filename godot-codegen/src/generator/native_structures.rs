@@ -9,7 +9,7 @@ use crate::context::Context;
 use crate::generator::builtins;
 use crate::models::domain::{ExtensionApi, ModName, NativeStructure, TyName};
 use crate::util::ident;
-use crate::{conv, util, SubmitFn};
+use crate::{conv, special_cases, util, SubmitFn};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::path::Path;
@@ -25,6 +25,11 @@ pub fn generate_native_structures_files(
 
     let mut modules = vec![];
     for native_structure in api.native_structures.iter() {
+        // Some may be excluded in minimal codegen, because they hold codegen-excluded classes as fields.
+        if special_cases::is_native_struct_excluded(&native_structure.name) {
+            continue;
+        }
+
         let module_name = ModName::from_godot(&native_structure.name);
         let class_name = TyName::from_godot(&native_structure.name);
 
@@ -232,10 +237,11 @@ fn make_native_structure_field_and_accessor(
     (field_def, accessor)
 }
 
+/// Native structures use a different format for enums than the rest of the JSON file.
+/// If we detect a scoped field, convert it to the enum format expected by to_rust_type().
+///
+/// Example: `TextServer::Direction` -> `enum::TextServer.Direction`.
 fn normalize_native_structure_field_type(field_type: &str) -> String {
-    // native_structures uses a different format for enums than the
-    // rest of the JSON file. If we detect a scoped field, convert it
-    // to the enum format expected by to_rust_type.
     if field_type.contains("::") {
         let with_dot = field_type.replace("::", ".");
         format!("enum::{}", with_dot)

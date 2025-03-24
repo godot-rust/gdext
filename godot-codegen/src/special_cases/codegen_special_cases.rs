@@ -35,6 +35,16 @@ pub(crate) fn is_class_excluded(_godot_class_name: &str) -> bool {
 }
 
 #[cfg(not(feature = "codegen-full"))]
+pub(crate) fn is_native_struct_excluded(native_struct: &str) -> bool {
+    native_struct == "CaretInfo"
+}
+
+#[cfg(feature = "codegen-full")]
+pub(crate) fn is_native_struct_excluded(_native_struct: &str) -> bool {
+    false
+}
+
+#[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     use crate::conv;
     use crate::models::domain::RustTy;
@@ -124,7 +134,6 @@ pub(crate) fn is_utility_function_excluded(
 const SELECTED_CLASSES: &[&str] = &[
     "Area2D",
     "ArrayMesh",
-    "AudioStreamPlayer",
     "BoxMesh",
     "Camera3D",
     "CanvasItem",
@@ -167,7 +176,6 @@ const SELECTED_CLASSES: &[&str] = &[
     "ScriptNameCasing",
     "ScriptLanguage",
     "ScriptLanguageExtension",
-    "TextServer", // dep: CaretInfo < native_structure_tests
     "Texture",
     "Texture2DArray",
     "TextureLayered",

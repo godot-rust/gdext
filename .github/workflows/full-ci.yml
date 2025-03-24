@@ -332,6 +332,7 @@ jobs:
             os: ubuntu-22.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
+            # Important to keep both experimental-threads and codegen-full. Some itests (native_st_audio) require both.
             rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
 
           - name: linux-release
