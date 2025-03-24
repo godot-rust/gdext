@@ -13,6 +13,13 @@ use quote::{format_ident, quote};
 
 type IoResult = std::io::Result<()>;
 
+#[derive(Eq, PartialEq)]
+enum ExportKind {
+    NoExport,
+    Export,
+    ExportRange { min: i64, max: i64 },
+}
+
 struct Input {
     ident: String,
     gdscript_ty: &'static str,
@@ -20,7 +27,7 @@ struct Input {
     rust_ty: TokenStream,
     rust_val: TokenStream,
     is_property: bool,
-    is_exportable: bool,
+    export_kind: ExportKind,
     initializer: Option<TokenStream>,
     extra: TokenStream,
 }
@@ -34,7 +41,7 @@ macro_rules! pushs {
         $gdscript_val:expr,
         $rust_val:expr,
         $property:expr,
-        $export:expr,
+        $export_kind:expr,
         $initializer:expr
         $(; $($extra:tt)* )?
     ) => {
@@ -48,21 +55,27 @@ macro_rules! pushs {
             rust_ty: quote! { $RustTy },
             rust_val: quote! { $rust_val },
             is_property: $property,
-            is_exportable: $export,
+            export_kind: $export_kind,
             initializer: $initializer,
             extra: quote! { $($($extra)*)? },
         });
     };
 }
 
-/// Push simple GDScript expression, outside string
+/// Push simple GDScript expression, outside string.
 macro_rules! push {
     ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $val:expr) => {
         push!($inputs; $GDScriptTy, $RustTy, $val, $val);
     };
 
+    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $val:expr, export_range) => {
+        pushs!($inputs; $GDScriptTy, $RustTy, stringify!($val), $val, true,
+            ExportKind::ExportRange { min: <$RustTy>::MIN as i64, max: <$RustTy>::MAX as i64 },
+            None);
+    };
+
     ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $gdscript_val:expr, $rust_val:expr) => {
-        pushs!($inputs; $GDScriptTy, $RustTy, stringify!($gdscript_val), $rust_val, true, true, None);
+        pushs!($inputs; $GDScriptTy, $RustTy, stringify!($gdscript_val), $rust_val, true, ExportKind::Export, None);
     };
 }
 
@@ -77,7 +90,7 @@ macro_rules! push_newtype {
 
     (@s $inputs:ident; $GDScriptTy:expr, $name:ident($T:ty), $gdscript_val:expr, $rust_val:expr) => {
         pushs!(
-            $inputs; $GDScriptTy, $name, $gdscript_val, $rust_val, false, false, None;
+            $inputs; $GDScriptTy, $name, $gdscript_val, $rust_val, false, NoExport, None;
 
             #[derive(Clone, PartialEq, Debug)]
             pub struct $name($T);
@@ -106,41 +119,43 @@ macro_rules! push_newtype {
 
 // Edit this to change involved types
 fn collect_inputs() -> Vec<Input> {
+    use ExportKind::*;
+
     let mut inputs = vec![];
 
     // Scalar
     push!(inputs; int, i64, -922337203685477580);
-    push!(inputs; int, i32, -2147483648);
-    push!(inputs; int, u32, 4294967295);
-    push!(inputs; int, i16, -32767);
-    push!(inputs; int, u16, 65535);
-    push!(inputs; int, i8, -128);
-    push!(inputs; int, u8, 255);
+    push!(inputs; int, i32, -2147483648, export_range);
+    push!(inputs; int, u32, 4294967295, export_range);
+    push!(inputs; int, i16, -32767, export_range);
+    push!(inputs; int, u16, 65535, export_range);
+    push!(inputs; int, i8, -128, export_range);
+    push!(inputs; int, u8, 255, export_range);
     push!(inputs; float, f32, 12.5);
     push!(inputs; float, f64, 127.83156478);
     push!(inputs; bool, bool, true);
     push!(inputs; Color, Color, Color(0.7, 0.5, 0.3, 0.2), Color::from_rgba(0.7, 0.5, 0.3, 0.2));
     push!(inputs; String, GString, "hello", "hello".into());
     push!(inputs; StringName, StringName, &"hello", "hello".into());
-    pushs!(inputs; NodePath, NodePath, r#"^"hello""#, "hello".into(), true, true, None);
+    pushs!(inputs; NodePath, NodePath, r#"^"hello""#, "hello".into(), true, Export, None);
     push!(inputs; Vector2, Vector2, Vector2(12.5, -3.5), Vector2::new(12.5, -3.5));
     push!(inputs; Vector3, Vector3, Vector3(117.5, 100.0, -323.25), Vector3::new(117.5, 100.0, -323.25));
     push!(inputs; Vector4, Vector4, Vector4(-18.5, 24.75, -1.25, 777.875), Vector4::new(-18.5, 24.75, -1.25, 777.875));
     push!(inputs; Vector2i, Vector2i, Vector2i(-2147483648, 2147483647), Vector2i::new(-2147483648, 2147483647));
     push!(inputs; Vector3i, Vector3i, Vector3i(-1, -2147483648, 2147483647), Vector3i::new(-1, -2147483648, 2147483647));
     push!(inputs; Vector4i, Vector4i, Vector4i(-1, -2147483648, 2147483647, 1000), Vector4i::new(-1, -2147483648, 2147483647, 100));
-    pushs!(inputs; Callable, Callable, "Callable()", Callable::invalid(), true, false, Some(quote! { Callable::invalid() }));
-    pushs!(inputs; Signal, Signal, "Signal()", Signal::invalid(), true, false, Some(quote! { Signal::invalid() }));
+    pushs!(inputs; Callable, Callable, "Callable()", Callable::invalid(), true, NoExport, Some(quote! { Callable::invalid() }));
+    pushs!(inputs; Signal, Signal, "Signal()", Signal::invalid(), true, NoExport, Some(quote! { Signal::invalid() }));
     push!(inputs; Rect2, Rect2, Rect2(), Rect2::default());
     push!(inputs; Rect2i, Rect2i, Rect2i(), Rect2i::default());
     push!(inputs; Transform2D, Transform2D, Transform2D(), Transform2D::default());
-    pushs!(inputs; Plane, Plane, "Plane()", Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0), true, true, Some(quote! { Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0) }));
+    pushs!(inputs; Plane, Plane, "Plane()", Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0), true, Export, Some(quote! { Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0) }));
     push!(inputs; Quaternion, Quaternion, Quaternion(), Quaternion::default());
     push!(inputs; AABB, Aabb, AABB(), Aabb::default());
     push!(inputs; Basis, Basis, Basis(), Basis::default());
     push!(inputs; Transform3D, Transform3D, Transform3D(), Transform3D::default());
     push!(inputs; Projection, Projection, Projection(), Projection::default());
-    pushs!(inputs; RID, Rid, "RID()", Rid::Invalid, true, false, Some(quote! { Rid::Invalid }));
+    pushs!(inputs; RID, Rid, "RID()", Rid::Invalid, true, NoExport, Some(quote! { Rid::Invalid }));
     push!(inputs; Node, Option<Gd<Node>>, null, None);
     push!(inputs; Resource, Option<Gd<Resource>>, null, None);
     push!(inputs; PackedByteArray, PackedByteArray, PackedByteArray(), PackedByteArray::new());
@@ -195,16 +210,16 @@ fn collect_inputs() -> Vec<Input> {
     pushs!(inputs; Dictionary, Dictionary,
         r#"{"key": 83, -3: Vector2(1, 2), 0.03: true}"#,
         vdict! { "key": 83, (-3): Vector2::new(1.0, 2.0), 0.03: true },
-        true, true, None
+        true, Export, None
     );
 
     // Composite
-    pushs!(inputs; int, InstanceId, "-1", InstanceId::from_i64(0xFFFFFFFFFFFFFFF), false, false, None);
+    pushs!(inputs; int, InstanceId, "-1", InstanceId::from_i64(0xFFFFFFFFFFFFFFF), false, NoExport, None);
     // TODO: should `Variant` implement property?
-    pushs!(inputs; Variant, Variant, "123", 123i64.to_variant(), false, false, None);
+    pushs!(inputs; Variant, Variant, "123", 123i64.to_variant(), false, NoExport, None);
 
     // EngineEnum
-    pushs!(inputs; int, Error, "0", Error::OK, false, false, None);
+    pushs!(inputs; int, Error, "0", Error::OK, false, NoExport, None);
 
     inputs
 }
@@ -419,7 +434,7 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
             gdscript_ty,
             rust_ty,
             is_property,
-            is_exportable,
+            export_kind,
             initializer,
             ..
         } = input;
@@ -451,7 +466,7 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
             format!("var {var_array}: Array[{gdscript_ty}]"),
         ]);
 
-        if *is_exportable {
+        if *export_kind != ExportKind::NoExport {
             rust.extend([
                 quote! {
                     #[export]
@@ -461,8 +476,18 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
                 quote! { #[export] #export_array: Array<#rust_ty> },
             ]);
 
+            let export_single = match *export_kind {
+                ExportKind::Export => {
+                    format!("@export var {export}: {gdscript_ty}")
+                }
+                ExportKind::ExportRange { min, max } => {
+                    format!("@export_range({min}, {max}) var {export}: {gdscript_ty}")
+                }
+                _ => unreachable!(),
+            };
+
             gdscript.extend([
-                format!("@export var {export}: {gdscript_ty}"),
+                export_single,
                 format!("@export var {export_array}: Array[{gdscript_ty}]"),
             ]);
         }
