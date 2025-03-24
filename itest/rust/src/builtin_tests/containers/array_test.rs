@@ -399,9 +399,11 @@ fn untyped_array_return_from_godot_func() {
     assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
 }
 
-// TODO All API functions that take a `Array` are even more obscure and not included in
-// `SELECTED_CLASSES`. Decide if this test is worth having `Texture2DArray` and `Image` and their
-// ancestors in the list.
+// Conditional, so we don't need Texture2DArray > ImageTextureLayered > TextureLayered > Texture in minimal codegen.
+// Potential alternatives (search for "typedarray::" in extension_api.json):
+// - ClassDB::class_get_signal_list() -> Array<Dictionary>
+// - Compositor::set_compositor_effects( Array<Gd<Compositor>> )
+#[cfg(feature = "codegen-full-experimental")]
 #[itest]
 fn typed_array_pass_to_godot_func() {
     use godot::classes::image::Format;
