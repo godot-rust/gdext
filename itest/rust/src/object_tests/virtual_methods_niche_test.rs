@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![cfg(feature = "codegen-full")]
+#![cfg(codegen_full)]
 
 use crate::framework::{itest, TestContext};
 use crate::object_tests::virtual_methods_test::VirtualInputTest;

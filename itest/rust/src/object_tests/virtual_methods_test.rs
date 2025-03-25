@@ -13,7 +13,7 @@ use godot::builtin::{
     VariantArray, Vector2, Vector3,
 };
 use godot::classes::notify::NodeNotification;
-#[cfg(feature = "codegen-full")]
+#[cfg(codegen_full)]
 use godot::classes::Material;
 use godot::classes::{
     IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, InputEvent, InputEventAction, Node,
@@ -152,9 +152,9 @@ impl IPrimitiveMesh for VirtualReturnTest {
     // Note: if the following lines cause compile error "missing `surface_set_material`, `surface_get_material` in implementation",
     // then you most likely used `cargo build` on the entire workspace. Use `cargo build -p itest`. 
     // See also definition of `default` feature in itest/Cargo.toml. 
-    #[cfg(feature = "codegen-full")]
+    #[cfg(codegen_full)]
     fn surface_set_material(&mut self, _index: i32, _material: Option<Gd<Material>>) { unreachable!() }
-    #[cfg(feature = "codegen-full")]
+    #[cfg(codegen_full)]
     fn surface_get_material(&self, _index: i32) -> Option<Gd<Material>> { unreachable!() }
     
     fn get_blend_shape_count(&self) -> i32 { unreachable!() }

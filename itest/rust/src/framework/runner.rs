@@ -156,7 +156,7 @@ impl IntegrationTests {
     /// Queried by some `.gd` tests to check whether they can call into conditionally-compiled Rust classes.
     #[func]
     fn is_full_codegen() -> bool {
-        cfg!(feature = "codegen-full")
+        cfg!(codegen_full)
     }
 
     #[func]

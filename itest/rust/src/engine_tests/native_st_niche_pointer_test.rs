@@ -7,7 +7,7 @@
 
 // Tests for `AudioFrame` and `CaretInfo` require more classes as support, and are only enabled in full codegen mode.
 // More tests on native structures are in native_structure_tests.rs.
-#![cfg(feature = "codegen-full")]
+#![cfg(codegen_full)]
 
 use std::ptr;
 

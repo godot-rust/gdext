@@ -208,6 +208,8 @@ fn collect_inputs() -> Vec<Input> {
 }
 
 fn main() {
+    emit_codegen_cfg();
+
     let inputs = collect_inputs();
     let methods = generate_rust_methods(&inputs);
     let PropertyTests {
@@ -599,4 +601,64 @@ fn replace_parts(
     }
 
     Ok(())
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conditional compilation
+
+/// Emits the `#[cfg(codegen_full)]` flag if upstream `godot` was compiled with `__codegen-full` feature.
+///
+/// # Rationale
+/// Having features `itest/default = []`, while `godot/default = ["__codegen-full"]` is problematic, as it currently leads to compile errors
+/// in 1 itest (virtual_methods_test.rs) when using workspace-wide `cargo build`. While this isn't a common workflow, tools such as rust-analyzer
+/// may invoke `cargo build`, so it should at least not break.
+///
+/// We cannot emit this in upstream crates (just like `since_api`), because the `itest` crate depends on `godot` *without* the `__codegen-full`
+/// feature. As a result, a `#[cfg(feature = "__codegen-full")]` in `godot` would not be true if depended-on by `itest.
+///
+/// Instead, this checks the actual output directory for a niche class that's only present in full codegen, and emits the `cfg` flag if found.
+/// Very hacky, there's almost certainly a better way.
+///
+/// See also `itest/Cargo.toml`'s default feature.
+pub fn emit_codegen_cfg() {
+    println!(r#"cargo:rustc-check-cfg=cfg(codegen_full, values(none()))"#);
+
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let build_path = Path::new(&out_dir).parent().unwrap().parent().unwrap();
+
+    // Find all `godot-core-*` directories in build path, that contain `out` directory.
+    let godot_core_outs = build_path
+        .read_dir()
+        .expect("read build path")
+        .filter_map(|entry| {
+            let entry = entry.expect("read entry");
+            let path = entry.path();
+
+            // If starts with godot-core and has `out` subdirectory.
+            let file_name = path.file_name().expect("file_name").to_string_lossy();
+            let out = path.join("out");
+            if file_name.starts_with("godot-core") && out.exists() {
+                let metadata = out.metadata().expect("metadata");
+                Some((out, metadata.modified().expect("modified")))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    // Then select the last updated one.
+    let last_updated_out = godot_core_outs
+        .iter()
+        .max_by_key(|(_, modified)| *modified)
+        .map(|(path, _)| path)
+        .expect("latest `godot-core-*/out` directory");
+
+    // If niche class file exists, then we can assume full codegen.
+    if last_updated_out
+        .join("classes")
+        .join("visual_shader_node_world_position_from_depth.rs")
+        .exists()
+    {
+        println!(r#"cargo:rustc-cfg=codegen_full"#);
+    }
 }
