@@ -148,10 +148,15 @@ impl IPrimitiveMesh for VirtualReturnTest {
     fn surface_get_lods(&self, _index: i32) -> godot::prelude::Dictionary { unreachable!() }
     fn surface_get_format(&self, _index: i32) -> u32 { unreachable!() }
     fn surface_get_primitive_type(&self, _index: i32) -> u32 { unreachable!() }
+    
+    // Note: if the following lines cause compile error "missing `surface_set_material`, `surface_get_material` in implementation",
+    // then you most likely used `cargo build` on the entire workspace. Use `cargo build -p itest`. 
+    // See also definition of `default` feature in itest/Cargo.toml. 
     #[cfg(feature = "codegen-full")]
     fn surface_set_material(&mut self, _index: i32, _material: Option<Gd<Material>>) { unreachable!() }
     #[cfg(feature = "codegen-full")]
     fn surface_get_material(&self, _index: i32) -> Option<Gd<Material>> { unreachable!() }
+    
     fn get_blend_shape_count(&self) -> i32 { unreachable!() }
     fn get_blend_shape_name(&self, _index: i32) -> StringName { unreachable!() }
     fn set_blend_shape_name(&mut self, _index: i32, _name: StringName) { unreachable!() }

@@ -141,10 +141,11 @@ runs:
         if [[ -n "$TARGET" ]]; then
           targetArgs="--target $TARGET"
         fi
-        
+
+        # Keep `--no-default-features` even if it's currently redundant. Features may change.
         cargo build -p itest --no-default-features ${{ inputs.rust-extra-args }} $targetArgs
         
-        # Instead of modifying .gdextension, rename the output directory
+        # Instead of modifying .gdextension, rename the output directory.
         if [[ -n "$TARGET" ]]; then
           rm -rf target/debug
           mv target/$TARGET/debug target

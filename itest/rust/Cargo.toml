@@ -10,7 +10,11 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-default = ["codegen-full"]
+# Default feature MUST be empty for workflow reasons, even if it differs from the default feature set in upstream `godot` crate, and *even*
+# if it breaks `cargo build` on entire workspace. Use `cargo build -p itest` instead, or consider fixing the issue by dynamically emitting
+# a cfg in itest, when full codegen is enabled. See https://github.com/godot-rust/gdext/pull/771#issuecomment-2752543562.
+default = []
+
 codegen-full = ["godot/__codegen-full"]
 codegen-full-experimental = ["codegen-full", "godot/experimental-godot-api"]
 experimental-threads = ["godot/experimental-threads"]
