@@ -10,7 +10,8 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-default = ["codegen-full"]
+# Default feature MUST be empty for workflow reasons, even if it differs from the default feature set in upstream `godot` crate.
+default = []
 codegen-full = ["godot/__codegen-full"]
 codegen-full-experimental = ["codegen-full", "godot/experimental-godot-api"]
 experimental-threads = ["godot/experimental-threads"]
@@ -28,6 +29,7 @@ serde_json = { version = "1.0", optional = true }
 [build-dependencies]
 godot-bindings = { path = "../../godot-bindings" } # emit_godot_version_cfg
 repo-tweak = { path = "../repo-tweak" }
+godot-codegen = { path = "../../godot-codegen" } # IS_CODEGEN_FULL
 
 # Minimum versions compatible with -Zminimal-versions
 proc-macro2 = "1.0.80" # Literal::c_string() added in 1.0.80.
