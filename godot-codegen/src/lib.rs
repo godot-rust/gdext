@@ -43,6 +43,13 @@ use std::path::{Path, PathBuf};
 
 pub type SubmitFn = dyn FnMut(PathBuf, TokenStream);
 
+#[cfg(not(feature = "codegen-full"))]
+pub const IS_CODEGEN_FULL: bool = false;
+
+/// Used by itest to determine true codegen status; see itest/build.rs.
+#[cfg(feature = "codegen-full")]
+pub const IS_CODEGEN_FULL: bool = true;
+
 fn write_file(path: &Path, contents: String) {
     let dir = path.parent().unwrap();
     let _ = std::fs::create_dir_all(dir);
