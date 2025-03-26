@@ -12,9 +12,9 @@ use godot::classes::{Object, RefCounted};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::prelude::{godot_api, GodotClass};
-use godot::task::{self, SignalFuture, SignalFutureResolver, TaskHandle};
+use godot::task::{self, create_test_signal_future_resolver, SignalFuture, TaskHandle};
 
-use crate::framework::{itest, TestContext};
+use crate::framework::{expect_async_panic, itest, TestContext};
 
 #[derive(GodotClass)]
 #[class(init)]
@@ -37,14 +37,21 @@ fn start_async_task() -> TaskHandle {
     object.add_user_signal("custom_signal");
 
     let task_handle = task::spawn(async move {
-        let signal_future: SignalFuture<(u8,)> = signal.to_future();
-        let (result,) = signal_future.await;
+        let signal_future: SignalFuture<(u8, Gd<RefCounted>)> = signal.to_future();
+        let (result, object) = signal_future.await;
 
         assert_eq!(result, 10);
+        assert!(object.is_instance_valid());
+
         drop(object_ref);
     });
 
-    object.emit_signal("custom_signal", &[10.to_variant()]);
+    let ref_counted_arg = RefCounted::new_gd();
+
+    object.emit_signal(
+        "custom_signal",
+        &[10.to_variant(), ref_counted_arg.to_variant()],
+    );
 
     task_handle
 }
@@ -80,11 +87,84 @@ fn async_task_fallible_signal_future() -> TaskHandle {
     handle
 }
 
+#[itest(async)]
+fn async_task_signal_future_panic() -> TaskHandle {
+    let mut obj = Object::new_alloc();
+
+    let signal = Signal::from_object_signal(&obj, "script_changed");
+
+    let handle = task::spawn(expect_async_panic(
+        "future should panic when the signal object is dropped",
+        async move {
+            signal.to_future::<()>().await;
+        },
+    ));
+
+    obj.call_deferred("free", &[]);
+
+    handle
+}
+
+#[cfg(feature = "experimental-threads")]
+#[itest(async)]
+fn signal_future_non_send_arg_panic() -> TaskHandle {
+    use crate::framework::ThreadCrosser;
+
+    let mut object = RefCounted::new_gd();
+    let signal = Signal::from_object_signal(&object, "custom_signal");
+
+    object.add_user_signal("custom_signal");
+
+    let handle = task::spawn(expect_async_panic(
+        "future should panic when the Gd<RefCounted> is sent between threads",
+        async move {
+            signal.to_future::<(Gd<RefCounted>,)>().await;
+        },
+    ));
+
+    let object = ThreadCrosser::new(object);
+
+    std::thread::spawn(move || {
+        let mut object = unsafe { object.extract() };
+
+        object.emit_signal("custom_signal", &[RefCounted::new_gd().to_variant()])
+    });
+
+    handle
+}
+
+#[cfg(feature = "experimental-threads")]
+#[itest(async)]
+fn signal_future_send_arg_no_panic() -> TaskHandle {
+    use crate::framework::ThreadCrosser;
+
+    let mut object = RefCounted::new_gd();
+    let signal = Signal::from_object_signal(&object, "custom_signal");
+
+    object.add_user_signal("custom_signal");
+
+    let handle = task::spawn(async move {
+        let (value,) = signal.to_future::<(u8,)>().await;
+
+        assert_eq!(value, 1);
+    });
+
+    let object = ThreadCrosser::new(object);
+
+    std::thread::spawn(move || {
+        let mut object = unsafe { object.extract() };
+
+        object.emit_signal("custom_signal", &[1u8.to_variant()])
+    });
+
+    handle
+}
+
 // Test that two callables created from the same future resolver (but cloned) are equal, while they are not equal to an unrelated
 // callable.
 #[itest]
 fn resolver_callabable_equality() {
-    let resolver = SignalFutureResolver::<(u8,)>::default();
+    let resolver = create_test_signal_future_resolver::<(u8,)>();
 
     let callable = Callable::from_custom(resolver.clone());
     let cloned_callable = Callable::from_custom(resolver.clone());
