@@ -5,23 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![allow(dead_code)]
-
 use crate::framework::{itest, TestContext};
 
 use godot::builtin::{
     real, varray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
-    PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
-    StringName, Variant, VariantArray, Vector2, Vector3,
+    PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv, StringName, Variant,
+    VariantArray, Vector2, Vector3,
 };
 use godot::classes::notify::NodeNotification;
-use godot::classes::resource_loader::CacheMode;
 #[cfg(feature = "codegen-full")]
 use godot::classes::Material;
 use godot::classes::{
-    BoxMesh, IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, IResourceFormatLoader,
-    IRigidBody2D, InputEvent, InputEventAction, Node, Node2D, Object, PrimitiveMesh, RefCounted,
-    ResourceFormatLoader, ResourceLoader, Viewport, Window,
+    IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, InputEvent, InputEventAction, Node,
+    Node2D, Object, PrimitiveMesh, RefCounted, Window,
 };
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
@@ -164,9 +160,9 @@ impl IPrimitiveMesh for VirtualReturnTest {
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
-struct VirtualInputTest {
+pub(super) struct VirtualInputTest {
     base: Base<Node2D>,
-    event: Option<Gd<InputEvent>>,
+    pub event: Option<Gd<InputEvent>>,
 }
 
 #[godot_api]
@@ -177,47 +173,6 @@ impl INode2D for VirtualInputTest {
 
     fn input(&mut self, event: Gd<InputEvent>) {
         self.event = Some(event);
-    }
-}
-
-#[derive(GodotClass, Debug)]
-#[class(init, base=ResourceFormatLoader)]
-struct FormatLoaderTest {
-    base: Base<ResourceFormatLoader>,
-}
-
-impl FormatLoaderTest {
-    fn resource_type() -> GString {
-        GString::from("some_resource_type")
-    }
-}
-
-#[godot_api]
-impl IResourceFormatLoader for FormatLoaderTest {
-    fn get_recognized_extensions(&self) -> PackedStringArray {
-        [GString::from("extension")].into_iter().collect()
-    }
-
-    fn handles_type(&self, type_: StringName) -> bool {
-        type_.to_string() == Self::resource_type().to_string()
-    }
-
-    fn get_resource_type(&self, _path: GString) -> GString {
-        Self::resource_type()
-    }
-
-    fn exists(&self, _path: GString) -> bool {
-        true
-    }
-
-    fn load(
-        &self,
-        _path: GString,
-        _original_path: GString,
-        _use_sub_threads: bool,
-        _cache_mode: i32,
-    ) -> Variant {
-        BoxMesh::new_gd().to_variant()
     }
 }
 
@@ -497,32 +452,6 @@ fn test_virtual_method_with_return() {
 }
 
 #[itest]
-fn test_format_loader(_test_context: &TestContext) {
-    let format_loader = FormatLoaderTest::new_gd();
-
-    let mut loader = ResourceLoader::singleton();
-    loader
-        .add_resource_format_loader_ex(&format_loader)
-        .at_front(true)
-        .done();
-
-    let mut extensions_rust = format_loader.bind().get_recognized_extensions();
-    extensions_rust.push("tres");
-
-    let extensions = loader.get_recognized_extensions_for_type(&FormatLoaderTest::resource_type());
-    assert_eq!(extensions, extensions_rust);
-
-    let resource = loader
-        .load_ex("path.extension")
-        .cache_mode(CacheMode::IGNORE)
-        .done()
-        .unwrap();
-    assert!(resource.try_cast::<BoxMesh>().is_ok());
-
-    loader.remove_resource_format_loader(&format_loader);
-}
-
-#[itest]
 fn test_input_event(test_context: &TestContext) {
     let obj = VirtualInputTest::new_alloc();
     assert_eq!(obj.bind().event, None);
@@ -671,38 +600,6 @@ fn test_revert() {
 
     assert_eq!(revert.property_get_revert(&changes), Variant::nil());
     assert_eq!(revert.property_get_revert(&changes), true.to_variant());
-}
-
-// Used in `test_collision_object_2d_input_event` in `SpecialTests.gd`.
-#[derive(GodotClass)]
-#[class(init, base = RigidBody2D)]
-pub struct CollisionObject2DTest {
-    input_event_called: bool,
-    viewport: Option<Gd<Viewport>>,
-}
-
-#[godot_api]
-impl IRigidBody2D for CollisionObject2DTest {
-    fn input_event(&mut self, viewport: Gd<Viewport>, _event: Gd<InputEvent>, _shape_idx: i32) {
-        self.input_event_called = true;
-        self.viewport = Some(viewport);
-    }
-}
-
-#[godot_api]
-impl CollisionObject2DTest {
-    #[func]
-    fn input_event_called(&self) -> bool {
-        self.input_event_called
-    }
-
-    #[func]
-    fn get_viewport(&self) -> Variant {
-        self.viewport
-            .as_ref()
-            .map(ToGodot::to_variant)
-            .unwrap_or(Variant::nil())
-    }
 }
 
 #[derive(GodotClass)]

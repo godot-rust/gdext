@@ -89,6 +89,11 @@ pub fn is_class_deleted(class_name: &TyName) -> bool {
         || is_godot_type_deleted(&class_name.godot_ty)
 }
 
+/// Native-struct types excluded in minimal codegen, because they hold codegen-excluded classes as fields.
+pub fn is_native_struct_excluded(ty: &str) -> bool {
+    codegen_special_cases::is_native_struct_excluded(ty)
+}
+
 pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
     // Note: parameter can be a class or builtin name, but also something like "enum::AESContext.Mode".
 

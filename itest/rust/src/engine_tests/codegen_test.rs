@@ -10,7 +10,7 @@
 
 use crate::framework::itest;
 use godot::builtin::inner::InnerColor;
-use godot::classes::{FileAccess, HttpRequest, IHttpRequest, Image};
+use godot::classes::{FileAccess, HttpRequest, IHttpRequest, RenderingServer};
 use godot::prelude::*;
 
 #[itest]
@@ -53,7 +53,8 @@ fn codegen_static_class_method() {
 
 #[itest]
 fn codegen_constants() {
-    assert_eq!(Image::MAX_WIDTH, 16777216);
+    assert_eq!(RenderingServer::CANVAS_ITEM_Z_MIN, -4096);
+    //assert_eq!(Image::MAX_WIDTH, 16777216);
     // assert_eq!(Material::RENDER_PRIORITY_MIN, -128);
 }
 

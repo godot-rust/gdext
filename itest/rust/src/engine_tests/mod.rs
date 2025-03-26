@@ -11,10 +11,8 @@ mod codegen_enums_test;
 mod codegen_test;
 mod engine_enum_test;
 mod gfile_test;
-/// Native audio structure tests are only enabled when both the `experimental-threads` and `codegen-full` features are active. The tests
-/// require these features to be able to execute.
-#[cfg(all(feature = "experimental-threads", feature = "codegen-full"))]
-mod native_audio_structures_test;
+mod native_st_niche_audio_test;
+mod native_st_niche_pointer_test;
 mod native_structures_test;
 mod node_test;
 mod save_load_test;

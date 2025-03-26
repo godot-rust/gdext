@@ -586,8 +586,8 @@ pub mod custom_callable {
 
         let eq = match GdextBuild::godot_runtime_version_triple() {
             (4, 1..=3, _) => 1,
-            (4, 4, 0) => 2, // changed in https://github.com/godotengine/godot/pull/96797.
-            _ => 1,         // changed in https://github.com/godotengine/godot/pull/103647.
+            (4, 4, 0..=1) => 2, // changed in https://github.com/godotengine/godot/pull/96797.
+            _ => 1,             // changed in https://github.com/godotengine/godot/pull/103647.
         };
 
         assert_eq!(eq_count(&at), eq, "hash collision, eq for a needed");

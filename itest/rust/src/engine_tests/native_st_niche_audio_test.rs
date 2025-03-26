@@ -5,6 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Requires BOTH full codegen and experimental-threads. The latter would compile without, but crash at runtime.
+// More tests on native structures are in native_structure_full_codegen_tests.rs.
+#![cfg(all(feature = "codegen-full", feature = "experimental-threads"))]
+
 use std::thread;
 use std::time::Duration;
 

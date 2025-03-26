@@ -18,7 +18,12 @@ extends TestSuiteSpecial
 # testing this at the moment, since we don't have any way to let frames pass in between the start and end of 
 # an integration test. 
 func test_collision_object_2d_input_event():
-	var collision_object := CollisionObject2DTest.new()
+	if not IntegrationTests.is_full_codegen():
+		print("Skip in minimal codegen: test_collision_object_2d_input_event")
+		return
+
+	# Dynamic instantiation, to still parse if Rust class is disabled.
+	var collision_object: Variant = ClassDB.instantiate("CollisionObject2DTest")
 	collision_object.input_pickable = true
 
 	var collision_shape := CollisionShape2D.new()

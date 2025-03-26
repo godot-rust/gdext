@@ -153,6 +153,12 @@ impl IntegrationTests {
         }
     }
 
+    /// Queried by some `.gd` tests to check whether they can call into conditionally-compiled Rust classes.
+    #[func]
+    fn is_full_codegen() -> bool {
+        cfg!(feature = "codegen-full")
+    }
+
     #[func]
     fn run_all_benchmarks(&mut self, scene_tree: Gd<Node>) {
         if self.focus_run {

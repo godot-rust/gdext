@@ -16,8 +16,7 @@ pub use super::meta::error::{ConvertError, IoError};
 pub use super::meta::{FromGodot, GodotConvert, ToGodot};
 
 pub use super::classes::{
-    AudioStreamPlayer, Camera2D, Camera3D, IAudioStreamPlayer, ICamera2D, ICamera3D, INode,
-    INode2D, INode3D, IObject, IPackedScene, IRefCounted, IResource, ISceneTree, Input, Node,
+    INode, INode2D, INode3D, IObject, IPackedScene, IRefCounted, IResource, ISceneTree, Node,
     Node2D, Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
 };
 pub use super::global::{

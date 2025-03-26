@@ -35,6 +35,16 @@ pub(crate) fn is_class_excluded(_godot_class_name: &str) -> bool {
 }
 
 #[cfg(not(feature = "codegen-full"))]
+pub(crate) fn is_native_struct_excluded(native_struct: &str) -> bool {
+    native_struct == "CaretInfo"
+}
+
+#[cfg(feature = "codegen-full")]
+pub(crate) fn is_native_struct_excluded(_native_struct: &str) -> bool {
+    false
+}
+
+#[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     use crate::conv;
     use crate::models::domain::RustTy;
@@ -122,69 +132,62 @@ pub(crate) fn is_utility_function_excluded(
 // Classes for minimal config
 #[cfg(not(feature = "codegen-full"))]
 const SELECTED_CLASSES: &[&str] = &[
-    "AnimatedSprite2D",
-    "Area2D",
-    "ArrayMesh",
-    "AudioStreamPlayer",
-    "BaseButton",
-    "BoxMesh",
-    "Button",
-    "Camera2D",
-    "Camera3D",
-    "CanvasItem",
-    "CanvasLayer",
-    "ClassDB",
-    "CollisionObject2D",
-    "CollisionShape2D",
-    "Control",
-    "EditorPlugin",
-    "EditorExportPlugin",
-    "Engine",
-    "FileAccess",
-    "GDScript",
-    "HTTPRequest",
-    "Image",
-    "ImageTextureLayered",
-    "Input",
-    "InputEvent",
-    "InputEventAction",
-    "Label",
-    "MainLoop",
-    "Marker2D",
-    "Mesh",
+    // Core class hierarchy
+    "Object",
     "Node",
+    "CanvasItem", // base of Node2D
     "Node2D",
     "Node3D",
-    "Node3DGizmo",
-    "Object",
-    "OS",
-    "PackedScene",
-    "PathFollow2D",
-    "PhysicsBody2D",
-    "PrimitiveMesh",
     "RefCounted",
-    "RenderingServer",
     "Resource",
-    "ResourceFormatLoader",
+    //
+    // Runtime + reflection support
+    "ClassDB",
+    "Engine",
+    "OS",
+    //
+    // Editor plugins
+    "EditorPlugin",
+    "EditorExportPlugin",
+    //
+    // I/O and save/load
     "ResourceLoader",
     "ResourceSaver",
-    "RigidBody2D",
+    "FileAccess",
+    //
+    // Scene (node_test, rpc_test)
+    "MainLoop", // base of SceneTree
     "SceneTree",
-    "SceneTreeTimer",
+    //
+    // Script instances
     "Script",
     "ScriptExtension",
     "ScriptNameCasing",
     "ScriptLanguage",
     "ScriptLanguageExtension",
-    "Sprite2D",
-    "SpriteFrames",
-    "TextServer",
-    "TextServerExtension",
+    "GDScript",
+    //
+    // Example resources
+    "PackedScene", // manual_extensions
     "Texture",
-    "Texture2DArray",
-    "TextureLayered",
-    "Time",
-    "Timer",
+    //
+    // Meshes (virtual_methods_test)
+    "Mesh",
+    "ArrayMesh", // enum_test, 1 case, but small API
+    "PrimitiveMesh",
+    //
+    // Windowing + Input (virtual_methods_test)
     "Viewport",
     "Window",
+    "Input",
+    "InputEvent",
+    "InputEventAction",
+    //
+    // Godot servers (for RID support)
+    "RenderingServer",
+    //
+    // Misc
+    "Time", // usage: enum_test.enum_hash()
+    "HTTPRequest",
+    "ResourceFormatLoader", // TODO: replace?
 ];
