@@ -90,77 +90,6 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         self.owner.to_owned()
     }
 
-    /// Emit the signal with the given parameters.
-    ///
-    /// This is intended for generic use. Typically, you'll want to use the more specific `emit()` method of the code-generated signal
-    /// type, which also has named parameters.
-    pub fn emit_tuple(&mut self, args: Ps) {
-        let name = self.name.as_ref();
-
-        self.owner.with_object_mut(|obj| {
-            obj.emit_signal(name, &args.to_variant_array());
-        });
-    }
-
-    /// Connect a non-member function (global function, associated function or closure).
-    ///
-    /// Example usages:
-    /// ```ignore
-    /// sig.connect(Self::static_func);
-    /// sig.connect(global_func);
-    /// sig.connect(|arg| { /* closure */ });
-    /// ```
-    ///
-    /// To connect to a method of the own object `self`, use [`connect_self()`][Self::connect_self].  \
-    /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect<F>(&mut self, mut function: F)
-    where
-        F: SignalReceiver<(), Ps>,
-    {
-        let godot_fn = make_godot_fn(move |args| {
-            function.call((), args);
-        });
-
-        self.inner_connect_godot_fn::<F>(godot_fn);
-    }
-
-    /// Connect a method (member function) with `&mut self` as the first parameter.
-    ///
-    /// To connect to methods on other objects, use [`connect_obj()`][Self::connect_obj].  \
-    /// If you need a `&self` receiver, cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect_self<F>(&mut self, mut function: F)
-    where
-        for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
-    {
-        let mut gd = self.owner.to_owned();
-        let godot_fn = make_godot_fn(move |args| {
-            let mut instance = gd.bind_mut();
-            let instance = &mut *instance;
-            function.call(instance, args);
-        });
-
-        self.inner_connect_godot_fn::<F>(godot_fn);
-    }
-
-    /// Connect a method (member function) with any `Gd<T>` (not `self`) as the first parameter.
-    ///
-    /// To connect to methods on the same object that declares the `#[signal]`, use [`connect_self()`][Self::connect_self].  \
-    /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect_obj<F, OtherC>(&mut self, object: &Gd<OtherC>, mut function: F)
-    where
-        OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
-        for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
-    {
-        let mut gd = object.clone();
-        let godot_fn = make_godot_fn(move |args| {
-            let mut instance = gd.bind_mut();
-            let instance = &mut *instance;
-            function.call(instance, args);
-        });
-
-        self.inner_connect_godot_fn::<F>(godot_fn);
-    }
-
     /// Fully customizable connection setup.
     ///
     /// The returned builder provides several methods to configure how to connect the signal. It needs to be finalized with a call to
@@ -210,5 +139,83 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
 
     pub(crate) fn to_untyped(&self) -> crate::builtin::Signal {
         crate::builtin::Signal::from_object_signal(&self.receiver_object(), &*self.name)
+    }
+}
+
+impl<C: WithBaseField, Ps: meta::OutParamTuple> TypedSignal<'_, C, Ps> {
+    /// Emit the signal with the given parameters.
+    ///
+    /// This is intended for generic use. Typically, you'll want to use the more specific `emit()` method of the code-generated signal
+    /// type, which also has named parameters.
+    pub fn emit_tuple(&mut self, args: Ps) {
+        let name = self.name.as_ref();
+
+        self.owner.with_object_mut(|obj| {
+            obj.emit_signal(name, &args.to_variant_array());
+        });
+    }
+}
+
+impl<C: WithBaseField, Ps: meta::InParamTuple> TypedSignal<'_, C, Ps> {
+    /// Connect a non-member function (global function, associated function or closure).
+    ///
+    /// Example usages:
+    /// ```ignore
+    /// sig.connect(Self::static_func);
+    /// sig.connect(global_func);
+    /// sig.connect(|arg| { /* closure */ });
+    /// ```
+    ///
+    /// To connect to a method of the own object `self`, use [`connect_self()`][Self::connect_self].  \
+    /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
+    pub fn connect<F>(&mut self, mut function: F)
+    where
+        F: SignalReceiver<(), Ps>,
+        Ps: 'static,
+    {
+        let godot_fn = make_godot_fn(move |args| {
+            function.call((), args);
+        });
+
+        self.inner_connect_godot_fn::<F>(godot_fn);
+    }
+
+    /// Connect a method (member function) with `&mut self` as the first parameter.
+    ///
+    /// To connect to methods on other objects, use [`connect_obj()`][Self::connect_obj].  \
+    /// If you need a `&self` receiver, cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
+    pub fn connect_self<F>(&mut self, mut function: F)
+    where
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
+        Ps: 'static,
+    {
+        let mut gd = self.owner.to_owned();
+        let godot_fn = make_godot_fn(move |args| {
+            let mut instance = gd.bind_mut();
+            let instance = &mut *instance;
+            function.call(instance, args);
+        });
+
+        self.inner_connect_godot_fn::<F>(godot_fn);
+    }
+
+    /// Connect a method (member function) with any `Gd<T>` (not `self`) as the first parameter.
+    ///
+    /// To connect to methods on the same object that declares the `#[signal]`, use [`connect_self()`][Self::connect_self].  \
+    /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
+    pub fn connect_obj<F, OtherC>(&mut self, object: &Gd<OtherC>, mut function: F)
+    where
+        OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
+        Ps: 'static,
+    {
+        let mut gd = object.clone();
+        let godot_fn = make_godot_fn(move |args| {
+            let mut instance = gd.bind_mut();
+            let instance = &mut *instance;
+            function.call(instance, args);
+        });
+
+        self.inner_connect_godot_fn::<F>(godot_fn);
     }
 }
