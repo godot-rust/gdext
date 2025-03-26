@@ -342,7 +342,9 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// Returns a mutable reference suitable for calling engine methods on this object.
     ///
     /// This method will allow you to call back into the same object from Godot, unlike what would happen
-    /// if you used [`to_gd()`](WithBaseField::to_gd).
+    /// if you used [`to_gd()`](WithBaseField::to_gd). You have to keep the `BaseRef` guard bound for the entire duration the engine might
+    /// re-enter a function of your class. The guard temporarily absorbs the `&mut self` reference, which allows for an additional mutable
+    /// reference to be acquired.
     ///
     /// Holding a mutable guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
