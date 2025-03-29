@@ -12,7 +12,7 @@
 
 use crate::context::Context;
 use crate::conv;
-use crate::models::json::{JsonMethodArg, JsonMethodReturn, JsonSignal};
+use crate::models::json::{JsonMethodArg, JsonMethodReturn};
 use crate::util::{ident, option_as_slice, safe_ident};
 
 use proc_macro2::{Ident, Literal, TokenStream};

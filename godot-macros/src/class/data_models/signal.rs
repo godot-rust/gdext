@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Some duplication with godot-codegen/signals.rs; see comments there.
+
 use crate::util::bail;
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, TokenStream};
@@ -186,7 +188,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
 #[derive(Default)]
 struct SignalCollection {
     /// The individual `my_signal()` accessors, returning concrete signal types.
-    collection_methods: Vec<TokenStream>,
+    provider_methods: Vec<TokenStream>,
 
     /// The actual signal definitions, including both `struct` and `impl` blocks.
     individual_structs: Vec<TokenStream>,
@@ -203,7 +205,7 @@ impl SignalCollection {
             ..
         } = details;
 
-        self.collection_methods.push(quote! {
+        self.provider_methods.push(quote! {
             // Deliberately not #[doc(hidden)] for IDE completion.
             #(#signal_cfg_attrs)*
             // Note: this could be `pub` always and would still compile (maybe warning with the following message).
@@ -211,7 +213,7 @@ impl SignalCollection {
             //
             // However, it would still lead to a compile error when declaring the individual signal struct `pub` (or any other
             // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
-            #vis_marker fn #signal_name(self) -> #individual_struct_name<'a> {
+            #vis_marker fn #signal_name(self) -> #individual_struct_name<'c> {
                 #individual_struct_name {
                     typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
@@ -272,8 +274,8 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         }
 
         #(#signal_cfg_attrs)*
-        impl<'a> std::ops::Deref for #individual_struct_name<'a> {
-            type Target = ::godot::register::TypedSignal<'a, #class_name, #param_tuple>;
+        impl<'c> std::ops::Deref for #individual_struct_name<'c> {
+            type Target = ::godot::register::TypedSignal<'c, #class_name, #param_tuple>;
 
             fn deref(&self) -> &Self::Target {
                 &self.typed
@@ -296,35 +298,39 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
     }
 
     let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
-    let collection_struct_methods = &collection.collection_methods;
+    let collection_struct_methods = &collection.provider_methods;
     let individual_structs = collection.individual_structs;
 
     let code = quote! {
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
-        pub struct #collection_struct_name<'a> {
+        pub struct #collection_struct_name<'c> {
             // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
             #[doc(hidden)] // Necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
-            __internal_obj: ::godot::register::ObjectRef<'a, #class_name>
+            __internal_obj: ::godot::register::UserSignalObj<'c, #class_name>
         }
 
-        impl<'a> #collection_struct_name<'a> {
+        impl<'c> #collection_struct_name<'c> {
             #( #collection_struct_methods )*
         }
 
         impl ::godot::obj::WithSignals for #class_name {
-            type SignalCollection<'a> = #collection_struct_name<'a>;
-
-            fn signals(&mut self) -> Self::SignalCollection<'_> {
-                Self::SignalCollection {
-                    __internal_obj: ::godot::register::ObjectRef::Internal { obj_mut: self }
-                }
-            }
+            type SignalCollection<'c> = #collection_struct_name<'c>;
+            #[doc(hidden)]
+            type __SignalObject<'c> = ::godot::register::UserSignalObj<'c, Self>;
 
             #[doc(hidden)]
-            fn __signals_from_external(external: &Gd<Self>) -> Self::SignalCollection<'_> {
+            fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
-                    __internal_obj: ::godot::register::ObjectRef::External { gd: external.clone() }
+                    __internal_obj: ::godot::register::UserSignalObj::External { gd: external.clone() }
+                }
+            }
+        }
+
+        impl ::godot::obj::WithUserSignals for #class_name {
+            fn signals(&mut self) -> Self::SignalCollection<'_> {
+                Self::SignalCollection {
+                    __internal_obj: ::godot::register::UserSignalObj::Internal { obj_mut: self }
                 }
             }
         }

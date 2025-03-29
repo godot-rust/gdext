@@ -17,7 +17,7 @@ use crate::builtin::{Callable, RustCallable, Signal, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta::sealed::Sealed;
 use crate::meta::ParamTuple;
-use crate::obj::{EngineBitfield, Gd, GodotClass, WithBaseField};
+use crate::obj::{EngineBitfield, Gd, GodotClass, WithSignals};
 use crate::registry::signal::TypedSignal;
 
 pub(crate) use crate::impl_dynamic_send;
@@ -307,7 +307,7 @@ impl Signal {
     }
 }
 
-impl<C: WithBaseField, R: ParamTuple + IntoDynamicSend> TypedSignal<'_, C, R> {
+impl<C: WithSignals, R: ParamTuple + IntoDynamicSend> TypedSignal<'_, C, R> {
     /// Creates a fallible future for this signal.
     ///
     /// The future will resolve the next time the signal is emitted.
@@ -325,7 +325,7 @@ impl<C: WithBaseField, R: ParamTuple + IntoDynamicSend> TypedSignal<'_, C, R> {
     }
 }
 
-impl<C: WithBaseField, R: ParamTuple + IntoDynamicSend> IntoFuture for &TypedSignal<'_, C, R> {
+impl<C: WithSignals, R: ParamTuple + IntoDynamicSend> IntoFuture for &TypedSignal<'_, C, R> {
     type Output = R;
 
     type IntoFuture = SignalFuture<R>;

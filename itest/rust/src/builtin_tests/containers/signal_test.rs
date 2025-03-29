@@ -7,13 +7,13 @@
 
 use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
-use godot::classes::{Object, RefCounted};
+use godot::classes::{Node, Object, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithSignals};
+use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
 use godot::sys::Global;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 #[itest]
@@ -79,7 +79,7 @@ fn signal_symbols_internal() {
 #[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_external() {
-    let emitter = Emitter::new_alloc();
+    let mut emitter = Emitter::new_alloc();
     let mut sig = emitter.signals().signal_int();
 
     // Local function; deliberately use a !Send type.
@@ -126,7 +126,7 @@ fn signal_symbols_external() {
 #[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_external_builder() {
-    let emitter = Emitter::new_alloc();
+    let mut emitter = Emitter::new_alloc();
     let mut sig = emitter.signals().signal_int();
 
     // Self-modifying method.
@@ -197,7 +197,7 @@ fn signal_symbols_external_builder() {
 fn signal_symbols_sync() {
     use std::sync::{Arc, Mutex};
 
-    let emitter = Emitter::new_alloc();
+    let mut emitter = Emitter::new_alloc();
     let mut sig = emitter.signals().signal_int();
 
     let sync_tracker = Arc::new(Mutex::new(0));
@@ -217,6 +217,56 @@ fn signal_symbols_sync() {
     );
 
     emitter.free();
+}
+
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
+    // Add node to tree, to test Godot signal interactions.
+    let mut node = Node::new_alloc();
+    ctx.scene_tree.clone().add_child(&node);
+
+    // Deliberately declare here, because there was a bug with wrong lifetime, which would not compile due to early-dropped temporary.
+    let mut signals_in_node = node.signals();
+    let mut renamed = signals_in_node.renamed();
+    let mut entered = signals_in_node.child_entered_tree();
+
+    let renamed_count = Rc::new(Cell::new(0));
+    let entered_tracker = Rc::new(RefCell::new(None));
+    {
+        let renamed_count = renamed_count.clone();
+        let entered_tracker = entered_tracker.clone();
+
+        entered
+            .connect_builder()
+            .function(move |node| {
+                *entered_tracker.borrow_mut() = Some(node);
+            })
+            .done();
+
+        renamed.connect(move || renamed_count.set(renamed_count.get() + 1));
+    }
+
+    // Apply changes, triggering signals.
+    node.set_name("new name");
+    let child = Node::new_alloc();
+    node.add_child(&child);
+
+    // Verify that signals were emitted.
+    let entered_node = entered_tracker.take();
+    assert_eq!(renamed_count.get(), 1, "Emit failed: Node::renamed");
+    assert_eq!(
+        entered_node,
+        Some(child),
+        "Emit failed: Node::child_entered_tree"
+    );
+
+    // Manually emit a signal a 2nd time.
+    node.signals().renamed().emit();
+    assert_eq!(renamed_count.get(), 2, "Manual emit failed: Node::renamed");
+
+    // Remove from tree for other tests.
+    node.free();
 }
 
 #[itest]
@@ -250,6 +300,7 @@ use emitter::Emitter;
 
 mod emitter {
     use super::*;
+    use godot::obj::WithUserSignals;
 
     #[derive(GodotClass)]
     #[class(init, base=Object)]
@@ -319,6 +370,7 @@ struct Receiver {
     last_received: Cell<LastReceived>,
     base: Base<Object>,
 }
+
 #[godot_api]
 impl Receiver {
     fn last_received(&self) -> LastReceived {

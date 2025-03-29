@@ -11,7 +11,6 @@ use crate::init::InitLevel;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
 use crate::storage::Storage;
-
 use godot_ffi as sys;
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
@@ -430,9 +429,41 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     }
 }
 
-pub trait WithSignals: WithBaseField {
-    type SignalCollection<'a>;
+// Dummy traits to still allow bounds and imports.
+#[cfg(before_api = "4.2")]
+pub trait WithSignals: GodotClass {}
+#[cfg(before_api = "4.2")]
+pub trait WithUserSignals: WithSignals + WithBaseField {}
 
+/// Implemented for all classes with registered signals, both engine- and user-declared.
+///
+/// This trait enables the [`Gd::signals()`] method.
+///
+/// User-defined classes with `#[signal]` additionally implement [`WithUserSignals`].
+#[cfg(since_api = "4.2")]
+pub trait WithSignals: GodotClass {
+    /// The associated struct listing all signals of this class.
+    ///
+    /// `'c` denotes the lifetime during which the class instance is borrowed and its signals can be modified.
+    type SignalCollection<'c>;
+
+    /// Trait that allows [`TypedSignal`] to store a reference to the user object.
+    #[doc(hidden)]
+    #[expect(private_bounds)]
+    type __SignalObject<'c>: crate::registry::signal::SignalObj<Self>;
+
+    /// Create from existing `Gd`, to enable `Gd::signals()`.
+    ///
+    /// Takes by reference and not value, to retain lifetime chain.
+    #[doc(hidden)]
+    fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_>;
+}
+
+/// Implemented for user-defined classes with at least one `#[signal]` declaration.
+///
+/// Allows to access signals from within the class, as `self.signals()`. This requires a `Base<T>` field.
+#[cfg(since_api = "4.2")]
+pub trait WithUserSignals: WithSignals + WithBaseField {
     /// Access user-defined signals of the current object `self`.
     ///
     /// For classes that have at least one `#[signal]` defined, returns a collection of signal names. Each returned signal has a specialized
@@ -459,9 +490,6 @@ pub trait WithSignals: WithBaseField {
     /// | `emit(amount: i32)` | Emits the signal with the given arguments. |
     ///
     fn signals(&mut self) -> Self::SignalCollection<'_>;
-
-    #[doc(hidden)]
-    fn __signals_from_external(external: &Gd<Self>) -> Self::SignalCollection<'_>;
 }
 
 /// Extension trait for all reference-counted classes.

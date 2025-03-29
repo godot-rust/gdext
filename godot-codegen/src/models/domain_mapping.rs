@@ -13,7 +13,12 @@ use crate::models::domain::{
     FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, Singleton, TyName,
     UtilityFunction,
 };
-use crate::models::json::{JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant, JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader, JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton, JsonUtilityFunction};
+use crate::models::json::{
+    JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
+    JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
+    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
+    JsonUtilityFunction,
+};
 use crate::util::{get_api_level, ident, option_as_slice};
 use crate::{conv, special_cases};
 use proc_macro2::Ident;
@@ -112,7 +117,7 @@ impl Class {
 
         let signals = option_as_slice(&json.signals)
             .iter()
-            .map(|s| {
+            .filter_map(|s| {
                 let surrounding_class = &ty_name;
                 ClassSignal::from_json(s, surrounding_class, ctx)
             })
@@ -524,12 +529,16 @@ impl ClassSignal {
         json_signal: &JsonSignal,
         surrounding_class: &TyName,
         ctx: &mut Context,
-    ) -> Self {
-        Self {
+    ) -> Option<Self> {
+        if special_cases::is_signal_deleted(surrounding_class, json_signal) {
+            return None;
+        }
+
+        Some(Self {
             name: json_signal.name.clone(),
             parameters: FnParam::new_range(&json_signal.arguments, ctx),
             surrounding_class: surrounding_class.clone(),
-        }
+        })
     }
 }
 

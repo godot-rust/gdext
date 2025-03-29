@@ -177,16 +177,16 @@ fn resolver_callabable_equality() {
 
 #[itest(async)]
 fn async_typed_signal() -> TaskHandle {
-    let object = AsyncRefCounted::new_gd();
-    let object_ref = object.clone();
+    let mut object = AsyncRefCounted::new_gd();
+    let mut copy = object.clone();
 
     let task_handle = task::spawn(async move {
-        let (result,) = object.signals().custom_signal().deref().await;
+        let (result,) = copy.signals().custom_signal().deref().await;
 
         assert_eq!(result, 66);
     });
 
-    object_ref.signals().custom_signal().emit(66);
+    object.signals().custom_signal().emit(66);
 
     task_handle
 }

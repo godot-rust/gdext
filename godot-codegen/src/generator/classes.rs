@@ -7,7 +7,9 @@
 use crate::context::{Context, NotificationEnum};
 use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
-use crate::generator::{constants, docs, enums, functions_common, notifications, virtual_traits};
+use crate::generator::{
+    constants, docs, enums, functions_common, notifications, signals, virtual_traits,
+};
 use crate::models::domain::{
     ApiView, Class, ClassLike, ClassMethod, ExtensionApi, FnDirection, FnQualifier, Function,
     ModName, TyName,
@@ -120,6 +122,8 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         functions: methods,
         builders,
     } = make_class_methods(class, &class.methods, &cfg_attributes, ctx);
+
+    let signal_types = signals::make_class_signals(class, &class.signals, ctx);
 
     let enums = enums::make_enums(&class.enums, &cfg_attributes);
     let constants = constants::make_constants(&class.constants);
@@ -256,6 +260,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
         #builders
         #enums
+        #signal_types
     };
     // note: TypePtr -> ObjectPtr conversion OK?
 

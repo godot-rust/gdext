@@ -7,15 +7,25 @@
 
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
-use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField, WithSignals, WithUserSignals};
 use crate::registry::signal::{make_callable_name, make_godot_fn, ConnectBuilder, SignalReceiver};
 use crate::{classes, meta};
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
+/// Indirection from [`TypedSignal`] to the actual Godot object.
+///
+/// Needs to differentiate the two cases:
+/// - `C` is a user object implementing `WithBaseField`, possibly having access from within the class.
+/// - `C` is an engine object, so only accessible through `Gd<C>`.
+pub(crate) trait SignalObj<C: GodotClass> {
+    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object));
+    fn to_owned_object(&self) -> Gd<C>;
+}
+
 /// Links to a Godot object, either via reference (for `&mut self` uses) or via `Gd`.
 #[doc(hidden)]
-pub enum ObjectRef<'a, C: GodotClass> {
+pub enum UserSignalObj<'a, C: GodotClass> {
     /// Helpful for emit: reuse `&mut self` from within the `impl` block, goes through `base_mut()` re-borrowing and thus allows re-entrant calls
     /// through Godot.
     Internal { obj_mut: &'a mut C },
@@ -24,22 +34,29 @@ pub enum ObjectRef<'a, C: GodotClass> {
     External { gd: Gd<C> },
 }
 
-impl<C> ObjectRef<'_, C>
-where
-    C: WithBaseField,
-{
+impl<C: WithBaseField> SignalObj<C> for UserSignalObj<'_, C> {
     fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object)) {
         match self {
-            ObjectRef::Internal { obj_mut } => f(obj_mut.base_mut().upcast_object_mut()),
-            ObjectRef::External { gd } => f(gd.upcast_object_mut()),
+            UserSignalObj::Internal { obj_mut } => f(obj_mut.base_mut().upcast_object_mut()),
+            UserSignalObj::External { gd } => f(gd.upcast_object_mut()),
         }
     }
 
-    fn to_owned(&self) -> Gd<C> {
+    fn to_owned_object(&self) -> Gd<C> {
         match self {
-            ObjectRef::Internal { obj_mut } => WithBaseField::to_gd(*obj_mut),
-            ObjectRef::External { gd } => gd.clone(),
+            UserSignalObj::Internal { obj_mut } => WithBaseField::to_gd(*obj_mut),
+            UserSignalObj::External { gd } => gd.clone(),
         }
+    }
+}
+
+impl<C: GodotClass> SignalObj<C> for Gd<C> {
+    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object)) {
+        f(self.upcast_object_mut());
+    }
+
+    fn to_owned_object(&self) -> Gd<C> {
+        self.clone()
     }
 }
 
@@ -50,9 +67,9 @@ where
 /// Short-lived type, only valid in the scope of its surrounding object type `C`, for lifetime `'c`. The generic argument `Ps` represents
 /// the parameters of the signal, thus ensuring the type safety.
 ///
-/// The [`WithSignals::signals()`][crate::obj::WithSignals::signals] collection returns multiple signals with distinct, code-generated types,
-/// but they all implement `Deref` and `DerefMut` to `TypedSignal`. This allows you to either use the concrete APIs of the generated types,
-/// or the more generic ones of `TypedSignal`.
+/// The [`WithSignals::SignalCollection`] struct returns multiple signals with distinct, code-generated types, but they all implement
+/// `Deref` and `DerefMut` to `TypedSignal`. This allows you to either use the concrete APIs of the generated types, or the more generic
+/// ones of `TypedSignal`.
 ///
 /// # Connecting a signal to a receiver
 /// Receiver functions are functions that are called when a signal is emitted. You can connect a signal in many different ways:
@@ -69,16 +86,16 @@ where
 ///
 /// # More information
 /// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a detailed introduction and examples.
-pub struct TypedSignal<'c, C: GodotClass, Ps> {
+pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
-    owner: ObjectRef<'c, C>,
+    owner: C::__SignalObject<'c>,
     name: Cow<'static, str>,
     _signature: PhantomData<Ps>,
 }
 
-impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
+impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     #[doc(hidden)]
-    pub fn new(owner: ObjectRef<'c, C>, name: &'static str) -> Self {
+    pub fn new(owner: C::__SignalObject<'c>, name: &'static str) -> Self {
         Self {
             owner,
             name: Cow::Borrowed(name),
@@ -87,7 +104,7 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     }
 
     pub(crate) fn receiver_object(&self) -> Gd<C> {
-        self.owner.to_owned()
+        self.owner.to_owned_object()
     }
 
     /// Emit the signal with the given parameters.
@@ -119,24 +136,6 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     {
         let godot_fn = make_godot_fn(move |args| {
             function.call((), args);
-        });
-
-        self.inner_connect_godot_fn::<F>(godot_fn);
-    }
-
-    /// Connect a method (member function) with `&mut self` as the first parameter.
-    ///
-    /// To connect to methods on other objects, use [`connect_obj()`][Self::connect_obj].  \
-    /// If you need a `&self` receiver, cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect_self<F>(&mut self, mut function: F)
-    where
-        for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
-    {
-        let mut gd = self.owner.to_owned();
-        let godot_fn = make_godot_fn(move |args| {
-            let mut instance = gd.bind_mut();
-            let instance = &mut *instance;
-            function.call(instance, args);
         });
 
         self.inner_connect_godot_fn::<F>(godot_fn);
@@ -210,5 +209,25 @@ impl<'c, C: WithBaseField, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
 
     pub(crate) fn to_untyped(&self) -> crate::builtin::Signal {
         crate::builtin::Signal::from_object_signal(&self.receiver_object(), &*self.name)
+    }
+}
+
+impl<C: WithUserSignals, Ps: meta::ParamTuple> TypedSignal<'_, C, Ps> {
+    /// Connect a method (member function) with `&mut self` as the first parameter.
+    ///
+    /// To connect to methods on other objects, use [`connect_obj()`][Self::connect_obj].  \
+    /// If you need a `&self` receiver, cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
+    pub fn connect_self<F>(&mut self, mut function: F)
+    where
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
+    {
+        let mut gd = self.owner.to_owned_object();
+        let godot_fn = make_godot_fn(move |args| {
+            let mut instance = gd.bind_mut();
+            let instance = &mut *instance;
+            function.call(instance, args);
+        });
+
+        self.inner_connect_godot_fn::<F>(godot_fn);
     }
 }
