@@ -12,7 +12,7 @@ use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, Wake, Waker};
-use std::thread::{self, LocalKey, ThreadId};
+use std::thread::{self, ThreadId};
 
 use crate::builtin::{Callable, Variant};
 use crate::private::handle_panic;
@@ -147,7 +147,7 @@ impl TaskHandle {
 
 const ASYNC_RUNTIME_DEINIT_PANIC_MESSAGE: &str = "The async runtime is being accessed after it has been deinitialized. This should not be possible and is most likely a bug.";
 
-thread_local! {
+crate::private::godot_thread_local! {
     /// The thread local is only initialized the first time it's used. This means the async runtime won't be allocated until a task is
     /// spawned.
     static ASYNC_RUNTIME: RefCell<Option<AsyncRuntime>> = RefCell::new(Some(AsyncRuntime::new()));
@@ -346,7 +346,7 @@ trait WithRuntime {
     fn with_runtime_mut<R>(&'static self, f: impl FnOnce(&mut AsyncRuntime) -> R) -> R;
 }
 
-impl WithRuntime for LocalKey<RefCell<Option<AsyncRuntime>>> {
+impl WithRuntime for crate::private::GodotThreadLocal<RefCell<Option<AsyncRuntime>>> {
     fn with_runtime<R>(&'static self, f: impl FnOnce(&AsyncRuntime) -> R) -> R {
         self.with_borrow(|rt| {
             let rt_ref = rt.as_ref().expect(ASYNC_RUNTIME_DEINIT_PANIC_MESSAGE);

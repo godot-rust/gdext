@@ -739,7 +739,7 @@ pub mod trace {
         TRACE.set(Some(report));
     }
 
-    thread_local! {
+    crate::private::godot_thread_local! {
         static TRACE: Cell<Option<CallReport>> = Cell::default();
     }
 }

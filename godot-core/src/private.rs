@@ -320,12 +320,12 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
 /// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
 /// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
+#[cfg(debug_assertions)]
 struct ScopedFunctionStack {
     functions: Vec<*const dyn Fn() -> String>,
 }
 
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
+#[cfg(debug_assertions)]
 impl ScopedFunctionStack {
     /// # Safety
     /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
@@ -616,8 +616,8 @@ macro_rules! godot_thread_local {
 
 pub(crate) use godot_thread_local;
 
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
-thread_local! {
+#[cfg(debug_assertions)]
+godot_thread_local! {
     static ERROR_CONTEXT_STACK: RefCell<ScopedFunctionStack> = const {
         RefCell::new(ScopedFunctionStack { functions: Vec::new() })
     }
@@ -625,10 +625,10 @@ thread_local! {
 
 // Value may return `None`, even from panic hook, if called from a non-Godot thread.
 pub fn get_gdext_panic_context() -> Option<String> {
-    #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+    #[cfg(debug_assertions)]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
 
-    #[cfg(not(all(debug_assertions, not(wasm_nothreads))))]
+    #[cfg(not(debug_assertions))]
     None
 }
 
@@ -643,10 +643,10 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    #[cfg(not(all(debug_assertions, not(wasm_nothreads))))]
-    let _ = error_context; // Unused in Release or `wasm_nothreads` builds.
+    #[cfg(not(debug_assertions))]
+    let _ = error_context; // Unused in Release.
 
-    #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+    #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| unsafe {
         // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
         cell.borrow_mut().push_function(&error_context)
@@ -655,7 +655,7 @@ where
     let result =
         std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()));
 
-    #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+    #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
     result
 }
