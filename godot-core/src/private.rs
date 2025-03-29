@@ -17,7 +17,7 @@ pub use sys::out;
 
 #[cfg(feature = "trace")]
 pub use crate::meta::trace;
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
+#[cfg(debug_assertions)]
 use std::cell::RefCell;
 
 use crate::global::godot_error;
@@ -321,12 +321,12 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
 /// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
 /// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
+#[cfg(debug_assertions)]
 struct ScopedFunctionStack {
     functions: Vec<*const dyn Fn() -> String>,
 }
 
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
+#[cfg(debug_assertions)]
 impl ScopedFunctionStack {
     /// # Safety
     /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
@@ -351,8 +351,129 @@ impl ScopedFunctionStack {
     }
 }
 
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
-thread_local! {
+/// A thread local which adequately behaves as a global variable when compiling under `experimental-wasm-nothreads`, as it does
+/// not support thread locals.
+pub(crate) struct GodotThreadLocal<T: 'static> {
+    #[cfg(not(wasm_nothreads))]
+    threaded_val: &'static std::thread::LocalKey<T>,
+
+    #[cfg(wasm_nothreads)]
+    non_threaded_val: std::cell::OnceCell<T>,
+
+    #[cfg(wasm_nothreads)]
+    initializer: fn() -> T,
+}
+
+// SAFETY: there can only be one thread with `wasm_nothreads`.
+#[cfg(wasm_nothreads)]
+unsafe impl<T: 'static> Sync for GodotThreadLocal<T> {}
+
+impl<T: 'static> GodotThreadLocal<T> {
+    #[cfg(not(wasm_nothreads))]
+    pub const fn new_threads(key: &'static std::thread::LocalKey<T>) -> Self {
+        Self { threaded_val: key }
+    }
+
+    #[cfg(wasm_nothreads)]
+    pub const fn new_nothreads(initializer: fn() -> T) -> Self {
+        Self {
+            non_threaded_val: std::cell::OnceCell::new(),
+            initializer,
+        }
+    }
+
+    #[cfg(wasm_nothreads)]
+    fn get_with_default_initializer(&self) -> &T {
+        self.non_threaded_val.get_or_init(self.initializer)
+    }
+
+    pub fn with<F, R>(&'static self, f: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.with(f);
+
+        #[cfg(wasm_nothreads)]
+        f(self.get_with_default_initializer())
+    }
+}
+
+impl<T: 'static> GodotThreadLocal<RefCell<T>> {
+    pub fn with_borrow<F, R>(&'static self, f: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.with_borrow(f);
+
+        #[cfg(wasm_nothreads)]
+        f(&*self.get_with_default_initializer().borrow())
+    }
+
+    pub fn with_borrow_mut<F, R>(&'static self, f: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.with_borrow_mut(f);
+
+        #[cfg(wasm_nothreads)]
+        f(&mut *self.get_with_default_initializer().borrow_mut())
+    }
+
+    pub fn set(&'static self, value: T) {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.set(value);
+
+        // According to `LocalKey` docs, this method must not call the default initializer.
+        #[cfg(wasm_nothreads)]
+        if let Some(initialized) = self.non_threaded_val.get() {
+            *initialized.borrow_mut() = value;
+        } else {
+            self.non_threaded_val.get_or_init(|| RefCell::new(value));
+        }
+    }
+}
+
+#[cfg(not(wasm_nothreads))]
+#[macro_export]
+macro_rules! godot_thread_local {
+    (static $name:ident: $ty:ty = const $init:block$(;)?) => {
+        static $name: $crate::private::GodotThreadLocal<$ty> = {
+            ::std::thread_local! {
+                static $name: $ty = const $init
+            }
+
+            $crate::private::GodotThreadLocal::new_threads(&$name)
+        };
+    };
+    (static $name:ident: $ty:ty = $val:expr$(;)?) => {
+        static $name: $crate::private::GodotThreadLocal<$ty> = {
+            ::std::thread_local! {
+                static $name: $ty = $val
+            }
+
+            $crate::private::GodotThreadLocal::new_threads(&$name)
+        };
+    };
+}
+
+#[cfg(wasm_nothreads)]
+#[macro_export]
+macro_rules! godot_thread_local {
+    (static $name:ident: $ty:ty = const $init:block$(;)?) => {
+        static $name: $crate::private::GodotThreadLocal<$ty> =
+            $crate::private::GodotThreadLocal::new_nothreads(|| $init);
+    };
+    (static $name:ident: $ty:ty = $val:expr$(;)?) => {
+        static $name: $crate::private::GodotThreadLocal<$ty> =
+            $crate::private::GodotThreadLocal::new_nothreads(|| $val);
+    };
+}
+
+#[cfg(debug_assertions)]
+godot_thread_local! {
     static ERROR_CONTEXT_STACK: RefCell<ScopedFunctionStack> = const {
         RefCell::new(ScopedFunctionStack { functions: Vec::new() })
     }
@@ -360,10 +481,10 @@ thread_local! {
 
 // Value may return `None`, even from panic hook, if called from a non-Godot thread.
 pub fn get_gdext_panic_context() -> Option<String> {
-    #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+    #[cfg(debug_assertions)]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
 
-    #[cfg(not(all(debug_assertions, not(wasm_nothreads))))]
+    #[cfg(not(debug_assertions))]
     None
 }
 
@@ -378,10 +499,10 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    #[cfg(not(all(debug_assertions, not(wasm_nothreads))))]
-    let _ = error_context; // Unused in Release or `wasm_nothreads` builds.
+    #[cfg(not(debug_assertions))]
+    let _ = error_context; // Unused in Release.
 
-    #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+    #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| unsafe {
         // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
         cell.borrow_mut().push_function(&error_context)
@@ -390,7 +511,7 @@ where
     let result =
         std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()));
 
-    #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+    #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
     result
 }
