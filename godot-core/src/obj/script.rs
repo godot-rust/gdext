@@ -457,6 +457,9 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// Returns a mutable reference suitable for calling engine methods on this object.
     ///
     /// This method will allow you to call back into the same object from Godot (re-entrancy).
+    /// You have to keep the `ScriptBaseRef` guard bound for the entire duration the engine might re-enter a function of your
+    /// `ScriptInstance`. The guard temporarily absorbs the `&mut self` reference, which allows for an additional mutable reference to be
+    /// acquired.
     ///
     /// Holding a mutable guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
