@@ -12,7 +12,7 @@
 
 use crate::context::Context;
 use crate::conv;
-use crate::models::json::{JsonMethodArg, JsonMethodReturn};
+use crate::models::json::{JsonMethodArg, JsonMethodReturn, JsonSignal};
 use crate::util::{ident, option_as_slice, safe_ident};
 
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -166,6 +166,7 @@ pub struct Class {
     pub constants: Vec<ClassConstant>,
     pub enums: Vec<Enum>,
     pub methods: Vec<ClassMethod>,
+    pub signals: Vec<ClassSignal>,
 }
 
 impl ClassLike for Class {
@@ -414,8 +415,6 @@ pub struct ClassMethod {
     pub surrounding_class: TyName,
 }
 
-impl ClassMethod {}
-
 impl Function for ClassMethod {
     fn common(&self) -> &FunctionCommon {
         &self.common
@@ -439,6 +438,14 @@ impl fmt::Display for ClassMethod {
             self.name(),
         )
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub struct ClassSignal {
+    pub name: String,
+    pub parameters: Vec<FnParam>,
+    pub surrounding_class: TyName,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
