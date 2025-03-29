@@ -884,6 +884,11 @@ pub fn is_enum_bitfield(class_name: Option<&TyName>, enum_name: &str) -> Option<
 ///
 /// If a mapping is found, returns the corresponding `RustTy`.
 pub fn as_enum_bitmaskable(enum_: &Enum) -> Option<RustTy> {
+    if enum_.is_bitfield {
+        // Only enums need this treatment.
+        return None;
+    }
+
     let class_name = enum_.surrounding_class.as_ref();
     let class_name_str = class_name.map(|ty| ty.godot_ty.as_str());
     let enum_name = enum_.godot_name.as_str();
