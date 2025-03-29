@@ -97,10 +97,13 @@ pub fn make_enum_definition_with(
     };
 
     let traits = define_traits.then(|| {
-        // Trait implementations
-        let engine_trait_impl = make_enum_engine_trait_impl(enum_);
+        // Check for associated bitmasks (e.g. Key -> KeyModifierMask).
+        let enum_bitmask = special_cases::as_enum_bitmaskable(enum_);
+
+        // Trait implementations.
+        let engine_trait_impl = make_enum_engine_trait_impl(enum_, enum_bitmask.as_ref());
         let index_enum_impl = make_enum_index_impl(enum_);
-        let bitwise_impls = make_enum_bitwise_operators(enum_);
+        let bitwise_impls = make_enum_bitwise_operators(enum_, enum_bitmask.as_ref());
 
         quote! {
             #engine_trait_impl
@@ -216,11 +219,13 @@ fn make_enum_debug_impl(enum_: &Enum, use_as_str: bool) -> TokenStream {
 /// Creates an implementation of the engine trait for the given enum.
 ///
 /// This will implement the trait returned by [`Enum::engine_trait`].
-fn make_enum_engine_trait_impl(enum_: &Enum) -> TokenStream {
+fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> TokenStream {
     let name = &enum_.name;
     let engine_trait = enum_.engine_trait();
 
     if enum_.is_bitfield {
+        // Bitfields: u64, assume any combination is valid.
+
         quote! {
             // We may want to add this in the future.
             //
@@ -239,6 +244,8 @@ fn make_enum_engine_trait_impl(enum_: &Enum) -> TokenStream {
             }
         }
     } else if enum_.is_exhaustive {
+        // Exhaustive enums: Rust representation is C-style `enum` (not `const`), no fallback enumerator.
+
         let enumerators = enum_.enumerators.iter().map(|enumerator| {
             let Enumerator {
                 name,
@@ -273,16 +280,36 @@ fn make_enum_engine_trait_impl(enum_: &Enum) -> TokenStream {
             }
         }
     } else {
+        // Non-exhaustive enums divide into two categories:
+        // - Those with associated mask (e.g. Key -> KeyModifierMask)
+        // - All others
+        // Both have a Rust representation of `struct { ord: i32 }`, with their values as `const` declarations.
+        // However, those with masks don't have strict validation when marshalling from integers, and a Debug repr which includes the mask.
+
         let unique_ords = enum_.unique_ords().expect("self is an enum");
         let str_functions = make_enum_str_functions(enum_);
+
+        // We can technically check against all possible mask values, remove each mask, and then verify it's a valid base-enum value.
+        // However, this is not forward compatible: if a new mask is added in a future API version, it wouldn't be removed, and the
+        // "unmasked" (all *known* masks removed) value would not match an enumerator. Thus, assume the value is valid, even if at lower
+        // type safety.
+        let try_from_ord_code = if let Some(_mask) = enum_bitmask {
+            quote! {
+                Some(Self { ord })
+            }
+        } else {
+            quote! {
+                match ord {
+                    #( ord @ #unique_ords )|* => Some(Self { ord }),
+                    _ => None,
+                }
+            }
+        };
 
         quote! {
             impl #engine_trait for #name {
                 fn try_from_ord(ord: i32) -> Option<Self> {
-                    match ord {
-                        #( ord @ #unique_ords )|* => Some(Self { ord }),
-                        _ => None,
-                    }
+                    #try_from_ord_code
                 }
 
                 fn ord(self) -> i32 {
@@ -358,7 +385,7 @@ fn make_enum_str_functions(enum_: &Enum) -> TokenStream {
 /// Creates implementations for bitwise operators for the given enum.
 ///
 /// Currently, this is just [`BitOr`](std::ops::BitOr) for bitfields but that could be expanded in the future.
-fn make_enum_bitwise_operators(enum_: &Enum) -> TokenStream {
+fn make_enum_bitwise_operators(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> TokenStream {
     let name = &enum_.name;
 
     if enum_.is_bitfield {
@@ -380,7 +407,7 @@ fn make_enum_bitwise_operators(enum_: &Enum) -> TokenStream {
                 }
             }
         }
-    } else if let Some(mask_enum) = special_cases::as_enum_bitmaskable(enum_) {
+    } else if let Some(mask_enum) = enum_bitmask {
         // Enum that has an accompanying bitfield for masking.
         let RustTy::EngineEnum { tokens: mask, .. } = mask_enum else {
             panic!("as_enum_bitmaskable() must return enum/bitfield type")
