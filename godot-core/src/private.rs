@@ -17,8 +17,7 @@ pub use sys::out;
 
 #[cfg(feature = "trace")]
 pub use crate::meta::trace;
-#[cfg(all(debug_assertions, not(wasm_nothreads)))]
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use crate::global::godot_error;
 use crate::meta::error::CallError;
@@ -350,6 +349,272 @@ impl ScopedFunctionStack {
         })
     }
 }
+
+/// A thread local which adequately behaves as a global variable when compiling under `experimental-wasm-nothreads`, as it does
+/// not support thread locals. Aims to support similar APIs as [`std::thread::LocalKey`].
+pub(crate) struct GodotThreadLocal<T: 'static> {
+    #[cfg(not(wasm_nothreads))]
+    threaded_val: &'static std::thread::LocalKey<T>,
+
+    #[cfg(wasm_nothreads)]
+    non_threaded_val: std::cell::OnceCell<T>,
+
+    #[cfg(wasm_nothreads)]
+    initializer: fn() -> T,
+}
+
+// SAFETY: there can only be one thread with `wasm_nothreads`.
+#[cfg(wasm_nothreads)]
+unsafe impl<T: 'static> Sync for GodotThreadLocal<T> {}
+
+impl<T: 'static> GodotThreadLocal<T> {
+    #[cfg(not(wasm_nothreads))]
+    pub const fn new_threads(key: &'static std::thread::LocalKey<T>) -> Self {
+        Self { threaded_val: key }
+    }
+
+    #[cfg(wasm_nothreads)]
+    pub const fn new_nothreads(initializer: fn() -> T) -> Self {
+        Self {
+            non_threaded_val: std::cell::OnceCell::new(),
+            initializer,
+        }
+    }
+
+    /// Acquires a reference to the value in this TLS key.
+    ///
+    /// See [`std::thread::LocalKey::with`] for details.
+    pub fn with<F, R>(&'static self, f: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.with(f);
+
+        #[cfg(wasm_nothreads)]
+        f(self.non_threaded_val.get_or_init(self.initializer))
+    }
+
+    /// Acquires a reference to the value in this TLS key.
+    ///
+    /// See [`std::thread::LocalKey::try_with`] for details.
+    #[allow(dead_code)]
+    #[inline]
+    pub fn try_with<F, R>(&'static self, f: F) -> Result<R, std::thread::AccessError>
+    where
+        F: FnOnce(&T) -> R,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.try_with(f);
+
+        #[cfg(wasm_nothreads)]
+        Ok(self.with(f))
+    }
+}
+
+#[allow(dead_code)]
+impl<T: 'static> GodotThreadLocal<Cell<T>> {
+    /// Sets or initializes the contained value.
+    ///
+    /// See [`std::thread::LocalKey::set`] for details.
+    pub fn set(&'static self, value: T) {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.set(value);
+
+        // According to `LocalKey` docs, this method must not call the default initializer.
+        #[cfg(wasm_nothreads)]
+        if let Some(initialized) = self.non_threaded_val.get() {
+            initialized.set(value);
+        } else {
+            self.non_threaded_val.get_or_init(|| Cell::new(value));
+        }
+    }
+
+    /// Returns a copy of the contained value.
+    ///
+    /// See [`std::thread::LocalKey::get`] for details.
+    pub fn get(&'static self) -> T
+    where
+        T: Copy,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.get();
+
+        #[cfg(wasm_nothreads)]
+        self.with(Cell::get)
+    }
+
+    /// Takes the contained value, leaving `Default::default()` in its place.
+    ///
+    /// See [`std::thread::LocalKey::take`] for details.
+    pub fn take(&'static self) -> T
+    where
+        T: Default,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.take();
+
+        #[cfg(wasm_nothreads)]
+        self.with(Cell::take)
+    }
+
+    /// Replaces the contained value, returning the old value.
+    ///
+    /// See [`std::thread::LocalKey::replace`] for details.
+    pub fn replace(&'static self, value: T) -> T {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.replace(value);
+
+        #[cfg(wasm_nothreads)]
+        self.with(|cell| cell.replace(value))
+    }
+}
+
+#[allow(dead_code)]
+impl<T: 'static> GodotThreadLocal<RefCell<T>> {
+    /// Acquires a reference to the contained value.
+    ///
+    /// See [`std::thread::LocalKey::with_borrow`] for details.
+    pub fn with_borrow<F, R>(&'static self, f: F) -> R
+    where
+        F: FnOnce(&T) -> R,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.with_borrow(f);
+
+        #[cfg(wasm_nothreads)]
+        self.with(|cell| f(&cell.borrow()))
+    }
+
+    /// Acquires a mutable reference to the contained value.
+    ///
+    /// See [`std::thread::LocalKey::with_borrow_mut`] for details.
+    pub fn with_borrow_mut<F, R>(&'static self, f: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.with_borrow_mut(f);
+
+        #[cfg(wasm_nothreads)]
+        self.with(|cell| f(&mut cell.borrow_mut()))
+    }
+
+    /// Sets or initializes the contained value.
+    ///
+    /// See [`std::thread::LocalKey::set`] for details.
+    pub fn set(&'static self, value: T) {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.set(value);
+
+        // According to `LocalKey` docs, this method must not call the default initializer.
+        #[cfg(wasm_nothreads)]
+        if let Some(initialized) = self.non_threaded_val.get() {
+            *initialized.borrow_mut() = value;
+        } else {
+            self.non_threaded_val.get_or_init(|| RefCell::new(value));
+        }
+    }
+
+    /// Takes the contained value, leaving `Default::default()` in its place.
+    ///
+    /// See [`std::thread::LocalKey::take`] for details.
+    pub fn take(&'static self) -> T
+    where
+        T: Default,
+    {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.take();
+
+        #[cfg(wasm_nothreads)]
+        self.with(RefCell::take)
+    }
+
+    /// Replaces the contained value, returning the old value.
+    ///
+    /// See [`std::thread::LocalKey::replace`] for details.
+    pub fn replace(&'static self, value: T) -> T {
+        #[cfg(not(wasm_nothreads))]
+        return self.threaded_val.replace(value);
+
+        #[cfg(wasm_nothreads)]
+        self.with(|cell| cell.replace(value))
+    }
+}
+
+impl<T: 'static> std::fmt::Debug for GodotThreadLocal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GodotThreadLocal").finish_non_exhaustive()
+    }
+}
+
+#[cfg(not(wasm_nothreads))]
+macro_rules! godot_thread_local {
+    // empty (base case for the recursion)
+    () => {};
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = const $init:block; $($rest:tt)*) => {
+        $crate::private::godot_thread_local!($(#[$attr])* $vis static $name: $ty = const $init);
+        $crate::private::godot_thread_local!($($rest)*);
+    };
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = const $init:block) => {
+        $(#[$attr])*
+        $vis static $name: $crate::private::GodotThreadLocal<$ty> = {
+            ::std::thread_local! {
+                static $name: $ty = const $init
+            }
+
+            $crate::private::GodotThreadLocal::new_threads(&$name)
+        };
+    };
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = $init:expr; $($rest:tt)*) => {
+        $crate::private::godot_thread_local!($(#[$attr])* $vis static $name: $ty = $init);
+        $crate::private::godot_thread_local!($($rest)*);
+    };
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = $init:expr) => {
+        $(#[$attr])*
+        $vis static $name: $crate::private::GodotThreadLocal<$ty> = {
+            ::std::thread_local! {
+                static $name: $ty = $init
+            }
+
+            $crate::private::GodotThreadLocal::new_threads(&$name)
+        };
+    };
+}
+
+#[cfg(wasm_nothreads)]
+macro_rules! godot_thread_local {
+    // empty (base case for the recursion)
+    () => {};
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = const $init:block; $($rest:tt)*) => {
+        $crate::private::godot_thread_local!($(#[$attr])* $vis static $name: $ty = const $init);
+        $crate::private::godot_thread_local!($($rest)*);
+    };
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = const $init:block) => {
+        $(#[$attr])*
+        $vis static $name: $crate::private::GodotThreadLocal<$ty> =
+            $crate::private::GodotThreadLocal::new_nothreads(|| $init);
+    };
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = $init:expr; $($rest:tt)*) => {
+        $crate::private::godot_thread_local!($(#[$attr])* $vis static $name: $ty = $init);
+        $crate::private::godot_thread_local!($($rest)*);
+    };
+
+    ($(#[$attr:meta])* $vis:vis static $name:ident: $ty:ty = $init:expr) => {
+        $(#[$attr])*
+        $vis static $name: $crate::private::GodotThreadLocal<$ty> =
+            $crate::private::GodotThreadLocal::new_nothreads(|| $init);
+    };
+}
+
+pub(crate) use godot_thread_local;
 
 #[cfg(all(debug_assertions, not(wasm_nothreads)))]
 thread_local! {
