@@ -9,7 +9,7 @@ use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, Signa
 use crate::util::ident;
 use crate::{util, ParseResult};
 
-use proc_macro2::{Group, Ident, TokenStream};
+use proc_macro2::{Delimiter, Group, Ident, TokenStream};
 use quote::{quote, ToTokens};
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`.
@@ -479,21 +479,30 @@ fn handle_regular_virtual_fn<'a>(
 
     // If there was a signature change (e.g. f32 -> f64 in process/physics_process), apply to new function tokens.
     if !signature_info.modified_param_types.is_empty() {
+        let mut param_name = None;
+
         let mut new_params = original_method.params.clone();
         for (index, new_ty) in signature_info.modified_param_types.iter() {
             let venial::FnParam::Typed(typed) = &mut new_params.inner[*index].0 else {
-                panic!("Unexpected parameter type: {new_params:?}");
+                panic!("unexpected parameter type: {new_params:?}");
             };
 
             typed.ty = new_ty.clone();
+            param_name = Some(typed.name.clone());
         }
 
-        let body = original_method
-            .body
-            .clone()
-            .expect("function must have a body");
+        let original_body = &original_method.body;
+        let param_name = param_name.expect("parameter had no name");
 
-        updated_function = Some((new_params, body));
+        // Currently hardcoded to f32/f64 exchange; can be generalized if needed.
+        let body_code = quote! {
+            let #param_name = #param_name as f32;
+            #original_body
+        };
+
+        let wrapping_body = Group::new(Delimiter::Brace, body_code);
+
+        updated_function = Some((new_params, wrapping_body));
     }
 
     // Overridden ready() methods additionally have an additional `__before_ready()` call (for OnReady inits).
