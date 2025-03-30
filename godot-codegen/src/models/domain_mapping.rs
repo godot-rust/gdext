@@ -458,7 +458,6 @@ impl ClassMethod {
         }
 
         let is_private = special_cases::is_method_private(class_name, &method.name);
-
         let godot_method_name = method.name.clone();
 
         let qualifier = {
