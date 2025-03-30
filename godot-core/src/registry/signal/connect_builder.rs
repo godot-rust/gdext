@@ -8,7 +8,7 @@
 use crate::builtin::{Callable, GString, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
-use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, WithSignals};
 use crate::registry::signal::{SignalReceiver, TypedSignal};
 
 /// Type-state builder for customizing signal connections.
@@ -54,7 +54,7 @@ use crate::registry::signal::{SignalReceiver, TypedSignal};
 /// - [`done`][Self::done]: Finalize the connection. Consumes the builder and registers the signal with Godot.
 ///
 #[must_use]
-pub struct ConnectBuilder<'ts, 'c, CSig: GodotClass, CRcv, Ps, GodotFn> {
+pub struct ConnectBuilder<'ts, 'c, CSig: WithSignals, CRcv, Ps, GodotFn> {
     parent_sig: &'ts mut TypedSignal<'c, CSig, Ps>,
     data: BuilderData,
 
@@ -63,7 +63,7 @@ pub struct ConnectBuilder<'ts, 'c, CSig: GodotClass, CRcv, Ps, GodotFn> {
     godot_fn: GodotFn,
 }
 
-impl<'ts, 'c, CSig: WithBaseField, Ps: meta::ParamTuple> ConnectBuilder<'ts, 'c, CSig, (), Ps, ()> {
+impl<'ts, 'c, CSig: WithSignals, Ps: meta::ParamTuple> ConnectBuilder<'ts, 'c, CSig, (), Ps, ()> {
     pub(super) fn new(parent_sig: &'ts mut TypedSignal<'c, CSig, Ps>) -> Self {
         ConnectBuilder {
             parent_sig,
@@ -126,7 +126,7 @@ impl<'ts, 'c, CSig: WithBaseField, Ps: meta::ParamTuple> ConnectBuilder<'ts, 'c,
     }
 }
 
-impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: meta::ParamTuple>
+impl<'ts, 'c, CSig: WithSignals, CRcv: GodotClass, Ps: meta::ParamTuple>
     ConnectBuilder<'ts, 'c, CSig, Gd<CRcv>, Ps, ()>
 {
     /// **Stage 2:** method taking `&mut self`.
@@ -197,7 +197,7 @@ impl<'ts, 'c, CSig: WithBaseField, CRcv: GodotClass, Ps: meta::ParamTuple>
 #[allow(clippy::needless_lifetimes)] // 'ts + 'c are used conditionally.
 impl<'ts, 'c, CSig, CRcv, Ps, GodotFn> ConnectBuilder<'ts, 'c, CSig, CRcv, Ps, GodotFn>
 where
-    CSig: WithBaseField,
+    CSig: WithSignals,
     Ps: meta::ParamTuple,
     GodotFn: FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
 {

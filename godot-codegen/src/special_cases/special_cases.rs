@@ -25,8 +25,9 @@
 
 use crate::conv::to_enum_type_uncached;
 use crate::models::domain::{Enum, RustTy, TyName};
-use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
+use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
+use crate::util::option_as_slice;
 use crate::Context;
 use proc_macro2::Ident;
 // Deliberately private -- all checks must go through `special_cases`.
@@ -534,6 +535,14 @@ pub fn is_class_method_param_required(
 /// True if builtin method is excluded. Does NOT check for type exclusion; use [`is_builtin_type_deleted`] for that.
 pub fn is_builtin_method_deleted(_class_name: &TyName, method: &JsonBuiltinMethod) -> bool {
     codegen_special_cases::is_builtin_method_excluded(method)
+}
+
+/// True if signal is absent from codegen (only when surrounding class is excluded).
+pub fn is_signal_deleted(_class_name: &TyName, signal: &JsonSignal) -> bool {
+    // If any argument type (a class) is excluded.
+    option_as_slice(&signal.arguments)
+        .iter()
+        .any(|arg| codegen_special_cases::is_class_excluded(&arg.type_))
 }
 
 /// True if builtin type is excluded (`NIL` or scalars)

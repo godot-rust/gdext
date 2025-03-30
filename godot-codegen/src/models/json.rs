@@ -80,7 +80,7 @@ pub struct JsonClass {
     pub enums: Option<Vec<JsonEnum>>,
     pub methods: Option<Vec<JsonClassMethod>>,
     // pub properties: Option<Vec<Property>>,
-    // pub signals: Option<Vec<Signal>>,
+    pub signals: Option<Vec<JsonSignal>>,
 }
 
 #[derive(DeJson)]
@@ -179,10 +179,9 @@ pub struct JsonProperty {
 }
 
 #[derive(DeJson)]
-#[allow(dead_code)]
 pub struct JsonSignal {
-    name: String,
-    arguments: Option<Vec<JsonMethodArg>>,
+    pub name: String,
+    pub arguments: Option<Vec<JsonMethodArg>>,
 }
 
 #[derive(DeJson)]

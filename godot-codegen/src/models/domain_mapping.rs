@@ -8,14 +8,16 @@
 use crate::context::Context;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
-    ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator,
-    EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon,
-    GodotApiVersion, ModName, NativeStructure, Operator, Singleton, TyName, UtilityFunction,
+    ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
+    Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn,
+    FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, Singleton, TyName,
+    UtilityFunction,
 };
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
     JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
-    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSingleton, JsonUtilityFunction,
+    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
+    JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
 use crate::{conv, special_cases};
@@ -113,6 +115,14 @@ impl Class {
             })
             .collect();
 
+        let signals = option_as_slice(&json.signals)
+            .iter()
+            .filter_map(|s| {
+                let surrounding_class = &ty_name;
+                ClassSignal::from_json(s, surrounding_class, ctx)
+            })
+            .collect();
+
         Some(Self {
             common: ClassCommons {
                 name: ty_name,
@@ -126,6 +136,7 @@ impl Class {
             constants,
             enums,
             methods,
+            signals,
         })
     }
 }
@@ -510,6 +521,24 @@ impl ClassMethod {
             .unwrap_or(godot_method_name);
 
         special_cases::maybe_rename_virtual_method(class_name, method_name)
+    }
+}
+
+impl ClassSignal {
+    pub fn from_json(
+        json_signal: &JsonSignal,
+        surrounding_class: &TyName,
+        ctx: &mut Context,
+    ) -> Option<Self> {
+        if special_cases::is_signal_deleted(surrounding_class, json_signal) {
+            return None;
+        }
+
+        Some(Self {
+            name: json_signal.name.clone(),
+            parameters: FnParam::new_range(&json_signal.arguments, ctx),
+            surrounding_class: surrounding_class.clone(),
+        })
     }
 }
 

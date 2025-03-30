@@ -25,6 +25,7 @@ pub mod lifecycle_builtins;
 pub mod method_tables;
 pub mod native_structures;
 pub mod notifications;
+pub mod signals;
 pub mod utility_functions;
 pub mod virtual_traits;
 

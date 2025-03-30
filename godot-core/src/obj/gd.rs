@@ -711,12 +711,17 @@ where
     /// Access user-defined signals of this object.
     ///
     /// For classes that have at least one `#[signal]` defined, returns a collection of signal names. Each returned signal has a specialized
-    /// API for connecting and emitting signals in a type-safe way. This method is the equivalent of [`WithSignals::signals()`], but when
-    /// called externally (not from `self`). If you are within the `impl` of a class, use `self.signals()` directly instead.
+    /// API for connecting and emitting signals in a type-safe way. This method is the equivalent of [`WithUserSignals::signals()`], but when
+    /// called externally (not from `self`). Furthermore, this is also available for engine classes, not just user-defined ones.
+    ///
+    /// When you are within the `impl` of a class, use `self.signals()` directly instead.
     ///
     /// If you haven't already, read the [book chapter about signals](https://godot-rust.github.io/book/register/signals.html) for a
     /// walkthrough.
-    pub fn signals(&self) -> T::SignalCollection<'_> {
+    ///
+    /// [`WithUserSignals::signals()`]: crate::obj::WithUserSignals::signals()
+    #[cfg(since_api = "4.2")]
+    pub fn signals(&mut self) -> T::SignalCollection<'_> {
         T::__signals_from_external(self)
     }
 }

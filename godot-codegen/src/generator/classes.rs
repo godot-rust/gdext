@@ -7,7 +7,9 @@
 use crate::context::{Context, NotificationEnum};
 use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
-use crate::generator::{constants, docs, enums, functions_common, notifications, virtual_traits};
+use crate::generator::{
+    constants, docs, enums, functions_common, notifications, signals, virtual_traits,
+};
 use crate::models::domain::{
     ApiView, Class, ClassLike, ClassMethod, ExtensionApi, FnDirection, FnQualifier, Function,
     ModName, TyName,
@@ -121,6 +123,8 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         builders,
     } = make_class_methods(class, &class.methods, &cfg_attributes, ctx);
 
+    let signal_types = signals::make_class_signals(class, &class.signals, ctx);
+
     let enums = enums::make_enums(&class.enums, &cfg_attributes);
     let constants = constants::make_constants(&class.constants);
     let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", class_name.rust_ty);
@@ -133,14 +137,16 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     // Associated "sidecar" module is made public if there are other symbols related to the class, which are not
     // in top-level godot::classes module (notification enums are not in the sidecar, but in godot::classes::notify).
     // This checks if token streams (i.e. code) is empty.
-    let has_sidecar_module = !enums.is_empty() || !builders.is_empty();
+    let has_sidecar_module = !enums.is_empty() || !builders.is_empty() || signal_types.is_some();
 
     let class_doc = docs::make_class_doc(
         class_name,
         base_ident_opt,
         notification_enum.is_some(),
         has_sidecar_module,
+        signal_types.is_some(),
     );
+
     let module_doc = docs::make_module_doc(class_name);
 
     let virtual_trait = virtual_traits::make_virtual_methods_trait(
@@ -256,6 +262,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
         #builders
         #enums
+        #signal_types
     };
     // note: TypePtr -> ObjectPtr conversion OK?
 
