@@ -187,8 +187,14 @@ pub struct SignatureInfo {
     pub method_name: Ident,
     pub receiver_type: ReceiverType,
     pub param_idents: Vec<Ident>,
+    /// Parameter types *without* receiver.
     pub param_types: Vec<venial::TypeExpr>,
     pub return_type: TokenStream,
+
+    /// `(original index, new type)` only for changed parameters; empty if no changes.
+    ///
+    /// Index points into original venial tokens (i.e. takes into account potential receiver params).
+    pub modified_param_types: Vec<(usize, venial::TypeExpr)>,
 }
 
 impl SignatureInfo {
@@ -199,6 +205,7 @@ impl SignatureInfo {
             param_idents: vec![],
             param_types: vec![],
             return_type: quote! { () },
+            modified_param_types: vec![],
         }
     }
 
@@ -359,7 +366,8 @@ pub(crate) fn into_signature_info(
     };
 
     let mut next_unnamed_index = 0;
-    for (arg, _) in signature.params.inner {
+    let mut modified_param_types = vec![];
+    for (index, (arg, _)) in signature.params.inner.into_iter().enumerate() {
         match arg {
             venial::FnParam::Receiver(recv) => {
                 if receiver_type == ReceiverType::GdSelf {
@@ -377,8 +385,17 @@ pub(crate) fn into_signature_info(
             }
             venial::FnParam::Typed(arg) => {
                 let ident = maybe_rename_parameter(arg.name, &mut next_unnamed_index);
-                let ty = venial::TypeExpr {
-                    tokens: map_self_to_class_name(arg.ty.tokens, class_name),
+                let ty = match maybe_change_parameter_type(arg.ty, &method_name, index) {
+                    // Parameter type was modified.
+                    Ok(ty) => {
+                        modified_param_types.push((index, ty.clone()));
+                        ty
+                    }
+
+                    // Not an error, just unchanged.
+                    Err(ty) => venial::TypeExpr {
+                        tokens: map_self_to_class_name(ty.tokens, class_name),
+                    },
                 };
 
                 param_types.push(ty);
@@ -393,6 +410,28 @@ pub(crate) fn into_signature_info(
         param_idents,
         param_types,
         return_type: ret_type,
+        modified_param_types,
+    }
+}
+
+/// If `f32` is used for a delta parameter in a virtual process function, transparently use `f64` behind the scenes.
+fn maybe_change_parameter_type(
+    param_ty: venial::TypeExpr,
+    method_name: &Ident,
+    param_index: usize,
+) -> Result<venial::TypeExpr, venial::TypeExpr> {
+    // A bit hackish, but TokenStream APIs are also notoriously annoying to work with. Not even PartialEq...
+
+    if param_index == 1
+        && (method_name == "process" || method_name == "physics_process")
+        && param_ty.tokens.len() == 1
+        && param_ty.tokens[0].to_string() == "f32"
+    {
+        Ok(venial::TypeExpr {
+            tokens: vec![TokenTree::Ident(ident("f64"))],
+        })
+    } else {
+        Err(param_ty)
     }
 }
 

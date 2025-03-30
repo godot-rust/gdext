@@ -170,10 +170,10 @@ pub(crate) fn validate_impl(
 /// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name of `Trait` begins with `I`.
 ///
 /// Returns `(class_name, trait_path, trait_base_class)`, e.g. `(MyClass, godot::prelude::INode3D, Node3D)`.
-pub(crate) fn validate_trait_impl_virtual<'a>(
-    original_impl: &'a venial::Impl,
+pub(crate) fn validate_trait_impl_virtual(
+    original_impl: &venial::Impl,
     attr: &str,
-) -> ParseResult<(Ident, &'a venial::TypeExpr, Ident)> {
+) -> ParseResult<(Ident, venial::TypeExpr, Ident)> {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
     let typename = extract_typename(trait_name);
 
@@ -191,7 +191,7 @@ pub(crate) fn validate_trait_impl_virtual<'a>(
     // Validate self
     validate_self(original_impl, attr).map(|class_name| {
         // let trait_name = typename.unwrap(); // unwrap: already checked in 'Validate trait'
-        (class_name, trait_name, base_class)
+        (class_name, trait_name.clone(), base_class)
     })
 }
 
