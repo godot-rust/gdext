@@ -9,6 +9,7 @@
 //!
 //! Single module for documentation, rather than having it in each symbol-specific file, so it's easier to keep docs consistent.
 
+use crate::generator::signals;
 use crate::models::domain::{ModName, TyName};
 use crate::special_cases;
 use proc_macro2::Ident;
@@ -18,6 +19,7 @@ pub fn make_class_doc(
     base_ident_opt: Option<Ident>,
     has_notification_enum: bool,
     has_sidecar_module: bool,
+    has_signal_collection: bool,
 ) -> String {
     let TyName { rust_ty, godot_ty } = class_name;
 
@@ -29,15 +31,28 @@ pub fn make_class_doc(
             .to_string()
     };
 
-    let notify_line = if has_notification_enum {
-        format!("* [`{rust_ty}Notification`][crate::classes::notify::{rust_ty}Notification]: notification type\n")
+    let (sidecar_signal_lines, module_name);
+    if has_sidecar_module {
+        let module = ModName::from_godot(&class_name.godot_ty).rust_mod;
+
+        sidecar_signal_lines = format!("* [`{module}`][crate::classes::{module}]: sidecar module with related enum/flag types\n");
+        module_name = Some(module);
+    } else {
+        sidecar_signal_lines = String::new();
+        module_name = None;
+    };
+
+    let signal_line = if has_signal_collection {
+        let signal_coll = signals::make_collection_name(class_name);
+        let module = module_name.expect("signal implies presence of sidecar module");
+
+        format!("* [`{signal_coll}`][crate::classes::{module}::{signal_coll}]: signal collection\n")
     } else {
         String::new()
     };
 
-    let sidecar_line = if has_sidecar_module {
-        let module_name = ModName::from_godot(&class_name.godot_ty).rust_mod;
-        format!("* [`{module_name}`][crate::classes::{module_name}]: sidecar module with related enum/flag types\n")
+    let notify_line = if has_notification_enum {
+        format!("* [`{rust_ty}Notification`][crate::classes::notify::{rust_ty}Notification]: notification type\n")
     } else {
         String::new()
     };
@@ -59,8 +74,9 @@ pub fn make_class_doc(
         {inherits_line}\n\n\
         \
         Related symbols:\n\n\
-        {sidecar_line}\
+        {sidecar_signal_lines}\
         * [`{trait_name}`][crate::classes::{trait_name}]: virtual methods\n\
+        {signal_line}\
         {notify_line}\
         \n\n\
         See also [Godot docs for `{godot_ty}`]({online_link}).\n\n{notes}",

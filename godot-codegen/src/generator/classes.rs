@@ -137,14 +137,16 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     // Associated "sidecar" module is made public if there are other symbols related to the class, which are not
     // in top-level godot::classes module (notification enums are not in the sidecar, but in godot::classes::notify).
     // This checks if token streams (i.e. code) is empty.
-    let has_sidecar_module = !enums.is_empty() || !builders.is_empty();
+    let has_sidecar_module = !enums.is_empty() || !builders.is_empty() || signal_types.is_some();
 
     let class_doc = docs::make_class_doc(
         class_name,
         base_ident_opt,
         notification_enum.is_some(),
         has_sidecar_module,
+        signal_types.is_some(),
     );
+
     let module_doc = docs::make_module_doc(class_name);
 
     let virtual_trait = virtual_traits::make_virtual_methods_trait(
