@@ -38,12 +38,18 @@ pub fn make_class_signals(
         .zip(all_params.iter())
         .map(|(signal, params)| make_signal_individual_struct(signal, params));
 
+    let class_name = class.name();
+
     Some(quote! {
         #[cfg(since_api = "4.2")]
         pub use signals::*;
 
         #[cfg(since_api = "4.2")]
         mod signals {
+            use crate::obj::Gd;
+            use super::re_export::#class_name;
+            use super::*;
+
             #signal_collection_struct
             #( #signal_types )*
         }
@@ -93,17 +99,17 @@ fn make_signal_collection(
     quote! {
         #[doc = #collection_docs]
         pub struct #collection_struct_name<'c> {
-            __gd: &'c mut Gd<re_export::#class_name>,
+            __gd: &'c mut Gd<#class_name>,
         }
 
         impl<'c> #collection_struct_name<'c> {
             #( #provider_methods )*
         }
 
-        impl crate::obj::WithSignals for re_export::#class_name {
+        impl crate::obj::WithSignals for #class_name {
             type SignalCollection<'c> = #collection_struct_name<'c>;
             #[doc(hidden)]
-            type __SignalObject<'c> = Gd<re_export::#class_name>;
+            type __SignalObject<'c> = Gd<#class_name>;
 
             #[doc(hidden)]
             fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
@@ -126,26 +132,27 @@ fn make_signal_individual_struct(signal: &ClassSignal, params: &SignalParams) ->
     } = params;
 
     let class_name = &signal.surrounding_class;
-    let class_ty = quote! { re_export::#class_name };
+    let class_ty = quote! { #class_name };
     let param_tuple = quote! { ( #type_list ) };
+    let typed_name = format_ident!("Typed{}", individual_struct_name);
 
     // Embedded in `mod signals`.
     quote! {
+        // Reduce tokens to parse by reusing this type definitions.
+        type #typed_name<'c> = crate::registry::signal::TypedSignal<'c, #class_ty, #param_tuple>;
+
         pub struct #individual_struct_name<'c> {
-           typed: Self::TypedSignal,
+           typed: #typed_name<'c>,
         }
 
         impl<'c> #individual_struct_name<'c> {
-            type ParamTuple = #param_tuple;
-            type TypedSignal = crate::registry::signal::TypedSignal<'c, #class_ty, Self::ParamTuple>;
-
             pub fn emit(&mut self, #param_list) {
                 self.typed.emit_tuple( (#name_list) );
             }
         }
 
         impl<'c> std::ops::Deref for #individual_struct_name<'c> {
-            type Target = Self::TypedSignal;
+            type Target = #typed_name<'c>;
 
             fn deref(&self) -> &Self::Target {
                 &self.typed
