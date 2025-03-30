@@ -13,7 +13,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`.
-pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream> {
+pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<TokenStream> {
     let (class_name, trait_path, trait_base_class) =
         util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
 
@@ -26,7 +26,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
 
     let mut decls = IDecls::default();
 
-    for item in original_impl.body_items.iter() {
+    for item in original_impl.body_items.iter_mut() {
         let method = if let venial::ImplMember::AssocFunction(f) = item {
             f
         } else {
@@ -70,6 +70,9 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                 handle_property_get_revert(&class_name, &trait_path, cfg_attrs, &mut decls);
             }
             regular_virtual_fn => {
+                // Break borrow chain to allow handle_regular_virtual_fn() to mutably borrow `method` and modify `original_impl` through it.
+                let cfg_attrs = cfg_attrs.iter().cloned().collect();
+
                 // All the non-special engine ones: ready(), process(), etc.
                 // Can modify original_impl, concretely the fn body for f64->f32 conversions.
                 handle_regular_virtual_fn(
@@ -142,8 +145,8 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
         .iter()
         .map(|v| v.make_match_arm(&class_name));
 
-    let result = quote! {
-        #original_impl
+    let mut result = quote! {
+        // #original_impl inserted below.
         #decls
 
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
@@ -166,6 +169,10 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
             #prv::PluginItem::ITraitImpl(#item_constructor)
         ));
     };
+
+    // Not in upper quote!, because #decls still holds holds a mutable borrow to `original_impl`, so we can't also borrow `original_impl`
+    // as immutable.
+    original_impl.to_tokens(&mut result);
 
     Ok(result)
 }
