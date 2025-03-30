@@ -95,6 +95,9 @@ impl IHttpRequest for CodegenTest {
 
     // Test unnamed parameter in virtual function
     fn process(&mut self, _: f64) {}
+
+    // Test auto-cast to f32 parameter in virtual function
+    fn physics_process(&mut self, _delta: f32) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -9,7 +9,7 @@ use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, Signa
 use crate::util::ident;
 use crate::{util, ParseResult};
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Group, Ident, TokenStream};
 use quote::{quote, ToTokens};
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`.
@@ -71,11 +71,11 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             }
             regular_virtual_fn => {
                 // Break borrow chain to allow handle_regular_virtual_fn() to mutably borrow `method` and modify `original_impl` through it.
-                let cfg_attrs = cfg_attrs.iter().cloned().collect();
+                // let cfg_attrs = cfg_attrs.iter().cloned().collect()
 
                 // All the non-special engine ones: ready(), process(), etc.
                 // Can modify original_impl, concretely the fn body for f64->f32 conversions.
-                handle_regular_virtual_fn(
+                let changed_function = handle_regular_virtual_fn(
                     &class_name,
                     &trait_path,
                     method,
@@ -83,6 +83,15 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
                     cfg_attrs,
                     &mut decls,
                 );
+
+                // If the function is modified (e.g. process() declared with f32), apply changes here.
+                // Borrow-checker: we cannot reassign whole function due to shared borrow on `method.attributes`.
+                // Thus, separately update signature + body when needed.
+                if let Some((new_params, new_body)) = changed_function {
+                    method.params = new_params;
+                    method.body = Some(new_body);
+                    //panic!("modify params: {}", method.params.to_token_stream().to_string());
+                }
             }
         }
     }
@@ -445,14 +454,14 @@ fn handle_property_get_revert<'a>(
 fn handle_regular_virtual_fn<'a>(
     class_name: &Ident,
     trait_path: &venial::TypeExpr,
-    method: &venial::Function,
+    original_method: &venial::Function,
     method_name: &str,
     cfg_attrs: Vec<&'a venial::Attribute>,
     decls: &mut IDecls<'a>,
-) {
+) -> Option<(venial::Punctuated<venial::FnParam>, Group)> {
     #[cfg(since_api = "4.4")]
-    let method_name_ident = method.name.clone();
-    let method = util::reduce_to_signature(method);
+    let method_name_ident = original_method.name.clone();
+    let method = util::reduce_to_signature(original_method);
 
     // Godot-facing name begins with underscore.
     //
@@ -465,6 +474,27 @@ fn handle_regular_virtual_fn<'a>(
     };
 
     let signature_info = into_signature_info(method, class_name, false);
+
+    let mut updated_function = None;
+
+    // If there was a signature change (e.g. f32 -> f64 in process/physics_process), apply to new function tokens.
+    if !signature_info.modified_param_types.is_empty() {
+        let mut new_params = original_method.params.clone();
+        for (index, new_ty) in signature_info.modified_param_types.iter() {
+            let venial::FnParam::Typed(typed) = &mut new_params.inner[*index].0 else {
+                panic!("Unexpected parameter type: {new_params:?}");
+            };
+
+            typed.ty = new_ty.clone();
+        }
+
+        let body = original_method
+            .body
+            .clone()
+            .expect("function must have a body");
+
+        updated_function = Some((new_params, body));
+    }
 
     // Overridden ready() methods additionally have an additional `__before_ready()` call (for OnReady inits).
     let before_kind = if method_name == "ready" {
@@ -489,6 +519,8 @@ fn handle_regular_virtual_fn<'a>(
         before_kind,
         interface_trait: Some(trait_path.clone()),
     });
+
+    updated_function
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
