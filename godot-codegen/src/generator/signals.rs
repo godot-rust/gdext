@@ -48,6 +48,7 @@ pub fn make_class_signals(
         mod signals {
             use crate::obj::Gd;
             use super::re_export::#class_name;
+            use crate::registry::signal::TypedSignal;
             use super::*;
 
             #signal_collection_struct
@@ -85,7 +86,7 @@ fn make_signal_collection(
             #[doc = #provider_docs]
             pub fn #signal_name(&mut self) -> #individual_struct_name<'c> {
                 #individual_struct_name {
-                    typed: crate::registry::signal::TypedSignal::new(self.__gd.clone(), #signal_name_str)
+                    typed: TypedSignal::new(self.__gd.clone(), #signal_name_str)
                 }
             }
         }
@@ -139,7 +140,7 @@ fn make_signal_individual_struct(signal: &ClassSignal, params: &SignalParams) ->
     // Embedded in `mod signals`.
     quote! {
         // Reduce tokens to parse by reusing this type definitions.
-        type #typed_name<'c> = crate::registry::signal::TypedSignal<'c, #class_ty, #param_tuple>;
+        type #typed_name<'c> = TypedSignal<'c, #class_ty, #param_tuple>;
 
         pub struct #individual_struct_name<'c> {
            typed: #typed_name<'c>,
