@@ -86,7 +86,7 @@ fn signal_symbols_external() {
     let tracker = Rc::new(Cell::new(0));
     {
         let tracker = tracker.clone();
-        sig.connect(move |i| {
+        sig.connect_g(move |i| {
             tracker.set(i);
         });
     }
@@ -96,7 +96,7 @@ fn signal_symbols_external() {
 
     // Connect to other object.
     let receiver = Receiver::new_alloc();
-    sig.connect_obj(&receiver, Receiver::receive_int_mut);
+    sig.connect(&receiver, Receiver::receive_int_mut);
 
     // Emit signal (now via tuple).
     sig.emit_tuple((987,));
@@ -244,7 +244,7 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
             })
             .done();
 
-        renamed.connect(move || renamed_count.set(renamed_count.get() + 1));
+        renamed.connect_g(move || renamed_count.set(renamed_count.get() + 1));
     }
 
     // Apply changes, triggering signals.
@@ -341,8 +341,8 @@ mod emitter {
         pub fn connect_signals_internal(&mut self, tracker: Rc<Cell<i64>>) {
             let mut sig = self.signals().signal_int();
             sig.connect_self(Self::self_receive);
-            sig.connect(Self::self_receive_static);
-            sig.connect(move |i| tracker.set(i));
+            sig.connect_g(Self::self_receive_static);
+            sig.connect_g(move |i| tracker.set(i));
         }
 
         #[cfg(since_api = "4.2")]

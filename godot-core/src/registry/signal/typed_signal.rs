@@ -75,7 +75,7 @@ impl<C: GodotClass> SignalObj<C> for Gd<C> {
 /// Receiver functions are functions that are called when a signal is emitted. You can connect a signal in many different ways:
 /// - [`connect()`][Self::connect] for global functions, associated functions or closures.
 /// - [`connect_self()`][Self::connect_self] for methods with `&mut self` as the first parameter.
-/// - [`connect_obj()`][Self::connect_obj] for methods with any `Gd<T>` (not `self`) as the first parameter.
+/// - [`connect()`][Self::connect] for methods with any `Gd<T>` (not `self`) as the first parameter.
 /// - [`connect_builder()`][Self::connect_builder] for more complex setups.
 ///
 /// # Emitting a signal
@@ -123,14 +123,14 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     ///
     /// Example usages:
     /// ```ignore
-    /// sig.connect(Self::static_func);
-    /// sig.connect(global_func);
-    /// sig.connect(|arg| { /* closure */ });
+    /// sig.connect_g(Self::static_func);
+    /// sig.connect_g(global_func);
+    /// sig.connect_g(|arg| { /* closure */ });
     /// ```
     ///
     /// To connect to a method of the own object `self`, use [`connect_self()`][Self::connect_self].  \
     /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect<F>(&mut self, mut function: F)
+    pub fn connect_g<F>(&mut self, mut function: F)
     where
         F: SignalReceiver<(), Ps>,
     {
@@ -145,7 +145,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     ///
     /// To connect to methods on the same object that declares the `#[signal]`, use [`connect_self()`][Self::connect_self].  \
     /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect_obj<F, OtherC>(&mut self, object: &Gd<OtherC>, mut function: F)
+    pub fn connect<F, OtherC>(&mut self, object: &Gd<OtherC>, mut method: F)
     where
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
@@ -154,7 +154,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         let godot_fn = make_godot_fn(move |args| {
             let mut instance = gd.bind_mut();
             let instance = &mut *instance;
-            function.call(instance, args);
+            method.call(instance, args);
         });
 
         self.inner_connect_godot_fn::<F>(godot_fn);
@@ -215,7 +215,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
 impl<C: WithUserSignals, Ps: meta::ParamTuple> TypedSignal<'_, C, Ps> {
     /// Connect a method (member function) with `&mut self` as the first parameter.
     ///
-    /// To connect to methods on other objects, use [`connect_obj()`][Self::connect_obj].  \
+    /// To connect to methods on other objects, use [`connect()`][Self::connect].  \
     /// If you need a `&self` receiver, cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
     pub fn connect_self<F>(&mut self, mut function: F)
     where
