@@ -123,7 +123,10 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         builders,
     } = make_class_methods(class, &class.methods, &cfg_attributes, ctx);
 
-    let signal_types = signals::make_class_signals(class, &class.signals, ctx);
+    let signals::SignalCodegen {
+        signal_code,
+        has_own_signals,
+    } = signals::make_class_signals(class, &class.signals, ctx);
 
     let enums = enums::make_enums(&class.enums, &cfg_attributes);
     let constants = constants::make_constants(&class.constants);
@@ -137,14 +140,14 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     // Associated "sidecar" module is made public if there are other symbols related to the class, which are not
     // in top-level godot::classes module (notification enums are not in the sidecar, but in godot::classes::notify).
     // This checks if token streams (i.e. code) is empty.
-    let has_sidecar_module = !enums.is_empty() || !builders.is_empty() || signal_types.is_some();
+    let has_sidecar_module = !enums.is_empty() || !builders.is_empty() || has_own_signals;
 
     let class_doc = docs::make_class_doc(
         class_name,
         base_ident_opt,
         notification_enum.is_some(),
         has_sidecar_module,
-        signal_types.is_some(),
+        has_own_signals,
     );
 
     let module_doc = docs::make_module_doc(class_name);
@@ -262,7 +265,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
         #builders
         #enums
-        #signal_types
+        #signal_code
     };
     // note: TypePtr -> ObjectPtr conversion OK?
 
