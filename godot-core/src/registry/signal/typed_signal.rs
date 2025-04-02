@@ -62,6 +62,28 @@ impl<C: GodotClass> SignalObj<C> for Gd<C> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Object part of the signal receiver (handler).
+///
+/// Functionality overlaps partly with [`super::AsObjectArg`] and [`super::AsArg<ObjectArg>`]. Can however not directly be replaced
+/// with `AsObjectArg`, since that allows nullability and doesn't require `&mut T`. Maybe there's a way to reuse them though.
+pub trait IntoSignalObj<C: GodotClass> {
+    fn into_signal_obj(self) -> Gd<C>;
+}
+
+impl<C: GodotClass> IntoSignalObj<C> for &Gd<C> {
+    fn into_signal_obj(self) -> Gd<C> {
+        self.clone()
+    }
+}
+
+impl<C: WithBaseField> IntoSignalObj<C> for &mut C {
+    fn into_signal_obj(self) -> Gd<C> {
+        WithBaseField::to_gd(self)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Type-safe version of a Godot signal.
 ///
 /// Short-lived type, only valid in the scope of its surrounding object type `C`, for lifetime `'c`. The generic argument `Ps` represents
@@ -145,12 +167,13 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     ///
     /// To connect to methods on the same object that declares the `#[signal]`, use [`connect_self()`][Self::connect_self].  \
     /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect<F, OtherC>(&mut self, object: &Gd<OtherC>, mut method: F)
+    pub fn connect<F, OtherC>(&mut self, object: impl IntoSignalObj<OtherC>, mut method: F)
     where
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
     {
-        let mut gd = object.clone();
+        let mut gd = object.into_signal_obj();
+        // let mut gd = gd.to_owned_object();
         let godot_fn = make_godot_fn(move |args| {
             let mut instance = gd.bind_mut();
             let instance = &mut *instance;
