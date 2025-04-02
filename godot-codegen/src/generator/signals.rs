@@ -17,21 +17,24 @@ use crate::util::{ident, safe_ident};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
+pub struct SignalCodegen {
+    pub signal_code: TokenStream,
+    pub has_own_signals: bool,
+}
+
 pub fn make_class_signals(
     class: &Class,
     signals: &[ClassSignal],
     _ctx: &mut Context,
-) -> Option<TokenStream> {
-    if signals.is_empty() {
-        return None;
-    }
-
+) -> SignalCodegen {
     let all_params: Vec<SignalParams> = signals
         .iter()
         .map(|s| SignalParams::new(&s.parameters))
         .collect();
 
-    let signal_collection_struct = make_signal_collection(class, signals, &all_params);
+    // TokenStream is None if no signals are defined.
+    let (signal_collection_struct, collection_struct_name) =
+        make_signal_collection(class, signals, &all_params);
 
     let signal_types = signals
         .iter()
@@ -40,7 +43,10 @@ pub fn make_class_signals(
 
     let class_name = class.name();
 
-    Some(quote! {
+    let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
+    let deref_impl = make_deref_impl(class_name, &collection_struct_name);
+
+    let code = quote! {
         #[cfg(since_api = "4.2")]
         pub use signals::*;
 
@@ -51,10 +57,40 @@ pub fn make_class_signals(
             use crate::registry::signal::TypedSignal;
             use super::*;
 
+            // These may be empty if the class doesn't define any signals itself.
             #signal_collection_struct
             #( #signal_types )*
+
+            // These are always present.
+            #with_signals_impl
+            #deref_impl
         }
-    })
+    };
+
+    SignalCodegen {
+        signal_code: code,
+        has_own_signals: signal_collection_struct.is_some(),
+    }
+}
+
+/// Creates `impl WithSignals`.
+///
+/// Present for every single class, as every class has at least inherited signals (since `Object` has some).
+fn make_with_signals_impl(class_name: &TyName, collection_struct_name: &Ident) -> TokenStream {
+    quote! {
+        impl crate::obj::WithSignals for #class_name {
+            type SignalCollection<'c> = signals::#collection_struct_name<'c>;
+            #[doc(hidden)]
+            type __SignalObject<'c> = Gd<#class_name>;
+
+            #[doc(hidden)]
+            fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
+                Self::SignalCollection {
+                    __gd: external,
+                }
+            }
+        }
+    }
 }
 
 // Used outside, to document class with links to this type.
@@ -71,9 +107,13 @@ fn make_signal_collection(
     class: &Class,
     signals: &[ClassSignal],
     params: &[SignalParams],
-) -> TokenStream {
+) -> (Option<TokenStream>, Ident) {
     let class_name = class.name();
     let collection_struct_name = make_collection_name(class_name);
+
+    if signals.is_empty() {
+        return (None, collection_struct_name);
+    }
 
     let provider_methods = signals.iter().zip(params).map(|(sig, params)| {
         let signal_name_str = &sig.name;
@@ -97,7 +137,7 @@ fn make_signal_collection(
         c = class_name.rust_ty
     );
 
-    quote! {
+    let code = quote! {
         #[doc = #collection_docs]
         pub struct #collection_struct_name<'c> {
             __gd: &'c mut Gd<#class_name>,
@@ -106,17 +146,33 @@ fn make_signal_collection(
         impl<'c> #collection_struct_name<'c> {
             #( #provider_methods )*
         }
+    };
 
-        impl crate::obj::WithSignals for #class_name {
-            type SignalCollection<'c> = #collection_struct_name<'c>;
-            #[doc(hidden)]
-            type __SignalObject<'c> = Gd<#class_name>;
+    (Some(code), collection_struct_name)
+}
 
-            #[doc(hidden)]
-            fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
-                Self::SignalCollection {
-                    __gd: external,
-                }
+fn make_deref_impl(class_name: &TyName, collection_struct_name: &Ident) -> TokenStream {
+    // Root of hierarchy, no "upcast" derefs.
+    if class_name.rust_ty == "Object" {
+        return TokenStream::new();
+    }
+
+    quote! {
+         impl<'c> std::ops::Deref for #collection_struct_name<'c> {
+            type Target = <
+                <
+                    #class_name as crate::obj::GodotClass
+                >::Base as crate::obj::WithSignals
+            >::SignalCollection<'c>;
+
+            fn deref(&self) -> &Self::Target {
+                todo!()
+            }
+        }
+
+        impl<'c> std::ops::DerefMut for #collection_struct_name<'c> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                todo!()
             }
         }
     }
