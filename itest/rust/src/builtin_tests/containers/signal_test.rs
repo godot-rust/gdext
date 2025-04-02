@@ -269,6 +269,20 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
     node.free();
 }
 
+// Test that Node signals are accessible from a derived class.
+// #[cfg(since_api = "4.2")]
+// #[itest]
+// fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
+//     let mut receiver = Receiver::new_alloc();
+//
+//     let sig = receiver.signals().rename_node("new name");
+//
+//     //node.signals().renamed()
+//
+//     // Remove from tree for other tests.
+//     // node.free();
+// }
+
 #[itest]
 fn signal_construction_and_id() {
     let mut object = RefCounted::new_gd();
