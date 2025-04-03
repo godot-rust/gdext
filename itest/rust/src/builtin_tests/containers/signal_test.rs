@@ -270,18 +270,21 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
 }
 
 // Test that Node signals are accessible from a derived class.
-// #[cfg(since_api = "4.2")]
-// #[itest]
-// fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
-//     let mut receiver = Receiver::new_alloc();
-//
-//     let sig = receiver.signals().rename_node("new name");
-//
-//     //node.signals().renamed()
-//
-//     // Remove from tree for other tests.
-//     // node.free();
-// }
+#[cfg(since_api = "4.2")]
+#[itest(focus)]
+fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
+    let mut node = Emitter::new_alloc();
+
+    // Add to tree, so signals are propagated.
+    ctx.scene_tree.clone().add_child(&node);
+
+    //node.signals().renamed().connect()
+
+    node.set_name("new name");
+
+    // Remove from tree for other tests.
+    node.free();
+}
 
 #[itest]
 fn signal_construction_and_id() {
@@ -317,9 +320,9 @@ mod emitter {
     use godot::obj::WithUserSignals;
 
     #[derive(GodotClass)]
-    #[class(init, base=Object)]
+    #[class(init, base=Node)] // Node instead of Object to test some signals defined in superclasses.
     pub struct Emitter {
-        _base: Base<Object>,
+        _base: Base<Node>,
         #[cfg(since_api = "4.2")]
         pub last_received_int: i64,
     }

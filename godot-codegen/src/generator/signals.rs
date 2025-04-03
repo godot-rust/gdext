@@ -12,7 +12,7 @@
 
 use crate::context::Context;
 use crate::conv;
-use crate::models::domain::{Class, ClassLike, ClassSignal, FnParam, RustTy, TyName};
+use crate::models::domain::{Class, ClassLike, ClassSignal, FnParam, ModName, RustTy, TyName};
 use crate::util::{ident, safe_ident};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
@@ -25,26 +25,45 @@ pub struct SignalCodegen {
 pub fn make_class_signals(
     class: &Class,
     signals: &[ClassSignal],
-    _ctx: &mut Context,
+    ctx: &mut Context,
 ) -> SignalCodegen {
     let all_params: Vec<SignalParams> = signals
         .iter()
         .map(|s| SignalParams::new(&s.parameters))
         .collect();
 
-    // TokenStream is None if no signals are defined.
-    let (signal_collection_struct, collection_struct_name) =
-        make_signal_collection(class, signals, &all_params);
+    let class_name = class.name();
+
+    // If no signals are defined in current class, walk up until we find some.
+    let (own_collection_struct, nearest_collection_name, nearest_class, has_own_signals);
+    if signals.is_empty() {
+        // Use the nearest base class that *has* signals, and store its collection name.
+        let nearest = ctx.find_nearest_base_with_signals(class_name);
+
+        // Doesn't define own collection struct if no signals are present (note that WithSignals is still implemented).
+        own_collection_struct = TokenStream::new();
+        nearest_collection_name = make_collection_name(&nearest);
+        nearest_class = Some(nearest);
+        has_own_signals = false;
+    } else {
+        let (code, name) = make_signal_collection(class, signals, &all_params);
+
+        own_collection_struct = code;
+        nearest_collection_name = name;
+        nearest_class = None;
+        has_own_signals = true;
+    };
 
     let signal_types = signals
         .iter()
         .zip(all_params.iter())
         .map(|(signal, params)| make_signal_individual_struct(signal, params));
 
-    let class_name = class.name();
+    let with_signals_impl =
+        make_with_signals_impl(class_name, &nearest_collection_name, nearest_class.as_ref());
 
-    let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
-    let deref_impl = make_deref_impl(class_name, &collection_struct_name);
+    let deref_impl =
+        has_own_signals.then(|| make_upcast_deref_impl(class_name, &nearest_collection_name));
 
     let code = quote! {
         #[cfg(since_api = "4.2")]
@@ -58,7 +77,7 @@ pub fn make_class_signals(
             use super::*;
 
             // These may be empty if the class doesn't define any signals itself.
-            #signal_collection_struct
+            #own_collection_struct
             #( #signal_types )*
 
             // These are always present.
@@ -69,19 +88,33 @@ pub fn make_class_signals(
 
     SignalCodegen {
         signal_code: code,
-        has_own_signals: signal_collection_struct.is_some(),
+        has_own_signals,
     }
 }
 
 /// Creates `impl WithSignals`.
 ///
 /// Present for every single class, as every class has at least inherited signals (since `Object` has some).
-fn make_with_signals_impl(class_name: &TyName, collection_struct_name: &Ident) -> TokenStream {
+fn make_with_signals_impl(
+    class_name: &TyName,
+    collection_struct_name: &Ident,
+    nearest_class: Option<&TyName>, // None if own class has signals.
+) -> TokenStream {
+    let use_statement = if let Some(nearest_class) = nearest_class {
+        let module_name = ModName::from_godot(&nearest_class.godot_ty);
+        quote! {
+            use crate::classes::#module_name::#collection_struct_name;
+        }
+    } else {
+        TokenStream::new()
+    };
+
     quote! {
+        #use_statement
         impl crate::obj::WithSignals for #class_name {
-            type SignalCollection<'c> = signals::#collection_struct_name<'c>;
+            type SignalCollection<'c> = #collection_struct_name<'c, Self>;
             #[doc(hidden)]
-            type __SignalObject<'c> = Gd<#class_name>;
+            type __SignalObject<'c> = Gd<Self>;
 
             #[doc(hidden)]
             fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
@@ -107,13 +140,11 @@ fn make_signal_collection(
     class: &Class,
     signals: &[ClassSignal],
     params: &[SignalParams],
-) -> (Option<TokenStream>, Ident) {
+) -> (TokenStream, Ident) {
+    debug_assert!(!signals.is_empty()); // checked outside
+
     let class_name = class.name();
     let collection_struct_name = make_collection_name(class_name);
-
-    if signals.is_empty() {
-        return (None, collection_struct_name);
-    }
 
     let provider_methods = signals.iter().zip(params).map(|(sig, params)| {
         let signal_name_str = &sig.name;
@@ -139,8 +170,13 @@ fn make_signal_collection(
 
     let code = quote! {
         #[doc = #collection_docs]
-        pub struct #collection_struct_name<'c> {
-            __gd: &'c mut Gd<#class_name>,
+        // C is needed for signals of derived classes that are upcast via Deref; C in that class is the derived class.
+        pub struct #collection_struct_name<'c, C = #class_name>
+        where C: crate::obj::GodotClass
+        {
+            // This one could be changed to Gd<Object> to reduce code bloat.
+            #[doc(hidden)]
+            pub __gd: &'c mut Gd<C>,
         }
 
         impl<'c> #collection_struct_name<'c> {
@@ -148,10 +184,10 @@ fn make_signal_collection(
         }
     };
 
-    (Some(code), collection_struct_name)
+    (code, collection_struct_name)
 }
 
-fn make_deref_impl(class_name: &TyName, collection_struct_name: &Ident) -> TokenStream {
+fn make_upcast_deref_impl(class_name: &TyName, collection_struct_name: &Ident) -> TokenStream {
     // Root of hierarchy, no "upcast" derefs.
     if class_name.rust_ty == "Object" {
         return TokenStream::new();

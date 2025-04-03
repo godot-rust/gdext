@@ -25,6 +25,7 @@ pub struct Context<'a> {
     inheritance_tree: InheritanceTree,
     cached_rust_types: HashMap<GodotTy, RustTy>,
     notifications_by_class: HashMap<TyName, Vec<(Ident, i32)>>,
+    classes_with_signals: HashSet<TyName>,
     notification_enum_names_by_class: HashMap<TyName, NotificationEnum>,
     method_table_indices: HashMap<MethodTableKey, usize>,
     method_table_next_index: HashMap<String, usize>,
@@ -65,6 +66,10 @@ impl<'a> Context<'a> {
 
             // Populate class lookup by name
             engine_classes.insert(class_name.clone(), class);
+
+            if !option_as_slice(&class.signals).is_empty() {
+                ctx.classes_with_signals.insert(class_name.clone());
+            }
 
             // Populate derived-to-base relations
             if let Some(base) = class.inherits.as_ref() {
@@ -276,6 +281,24 @@ impl<'a> Context<'a> {
 
     pub fn find_rust_type(&'a self, ty: &GodotTy) -> Option<&'a RustTy> {
         self.cached_rust_types.get(ty)
+    }
+
+    /// Walks up in the hierarchy, and returns the first (nearest) base class which declares at least 1 signal.
+    ///
+    /// Always returns a result, as `Object` (the root) itself declares signals.
+    pub fn find_nearest_base_with_signals(&self, class_name: &TyName) -> TyName {
+        let tree = self.inheritance_tree();
+
+        let mut class = class_name.clone();
+        while let Some(base) = tree.direct_base(&class) {
+            if self.classes_with_signals.contains(&base) {
+                return base;
+            } else {
+                class = base;
+            }
+        }
+
+        panic!("Object (root) should always have signals")
     }
 
     pub fn notification_constants(&'a self, class_name: &TyName) -> Option<&'a Vec<(Ident, i32)>> {

@@ -215,7 +215,7 @@ impl SignalCollection {
             // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
             #vis_marker fn #signal_name(self) -> #individual_struct_name<'c> {
                 #individual_struct_name {
-                    typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
+                    __typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
             }
         });
@@ -262,14 +262,14 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #[doc(hidden)] // Signal struct is hidden, but the method returning it is not (IDE completion).
         #vis_marker struct #individual_struct_name<'a> {
             #[doc(hidden)]
-            typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
+            __typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
         }
 
         // Concrete convenience API is macro-based; many parts are delegated to TypedSignal via Deref/DerefMut.
         #(#signal_cfg_attrs)*
         impl #individual_struct_name<'_> {
             pub fn emit(&mut self, #emit_params) {
-                self.typed.emit_tuple((#( #param_names, )*));
+                self.__typed.emit_tuple((#( #param_names, )*));
             }
         }
 
@@ -278,14 +278,14 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
             type Target = ::godot::register::TypedSignal<'c, #class_name, #param_tuple>;
 
             fn deref(&self) -> &Self::Target {
-                &self.typed
+                &self.__typed
             }
         }
 
         #(#signal_cfg_attrs)*
         impl std::ops::DerefMut for #individual_struct_name<'_> {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.typed
+                &mut self.__typed
             }
         }
     }
@@ -299,23 +299,37 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
 
     let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
     let collection_struct_methods = &collection.provider_methods;
+    let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
+    let upcast_deref_impl = make_upcast_deref_impl(class_name, &collection_struct_name);
     let individual_structs = collection.individual_structs;
 
     let code = quote! {
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
-        pub struct #collection_struct_name<'c> {
+        pub struct #collection_struct_name<'c, C = #class_name>
+        where C: ::godot::obj::GodotClass
+        {
             // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
             #[doc(hidden)] // Necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
-            __internal_obj: ::godot::register::UserSignalObj<'c, #class_name>
+            __internal_obj: ::godot::register::UserSignalObj<'c, C>
         }
 
         impl<'c> #collection_struct_name<'c> {
             #( #collection_struct_methods )*
         }
 
+        #with_signals_impl
+        #upcast_deref_impl
+        #( #individual_structs )*
+    };
+
+    Some(code)
+}
+
+fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) -> TokenStream {
+    quote! {
         impl ::godot::obj::WithSignals for #class_name {
-            type SignalCollection<'c> = #collection_struct_name<'c>;
+            type SignalCollection<'c> = #collection_struct_name<'c, Self>;
             #[doc(hidden)]
             type __SignalObject<'c> = ::godot::register::UserSignalObj<'c, Self>;
 
@@ -334,8 +348,33 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
                 }
             }
         }
+    }
+}
 
-        #( #individual_structs )*
-    };
-    Some(code)
+fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) -> TokenStream {
+    quote! {
+         impl<'c> std::ops::Deref for #collection_struct_name<'c> {
+            type Target = <
+                <
+                    #class_name as ::godot::obj::GodotClass
+                >::Base as ::godot::obj::WithSignals
+            >::SignalCollection<'c>;
+
+            fn deref(&self) -> &Self::Target {
+                type Derived = #class_name;
+                type Base = <#class_name as ::godot::obj::GodotClass>::Base;
+
+                ::godot::private::upcast_signal_collection::<Derived, Base>(self)
+            }
+        }
+
+        impl<'c> std::ops::DerefMut for #collection_struct_name<'c> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                type Derived = #class_name;
+                type Base = <#class_name as ::godot::obj::GodotClass>::Base;
+
+                ::godot::private::upcast_signal_collection_mut::<Derived, Base>(self)
+            }
+        }
+    }
 }
