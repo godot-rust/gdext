@@ -104,7 +104,6 @@ jobs:
 
       # Note: could use `-- --no-deps` to not lint dependencies, however it doesn't really speed up and also skips deps in workspace.
       - name: "Check clippy"
-        # TODO(Rust 1.86): remove -A clippy::precedence; see https://github.com/godot-rust/gdext/pull/1055.
         run: |
           cargo clippy --all-targets $CLIPPY_FEATURES -- \
           -D clippy::suspicious \
@@ -114,8 +113,7 @@ jobs:
           -D clippy::dbg_macro \
           -D clippy::todo \
           -D clippy::unimplemented \
-          -D warnings \
-          -A clippy::precedence
+          -D warnings
 
   unit-test:
     name: unit-test (${{ matrix.name }}${{ matrix.rust-special }})

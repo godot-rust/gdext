@@ -572,7 +572,7 @@ fn write_gdscript_code(
 
     let ranges = repo_tweak::find_repeated_ranges(&template, "#(", "#)", &[], false);
     for m in ranges {
-        file.write_all(template[last..m.before_start].as_bytes())?;
+        file.write_all(&template.as_bytes()[last..m.before_start])?;
 
         replace_parts(&template[m.start..m.end], inputs, |replacement| {
             file.write_all(replacement.as_bytes())?;
@@ -581,7 +581,7 @@ fn write_gdscript_code(
 
         last = m.after_end;
     }
-    file.write_all(template[last..].as_bytes())?;
+    file.write_all(&template.as_bytes()[last..])?;
 
     Ok(())
 }

@@ -83,7 +83,6 @@ pub use gdextension_api::version_4_4 as prebuilt;
     feature = "api-custom",
 )))]
 // ]]
-
 // [version-sync] [[
 //  [include] current.minor
 //  [line] pub use gdextension_api::version_$snakeVersion as prebuilt;

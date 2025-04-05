@@ -146,12 +146,6 @@ function cmd_fmt() {
 }
 
 function cmd_clippy() {
-    # TODO(Rust 1.86): remove `-A clippy::precedence`.
-    # In Rust 1.85, `clippy::precedence` includes bitmasking and shift operations. Rigid adherence to this rule results in more noisy code, with
-    # little benefits (being aware of bit operator precedence is something we can expect + bit manipulations are common in Godot).
-    # This behavior will be reverted in 1.86 and moved into new lint `precedence_bits` included in `restriction` category.
-    # See https://github.com/godot-rust/gdext/pull/1055 and https://github.com/rust-lang/rust-clippy/pull/14115.
-
     run cargo clippy --all-targets "${extraCargoArgs[@]}" -- \
         -D clippy::suspicious \
         -D clippy::style \
@@ -160,13 +154,10 @@ function cmd_clippy() {
         -D clippy::dbg_macro \
         -D clippy::todo \
         -D clippy::unimplemented \
-        -D warnings \
-        -A clippy::precedence
+        -D warnings
 }
 
 function cmd_klippy() {
-    # TODO(Rust 1.86): remove `-A clippy::precedence`.
-
     run cargo clippy --fix --all-targets "${extraCargoArgs[@]}" -- \
         -D clippy::suspicious \
         -D clippy::style \
@@ -175,8 +166,7 @@ function cmd_klippy() {
         -D clippy::dbg_macro \
         -D clippy::todo \
         -D clippy::unimplemented \
-        -D warnings \
-        -A clippy::precedence
+        -D warnings
 }
 
 function cmd_test() {

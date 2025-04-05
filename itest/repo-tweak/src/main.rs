@@ -76,7 +76,7 @@ fn sync_versions_recursive(parent_dir: &Path, top_level: bool) {
 
                 let mut file = File::create(path).expect("create file");
                 for m in ranges {
-                    file.write_all(content[last_pos..m.start].as_bytes())
+                    file.write_all(&content.as_bytes()[last_pos..m.start])
                         .expect("write file (before start)");
 
                     // Note: m.start..m.end is discarded and replaced with newly generated lines.
@@ -98,13 +98,13 @@ fn sync_versions_recursive(parent_dir: &Path, top_level: bool) {
                         file.write_all(post.as_bytes()).expect("write file (post)");
                     }
 
-                    file.write_all(content[m.end..m.after_end].as_bytes())
+                    file.write_all(&content.as_bytes()[m.end..m.after_end])
                         .expect("write file (after end)");
 
                     last_pos = m.after_end;
                 }
 
-                file.write_all(content[last_pos..].as_bytes())
+                file.write_all(&content.as_bytes()[last_pos..])
                     .expect("write to file (end)");
             }
         }
