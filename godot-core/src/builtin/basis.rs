@@ -8,7 +8,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
+use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType, XformInv};
 use crate::builtin::real_consts::FRAC_PI_2;
 use crate::builtin::{real, EulerOrder, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
 use std::cmp::Ordering;
@@ -626,6 +626,24 @@ impl Mul<Vector3> for Basis {
 
     fn mul(self, rhs: Vector3) -> Self::Output {
         self.glam2(&rhs, |a, b| a * b)
+    }
+}
+
+impl XformInv<Vector3> for Basis {
+    /// Inversely transforms given [`Vector3`] by this basis,
+    /// under the assumption that the basis is orthonormal (i.e. rotation/reflection is fine, scaling/skew is not).
+    ///
+    /// `basis.xform_inv(vector)` is equivalent to `basis.transposed() * vector`. See [`Basis::transposed()`].
+    ///
+    /// For transforming by inverse of a non-orthonormal basis (e.g. with scaling) `basis.inverse() * vector` can be used instead. See [`Basis::inverse()`].
+    ///
+    /// _Godot equivalent: `vector * basis`_
+    fn xform_inv(&self, rhs: Vector3) -> Vector3 {
+        Vector3::new(
+            self.col_a().dot(rhs),
+            self.col_b().dot(rhs),
+            self.col_c().dot(rhs),
+        )
     }
 }
 

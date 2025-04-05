@@ -8,13 +8,19 @@
 use crate::framework::itest;
 
 use godot::builtin::inner::InnerTransform2D;
-use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2};
+use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2, XformInv};
 use godot::meta::ToGodot;
 use godot::private::class_macros::assert_eq_approx;
 
 const TEST_TRANSFORM: Transform2D = Transform2D::from_cols(
     Vector2::new(1.0, 2.0),
     Vector2::new(3.0, 4.0),
+    Vector2::new(5.0, 6.0),
+);
+
+const TEST_TRANSFORM_ORTHONORMAL: Transform2D = Transform2D::from_cols(
+    Vector2::new(1.0, 0.0),
+    Vector2::new(0.0, 1.0),
     Vector2::new(5.0, 6.0),
 );
 
@@ -101,6 +107,51 @@ fn transform2d_xform_equiv() {
             .rotated(0.8)
             .to_variant()
             .evaluate(&rect_2.to_variant(), VariantOperator::MULTIPLY)
+            .unwrap()
+            .to::<Rect2>(),
+        "operator: Transform2D * Rect2 (2)"
+    );
+}
+
+#[itest]
+fn transform2d_xform_inv_equiv() {
+    let vec = Vector2::new(1.0, 2.0);
+
+    assert_eq_approx!(
+        TEST_TRANSFORM_ORTHONORMAL.xform_inv(vec),
+        vec.to_variant()
+            .evaluate(
+                &TEST_TRANSFORM_ORTHONORMAL.to_variant(),
+                VariantOperator::MULTIPLY
+            )
+            .unwrap()
+            .to::<Vector2>(),
+        "operator: Transform2D * Vector2"
+    );
+
+    let rect_2 = Rect2::new(Vector2::new(1.0, 2.0), Vector2::new(3.0, 4.0));
+
+    assert_eq_approx!(
+        TEST_TRANSFORM_ORTHONORMAL.xform_inv(rect_2),
+        rect_2
+            .to_variant()
+            .evaluate(
+                &TEST_TRANSFORM_ORTHONORMAL.to_variant(),
+                VariantOperator::MULTIPLY
+            )
+            .unwrap()
+            .to::<Rect2>(),
+        "operator: Transform2D * Rect2 (1)"
+    );
+
+    assert_eq_approx!(
+        TEST_TRANSFORM_ORTHONORMAL.rotated(0.8).xform_inv(rect_2),
+        rect_2
+            .to_variant()
+            .evaluate(
+                &TEST_TRANSFORM_ORTHONORMAL.rotated(0.8).to_variant(),
+                VariantOperator::MULTIPLY
+            )
             .unwrap()
             .to::<Rect2>(),
         "operator: Transform2D * Rect2 (2)"

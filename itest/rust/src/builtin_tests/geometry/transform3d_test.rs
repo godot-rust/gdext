@@ -8,7 +8,7 @@
 use crate::framework::itest;
 
 use godot::builtin::inner::InnerTransform3D;
-use godot::builtin::{Aabb, Basis, Plane, Transform3D, VariantOperator, Vector3};
+use godot::builtin::{Aabb, Basis, Plane, Transform3D, VariantOperator, Vector3, XformInv};
 use godot::meta::ToGodot;
 use godot::private::class_macros::assert_eq_approx;
 
@@ -20,6 +20,9 @@ const TEST_TRANSFORM: Transform3D = Transform3D::new(
     ),
     Vector3::new(10.0, 11.0, 12.0),
 );
+
+const TEST_TRANSFORM_ORTHONORMAL: Transform3D =
+    Transform3D::new(Basis::IDENTITY, Vector3::new(10.0, 11.0, 12.0));
 
 #[itest]
 fn transform3d_equiv() {
@@ -77,6 +80,65 @@ fn transform3d_xform_equiv() {
         TEST_TRANSFORM
             .to_variant()
             .evaluate(&plane.to_variant(), VariantOperator::MULTIPLY)
+            .unwrap()
+            .to::<Plane>(),
+        "operator: Transform3D * Plane"
+    );
+}
+
+#[itest]
+fn transform3d_xform_inv_equiv() {
+    let vec = Vector3::new(1.0, 2.0, 3.0);
+
+    assert_eq_approx!(
+        TEST_TRANSFORM.xform_inv(vec),
+        vec.to_variant()
+            .evaluate(&TEST_TRANSFORM.to_variant(), VariantOperator::MULTIPLY)
+            .unwrap()
+            .to::<Vector3>(),
+        "operator: Vector3 * Transform3D"
+    );
+
+    let aabb = Aabb::new(Vector3::new(1.0, 2.0, 3.0), Vector3::new(4.0, 5.0, 6.0));
+
+    assert_eq_approx!(
+        TEST_TRANSFORM_ORTHONORMAL.xform_inv(aabb),
+        aabb.to_variant()
+            .evaluate(
+                &TEST_TRANSFORM_ORTHONORMAL.to_variant(),
+                VariantOperator::MULTIPLY
+            )
+            .unwrap()
+            .to::<Aabb>(),
+        "operator: Transform3D * Aabb"
+    );
+
+    assert_eq_approx!(
+        TEST_TRANSFORM_ORTHONORMAL
+            .rotated(Vector3::new(0.2, 0.4, 1.0).normalized(), 0.8)
+            .xform_inv(aabb),
+        aabb.to_variant()
+            .evaluate(
+                &TEST_TRANSFORM_ORTHONORMAL
+                    .rotated(Vector3::new(0.2, 0.4, 1.0).normalized(), 0.8)
+                    .to_variant(),
+                VariantOperator::MULTIPLY
+            )
+            .unwrap()
+            .to::<Aabb>(),
+        "operator: Transform3D * Aabb"
+    );
+
+    let plane = Plane::new(Vector3::new(1.0, 2.0, 3.0).normalized(), 5.0);
+
+    assert_eq_approx!(
+        TEST_TRANSFORM_ORTHONORMAL.xform_inv(plane),
+        plane
+            .to_variant()
+            .evaluate(
+                &TEST_TRANSFORM_ORTHONORMAL.to_variant(),
+                VariantOperator::MULTIPLY
+            )
             .unwrap()
             .to::<Plane>(),
         "operator: Transform3D * Plane"
