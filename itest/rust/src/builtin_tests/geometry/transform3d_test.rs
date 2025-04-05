@@ -91,9 +91,12 @@ fn transform3d_xform_inv_equiv() {
     let vec = Vector3::new(1.0, 2.0, 3.0);
 
     assert_eq_approx!(
-        TEST_TRANSFORM.xform_inv(vec),
+        TEST_TRANSFORM_ORTHONORMAL.xform_inv(vec),
         vec.to_variant()
-            .evaluate(&TEST_TRANSFORM.to_variant(), VariantOperator::MULTIPLY)
+            .evaluate(
+                &TEST_TRANSFORM_ORTHONORMAL.to_variant(),
+                VariantOperator::MULTIPLY
+            )
             .unwrap()
             .to::<Vector3>(),
         "operator: Vector3 * Transform3D"
