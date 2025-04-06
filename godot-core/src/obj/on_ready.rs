@@ -208,7 +208,7 @@ impl<T> OnReady<T> {
     /// - If this object was already provided with a closure during construction, in [`Self::new()`] or any other automatic constructor.
     pub fn init(&mut self, value: T) {
         match &self.state {
-            InitState::ManualUninitialized { .. } => {
+            InitState::ManualUninitialized => {
                 self.state = InitState::Initialized { value };
             }
             InitState::AutoPrepared { .. } => {
@@ -285,7 +285,7 @@ impl<T> std::ops::DerefMut for OnReady<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match &mut self.state {
             InitState::Initialized { value } => value,
-            InitState::ManualUninitialized { .. } | InitState::AutoPrepared { .. } => {
+            InitState::ManualUninitialized | InitState::AutoPrepared { .. } => {
                 panic!("value not yet initialized")
             }
             InitState::AutoInitializing => unreachable!(),
