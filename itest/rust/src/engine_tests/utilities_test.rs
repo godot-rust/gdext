@@ -44,6 +44,7 @@ fn utilities_str() {
 
     // TODO: implement GString==&str operator. Then look for "...".into() patterns and replace them.
     assert_eq!(concat, "12 is a true number".into());
+    assert_eq!(concat, &GString::from("12") + &GString::from(" is a ") + &GString::from("true") + &GString::from(" number"));
     assert_eq!(empty, GString::new());
 }
 

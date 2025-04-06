@@ -8,15 +8,18 @@
 use std::convert::Infallible;
 use std::fmt;
 use std::fmt::Write;
+use std::ops::Add;
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
+use crate::builtin::array;
 use crate::builtin::string::Encoding;
 use crate::builtin::{inner, NodePath, StringName, Variant};
 use crate::meta::error::StringError;
 use crate::meta::AsArg;
+use crate::meta::ToGodot;
 use crate::{impl_shared_string_api, meta};
 
 /// Godot's reference counted string type.
@@ -313,6 +316,33 @@ impl fmt::Debug for GString {
         write!(f, "\"{self}\"")
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Concatentation
+impl<'a, 'b> Add<&'b GString> for &'a GString {
+    type Output = GString;
+
+    fn add(self, other: &'b GString) -> GString {
+        GString::from("{0}{1}").format(&array![self, other].to_variant())
+    }
+}
+
+impl<'a> Add<GString> for &'a GString {
+    type Output = GString;
+
+    fn add(self, other: GString) -> GString {
+        GString::from("{0}{1}").format(&array![self, &other].to_variant())
+    }
+}
+
+impl<'b> Add<&'b GString> for GString {
+    type Output = GString;
+
+    fn add(self, other: &'b GString) -> GString {
+        GString::from("{0}{1}").format(&array![&self, other].to_variant())
+    }
+}
+
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion from/into Rust string-types
