@@ -49,5 +49,7 @@ mod color_test;
 
 mod convert_test;
 
+mod common;
+
 #[cfg(feature = "serde")]
 mod serde_test;

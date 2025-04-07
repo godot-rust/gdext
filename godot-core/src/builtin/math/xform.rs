@@ -10,6 +10,6 @@
 /// See also: [`Transform2D`](crate::builtin::Transform2D), [`Transform3D`](crate::builtin::Transform3D), [`Basis`](crate::builtin::Basis).
 ///
 /// _Godot equivalent: `rhs * mat`_
-pub trait XformInv<T> {
+pub trait XformInv<T>: std::ops::Mul<T> {
     fn xform_inv(&self, rhs: T) -> T;
 }

@@ -5,10 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin_tests::common::assert_evaluate_approx_eq;
 use godot::builtin::inner::InnerBasis;
 use godot::builtin::math::assert_eq_approx;
-use godot::builtin::{real, Basis, EulerOrder, RealConv, VariantOperator, Vector3};
-use godot::meta::ToGodot;
+use godot::builtin::{real, Basis, EulerOrder, RealConv, VariantOperator, Vector3, XformInv};
 
 use crate::framework::itest;
 
@@ -20,22 +20,37 @@ const TEST_BASIS: Basis = Basis::from_rows(
 
 #[itest]
 fn basis_multiply_same() {
-    let rust_res = TEST_BASIS * Basis::IDENTITY;
-    let godot_res = TEST_BASIS
-        .to_variant()
-        .evaluate(&Basis::IDENTITY.to_variant(), VariantOperator::MULTIPLY)
-        .unwrap()
-        .to::<Basis>();
-    assert_eq_approx!(rust_res, godot_res);
+    // operator: Basis * Identity
+    assert_evaluate_approx_eq(
+        TEST_BASIS,
+        Basis::IDENTITY,
+        VariantOperator::MULTIPLY,
+        TEST_BASIS * Basis::IDENTITY,
+    );
 
-    let rhs = Basis::from_axis_angle(Vector3::new(1.0, 2.0, 3.0).normalized(), 0.5);
-    let rust_res = TEST_BASIS * rhs;
-    let godot_res = TEST_BASIS
-        .to_variant()
-        .evaluate(&rhs.to_variant(), VariantOperator::MULTIPLY)
-        .unwrap()
-        .to::<Basis>();
-    assert_eq_approx!(rust_res, godot_res);
+    // operator: Basis * rotated Basis
+    let rotated_basis = Basis::from_axis_angle(Vector3::new(1.0, 2.0, 3.0).normalized(), 0.5);
+    assert_evaluate_approx_eq(
+        TEST_BASIS,
+        rotated_basis,
+        VariantOperator::MULTIPLY,
+        TEST_BASIS * rotated_basis,
+    );
+
+    // orthonormalized
+    let orthonormalized_basis = TEST_BASIS.orthonormalized();
+    assert_evaluate_approx_eq(
+        orthonormalized_basis,
+        orthonormalized_basis.inverse(),
+        VariantOperator::MULTIPLY,
+        Basis::IDENTITY,
+    );
+    assert_evaluate_approx_eq(
+        orthonormalized_basis,
+        orthonormalized_basis.transposed(),
+        VariantOperator::MULTIPLY,
+        Basis::IDENTITY,
+    );
 }
 
 #[itest]
@@ -159,6 +174,34 @@ fn basis_equiv() {
         outer.get_quaternion(),
         "function: get_rotation_quaternion\n"
     )
+}
+
+#[itest]
+fn basis_xform_equiv() {
+    let orthonormalized_basis = TEST_BASIS.orthonormalized();
+    let vec = Vector3::new(1.0, 2.0, 3.0);
+
+    // operator: Basis * Vector3
+    assert_evaluate_approx_eq(
+        orthonormalized_basis,
+        vec,
+        VariantOperator::MULTIPLY,
+        orthonormalized_basis * vec,
+    );
+}
+
+#[itest]
+fn basis_xform_inv_equiv() {
+    let orthonormalized_basis = TEST_BASIS.orthonormalized();
+    let vec = Vector3::new(1.0, 2.0, 3.0);
+
+    // operator: Vector3 * Basis
+    assert_evaluate_approx_eq(
+        vec,
+        orthonormalized_basis,
+        VariantOperator::MULTIPLY,
+        orthonormalized_basis.xform_inv(vec),
+    );
 }
 
 fn deg_to_rad(rotation: Vector3) -> Vector3 {

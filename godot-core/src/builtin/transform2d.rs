@@ -39,12 +39,12 @@ use std::ops::{Mul, MulAssign};
 ///
 /// # Transform operations
 ///
-/// | Operation                      | Transform2D                    | Notes                               |
-/// |--------------------------------|--------------------------------|-------------------------------------|
-/// | Apply                          | transform * v                  | Supports [`Rect2`] and [`Vector2`]. |
-/// | Apply inverse                  | transform.xform_inv(v)         | Supports [`Rect2`] and [`Vector2`]. |
-/// | Apply, no translate            | transform.basis_xform(v)       | Supports [`Vector2`].               |
-/// | Apply inverse, no translate    | transform.basis_xform_inv(v)   | Supports [`Vector2`].               |
+/// | Operation                      | Transform2D                      | Notes                               |
+/// |--------------------------------|----------------------------------|-------------------------------------|
+/// | Apply                          | `transform * v`                  | Supports [`Rect2`] and [`Vector2`]. |
+/// | Apply inverse                  | `transform.xform_inv(v)`         | Supports [`Rect2`] and [`Vector2`]. |
+/// | Apply, no translate            | `transform.basis_xform(v)`       | Supports [`Vector2`].               |
+/// | Apply inverse, no translate    | `transform.basis_xform_inv(v)`   | Supports [`Vector2`].               |
 ///
 /// # Godot docs
 ///

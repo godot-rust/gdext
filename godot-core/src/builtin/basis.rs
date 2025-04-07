@@ -633,7 +633,13 @@ impl XformInv<Vector3> for Basis {
     /// Inversely transforms given [`Vector3`] by this basis,
     /// under the assumption that the basis is orthonormal (i.e. rotation/reflection is fine, scaling/skew is not).
     ///
-    /// `basis.xform_inv(vector)` is equivalent to `basis.transposed() * vector`. See [`Basis::transposed()`].
+    /// Since given basis is assumed to be orthonormal (i.e. it is both orthogonal – with all axis perpendicular to each other – and all the axis are normalized),
+    /// `basis.transposed()` (matrix flipped over its diagonal) is equal to `basis.inverse()`
+    /// (i.e. `basis * basis.transposed() == basis * basis.inverse() == Basis::Identity`),
+    /// thus `basis.xform_inv(vector)` is equivalent both to `basis.transposed() * vector` and `basis.inverse() * vector`.
+    ///
+    /// See [`Basis::transposed()`] and [Godot docs (stable) for `Basis`](https://docs.godotengine.org/en/stable/classes/class_basis.html)
+    /// with following [Matrices and Transform tutorial](https://docs.godotengine.org/en/stable/tutorials/math/matrices_and_transforms.html).
     ///
     /// For transforming by inverse of a non-orthonormal basis (e.g. with scaling) `basis.inverse() * vector` can be used instead. See [`Basis::inverse()`].
     ///
