@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<class name="FairlyDocumented" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+<class name="FairlyDocumented" inherits="Node" deprecated="we will use normal integration tests with editor in the future." experimental="both experimental and deprecated tags are [b]experimental[/b]." xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 <brief_description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] &lt; [url=https://github.com/godot-rust/gdext/pull/748]pr[/url]</brief_description>
 <description>This is a paragraph. It has some text in it. It&#39;s a paragraph. It&#39;s quite long, and wraps multiple lines. It is describing the struct [code]Player[/code]. Or maybe perhaps it&#39;s describing the module. It&#39;s hard to say, really. It even has some code in it: [code]let x = 5;[/code]. And some more code: [code]let y = 6;[/code]. And a bunch of [b]bold[/b] and [i]italic[/i] text with [i]different[/i] ways to do it. Don&#39;t forget about [url=https://example.com]links[/url].[br][br]a few tests:[br][br]headings:[br][br][b]Some heading[/b][br][br]lists:[br][br]• lists[br]• like this[br]    • with sublists[br]        that are multiline[br]        • and subsublists[br]• and list items[br][br]• maybe with [code]*[/code] as well[br][br][url=https://example.com]reference-style link[/url][br][br]links with back-references:[br][br]Blah blah¹ Also same reference¹[br][br]footnotes:[br][br]We cannot florbinate the glorb²[br][br]Third note in order of use³ and fourth ⁴[br][br]Fifth note in order of use. ⁶[br][br]Sixth footnote in order of use. ⁵[br][br]task lists:[br][br]We must ensure that we&#39;ve completed[br][br]• [ ] task 1[br]• [x] task 2[br][br]tables:[br][br]Header1 | Header2[br]abc | def[br][br]images:[br][br][url=https://godotengine.org/assets/press/logo_small_color_light.png]https://godotengine.org/assets/press/logo_small_color_light.png[/url][br][br][url=https://godotengine.org/assets/press/logo_small_color_dark.png]https://godotengine.org/assets/press/logo_small_color_dark.png[/url][br][br]blockquotes:[br][br]&gt; Some cool thing[br][br]ordered list:[br][br]1. thing one[br]2. thing two[br]    1. thing two point one[br]    2. thing two point two[br]    3. thing two point three[br][br][b]Something here &lt; this is technically header syntax[/b][br][br]And here[br][br]smart punctuation[br][br]codeblocks:[br][br][codeblock lang=rust]#![no_main]
 #[link_section=&quot;.text&quot;]
@@ -49,6 +49,22 @@ public class Player : Node2D
   </description>
 </method>
 
+<method name="experimental_method" experimental="might explode on use …maybe?">
+  <return type="()" />
+  
+  <description>
+  This is a method. Who knows
+  </description>
+</method>
+
+<method name="deprecated_method" deprecated="EXPLODES ON USE DO NOT USE" experimental="somebody probably uses it??">
+  <return type="()" />
+  
+  <description>
+  ????? probably
+  </description>
+</method>
+
 <method name="_init">
   <return type="Self" />
   <param index="0" name="base" type="Base &lt; Node &gt;" />
@@ -57,7 +73,7 @@ public class Player : Node2D
   </description>
 </method>
 </methods>
-<constants><constant name="RANDOM" value="4">Documentation.</constant><constant name="XML" value="1">this docstring has &lt; a special character</constant></constants>
+<constants><constant name="RANDOM" value="4">Documentation.</constant><constant name="A" value="128" deprecated="Did you know that constants can be deprecated?">Hmmmm</constant><constant name="B" value="128" experimental="Did you know that constants can be experimental?">Who would know that!</constant><constant name="XML" value="1">this docstring has &lt; a special character</constant></constants>
 <signals>
 <signal name="documented_signal">
   <param index="0" name="p" type="Vector3" /><param index="1" name="w" type="f64" /><param index="2" name="node" type="Gd &lt; Node &gt;" />
@@ -65,6 +81,20 @@ public class Player : Node2D
   some user signal[br][br]some multiline doc[br][br]The [code]Gd&lt;Node&gt;[/code] param should be properly escaped
   </description>
 </signal>
+
+<signal name="deprecated" deprecated="– use other_signal instead.">
+  <param index="0" name="x" type="i64" />
+  <description>
+  My signal[br][br]huh?!
+  </description>
+</signal>
+
+<signal name="other_signal" experimental="this is new signal use it at your own risk">
+  <param index="0" name="x" type="i64" />
+  <description>
+  New signal[br][br]fr.
+  </description>
+</signal>
 </signals>
-<members><member name="item" type="f32" default="">this is very documented</member><member name="item_2" type="i64" default="">is it documented?</member><member name="item_xml" type="GString" default="">this docstring has &lt; a special character</member></members>
+<members><member name="item" type="f32" default="">this is very documented</member><member name="a" type="i32" default="" deprecated="use on your own risk!!">not to be confused with B!</member><member name="b" type="i64" default="" experimental="idk.">Some docs…</member><member name="item_2" type="i64" default="">is it documented?</member><member name="item_xml" type="GString" default="">this docstring has &lt; a special character</member></members>
 </class>

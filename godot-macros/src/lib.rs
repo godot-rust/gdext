@@ -441,6 +441,11 @@ use crate::util::{bail, ident, KvParser};
 /// struct DocumentedStruct {
 ///     /// This is a class member.
 ///     /// You can use markdown formatting such as _italics_.
+///     ///
+///     /// @experimental `@experimental` and `@deprecated` attributes are supported.
+///     /// The description for such attribute spans for the whole annotated paragraph.
+///     ///
+///     /// This is the rest of a doc description.
 ///     #[var]
 ///     item: f32,
 /// }
