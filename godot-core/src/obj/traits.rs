@@ -441,7 +441,8 @@ pub trait WithUserSignals: WithSignals + WithBaseField {}
 ///
 /// User-defined classes with `#[signal]` additionally implement [`WithUserSignals`].
 #[cfg(since_api = "4.2")]
-pub trait WithSignals: GodotClass {
+// Inherits bound makes some up/downcasting in signals impl easier.
+pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
     /// The associated struct listing all signals of this class.
     ///
     /// `'c` denotes the lifetime during which the class instance is borrowed and its signals can be modified.
@@ -450,7 +451,7 @@ pub trait WithSignals: GodotClass {
     /// Trait that allows [`TypedSignal`] to store a reference to the user object.
     #[doc(hidden)]
     #[expect(private_bounds)]
-    type __SignalObject<'c>: crate::registry::signal::SignalObj<Self>;
+    type __SignalObject<'c>: crate::registry::signal::SignalObj;
 
     /// Create from existing `Gd`, to enable `Gd::signals()`.
     ///

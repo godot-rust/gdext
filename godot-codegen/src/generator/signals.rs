@@ -114,7 +114,7 @@ fn make_with_signals_impl(
         impl crate::obj::WithSignals for #class_name {
             type SignalCollection<'c> = #collection_struct_name<'c, Self>;
             #[doc(hidden)]
-            type __SignalObject<'c> = Gd<Self>;
+            type __SignalObject<'c> = Gd<crate::classes::Object>;
 
             #[doc(hidden)]
             fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
@@ -174,9 +174,8 @@ fn make_signal_collection(
         pub struct #collection_struct_name<'c, C = #class_name>
         where C: crate::obj::GodotClass
         {
-            // This one could be changed to Gd<Object> to reduce code bloat.
             #[doc(hidden)]
-            pub __gd: &'c mut Gd<C>,
+            __gd: &'c mut Gd<crate::classes::Object>,
         }
 
         impl<'c> #collection_struct_name<'c> {
