@@ -7,7 +7,7 @@
 
 use std::ops::Deref;
 
-use godot::builtin::{Callable, Signal, Variant};
+use godot::builtin::{array, Array, Callable, Signal, Variant};
 use godot::classes::{Object, RefCounted};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
@@ -26,6 +26,8 @@ struct AsyncRefCounted {
 impl AsyncRefCounted {
     #[signal]
     fn custom_signal(value: u32);
+    #[signal]
+    fn custom_signal_array(value: Array<i64>);
 }
 
 #[itest(async)]
@@ -51,6 +53,31 @@ fn start_async_task() -> TaskHandle {
     object.emit_signal(
         "custom_signal",
         &[10.to_variant(), ref_counted_arg.to_variant()],
+    );
+
+    task_handle
+}
+
+#[itest(async)]
+fn async_task_array() -> TaskHandle {
+    let mut object = RefCounted::new_gd();
+    let signal = Signal::from_object_signal(&object, "custom_signal_array");
+
+    object.add_user_signal("custom_signal_array");
+
+    let task_handle = task::spawn(async move {
+        let signal_future: SignalFuture<(Array<i64>, Gd<RefCounted>)> = signal.to_future();
+        let (result, object) = signal_future.await;
+
+        assert_eq!(result, array![1, 2, 3]);
+        assert!(object.is_instance_valid());
+    });
+
+    let ref_counted_arg = RefCounted::new_gd();
+
+    object.emit_signal(
+        "custom_signal_array",
+        &[array![1, 2, 3].to_variant(), ref_counted_arg.to_variant()],
     );
 
     task_handle
@@ -187,6 +214,22 @@ fn async_typed_signal() -> TaskHandle {
     });
 
     object.signals().custom_signal().emit(66);
+
+    task_handle
+}
+
+#[itest(async)]
+fn async_typed_signal_with_array() -> TaskHandle {
+    let mut object = AsyncRefCounted::new_gd();
+    let mut copy = object.clone();
+
+    let task_handle = task::spawn(async move {
+        let (result,) = copy.signals().custom_signal_array().to_future().await;
+
+        assert_eq!(result, array![1, 2, 3]);
+    });
+
+    object.signals().custom_signal_array().emit(array![1, 2, 3]);
 
     task_handle
 }

@@ -130,7 +130,7 @@ macro_rules! impl_ffi_variant {
 #[allow(clippy::module_inception)]
 mod impls {
     use super::*;
-    
+
     // IMPORTANT: the presence/absence of `ref` here should be aligned with the ArgPassing variant
     // used in codegen get_builtin_arg_passing().
 
@@ -172,7 +172,11 @@ mod impls {
 
     #[cfg(since_api = "4.2")]
     mod api_4_2 {
-        use crate::task::impl_dynamic_send;
+        use crate::builtin::Array;
+        use crate::meta::ArrayElement;
+        use crate::meta::sealed::Sealed;
+        use crate::task::{impl_dynamic_send, DynamicSend, IntoDynamicSend, ThreadConfined};
+
 
         impl_dynamic_send!(
             Send;
@@ -187,9 +191,25 @@ mod impls {
             }
         );
 
+        impl<T: ArrayElement> Sealed for ThreadConfined<Array<T>> {}
+
+        unsafe impl<T:ArrayElement> DynamicSend for ThreadConfined<Array<T>> {
+            type Inner = Array<T>;
+            fn extract_if_safe(self) -> Option<Self::Inner> {
+                self.extract()
+            }
+        }
+
+        impl<T: ArrayElement> IntoDynamicSend for Array<T> {
+            type Target = ThreadConfined<Array<T>>;
+            fn into_dynamic_send(self) -> Self::Target {
+                crate::task::ThreadConfined::new(self)
+            }
+        }
+
         impl_dynamic_send!(
             !Send;
-            Variant, GString, Dictionary, VariantArray, Callable, NodePath, PackedByteArray, PackedInt32Array, PackedInt64Array, PackedFloat32Array,
+            Variant, GString, Dictionary, Callable, NodePath, PackedByteArray, PackedInt32Array, PackedInt64Array, PackedFloat32Array,
             PackedFloat64Array, PackedStringArray, PackedVector2Array, PackedVector3Array, PackedColorArray, Signal
         );
 
