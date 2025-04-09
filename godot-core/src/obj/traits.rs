@@ -10,6 +10,7 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
+use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 use godot_ffi as sys;
 
@@ -441,16 +442,18 @@ pub trait WithUserSignals: WithSignals + WithBaseField {}
 ///
 /// User-defined classes with `#[signal]` additionally implement [`WithUserSignals`].
 #[cfg(since_api = "4.2")]
-pub trait WithSignals: GodotClass {
+// Inherits bound makes some up/downcasting in signals impl easier.
+pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
     /// The associated struct listing all signals of this class.
     ///
     /// `'c` denotes the lifetime during which the class instance is borrowed and its signals can be modified.
     type SignalCollection<'c>;
 
-    /// Trait that allows [`TypedSignal`] to store a reference to the user object.
+    /// Whether the representation needs to be able to hold just `Gd` (for engine classes) or `UserSignalObject` (for user classes).
+    // Note: this cannot be in Declarer (Engine/UserDecl) as associated type `type SignalObjectType<'c, T: WithSignals>`,
+    // because the user impl has the additional requirement T: WithUserSignals.
     #[doc(hidden)]
-    #[expect(private_bounds)]
-    type __SignalObject<'c>: crate::registry::signal::SignalObj<Self>;
+    type __SignalObj<'c>: SignalObject<'c>;
 
     /// Create from existing `Gd`, to enable `Gd::signals()`.
     ///

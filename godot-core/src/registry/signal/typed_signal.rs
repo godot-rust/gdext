@@ -7,59 +7,13 @@
 
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
+use crate::meta;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField, WithSignals, WithUserSignals};
-use crate::registry::signal::{make_callable_name, make_godot_fn, ConnectBuilder, SignalReceiver};
-use crate::{classes, meta};
+use crate::registry::signal::{
+    make_callable_name, make_godot_fn, ConnectBuilder, SignalObject, SignalReceiver,
+};
 use std::borrow::Cow;
 use std::marker::PhantomData;
-
-/// Indirection from [`TypedSignal`] to the actual Godot object.
-///
-/// Needs to differentiate the two cases:
-/// - `C` is a user object implementing `WithBaseField`, possibly having access from within the class.
-/// - `C` is an engine object, so only accessible through `Gd<C>`.
-pub(crate) trait SignalObj<C: GodotClass> {
-    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object));
-    fn to_owned_object(&self) -> Gd<C>;
-}
-
-/// Links to a Godot object, either via reference (for `&mut self` uses) or via `Gd`.
-#[doc(hidden)]
-pub enum UserSignalObj<'a, C: GodotClass> {
-    /// Helpful for emit: reuse `&mut self` from within the `impl` block, goes through `base_mut()` re-borrowing and thus allows re-entrant calls
-    /// through Godot.
-    Internal { obj_mut: &'a mut C },
-
-    /// From outside, based on `Gd` pointer.
-    External { gd: Gd<C> },
-}
-
-impl<C: WithBaseField> SignalObj<C> for UserSignalObj<'_, C> {
-    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object)) {
-        match self {
-            UserSignalObj::Internal { obj_mut } => f(obj_mut.base_mut().upcast_object_mut()),
-            UserSignalObj::External { gd } => f(gd.upcast_object_mut()),
-        }
-    }
-
-    fn to_owned_object(&self) -> Gd<C> {
-        match self {
-            UserSignalObj::Internal { obj_mut } => WithBaseField::to_gd(*obj_mut),
-            UserSignalObj::External { gd } => gd.clone(),
-        }
-    }
-}
-
-impl<C: GodotClass> SignalObj<C> for Gd<C> {
-    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object)) {
-        f(self.upcast_object_mut());
-    }
-
-    fn to_owned_object(&self) -> Gd<C> {
-        self.clone()
-    }
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Object part of the signal receiver (handler).
@@ -110,23 +64,27 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 /// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a detailed introduction and examples.
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
-    owner: C::__SignalObject<'c>,
+    object: C::__SignalObj<'c>,
     name: Cow<'static, str>,
     _signature: PhantomData<Ps>,
 }
 
 impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     #[doc(hidden)]
-    pub fn new(owner: C::__SignalObject<'c>, name: &'static str) -> Self {
+    pub fn new(object: C::__SignalObj<'c>, name: &'static str) -> Self {
         Self {
-            owner,
+            object,
             name: Cow::Borrowed(name),
             _signature: PhantomData,
         }
     }
 
     pub(crate) fn receiver_object(&self) -> Gd<C> {
-        self.owner.to_owned_object()
+        let object = self.object.to_owned_object();
+
+        // Potential optimization: downcast could use a new private Gd::unchecked_cast().
+        // try_cast().unwrap_unchecked() won't be that efficient due to internal code path.
+        object.cast()
     }
 
     /// Emit the signal with the given parameters.
@@ -136,7 +94,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     pub fn emit_tuple(&mut self, args: Ps) {
         let name = self.name.as_ref();
 
-        self.owner.with_object_mut(|obj| {
+        self.object.with_object_mut(|obj| {
             obj.emit_signal(name, &args.to_variant_array());
         });
     }
@@ -203,7 +161,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         let callable = Callable::from_local_fn(&callable_name, godot_fn);
 
         let signal_name = self.name.as_ref();
-        self.owner.with_object_mut(|obj| {
+        self.object.with_object_mut(|obj| {
             obj.connect(signal_name, &callable);
         });
     }
@@ -221,7 +179,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
 
         let signal_name = self.name.as_ref();
 
-        self.owner.with_object_mut(|obj| {
+        self.object.with_object_mut(|obj| {
             let mut c = obj.connect_ex(signal_name, callable);
             if let Some(flags) = flags {
                 c = c.flags(flags.ord() as u32);
@@ -244,7 +202,7 @@ impl<C: WithUserSignals, Ps: meta::ParamTuple> TypedSignal<'_, C, Ps> {
     where
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
     {
-        let mut gd = self.owner.to_owned_object();
+        let mut gd = self.receiver_object();
         let godot_fn = make_godot_fn(move |args| {
             let mut instance = gd.bind_mut();
             let instance = &mut *instance;
