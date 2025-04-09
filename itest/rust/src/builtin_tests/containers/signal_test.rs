@@ -226,15 +226,17 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
     let mut node = Node::new_alloc();
     ctx.scene_tree.clone().add_child(&node);
 
-    // Deliberately declare here, because there was a bug with wrong lifetime, which would not compile due to early-dropped temporary.
-    let mut signals_in_node = node.signals();
-    let mut renamed = signals_in_node.renamed();
-    let mut entered = signals_in_node.child_entered_tree();
-
+    // API allows to only modify one signal at a time (borrowing &mut self).
+    let mut renamed = node.signals().renamed();
     let renamed_count = Rc::new(Cell::new(0));
-    let entered_tracker = Rc::new(RefCell::new(None));
     {
         let renamed_count = renamed_count.clone();
+        renamed.connect(move || renamed_count.set(renamed_count.get() + 1));
+    }
+
+    let mut entered = node.signals().child_entered_tree();
+    let entered_tracker = Rc::new(RefCell::new(None));
+    {
         let entered_tracker = entered_tracker.clone();
 
         entered
@@ -243,8 +245,6 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
                 *entered_tracker.borrow_mut() = Some(node);
             })
             .done();
-
-        renamed.connect(move || renamed_count.set(renamed_count.get() + 1));
     }
 
     // Apply changes, triggering signals.
@@ -278,9 +278,14 @@ fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
     // Add to tree, so signals are propagated.
     ctx.scene_tree.clone().add_child(&node);
 
-    //node.signals().renamed().connect()
+    let mut sig = node.signals().renamed();
+    sig.connect_self(|this: &mut Emitter| {
+        this.last_received_int = 887;
+    });
 
     node.set_name("new name");
+
+    assert_eq!(node.bind().last_received_int, 887);
 
     // Remove from tree for other tests.
     node.free();

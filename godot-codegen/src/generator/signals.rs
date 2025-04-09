@@ -113,13 +113,12 @@ fn make_with_signals_impl(
         #use_statement
         impl crate::obj::WithSignals for #class_name {
             type SignalCollection<'c> = #collection_struct_name<'c, Self>;
-            #[doc(hidden)]
-            type __SignalObject<'c> = Gd<Self>;
+            type __SignalObj<'c> = Gd<Self>;
 
             #[doc(hidden)]
-            fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
+            fn __signals_from_external(gd_mut: &mut Gd<Self>) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
-                    __gd: external,
+                    __internal_obj: gd_mut.clone(),
                 }
             }
         }
@@ -155,9 +154,9 @@ fn make_signal_collection(
         quote! {
             // Important to return lifetime 'c here, not '_.
             #[doc = #provider_docs]
-            pub fn #signal_name(&mut self) -> #individual_struct_name<'c> {
+            pub fn #signal_name(self) -> #individual_struct_name<'c> {
                 #individual_struct_name {
-                    typed: TypedSignal::new(self.__gd.clone(), #signal_name_str)
+                    typed: TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
             }
         }
@@ -172,11 +171,10 @@ fn make_signal_collection(
         #[doc = #collection_docs]
         // C is needed for signals of derived classes that are upcast via Deref; C in that class is the derived class.
         pub struct #collection_struct_name<'c, C = #class_name>
-        where C: crate::obj::GodotClass
+        where C: crate::obj::WithSignals
         {
-            // This one could be changed to Gd<Object> to reduce code bloat.
             #[doc(hidden)]
-            pub __gd: &'c mut Gd<C>,
+            pub(crate) __internal_obj: C::__SignalObj<'c>,
         }
 
         impl<'c> #collection_struct_name<'c> {

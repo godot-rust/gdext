@@ -466,10 +466,10 @@ fn report_call_error(call_error: CallError, track_globally: bool) -> i32 {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Signal helpers
 
-pub fn rebuild_gd<T>(object_ref: &classes::Object) -> Gd<T> {
+pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
     let ptr = object_ref.__object_ptr();
 
-    // SAFETY: ptr comes from valid internal API.
+    // SAFETY: ptr comes from valid internal API (and is non-null, so unwrap in from_obj_sys won't fail).
     unsafe { Gd::from_obj_sys(ptr) }
 }
 
@@ -484,7 +484,8 @@ where
     let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c>>();
 
     // SAFETY:
-    // - Signal collections have all the same memory layout, independent of their enclosing class.
+    // - Signal collections have the same memory layout, independent of their enclosing class. (While they may differ depending on
+    //   internal/external usage, upcasts
     // - The `Inherits` bound additionally ensures that all signals present in Base are also present in Derived, i.e.
     //   reducing the collection to a smaller subset of signals is safe.
     // - The lifetimes remain unchanged.
@@ -501,11 +502,7 @@ where
     let derived_collection_ptr = std::ptr::from_mut(derived);
     let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c>>();
 
-    // SAFETY:
-    // - Signal collections have all the same memory layout, independent of their enclosing class.
-    // - The `Inherits` bound additionally ensures that all signals present in Base are also present in Derived, i.e.
-    //   reducing the collection to a smaller subset of signals is safe.
-    // - The lifetimes remain unchanged.
+    // SAFETY: see upcast_signal_collection.
     unsafe { &mut *base_collection_ptr }
 }
 

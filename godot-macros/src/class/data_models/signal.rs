@@ -309,9 +309,8 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
         pub struct #collection_struct_name<'c, C = #class_name>
         where C: ::godot::obj::GodotClass
         {
-            // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
             #[doc(hidden)] // Necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
-            __internal_obj: ::godot::register::UserSignalObj<'c, C>
+            __internal_obj: ::godot::register::UserSignalObject<'c, C>
         }
 
         impl<'c> #collection_struct_name<'c> {
@@ -331,12 +330,14 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
         impl ::godot::obj::WithSignals for #class_name {
             type SignalCollection<'c> = #collection_struct_name<'c, Self>;
             #[doc(hidden)]
-            type __SignalObject<'c> = ::godot::register::UserSignalObj<'c, Self>;
+            type __SignalObj<'c> = ::godot::register::UserSignalObject<'c, Self>;
 
             #[doc(hidden)]
             fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
-                    __internal_obj: ::godot::register::UserSignalObj::External { gd: external.clone() }
+                    __internal_obj: ::godot::register::UserSignalObject::External {
+                        gd: external.clone().upcast::<Object>()
+                    }
                 }
             }
         }
@@ -344,7 +345,7 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
         impl ::godot::obj::WithUserSignals for #class_name {
             fn signals(&mut self) -> Self::SignalCollection<'_> {
                 Self::SignalCollection {
-                    __internal_obj: ::godot::register::UserSignalObj::Internal { obj_mut: self }
+                    __internal_obj: ::godot::register::UserSignalObject::Internal { self_mut: self }
                 }
             }
         }
