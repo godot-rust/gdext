@@ -62,7 +62,8 @@ pub fn make_class_signals(
     let with_signals_impl =
         make_with_signals_impl(class_name, &nearest_collection_name, nearest_class.as_ref());
 
-    let deref_impl = has_own_signals.then(|| make_upcast_deref_impl(class_name, &nearest_collection_name));
+    let deref_impl =
+        has_own_signals.then(|| make_upcast_deref_impl(class_name, &nearest_collection_name));
 
     let code = quote! {
         #[cfg(since_api = "4.2")]

@@ -278,8 +278,7 @@ fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
     // Add to tree, so signals are propagated.
     ctx.scene_tree.clone().add_child(&node);
 
-    let mut sig = node.signals();
-    let renamed = sig.renamed();
+    //node.signals().renamed().connect()
 
     node.set_name("new name");
 

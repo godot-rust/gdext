@@ -23,11 +23,11 @@ use std::cell::RefCell;
 use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
+use crate::obj::{Inherits, WithSignals};
 use crate::sys;
 use std::io::Write;
 use std::sync::atomic;
 use sys::Global;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 
@@ -461,6 +461,45 @@ fn report_call_error(call_error: CallError, track_globally: bool) -> i32 {
     } else {
         0
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Signal helpers
+
+pub fn upcast_signal_collection<'r, 'c, Derived, Base>(
+    derived: &'r Derived::SignalCollection<'c>,
+) -> &'r Base::SignalCollection<'c>
+where
+    Derived: WithSignals + Inherits<Base>,
+    Base: WithSignals,
+{
+    let derived_collection_ptr = std::ptr::from_ref(derived);
+    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c>>();
+
+    // SAFETY:
+    // - Signal collections have all the same memory layout, independent of their enclosing class.
+    // - The `Inherits` bound additionally ensures that all signals present in Base are also present in Derived, i.e.
+    //   reducing the collection to a smaller subset of signals is safe.
+    // - The lifetimes remain unchanged.
+    unsafe { &*base_collection_ptr }
+}
+
+pub fn upcast_signal_collection_mut<'r, 'c, Derived, Base>(
+    derived: &'r mut Derived::SignalCollection<'c>,
+) -> &'r mut Base::SignalCollection<'c>
+where
+    Derived: WithSignals + Inherits<Base>,
+    Base: WithSignals,
+{
+    let derived_collection_ptr = std::ptr::from_mut(derived);
+    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c>>();
+
+    // SAFETY:
+    // - Signal collections have all the same memory layout, independent of their enclosing class.
+    // - The `Inherits` bound additionally ensures that all signals present in Base are also present in Derived, i.e.
+    //   reducing the collection to a smaller subset of signals is safe.
+    // - The lifetimes remain unchanged.
+    unsafe { &mut *base_collection_ptr }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
