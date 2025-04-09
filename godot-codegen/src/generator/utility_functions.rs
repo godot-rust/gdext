@@ -46,7 +46,7 @@ pub(crate) fn make_utility_function_definition(function: &UtilityFunction) -> To
     let ptrcall_invocation = quote! {
         let utility_fn = sys::utility_function_table().#function_ident;
 
-        <CallSig as PtrcallSignatureTuple>::out_utility_ptrcall(
+        Signature::<CallParams, CallRet>::out_utility_ptrcall(
             utility_fn,
             #function_name_str,
             args
@@ -56,7 +56,7 @@ pub(crate) fn make_utility_function_definition(function: &UtilityFunction) -> To
     let varcall_invocation = quote! {
         let utility_fn = sys::utility_function_table().#function_ident;
 
-        <CallSig as VarcallSignatureTuple>::out_utility_ptrcall_varargs(
+        Signature::<CallParams, CallRet>::out_utility_ptrcall_varargs(
             utility_fn,
             #function_name_str,
             args,
