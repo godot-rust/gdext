@@ -14,9 +14,9 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::array;
 use crate::builtin::string::Encoding;
 use crate::builtin::{inner, NodePath, StringName, Variant};
+use crate::global::str;
 use crate::meta::error::StringError;
 use crate::meta::AsArg;
 use crate::meta::ToGodot;
@@ -323,7 +323,7 @@ impl<'a, 'b> Add<&'b GString> for &'a GString {
     type Output = GString;
 
     fn add(self, other: &'b GString) -> GString {
-        GString::from("{0}{1}").format(&array![self, other].to_variant())
+        str(&[self.to_variant(), other.to_variant()])
     }
 }
 
@@ -331,7 +331,7 @@ impl<'a> Add<GString> for &'a GString {
     type Output = GString;
 
     fn add(self, other: GString) -> GString {
-        GString::from("{0}{1}").format(&array![self, &other].to_variant())
+        str(&[self.to_variant(), other.to_variant()])
     }
 }
 
@@ -339,7 +339,7 @@ impl<'b> Add<&'b GString> for GString {
     type Output = GString;
 
     fn add(self, other: &'b GString) -> GString {
-        GString::from("{0}{1}").format(&array![&self, other].to_variant())
+        str(&[self.to_variant(), other.to_variant()])
     }
 }
 
