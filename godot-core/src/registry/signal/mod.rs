@@ -8,8 +8,11 @@
 mod connect_builder;
 mod typed_signal;
 pub(crate) mod variadic;
+mod signal_object;
 
 pub use connect_builder::*;
 pub use typed_signal::*;
 pub use variadic::SignalReceiver;
+pub use signal_object::{SignalObject, SignalColl};
+
 // ParamTuple re-exported in crate::meta.

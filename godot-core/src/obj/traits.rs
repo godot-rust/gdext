@@ -448,11 +448,6 @@ pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
     /// `'c` denotes the lifetime during which the class instance is borrowed and its signals can be modified.
     type SignalCollection<'c>;
 
-    /// Trait that allows [`TypedSignal`] to store a reference to the user object.
-    #[doc(hidden)]
-    #[expect(private_bounds)]
-    type __SignalObject<'c>: crate::registry::signal::SignalObj;
-
     /// Create from existing `Gd`, to enable `Gd::signals()`.
     ///
     /// Takes by reference and not value, to retain lifetime chain.

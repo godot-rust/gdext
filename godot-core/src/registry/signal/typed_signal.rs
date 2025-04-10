@@ -7,59 +7,12 @@
 
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
+use crate::meta;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithBaseField, WithSignals, WithUserSignals};
 use crate::registry::signal::{make_callable_name, make_godot_fn, ConnectBuilder, SignalReceiver};
-use crate::{classes, meta};
 use std::borrow::Cow;
 use std::marker::PhantomData;
-
-/// Indirection from [`TypedSignal`] to the actual Godot object.
-///
-/// Needs to differentiate the two cases:
-/// - `C` is a user object implementing `WithBaseField`, possibly having access from within the class.
-/// - `C` is an engine object, so only accessible through `Gd<C>`.
-pub(crate) trait SignalObj {
-    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object));
-    fn to_owned_object(&self) -> Gd<classes::Object>;
-}
-
-/// Links to a Godot object, either via reference (for `&mut self` uses) or via `Gd`.
-#[doc(hidden)]
-pub enum UserSignalObj<'a> {
-    /// Helpful for emit: reuse `&mut self` from within the `impl` block, goes through `base_mut()` re-borrowing and thus allows re-entrant calls
-    /// through Godot.
-    Internal { obj_mut: &'a mut classes::Object },
-
-    /// From outside, based on `Gd` pointer.
-    External { gd: Gd<classes::Object> },
-}
-
-impl SignalObj for UserSignalObj<'_> {
-    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object)) {
-        match self {
-            UserSignalObj::Internal { obj_mut } => f(*obj_mut),
-            UserSignalObj::External { gd } => f(gd.upcast_object_mut()),
-        }
-    }
-
-    fn to_owned_object(&self) -> Gd<classes::Object> {
-        match self {
-            UserSignalObj::Internal { obj_mut } => crate::private::rebuild_gd(*obj_mut),
-            UserSignalObj::External { gd } => gd.clone(),
-        }
-    }
-}
-
-impl SignalObj for Gd<classes::Object> {
-    fn with_object_mut(&mut self, f: impl FnOnce(&mut classes::Object)) {
-        f(self.upcast_object_mut());
-    }
-
-    fn to_owned_object(&self) -> Gd<classes::Object> {
-        self.clone()
-    }
-}
-
+use crate::registry::signal::signal_object::SignalObject;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Object part of the signal receiver (handler).
@@ -110,17 +63,19 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 /// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a detailed introduction and examples.
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
-    owner: C::__SignalObject<'c>,
+    owner: SignalObject<'c>,
     name: Cow<'static, str>,
+    _object: PhantomData<C>,
     _signature: PhantomData<Ps>,
 }
 
 impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     #[doc(hidden)]
-    pub fn new(owner: C::__SignalObject<'c>, name: &'static str) -> Self {
+    pub fn new(owner: SignalObject<'c>, name: &'static str) -> Self {
         Self {
             owner,
             name: Cow::Borrowed(name),
+            _object: PhantomData,
             _signature: PhantomData,
         }
     }

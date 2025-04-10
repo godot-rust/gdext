@@ -330,8 +330,6 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
     quote! {
         impl ::godot::obj::WithSignals for #class_name {
             type SignalCollection<'c> = #collection_struct_name<'c, Self>;
-            #[doc(hidden)]
-            type __SignalObject<'c> = ::godot::register::UserSignalObj<'c>;
 
             #[doc(hidden)]
             fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
