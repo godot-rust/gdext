@@ -215,11 +215,15 @@ impl SignalCollection {
             //
             // However, it would still lead to a compile error when declaring the individual signal struct `pub` (or any other
             // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
-            #vis_marker fn #signal_name(self) -> #individual_struct_name<'c, C> {
+            #vis_marker fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
                     // __typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
-                    __typed: ::godot::register::TypedSignal::<'c, C, _>::new(self.__internal_obj, #signal_name_str)
+                    // __typed: ::godot::register::TypedSignal::<'c, C, _>::new(self.__internal_obj, #signal_name_str)
                     // __typed: todo!()
+
+                    // __typed: self.__internal_obj.into_typed_signal(#signal_name_str)
+                    __typed: ::godot::register::TypedSignal::<'c, C, _>::extract(&mut self.__internal_obj, #signal_name_str)
+
                 }
             }
         });
@@ -315,10 +319,14 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
         //     C: ::godot::obj::GodotClass // minimal bounds; could technically be WithUserSignals
         {
             #[doc(hidden)] // Necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
-            __internal_obj: ::godot::register::UserSignalObject<'c, C>
+            __internal_obj: Option<::godot::register::UserSignalObject<'c, C>>
         }
 
-        impl<'c, C: ::godot::obj::WithSignals> #collection_struct_name<'c, C> {
+        impl<'c, C> #collection_struct_name<'c, C>
+        where // bounds: see UserSignalObject::into_typed_signal().
+            C: ::godot::obj::WithUserSignals +
+               ::godot::obj::WithSignals<__SignalObj<'c> = ::godot::register::UserSignalObject<'c, C>>,
+        {
             #( #collection_struct_methods )*
         }
 
@@ -341,9 +349,9 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
             #[doc(hidden)]
             fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: ::godot::register::UserSignalObject::External {
+                    __internal_obj: Some(::godot::register::UserSignalObject::External {
                         gd: external.clone().upcast::<Object>()
-                    }
+                    })
                 }
             }
         }
@@ -351,7 +359,7 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
         impl ::godot::obj::WithUserSignals for #class_name {
             fn signals(&mut self) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: ::godot::register::UserSignalObject::Internal { self_mut: self }
+                    __internal_obj: Some(::godot::register::UserSignalObject::Internal { self_mut: self })
                 }
             }
         }

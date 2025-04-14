@@ -38,7 +38,11 @@ pub enum UserSignalObject<'c, C> {
     External { gd: Gd<Object> },
 }
 
-impl<'c, C: WithUserSignals> UserSignalObject<'c, C> {
+impl<'c, C> UserSignalObject<'c, C>
+where
+    // 2nd bound necessary, so generics match for TypedSignal construction.
+    C: WithUserSignals + WithSignals<__SignalObj<'c> = UserSignalObject<'c, C>>,
+{
     #[inline]
     pub fn from_external(object: Gd<C>) -> Self {
         Self::External {

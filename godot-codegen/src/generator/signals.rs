@@ -122,7 +122,7 @@ fn make_with_signals_impl(
             #[doc(hidden)]
             fn __signals_from_external(gd_mut: &mut Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: gd_mut.clone(),
+                    __internal_obj: Some(gd_mut.clone()),
                 }
             }
         }
@@ -158,9 +158,9 @@ fn make_signal_collection(
         quote! {
             // Important to return lifetime 'c here, not '_.
             #[doc = #provider_docs]
-            pub fn #signal_name(self) -> #individual_struct_name<'c, C> {
+            pub fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
-                    typed: TypedSignal::new(self.__internal_obj, #signal_name_str)
+                    typed: TypedSignal::extract(&mut self.__internal_obj, #signal_name_str)
                 }
             }
         }
@@ -177,7 +177,7 @@ fn make_signal_collection(
         pub struct #collection_struct_name<'c, C: WithSignals = #class_name>
         {
             #[doc(hidden)]
-            pub(crate) __internal_obj: C::__SignalObj<'c>,
+            pub(crate) __internal_obj: Option<C::__SignalObj<'c>>,
         }
 
         impl<'c, C: WithSignals> #collection_struct_name<'c, C> {
