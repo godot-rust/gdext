@@ -265,7 +265,7 @@ fn make_onready_init(all_fields: &[Field]) -> TokenStream {
     if !onready_fields.is_empty() {
         quote! {
             {
-                let base = <Self as godot::obj::WithBaseField>::to_gd(self).upcast();
+                let base = <Self as ::godot::obj::WithBaseField>::to_gd(self).upcast();
                 #( #onready_fields )*
             }
         }
