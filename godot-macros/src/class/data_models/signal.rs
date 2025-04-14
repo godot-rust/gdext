@@ -218,8 +218,10 @@ impl SignalCollection {
             #vis_marker fn #signal_name(self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
                     // __typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
-                    __typed: ::godot::register::TypedSignal::<'c, C, _>::new(self.__internal_obj, #signal_name_str)
+                    // __typed: ::godot::register::TypedSignal::<'c, C, _>::new(self.__internal_obj, #signal_name_str)
                     // __typed: todo!()
+
+                    __typed: self.__internal_obj.into_typed_signal(#signal_name_str)
                 }
             }
         });
@@ -318,7 +320,11 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
             __internal_obj: ::godot::register::UserSignalObject<'c, C>
         }
 
-        impl<'c, C: ::godot::obj::WithSignals> #collection_struct_name<'c, C> {
+        impl<'c, C> #collection_struct_name<'c, C>
+        where // bounds: see UserSignalObject::into_typed_signal().
+            C: ::godot::obj::WithUserSignals,
+            C: ::godot::obj::WithSignals<__SignalObj<'c> = ::godot::register::UserSignalObject<'c, C>>,
+        {
             #( #collection_struct_methods )*
         }
 

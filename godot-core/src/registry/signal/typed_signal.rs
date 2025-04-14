@@ -70,8 +70,9 @@ pub struct TypedSignal<'c, C: WithSignals, Ps> {
 }
 
 impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
-    #[doc(hidden)]
-    pub fn new(object: C::__SignalObj<'c>, name: &'static str) -> Self {
+    // Currently only invoked from godot-core classes, or from UserSignalObject::into_typed_signal.
+    // When making public, make also #[doc(hidden)].
+    pub(crate) fn new(object: C::__SignalObj<'c>, name: &'static str) -> Self {
         Self {
             object,
             name: Cow::Borrowed(name),

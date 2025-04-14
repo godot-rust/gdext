@@ -158,7 +158,7 @@ fn make_signal_collection(
         quote! {
             // Important to return lifetime 'c here, not '_.
             #[doc = #provider_docs]
-            pub fn #signal_name(self) -> #individual_struct_name<'c, C> {
+            pub fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
                     typed: TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
