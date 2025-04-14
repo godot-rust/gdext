@@ -100,23 +100,27 @@ fn make_with_signals_impl(
     collection_struct_name: &Ident,
     nearest_class: Option<&TyName>, // None if own class has signals.
 ) -> TokenStream {
+    let base_use_statement = quote! { use crate::obj::WithSignals; };
     let use_statement = if let Some(nearest_class) = nearest_class {
         let module_name = ModName::from_godot(&nearest_class.godot_ty);
         quote! {
+            #base_use_statement
             use crate::classes::#module_name::#collection_struct_name;
         }
     } else {
-        TokenStream::new()
+        base_use_statement
     };
 
     quote! {
         #use_statement
-        impl crate::obj::WithSignals for #class_name {
-            type SignalCollection<'c> = #collection_struct_name<'c, Self>;
+        impl WithSignals for #class_name {
+            type SignalCollection<'c, C: WithSignals> = #collection_struct_name<'c, C>;
             type __SignalObj<'c> = Gd<Self>;
+            // type __SignalObj<'c, C: WithSignals> = Gd<Self>;
 
+            // During construction, C = Self.
             #[doc(hidden)]
-            fn __signals_from_external(gd_mut: &mut Gd<Self>) -> Self::SignalCollection<'_> {
+            fn __signals_from_external(gd_mut: &mut Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
                     __internal_obj: gd_mut.clone(),
                 }
@@ -154,7 +158,7 @@ fn make_signal_collection(
         quote! {
             // Important to return lifetime 'c here, not '_.
             #[doc = #provider_docs]
-            pub fn #signal_name(self) -> #individual_struct_name<'c> {
+            pub fn #signal_name(self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
                     typed: TypedSignal::new(self.__internal_obj, #signal_name_str)
                 }
@@ -170,14 +174,13 @@ fn make_signal_collection(
     let code = quote! {
         #[doc = #collection_docs]
         // C is needed for signals of derived classes that are upcast via Deref; C in that class is the derived class.
-        pub struct #collection_struct_name<'c, C = #class_name>
-        where C: crate::obj::WithSignals
+        pub struct #collection_struct_name<'c, C: WithSignals = #class_name>
         {
             #[doc(hidden)]
             pub(crate) __internal_obj: C::__SignalObj<'c>,
         }
 
-        impl<'c> #collection_struct_name<'c> {
+        impl<'c, C: WithSignals> #collection_struct_name<'c, C> {
             #( #provider_methods )*
         }
     };
@@ -192,19 +195,20 @@ fn make_upcast_deref_impl(class_name: &TyName, collection_struct_name: &Ident) -
     }
 
     quote! {
-         impl<'c> std::ops::Deref for #collection_struct_name<'c> {
+         impl<'c, C: WithSignals> std::ops::Deref for #collection_struct_name<'c, C> {
+            // The whole upcast mechanism is based on C remaining the same even through upcast.
             type Target = <
                 <
                     #class_name as crate::obj::GodotClass
-                >::Base as crate::obj::WithSignals
-            >::SignalCollection<'c>;
+                >::Base as WithSignals
+            >::SignalCollection<'c, C>;
 
             fn deref(&self) -> &Self::Target {
                 todo!()
             }
         }
 
-        impl<'c> std::ops::DerefMut for #collection_struct_name<'c> {
+        impl<'c, C: WithSignals> std::ops::DerefMut for #collection_struct_name<'c, C> {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 todo!()
             }
@@ -230,10 +234,10 @@ fn make_signal_individual_struct(signal: &ClassSignal, params: &SignalParams) ->
     // Embedded in `mod signals`.
     quote! {
         // Reduce tokens to parse by reusing this type definitions.
-        type #typed_name<'c> = TypedSignal<'c, #class_ty, #param_tuple>;
+        type #typed_name<'c, C> = TypedSignal<'c, C, #param_tuple>;
 
-        pub struct #individual_struct_name<'c> {
-           typed: #typed_name<'c>,
+        pub struct #individual_struct_name<'c, C: WithSignals = #class_ty> {
+           typed: #typed_name<'c, C>,
         }
 
         impl<'c> #individual_struct_name<'c> {
@@ -242,15 +246,15 @@ fn make_signal_individual_struct(signal: &ClassSignal, params: &SignalParams) ->
             }
         }
 
-        impl<'c> std::ops::Deref for #individual_struct_name<'c> {
-            type Target = #typed_name<'c>;
+        impl<'c, C: WithSignals> std::ops::Deref for #individual_struct_name<'c, C> {
+            type Target = #typed_name<'c, C>;
 
             fn deref(&self) -> &Self::Target {
                 &self.typed
             }
         }
 
-        impl std::ops::DerefMut for #individual_struct_name<'_> {
+        impl<C: WithSignals> std::ops::DerefMut for #individual_struct_name<'_, C> {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.typed
             }
