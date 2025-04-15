@@ -77,9 +77,41 @@ mod depend_on_custom {
 pub use depend_on_custom::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Custom mode: Generate all files based on user provided JSON.
+
+#[cfg(feature = "api-custom-json")]
+#[path = ""]
+mod depend_on_custom_json {
+    use super::*;
+
+    use std::borrow::Cow;
+
+    pub(crate) mod godot_json;
+    pub(crate) mod godot_version;
+    pub(crate) mod header_gen;
+
+    pub fn load_gdextension_json(watch: &mut StopWatch) -> Cow<'static, str> {
+        let result = godot_json::load_custom_gdextension_json();
+        watch.record("read_api_json");
+        Cow::Owned(result)
+    }
+
+    pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
+        godot_json::write_gdextension_headers(h_path, rs_path, watch);
+    }
+
+    pub(crate) fn get_godot_version() -> GodotVersion {
+        godot_json::read_godot_version()
+    }
+}
+
+#[cfg(feature = "api-custom-json")]
+pub use depend_on_custom_json::*;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Prebuilt mode: Reuse existing files
 
-#[cfg(not(feature = "api-custom"))]
+#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
 #[path = ""]
 mod depend_on_prebuilt {
     use super::*;
@@ -121,7 +153,7 @@ mod depend_on_prebuilt {
     }
 }
 
-#[cfg(not(feature = "api-custom"))]
+#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
 pub use depend_on_prebuilt::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

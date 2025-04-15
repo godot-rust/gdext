@@ -19,6 +19,7 @@ experimental-wasm-nothreads = ["godot-bindings/experimental-wasm-nothreads"]
 debug-log = []
 
 api-custom = ["godot-bindings/api-custom"]
+api-custom-json = ["godot-bindings/api-custom-json"]
 # [version-sync] [[
 #  [line] api-$kebabVersion = ["godot-bindings/api-$kebabVersion"]
 api-4-1 = ["godot-bindings/api-4-1"]
