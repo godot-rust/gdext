@@ -11,9 +11,7 @@
 //
 
 use crate::classes::Object;
-use crate::meta;
 use crate::obj::{Gd, WithBaseField, WithSignals, WithUserSignals};
-use crate::registry::signal::TypedSignal;
 
 /// Indirection from [`TypedSignal`] to the actual Godot object.
 #[doc(hidden)]
@@ -55,13 +53,6 @@ where
     #[inline]
     pub fn from_internal(self_mut: &'c mut C) -> Self {
         Self::Internal { self_mut }
-    }
-
-    pub fn into_typed_signal<Ps: meta::ParamTuple>(
-        self,
-        signal_name: &'static str,
-    ) -> TypedSignal<'c, C, Ps> {
-        TypedSignal::new(self, signal_name)
     }
 }
 
