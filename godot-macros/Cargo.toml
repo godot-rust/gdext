@@ -12,6 +12,7 @@ homepage = "https://godot-rust.github.io"
 
 [features]
 api-custom = ["godot-bindings/api-custom"]
+api-custom-json = ["godot-bindings/api-custom-json"]
 codegen-full = ["godot/__codegen-full"]
 experimental-wasm = ["dep:libc"]
 register-docs = ["dep:markdown", "dep:litrs"]

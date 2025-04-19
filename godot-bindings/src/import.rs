@@ -68,7 +68,7 @@ pub use gdextension_api::version_4_4 as prebuilt;
 // [version-sync] [[
 //  [line] \tfeature = "api-$kebabVersion",
 //  [pre] #[cfg(not(any(
-//  [post] \tfeature = "api-custom",\n)))]
+//  [post] \tfeature = "api-custom",\n\tfeature = "api-custom-json",\n)))]
 #[cfg(not(any(
     feature = "api-4-1",
     feature = "api-4-1-1",
@@ -81,6 +81,7 @@ pub use gdextension_api::version_4_4 as prebuilt;
     feature = "api-4-3",
     feature = "api-4-4",
     feature = "api-custom",
+    feature = "api-custom-json",
 )))]
 // ]]
 // [version-sync] [[
