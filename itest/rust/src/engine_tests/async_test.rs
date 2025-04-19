@@ -9,6 +9,7 @@ use std::ops::Deref;
 
 use godot::builtin::{array, Array, Callable, Signal, Variant};
 use godot::classes::{Object, RefCounted};
+use godot::global::godot_error;
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::prelude::{godot_api, GodotClass};
@@ -163,6 +164,8 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
 #[cfg(feature = "experimental-threads")]
 #[itest(async)]
 fn signal_future_send_arg_no_panic() -> TaskHandle {
+    use godot::global::godot_warn;
+
     use crate::framework::ThreadCrosser;
 
     let mut object = RefCounted::new_gd();
@@ -179,9 +182,12 @@ fn signal_future_send_arg_no_panic() -> TaskHandle {
     let object = ThreadCrosser::new(object);
 
     std::thread::spawn(move || {
+        godot_error!("accessing signal object...");
         let mut object = unsafe { object.extract() };
 
-        object.emit_signal("custom_signal", &[1u8.to_variant()])
+        godot_error!("emitting custom_signal...");
+        object.emit_signal("custom_signal", &[1u8.to_variant()]);
+        godot_error!("emit is done!");
     });
 
     handle
