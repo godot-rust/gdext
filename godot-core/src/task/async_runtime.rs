@@ -371,6 +371,7 @@ impl WithRuntime for LocalKey<RefCell<Option<AsyncRuntime>>> {
 fn poll_future(godot_waker: Arc<GodotWaker>) {
     let current_thread = thread::current().id();
 
+    eprintln!("asserting thread placement...");
     assert_eq!(
         godot_waker.thread_id,
         current_thread,
@@ -379,8 +380,11 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         godot_waker.thread_id,
     );
 
+    eprintln!("creating new generic waker instance...");
     let waker = Waker::from(godot_waker.clone());
     let mut ctx = Context::from_waker(&waker);
+
+    eprintln!("getting future from runtime...");
 
     // Move future out of the runtime while we are polling it to avoid holding a mutable reference for the entire runtime.
     let future = ASYNC_RUNTIME.with_runtime_mut(|rt| {
@@ -398,6 +402,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
             FutureSlotState::Pending(future) => Some(future),
         }
     });
+    eprintln!("got future from runtime...");
 
     let Some(future) = future else {
         // Future has been canceled while the waker was already triggered.
@@ -410,11 +415,14 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     // thus any state that may not have been unwind-safe cannot be observed later.
     let mut future = AssertUnwindSafe(future);
 
-    let panic_result = handle_panic(error_context, move || {
-        (future.as_mut().poll(&mut ctx), future)
-    });
+    eprintln!("starting to poll future...");
+    let panic_result: Result<_, ()> = // handle_panic(error_context, move || {
+        Ok((future.as_mut().poll(&mut ctx), future));
+    //});
+    eprintln!("future poll done, looking at result...");
 
     let Ok((poll_result, future)) = panic_result else {
+        eprintln!("future poll paniced!");
         // Polling the future caused a panic. The task state has to be cleaned up and we want track the panic if the trace feature is enabled.
         ASYNC_RUNTIME.with_runtime_mut(|rt| {
             #[cfg(feature = "trace")]
@@ -425,6 +433,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         return;
     };
 
+    eprintln!("poll was successfull...");
     // Update the state of the Future in the runtime.
     ASYNC_RUNTIME.with_runtime_mut(|rt| match poll_result {
         // Future is still pending, so we park it again.
@@ -475,7 +484,9 @@ impl Wake for GodotWaker {
         let callable = create_callable(
             "GodotWaker::wake",
             callback_type_hint(move |_args| {
+                eprintln!("GodotWaker deferred wake!");
                 poll_future(waker.take().expect("Callable will never be called again"));
+                eprintln!("GodotWaker Future poll done!");
                 Ok(Variant::nil())
             }),
         );

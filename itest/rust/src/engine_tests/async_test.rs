@@ -174,20 +174,23 @@ fn signal_future_send_arg_no_panic() -> TaskHandle {
     object.add_user_signal("custom_signal");
 
     let handle = task::spawn(async move {
+        eprintln!("inside async task...");
         let (value,) = signal.to_future::<(u8,)>().await;
 
+        eprintln!("awaited signal...");
         assert_eq!(value, 1);
+        eprintln!("assertion complete!");
     });
 
     let object = ThreadCrosser::new(object);
 
     std::thread::spawn(move || {
-        godot_error!("accessing signal object...");
+        eprintln!("accessing signal object...");
         let mut object = unsafe { object.extract() };
 
-        godot_error!("emitting custom_signal...");
+        eprintln!("emitting custom_signal...");
         object.emit_signal("custom_signal", &[1u8.to_variant()]);
-        godot_error!("emit is done!");
+        eprintln!("emit is done!");
     });
 
     handle

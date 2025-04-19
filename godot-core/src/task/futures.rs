@@ -45,12 +45,23 @@ impl<R: ParamTuple + IntoDynamicSend> Future for SignalFuture<R> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let poll_result = self.get_mut().0.poll(cx);
 
+        eprintln!("got fallible poll result...");
+
         match poll_result {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Ok(value)) => Poll::Ready(value),
-            Poll::Ready(Err(FallibleSignalFutureError)) => panic!(
-                "the signal object of a SignalFuture was freed, while the future was still waiting for the signal to be emitted"
-            ),
+            Poll::Pending => {
+                eprintln!("poll result is pending!");
+                Poll::Pending
+            }
+            Poll::Ready(Ok(value)) => {
+                eprintln!("poll result is ready!");
+                Poll::Ready(value)
+            }
+            Poll::Ready(Err(FallibleSignalFutureError)) => {
+                eprintln!("fallible future returned an error!");
+                panic!(
+                            "the signal object of a SignalFuture was freed, while the future was still waiting for the signal to be emitted"
+                        )
+            }
         }
     }
 }
@@ -111,6 +122,7 @@ impl<R: IntoDynamicSend> PartialEq for SignalFutureResolver<R> {
 
 impl<R: ParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R> {
     fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
+        eprintln!("signal was emitted...");
         let waker = {
             let mut data = match self.data.lock() {
                 Ok(guard) => guard,
@@ -119,16 +131,21 @@ impl<R: ParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R> {
                     return Err(());
                 }
             };
+            eprintln!("aquired mutex lock...");
+
             data.state = SignalFutureState::Ready(R::from_variant_array(args).into_dynamic_send());
 
+            eprintln!("future state was updated...");
             // We no longer need the waker after we resolved. If the future is polled again, we'll also get a new waker.
             data.waker.take()
         };
 
+        eprintln!("trigger waker...");
         if let Some(waker) = waker {
             waker.wake();
         }
 
+        eprintln!("signal handled!");
         Ok(Variant::nil())
     }
 }
@@ -202,6 +219,7 @@ pub struct FallibleSignalFuture<R: ParamTuple + IntoDynamicSend> {
 
 impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
     fn new(signal: Signal) -> Self {
+        eprintln!("creating new signal future...");
         debug_assert!(
             !signal.is_null(),
             "Failed to create a future for an invalid Signal!\nEither the signal object was already freed or the signal was not registered in the object before using it.",
@@ -212,11 +230,13 @@ impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
         // The callable currently requires that the return value is Sync + Send.
         let callable = SignalFutureResolver::new(data.clone());
 
+        eprintln!("connecting future to signal...");
         signal.connect(
             &Callable::from_custom(callable.clone()),
             ConnectFlags::ONE_SHOT.ord() as i64,
         );
 
+        eprintln!("signal future is ready!");
         Self {
             data,
             callable,
@@ -224,6 +244,8 @@ impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
         }
     }
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<Result<R, FallibleSignalFutureError>> {
+        eprintln!("polling FallibleSignalFuture...");
+
         let mut data = match self.data.lock() {
             Ok(guard) => guard,
             Err(err) => {
@@ -232,9 +254,12 @@ impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
             }
         };
 
+        eprintln!("got mutex lock...");
         data.waker.replace(cx.waker().clone());
+        eprintln!("updated waker!");
 
         let value = data.state.take();
+        eprintln!("Got future state!");
 
         // Drop the data mutex lock to prevent the mutext from getting poisoned by the potential later panic.
         drop(data);
@@ -244,9 +269,13 @@ impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
             SignalFutureState::Dropped => unreachable!(),
             SignalFutureState::Dead => Poll::Ready(Err(FallibleSignalFutureError)),
             SignalFutureState::Ready(value) => {
+                eprintln!("signal future is ready!");
                 let Some(value) = DynamicSend::extract_if_safe(value) else {
+                    eprintln!("signal future is not safe!");
                     panic!("the awaited signal was not emitted on the main-thread, but contained a non Send argument");
                 };
+
+                eprintln!("signal future is now ready!");
 
                 Poll::Ready(Ok(value))
             }
