@@ -51,7 +51,7 @@ runs:
         fi
         
         curl "$url" -Lo artifact.zip --retry 3
-        unzip artifact.zip -d $RUNNER_DIR/godot_bin
+        unzip -q artifact.zip -d $RUNNER_DIR/godot_bin
       shell: bash
 
     - name: "Prepare Godot executable"
