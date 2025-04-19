@@ -22,14 +22,13 @@ members = [
 gdextension-api = { version = "0.2.2", git = "https://github.com/godot-rust/godot4-prebuilt", branch = "releases" }
 
 # Main library features.
-glam = { version = "0.28", features = ["debug-glam-assert"] }
+glam = { version = "0.30", features = ["debug-glam-assert"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Related to tooling/build setup.
 # * regex: not used for unicode parsing -> features unicode-bool + unicode-gencat are enabled instead of unicode-perl.
 #          'unicode-gencat' needed for \d, see https://docs.rs/regex/latest/regex/#unicode-features.
-# * bindgen: version 0.69 had regression that forced recompilation of code. We used 0.68 for quite a while, need to see if problem persists.
 bindgen = { version = "0.71", default-features = false, features = ["runtime"] }
 libc = "0.2.172"
 regex = { version = "1.11", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }
@@ -37,16 +36,18 @@ which = "7"
 
 # Macros and codegen. Minimal versions compatible with -Zminimal-versions.
 # * proc_macro2: Literal::c_string() added in 1.0.80.
+# * quote: 1.0.37 allows tokenizing CStr.
+# * venial: 0.6.1 contains some bugfixes.
 heck = "0.5"
-litrs = "0.4.1"
-markdown = "=1.0.0-alpha.21"
-nanoserde = "0.1.35"
+litrs = "0.4"
+markdown = "=1.0.0-alpha.23"
+nanoserde = "0.2"
 proc-macro2 = "1.0.80"
-quote = "1.0.29"
+quote = "1.0.37"
 venial = "0.6.1"
 
 # Testing (godot-cell, itest).
-proptest = "1.4.0"
+proptest = "1.6.0"
 pin-project-lite = { version = "0.2" }
 
 # Note about Jetbrains IDEs: "IDE Sync" (Refresh Cargo projects) may cause static analysis errors such as
