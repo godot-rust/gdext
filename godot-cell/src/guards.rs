@@ -56,12 +56,17 @@ impl<T> Deref for RefGuard<'_, T> {
 
 impl<T> Drop for RefGuard<'_, T> {
     fn drop(&mut self) {
-        self.state
-            .lock()
-            .unwrap()
-            .borrow_state
-            .decrement_shared()
-            .unwrap();
+        let mut state_lock = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(err) => {
+                eprintln!("Failed to access RefGuardBlocking mutex in Drop implementation! mutex is poisoned: {err}");
+                return;
+            }
+        };
+
+        if let Err(err) = state_lock.borrow_state.decrement_shared() {
+            eprintln!("Unable to decrement shared in RefGuard Drop implementation: {err}");
+        }
     }
 }
 
@@ -179,12 +184,17 @@ impl<T> DerefMut for MutGuard<'_, T> {
 
 impl<T> Drop for MutGuard<'_, T> {
     fn drop(&mut self) {
-        self.state
-            .lock()
-            .unwrap()
-            .borrow_state
-            .decrement_mut()
-            .unwrap();
+        let mut state_lock = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(err) => {
+                eprintln!("Failed to access RefGuardBlocking mutex in Drop implementation! mutex is poisoned: {err}");
+                return;
+            }
+        };
+
+        if let Err(err) = state_lock.borrow_state.decrement_mut() {
+            eprintln!("Unable to decrement mut in RefGuard Drop implementation: {err}");
+        }
     }
 }
 

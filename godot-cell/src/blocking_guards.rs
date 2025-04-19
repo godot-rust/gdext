@@ -45,7 +45,13 @@ impl<'a, T> Deref for RefGuardBlocking<'a, T> {
 
 impl<T> Drop for RefGuardBlocking<'_, T> {
     fn drop(&mut self) {
-        let mut state_lock = self.state.lock().unwrap();
+        let mut state_lock = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(err) => {
+                eprintln!("Failed to access RefGuardBlocking mutex in Drop implementation! mutex is poisoned: {err}");
+                return;
+            }
+        };
 
         state_lock.decrement_current_thread_shared_count();
 
