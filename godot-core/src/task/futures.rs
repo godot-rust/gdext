@@ -112,7 +112,13 @@ impl<R: IntoDynamicSend> PartialEq for SignalFutureResolver<R> {
 impl<R: ParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R> {
     fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
         let waker = {
-            let mut data = self.data.lock().unwrap();
+            let mut data = match self.data.lock() {
+                Ok(guard) => guard,
+                Err(err) => {
+                    godot_error!("Failed to access FallibleSignalFuture mutex in Future implementation! Mutex is poisoned: {err}");
+                    return Err(());
+                }
+            };
             data.state = SignalFutureState::Ready(R::from_variant_array(args).into_dynamic_send());
 
             // We no longer need the waker after we resolved. If the future is polled again, we'll also get a new waker.
@@ -218,7 +224,13 @@ impl<R: ParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
         }
     }
     fn poll(&mut self, cx: &mut Context<'_>) -> Poll<Result<R, FallibleSignalFutureError>> {
-        let mut data = self.data.lock().unwrap();
+        let mut data = match self.data.lock() {
+            Ok(guard) => guard,
+            Err(err) => {
+                godot_error!("Failed to access FallibleSignalFuture mutex in Future implementation! Mutex is poisoned: {err}");
+                return Poll::Pending;
+            }
+        };
 
         data.waker.replace(cx.waker().clone());
 
