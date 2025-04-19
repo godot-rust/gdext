@@ -111,7 +111,10 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     ///
     /// This is intended for generic use. Typically, you'll want to use the more specific `emit()` method of the code-generated signal
     /// type, which also has named parameters.
-    pub fn emit_tuple(&mut self, args: Ps) {
+    pub fn emit_tuple(&mut self, args: Ps)
+    where
+        Ps: meta::OutParamTuple,
+    {
         let name = self.name.as_ref();
 
         self.owner.with_object_mut(|obj| {
@@ -133,6 +136,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     pub fn connect<F>(&mut self, mut function: F)
     where
         F: SignalReceiver<(), Ps>,
+        Ps: meta::InParamTuple + 'static,
     {
         let godot_fn = make_godot_fn(move |args| {
             function.call((), args);
@@ -149,6 +153,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     where
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
+        Ps: meta::InParamTuple + 'static,
     {
         let mut gd = object.clone();
         let godot_fn = make_godot_fn(move |args| {
@@ -212,7 +217,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     }
 }
 
-impl<C: WithUserSignals, Ps: meta::ParamTuple> TypedSignal<'_, C, Ps> {
+impl<C: WithUserSignals, Ps: meta::InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     /// Connect a method (member function) with `&mut self` as the first parameter.
     ///
     /// To connect to methods on other objects, use [`connect_obj()`][Self::connect_obj].  \
