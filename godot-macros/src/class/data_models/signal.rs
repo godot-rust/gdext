@@ -9,8 +9,8 @@
 
 use crate::util::bail;
 use crate::{util, ParseResult};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use proc_macro2::{Delimiter, Ident, TokenStream, TokenTree};
+use quote::{format_ident, quote, ToTokens};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {
@@ -23,6 +23,57 @@ pub struct SignalDefinition {
     /// Whether there is going to be a type-safe builder for this signal (true by default).
     pub has_builder: bool,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Limits the visibility of signals to a few "blessed" syntaxes, excluding `pub(in PATH)`.
+///
+/// This is necessary because the signal collection (containing all signals) must have the widest visibility of any signal, and for
+/// that a total order must exist. `in` paths cannot be semantically analyzed by proc-macros.
+///
+/// Documented in <https://godot-rust.github.io/book/register/signals.html#signal-visibility>.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum SignalVisibility {
+    Priv,
+    PubSuper,
+    PubCrate,
+    Pub,
+}
+
+impl SignalVisibility {
+    pub fn try_parse(tokens: Option<&venial::VisMarker>) -> Option<Self> {
+        // No tokens: private.
+        let Some(tokens) = tokens else {
+            return Some(Self::Priv);
+        };
+
+        debug_assert_eq!(tokens.tk_token1.to_string(), "pub");
+
+        // Early exit if `pub` without following `(...)` group.
+        let group = match &tokens.tk_token2 {
+            None => return Some(Self::Pub),
+            Some(TokenTree::Group(group)) if group.delimiter() == Delimiter::Parenthesis => group,
+            _ => return None,
+        };
+
+        // `pub(...)` -> extract `...` part.
+        let mut tokens_in_paren = group.stream().into_iter();
+        let vis = match tokens_in_paren.next() {
+            Some(TokenTree::Ident(ident)) if ident == "super" => Self::PubSuper,
+            Some(TokenTree::Ident(ident)) if ident == "crate" => Self::PubCrate,
+            _ => return None,
+        };
+
+        // No follow-up tokens allowed.
+        if tokens_in_paren.next().is_some() {
+            return None;
+        }
+
+        Some(vis)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Extracted syntax info for a declared signal.
 struct SignalDetails<'a> {
@@ -50,6 +101,8 @@ struct SignalDetails<'a> {
     individual_struct_name: Ident,
     /// Visibility, e.g. `pub(crate)`
     vis_marker: Option<venial::VisMarker>,
+    /// Detected visibility as strongly typed enum.
+    vis_classified: SignalVisibility,
 }
 
 impl<'a> SignalDetails<'a> {
@@ -85,6 +138,15 @@ impl<'a> SignalDetails<'a> {
         let signal_name = &fn_signature.name;
         let individual_struct_name = format_ident!("__godot_Signal_{}_{}", class_name, signal_name);
 
+        let vis_marker = &fn_signature.vis_marker;
+        let Some(vis_classified) = SignalVisibility::try_parse(vis_marker.as_ref()) else {
+            return bail!(
+                vis_marker,
+                "invalid visibility `{}` for #[signal]; supported are `pub`, `pub(crate)`, `pub(super)` and private (no visibility marker)",
+                vis_marker.to_token_stream().to_string()
+            );
+        };
+
         Ok(Self {
             fn_signature,
             class_name,
@@ -96,7 +158,8 @@ impl<'a> SignalDetails<'a> {
             signal_name_str: fn_signature.name.to_string(),
             signal_cfg_attrs,
             individual_struct_name,
-            vis_marker: fn_signature.vis_marker.clone(),
+            vis_marker: vis_marker.clone(),
+            vis_classified,
         })
     }
 }
@@ -311,10 +374,12 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
     let upcast_deref_impl = make_upcast_deref_impl(class_name, &collection_struct_name);
     let individual_structs = collection.individual_structs;
 
+    let vis_marker = quote! {}; // FIXME: if this is public and Deref contains <#class_name as Base>, then it leaks #class_name.
+
     let code = quote! {
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
-        pub struct #collection_struct_name<'c, C = #class_name>
+        #vis_marker struct #collection_struct_name<'c, C> // = #class_name
         // where
         //     C: ::godot::obj::GodotClass // minimal bounds; could technically be WithUserSignals
         {
@@ -384,7 +449,7 @@ fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) ->
             }
         }
 
-        impl<'c> std::ops::DerefMut for #collection_struct_name<'c> {
+        impl<'c, C: ::godot::obj::WithSignals> std::ops::DerefMut for #collection_struct_name<'c, C> {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 type Derived = #class_name;
                 type Base = <#class_name as ::godot::obj::GodotClass>::Base;
@@ -393,5 +458,52 @@ fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) ->
                 todo!()
             }
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_signal_visibility() {
+        #[rustfmt::skip]
+        let list = [
+            (quote! { pub },                Some(SignalVisibility::Pub)),
+            (quote! { pub(crate) },         Some(SignalVisibility::PubCrate)),
+            (quote! {},                     Some(SignalVisibility::Priv)),
+            (quote! { pub(super) },         Some(SignalVisibility::PubSuper)),
+            (quote! { pub(self) },          None), // not supported (equivalent to private)
+            (quote! { pub(in crate::foo) }, None),
+        ];
+
+        let parsed = list
+            .iter()
+            .map(|(vis, _)| {
+                // Dummy function, because venial has no per-item parser in public API.
+                let item = venial::parse_item(quote! {
+                    #vis fn f() {}
+                });
+
+                let Ok(venial::Item::Function(f)) = item else {
+                    panic!("expected function")
+                };
+
+                SignalVisibility::try_parse(f.vis_marker.as_ref())
+            })
+            .collect::<Vec<_>>();
+
+        for ((_, expected), actual) in list.iter().zip(parsed.iter()) {
+            assert_eq!(expected, actual);
+        }
+    }
+
+    #[test]
+    fn signal_visibility_order() {
+        assert!(SignalVisibility::Pub > SignalVisibility::PubCrate);
+        assert!(SignalVisibility::PubCrate > SignalVisibility::PubSuper);
+        assert!(SignalVisibility::PubSuper > SignalVisibility::Priv);
     }
 }
