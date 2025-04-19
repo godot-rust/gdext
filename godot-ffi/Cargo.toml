@@ -36,7 +36,7 @@ api-4-4 = ["godot-bindings/api-4-4"]
 [dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2.171"
+libc = { workspace = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 # Only needed for WASM identifier generation.

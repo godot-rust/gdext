@@ -20,17 +20,16 @@ register-docs = ["dep:markdown", "dep:litrs"]
 proc-macro = true
 
 [dependencies]
-# Minimum versions compatible with -Zminimal-versions
-proc-macro2 = "1.0.80" # Literal::c_string() added in 1.0.80.
-quote = "1.0.29"
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
 # Enabled by `docs`.
-markdown = { version = "=1.0.0-alpha.21", optional = true }
-litrs = { version = "0.4.1", optional = true }
-venial = "0.6.1"
+markdown = { workspace = true, optional = true }
+litrs = { workspace = true, optional = true }
+venial = { workspace = true }
 
 # Cannot use [target.'cfg(target_family = "wasm")'.dependencies], as proc-macro crates are always compiled for host platform, not target.
 # Thus solved via feature.
-libc = { version = "0.2.171", optional = true }
+libc = { workspace = true, optional = true }
 
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings", version = "=0.2.4" } # emit_godot_version_cfg

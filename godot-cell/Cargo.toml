@@ -14,7 +14,7 @@ homepage = "https://godot-rust.github.io"
 proptest = ["dep:proptest"]
 
 [dependencies]
-proptest = { version = "1.4.0", optional = true }
+proptest = { workspace = true, optional = true }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

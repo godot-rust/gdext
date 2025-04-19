@@ -45,8 +45,8 @@ api-4-4 = ["godot-ffi/api-4-4"]
 godot-ffi = { path = "../godot-ffi", version = "=0.2.4" }
 
 # See https://docs.rs/glam/latest/glam/index.html#feature-gates
-glam = { version = "0.28", features = ["debug-glam-assert"] }
-serde = { version = "1", features = ["derive"], optional = true }
+glam = { workspace = true }
+serde = { workspace = true, optional = true }
 godot-cell = { path = "../godot-cell", version = "=0.2.4" }
 
 [build-dependencies]
@@ -56,7 +56,7 @@ godot-codegen = { path = "../godot-codegen", version = "=0.2.4" }
 # Reverse dev dependencies so doctests can use `godot::` prefix.
 [dev-dependencies]
 godot = { path = "../godot", default-features = false }
-serde_json = { version = "1.0" }
+serde_json = { workspace = true }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
