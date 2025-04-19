@@ -169,18 +169,7 @@ runs:
         for i in $(seq 1 100);
         do
           echo "OUTCOME=itest" >> $GITHUB_ENV
-          $GODOT4_BIN --headless -- --disallow-focus ${{ inputs.godot-args }} 2>&1 \
-          | tee "${{ runner.temp }}/log.txt" \
-          | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library" -q && {
-            printf "\n::error::godot-itest: unrecoverable Godot error, abort...\n";
-            if [[ "$RUNNER_OS" == "Windows" ]]; then
-              taskkill -f -im godot*
-            else
-              pkill godot
-            fi
-            echo "OUTCOME=godot-runtime" >> $GITHUB_ENV
-            exit 2
-          })
+          lldb -b -d -o "run" -o "bt" -o "quit" -- $GODOT4_BIN --headless -- --disallow-focus ${{ inputs.godot-args }}
         done
     
         echo "OUTCOME=success" >> $GITHUB_ENV
