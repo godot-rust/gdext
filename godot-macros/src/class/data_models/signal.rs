@@ -463,8 +463,7 @@ fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) ->
                 type Derived = #class_name;
                 type Base = <#class_name as ::godot::obj::GodotClass>::Base;
 
-                // ::godot::private::upcast_signal_collection::<Derived, Base>(self)
-                todo!()
+                ::godot::private::upcast_signal_collection::<C, Derived, Base>(self)
             }
         }
 
@@ -473,8 +472,7 @@ fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) ->
                 type Derived = #class_name;
                 type Base = <#class_name as ::godot::obj::GodotClass>::Base;
 
-                // ::godot::private::upcast_signal_collection_mut::<Derived, Base>(self)
-                todo!()
+                ::godot::private::upcast_signal_collection_mut::<C, Derived, Base>(self)
             }
         }
     }

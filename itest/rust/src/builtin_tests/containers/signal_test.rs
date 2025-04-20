@@ -7,7 +7,7 @@
 
 use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
-use godot::classes::{Node, Object, RefCounted};
+use godot::classes::{Node, Node3D, Object, RefCounted};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
@@ -271,7 +271,7 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
 
 // Test that Node signals are accessible from a derived class.
 #[cfg(since_api = "4.2")]
-#[itest(focus)]
+#[itest]
 fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
     let mut node = Emitter::new_alloc();
 
@@ -286,6 +286,29 @@ fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
     node.set_name("new name");
 
     assert_eq!(node.bind().last_received_int, 887);
+
+    // Remove from tree for other tests.
+    node.free();
+}
+
+// Test that Node signals are accessible from a derived class, with Node3D middleman.
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_engine_inherited_indirect(ctx: &crate::framework::TestContext) {
+    let original = Emitter::new_alloc();
+    let mut node = original.clone().upcast::<Node3D>();
+
+    // Add to tree, so signals are propagated.
+    ctx.scene_tree.clone().add_child(&node);
+
+    let mut sig = node.signals().renamed();
+    sig.connect_obj(&original, |this: &mut Emitter| {
+        this.last_received_int = 887;
+    });
+
+    node.set_name("new name");
+
+    assert_eq!(original.bind().last_received_int, 887);
 
     // Remove from tree for other tests.
     node.free();
@@ -325,9 +348,9 @@ mod emitter {
     use godot::obj::WithUserSignals;
 
     #[derive(GodotClass)]
-    #[class(init, base=Node)] // Node instead of Object to test some signals defined in superclasses.
+    #[class(init, base=Node3D)] // Node instead of Object to test some signals defined in superclasses.
     pub struct Emitter {
-        _base: Base<Node>,
+        _base: Base<Node3D>,
         #[cfg(since_api = "4.2")]
         pub last_received_int: i64,
     }

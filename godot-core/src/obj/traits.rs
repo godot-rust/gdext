@@ -452,7 +452,7 @@ pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
     ///   (e.g. a user-defined node) connecting/emitting signals of a base class (e.g. `Node`).
     type SignalCollection<'c, C>
     where
-        C: WithSignals + 'c;
+        C: WithSignals;
 
     /// Whether the representation needs to be able to hold just `Gd` (for engine classes) or `UserSignalObject` (for user classes).
     // Note: this cannot be in Declarer (Engine/UserDecl) as associated type `type SignalObjectType<'c, T: WithSignals>`,

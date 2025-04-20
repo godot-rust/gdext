@@ -71,7 +71,7 @@ pub fn make_class_signals(
 
         #[cfg(since_api = "4.2")]
         mod signals {
-            use crate::obj::Gd;
+            use crate::obj::{Gd, GodotClass};
             use super::re_export::#class_name;
             use crate::registry::signal::TypedSignal;
             use super::*;
@@ -204,13 +204,19 @@ fn make_upcast_deref_impl(class_name: &TyName, collection_struct_name: &Ident) -
             >::SignalCollection<'c, C>;
 
             fn deref(&self) -> &Self::Target {
-                todo!()
+                type Derived = #class_name;
+                type Base = <#class_name as GodotClass>::Base;
+
+                crate::private::upcast_signal_collection::<C, Derived, Base>(self)
             }
         }
 
         impl<'c, C: WithSignals> std::ops::DerefMut for #collection_struct_name<'c, C> {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                todo!()
+                type Derived = #class_name;
+                type Base = <#class_name as GodotClass>::Base;
+
+                crate::private::upcast_signal_collection_mut::<C, Derived, Base>(self)
             }
         }
     }

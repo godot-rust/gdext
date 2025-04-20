@@ -473,15 +473,38 @@ pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
     unsafe { Gd::from_obj_sys(ptr) }
 }
 
-pub fn upcast_signal_collection<'r, 'c, Derived, Base>(
-    derived: &'r Derived::SignalCollection<'c, Derived>,
-) -> &'r Base::SignalCollection<'c, Derived>
+
+// pub fn signal_collection_to_base<'r, 'c, C, Derived, Base>(
+//     derived: &'r Derived::SignalCollection<'c, C>,
+// ) -> &'r Base::SignalCollection<'c, C>
+// where
+//     C: WithSignals,
+//     Derived: WithSignals + Inherits<Base>,
+//     Base: WithSignals,
+// {
+//     let derived_collection_ptr = std::ptr::from_ref(derived);
+//     let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c, C>>();
+//
+//     // SAFETY:
+//     // - Signal collections have the same memory layout, independent of their enclosing class. (While they may differ depending on
+//     //   internal/external usage, upcasts
+//     // - The `Inherits` bound additionally ensures that all signals present in Base are also present in Derived, i.e.
+//     //   reducing the collection to a smaller subset of signals is safe.
+//     // - The lifetimes remain unchanged.
+//     unsafe { &*base_collection_ptr }
+// }
+
+
+pub fn upcast_signal_collection<'r, 'c, C, Derived, Base>(
+    derived: &'r Derived::SignalCollection<'c, C>,
+) -> &'r Base::SignalCollection<'c, C>
 where
+    C: WithSignals,
     Derived: WithSignals + Inherits<Base>,
     Base: WithSignals,
 {
     let derived_collection_ptr = std::ptr::from_ref(derived);
-    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c, Derived>>();
+    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c, C>>();
 
     // SAFETY:
     // - Signal collections have the same memory layout, independent of their enclosing class. (While they may differ depending on
@@ -492,19 +515,21 @@ where
     unsafe { &*base_collection_ptr }
 }
 
-pub fn upcast_signal_collection_mut<'r, 'c, Derived, Base>(
-    derived: &'r mut Derived::SignalCollection<'c, Derived>,
-) -> &'r mut Base::SignalCollection<'c, Derived>
+pub fn upcast_signal_collection_mut<'r, 'c, C, Derived, Base>(
+    derived: &'r mut Derived::SignalCollection<'c, C>,
+) -> &'r mut Base::SignalCollection<'c, C>
 where
+    C: WithSignals,
     Derived: WithSignals + Inherits<Base>,
     Base: WithSignals,
 {
     let derived_collection_ptr = std::ptr::from_mut(derived);
-    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c, Derived>>();
+    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c, C>>();
 
     // SAFETY: see upcast_signal_collection.
     unsafe { &mut *base_collection_ptr }
 }
+
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
