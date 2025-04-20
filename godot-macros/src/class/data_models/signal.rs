@@ -73,6 +73,17 @@ impl SignalVisibility {
     }
 }
 
+impl ToTokens for SignalVisibility {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Priv => { /* do nothing */ }
+            Self::Pub => tokens.extend(quote! { pub }),
+            Self::PubSuper => tokens.extend(quote! { pub(super) }),
+            Self::PubCrate => tokens.extend(quote! { pub(crate) }),
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Extracted syntax info for a declared signal.
@@ -171,6 +182,7 @@ pub fn make_signal_registrations(
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
     let mut collection_api = SignalCollection::default();
+    let mut max_visibility = SignalVisibility::Priv;
 
     for signal in signals {
         let SignalDefinition {
@@ -185,13 +197,14 @@ pub fn make_signal_registrations(
         #[cfg(since_api = "4.2")]
         if *has_builder {
             collection_api.extend_with(&details);
+            max_visibility = max_visibility.max(details.vis_classified);
         }
 
         let registration = make_signal_registration(&details, class_name_obj);
         signal_registrations.push(registration);
     }
 
-    let struct_code = make_signal_collection(class_name, collection_api);
+    let struct_code = make_signal_collection(class_name, collection_api, max_visibility);
 
     Ok((signal_registrations, struct_code))
 }
@@ -363,7 +376,11 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
 }
 
 /// Generates a unspecified-name struct holding methods to access each signal.
-fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> Option<TokenStream> {
+fn make_signal_collection(
+    class_name: &Ident,
+    collection: SignalCollection,
+    max_visibility: SignalVisibility,
+) -> Option<TokenStream> {
     if collection.is_empty() {
         return None;
     }
@@ -374,12 +391,14 @@ fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> O
     let upcast_deref_impl = make_upcast_deref_impl(class_name, &collection_struct_name);
     let individual_structs = collection.individual_structs;
 
-    let vis_marker = quote! {}; // FIXME: if this is public and Deref contains <#class_name as Base>, then it leaks #class_name.
+    // The collection cannot be `pub` because `Deref::Target` contains the class type, which leads to "leak private type" errors.
+    // Max visibility: the user decides which visibility is acceptable for individual #[signal]s, which is bounded by the class' own
+    // visibility. Since we assume that decision is correct, the collection itself can also share the widest visibility of any #[signal].
 
     let code = quote! {
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
-        #vis_marker struct #collection_struct_name<'c, C> // = #class_name
+        #max_visibility struct #collection_struct_name<'c, C> // = #class_name
         // where
         //     C: ::godot::obj::GodotClass // minimal bounds; could technically be WithUserSignals
         {
