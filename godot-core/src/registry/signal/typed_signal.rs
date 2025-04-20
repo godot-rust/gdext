@@ -14,11 +14,10 @@ use crate::registry::signal::{
 };
 use std::borrow::Cow;
 use std::marker::PhantomData;
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Object part of the signal receiver (handler).
 ///
-/// Functionality overlaps partly with [`super::AsObjectArg`] and [`super::AsArg<ObjectArg>`]. Can however not directly be replaced
+/// Functionality overlaps partly with [`meta::AsObjectArg`] and [`meta::AsArg<ObjectArg>`]. Can however not directly be replaced
 /// with `AsObjectArg`, since that allows nullability and doesn't require `&mut T`. Maybe there's a way to reuse them though.
 pub trait ToSignalObj<C: GodotClass> {
     fn to_signal_obj(&self) -> Gd<C>;
@@ -148,7 +147,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     ///
     /// To connect to methods on the same object that declares the `#[signal]`, use [`connect_self()`][Self::connect_self].  \
     /// If you need cross-thread signals or connect flags, use [`connect_builder()`][Self::connect_builder].
-    pub fn connect_obj<'a, F, OtherC>(&mut self, object: &impl ToSignalObj<OtherC>, mut method: F)
+    pub fn connect_obj<F, OtherC>(&mut self, object: &impl ToSignalObj<OtherC>, mut method: F)
     where
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,

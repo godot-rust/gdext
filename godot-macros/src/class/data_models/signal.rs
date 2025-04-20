@@ -175,6 +175,9 @@ impl<'a> SignalDetails<'a> {
     }
 }
 
+/// Returns tuple of:
+/// * Code registering signals with Godot engine.
+/// * Symbolic APIs for signals (collection struct + individual signal types + `WithSignal`/`Deref` impls).
 pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
@@ -204,9 +207,9 @@ pub fn make_signal_registrations(
         signal_registrations.push(registration);
     }
 
-    let struct_code = make_signal_collection(class_name, collection_api, max_visibility);
+    let signal_symbols = make_signal_symbols(class_name, collection_api, max_visibility);
 
-    Ok((signal_registrations, struct_code))
+    Ok((signal_registrations, signal_symbols))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -375,8 +378,11 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
     }
 }
 
-/// Generates a unspecified-name struct holding methods to access each signal.
-fn make_signal_collection(
+/// Generates symbolic API for signals:
+/// * collection (unspecified-name struct holding methods to access each signal)
+/// * individual signal types
+/// * trait impls
+fn make_signal_symbols(
     class_name: &Ident,
     collection: SignalCollection,
     max_visibility: SignalVisibility,
@@ -395,21 +401,40 @@ fn make_signal_collection(
     // Max visibility: the user decides which visibility is acceptable for individual #[signal]s, which is bounded by the class' own
     // visibility. Since we assume that decision is correct, the collection itself can also share the widest visibility of any #[signal].
 
+    // Unrelated, we could use the following for encapsulation:
+    //     #[cfg(since_api = "4.2")]
+    //     mod #signal_mod_name {
+    //         pub use super::*;
+    //         ... // all the code below
+    //     }
+    //     #[cfg(since_api = "4.2")]
+    //     pub use #signal_mod_name::*;
+    //
+    // This now makes signal types/methods invisible to the surrounding scope, so we'd need to adjust visibility in some cases:
+    // * private      -> `pub(super)`
+    // * `pub(super)` -> pub(in super::super)
+    //
+    // Benefit of encapsulating would be:
+    // * No need for `#[doc(hidden)]` on internal symbols like fields.
+    // * #[cfg(since_api = "4.2")] would not need to be repeated.
+    // * Less scope pollution (even though names are mangled).
+    //
+    // Downside is slightly higher complexity and introducing signals in secondary blocks becomes harder (although we could use another
+    // module name, we'd need a way to create unique names).
+
     let code = quote! {
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
-        #max_visibility struct #collection_struct_name<'c, C> // = #class_name
-        // where
-        //     C: ::godot::obj::GodotClass // minimal bounds; could technically be WithUserSignals
-        {
-            #[doc(hidden)] // Necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
-            __internal_obj: Option<::godot::register::UserSignalObject<'c, C>>
+        #max_visibility struct #collection_struct_name<'c, C> {
+            // Hiding necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
+            #[doc(hidden)]
+            __internal_obj: Option<::godot::private::UserSignalObject<'c, C>>
         }
 
         impl<'c, C> #collection_struct_name<'c, C>
         where // bounds: see UserSignalObject::into_typed_signal().
             C: ::godot::obj::WithUserSignals +
-               ::godot::obj::WithSignals<__SignalObj<'c> = ::godot::register::UserSignalObject<'c, C>>,
+               ::godot::obj::WithSignals<__SignalObj<'c> = ::godot::private::UserSignalObject<'c, C>>,
         {
             #( #collection_struct_methods )*
         }
@@ -428,12 +453,12 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
             type SignalCollection<'c, C: ::godot::obj::WithSignals> = #collection_struct_name<'c, C>;
 
             #[doc(hidden)]
-            type __SignalObj<'c> = ::godot::register::UserSignalObject<'c, Self>;
+            type __SignalObj<'c> = ::godot::private::UserSignalObject<'c, Self>;
 
             #[doc(hidden)]
             fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: Some(::godot::register::UserSignalObject::External {
+                    __internal_obj: Some(::godot::private::UserSignalObject::External {
                         gd: external.clone().upcast::<Object>()
                     })
                 }
@@ -443,7 +468,7 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
         impl ::godot::obj::WithUserSignals for #class_name {
             fn signals(&mut self) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: Some(::godot::register::UserSignalObject::Internal { self_mut: self })
+                    __internal_obj: Some(::godot::private::UserSignalObject::Internal { self_mut: self })
                 }
             }
         }
@@ -461,18 +486,14 @@ fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) ->
 
             fn deref(&self) -> &Self::Target {
                 type Derived = #class_name;
-                type Base = <#class_name as ::godot::obj::GodotClass>::Base;
-
-                ::godot::private::upcast_signal_collection::<C, Derived, Base>(self)
+                ::godot::private::signal_collection_to_base::<C, Derived>(self)
             }
         }
 
         impl<'c, C: ::godot::obj::WithSignals> std::ops::DerefMut for #collection_struct_name<'c, C> {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 type Derived = #class_name;
-                type Base = <#class_name as ::godot::obj::GodotClass>::Base;
-
-                ::godot::private::upcast_signal_collection_mut::<C, Derived, Base>(self)
+                ::godot::private::signal_collection_to_base_mut::<C, Derived>(self)
             }
         }
     }

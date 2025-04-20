@@ -11,7 +11,8 @@ mod typed_signal;
 pub(crate) mod variadic;
 
 pub use connect_builder::*;
-pub use signal_object::{SignalObject, UserSignalObject};
+//pub use signal_object::{SignalObject, UserSignalObject};
+pub use signal_object::*;
 pub use typed_signal::*;
 pub use variadic::SignalReceiver;
 

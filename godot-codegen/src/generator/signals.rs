@@ -205,18 +205,14 @@ fn make_upcast_deref_impl(class_name: &TyName, collection_struct_name: &Ident) -
 
             fn deref(&self) -> &Self::Target {
                 type Derived = #class_name;
-                type Base = <#class_name as GodotClass>::Base;
-
-                crate::private::upcast_signal_collection::<C, Derived, Base>(self)
+                crate::private::signal_collection_to_base::<C, Derived>(self)
             }
         }
 
         impl<'c, C: WithSignals> std::ops::DerefMut for #collection_struct_name<'c, C> {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 type Derived = #class_name;
-                type Base = <#class_name as GodotClass>::Base;
-
-                crate::private::upcast_signal_collection_mut::<C, Derived, Base>(self)
+                crate::private::signal_collection_to_base_mut::<C, Derived>(self)
             }
         }
     }

@@ -11,7 +11,7 @@
 //
 
 use crate::classes::Object;
-use crate::obj::{Gd, WithBaseField, WithSignals, WithUserSignals};
+use crate::obj::{Gd, GodotClass, WithBaseField, WithSignals, WithUserSignals};
 
 /// Indirection from [`TypedSignal`] to the actual Godot object.
 #[doc(hidden)]
@@ -81,7 +81,7 @@ impl<'c, C: WithUserSignals> SignalObject<'c> for UserSignalObject<'c, C> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Impl for signals() on engine classes.
 
-impl<'c, C: WithSignals> SignalObject<'c> for Gd<C> {
+impl<C: WithSignals> SignalObject<'_> for Gd<C> {
     #[inline]
     fn with_object_mut(&mut self, f: impl FnOnce(&mut Object)) {
         f(self.upcast_object_mut())
@@ -92,3 +92,78 @@ impl<'c, C: WithSignals> SignalObject<'c> for Gd<C> {
         self.clone().upcast_object()
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helpers for SignalCollection upcasts.
+
+pub fn signal_collection_to_base<'r, 'c, C, Derived>(
+    derived: &'r Derived::SignalCollection<'c, C>,
+) -> &'r <<Derived as GodotClass>::Base as WithSignals>::SignalCollection<'c, C>
+where
+    C: WithSignals,
+    Derived: WithSignals<Base: WithSignals>,
+{
+    type BaseCollection<'c, C, Derived> =
+        <<Derived as GodotClass>::Base as WithSignals>::SignalCollection<'c, C>;
+
+    let derived_collection_ptr = std::ptr::from_ref(derived);
+    let base_collection_ptr = derived_collection_ptr.cast::<BaseCollection<'c, C, Derived>>();
+
+    // SAFETY:
+    // - Signal collections have the same memory layout, independent of their enclosing class. (While they may differ depending on
+    //   internal/external usage, upcasts
+    // - The `Inherits` bound additionally ensures that all signals present in Base are also present in Derived, i.e.
+    //   reducing the collection to a smaller subset of signals is safe.
+    // - The lifetimes remain unchanged.
+    unsafe { &*base_collection_ptr }
+}
+
+pub fn signal_collection_to_base_mut<'r, 'c, C, Derived>(
+    derived: &'r mut Derived::SignalCollection<'c, C>,
+) -> &'r mut <<Derived as GodotClass>::Base as WithSignals>::SignalCollection<'c, C>
+where
+    C: WithSignals,
+    Derived: WithSignals<Base: WithSignals>,
+{
+    type BaseCollection<'c, C, Derived> =
+        <<Derived as GodotClass>::Base as WithSignals>::SignalCollection<'c, C>;
+
+    let derived_collection_ptr = std::ptr::from_mut(derived);
+    let base_collection_ptr = derived_collection_ptr.cast::<BaseCollection<'c, C, Derived>>();
+
+    // SAFETY: see signal_collection_to_base().
+    unsafe { &mut *base_collection_ptr }
+}
+
+/* Currently unused, but kept around as it's not unlikely we need some form of this.
+
+fn upcast_signal_collection<'r, 'c, C, Derived, Base>(
+    derived: &'r Derived::SignalCollection<'c, C>,
+) -> &'r Base::SignalCollection<'c, C>
+where
+    C: WithSignals,
+    Derived: WithSignals, // + Inherits<Base>,
+    Base: WithSignals,
+{
+    let derived_collection_ptr = std::ptr::from_ref(derived);
+    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c, C>>();
+
+    // SAFETY: see signal_collection_to_base().
+    unsafe { &*base_collection_ptr }
+}
+
+fn upcast_signal_collection_mut<'r, 'c, C, Derived, Base>(
+    derived: &'r mut Derived::SignalCollection<'c, C>,
+) -> &'r mut Base::SignalCollection<'c, C>
+where
+    C: WithSignals,
+    Derived: WithSignals + Inherits<Base>,
+    Base: WithSignals,
+{
+    let derived_collection_ptr = std::ptr::from_mut(derived);
+    let base_collection_ptr = derived_collection_ptr.cast::<Base::SignalCollection<'c, C>>();
+
+    // SAFETY: see signal_collection_to_base().
+    unsafe { &mut *base_collection_ptr }
+}
+*/
