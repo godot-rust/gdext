@@ -302,13 +302,7 @@ impl SignalCollection {
             // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
             #vis_marker fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
-                    // __typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
-                    // __typed: ::godot::register::TypedSignal::<'c, C, _>::new(self.__internal_obj, #signal_name_str)
-                    // __typed: todo!()
-
-                    // __typed: self.__internal_obj.into_typed_signal(#signal_name_str)
                     __typed: ::godot::register::TypedSignal::<'c, C, _>::extract(&mut self.__internal_obj, #signal_name_str)
-
                 }
             }
         });

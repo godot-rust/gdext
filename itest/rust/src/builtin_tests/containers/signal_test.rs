@@ -314,6 +314,19 @@ fn signal_symbols_engine_inherited_indirect(ctx: &crate::framework::TestContext)
     node.free();
 }
 
+// Test that Node signals are *internally* accessible from a derived class.
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_engine_inherited_internal() {
+    // No tree needed; signal is emitted manually.
+    let mut node = Emitter::new_alloc();
+    node.bind_mut().connect_base_signals_internal();
+    node.bind_mut().emit_base_signals_internal();
+
+    assert_eq!(node.bind().last_received_int, 553);
+    node.free();
+}
+
 #[itest]
 fn signal_construction_and_id() {
     let mut object = RefCounted::new_gd();
@@ -376,6 +389,14 @@ mod emitter {
         }
 
         #[func]
+        pub fn self_receive_constant(&mut self) {
+            #[cfg(since_api = "4.2")]
+            {
+                self.last_received_int = 553;
+            }
+        }
+
+        #[func]
         fn self_receive_static(arg1: i64) {
             *LAST_STATIC_FUNCTION_ARG.lock() = arg1;
         }
@@ -393,6 +414,18 @@ mod emitter {
         #[cfg(since_api = "4.2")]
         pub fn emit_signals_internal(&mut self) {
             self.signals().signal_int().emit(1234);
+        }
+
+        #[cfg(since_api = "4.2")]
+        pub fn connect_base_signals_internal(&mut self) {
+            self.signals()
+                .renamed()
+                .connect_self(Self::self_receive_constant);
+        }
+
+        #[cfg(since_api = "4.2")]
+        pub fn emit_base_signals_internal(&mut self) {
+            self.signals().renamed().emit();
         }
     }
 }

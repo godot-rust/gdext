@@ -84,13 +84,6 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         Self::new(obj, signal_name)
     }
 
-    // pub fn extract_user<Ps: meta::ParamTuple>(
-    //     this: &mut Option<UserSignalObject<'c, C>>,
-    //     signal_name: &'static str,
-    // ) -> TypedSignal<'c, C, Ps> {
-    //     TypedSignal::extract(this, signal_name)
-    // }
-
     // Currently only invoked from godot-core classes, or from UserSignalObject::into_typed_signal.
     // When making public, make also #[doc(hidden)].
     fn new(object: C::__SignalObj<'c>, name: &'static str) -> Self {
