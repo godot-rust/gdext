@@ -30,6 +30,8 @@ pub(crate) use crate::impl_dynamic_send;
 /// # Panics
 /// - If the signal object is freed before the signal has been emitted.
 /// - If one of the signal arguments is `!Send`, but the signal was emitted on a different thread.
+/// - The future's `Drop` implementation can cause a non-unwinding panic in rare cases, should the signal object be freed at the same time
+///   as the future is dropped. Make sure to keep signal objects alive until there are no pending futures anymore.
 pub struct SignalFuture<R: ParamTuple + IntoDynamicSend>(FallibleSignalFuture<R>);
 
 impl<R: ParamTuple + IntoDynamicSend> SignalFuture<R> {
@@ -181,6 +183,8 @@ impl<T> SignalFutureState<T> {
 ///
 /// # Panics
 /// - If one of the signal arguments is `!Send`, but the signal was emitted on a different thread.
+/// - The future's `Drop` implementation can cause a non-unwinding panic in rare cases, should the signal object be freed at the same time
+///   as the future is dropped. Make sure to keep signal objects alive until there are no pending futures anymore.
 pub struct FallibleSignalFuture<R: ParamTuple + IntoDynamicSend> {
     data: Arc<Mutex<SignalFutureData<R::Target>>>,
     callable: SignalFutureResolver<R>,
@@ -263,7 +267,7 @@ impl<R: ParamTuple + IntoDynamicSend> Future for FallibleSignalFuture<R> {
 impl<R: ParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
     fn drop(&mut self) {
         // The callable might alredy be destroyed, this occurs during engine shutdown.
-        if self.signal.object().is_none() {
+        if self.signal.is_null() {
             return;
         }
 
@@ -277,7 +281,13 @@ impl<R: ParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
         let gd_callable = Callable::from_custom(self.callable.clone());
 
         // is_connected will return true if the signal was never emited before the future is dropped.
-        if self.signal.is_connected(&gd_callable) {
+        //
+        // There is a TOCTOU issue here that can occur when the FallibleSignalFuture is dropped at the same time as the signal object is
+        // freed on a different thread.
+        // We check in the beginning if the signal object is still alive, and we check here again, but the signal object still can be freed
+        // between our check and our usage of the object in `is_connected` and `disconnect`. The race condition will manifest in a
+        // non-unwinding panic that is hard to track down.
+        if !self.signal.is_null() && self.signal.is_connected(&gd_callable) {
             self.signal.disconnect(&gd_callable);
         }
     }
