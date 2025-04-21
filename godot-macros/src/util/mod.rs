@@ -407,3 +407,8 @@ pub fn format_funcs_collection_constant(_class_name: &Ident, func_name: &Ident) 
 pub fn format_funcs_collection_struct(class_name: &Ident) -> Ident {
     format_ident!("__godot_{class_name}_Funcs")
 }
+
+/// Returns the name of the macro used to communicate the `struct` (class) visibility to other symbols.
+pub fn format_class_visibility_macro(class_name: &Ident) -> Ident {
+    format_ident!("__godot_{class_name}_vis_macro")
+}

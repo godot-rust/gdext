@@ -112,8 +112,8 @@ struct SignalDetails<'a> {
     individual_struct_name: Ident,
     /// Visibility, e.g. `pub(crate)`
     vis_marker: Option<venial::VisMarker>,
-    /// Detected visibility as strongly typed enum.
-    vis_classified: SignalVisibility,
+    // /// Detected visibility as strongly typed enum.
+    // vis_classified: SignalVisibility,
 }
 
 impl<'a> SignalDetails<'a> {
@@ -150,7 +150,7 @@ impl<'a> SignalDetails<'a> {
         let individual_struct_name = format_ident!("__godot_Signal_{}_{}", class_name, signal_name);
 
         let vis_marker = &fn_signature.vis_marker;
-        let Some(vis_classified) = SignalVisibility::try_parse(vis_marker.as_ref()) else {
+        let Some(_vis_classified) = SignalVisibility::try_parse(vis_marker.as_ref()) else {
             return bail!(
                 vis_marker,
                 "invalid visibility `{}` for #[signal]; supported are `pub`, `pub(crate)`, `pub(super)` and private (no visibility marker)",
@@ -170,7 +170,7 @@ impl<'a> SignalDetails<'a> {
             signal_cfg_attrs,
             individual_struct_name,
             vis_marker: vis_marker.clone(),
-            vis_classified,
+            // vis_classified,
         })
     }
 }
@@ -187,8 +187,8 @@ pub fn make_signal_registrations(
 
     #[cfg(since_api = "4.2")]
     let mut collection_api = SignalCollection::default();
-    #[cfg(since_api = "4.2")]
-    let mut max_visibility = SignalVisibility::Priv;
+    // #[cfg(since_api = "4.2")]
+    // let mut max_visibility = SignalVisibility::Priv;
 
     for signal in signals {
         let SignalDefinition {
@@ -203,7 +203,7 @@ pub fn make_signal_registrations(
         #[cfg(since_api = "4.2")]
         if *has_builder {
             collection_api.extend_with(&details);
-            max_visibility = max_visibility.max(details.vis_classified);
+            // max_visibility = max_visibility.max(details.vis_classified);
         }
 
         let registration = make_signal_registration(&details, class_name_obj);
@@ -211,7 +211,7 @@ pub fn make_signal_registrations(
     }
 
     #[cfg(since_api = "4.2")]
-    let signal_symbols = make_signal_symbols(class_name, collection_api, max_visibility);
+    let signal_symbols = make_signal_symbols(class_name, collection_api);
     #[cfg(before_api = "4.2")]
     let signal_symbols = None;
 
@@ -391,7 +391,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
 fn make_signal_symbols(
     class_name: &Ident,
     collection_api: SignalCollection,
-    max_visibility: SignalVisibility,
+    // max_visibility: SignalVisibility,
 ) -> Option<TokenStream> {
     // Future note: if we add Rust->Rust inheritance, then the WithSignals trait must be unconditionally implemented.
     if collection_api.is_empty() {
@@ -405,8 +405,13 @@ fn make_signal_symbols(
     let individual_structs = collection_api.individual_structs;
 
     // The collection cannot be `pub` because `Deref::Target` contains the class type, which leads to "leak private type" errors.
-    // Max visibility: the user decides which visibility is acceptable for individual #[signal]s, which is bounded by the class' own
-    // visibility. Since we assume that decision is correct, the collection itself can also share the widest visibility of any #[signal].
+    // We thus adopt the visibility of the #[derive(GodotClass)] struct, imported via macro trick.
+    //
+    // A previous approach (that cannot access the struct visibility) used "max visibility": the user decides which visibility is acceptable f
+    // or individual #[signal]s. They can all be at most the class visibility. Since we assume that decision is correct, the signal collection
+    // itself can also share the widest visibility of any #[signal]. This approach however still led to problems because there's a 2-way
+    // dependency: `impl WithSignals for MyClass` has an associated type `SignalCollection` that mentions the generated collection type. If
+    // that collection type has *lower* visibility than the class, we *also* run into "leak private type" errors.
 
     // Unrelated, we could use the following for encapsulation:
     //     #[cfg(since_api = "4.2")]
@@ -430,13 +435,17 @@ fn make_signal_symbols(
     // Downside is slightly higher complexity and introducing signals in secondary blocks becomes harder (although we could use another
     // module name, we'd need a way to create unique names).
 
+    let visibility_macro = util::format_class_visibility_macro(class_name);
+
     let code = quote! {
-        #[allow(non_camel_case_types)]
-        #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
-        #max_visibility struct #collection_struct_name<'c, C> {
-            // Hiding necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
-            #[doc(hidden)]
-            __internal_obj: Option<::godot::private::UserSignalObject<'c, C>>
+        #visibility_macro! {
+            #[allow(non_camel_case_types)]
+            #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
+            struct #collection_struct_name<'c, C> {
+                // Hiding necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
+                #[doc(hidden)]
+                __internal_obj: Option<::godot::private::UserSignalObject<'c, C>>
+            }
         }
 
         impl<'c, C> #collection_struct_name<'c, C>

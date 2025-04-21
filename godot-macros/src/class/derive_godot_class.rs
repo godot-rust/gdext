@@ -5,9 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, Punct, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
-
 use crate::class::{
     make_property_impl, make_virtual_callback, BeforeKind, Field, FieldCond, FieldDefault,
     FieldExport, FieldVar, Fields, SignatureInfo,
@@ -17,6 +14,8 @@ use crate::util::{
     require_api_version, KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
+use proc_macro2::{Ident, Punct, TokenStream};
+use quote::{format_ident, quote, quote_spanned};
 
 pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class = item.as_struct().ok_or_else(|| {
@@ -143,6 +142,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         pub struct #funcs_collection_struct_name {}
     };
 
+    let visibility_macro = make_visibility_macro(class_name, class.vis_marker.as_ref());
+
     Ok(quote! {
         impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
@@ -172,6 +173,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #godot_exports_impl
         #user_class_impl
         #init_expecter
+        #visibility_macro
         #( #deprecations )*
         #( #errors )*
 
@@ -183,6 +185,30 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
         #prv::class_macros::#inherits_macro!(#class_name);
     })
+}
+
+/// Generates code for a decl-macro, which takes any item and prepends it with the visibility marker of the class.
+///
+/// Used to access the visibility of the class in other proc-macros like `#[godot_api]`.
+fn make_visibility_macro(
+    class_name: &Ident,
+    vis_marker: Option<&venial::VisMarker>,
+) -> TokenStream {
+    let macro_name = util::format_class_visibility_macro(class_name);
+
+    quote! {
+        macro_rules! #macro_name {
+            (
+                $( #[$meta:meta] )*
+                struct $( $tt:tt )+
+            ) => {
+                $( #[$meta] )*
+                #vis_marker struct $( $tt )+
+            };
+
+            // Can be expanded to `fn` etc. if needed.
+        }
+    }
 }
 
 /// Checks at compile time that a function with the given name exists on `Self`.

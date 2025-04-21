@@ -447,6 +447,22 @@ impl Receiver {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Class which is deliberately `pub` but has only private `#[signal]` declaration.
+// Regression test, as this caused "leaked private types" in the past.
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+pub struct PubClassPrivSignal {
+    _base: Base<Object>,
+}
+
+#[godot_api]
+impl PubClassPrivSignal {
+    #[signal]
+    fn private_signal();
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // 4.2+ custom callables
 
 #[cfg(since_api = "4.2")]
