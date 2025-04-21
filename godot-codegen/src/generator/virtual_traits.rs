@@ -10,6 +10,7 @@ use crate::generator::{docs, functions_common};
 use crate::models::domain::{
     ApiView, Class, ClassLike, ClassMethod, FnQualifier, Function, TyName,
 };
+use crate::special_cases;
 use crate::util::ident;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
@@ -150,7 +151,10 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     }
 }
 
-fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
+fn make_virtual_method(
+    method: &ClassMethod,
+    override_is_required: Option<bool>,
+) -> Option<TokenStream> {
     if !method.is_virtual() {
         return None;
     }
@@ -166,7 +170,8 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
             // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
-            is_virtual_required: method.is_virtual_required(),
+            is_virtual_required: override_is_required
+                .unwrap_or_else(|| method.is_virtual_required()),
             is_varcall_fallible: true,
         },
         None,
@@ -186,7 +191,7 @@ fn make_all_virtual_methods(
 
     for method in class.methods.iter() {
         // Assumes that inner function filters on is_virtual.
-        if let Some(tokens) = make_virtual_method(method) {
+        if let Some(tokens) = make_virtual_method(method, None) {
             all_tokens.push(tokens);
         }
     }
@@ -194,7 +199,12 @@ fn make_all_virtual_methods(
     for base_name in all_base_names {
         let base_class = view.get_engine_class(base_name);
         for method in base_class.methods.iter() {
-            if let Some(tokens) = make_virtual_method(method) {
+            // Certain derived classes in Godot implement a virtual method declared in a base class, thus no longer
+            // making it required. This isn't advertised in the extension_api, but instead manually tracked via special cases.
+            let is_required =
+                special_cases::is_derived_virtual_method_required(class.name(), method.name());
+
+            if let Some(tokens) = make_virtual_method(method, is_required) {
                 all_tokens.push(tokens);
             }
         }
