@@ -174,8 +174,7 @@ fn make_signal_collection(
     let code = quote! {
         #[doc = #collection_docs]
         // C is needed for signals of derived classes that are upcast via Deref; C in that class is the derived class.
-        pub struct #collection_struct_name<'c, C: WithSignals = #class_name>
-        {
+        pub struct #collection_struct_name<'c, C: WithSignals /* = #class_name */> {
             #[doc(hidden)]
             pub(crate) __internal_obj: Option<C::__SignalObj<'c>>,
         }
@@ -228,8 +227,8 @@ fn make_signal_individual_struct(signal: &ClassSignal, params: &SignalParams) ->
         ..
     } = params;
 
-    let class_name = &signal.surrounding_class;
-    let class_ty = quote! { #class_name };
+    // let class_name = &signal.surrounding_class;
+    // let class_ty = quote! { #class_name };
     let param_tuple = quote! { ( #type_list ) };
     let typed_name = format_ident!("Typed{}", individual_struct_name);
 
@@ -238,11 +237,11 @@ fn make_signal_individual_struct(signal: &ClassSignal, params: &SignalParams) ->
         // Reduce tokens to parse by reusing this type definitions.
         type #typed_name<'c, C> = TypedSignal<'c, C, #param_tuple>;
 
-        pub struct #individual_struct_name<'c, C: WithSignals = #class_ty> {
+        pub struct #individual_struct_name<'c, C: WithSignals /* = #class_ty */> {
            typed: #typed_name<'c, C>,
         }
 
-        impl<'c> #individual_struct_name<'c> {
+        impl<'c, C: WithSignals> #individual_struct_name<'c, C> {
             pub fn emit(&mut self, #param_list) {
                 self.typed.emit_tuple( (#name_list) );
             }
