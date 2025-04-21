@@ -12,9 +12,8 @@ pub use crate::registry::plugin::{
     ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl, PluginItem,
     Struct,
 };
-pub use crate::registry::signal::{
-    signal_collection_to_base, signal_collection_to_base_mut, UserSignalObject,
-};
+#[cfg(since_api = "4.2")]
+pub use crate::registry::signal::priv_re_export::*;
 pub use crate::storage::{as_storage, Storage};
 pub use sys::out;
 

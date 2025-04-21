@@ -10,6 +10,7 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
+#[cfg(since_api = "4.2")]
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 use godot_ffi as sys;

@@ -5,15 +5,30 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Whole module only available in Godot 4.2+.
+
 mod connect_builder;
 mod signal_object;
 mod typed_signal;
-pub(crate) mod variadic;
 
-pub use connect_builder::*;
-//pub use signal_object::{SignalObject, UserSignalObject};
-pub use signal_object::*;
-pub use typed_signal::*;
-pub use variadic::SignalReceiver;
+pub(crate) mod variadic;
+pub(crate) use connect_builder::*;
+pub(crate) use signal_object::*;
+pub(crate) use typed_signal::*;
+pub(crate) use variadic::SignalReceiver;
+
+// Used in `godot` crate.
+pub mod re_export {
+    pub use super::connect_builder::ConnectBuilder;
+    pub use super::typed_signal::TypedSignal;
+    pub use super::variadic::SignalReceiver;
+}
+
+// Used in `godot::private` module.
+pub mod priv_re_export {
+    pub use super::signal_object::{
+        signal_collection_to_base, signal_collection_to_base_mut, UserSignalObject,
+    };
+}
 
 // ParamTuple re-exported in crate::meta.

@@ -184,7 +184,10 @@ pub fn make_signal_registrations(
     class_name_obj: &TokenStream,
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
+
+    #[cfg(since_api = "4.2")]
     let mut collection_api = SignalCollection::default();
+    #[cfg(since_api = "4.2")]
     let mut max_visibility = SignalVisibility::Priv;
 
     for signal in signals {
@@ -207,7 +210,10 @@ pub fn make_signal_registrations(
         signal_registrations.push(registration);
     }
 
+    #[cfg(since_api = "4.2")]
     let signal_symbols = make_signal_symbols(class_name, collection_api, max_visibility);
+    #[cfg(before_api = "4.2")]
+    let signal_symbols = None;
 
     Ok((signal_registrations, signal_symbols))
 }
@@ -384,18 +390,19 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
 /// * trait impls
 fn make_signal_symbols(
     class_name: &Ident,
-    collection: SignalCollection,
+    collection_api: SignalCollection,
     max_visibility: SignalVisibility,
 ) -> Option<TokenStream> {
-    if collection.is_empty() {
+    // Future note: if we add Rust->Rust inheritance, then the WithSignals trait must be unconditionally implemented.
+    if collection_api.is_empty() {
         return None;
     }
 
     let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
-    let collection_struct_methods = &collection.provider_methods;
+    let collection_struct_methods = &collection_api.provider_methods;
     let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
     let upcast_deref_impl = make_upcast_deref_impl(class_name, &collection_struct_name);
-    let individual_structs = collection.individual_structs;
+    let individual_structs = collection_api.individual_structs;
 
     // The collection cannot be `pub` because `Deref::Target` contains the class type, which leads to "leak private type" errors.
     // Max visibility: the user decides which visibility is acceptable for individual #[signal]s, which is bounded by the class' own
@@ -416,7 +423,8 @@ fn make_signal_symbols(
     //
     // Benefit of encapsulating would be:
     // * No need for `#[doc(hidden)]` on internal symbols like fields.
-    // * #[cfg(since_api = "4.2")] would not need to be repeated.
+    // * #[cfg(since_api = "4.2")] would not need to be repeated. This is less of a problem if the #[cfg] is used inside the macro
+    //   instead of generated code.
     // * Less scope pollution (even though names are mangled).
     //
     // Downside is slightly higher complexity and introducing signals in secondary blocks becomes harder (although we could use another
@@ -477,7 +485,7 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
 
 fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) -> TokenStream {
     quote! {
-         impl<'c, C: ::godot::obj::WithSignals> std::ops::Deref for #collection_struct_name<'c, C> {
+        impl<'c, C: ::godot::obj::WithSignals> std::ops::Deref for #collection_struct_name<'c, C> {
             type Target = <
                 <
                     #class_name as ::godot::obj::GodotClass
