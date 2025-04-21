@@ -12,6 +12,8 @@ pub use crate::registry::plugin::{
     ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl, PluginItem,
     Struct,
 };
+#[cfg(since_api = "4.2")]
+pub use crate::registry::signal::priv_re_export::*;
 pub use crate::storage::{as_storage, Storage};
 pub use sys::out;
 
@@ -23,7 +25,8 @@ use std::cell::RefCell;
 use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
-use crate::sys;
+use crate::obj::Gd;
+use crate::{classes, sys};
 use std::io::Write;
 use std::sync::atomic;
 use sys::Global;
@@ -461,6 +464,14 @@ fn report_call_error(call_error: CallError, track_globally: bool) -> i32 {
     } else {
         0
     }
+}
+
+// Currently unused; implemented due to temporary need and may come in handy.
+pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
+    let ptr = object_ref.__object_ptr();
+
+    // SAFETY: ptr comes from valid internal API (and is non-null, so unwrap in from_obj_sys won't fail).
+    unsafe { Gd::from_obj_sys(ptr) }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -7,7 +7,7 @@
 
 use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
-use godot::classes::{Node, Object, RefCounted};
+use godot::classes::{Node, Node3D, Object, RefCounted};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
@@ -226,15 +226,17 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
     let mut node = Node::new_alloc();
     ctx.scene_tree.clone().add_child(&node);
 
-    // Deliberately declare here, because there was a bug with wrong lifetime, which would not compile due to early-dropped temporary.
-    let mut signals_in_node = node.signals();
-    let mut renamed = signals_in_node.renamed();
-    let mut entered = signals_in_node.child_entered_tree();
-
+    // API allows to only modify one signal at a time (borrowing &mut self).
+    let mut renamed = node.signals().renamed();
     let renamed_count = Rc::new(Cell::new(0));
-    let entered_tracker = Rc::new(RefCell::new(None));
     {
         let renamed_count = renamed_count.clone();
+        renamed.connect(move || renamed_count.set(renamed_count.get() + 1));
+    }
+
+    let mut entered = node.signals().child_entered_tree();
+    let entered_tracker = Rc::new(RefCell::new(None));
+    {
         let entered_tracker = entered_tracker.clone();
 
         entered
@@ -243,8 +245,6 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
                 *entered_tracker.borrow_mut() = Some(node);
             })
             .done();
-
-        renamed.connect(move || renamed_count.set(renamed_count.get() + 1));
     }
 
     // Apply changes, triggering signals.
@@ -264,6 +264,51 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
     // Manually emit a signal a 2nd time.
     node.signals().renamed().emit();
     assert_eq!(renamed_count.get(), 2, "Manual emit failed: Node::renamed");
+
+    // Remove from tree for other tests.
+    node.free();
+}
+
+// Test that Node signals are accessible from a derived class.
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
+    let mut node = Emitter::new_alloc();
+
+    // Add to tree, so signals are propagated.
+    ctx.scene_tree.clone().add_child(&node);
+
+    let mut sig = node.signals().renamed();
+    sig.connect_self(|this: &mut Emitter| {
+        this.last_received_int = 887;
+    });
+
+    node.set_name("new name");
+
+    assert_eq!(node.bind().last_received_int, 887);
+
+    // Remove from tree for other tests.
+    node.free();
+}
+
+// Test that Node signals are accessible from a derived class, with Node3D middleman.
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_engine_inherited_indirect(ctx: &crate::framework::TestContext) {
+    let original = Emitter::new_alloc();
+    let mut node = original.clone().upcast::<Node3D>();
+
+    // Add to tree, so signals are propagated.
+    ctx.scene_tree.clone().add_child(&node);
+
+    let mut sig = node.signals().renamed();
+    sig.connect_obj(&original, |this: &mut Emitter| {
+        this.last_received_int = 887;
+    });
+
+    node.set_name("new name");
+
+    assert_eq!(original.bind().last_received_int, 887);
 
     // Remove from tree for other tests.
     node.free();
@@ -303,9 +348,9 @@ mod emitter {
     use godot::obj::WithUserSignals;
 
     #[derive(GodotClass)]
-    #[class(init, base=Object)]
+    #[class(init, base=Node3D)] // Node instead of Object to test some signals defined in superclasses.
     pub struct Emitter {
-        _base: Base<Object>,
+        _base: Base<Node3D>,
         #[cfg(since_api = "4.2")]
         pub last_received_int: i64,
     }
@@ -399,6 +444,22 @@ impl Receiver {
         self.last_received
             .set(LastReceived::Object(obj.instance_id()));
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Class which is deliberately `pub` but has only private `#[signal]` declaration.
+// Regression test, as this caused "leaked private types" in the past.
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+pub struct PubClassPrivSignal {
+    _base: Base<Object>,
+}
+
+#[godot_api]
+impl PubClassPrivSignal {
+    #[signal]
+    fn private_signal();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -107,7 +107,7 @@ pub fn transform_inherent_impl(
 
     // For each #[func] in this impl block, create one constant.
     let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
-    let (signal_registrations, signals_collection_struct) =
+    let (signal_registrations, signal_symbol_types) =
         make_signal_registrations(&signals, &class_name, &class_name_obj)?;
 
     #[cfg(feature = "codegen-full")]
@@ -186,7 +186,7 @@ pub fn transform_inherent_impl(
             impl #funcs_collection {
                 #( #func_name_constants )*
             }
-            #signals_collection_struct
+            #signal_symbol_types
         };
 
         Ok(result)

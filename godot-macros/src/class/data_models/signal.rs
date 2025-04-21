@@ -9,8 +9,8 @@
 
 use crate::util::bail;
 use crate::{util, ParseResult};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use proc_macro2::{Delimiter, Ident, TokenStream, TokenTree};
+use quote::{format_ident, quote, ToTokens};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {
@@ -24,11 +24,75 @@ pub struct SignalDefinition {
     pub has_builder: bool,
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Limits the visibility of signals to a few "blessed" syntaxes, excluding `pub(in PATH)`.
+///
+/// This is necessary because the signal collection (containing all signals) must have the widest visibility of any signal, and for
+/// that a total order must exist. `in` paths cannot be semantically analyzed by proc-macros.
+///
+/// Documented in <https://godot-rust.github.io/book/register/signals.html#signal-visibility>.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum SignalVisibility {
+    Priv,
+    PubSuper,
+    PubCrate,
+    Pub,
+}
+
+impl SignalVisibility {
+    pub fn try_parse(tokens: Option<&venial::VisMarker>) -> Option<Self> {
+        // No tokens: private.
+        let Some(tokens) = tokens else {
+            return Some(Self::Priv);
+        };
+
+        debug_assert_eq!(tokens.tk_token1.to_string(), "pub");
+
+        // Early exit if `pub` without following `(...)` group.
+        let group = match &tokens.tk_token2 {
+            None => return Some(Self::Pub),
+            Some(TokenTree::Group(group)) if group.delimiter() == Delimiter::Parenthesis => group,
+            _ => return None,
+        };
+
+        // `pub(...)` -> extract `...` part.
+        let mut tokens_in_paren = group.stream().into_iter();
+        let vis = match tokens_in_paren.next() {
+            Some(TokenTree::Ident(ident)) if ident == "super" => Self::PubSuper,
+            Some(TokenTree::Ident(ident)) if ident == "crate" => Self::PubCrate,
+            _ => return None,
+        };
+
+        // No follow-up tokens allowed.
+        if tokens_in_paren.next().is_some() {
+            return None;
+        }
+
+        Some(vis)
+    }
+}
+
+impl ToTokens for SignalVisibility {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Priv => { /* do nothing */ }
+            Self::Pub => tokens.extend(quote! { pub }),
+            Self::PubSuper => tokens.extend(quote! { pub(super) }),
+            Self::PubCrate => tokens.extend(quote! { pub(crate) }),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Extracted syntax info for a declared signal.
 struct SignalDetails<'a> {
     /// `fn my_signal(i: i32, s: GString)` -- simplified from original declaration.
     fn_signature: &'a venial::Function,
     /// `MyClass`
+    #[allow(unused)]
+    // Current impl doesn't need it, but we already have it, too annoying to add/remove during refactors.
     class_name: &'a Ident,
     /// `i32`, `GString`
     param_types: Vec<venial::TypeExpr>,
@@ -48,6 +112,8 @@ struct SignalDetails<'a> {
     individual_struct_name: Ident,
     /// Visibility, e.g. `pub(crate)`
     vis_marker: Option<venial::VisMarker>,
+    // /// Detected visibility as strongly typed enum.
+    // vis_classified: SignalVisibility,
 }
 
 impl<'a> SignalDetails<'a> {
@@ -83,6 +149,15 @@ impl<'a> SignalDetails<'a> {
         let signal_name = &fn_signature.name;
         let individual_struct_name = format_ident!("__godot_Signal_{}_{}", class_name, signal_name);
 
+        let vis_marker = &fn_signature.vis_marker;
+        let Some(_vis_classified) = SignalVisibility::try_parse(vis_marker.as_ref()) else {
+            return bail!(
+                vis_marker,
+                "invalid visibility `{}` for #[signal]; supported are `pub`, `pub(crate)`, `pub(super)` and private (no visibility marker)",
+                vis_marker.to_token_stream().to_string()
+            );
+        };
+
         Ok(Self {
             fn_signature,
             class_name,
@@ -94,18 +169,26 @@ impl<'a> SignalDetails<'a> {
             signal_name_str: fn_signature.name.to_string(),
             signal_cfg_attrs,
             individual_struct_name,
-            vis_marker: fn_signature.vis_marker.clone(),
+            vis_marker: vis_marker.clone(),
+            // vis_classified,
         })
     }
 }
 
+/// Returns tuple of:
+/// * Code registering signals with Godot engine.
+/// * Symbolic APIs for signals (collection struct + individual signal types + `WithSignal`/`Deref` impls).
 pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
     class_name_obj: &TokenStream,
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
+
+    #[cfg(since_api = "4.2")]
     let mut collection_api = SignalCollection::default();
+    // #[cfg(since_api = "4.2")]
+    // let mut max_visibility = SignalVisibility::Priv;
 
     for signal in signals {
         let SignalDefinition {
@@ -120,15 +203,19 @@ pub fn make_signal_registrations(
         #[cfg(since_api = "4.2")]
         if *has_builder {
             collection_api.extend_with(&details);
+            // max_visibility = max_visibility.max(details.vis_classified);
         }
 
         let registration = make_signal_registration(&details, class_name_obj);
         signal_registrations.push(registration);
     }
 
-    let struct_code = make_signal_collection(class_name, collection_api);
+    #[cfg(since_api = "4.2")]
+    let signal_symbols = make_signal_symbols(class_name, collection_api);
+    #[cfg(before_api = "4.2")]
+    let signal_symbols = None;
 
-    Ok((signal_registrations, struct_code))
+    Ok((signal_registrations, signal_symbols))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -150,7 +237,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
         [
             // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
             #(
-                <#signature_tuple as godot::meta::VarcallSignatureTuple>
+                <#signature_tuple as ::godot::meta::VarcallSignatureTuple>
                     ::param_property_info(#indexes, #param_names_str),
             )*
         ]
@@ -213,9 +300,15 @@ impl SignalCollection {
             //
             // However, it would still lead to a compile error when declaring the individual signal struct `pub` (or any other
             // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
-            #vis_marker fn #signal_name(self) -> #individual_struct_name<'c> {
+            #vis_marker fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
-                    typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
+                    // __typed: ::godot::register::TypedSignal::new(self.__internal_obj, #signal_name_str)
+                    // __typed: ::godot::register::TypedSignal::<'c, C, _>::new(self.__internal_obj, #signal_name_str)
+                    // __typed: todo!()
+
+                    // __typed: self.__internal_obj.into_typed_signal(#signal_name_str)
+                    __typed: ::godot::register::TypedSignal::<'c, C, _>::extract(&mut self.__internal_obj, #signal_name_str)
+
                 }
             }
         });
@@ -233,7 +326,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
     let emit_params = &details.fn_signature.params;
 
     let SignalDetails {
-        class_name,
+        // class_name,
         param_names,
         param_tuple,
         signal_cfg_attrs,
@@ -260,82 +353,212 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #(#signal_cfg_attrs)*
         #[allow(non_camel_case_types)]
         #[doc(hidden)] // Signal struct is hidden, but the method returning it is not (IDE completion).
-        #vis_marker struct #individual_struct_name<'a> {
+        #vis_marker struct #individual_struct_name<'c, C: ::godot::obj::WithSignals> {
             #[doc(hidden)]
-            typed: ::godot::register::TypedSignal<'a, #class_name, #param_tuple>,
+            __typed: ::godot::register::TypedSignal<'c, C, #param_tuple>,
         }
 
         // Concrete convenience API is macro-based; many parts are delegated to TypedSignal via Deref/DerefMut.
         #(#signal_cfg_attrs)*
-        impl #individual_struct_name<'_> {
+        impl<C: ::godot::obj::WithSignals> #individual_struct_name<'_, C> {
             pub fn emit(&mut self, #emit_params) {
-                self.typed.emit_tuple((#( #param_names, )*));
+                self.__typed.emit_tuple((#( #param_names, )*));
             }
         }
 
         #(#signal_cfg_attrs)*
-        impl<'c> std::ops::Deref for #individual_struct_name<'c> {
-            type Target = ::godot::register::TypedSignal<'c, #class_name, #param_tuple>;
+        impl<'c, C: ::godot::obj::WithSignals> std::ops::Deref for #individual_struct_name<'c, C> {
+            type Target = ::godot::register::TypedSignal<'c, C, #param_tuple>;
 
             fn deref(&self) -> &Self::Target {
-                &self.typed
+                &self.__typed
             }
         }
 
         #(#signal_cfg_attrs)*
-        impl std::ops::DerefMut for #individual_struct_name<'_> {
+        impl<C: ::godot::obj::WithSignals> std::ops::DerefMut for #individual_struct_name<'_, C> {
             fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.typed
+                &mut self.__typed
             }
         }
     }
 }
 
-/// Generates a unspecified-name struct holding methods to access each signal.
-fn make_signal_collection(class_name: &Ident, collection: SignalCollection) -> Option<TokenStream> {
-    if collection.is_empty() {
+/// Generates symbolic API for signals:
+/// * collection (unspecified-name struct holding methods to access each signal)
+/// * individual signal types
+/// * trait impls
+fn make_signal_symbols(
+    class_name: &Ident,
+    collection_api: SignalCollection,
+    // max_visibility: SignalVisibility,
+) -> Option<TokenStream> {
+    // Future note: if we add Rust->Rust inheritance, then the WithSignals trait must be unconditionally implemented.
+    if collection_api.is_empty() {
         return None;
     }
 
     let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
-    let collection_struct_methods = &collection.provider_methods;
-    let individual_structs = collection.individual_structs;
+    let collection_struct_methods = &collection_api.provider_methods;
+    let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
+    let upcast_deref_impl = make_upcast_deref_impl(class_name, &collection_struct_name);
+    let individual_structs = collection_api.individual_structs;
+
+    // The collection cannot be `pub` because `Deref::Target` contains the class type, which leads to "leak private type" errors.
+    // We thus adopt the visibility of the #[derive(GodotClass)] struct, imported via macro trick.
+    //
+    // A previous approach (that cannot access the struct visibility) used "max visibility": the user decides which visibility is acceptable f
+    // or individual #[signal]s. They can all be at most the class visibility. Since we assume that decision is correct, the signal collection
+    // itself can also share the widest visibility of any #[signal]. This approach however still led to problems because there's a 2-way
+    // dependency: `impl WithSignals for MyClass` has an associated type `SignalCollection` that mentions the generated collection type. If
+    // that collection type has *lower* visibility than the class, we *also* run into "leak private type" errors.
+
+    // Unrelated, we could use the following for encapsulation:
+    //     #[cfg(since_api = "4.2")]
+    //     mod #signal_mod_name {
+    //         pub use super::*;
+    //         ... // all the code below
+    //     }
+    //     #[cfg(since_api = "4.2")]
+    //     pub use #signal_mod_name::*;
+    //
+    // This now makes signal types/methods invisible to the surrounding scope, so we'd need to adjust visibility in some cases:
+    // * private      -> `pub(super)`
+    // * `pub(super)` -> pub(in super::super)
+    //
+    // Benefit of encapsulating would be:
+    // * No need for `#[doc(hidden)]` on internal symbols like fields.
+    // * #[cfg(since_api = "4.2")] would not need to be repeated. This is less of a problem if the #[cfg] is used inside the macro
+    //   instead of generated code.
+    // * Less scope pollution (even though names are mangled).
+    //
+    // Downside is slightly higher complexity and introducing signals in secondary blocks becomes harder (although we could use another
+    // module name, we'd need a way to create unique names).
+
+    let visibility_macro = util::format_class_visibility_macro(class_name);
 
     let code = quote! {
-        #[allow(non_camel_case_types)]
-        #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
-        pub struct #collection_struct_name<'c> {
-            // To allow external call in the future (given Gd<T>, not self), this could be an enum with either BaseMut or &mut Gd<T>/&mut T.
-            #[doc(hidden)] // Necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
-            __internal_obj: ::godot::register::UserSignalObj<'c, #class_name>
+        #visibility_macro! {
+            #[allow(non_camel_case_types)]
+            #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
+            struct #collection_struct_name<'c, C> {
+                // Hiding necessary because it's in the same scope as the user-defined class, so appearing in IDE completion.
+                #[doc(hidden)]
+                __internal_obj: Option<::godot::private::UserSignalObject<'c, C>>
+            }
         }
 
-        impl<'c> #collection_struct_name<'c> {
+        impl<'c, C> #collection_struct_name<'c, C>
+        where // bounds: see UserSignalObject::into_typed_signal().
+            C: ::godot::obj::WithUserSignals +
+               ::godot::obj::WithSignals<__SignalObj<'c> = ::godot::private::UserSignalObject<'c, C>>,
+        {
             #( #collection_struct_methods )*
         }
 
+        #with_signals_impl
+        #upcast_deref_impl
+        #( #individual_structs )*
+    };
+
+    Some(code)
+}
+
+fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) -> TokenStream {
+    quote! {
         impl ::godot::obj::WithSignals for #class_name {
-            type SignalCollection<'c> = #collection_struct_name<'c>;
-            #[doc(hidden)]
-            type __SignalObject<'c> = ::godot::register::UserSignalObj<'c, Self>;
+            type SignalCollection<'c, C: ::godot::obj::WithSignals> = #collection_struct_name<'c, C>;
 
             #[doc(hidden)]
-            fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_> {
+            type __SignalObj<'c> = ::godot::private::UserSignalObject<'c, Self>;
+
+            #[doc(hidden)]
+            fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: ::godot::register::UserSignalObj::External { gd: external.clone() }
+                    __internal_obj: Some(::godot::private::UserSignalObject::External {
+                        gd: external.clone().upcast::<Object>()
+                    })
                 }
             }
         }
 
         impl ::godot::obj::WithUserSignals for #class_name {
-            fn signals(&mut self) -> Self::SignalCollection<'_> {
+            fn signals(&mut self) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: ::godot::register::UserSignalObj::Internal { obj_mut: self }
+                    __internal_obj: Some(::godot::private::UserSignalObject::Internal { self_mut: self })
                 }
             }
         }
+    }
+}
 
-        #( #individual_structs )*
-    };
-    Some(code)
+fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) -> TokenStream {
+    quote! {
+        impl<'c, C: ::godot::obj::WithSignals> std::ops::Deref for #collection_struct_name<'c, C> {
+            type Target = <
+                <
+                    #class_name as ::godot::obj::GodotClass
+                >::Base as ::godot::obj::WithSignals
+            >::SignalCollection<'c, C>;
+
+            fn deref(&self) -> &Self::Target {
+                type Derived = #class_name;
+                ::godot::private::signal_collection_to_base::<C, Derived>(self)
+            }
+        }
+
+        impl<'c, C: ::godot::obj::WithSignals> std::ops::DerefMut for #collection_struct_name<'c, C> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                type Derived = #class_name;
+                ::godot::private::signal_collection_to_base_mut::<C, Derived>(self)
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_signal_visibility() {
+        #[rustfmt::skip]
+        let list = [
+            (quote! { pub },                Some(SignalVisibility::Pub)),
+            (quote! { pub(crate) },         Some(SignalVisibility::PubCrate)),
+            (quote! {},                     Some(SignalVisibility::Priv)),
+            (quote! { pub(super) },         Some(SignalVisibility::PubSuper)),
+            (quote! { pub(self) },          None), // not supported (equivalent to private)
+            (quote! { pub(in crate::foo) }, None),
+        ];
+
+        let parsed = list
+            .iter()
+            .map(|(vis, _)| {
+                // Dummy function, because venial has no per-item parser in public API.
+                let item = venial::parse_item(quote! {
+                    #vis fn f() {}
+                });
+
+                let Ok(venial::Item::Function(f)) = item else {
+                    panic!("expected function")
+                };
+
+                SignalVisibility::try_parse(f.vis_marker.as_ref())
+            })
+            .collect::<Vec<_>>();
+
+        for ((_, expected), actual) in list.iter().zip(parsed.iter()) {
+            assert_eq!(expected, actual);
+        }
+    }
+
+    #[test]
+    fn signal_visibility_order() {
+        assert!(SignalVisibility::Pub > SignalVisibility::PubCrate);
+        assert!(SignalVisibility::PubCrate > SignalVisibility::PubSuper);
+        assert!(SignalVisibility::PubSuper > SignalVisibility::Priv);
+    }
 }

@@ -10,6 +10,8 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
+#[cfg(since_api = "4.2")]
+use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 use godot_ffi as sys;
 
@@ -441,22 +443,34 @@ pub trait WithUserSignals: WithSignals + WithBaseField {}
 ///
 /// User-defined classes with `#[signal]` additionally implement [`WithUserSignals`].
 #[cfg(since_api = "4.2")]
-pub trait WithSignals: GodotClass {
+// Inherits bound makes some up/downcasting in signals impl easier.
+pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
     /// The associated struct listing all signals of this class.
     ///
-    /// `'c` denotes the lifetime during which the class instance is borrowed and its signals can be modified.
-    type SignalCollection<'c>;
+    /// Parameters:
+    /// - `'c` denotes the lifetime during which the class instance is borrowed and its signals can be modified.
+    /// - `C` is the concrete class on which the signals are provided. This can be different than `Self` in case of derived classes
+    ///   (e.g. a user-defined node) connecting/emitting signals of a base class (e.g. `Node`).
+    type SignalCollection<'c, C>
+    where
+        C: WithSignals;
 
-    /// Trait that allows [`TypedSignal`] to store a reference to the user object.
+    /// Whether the representation needs to be able to hold just `Gd` (for engine classes) or `UserSignalObject` (for user classes).
+    // Note: this cannot be in Declarer (Engine/UserDecl) as associated type `type SignalObjectType<'c, T: WithSignals>`,
+    // because the user impl has the additional requirement T: WithUserSignals.
     #[doc(hidden)]
-    #[expect(private_bounds)]
-    type __SignalObject<'c>: crate::registry::signal::SignalObj<Self>;
+    type __SignalObj<'c>: SignalObject<'c>;
+    // type __SignalObj<'c, C>: SignalObject<'c>
+    // where
+    //     C: WithSignals + 'c;
 
     /// Create from existing `Gd`, to enable `Gd::signals()`.
     ///
+    /// Only used for constructing from a concrete class, so `C = Self` in the return type.
+    ///
     /// Takes by reference and not value, to retain lifetime chain.
     #[doc(hidden)]
-    fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_>;
+    fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_, Self>;
 }
 
 /// Implemented for user-defined classes with at least one `#[signal]` declaration.
@@ -489,7 +503,7 @@ pub trait WithUserSignals: WithSignals + WithBaseField {
     /// | `connect_self(f: impl FnMut(&mut Self, i32))` | Connects a `&mut self` method or closure. |
     /// | `emit(amount: i32)` | Emits the signal with the given arguments. |
     ///
-    fn signals(&mut self) -> Self::SignalCollection<'_>;
+    fn signals(&mut self) -> Self::SignalCollection<'_, Self>;
 }
 
 /// Extension trait for all reference-counted classes.
