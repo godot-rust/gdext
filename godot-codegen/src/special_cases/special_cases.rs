@@ -659,9 +659,11 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
 }
 
 #[cfg(before_api = "4.4")]
-pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
-    match (class_name, method) {
-        ("ScriptLanguageExtension", _) => method != "get_doc_comment_delimiters",
+pub fn is_virtual_method_required(class_name: &TyName, rust_method_name: &str) -> bool {
+    // Do not call is_derived_virtual_method_required() here; that is handled in virtual_traits.rs.
+
+    match (class_name.godot_ty.as_str(), rust_method_name) {
+        ("ScriptLanguageExtension", method) => method != "get_doc_comment_delimiters",
 
         ("ScriptExtension", "editor_can_reload_from_file")
         | ("ScriptExtension", "can_instantiate")
@@ -699,7 +701,7 @@ pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
         | ("EditorExportPlugin", "customize_scene")
         | ("EditorExportPlugin", "get_customization_configuration_hash")
         | ("EditorExportPlugin", "get_name")
-        | ("EditorVcsInterface", _)
+        | ("EditorVCSInterface", _)
         | ("MovieWriter", _)
         | ("TextServerExtension", "has_feature")
         | ("TextServerExtension", "get_name")
@@ -805,23 +807,23 @@ pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
         | ("PacketPeerExtension", "get_available_packet_count")
         | ("PacketPeerExtension", "get_max_packet_size")
         | ("StreamPeerExtension", "get_available_bytes")
-        | ("WebRtcDataChannelExtension", "poll")
-        | ("WebRtcDataChannelExtension", "close")
-        | ("WebRtcDataChannelExtension", "set_write_mode")
-        | ("WebRtcDataChannelExtension", "get_write_mode")
-        | ("WebRtcDataChannelExtension", "was_string_packet")
-        | ("WebRtcDataChannelExtension", "get_ready_state")
-        | ("WebRtcDataChannelExtension", "get_label")
-        | ("WebRtcDataChannelExtension", "is_ordered")
-        | ("WebRtcDataChannelExtension", "get_id")
-        | ("WebRtcDataChannelExtension", "get_max_packet_life_time")
-        | ("WebRtcDataChannelExtension", "get_max_retransmits")
-        | ("WebRtcDataChannelExtension", "get_protocol")
-        | ("WebRtcDataChannelExtension", "is_negotiated")
-        | ("WebRtcDataChannelExtension", "get_buffered_amount")
-        | ("WebRtcDataChannelExtension", "get_available_packet_count")
-        | ("WebRtcDataChannelExtension", "get_max_packet_size")
-        | ("WebRtcPeerConnectionExtension", _)
+        | ("WebRTCDataChannelExtension", "poll")
+        | ("WebRTCDataChannelExtension", "close")
+        | ("WebRTCDataChannelExtension", "set_write_mode")
+        | ("WebRTCDataChannelExtension", "get_write_mode")
+        | ("WebRTCDataChannelExtension", "was_string_packet")
+        | ("WebRTCDataChannelExtension", "get_ready_state")
+        | ("WebRTCDataChannelExtension", "get_label")
+        | ("WebRTCDataChannelExtension", "is_ordered")
+        | ("WebRTCDataChannelExtension", "get_id")
+        | ("WebRTCDataChannelExtension", "get_max_packet_life_time")
+        | ("WebRTCDataChannelExtension", "get_max_retransmits")
+        | ("WebRTCDataChannelExtension", "get_protocol")
+        | ("WebRTCDataChannelExtension", "is_negotiated")
+        | ("WebRTCDataChannelExtension", "get_buffered_amount")
+        | ("WebRTCDataChannelExtension", "get_available_packet_count")
+        | ("WebRTCDataChannelExtension", "get_max_packet_size")
+        | ("WebRTCPeerConnectionExtension", _)
         | ("MultiplayerPeerExtension", "get_available_packet_count")
         | ("MultiplayerPeerExtension", "get_max_packet_size")
         | ("MultiplayerPeerExtension", "set_transfer_channel")
@@ -839,7 +841,18 @@ pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
         | ("MultiplayerPeerExtension", "get_unique_id")
         | ("MultiplayerPeerExtension", "get_connection_status") => true,
 
-        (_, _) => false,
+        _ => false,
+    }
+}
+
+// Adjustments for Godot 4.4+, where a virtual method is no longer needed (e.g. in a derived class).
+#[rustfmt::skip]
+pub fn is_derived_virtual_method_required(class_name: &TyName, rust_method_name: &str) -> Option<bool> {
+      match (class_name.godot_ty.as_str(), rust_method_name) {
+          // Required in base class, no longer in derived; https://github.com/godot-rust/gdext/issues/1133.
+          | ("AudioStreamPlaybackResampled", "mix")
+        
+          => Some(false), _ => None
     }
 }
 
