@@ -160,9 +160,8 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
     handle
 }
 
-// FIXME test is flaky and occasionally breaks CI job `linux-features-experimental`. Should become deterministic, then un-skip.
 #[cfg(feature = "experimental-threads")]
-#[itest(async, skip)]
+#[itest(async)]
 fn signal_future_send_arg_no_panic() -> TaskHandle {
     use crate::framework::ThreadCrosser;
 
