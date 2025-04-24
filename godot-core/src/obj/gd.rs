@@ -21,7 +21,7 @@ use crate::obj::{
     bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
     OnEditor, RawGd, WithSignals,
 };
-use crate::private::callbacks;
+use crate::private::{callbacks, PanicPayload};
 use crate::registry::property::{object_export_element_type_string, Export, Var};
 use crate::{classes, out};
 
@@ -137,11 +137,16 @@ where
     ///     MyClass { my_base, other_field: 732 }
     /// });
     /// ```
+    ///
+    /// # Panics
+    /// Panics occurring in the `init` function are propagated to the caller.
     pub fn from_init_fn<F>(init: F) -> Self
     where
         F: FnOnce(crate::obj::Base<T::Base>) -> T,
     {
-        let object_ptr = callbacks::create_custom(init);
+        let object_ptr = callbacks::create_custom(init) // or propagate panic.
+            .unwrap_or_else(|payload| PanicPayload::repanic(payload));
+
         unsafe { Gd::from_obj_sys(object_ptr) }
     }
 
@@ -500,6 +505,11 @@ impl<T: GodotClass> Gd<T> {
     /// This is the default for most initializations from FFI. In cases where reference counter
     /// should explicitly **not** be updated, [`Self::from_obj_sys_weak`] is available.
     pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
+        debug_assert!(
+            !ptr.is_null(),
+            "Gd::from_obj_sys() called with null pointer"
+        );
+
         Self::from_obj_sys_or_none(ptr).unwrap()
     }
 

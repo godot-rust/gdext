@@ -338,6 +338,13 @@ func test_func_rename():
 	assert_eq(func_rename.has_method("spell_static"), true)
 	assert_eq(func_rename.spell_static(), "static")
 
+func test_init_panic():
+	var obj := InitPanic.new() # panics in Rust
+	assert_eq(obj, null, "Rust panic in init() returns null in GDScript")
+
+	# Alternative behavior (probably not desired):
+	# assert_eq(obj.get_class(), "RefCounted", "panic in init() returns base instance without GDExtension part")
+
 var gd_self_obj: GdSelfObj
 func update_self_reference(value):
 	gd_self_obj.update_internal(value)

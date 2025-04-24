@@ -386,6 +386,10 @@ impl PanicPayload {
     pub fn into_panic_message(self) -> String {
         extract_panic_message(self.payload.as_ref())
     }
+
+    pub fn repanic(self) -> ! {
+        std::panic::resume_unwind(self.payload)
+    }
 }
 
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
@@ -495,13 +499,15 @@ pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
 
 #[cfg(test)]
 mod tests {
-    use super::{CallError, CallErrors};
+    use super::{CallError, CallErrors, PanicPayload};
     use crate::meta::CallContext;
 
     fn make(index: usize) -> CallError {
         let method_name = format!("method_{index}");
         let ctx = CallContext::func("Class", &method_name);
-        CallError::failed_by_user_panic(&ctx, "some panic reason".to_string())
+        let payload = PanicPayload::new(Box::new("some panic reason".to_string()));
+
+        CallError::failed_by_user_panic(&ctx, payload)
     }
 
     #[test]
