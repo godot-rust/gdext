@@ -218,7 +218,7 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Panic handling
+// Panic *hook* management
 
 pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
     if let Some(s) = err.downcast_ref::<&'static str>() {
@@ -370,13 +370,31 @@ pub fn get_gdext_panic_context() -> Option<String> {
     None
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Panic unwinding and catching
+
+pub struct PanicPayload {
+    payload: Box<dyn std::any::Any + Send + 'static>,
+}
+
+impl PanicPayload {
+    pub fn new(payload: Box<dyn std::any::Any + Send + 'static>) -> Self {
+        Self { payload }
+    }
+
+    // While this could be `&self`, it's usually good practice to pass panic payloads around linearly and have only 1 representation at a time.
+    pub fn into_panic_message(self) -> String {
+        extract_panic_message(self.payload.as_ref())
+    }
+}
+
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
 ///
 /// Returns `Err(message)` if a panic occurred, and `Ok(result)` with the result of `code` otherwise.
 ///
 /// In contrast to [`handle_varcall_panic`] and [`handle_ptrcall_panic`], this function is not intended for use in `try_` functions,
 /// where the error is propagated as a `CallError` in a global variable.
-pub fn handle_panic<E, F, R>(error_context: E, code: F) -> Result<R, String>
+pub fn handle_panic<E, F, R>(error_context: E, code: F) -> Result<R, PanicPayload>
 where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
@@ -390,8 +408,7 @@ where
         cell.borrow_mut().push_function(&error_context)
     });
 
-    let result =
-        std::panic::catch_unwind(code).map_err(|payload| extract_panic_message(payload.as_ref()));
+    let result = std::panic::catch_unwind(code).map_err(PanicPayload::new);
 
     #[cfg(debug_assertions)]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
@@ -407,8 +424,8 @@ pub fn handle_varcall_panic<F, R>(
 ) where
     F: FnOnce() -> Result<R, CallError> + std::panic::UnwindSafe,
 {
-    let outcome: Result<Result<R, CallError>, String> =
-        handle_panic(|| format!("{call_ctx}"), code);
+    let outcome: Result<Result<R, CallError>, PanicPayload> =
+        handle_panic(|| call_ctx.to_string(), code);
 
     let call_error = match outcome {
         // All good.
@@ -437,14 +454,14 @@ pub fn handle_ptrcall_panic<F, R>(call_ctx: &CallContext, code: F)
 where
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    let outcome: Result<R, String> = handle_panic(|| format!("{call_ctx}"), code);
+    let outcome: Result<R, PanicPayload> = handle_panic(|| call_ctx.to_string(), code);
 
     let call_error = match outcome {
         // All good.
         Ok(_result) => return,
 
         // Panic occurred (typically through user): forward message.
-        Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
+        Err(payload) => CallError::failed_by_user_panic(call_ctx, payload),
     };
 
     let _id = report_call_error(call_error, false);
