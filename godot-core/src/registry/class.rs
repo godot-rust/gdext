@@ -216,14 +216,30 @@ pub fn auto_register_classes(init_level: InitLevel) {
     // but it is much slower and doesn't guarantee that all the dependent classes will be already loaded in most cases.
     register_classes_and_dyn_traits(&mut map, init_level);
 
+    // Editor plugins should be added to the editor AFTER all the classes has been registered.
+    // Adding EditorPlugin to the Editor before registering all the classes it depends on might result in crash.
+    let mut editor_plugins: Vec<ClassName> = Vec::new();
+
     // Actually register all the classes.
     for info in map.into_values() {
         #[cfg(feature = "debug-log")]
         let class_name = info.class_name;
 
+        if info.is_editor_plugin {
+            editor_plugins.push(info.class_name);
+        }
+
         register_class_raw(info);
 
         out!("Class {class_name} loaded.");
+    }
+
+    // Will imminently add given class to the editor.
+    // It is expected and beneficial behaviour while we load library for the first time
+    // but (for now) might lead to some issues during hot reload.
+    // See also: (https://github.com/godot-rust/gdext/issues/1132)
+    for editor_plugin_class_name in editor_plugins {
+        unsafe { interface_fn!(editor_add_plugin)(editor_plugin_class_name.string_sys()) };
     }
 
     out!("All classes for level `{init_level:?}` auto-registered.");
@@ -616,10 +632,6 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
 
     if let Some(register_fn) = info.user_register_fn {
         (register_fn.raw)(&mut class_builder);
-    }
-
-    if info.is_editor_plugin {
-        unsafe { interface_fn!(editor_add_plugin)(class_name.string_sys()) };
     }
 }
 
