@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{dict, Color, Dictionary, GString, Variant, VariantType};
-use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
+use godot::builtin::{dict, Color, Dictionary, GString, StringName, Variant, VariantType};
+use godot::classes::{Area2D, INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
 use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd, OnEditor};
@@ -536,4 +536,86 @@ fn test_var_with_renamed_funcs() {
     assert_eq!(obj.get("int_val").to::<i32>(), 128);
 
     obj.free();
+}
+
+#[derive(GodotClass)]
+#[class(base=Node)]
+struct SomeDuplicator {
+    #[var]
+    int_val: i32,
+
+    #[var]
+    optional_node: Option<Gd<Node>>,
+
+    #[export]
+    export_area: OnEditor<Gd<Area2D>>,
+}
+
+#[godot_api]
+impl INode for SomeDuplicator {
+    fn init(_base: Base<Node>) -> Self {
+        SomeDuplicator {
+            int_val: 0,
+            optional_node: None,
+            export_area: OnEditor::default(),
+        }
+    }
+}
+
+#[itest]
+fn test_some_duplicator() {
+    let mut obj = SomeDuplicator::new_alloc();
+    assert_eq!(obj.bind().int_val, 0);
+    assert_eq!(obj.bind().optional_node, None);
+
+    obj.bind_mut().int_val = 5;
+    assert_eq!(obj.bind().int_val, 5);
+
+    let some_node = Some(Node::new_alloc());
+    let some_id = some_node.as_ref().unwrap().instance_id();
+    obj.bind_mut().optional_node = some_node.clone();
+    let obj_id = obj.bind().optional_node.as_ref().unwrap().instance_id();
+    assert_eq!(obj_id, some_id);
+
+    obj.bind_mut()
+        .optional_node
+        .as_mut()
+        .unwrap()
+        .set_name("renamed");
+    assert_eq!(
+        obj.bind().optional_node.as_ref().unwrap().get_name(),
+        StringName::from("renamed")
+    );
+
+    let mut some_area = Area2D::new_alloc();
+    some_area.set_collision_layer(1);
+    some_area.set_collision_mask(1);
+    obj.bind_mut().export_area.init(some_area);
+    assert_eq!(obj.bind().export_area.get_collision_layer(), 1);
+    assert_eq!(obj.bind().export_area.get_collision_mask(), 1);
+
+    let duplicated_obj = obj.duplicate();
+    let duplicated_obj: Gd<SomeDuplicator> = duplicated_obj.unwrap().cast();
+
+    assert_eq!(duplicated_obj.bind().int_val, 5);
+    assert_eq!(
+        duplicated_obj
+            .bind()
+            .optional_node
+            .as_ref()
+            .unwrap()
+            .instance_id(),
+        obj_id
+    );
+    assert_eq!(
+        duplicated_obj
+            .bind()
+            .optional_node
+            .as_ref()
+            .unwrap()
+            .get_name(),
+        StringName::from("renamed")
+    );
+    assert_eq!(duplicated_obj.bind().export_area.get_collision_layer(), 1);
+    assert_eq!(duplicated_obj.bind().export_area.get_collision_mask(), 1);
 }
