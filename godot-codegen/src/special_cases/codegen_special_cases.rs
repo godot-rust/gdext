@@ -190,4 +190,5 @@ const SELECTED_CLASSES: &[&str] = &[
     "Time", // usage: enum_test.enum_hash()
     "HTTPRequest",
     "ResourceFormatLoader", // TODO: replace?
+    "Area2D",
 ];

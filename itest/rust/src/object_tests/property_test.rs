@@ -539,7 +539,7 @@ fn test_var_with_renamed_funcs() {
 }
 
 #[derive(GodotClass)]
-#[class(base=Node)]
+#[class(init, base=Node)]
 struct SomeDuplicator {
     #[var]
     int_val: i32,
@@ -548,18 +548,10 @@ struct SomeDuplicator {
     optional_node: Option<Gd<Node>>,
 
     #[export]
-    oneditor_node: OnEditor<Gd<Area2D>>,
-}
+    oneditor_node: OnEditor<Gd<Node>>,
 
-#[godot_api]
-impl INode for SomeDuplicator {
-    fn init(_base: Base<Node>) -> Self {
-        SomeDuplicator {
-            int_val: 0,
-            optional_node: None,
-            export_area: OnEditor::default(),
-        }
-    }
+    #[export]
+    oneditor_area: OnEditor<Gd<Area2D>>,
 }
 
 #[itest]
@@ -568,48 +560,44 @@ fn test_some_duplicator() {
     obj.bind_mut().int_val = 5;
 
     let some_node = Node::new_alloc();
-    let some_id = some_node.instance_id();
     obj.bind_mut().optional_node = Some(some_node.clone());
 
-    obj.bind_mut()
-        .optional_node
-        .as_mut()
-        .unwrap()
-        .set_name("renamed");
-    assert_eq!(
-        obj.bind().optional_node.as_ref().unwrap().get_name(),
-        StringName::from("renamed")
-    );
+    let mut editor_node = Node::new_alloc();
+    editor_node.set_name("test");
+    obj.bind_mut().oneditor_node.init(editor_node);
 
     let mut some_area = Area2D::new_alloc();
     some_area.set_collision_layer(1);
     some_area.set_collision_mask(1);
-    obj.bind_mut().export_area.init(some_area);
-    assert_eq!(obj.bind().export_area.get_collision_layer(), 1);
-    assert_eq!(obj.bind().export_area.get_collision_mask(), 1);
+    obj.bind_mut().oneditor_area.init(some_area);
+    assert_eq!(obj.bind().oneditor_area.get_collision_layer(), 1);
+    assert_eq!(obj.bind().oneditor_area.get_collision_mask(), 1);
 
     let duplicated_obj = obj.duplicate();
     let duplicated_obj: Gd<SomeDuplicator> = duplicated_obj.unwrap().cast();
 
-    assert_eq!(duplicated_obj.bind().int_val, 5);
-    assert_eq!(
-        duplicated_obj
-            .bind()
-            .optional_node
-            .as_ref()
-            .unwrap()
-            .instance_id(),
-        obj_id
-    );
-    assert_eq!(
-        duplicated_obj
-            .bind()
-            .optional_node
-            .as_ref()
-            .unwrap()
-            .get_name(),
-        StringName::from("renamed")
-    );
-    assert_eq!(duplicated_obj.bind().export_area.get_collision_layer(), 1);
-    assert_eq!(duplicated_obj.bind().export_area.get_collision_mask(), 1);
+    {
+        let duplicated = duplicated_obj.bind();
+        assert_eq!(duplicated.int_val, 5);
+        assert_eq!(
+            duplicated.optional_node.as_ref().unwrap().instance_id(),
+            some_node.instance_id()
+        );
+        assert_eq!(
+            duplicated.optional_node.as_ref().unwrap().get_name(),
+            StringName::from("renamed")
+        );
+
+        assert_eq!(
+            duplicated.oneditor_node.get_name(),
+            StringName::from("test")
+        );
+
+        assert_eq!(duplicated.oneditor_area.get_collision_layer(), 1);
+        assert_eq!(duplicated.oneditor_area.get_collision_mask(), 1);
+    }
+
+    some_node.free();
+    duplicated_obj.free();
+    obj.free();
 }
