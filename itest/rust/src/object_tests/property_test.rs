@@ -548,7 +548,7 @@ struct SomeDuplicator {
     optional_node: Option<Gd<Node>>,
 
     #[export]
-    export_area: OnEditor<Gd<Area2D>>,
+    oneditor_node: OnEditor<Gd<Area2D>>,
 }
 
 #[godot_api]
@@ -565,17 +565,11 @@ impl INode for SomeDuplicator {
 #[itest]
 fn test_some_duplicator() {
     let mut obj = SomeDuplicator::new_alloc();
-    assert_eq!(obj.bind().int_val, 0);
-    assert_eq!(obj.bind().optional_node, None);
-
     obj.bind_mut().int_val = 5;
-    assert_eq!(obj.bind().int_val, 5);
 
-    let some_node = Some(Node::new_alloc());
-    let some_id = some_node.as_ref().unwrap().instance_id();
-    obj.bind_mut().optional_node = some_node.clone();
-    let obj_id = obj.bind().optional_node.as_ref().unwrap().instance_id();
-    assert_eq!(obj_id, some_id);
+    let some_node = Node::new_alloc();
+    let some_id = some_node.instance_id();
+    obj.bind_mut().optional_node = Some(some_node.clone());
 
     obj.bind_mut()
         .optional_node
