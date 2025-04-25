@@ -190,4 +190,8 @@ const SELECTED_CLASSES: &[&str] = &[
     "Time", // usage: enum_test.enum_hash()
     "HTTPRequest",
     "ResourceFormatLoader", // TODO: replace?
+    //
+    // Collision
+    "CollisionObject2D",
+    "Area2D",
 ];
