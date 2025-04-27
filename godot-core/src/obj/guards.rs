@@ -104,7 +104,10 @@ pub struct DynGdRef<'a, D: ?Sized> {
     cached_ptr: *const D,
 }
 
-impl<'a, D: ?Sized> DynGdRef<'a, D> {
+impl<'a, D> DynGdRef<'a, D>
+where
+    D: ?Sized + 'static,
+{
     #[doc(hidden)]
     pub fn from_guard<T: AsDyn<D>>(guard: GdRef<'a, T>) -> Self {
         let obj = &*guard;
@@ -147,7 +150,10 @@ pub struct DynGdMut<'a, D: ?Sized> {
     cached_ptr: *mut D,
 }
 
-impl<'a, D: ?Sized> DynGdMut<'a, D> {
+impl<'a, D> DynGdMut<'a, D>
+where
+    D: ?Sized + 'static,
+{
     #[doc(hidden)]
     pub fn from_guard<T: AsDyn<D>>(mut guard: GdMut<'a, T>) -> Self {
         let obj = &mut *guard;

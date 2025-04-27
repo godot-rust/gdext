@@ -155,11 +155,75 @@ use std::{fmt, ops};
 ///
 /// `#[export]` for a `DynGd<T, D>` allows you to limit the available choices to implementors of a given trait `D` whose base inherits the specified `T`
 /// (for example, `#[export] Option<DynGd<Resource, dyn MyTrait>>` won't include Rust classes with an Object base, even if they implement `MyTrait`).
+///
+/// # Type inference
+///
+/// If a class implements more than one `AsDyn<D>` relation (usually via `#[godot_dyn]`), type inference will only work when the trait
+/// used for `D` explicitly declares a `: 'static` bound.
+/// Otherwise, if only one `impl AsDyn` is present for a given class, the type can always be inferred.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// trait Health: 'static { /* ... */ }
+///
+/// // Exact equivalent to:
+/// trait OtherHealth
+/// where
+///     Self: 'static
+/// { /* ... */ }
+///
+/// trait NoInference { /* ... */ }
+///
+/// #[derive(GodotClass)]
+/// # #[class(init)]
+/// struct Monster { /* ... */ }
+///
+/// #[godot_dyn]
+/// impl Health for Monster { /* ... */ }
+///
+/// #[godot_dyn]
+/// impl NoInference for Monster { /* ... */ }
+///
+/// // Two example functions accepting trait object, to check type inference.
+/// fn deal_damage(h: &mut dyn Health) { /* ... */ }
+/// fn no_inference(i: &mut dyn NoInference) { /* ... */ }
+///
+/// // Type can be inferred since 'static bound is explicitly declared for Health trait.
+/// let mut dyn_gd = Monster::new_gd().into_dyn();
+/// deal_damage(&mut *dyn_gd.dyn_bind_mut());
+///
+/// // Otherwise type can't be properly inferred.
+/// let mut dyn_gd = Monster::new_gd().into_dyn::<dyn NoInference>();
+/// no_inference(&mut *dyn_gd.dyn_bind_mut());
+/// ```
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// trait Health { /* ... */ }
+///
+/// trait OtherTrait { /* ... */ }
+///
+/// #[derive(GodotClass)]
+/// # #[class(init)]
+/// struct Monster { /* ... */ }
+/// #[godot_dyn]
+/// impl Health for Monster { /* ... */ }
+/// #[godot_dyn]
+/// impl OtherTrait for Monster { /* ... */ }
+///
+/// fn deal_damage(h: &mut dyn Health) { /* ... */ }
+///
+/// // Type can't be inferred.
+/// // Would result in confusing compilation error
+/// // since compiler would try to enforce 'static *lifetime* (&'static mut ...) on our reference.
+/// let mut dyn_gd = Monster::new_gd().into_dyn();
+/// deal_damage(&mut *dyn_gd.dyn_bind_mut());
+/// ```
 pub struct DynGd<T, D>
 where
     // T does _not_ require AsDyn<D> here. Otherwise, it's impossible to upcast (without implementing the relation for all base classes).
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     // Potential optimizations: use single Gd; use Rc/Arc instead of Box+clone; store a downcast fn from Gd<T>; ...
     obj: Gd<T>,
@@ -169,7 +233,7 @@ where
 impl<T, D> DynGd<T, D>
 where
     T: AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     pub(crate) fn from_gd(gd_instance: Gd<T>) -> Self {
         let erased_obj = Box::new(gd_instance.clone());
@@ -185,7 +249,7 @@ impl<T, D> DynGd<T, D>
 where
     // Again, T deliberately does not require AsDyn<D> here. See above.
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     /// Acquires a shared reference guard to the trait object `D`.
     ///
@@ -297,7 +361,7 @@ where
 impl<T, D> DynGd<T, D>
 where
     T: GodotClass + Bounds<Memory = bounds::MemManual>,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     /// Destroy the manually-managed Godot object.
     ///
@@ -311,7 +375,7 @@ where
 impl<T, D> Clone for DynGd<T, D>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -355,7 +419,7 @@ where
 impl<T, D> ops::Deref for DynGd<T, D>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     type Target = Gd<T>;
 
@@ -367,7 +431,7 @@ where
 impl<T, D> ops::DerefMut for DynGd<T, D>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.obj
@@ -398,7 +462,10 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Type erasure
 
-trait ErasedGd<D: ?Sized> {
+trait ErasedGd<D>
+where
+    D: ?Sized + 'static,
+{
     fn dyn_bind(&self) -> DynGdRef<D>;
     fn dyn_bind_mut(&mut self) -> DynGdMut<D>;
 
@@ -408,7 +475,7 @@ trait ErasedGd<D: ?Sized> {
 impl<T, D> ErasedGd<D> for Gd<T>
 where
     T: AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     fn dyn_bind(&self) -> DynGdRef<D> {
         DynGdRef::from_guard::<T>(Gd::bind(self))
@@ -549,7 +616,7 @@ where
 impl<T, D> GodotConvert for OnEditor<DynGd<T, D>>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     type Via = Option<<DynGd<T, D> as GodotConvert>::Via>;
 }

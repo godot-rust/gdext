@@ -56,11 +56,11 @@ fn dyn_gd_creation_deref() {
 
 #[itest]
 fn dyn_gd_creation_deref_multiple_traits() {
-    let obj = foreign::NodeHealth::new_alloc();
-    let original_id = obj.instance_id();
+    let original_obj = foreign::NodeHealth::new_alloc();
+    let original_id = original_obj.instance_id();
 
-    // `dyn Health` must be explicitly declared if multiple AsDyn<...> trait implementations exist.
-    let mut obj = obj.into_dyn::<dyn Health>();
+    // Type can be inferred because `Health` explicitly declares a 'static bound.
+    let mut obj = original_obj.clone().into_dyn();
 
     let dyn_id = obj.instance_id();
     assert_eq!(dyn_id, original_id);
@@ -68,11 +68,33 @@ fn dyn_gd_creation_deref_multiple_traits() {
     deal_20_damage(&mut *obj.dyn_bind_mut());
     assert_eq!(obj.dyn_bind().get_hitpoints(), 80);
 
+    // Otherwise type inference doesn't work and type must be explicitly declared.
+    let mut obj = original_obj
+        .clone()
+        .into_dyn::<dyn InstanceIdProvider<Id = InstanceId>>();
+    assert_eq!(get_instance_id(&mut *obj.dyn_bind_mut()), original_id);
+
+    // Not recommended – for presentational purposes only.
+    // Works because 'static bound on type is enforced in function signature.
+    // I.e. this wouldn't work with fn get_instance_id(...).
+    let mut obj = original_obj.into_dyn();
+    get_instance_id_explicit_static_bound(&mut *obj.dyn_bind_mut());
+
     obj.free();
 }
 
 fn deal_20_damage(h: &mut dyn Health) {
     h.deal_damage(20);
+}
+
+fn get_instance_id(i: &mut dyn InstanceIdProvider<Id = InstanceId>) -> InstanceId {
+    i.get_id_dynamic()
+}
+
+fn get_instance_id_explicit_static_bound(
+    i: &mut (dyn InstanceIdProvider<Id = InstanceId> + 'static),
+) -> InstanceId {
+    i.get_id_dynamic()
 }
 
 #[itest]
@@ -428,7 +450,8 @@ fn dyn_gd_multiple_traits() {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Example symbols
 
-trait Health {
+// 'static bound must be explicitly declared to make type inference work.
+trait Health: 'static {
     fn get_hitpoints(&self) -> u8;
 
     fn deal_damage(&mut self, damage: u8);
