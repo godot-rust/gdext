@@ -167,6 +167,15 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
 
+          - name: linux-release
+            os: ubuntu-22.04
+            artifact-name: linux-release-nightly
+            godot-binary: godot.linuxbsd.template_release.x86_64
+            # Use `codegen-full-experimental` to make sure that all function tables can be loaded in Godot release builds.
+            # If the experimental part causes problems, downgrade to `codegen-full`.
+            rust-extra-args: --release --features itest/codegen-full-experimental
+            rust-cache-key: release
+
           # Linux compat
 
           - name: linux-4.4
