@@ -120,19 +120,6 @@ pub trait FromGodot: Sized + GodotConvert {
     }
 }
 
-pub(crate) fn into_ffi_variant<T: ToGodot>(value: &T) -> Variant {
-    let via = value.to_godot();
-    let ffi = via.to_ffi();
-    GodotFfiVariant::ffi_to_variant(&ffi)
-}
-
-pub(crate) fn try_from_ffi<T: FromGodot>(
-    ffi: <T::Via as GodotType>::Ffi,
-) -> Result<T, ConvertError> {
-    let via = <T::Via as GodotType>::try_from_ffi(ffi)?;
-    T::try_from_godot(via)
-}
-
 #[macro_export]
 macro_rules! impl_godot_as_self {
     ($T:ty) => {

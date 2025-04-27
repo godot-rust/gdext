@@ -10,12 +10,12 @@ use sys::interface_fn;
 
 use crate::builtin::{StringName, Variant};
 use crate::global::MethodFlags;
-use crate::meta::{ClassName, PropertyInfo, VarcallSignatureTuple};
+use crate::meta::{ClassName, GodotConvert, GodotType, ParamTuple, PropertyInfo, Signature};
 use crate::obj::GodotClass;
 
 /// Info relating to an argument or return type in a method.
 pub struct MethodParamOrReturnInfo {
-    info: PropertyInfo,
+    pub(crate) info: PropertyInfo,
     metadata: sys::GDExtensionClassMethodArgumentMetadata,
 }
 
@@ -53,7 +53,7 @@ impl ClassMethodInfo {
     /// `call_func` and `ptrcall_func`, if provided, must:
     ///
     /// - Follow the behavior expected from the `method_flags`.
-    pub unsafe fn from_signature<C: GodotClass, S: VarcallSignatureTuple>(
+    pub unsafe fn from_signature<C: GodotClass, Params: ParamTuple, Ret: GodotConvert>(
         method_name: StringName,
         call_func: sys::GDExtensionClassMethodCall,
         ptrcall_func: sys::GDExtensionClassMethodPtrCall,
@@ -61,23 +61,8 @@ impl ClassMethodInfo {
         param_names: &[&str],
         // default_arguments: Vec<Variant>, - not yet implemented
     ) -> Self {
-        let return_value = S::return_info();
-        let mut arguments = Vec::new();
-
-        assert_eq!(
-            param_names.len(),
-            S::PARAM_COUNT,
-            "`param_names` should contain one name for each parameter"
-        );
-
-        for (i, name) in param_names.iter().enumerate().take(S::PARAM_COUNT) {
-            arguments.push(S::param_info(i, name).unwrap_or_else(|| {
-                panic!(
-                    "signature with `PARAM_COUNT = {}` should have argument info for index `{i}`",
-                    S::PARAM_COUNT
-                )
-            }))
-        }
+        let return_value = Ret::Via::return_info();
+        let arguments = Signature::<Params, Ret>::param_names(param_names);
 
         let default_arguments = vec![]; // not yet implemented.
         assert!(

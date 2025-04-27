@@ -87,6 +87,7 @@ impl<'ts, 'c, CSig: WithSignals, Ps: meta::ParamTuple> ConnectBuilder<'ts, 'c, C
     >
     where
         F: SignalReceiver<(), Ps>,
+        Ps: meta::InParamTuple + 'static,
     {
         let godot_fn = make_godot_fn(move |args| {
             function.call((), args);
@@ -145,6 +146,7 @@ impl<'ts, 'c, CSig: WithSignals, CRcv: GodotClass, Ps: meta::ParamTuple>
     where
         CRcv: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut CRcv, Ps>,
+        Ps: meta::InParamTuple,
     {
         let mut gd: Gd<CRcv> = self.receiver_obj;
         let godot_fn = make_godot_fn(move |args| {
@@ -177,6 +179,7 @@ impl<'ts, 'c, CSig: WithSignals, CRcv: GodotClass, Ps: meta::ParamTuple>
     where
         CRcv: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv CRcv, Ps>,
+        Ps: meta::InParamTuple,
     {
         let gd: Gd<CRcv> = self.receiver_obj;
         let godot_fn = make_godot_fn(move |args| {
@@ -333,7 +336,7 @@ impl BuilderData {
 pub(super) fn make_godot_fn<Ps, F>(mut input: F) -> impl FnMut(&[&Variant]) -> Result<Variant, ()>
 where
     F: FnMut(Ps),
-    Ps: meta::ParamTuple,
+    Ps: meta::InParamTuple,
 {
     move |variant_args: &[&Variant]| -> Result<Variant, ()> {
         let args = Ps::from_variant_array(variant_args);
