@@ -8,7 +8,7 @@
 // Needed for Clippy to accept #[cfg(all())]
 #![allow(clippy::non_minimal_cfg)]
 
-use crate::framework::itest;
+use crate::framework::{expect_panic, itest};
 use godot::classes::ClassDb;
 use godot::prelude::*;
 
@@ -264,7 +264,37 @@ impl IRefCounted for GdSelfObj {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Also tests lack of #[class].
+#[derive(GodotClass)]
+struct InitPanic;
+
+#[godot_api]
+impl IRefCounted for InitPanic {
+    // Panicking constructor.
+    fn init(_base: Base<Self::Base>) -> Self {
+        panic!("InitPanic::init() exploded");
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests
+
+#[itest]
+fn init_panic_is_caught() {
+    expect_panic("default construction propagates panic", || {
+        let _obj = InitPanic::new_gd();
+    });
+}
+
+#[itest]
+fn init_fn_panic_is_caught() {
+    expect_panic("Gd::from_init_fn() propagates panic", || {
+        let _obj = Gd::<InitPanic>::from_init_fn(|_base| panic!("custom init closure exploded"));
+    });
+}
+
+// No test for Gd::from_object(), as that simply moves the existing object without running user code.
 
 #[itest]
 fn cfg_doesnt_interfere_with_valid_method_impls() {

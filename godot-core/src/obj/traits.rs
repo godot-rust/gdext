@@ -511,6 +511,9 @@ pub trait NewGd: GodotClass {
     /// Return a new, ref-counted `Gd` containing a default-constructed instance.
     ///
     /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
+    ///
+    /// # Panics
+    /// If `Self` is user-defined and its default constructor `init()` panics, that panic is propagated.
     fn new_gd() -> Gd<Self>;
 }
 
@@ -529,6 +532,9 @@ pub trait NewAlloc: GodotClass {
     ///
     /// The result must be manually managed, e.g. by attaching it to the scene tree or calling `free()` after usage.
     /// Failure to do so will result in memory leaks.
+    ///
+    /// # Panics
+    /// If `Self` is user-defined and its default constructor `init()` panics, that panic is propagated to the caller.
     #[must_use]
     fn new_alloc() -> Gd<Self>;
 }

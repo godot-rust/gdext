@@ -595,6 +595,7 @@ pub fn maybe_rename_virtual_method<'m>(class_name: &TyName, rust_method_name: &'
 
 // TODO method-level extra docs, for:
 // - Node::rpc_config() -> link to RpcConfig.
+// - Node::process/physics_process -> mention `f32`/`f64` duality.
 
 pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
     match class_name.godot_ty.as_str() {

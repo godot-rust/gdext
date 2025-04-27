@@ -5,16 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// TODO remove this warning once impl is complete
-// Several types have #[allow(dead_code)], can be subsequently removed.
-
-// In #[derive(DeJson)].
+// In #[derive(DeJson)]: "this block may be rewritten with the `?` operator"
 #![allow(clippy::question_mark)]
-//
+
 // This file acts as deserialization check of the JSON file. Even if some fields are unused, having them declared makes sure they're
 // deserializable and conform to our expectations. It also doesn't add much value to annotate individual fields; it doesn't really
 // matter if some are unused because it's external input data.
-#![allow(dead_code)]
 
 use nanoserde::DeJson;
 
@@ -38,7 +34,9 @@ pub struct JsonHeader {
     pub version_major: u8,
     pub version_minor: u8,
     pub version_patch: u8,
+    #[allow(dead_code)]
     pub version_status: String,
+    #[allow(dead_code)]
     pub version_build: String,
     pub version_full_name: String,
 }
@@ -58,7 +56,9 @@ pub struct JsonBuiltinSizeForConfig {
 #[derive(DeJson)]
 pub struct JsonBuiltinClass {
     pub name: String,
+    #[allow(dead_code)]
     pub indexing_return_type: Option<String>,
+    #[allow(dead_code)]
     pub is_keyed: bool,
     // pub members: Option<Vec<Member>>,
     // pub constants: Option<Vec<BuiltinConstant>>,
@@ -156,11 +156,14 @@ pub struct JsonBuiltinConstant {
 #[derive(DeJson)]
 pub struct JsonOperator {
     pub name: String,
+    #[allow(dead_code)]
     pub right_type: Option<String>, // null if unary
+    #[allow(dead_code)]
     pub return_type: String,
 }
 
 #[derive(DeJson)]
+#[allow(dead_code)]
 pub struct JsonMember {
     pub name: String,
     #[nserde(rename = "type")]
@@ -194,7 +197,8 @@ pub struct JsonConstructor {
 pub struct JsonUtilityFunction {
     pub name: String,
     pub return_type: Option<String>,
-    /// `"general"` or `"math"`
+    /// Category: `"general"` or `"math"`
+    #[allow(dead_code)]
     pub category: String,
     pub is_vararg: bool,
     pub hash: i64,

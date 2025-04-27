@@ -8,6 +8,7 @@
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::{ConvertError, ErasedConvertError};
 use crate::meta::{CallContext, ToGodot};
+use crate::private::PanicPayload;
 use crate::sys;
 use godot_ffi::join_debug;
 use std::error::Error;
@@ -300,10 +301,12 @@ impl CallError {
     }
 
     #[doc(hidden)]
-    pub fn failed_by_user_panic(call_ctx: &CallContext, reason: String) -> Self {
+    pub fn failed_by_user_panic(call_ctx: &CallContext, panic_payload: PanicPayload) -> Self {
         // This can cause the panic message to be printed twice in some scenarios (e.g. bind_mut() borrow failure).
         // But in other cases (e.g. itest `dynamic_call_with_panic`), it is only printed once.
         // Would need some work to have a consistent experience.
+
+        let reason = panic_payload.into_panic_message();
 
         Self::new(call_ctx, format!("function panicked: {reason}"), None)
     }
