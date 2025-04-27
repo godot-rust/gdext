@@ -42,10 +42,12 @@ runs:
         ARTIFACT_NAME: ${{ inputs.artifact-name }}
 #      if: steps.cache-godot.outputs.cache-hit != 'true'
       # If a specific Godot revision should be used, rather than latest, use this:
-      # curl https://nightly.link/Bromeon/godot4-nightly/actions/runs/4910907653/${{ inputs.artifact-name }}.zip \
+      # curl https://nightly.link/Bromeon/godot4-nightly/actions/runs/4910907653/$ARTIFACT_NAME.zip \
       run: |
         if [[ $ARTIFACT_NAME == *"nightly"* ]]; then
           url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-nightly/master/$ARTIFACT_NAME.zip"
+          # FIXME: re-enable latest as soon as https://github.com/godotengine/godot/issues/105834 is resolved.
+          url="https://nightly.link/Bromeon/godot4-nightly/actions/runs/14632778165/$ARTIFACT_NAME.zip"
         else
           url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-stable/master/$ARTIFACT_NAME.zip"
         fi
