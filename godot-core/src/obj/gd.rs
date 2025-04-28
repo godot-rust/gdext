@@ -326,7 +326,8 @@ impl<T: GodotClass> Gd<T> {
 
     /// Equivalent to [`upcast::<Object>()`][Self::upcast], but without bounds.
     // Not yet public because it might need _mut/_ref overloads, and 6 upcast methods are a bit much...
-    pub(crate) fn upcast_object(self) -> Gd<classes::Object> {
+    #[doc(hidden)] // no public API, but used by #[signal].
+    pub fn upcast_object(self) -> Gd<classes::Object> {
         self.owned_cast()
             .expect("Upcast to Object failed. This is a bug; please report it.")
     }

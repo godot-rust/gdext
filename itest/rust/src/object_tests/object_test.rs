@@ -997,7 +997,9 @@ pub mod object_test_gd {
     }
     use nested::ObjectTest;
 
-    #[godot_api]
+    // Disabling signals allows nested::ObjectTest, which would fail otherwise due to generated decl-macro being out-of-scope.
+    #[godot_api(no_typed_signals)]
+    // #[hint(has_base_field = false)] // if we allow more fine-grained control in the future
     impl nested::ObjectTest {
         #[func]
         fn pass_object(&self, object: Gd<Object>) -> i64 {

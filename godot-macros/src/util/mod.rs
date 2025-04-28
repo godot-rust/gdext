@@ -409,3 +409,8 @@ pub fn format_funcs_collection_struct(class_name: &Ident) -> Ident {
 pub fn format_class_visibility_macro(class_name: &Ident) -> Ident {
     format_ident!("__godot_{class_name}_vis_macro")
 }
+
+/// Returns the name of the macro used to communicate whether the `struct` (class) contains a base field.
+pub fn format_class_base_field_macro(class_name: &Ident) -> Ident {
+    format_ident!("__godot_{class_name}_has_base_field_macro")
+}

@@ -38,6 +38,8 @@ impl KvParser {
     }
 
     /// Create a new parser which checks for presence of an `#[expected]` attribute.
+    ///
+    /// Returns `Ok(None)` if the attribute is not present.
     pub fn parse(attributes: &[venial::Attribute], expected: &str) -> ParseResult<Option<Self>> {
         let mut found_attr: Option<Self> = None;
 
@@ -45,7 +47,7 @@ impl KvParser {
             let path = &attr.path;
             if path_is_single(path, expected) {
                 if found_attr.is_some() {
-                    return bail!(attr, "only a single #[{expected}] attribute allowed",);
+                    return bail!(attr, "only a single #[{expected}] attribute allowed");
                 }
 
                 let attr_name = expected.to_string();
@@ -54,6 +56,40 @@ impl KvParser {
                     map: ParserState::parse(attr_name, &attr.value)?,
                 });
             }
+        }
+
+        Ok(found_attr)
+    }
+
+    /// Like `parse()`, but removes the attribute from the list.
+    ///
+    /// Useful for `#[proc_macro_attributes]`, where handled attributes must not show up in resulting code.
+    // Currently unused.
+    pub fn parse_remove(
+        attributes: &mut Vec<venial::Attribute>,
+        expected: &str,
+    ) -> ParseResult<Option<Self>> {
+        let mut found_attr: Option<Self> = None;
+        let mut found_index: Option<usize> = None;
+
+        for (i, attr) in attributes.iter().enumerate() {
+            let path = &attr.path;
+            if path_is_single(path, expected) {
+                if found_attr.is_some() {
+                    return bail!(attr, "only a single #[{expected}] attribute allowed");
+                }
+
+                let attr_name = expected.to_string();
+                found_index = Some(i);
+                found_attr = Some(Self {
+                    span: attr.tk_brackets.span,
+                    map: ParserState::parse(attr_name, &attr.value)?,
+                });
+            }
+        }
+
+        if let Some(index) = found_index {
+            attributes.remove(index);
         }
 
         Ok(found_attr)

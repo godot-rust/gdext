@@ -182,6 +182,7 @@ pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
     class_name_obj: &TokenStream,
+    no_typed_signals: bool,
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
 
@@ -210,8 +211,11 @@ pub fn make_signal_registrations(
         signal_registrations.push(registration);
     }
 
+    // Rewrite the above using #[cfg].
     #[cfg(since_api = "4.2")]
-    let signal_symbols = make_signal_symbols(class_name, collection_api);
+    let signal_symbols =
+        (!no_typed_signals).then(|| make_signal_symbols(class_name, collection_api));
+
     #[cfg(before_api = "4.2")]
     let signal_symbols = None;
 
@@ -311,7 +315,7 @@ impl SignalCollection {
             .push(make_signal_individual_struct(details))
     }
 
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.individual_structs.is_empty()
     }
 }
@@ -380,18 +384,26 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
 
 /// Generates symbolic API for signals:
 /// * collection (unspecified-name struct holding methods to access each signal)
+///   * can be absent if the class declares no own #[signal]s.
 /// * individual signal types
 /// * trait impls
 fn make_signal_symbols(
     class_name: &Ident,
     collection_api: SignalCollection,
     // max_visibility: SignalVisibility,
-) -> Option<TokenStream> {
-    // Future note: if we add Rust->Rust inheritance, then the WithSignals trait must be unconditionally implemented.
-    if collection_api.is_empty() {
-        return None;
-    }
+) -> TokenStream {
+    // Earlier implementation generated a simplified code when no #[signal] was declared: only WithSignals/WithUserSignals impl, but no own
+    // collection, instead the associated type pointing to the base class. This has however some problems:
+    // * Part of the reason for user-defined collection is to store UserSignalObject instead of Gd, which can store &mut self.
+    //   This is necessary for self.signals().some_base_signal().emit(), if such a signal is connected to Self::method_mut;
+    //   Gd would cause a borrow error.
+    // * Once we add Rust-Rust inheritance, we'd need to differentiate case again, which can be tricky since #[godot_api] has no information
+    //   about the base class.
+    //
+    // As compromise, we always generate a collection struct if either at least 1 #[signal] is declared or the struct has a Base<T> field.
+    // We also provide opt-out via #[godot_api(no_typed_signals)].
 
+    let declares_no_signals = collection_api.is_empty();
     let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
     let collection_struct_methods = &collection_api.provider_methods;
     let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
@@ -431,7 +443,7 @@ fn make_signal_symbols(
 
     let visibility_macro = util::format_class_visibility_macro(class_name);
 
-    let code = quote! {
+    let mut code = quote! {
         #visibility_macro! {
             #[allow(non_camel_case_types)]
             #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
@@ -455,9 +467,21 @@ fn make_signal_symbols(
         #( #individual_structs )*
     };
 
-    Some(code)
+    // base_field_macro! is a macro that expands to all input tokens if the class declares a Base<T> field, and to nothing otherwise.
+    // This makes sure that WithSignals is only implemented for classes with a base field, and avoids compile errors about it.
+    // Only when no #[signal] is declared -> otherwise the user explicitly requests it, and a compile error is better to guide them.
+    if declares_no_signals {
+        let base_field_macro = util::format_class_base_field_macro(class_name);
+
+        code = quote! {
+            #base_field_macro! { #code }
+        };
+    }
+
+    code
 }
 
+/// Declare `impl WithSignals` and `impl WithUserSignals` with own signal collection.
 fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) -> TokenStream {
     quote! {
         impl ::godot::obj::WithSignals for #class_name {
@@ -467,10 +491,10 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
             type __SignalObj<'c> = ::godot::private::UserSignalObject<'c, Self>;
 
             #[doc(hidden)]
-            fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_, Self> {
+            fn __signals_from_external(external: &mut ::godot::obj::Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
                     __internal_obj: Some(::godot::private::UserSignalObject::External {
-                        gd: external.clone().upcast::<Object>()
+                        gd: external.clone().upcast_object()
                     })
                 }
             }

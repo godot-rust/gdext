@@ -327,6 +327,24 @@ fn signal_symbols_engine_inherited_internal() {
     node.free();
 }
 
+// Test that Node signals are accessible from a derived class, when the class itself has no #[signal] declarations.
+// Verifies the code path that only generates the traits, no dedicated signal collection.
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_engine_inherited_no_own_signals() {
+    let mut obj = Receiver::new_alloc();
+
+    let mut sig = obj.signals().property_list_changed();
+    sig.connect_self(|this: &mut Receiver| {
+        this.receive_int(941);
+    });
+
+    obj.notify_property_list_changed();
+    assert_eq!(obj.bind().last_received.get(), LastReceived::Int(941));
+
+    obj.free();
+}
+
 #[itest]
 fn signal_construction_and_id() {
     let mut object = RefCounted::new_gd();
@@ -451,6 +469,8 @@ struct Receiver {
 
 #[godot_api]
 impl Receiver {
+    // Do not declare any #[signal]s here -- explicitly test this implements WithSignal without them.
+
     fn last_received(&self) -> LastReceived {
         self.last_received.get()
     }

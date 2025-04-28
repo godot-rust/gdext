@@ -71,13 +71,16 @@ struct SignalAttr {
     pub no_builder: bool,
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-pub struct InherentImplAttr {
+pub(crate) struct InherentImplAttr {
     /// For implementation reasons, there can be a single 'primary' impl block and 0 or more 'secondary' impl blocks.
     /// For now, this is controlled by a key in the 'godot_api' attribute.
     pub secondary: bool,
+
+    /// When typed signal generation is explicitly disabled by the user.
+    pub no_typed_signals: bool,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Codegen for `#[godot_api] impl MyType`
 pub fn transform_inherent_impl(
@@ -107,8 +110,12 @@ pub fn transform_inherent_impl(
 
     // For each #[func] in this impl block, create one constant.
     let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
-    let (signal_registrations, signal_symbol_types) =
-        make_signal_registrations(&signals, &class_name, &class_name_obj)?;
+    let (signal_registrations, signal_symbol_types) = make_signal_registrations(
+        &signals,
+        &class_name,
+        &class_name_obj,
+        meta.no_typed_signals,
+    )?;
 
     #[cfg(feature = "codegen-full")]
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
@@ -205,6 +212,23 @@ pub fn transform_inherent_impl(
         Ok(result)
     }
 }
+
+/* Re-enable if we allow controlling declarative macros for signals (base_field_macro, visibility_macros).
+fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotApiHints> {
+    // #[hint(has_base_field = BOOL)]
+    let has_base_field;
+    if let Some(mut hints) = KvParser::parse_remove(&mut impl_block.attributes, "hint")? {
+        has_base_field = hints.handle_bool("has_base_field")?;
+    } else {
+        has_base_field = None;
+    }
+
+    // #[hint(class_visibility = pub(crate))]
+    // ...
+
+    Ok(GodotApiHints { has_base_field })
+}
+*/
 
 fn process_godot_fns(
     class_name: &Ident,

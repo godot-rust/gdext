@@ -142,7 +142,9 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         pub struct #funcs_collection_struct_name {}
     };
 
+    // Note: one limitation is that macros don't work for `impl nested::MyClass` blocks.
     let visibility_macro = make_visibility_macro(class_name, class.vis_marker.as_ref());
+    let base_field_macro = make_base_field_macro(class_name, fields.base_field.is_some());
 
     Ok(quote! {
         impl ::godot::obj::GodotClass for #class_name {
@@ -174,6 +176,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #user_class_impl
         #init_expecter
         #visibility_macro
+        #base_field_macro
         #( #deprecations )*
         #( #errors )*
 
@@ -207,6 +210,25 @@ fn make_visibility_macro(
             };
 
             // Can be expanded to `fn` etc. if needed.
+        }
+    }
+}
+
+/// Generates code for a decl-macro, which evaluates to nothing if the class has no base field.
+fn make_base_field_macro(class_name: &Ident, has_base_field: bool) -> TokenStream {
+    let macro_name = util::format_class_base_field_macro(class_name);
+
+    if has_base_field {
+        quote! {
+            macro_rules! #macro_name {
+                ( $( $tt:tt )* ) => { $( $tt )* };
+            }
+        }
+    } else {
+        quote! {
+            macro_rules! #macro_name {
+                ( $( $tt:tt )* ) => {};
+            }
         }
     }
 }
