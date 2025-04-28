@@ -188,7 +188,7 @@ pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
 
 pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     instance: sys::GDExtensionClassInstancePtr,
-    _is_valid: *mut sys::GDExtensionBool,
+    is_valid: *mut sys::GDExtensionBool,
     out_string: sys::GDExtensionStringPtr,
 ) {
     // Note: to_string currently always succeeds, as it is only provided for classes that have a working implementation.
@@ -200,6 +200,7 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
 
     // Transfer ownership to Godot
     string.move_into_string_ptr(out_string);
+    *is_valid = sys::conv::SYS_TRUE;
 }
 
 #[cfg(before_api = "4.2")]
