@@ -998,6 +998,7 @@ pub mod object_test_gd {
     use nested::ObjectTest;
 
     #[godot_api]
+    #[hint(typed_signals = false)] // Allows nested::ObjectTest, which would fail otherwise due to generated decl-macro being out-of-scope.
     impl nested::ObjectTest {
         #[func]
         fn pass_object(&self, object: Gd<Object>) -> i64 {

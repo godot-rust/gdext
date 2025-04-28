@@ -7,6 +7,7 @@
 
 // Some duplication with godot-codegen/signals.rs; see comments there.
 
+use crate::class::GodotApiHints;
 use crate::util::bail;
 use crate::{util, ParseResult};
 use proc_macro2::{Delimiter, Ident, TokenStream, TokenTree};
@@ -182,6 +183,7 @@ pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
     class_name_obj: &TokenStream,
+    hints: GodotApiHints,
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
 
@@ -211,7 +213,7 @@ pub fn make_signal_registrations(
     }
 
     #[cfg(since_api = "4.2")]
-    let signal_symbols = Some(make_signal_symbols(class_name, collection_api));
+    let signal_symbols = Some(make_signal_symbols(class_name, collection_api, hints));
     #[cfg(before_api = "4.2")]
     let signal_symbols = None;
 
@@ -387,20 +389,30 @@ fn make_signal_symbols(
     class_name: &Ident,
     collection_api: SignalCollection,
     // max_visibility: SignalVisibility,
+    hints: GodotApiHints,
 ) -> TokenStream {
     // If class declares no own signals, just implement the traits, no collection APIs.
-    if collection_api.is_empty() {
+    if hints.has_typed_signals == Some(false) || collection_api.is_empty() {
         let with_signals_impl = make_with_signals_impl_delegated_to_base(class_name);
-        let base_field_macro = util::format_class_base_field_macro(class_name);
 
         // base_field_macro! is a macro that expands to all input tokens if the class declares a Base<T> field, and to nothing otherwise.
         // This makes sure that WithSignals is only implemented for classes with a base field, and avoids compile errors about it.
-        // Note: this doesn't work with `impl nested::MyClass` style remote impls, which can be enabled via #[hint(signals=true/false)].
 
-        return quote! {
-            #base_field_macro! {
-                #with_signals_impl
+        return match hints.has_typed_signals {
+            // The default case: try to infer from #[derive(GodotClass)] declaration whether a Base<T> field is present.
+            None => {
+                let base_field_macro = util::format_class_base_field_macro(class_name);
+                quote! {
+                    #base_field_macro! {
+                        #with_signals_impl
+                    }
+                }
             }
+
+            // Hints are useful in cases like `impl nested::MyClass` style remote impls. Here, the decl-macro can't work due to being invisible
+            // in other scopes (and crate-global #[macro_export] has its own problems). Thus, generate code directly without decl-macro.
+            Some(true) => quote! { #with_signals_impl },
+            Some(false) => quote! {},
         };
     }
 

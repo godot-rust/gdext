@@ -331,28 +331,26 @@ fn signal_symbols_engine_inherited_internal() {
 // Verifies the code path that only generates the traits, no dedicated signal collection.
 #[cfg(since_api = "4.2")]
 #[itest]
-fn signal_symbols_engine_inherited_no_own_signals(ctx: &crate::framework::TestContext) {
-    let mut node = Receiver::new_alloc();
+fn signal_symbols_engine_inherited_no_own_signals() {
+    let mut obj = Receiver::new_alloc();
 
-    // Add to tree, so signals are propagated.
-    ctx.scene_tree.clone().add_child(&node);
-
-    let mut sig = node.signals().renamed();
-    sig.connect_self(|this: &mut Emitter| {
-        this.last_received_int = 887;
+    let mut sig = obj.signals().property_list_changed();
+    sig.connect_self(|this: &mut Receiver| {
+        this.receive_int_mut(941);
     });
 
-    node.set_name("new name");
+    obj.notify_property_list_changed();
+    assert_eq!(obj.bind().last_received.get(), LastReceived::Int(941));
 
-    assert_eq!(node.bind().last_received_int, 887);
-
-    // Remove from tree for other tests.
-    node.free();
+    obj.free();
 }
 
 // Test that trait is implemented even without own #[signal] declarations (to access base signals).
 #[cfg(since_api = "4.2")]
 const fn __type_check<'c>() {
+    use godot::classes::Object;
+    use godot::obj::WithSignals;
+
     // Needs WithUserSignals, not just WithSignals, to allow self.signals().
     const fn has_with_user_signals<T: godot::obj::WithUserSignals>() {}
 
@@ -369,8 +367,8 @@ const fn __type_check<'c>() {
     // Checks whether there is no new collection defined, but instead the base collection is reused.
     // This reduces the amount of proc-macro generated code.
     is_same_type::<
-        Receiver::SignalCollection<'c, Receiver>,
-        Object::SignalCollection<'c, Receiver>, //.
+        <Receiver as WithSignals>::SignalCollection<'c, Receiver>,
+        <Object as WithSignals>::SignalCollection<'c, Receiver>, //.
     >();
 }
 
