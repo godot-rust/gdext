@@ -19,7 +19,6 @@ use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote};
-use venial::Impl;
 
 /// Attribute for user-declared function.
 enum ItemAttrType {
@@ -72,18 +71,16 @@ struct SignalAttr {
     pub no_builder: bool,
 }
 
-#[derive(Default)]
-pub(crate) struct GodotApiHints {
-    pub has_typed_signals: Option<bool>,
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-pub struct InherentImplAttr {
+pub(crate) struct InherentImplAttr {
     /// For implementation reasons, there can be a single 'primary' impl block and 0 or more 'secondary' impl blocks.
     /// For now, this is controlled by a key in the 'godot_api' attribute.
     pub secondary: bool,
+
+    /// When typed signal generation is explicitly disabled by the user.
+    pub no_typed_signals: bool,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Codegen for `#[godot_api] impl MyType`
 pub fn transform_inherent_impl(
@@ -94,8 +91,6 @@ pub fn transform_inherent_impl(
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
     let prv = quote! { ::godot::private };
-
-    let hints = extract_hint_attribute(&mut impl_block)?;
 
     // Can add extra functions to the end of the impl block.
     let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block, meta.secondary)?;
@@ -115,8 +110,12 @@ pub fn transform_inherent_impl(
 
     // For each #[func] in this impl block, create one constant.
     let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
-    let (signal_registrations, signal_symbol_types) =
-        make_signal_registrations(&signals, &class_name, &class_name_obj, hints)?;
+    let (signal_registrations, signal_symbol_types) = make_signal_registrations(
+        &signals,
+        &class_name,
+        &class_name_obj,
+        meta.no_typed_signals,
+    )?;
 
     #[cfg(feature = "codegen-full")]
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
@@ -214,19 +213,22 @@ pub fn transform_inherent_impl(
     }
 }
 
-fn extract_hint_attribute(impl_block: &mut Impl) -> ParseResult<GodotApiHints> {
-    // Could possibly be extended with #[hint(signal_vis = pub)] or so.
-
-    // #[hint(typed_signals)]
-    let has_typed_signals;
+/* Re-enable if we allow controlling declarative macros for signals (base_field_macro, visibility_macros).
+fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotApiHints> {
+    // #[hint(has_base_field = BOOL)]
+    let has_base_field;
     if let Some(mut hints) = KvParser::parse_remove(&mut impl_block.attributes, "hint")? {
-        has_typed_signals = hints.handle_bool("typed_signals")?;
+        has_base_field = hints.handle_bool("has_base_field")?;
     } else {
-        has_typed_signals = None;
+        has_base_field = None;
     }
 
-    Ok(GodotApiHints { has_typed_signals })
+    // #[hint(class_visibility = pub(crate))]
+    // ...
+
+    Ok(GodotApiHints { has_base_field })
 }
+*/
 
 fn process_godot_fns(
     class_name: &Ident,

@@ -17,9 +17,20 @@ fn parse_inherent_impl_attr(meta: TokenStream) -> Result<super::InherentImplAttr
     let item = venial_parse_meta(&meta, format_ident!("godot_api"), &quote! { fn func(); })?;
     let mut attr = KvParser::parse_required(item.attributes(), "godot_api", &meta)?;
     let secondary = attr.handle_alone("secondary")?;
+    let no_typed_signals = attr.handle_alone("no_typed_signals")?;
     attr.finish()?;
 
-    Ok(super::InherentImplAttr { secondary })
+    if no_typed_signals && secondary {
+        return bail!(
+            meta,
+            "#[godot_api]: keys `secondary` and `no_typed_signals` are mutually exclusive; secondary blocks allow no signals anyway"
+        )?;
+    }
+
+    Ok(super::InherentImplAttr {
+        secondary,
+        no_typed_signals,
+    })
 }
 
 pub fn attribute_godot_api(

@@ -64,6 +64,7 @@ impl KvParser {
     /// Like `parse()`, but removes the attribute from the list.
     ///
     /// Useful for `#[proc_macro_attributes]`, where handled attributes must not show up in resulting code.
+    // Currently unused.
     pub fn parse_remove(
         attributes: &mut Vec<venial::Attribute>,
         expected: &str,

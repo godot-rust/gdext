@@ -7,7 +7,6 @@
 
 // Some duplication with godot-codegen/signals.rs; see comments there.
 
-use crate::class::GodotApiHints;
 use crate::util::bail;
 use crate::{util, ParseResult};
 use proc_macro2::{Delimiter, Ident, TokenStream, TokenTree};
@@ -183,7 +182,7 @@ pub fn make_signal_registrations(
     signals: &[SignalDefinition],
     class_name: &Ident,
     class_name_obj: &TokenStream,
-    hints: GodotApiHints,
+    no_typed_signals: bool,
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
 
@@ -212,8 +211,11 @@ pub fn make_signal_registrations(
         signal_registrations.push(registration);
     }
 
+    // Rewrite the above using #[cfg].
     #[cfg(since_api = "4.2")]
-    let signal_symbols = Some(make_signal_symbols(class_name, collection_api, hints));
+    let signal_symbols =
+        (!no_typed_signals).then(|| make_signal_symbols(class_name, collection_api));
+
     #[cfg(before_api = "4.2")]
     let signal_symbols = None;
 
@@ -389,13 +391,7 @@ fn make_signal_symbols(
     class_name: &Ident,
     collection_api: SignalCollection,
     // max_visibility: SignalVisibility,
-    hints: GodotApiHints,
 ) -> TokenStream {
-    // Return early if typed signals are explicitly disabled.
-    if hints.has_typed_signals == Some(false) {
-        return TokenStream::new();
-    }
-
     // Earlier implementation generated a simplified code when no #[signal] was declared: only WithSignals/WithUserSignals impl, but no own
     // collection, instead the associated type pointing to the base class. This has however some problems:
     // * Part of the reason for user-defined collection is to store UserSignalObject instead of Gd, which can store &mut self.
