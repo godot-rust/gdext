@@ -391,34 +391,23 @@ fn make_signal_symbols(
     // max_visibility: SignalVisibility,
     hints: GodotApiHints,
 ) -> TokenStream {
-    // If class declares no own signals, just implement the traits, no collection APIs.
-    if hints.has_typed_signals == Some(false) || collection_api.is_empty() {
-        let with_signals_impl = make_with_signals_impl_delegated_to_base(class_name);
-
-        // base_field_macro! is a macro that expands to all input tokens if the class declares a Base<T> field, and to nothing otherwise.
-        // This makes sure that WithSignals is only implemented for classes with a base field, and avoids compile errors about it.
-
-        return match hints.has_typed_signals {
-            // The default case: try to infer from #[derive(GodotClass)] declaration whether a Base<T> field is present.
-            None => {
-                let base_field_macro = util::format_class_base_field_macro(class_name);
-                quote! {
-                    #base_field_macro! {
-                        #with_signals_impl
-                    }
-                }
-            }
-
-            // Hints are useful in cases like `impl nested::MyClass` style remote impls. Here, the decl-macro can't work due to being invisible
-            // in other scopes (and crate-global #[macro_export] has its own problems). Thus, generate code directly without decl-macro.
-            Some(true) => quote! { #with_signals_impl },
-            Some(false) => quote! {},
-        };
+    // Return early if typed signals are explicitly disabled.
+    if hints.has_typed_signals == Some(false) {
+        return TokenStream::new();
     }
 
-    // For the regular flow, we *expect* that a Base<T> field is present. Having a concise error message "missing Base<T> field" is
-    // better than magic tricks, since the user explicitly asked for #[signal] and thus should be guided to complete the missing parts.
+    // Earlier implementation generated a simplified code when no #[signal] was declared: only WithSignals/WithUserSignals impl, but no own
+    // collection, instead the associated type pointing to the base class. This has however some problems:
+    // * Part of the reason for user-defined collection is to store UserSignalObject instead of Gd, which can store &mut self.
+    //   This is necessary for self.signals().some_base_signal().emit(), if such a signal is connected to Self::method_mut;
+    //   Gd would cause a borrow error.
+    // * Once we add Rust-Rust inheritance, we'd need to differentiate case again, which can be tricky since #[godot_api] has no information
+    //   about the base class.
+    //
+    // As compromise, we always generate a collection struct if either at least 1 #[signal] is declared or the struct has a Base<T> field.
+    // We also provide opt-out via #[godot_api(no_typed_signals)].
 
+    let declares_no_signals = collection_api.is_empty();
     let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
     let collection_struct_methods = &collection_api.provider_methods;
     let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
@@ -458,7 +447,7 @@ fn make_signal_symbols(
 
     let visibility_macro = util::format_class_visibility_macro(class_name);
 
-    let code = quote! {
+    let mut code = quote! {
         #visibility_macro! {
             #[allow(non_camel_case_types)]
             #[doc(hidden)] // Only on struct, not methods, to allow completion in IDEs.
@@ -481,6 +470,17 @@ fn make_signal_symbols(
         #upcast_deref_impl
         #( #individual_structs )*
     };
+
+    // base_field_macro! is a macro that expands to all input tokens if the class declares a Base<T> field, and to nothing otherwise.
+    // This makes sure that WithSignals is only implemented for classes with a base field, and avoids compile errors about it.
+    // Only when no #[signal] is declared -> otherwise the user explicitly requests it, and a compile error is better to guide them.
+    if declares_no_signals {
+        let base_field_macro = util::format_class_base_field_macro(class_name);
+
+        code = quote! {
+            #base_field_macro! { #code }
+        };
+    }
 
     code
 }
@@ -508,39 +508,6 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
             fn signals(&mut self) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
                     __internal_obj: Some(::godot::private::UserSignalObject::Internal { self_mut: self })
-                }
-            }
-        }
-    }
-}
-
-/// Declare `impl WithSignals` and `impl WithUserSignals`, but without own signal collection; instead delegate to base collection.
-fn make_with_signals_impl_delegated_to_base(class_name: &Ident) -> TokenStream {
-    quote! {
-        impl ::godot::obj::WithSignals for #class_name {
-            type SignalCollection<'c, C: ::godot::obj::WithSignals> =
-                <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::WithSignals>::SignalCollection<'c, C>;
-
-            #[doc(hidden)]
-            type __SignalObj<'c> =
-                <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::WithSignals>::__SignalObj<'c>;
-
-
-            #[doc(hidden)]
-            fn __signals_from_external(external: &mut ::godot::obj::Gd<Self>) -> Self::SignalCollection<'_, Self> {
-                // This will need updating when allowing Rust->Rust inheritance.
-                Self::SignalCollection {
-                    __internal_obj: Some(external.clone().upcast())
-                }
-            }
-        }
-
-        impl ::godot::obj::WithUserSignals for #class_name {
-            fn signals(&mut self) -> Self::SignalCollection<'_, Self> {
-                // This will need updating when allowing Rust->Rust inheritance.
-                let self_gd = <Self as ::godot::obj::WithBaseField>::to_gd(self);
-                Self::SignalCollection {
-                    __internal_obj: Some(self_gd.upcast()),
                 }
             }
         }

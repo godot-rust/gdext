@@ -336,40 +336,13 @@ fn signal_symbols_engine_inherited_no_own_signals() {
 
     let mut sig = obj.signals().property_list_changed();
     sig.connect_self(|this: &mut Receiver| {
-        this.receive_int_mut(941);
+        this.receive_int(941);
     });
 
     obj.notify_property_list_changed();
     assert_eq!(obj.bind().last_received.get(), LastReceived::Int(941));
 
     obj.free();
-}
-
-// Test that trait is implemented even without own #[signal] declarations (to access base signals).
-#[cfg(since_api = "4.2")]
-const fn __type_check<'c>() {
-    use godot::classes::Object;
-    use godot::obj::WithSignals;
-
-    // Needs WithUserSignals, not just WithSignals, to allow self.signals().
-    const fn has_with_user_signals<T: godot::obj::WithUserSignals>() {}
-
-    trait SameType {}
-    impl<T> SameType for (T, T) {}
-    const fn is_same_type<T, U>()
-    where
-        (T, U): SameType,
-    {
-    }
-
-    has_with_user_signals::<Receiver>();
-
-    // Checks whether there is no new collection defined, but instead the base collection is reused.
-    // This reduces the amount of proc-macro generated code.
-    is_same_type::<
-        <Receiver as WithSignals>::SignalCollection<'c, Receiver>,
-        <Object as WithSignals>::SignalCollection<'c, Receiver>, //.
-    >();
 }
 
 #[itest]
