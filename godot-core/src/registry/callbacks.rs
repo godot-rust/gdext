@@ -192,7 +192,6 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     out_string: sys::GDExtensionStringPtr,
 ) {
     // Note: to_string currently always succeeds, as it is only provided for classes that have a working implementation.
-    // is_valid output parameter thus not needed.
 
     let storage = as_storage::<T>(instance);
     let instance = storage.get();
@@ -200,6 +199,8 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
 
     // Transfer ownership to Godot
     string.move_into_string_ptr(out_string);
+
+    // Note: is_valid comes uninitialized and must be set.
     *is_valid = sys::conv::SYS_TRUE;
 }
 
