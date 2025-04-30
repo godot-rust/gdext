@@ -65,16 +65,6 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("VisualShaderNodeComment", "get_description")
         => true,
 
-        // Workaround for methods unexposed in Release mode, see https://github.com/godotengine/godot/pull/100317
-        // and https://github.com/godotengine/godot/pull/100328.
-        #[cfg(not(debug_assertions))]
-        | ("CollisionShape2D", "set_debug_color")
-        | ("CollisionShape2D", "get_debug_color")
-        | ("CollisionShape3D", "set_debug_color")
-        | ("CollisionShape3D", "get_debug_color")
-        | ("CollisionShape3D", "set_debug_fill_enabled")
-        | ("CollisionShape3D", "get_debug_fill_enabled") => true,
-
         // Thread APIs
         #[cfg(not(feature = "experimental-threads"))]
         | ("ResourceLoader", "load_threaded_get")
