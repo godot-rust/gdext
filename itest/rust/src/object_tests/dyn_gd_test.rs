@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use crate::framework::{expect_panic, itest};
 // Test that all important dyn-related symbols are in the prelude.
 use godot::prelude::*;
@@ -346,12 +347,19 @@ fn dyn_gd_store_in_godot_array() {
     let a = Gd::from_object(RefcHealth { hp: 33 }).into_dyn();
     let b = foreign::NodeHealth::new_alloc().into_dyn();
 
+    // Forward compat: .upcast() here becomes a breaking change if we generalize AsArg to include derived->base conversions.
     let array: Array<DynGd<Object, _>> = array![&a.upcast(), &b.upcast()];
 
     assert_eq!(array.at(0).dyn_bind().get_hitpoints(), 33);
     assert_eq!(array.at(1).dyn_bind().get_hitpoints(), 100);
 
     array.at(1).free();
+
+    // Tests also type inference of array![]. Independent variable c.
+    let c: DynGd<RefcHealth, dyn Health> = Gd::from_object(RefcHealth { hp: 33 }).into_dyn();
+    let c = c.upcast::<RefCounted>();
+    let array_inferred /*: Array<DynGd<RefCounted, _>>*/ = array![&c];
+    assert_eq!(array_inferred.at(0).dyn_bind().get_hitpoints(), 33);
 }
 
 #[itest]

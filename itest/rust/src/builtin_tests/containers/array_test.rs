@@ -570,6 +570,18 @@ fn array_resize() {
     assert_eq!(a, Array::new());
 }
 
+// Tests that arrays of objects can be declared without explicit type annotations. A similar test exists for DynGd in dyn_gd_test.rs.
+// This has deliberately been added to guard against regressions in case `AsArg` is extended (T: Inherits<Base> support broke this).
+fn __array_type_inference() {
+    let a = Node::new_alloc();
+    let b = Node::new_alloc();
+    let _array = array![&a, &b];
+
+    let c = ArrayTest::new_gd();
+    let d = ArrayTest::new_gd();
+    let _array = array![&c, &d];
+}
+
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
 struct ArrayTest;

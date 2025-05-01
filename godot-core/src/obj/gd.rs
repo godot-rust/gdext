@@ -852,6 +852,30 @@ impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
     }
 }
 
+/*
+// TODO find a way to generalize AsArg to derived->base conversions without breaking type inference in array![].
+// Possibly we could use a "canonical type" with unambiguous mapping (&Gd<T> -> &Gd<T>, not &Gd<T> -> &Gd<TBase>).
+// See also regression test in array_test.rs.
+
+impl<'r, T, TBase> AsArg<Gd<TBase>> for &'r Gd<T>
+where
+    T: Inherits<TBase>,
+    TBase: GodotClass,
+{
+    #[doc(hidden)] // Repeated despite already hidden in trait; some IDEs suggest this otherwise.
+    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<TBase>>
+    where
+        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
+    {
+        // Performance: clones unnecessarily, which has overhead for ref-counted objects.
+        // A result of being generic over base objects and allowing T: Inherits<Base> rather than just T == Base.
+        // Was previously `CowArg::Borrowed(self)`. Borrowed() can maybe be specialized for objects, or combined with AsObjectArg.
+
+        CowArg::Owned(self.clone().upcast::<TBase>())
+    }
+}
+*/
+
 impl<T: GodotClass> ParamType for Gd<T> {
     type Arg<'v> = CowArg<'v, Gd<T>>;
 
@@ -861,6 +885,10 @@ impl<T: GodotClass> ParamType for Gd<T> {
 
     fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
         arg.cow_as_ref()
+    }
+
+    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
+        arg.cow_into_owned()
     }
 }
 
@@ -883,6 +911,10 @@ impl<T: GodotClass> ParamType for Option<Gd<T>> {
 
     fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
         arg.cow_as_ref()
+    }
+
+    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
+        arg.cow_into_owned()
     }
 }
 

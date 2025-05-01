@@ -543,6 +543,23 @@ where
     }
 }
 
+/*
+// See `impl AsArg for Gd<T>` for why this isn't yet implemented.
+impl<'r, T, TBase, D> meta::AsArg<DynGd<TBase, D>> for &'r DynGd<T, D>
+where
+    T: Inherits<TBase>,
+    TBase: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn into_arg<'cow>(self) -> meta::CowArg<'cow, DynGd<TBase, D>>
+    where
+        'r: 'cow,
+    {
+        meta::CowArg::Owned(self.clone().upcast::<TBase>())
+    }
+}
+*/
+
 impl<T, D> meta::ParamType for DynGd<T, D>
 where
     T: GodotClass,
@@ -556,6 +573,10 @@ where
 
     fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
         arg.cow_as_ref()
+    }
+
+    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
+        arg.cow_into_owned()
     }
 }
 

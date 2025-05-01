@@ -125,6 +125,28 @@ fn signal_symbols_external() {
 // "External" means connect/emit happens from outside the class, via Gd::signals().
 #[cfg(since_api = "4.2")]
 #[itest]
+fn signal_symbols_complex_emit() {
+    let mut emitter = Emitter::new_alloc();
+    let arg = emitter.clone();
+    let mut sig = emitter.signals().signal_obj();
+
+    let tracker = Rc::new(RefCell::new(None));
+    {
+        let tracker = tracker.clone();
+        sig.connect(move |obj: Gd<Object>, name: GString| {
+            *tracker.borrow_mut() = Some((obj, name));
+        });
+    }
+
+    // Forward compat: .upcast() here becomes a breaking change if we generalize AsArg to include derived->base conversions.
+    sig.emit(&arg.upcast(), "hello");
+
+    emitter.free();
+}
+
+// "External" means connect/emit happens from outside the class, via Gd::signals().
+#[cfg(since_api = "4.2")]
+#[itest]
 fn signal_symbols_external_builder() {
     let mut emitter = Emitter::new_alloc();
     let mut sig = emitter.signals().signal_int();
@@ -396,7 +418,7 @@ mod emitter {
         pub fn signal_int(arg1: i64);
 
         #[signal]
-        fn signal_obj(arg1: Gd<Object>, arg2: GString);
+        pub(super) fn signal_obj(arg1: Gd<Object>, arg2: GString);
 
         #[func]
         pub fn self_receive(&mut self, arg1: i64) {

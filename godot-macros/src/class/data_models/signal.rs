@@ -320,8 +320,35 @@ impl SignalCollection {
     }
 }
 
+fn make_asarg_params(params: &venial::Punctuated<venial::FnParam>) -> TokenStream {
+    // Could be specialized by trying to parse types, but won't be 100% accurate due to lack of semantics (AsArg could be a safe fallback). E.g.:
+    // if ty.tokens.iter().any(|tk| matches!(tk, TokenTree::Ident(ident) if ident == "Gd")) {
+    //     quote! { impl ::godot::meta::AsObjectArg<#some_inner_ty> }
+    // }
+
+    let mut tokens = TokenStream::new();
+
+    for (param, _punct) in params.iter() {
+        match param {
+            venial::FnParam::Typed(param) => {
+                let param_name = &param.name;
+                let param_type = &param.ty;
+
+                tokens.extend(quote! {
+                    #param_name: impl ::godot::meta::AsArg<#param_type>,
+                });
+            }
+            venial::FnParam::Receiver(_) => {
+                unreachable!("signals have no receivers; already checked")
+            }
+        };
+    }
+
+    tokens
+}
+
 fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
-    let emit_params = &details.fn_signature.params;
+    let emit_params = make_asarg_params(&details.fn_signature.params);
 
     let SignalDetails {
         // class_name,
@@ -360,6 +387,12 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #(#signal_cfg_attrs)*
         impl<C: ::godot::obj::WithSignals> #individual_struct_name<'_, C> {
             pub fn emit(&mut self, #emit_params) {
+                use ::godot::meta::AsArg;
+                #(
+                    ::godot::meta::arg_into_owned!(infer #param_names);
+                    //let #param_names = #param_names.into_arg();
+                )*
+
                 self.__typed.emit_tuple((#( #param_names, )*));
             }
         }
