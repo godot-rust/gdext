@@ -90,9 +90,17 @@ macro_rules! arg_into_ref {
 #[macro_export]
 macro_rules! arg_into_owned {
     ($arg_variable:ident) => {
+        // Non-generic version allows type inference. Only applicable for CowArg types.
         let $arg_variable = $arg_variable.into_arg();
         let $arg_variable = $arg_variable.cow_into_owned();
-        // cow_into_owned() is not yet used generically; could be abstracted in ParamType::arg_to_owned() as well.
+    };
+    ($arg_variable:ident: $T:ty) => {
+        let $arg_variable = $arg_variable.into_arg();
+        let $arg_variable: $T = $crate::meta::ParamType::arg_into_owned($arg_variable);
+    };
+    (infer $arg_variable:ident) => {
+        let $arg_variable = $arg_variable.into_arg();
+        let $arg_variable = $crate::meta::ParamType::arg_into_owned($arg_variable);
     };
 }
 
@@ -114,6 +122,10 @@ macro_rules! impl_asarg_by_value {
             }
 
             fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
+                arg
+            }
+
+            fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
                 arg
             }
         }
@@ -148,6 +160,10 @@ macro_rules! impl_asarg_by_ref {
 
             fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
                 arg.cow_as_ref()
+            }
+
+            fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
+                arg.cow_into_owned()
             }
         }
     };
@@ -280,4 +296,10 @@ pub trait ParamType: sealed::Sealed + Sized + 'static
     /// Useful in generic contexts where you need to extract a reference of an argument, independently of how it is passed.
     #[doc(hidden)] // for now, users are encouraged to use only call-site of impl AsArg; declaration-site may still develop.
     fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self;
+
+    /// Clones an argument into an owned value.
+    ///
+    /// Useful in generic contexts where you need to extract a value of an argument, independently of how it is passed.
+    #[doc(hidden)] // for now, users are encouraged to use only call-site of impl AsArg; declaration-site may still develop.
+    fn arg_into_owned(arg: Self::Arg<'_>) -> Self;
 }

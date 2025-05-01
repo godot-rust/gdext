@@ -557,6 +557,10 @@ where
     fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
         arg.cow_as_ref()
     }
+
+    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
+        arg.cow_into_owned()
+    }
 }
 
 impl<T, D> meta::ArrayElement for DynGd<T, D>
