@@ -1040,6 +1040,7 @@ pub mod object_test_gd {
 
         #[func]
         fn return_nested_self() -> Array<Gd<<Self as GodotClass>::Base>> {
+            // Forward compat: .upcast() here becomes a breaking change if we generalize AsArg to include derived->base conversions.
             array![&Self::return_self().upcast()]
         }
     }

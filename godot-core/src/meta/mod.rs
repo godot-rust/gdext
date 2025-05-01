@@ -72,9 +72,10 @@ pub(crate) use traits::{
 use crate::registry::method::MethodParamOrReturnInfo;
 
 pub(crate) use crate::{
-    arg_into_owned, arg_into_ref, declare_arg_method, impl_asarg_by_ref, impl_asarg_by_value,
-    impl_godot_as_self,
+    arg_into_ref, declare_arg_method, impl_asarg_by_ref, impl_asarg_by_value, impl_godot_as_self,
 };
+// Public due to signals emit() needing it. Should be made pub(crate) again if that changes.
+pub use crate::arg_into_owned;
 
 #[doc(hidden)]
 pub use signature::*;
