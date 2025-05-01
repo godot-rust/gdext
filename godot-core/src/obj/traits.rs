@@ -148,7 +148,10 @@ unsafe impl<T: GodotClass> Inherits<T> for T {}
 // Note: technically, `Trait` doesn't _have to_ implement `Self`. The Rust type system provides no way to verify that a) D is a trait object,
 // and b) that the trait behind it is implemented for the class. Thus, users could any another reference type, such as `&str` pointing to a field.
 // This should be safe, since lifetimes are checked throughout and the class instance remains in place (pinned) inside a DynGd.
-pub trait AsDyn<Trait: ?Sized>: GodotClass {
+pub trait AsDyn<Trait>: GodotClass
+where
+    Trait: ?Sized + 'static,
+{
     fn dyn_upcast(&self) -> &Trait;
     fn dyn_upcast_mut(&mut self) -> &mut Trait;
 }
