@@ -708,7 +708,11 @@ fn object_engine_accept_polymorphic() {
     let expected_name = StringName::from("Node name");
     let expected_class = GString::from("Node3D");
 
+    // Node::set_name() changed to accept StringName, in https://github.com/godotengine/godot/pull/76560.
+    #[cfg(before_api = "4.5")]
     node.set_name(expected_name.arg());
+    #[cfg(since_api = "4.5")]
+    node.set_name(&expected_name);
 
     let actual_name = accept_node(node.clone());
     assert_eq!(actual_name, expected_name);

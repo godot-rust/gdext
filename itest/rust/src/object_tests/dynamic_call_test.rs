@@ -5,16 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::framework::{expect_panic, itest, runs_release};
+use crate::object_tests::object_test::ObjPayload;
 use godot::builtin::{Variant, Vector3};
 use godot::classes::{Node, Node3D, Object};
+use godot::init::GdextBuild;
 use godot::meta::error::CallError;
 use godot::meta::{FromGodot, ToGodot};
 use godot::obj::{InstanceId, NewAlloc};
 use std::error::Error;
 use std::sync::{Arc, Mutex};
-
-use crate::framework::{expect_panic, itest, runs_release};
-use crate::object_tests::object_test::ObjPayload;
 
 #[itest]
 fn dynamic_call_no_args() {
@@ -288,14 +288,22 @@ fn dynamic_call_parameter_mismatch_engine() {
         .try_call("set_name", &[123.to_variant()])
         .expect_err("expected failed call");
 
+    // Node::set_name() changed to accept StringName, in https://github.com/godotengine/godot/pull/76560.
+    // Needs to check the runtime version rather than API version, because reflection calls always latest method (no compatibility method).
+    let target_type = if GdextBuild::before_api("4.5") {
+        "STRING"
+    } else {
+        "STRING_NAME"
+    };
+    let expected_error = format!(
+        "godot-rust function call failed: Object::call(&\"set_name\", [va] 123)\
+        \n    Reason: parameter #1 -- cannot convert from INT to {target_type}"
+    );
+
     // Note: currently no mention of Node::set_name(). Not sure if easily possible to add.
     assert_eq!(call_error.class_name(), Some("Object"));
     assert_eq!(call_error.method_name(), "call");
-    assert_eq!(
-        call_error.to_string(),
-        "godot-rust function call failed: Object::call(&\"set_name\", [va] 123)\
-        \n    Reason: parameter #1 -- cannot convert from INT to STRING"
-    );
+    assert_eq!(call_error.to_string(), expected_error);
 
     node.free();
 }
