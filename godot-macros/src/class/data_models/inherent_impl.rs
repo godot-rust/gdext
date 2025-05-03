@@ -16,9 +16,9 @@ use crate::util::{
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
-use proc_macro2::{Delimiter, Group, Ident, TokenStream};
+use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
 use quote::spanned::Spanned;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 
 /// Attribute for user-declared function.
 enum ItemAttrType {
@@ -245,7 +245,7 @@ fn process_godot_fns(
             continue;
         };
 
-        let Some(attr) = extract_attributes(function)? else {
+        let Some(attr) = parse_attributes(function)? else {
             continue;
         };
 
@@ -390,7 +390,7 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
             continue;
         };
 
-        if let Some(attr) = extract_attributes(constant)? {
+        if let Some(attr) = parse_attributes(constant)? {
             match attr.ty {
                 ItemAttrType::Func(_, _) => {
                     return bail!(constant, "#[func] and #[rpc] can only be used on functions")
@@ -497,16 +497,25 @@ fn add_virtual_script_call(
     method_name_str
 }
 
-fn extract_attributes<T>(item: &mut T) -> ParseResult<Option<ItemAttr>>
-where
-    for<'a> &'a T: Spanned,
-    T: AttributesMut,
-{
+/// Parses an entire item (`fn`, `const`) inside an `impl` block and returns a domain representation.
+///
+/// See also [`parse_attributes_inner`].
+fn parse_attributes<T: ImplItem>(item: &mut T) -> ParseResult<Option<ItemAttr>> {
+    let span = util::span_of(item);
+    parse_attributes_inner(item.attributes_mut(), span)
+}
+
+/// Non-generic version of [`parse_attributes`].
+///
+/// `attributes` are all `#[...]` attributes of the item, including foreign (non-godot-rust) ones.
+/// `full_item_span` is the span of the entire item (attributes + `fn`/...), for error messages.
+fn parse_attributes_inner(
+    attributes: &mut Vec<venial::Attribute>,
+    full_item_span: Span,
+) -> ParseResult<Option<ItemAttr>> {
     // Option<(attr_name: Ident, attr: ParsedAttr)>
     let mut found = None;
     let mut index = 0;
-
-    let attributes = item.attributes_mut();
 
     while let Some(attr) = attributes.get(index) {
         index += 1;
@@ -545,7 +554,7 @@ where
 
             // We found two incompatible attributes.
             (Some((found_name, _)), _) => {
-                return bail!(&*item, "The attributes `{found_name}` and `{attr_name}` cannot be used in the same declaration")?;
+                return bail!(full_item_span, "attributes `{found_name}` and `{attr_name}` cannot be used in the same declaration");
             }
         };
 
@@ -669,17 +678,23 @@ fn bail_attr<R>(attr_name: Ident, msg: &str, method: &venial::Function) -> Parse
     bail!(&method.name, "#[{}]: {}", attr_name, msg)
 }
 
-trait AttributesMut {
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+trait ImplItem
+where
+    Self: ToTokens,
+    for<'a> &'a Self: Spanned,
+{
     fn attributes_mut(&mut self) -> &mut Vec<venial::Attribute>;
 }
 
-impl AttributesMut for venial::Function {
+impl ImplItem for venial::Function {
     fn attributes_mut(&mut self) -> &mut Vec<venial::Attribute> {
         &mut self.attributes
     }
 }
 
-impl AttributesMut for venial::Constant {
+impl ImplItem for venial::Constant {
     fn attributes_mut(&mut self) -> &mut Vec<venial::Attribute> {
         &mut self.attributes
     }
