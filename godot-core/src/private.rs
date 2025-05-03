@@ -497,6 +497,30 @@ pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Utility to assert that something can be shared between threads.
+///
+/// See also `ThreadCrosser` in itest.
+pub struct AssertSync<T> {
+    value: T,
+}
+
+impl<T> AssertSync<T> {
+    pub fn new(value: T) -> Self {
+        Self { value }
+    }
+
+    /// # Safety
+    /// Bypasses `Sync` checks, user's responsibility.
+    pub unsafe fn assume_sync(&self) -> &T {
+        &self.value
+    }
+}
+
+unsafe impl<T> Sync for AssertSync<T> {}
+unsafe impl<T> Send for AssertSync<T> {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[cfg(test)]
 mod tests {
     use super::{CallError, CallErrors, PanicPayload};

@@ -18,7 +18,7 @@ use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
 use quote::spanned::Spanned;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote, quote_spanned, ToTokens};
 
 /// Attribute for user-declared function.
 enum ItemAttrType {
@@ -58,6 +58,7 @@ struct FuncAttr {
     pub rename: Option<String>,
     pub is_virtual: bool,
     pub has_gd_self: bool,
+    pub is_once_constant: bool,
 }
 
 #[derive(Default)]
@@ -248,6 +249,39 @@ fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> Parse
     Ok(param.name)
 }
 
+fn validate_func_constant(func: &FuncAttr, signature: &venial::Function) -> ParseResult<()> {
+    // Attribute checks.
+
+    if func.is_virtual {
+        return bail!(signature, "#[func(constant)] cannot be virtual");
+    }
+
+    if func.has_gd_self {
+        return bail!(
+            signature,
+            "#[func(constant)] is not compatible with #[func(gd_self)]"
+        );
+    }
+
+    // Signature checks.
+
+    if !signature.params.is_empty() {
+        return bail!(
+            &signature.params,
+            "#[func(constant)] must not have parameters"
+        );
+    }
+
+    if signature.return_ty.is_none() {
+        return bail!(
+            &signature, // Don't point to .return_ty, as it has no span.
+            "#[func(constant)] must have a return type"
+        );
+    }
+
+    Ok(())
+}
+
 fn process_godot_fns(
     class_name: &Ident,
     impl_block: &mut venial::Impl,
@@ -291,10 +325,22 @@ fn process_godot_fns(
             ItemAttrType::Func(func, rpc_info) => {
                 let external_attributes = function.attributes.clone();
 
+                // Not strictly necessary but can improve compile errors in situations where the body is transformed by the proc-macro,
+                // e.g. #[func(virtual)] and #[func(constant)].
+                if function.body.is_none() {
+                    return bail!(&function, "#[func]: function is missing a body");
+                }
+
                 // Transforms the following.
                 //   from function:     #[attr] pub fn foo(&self, a: i32) -> i32 { ... }
                 //   into signature:    fn foo(&self, a: i32) -> i32
                 let mut signature = util::reduce_to_signature(function);
+
+                if func.is_once_constant {
+                    validate_func_constant(&func, &signature)?;
+                    substitute_func_as_constant(function);
+                }
+
                 let gd_self_parameter = if func.has_gd_self {
                     // Removes Gd<Self> receiver from signature for further processing.
                     let param_name = extract_gd_self(&mut signature, &attr.attr_name)?;
@@ -511,6 +557,45 @@ fn add_virtual_script_call(
     method_name_str
 }
 
+/// `#[func(constant)]`: replaces body of `function` with custom code that lazy-initializes the expression provided by the user.
+fn substitute_func_as_constant(function: &mut venial::Function) {
+    let original_body = function
+        .body
+        .as_mut()
+        .expect("no body in function; should have been validated");
+
+    let return_type = function
+        .return_ty
+        .as_ref()
+        .expect("no return type in function; should have been validated");
+
+    let span = return_type.span();
+
+    let new_code = quote_spanned! { span=>
+        use ::godot::private::AssertSync;
+        type Ret = #return_type;
+
+        static LOCK: std::sync::OnceLock<AssertSync<Ret>> = std::sync::OnceLock::new();
+        let constant: &'static AssertSync<Ret> = LOCK.get_or_init(|| {
+            let original_value = #original_body;
+
+            // Use explicit trait syntax to cause immediate error if type doesn't fulfill the trait, rather than inference on the value.
+            // This also avoids weird errors in case the function body's type doesn't match the declared return type.
+            let constant_value = <Ret as ::godot::meta::GodotFuncConstant>::into_runtime_constant(original_value);
+            AssertSync::new(constant_value)
+        });
+
+        // SAFETY: Sync is OK as constant is immutable, which is asserted by GodotFuncConstant trait.
+        let sync_ref = unsafe { constant.assume_sync() };
+        sync_ref.clone()
+    };
+
+    let mut new_body = Group::new(Delimiter::Brace, new_code);
+    new_body.set_span(original_body.span());
+
+    function.body = Some(new_body);
+}
+
 /// Parses an entire item (`fn`, `const`) inside an `impl` block and returns a domain representation.
 ///
 /// See also [`parse_attributes_inner`].
@@ -600,13 +685,19 @@ fn parse_func_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseRes
     // #[func(gd_self)]
     let has_gd_self = parser.handle_alone("gd_self")?;
 
+    // #[func(constant)]
+    let is_once_constant = parser.handle_alone("constant")?;
+
     parser.finish()?;
 
-    Ok(AttrParseResult::Func(FuncAttr {
+    let attr = FuncAttr {
         rename,
         is_virtual,
         has_gd_self,
-    }))
+        is_once_constant,
+    };
+
+    Ok(AttrParseResult::Func(attr))
 }
 
 /// `#[rpc]` attribute.
