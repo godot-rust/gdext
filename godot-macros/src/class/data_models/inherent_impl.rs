@@ -32,12 +32,6 @@ struct ItemAttr {
     ty: ItemAttrType,
 }
 
-impl ItemAttr {
-    fn bail<R>(self, msg: &str, method: &venial::Function) -> ParseResult<R> {
-        bail!(&method.name, "#[{}]: {}", self.attr_name, msg)
-    }
-}
-
 enum AttrParseResult {
     Func(FuncAttr),
     Rpc(RpcAttr),
@@ -230,6 +224,30 @@ fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotAp
 }
 */
 
+fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
+    if signature.params.is_empty() {
+        return bail_attr(
+            attr_name,
+            "with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>",
+            &signature.name,
+        );
+    }
+
+    // Remove Gd<Self> receiver from signature for further processing.
+    let param = signature.params.inner.remove(0);
+
+    let venial::FnParam::Typed(param) = param.0 else {
+        return bail_attr(
+            attr_name,
+            "with attribute key `gd_self`, the first parameter must be Gd<Self> (not a `self` receiver)",
+             &signature.name
+        );
+    };
+
+    // Note: parameter is explicitly NOT renamed (maybe_rename_parameter).
+    Ok(param.name)
+}
+
 fn process_godot_fns(
     class_name: &Ident,
     impl_block: &mut venial::Impl,
@@ -256,40 +274,31 @@ fn process_godot_fns(
             || function.qualifiers.tk_extern.is_some()
             || function.qualifiers.extern_abi.is_some()
         {
-            return attr.bail("fn qualifiers are not allowed", function);
+            return bail!(
+                &function.qualifiers,
+                "#[func]: fn qualifiers are not allowed"
+            );
         }
 
         if function.generic_params.is_some() {
-            return attr.bail("generic fn parameters are not supported", function);
+            return bail!(
+                &function.generic_params,
+                "#[func]: generic fn parameters are not supported"
+            );
         }
 
         match attr.ty {
             ItemAttrType::Func(func, rpc_info) => {
                 let external_attributes = function.attributes.clone();
 
-                // Signatures are the same thing without body.
+                // Transforms the following.
+                //   from function:     #[attr] pub fn foo(&self, a: i32) -> i32 { ... }
+                //   into signature:    fn foo(&self, a: i32) -> i32
                 let mut signature = util::reduce_to_signature(function);
                 let gd_self_parameter = if func.has_gd_self {
-                    if signature.params.is_empty() {
-                        return bail_attr(
-                            attr.attr_name,
-                            "with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>",
-                            function
-                        );
-                    } else {
-                        let param = signature.params.inner.remove(0);
-
-                        let venial::FnParam::Typed(param) = param.0 else {
-                            return bail_attr(
-                                attr.attr_name,
-                                "with attribute key `gd_self`, the first parameter must be Gd<Self> (not a `self` receiver)",
-                                function
-                            );
-                        };
-
-                        // Note: parameter is explicitly NOT renamed (maybe_rename_parameter).
-                        Some(param.name)
-                    }
+                    // Removes Gd<Self> receiver from signature for further processing.
+                    let param_name = extract_gd_self(&mut signature, &attr.attr_name)?;
+                    Some(param_name)
                 } else {
                     None
                 };
@@ -326,9 +335,9 @@ fn process_godot_fns(
 
             ItemAttrType::Signal(ref signal, ref _attr_val) => {
                 if is_secondary_impl {
-                    return attr.bail(
-                        "#[signal] is currently not supported in secondary impl blocks",
+                    return bail!(
                         function,
+                        "#[signal] is currently not supported in secondary impl blocks",
                     );
                 }
                 if function.return_ty.is_some() {
@@ -359,9 +368,9 @@ fn process_godot_fns(
             }
 
             ItemAttrType::Const(_) => {
-                return attr.bail(
-                    "#[constant] can only be used on associated constant",
+                return bail!(
                     function,
+                    "#[constant] can only be used on associated constant",
                 )
             }
         }
@@ -416,6 +425,11 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
     Ok(constant_signatures)
 }
 
+/// Replaces the body of `function` with custom code that performs virtual dispatch.
+///
+/// Appends the virtual function to `virtual_functions`.
+///
+/// Returns the Godot-registered name of the virtual function, usually `_<name>` (but overridable with `#[func(rename = ...)]`).
 fn add_virtual_script_call(
     virtual_functions: &mut Vec<venial::Function>,
     function: &mut venial::Function,
@@ -674,8 +688,8 @@ fn parse_constant_attr(
     Ok(AttrParseResult::Constant(attr.value.clone()))
 }
 
-fn bail_attr<R>(attr_name: Ident, msg: &str, method: &venial::Function) -> ParseResult<R> {
-    bail!(&method.name, "#[{}]: {}", attr_name, msg)
+fn bail_attr<R>(attr_name: &Ident, msg: &str, method_name: &Ident) -> ParseResult<R> {
+    bail!(method_name, "#[{attr_name}]: {msg}")
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
