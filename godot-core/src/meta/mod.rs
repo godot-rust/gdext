@@ -60,7 +60,7 @@ pub mod error;
 pub use args::*;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
-pub use traits::{ArrayElement, GodotType, PackedArrayElement};
+pub use traits::{ArrayElement, GodotFuncConstant, GodotType, PackedArrayElement};
 
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple};
 
