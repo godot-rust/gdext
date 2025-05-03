@@ -243,3 +243,85 @@ impl PackedArrayElement for builtin::Vector3 {}
 impl PackedArrayElement for builtin::Vector4 {}
 impl PackedArrayElement for builtin::Color {}
 impl PackedArrayElement for builtin::GString {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Implemented for types used in `#[func(constant)]`.
+///
+/// Post-processes the constant value in some cases, e.g. makes `Array<T>` read-only.
+///
+/// At the moment, this trait is conservatively implemented for types where immutability can be statically guaranteed. Depending on usage,
+/// the API might be expanded in the future, to allow constants whose immutability is only determined at runtime (e.g. untyped
+/// arrays/dictionaries, where all element types are immutable). The design is not yet clear, multiple options are possible:
+/// - Keep existing `#[func(constant)]` usage but panic at runtime.
+/// - Require special attribute `#[func(runtime_constant)]` or similar.
+/// - Require a wrapper return type `-> AssertConstant<Dictionary>`.
+///
+/// # Safety
+/// Allows to use the implementors in a limited `Sync` context. Implementing this trait asserts that `Self` is either:
+/// - `Copy`, i.e. each instance is truly independent.
+/// - Thread-safe in the sense that `clone()` is thread-safe. Individual clones must not offer a way to mutate the value or cause race conditions.
+// Could add diagnostic::on_unimplemented note if some types are unsupported as constants.
+#[diagnostic::on_unimplemented(
+    message = "#[func(constant)] only supports a set of truly immutable types; \
+    see https://godot-rust.github.io/docs/gdext/master/godot/register/attr.godot_api.html#constants"
+)]
+pub unsafe trait GodotFuncConstant: FromGodot {
+    fn into_runtime_constant(self) -> Self {
+        self
+    }
+}
+
+mod impls {
+    use super::GodotFuncConstant;
+    use crate::builtin::*;
+    use crate::meta::ArrayElement;
+
+    unsafe impl GodotFuncConstant for i8 {}
+    unsafe impl GodotFuncConstant for u8 {}
+    unsafe impl GodotFuncConstant for i16 {}
+    unsafe impl GodotFuncConstant for u16 {}
+    unsafe impl GodotFuncConstant for i32 {}
+    unsafe impl GodotFuncConstant for u32 {}
+    unsafe impl GodotFuncConstant for i64 {}
+
+    // No NodePath, Callable, Signal, Rid, Variant.
+    unsafe impl GodotFuncConstant for Aabb {}
+    unsafe impl GodotFuncConstant for Basis {}
+    unsafe impl GodotFuncConstant for Color {}
+    unsafe impl GodotFuncConstant for GString {}
+    unsafe impl GodotFuncConstant for Plane {}
+    unsafe impl GodotFuncConstant for Projection {}
+    unsafe impl GodotFuncConstant for Quaternion {}
+    unsafe impl GodotFuncConstant for Rect2 {}
+    unsafe impl GodotFuncConstant for Rect2i {}
+    unsafe impl GodotFuncConstant for StringName {}
+    unsafe impl GodotFuncConstant for Transform2D {}
+    unsafe impl GodotFuncConstant for Transform3D {}
+    unsafe impl GodotFuncConstant for Vector2 {}
+    unsafe impl GodotFuncConstant for Vector2i {}
+    unsafe impl GodotFuncConstant for Vector3 {}
+    unsafe impl GodotFuncConstant for Vector3i {}
+    unsafe impl GodotFuncConstant for Vector4 {}
+    unsafe impl GodotFuncConstant for Vector4i {}
+
+    unsafe impl GodotFuncConstant for PackedByteArray {}
+    unsafe impl GodotFuncConstant for PackedColorArray {}
+    unsafe impl GodotFuncConstant for PackedFloat32Array {}
+    unsafe impl GodotFuncConstant for PackedFloat64Array {}
+    unsafe impl GodotFuncConstant for PackedInt32Array {}
+    unsafe impl GodotFuncConstant for PackedInt64Array {}
+    unsafe impl GodotFuncConstant for PackedStringArray {}
+    unsafe impl GodotFuncConstant for PackedVector2Array {}
+    unsafe impl GodotFuncConstant for PackedVector3Array {}
+    unsafe impl GodotFuncConstant for PackedVector4Array {}
+
+    unsafe impl<T> GodotFuncConstant for Array<T>
+    where
+        T: GodotFuncConstant + ArrayElement,
+    {
+        fn into_runtime_constant(self) -> Self {
+            self.into_read_only()
+        }
+    }
+}

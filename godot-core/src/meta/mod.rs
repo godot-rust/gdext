@@ -63,7 +63,7 @@ pub use args::*;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple};
-pub use traits::{ArrayElement, GodotType, PackedArrayElement};
+pub use traits::{ArrayElement, GodotFuncConstant, GodotType, PackedArrayElement};
 pub use uniform_object_deref::UniformObjectDeref;
 
 pub(crate) use array_type_info::ArrayTypeInfo;

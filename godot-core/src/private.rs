@@ -24,7 +24,7 @@ use std::cell::RefCell;
 
 use crate::global::godot_error;
 use crate::meta::error::CallError;
-use crate::meta::CallContext;
+use crate::meta::{CallContext, GodotFuncConstant};
 use crate::obj::Gd;
 use crate::{classes, sys};
 use std::io::Write;
@@ -494,6 +494,38 @@ pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
     // SAFETY: ptr comes from valid internal API (and is non-null, so unwrap in from_obj_sys won't fail).
     unsafe { Gd::from_obj_sys(ptr) }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Utility to share an "effectively immutable" constant between threads.
+///
+/// This is safe because the legwork happens in the unsafe [`GodotFuncConstant`] trait, which is unsafe. By using its method
+/// [`GodotFuncConstant::into_runtime_constant()`], we can store an "effectively immutable" value satisfying the conditions.
+///
+/// See also `ThreadCrosser` in itest.
+pub struct SharedConstant<T> {
+    value: T,
+}
+
+impl<T> SharedConstant<T>
+where
+    T: Clone + GodotFuncConstant,
+{
+    pub fn new(value: T) -> Self {
+        Self {
+            value: value.into_runtime_constant(),
+        }
+    }
+
+    pub fn get_instance(&self) -> T {
+        self.value.clone()
+    }
+}
+
+// SAFETY: GodotFuncConstant guarantees that a value can be made "effectively immutable" and moved between threads.
+unsafe impl<T> Send for SharedConstant<T> {}
+// SAFETY: GodotFuncConstant guarantees that a value can be made "effectively immutable" and referenced between threads.
+unsafe impl<T> Sync for SharedConstant<T> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

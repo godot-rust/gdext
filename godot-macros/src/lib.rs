@@ -789,7 +789,36 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///
 /// # Constants
 ///
-/// Please refer to [the book](https://godot-rust.github.io/book/register/constants.html).
+/// See also [the book](https://godot-rust.github.io/book/register/constants.html) for an overview.
+///
+/// You can use the `#[constant]` attribute to expose simple integers. Unlike GDScript, the GDExtension API does not support registering
+/// other types than integers. godot-rust emulates constants for more complex types via the `#[func(constant)]`.
+/// ```no_run
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(init)]
+/// # struct MyStruct {
+/// #     base: Base<RefCounted>,
+/// # }
+/// # struct Config {}
+/// # impl Config { fn load_gravity() -> f32 { todo!() } }
+/// #[godot_api]
+/// impl MyStruct {
+///     #[constant]
+///     const MAX_HP: u16 = 1200;
+///
+///     #[func]
+///     fn GRAVITY_VECTOR() -> Vector2 {
+///         Vector2::new(0.0, Config::load_gravity())
+///     }
+/// }
+/// ```
+///
+/// `#[func(constant)]` requires a slight syntactical change on GDScript side: you would write `World.GRAVITY_VECTOR()` instead of
+/// `World.GRAVITY_VECTOR`, apart from that these values are truly constant. You can provide an initialization function for each such constant,
+/// which is lazily called on first access, and then never again. The value remains cached, so complex computations are possible.
+///
+/// See [`GodotFuncConstant`](../meta/trait.GodotFuncConstant.html) to understand which types are supported in `#[func(constant)]`.
 ///
 /// # Multiple inherent `impl` blocks
 ///
