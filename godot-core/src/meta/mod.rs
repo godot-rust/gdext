@@ -78,7 +78,9 @@ pub use raw_ptr::{FfiRawPointer, RawPtr};
 #[cfg(feature = "itest")]
 pub use signature::trace;
 pub use signed_range::{SignedRange, wrapped};
-pub use traits::{Element, GodotImmutable, GodotType, PackedElement, element_variant_type};
+pub use traits::{
+    Element, GodotFuncConstant, GodotImmutable, GodotType, PackedElement, element_variant_type,
+};
 pub use uniform_object_deref::UniformObjectDeref;
 
 // Macro re-exports (used as `meta::arg_into_owned!` etc.).

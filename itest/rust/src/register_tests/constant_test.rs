@@ -5,13 +5,17 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// Needed for Clippy to accept #[cfg(all())]
+// Needed for Clippy to accept #[cfg(all())].
 #![allow(clippy::non_minimal_cfg)]
+
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use godot::classes::ClassDb;
 use godot::obj::Singleton;
 use godot::prelude::*;
 use godot::sys::static_assert;
+
+static FUNC_ARRAY_INIT_COUNT: AtomicU32 = AtomicU32::new(0);
 
 use crate::framework::itest;
 
@@ -65,15 +69,22 @@ impl HasConstants {
     #[constant]
     #[cfg(any())]
     const CFG_REMOVES_CONSTANT: bool = compile_error!("Removed by #[cfg]");
-}
 
-/// Checks at runtime if a class has a given integer constant through [ClassDb].
-fn class_has_integer_constant<T: GodotClass>(name: &str) -> bool {
-    ClassDb::singleton().class_has_integer_constant(&T::class_id().to_string_name(), name)
+    #[func(constant)]
+    fn const_array() -> Array<i64> {
+        FUNC_ARRAY_INIT_COUNT.fetch_add(1, Ordering::Relaxed);
+        array![1, 2, 3]
+    }
+
+    #[func(constant)]
+    #[allow(non_snake_case)]
+    fn GRAVITY() -> Vector2i {
+        Vector2i::new(0, -9810)
+    }
 }
 
 #[itest]
-fn constants_correct_value() {
+fn constant_correct_value() {
     const CONSTANTS: [(&str, i64); 5] = [
         ("A", HasConstants::A),
         ("B", HasConstants::B as i64),
@@ -105,7 +116,7 @@ fn constants_correct_value() {
 }
 
 #[itest]
-fn cfg_removes_or_keeps_constants() {
+fn constant_with_cfg() {
     assert!(class_has_integer_constant::<HasConstants>(
         "CFG_REMOVES_DUPLICATE_CONSTANT_DEF"
     ));
@@ -113,6 +124,44 @@ fn cfg_removes_or_keeps_constants() {
         "CFG_REMOVES_CONSTANT"
     ));
 }
+
+#[itest]
+fn constant_func() {
+    assert_eq!(FUNC_ARRAY_INIT_COUNT.load(Ordering::Relaxed), 0);
+
+    // Call through reflection.
+    let va = ClassDb::singleton().class_call_static("HasConstants", "const_array", &[]);
+    let vb = ClassDb::singleton().class_call_static("HasConstants", "const_array", &[]);
+    assert_eq!(FUNC_ARRAY_INIT_COUNT.load(Ordering::Relaxed), 1);
+    assert_eq!(va, vb);
+
+    let a = va.to::<Array<i64>>();
+    assert_eq!(a, array![1, 2, 3]);
+    assert!(
+        a.is_read_only(),
+        "#[func(constant)] always makes arrays read-only"
+    );
+
+    // Call directly through Rust.
+    let c = HasConstants::const_array();
+    assert_eq!(FUNC_ARRAY_INIT_COUNT.load(Ordering::Relaxed), 1);
+    assert_eq!(a, c);
+
+    // Other function.
+    let d = HasConstants::GRAVITY();
+    assert_eq!(d, Vector2i::new(0, -9810));
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helper functions
+
+/// Checks at runtime if a class has a given integer constant through [ClassDb].
+fn class_has_integer_constant<T: GodotClass>(name: &str) -> bool {
+    ClassDb::singleton().class_has_integer_constant(&T::class_id().to_string_name(), name)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Proc-macro codegen checks
 
 #[derive(GodotClass)]
 #[class(no_init)]
@@ -176,6 +225,9 @@ godot::sys::shard_add!(
         )
     )
 );
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helper macros
 
 macro_rules! test_enum_export {
     (
