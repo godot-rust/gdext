@@ -473,7 +473,7 @@ pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
     ///
     /// Takes by reference and not value, to retain lifetime chain.
     #[doc(hidden)]
-    fn __signals_from_external(external: &mut Gd<Self>) -> Self::SignalCollection<'_, Self>;
+    fn __signals_from_external(external: &Gd<Self>) -> Self::SignalCollection<'_, Self>;
 }
 
 /// Implemented for user-defined classes with at least one `#[signal]` declaration.

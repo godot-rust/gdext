@@ -8,20 +8,21 @@
 // Whole module only available in Godot 4.2+.
 
 mod connect_builder;
+mod godot_deref;
 mod signal_object;
 mod typed_signal;
 
-pub(crate) mod variadic;
+use crate::builtin::{GString, Variant};
+use crate::meta;
 pub(crate) use connect_builder::*;
+use godot_deref::GodotDeref;
 pub(crate) use signal_object::*;
 pub(crate) use typed_signal::*;
-pub(crate) use variadic::SignalReceiver;
 
 // Used in `godot` crate.
 pub mod re_export {
     pub use super::connect_builder::ConnectBuilder;
     pub use super::typed_signal::TypedSignal;
-    pub use super::variadic::SignalReceiver;
 }
 
 // Used in `godot::private` module.
@@ -32,3 +33,27 @@ pub mod priv_re_export {
 }
 
 // ParamTuple re-exported in crate::meta.
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Used by both `TypedSignal` and `ConnectBuilder`.
+fn make_godot_fn<Ps, F>(mut input: F) -> impl FnMut(&[&Variant]) -> Result<Variant, ()>
+where
+    F: FnMut(Ps),
+    Ps: meta::InParamTuple,
+{
+    move |variant_args: &[&Variant]| -> Result<Variant, ()> {
+        let args = Ps::from_variant_array(variant_args);
+        input(args);
+
+        Ok(Variant::nil())
+    }
+}
+
+// Used by both `TypedSignal` and `ConnectBuilder`.
+fn make_callable_name<F>() -> GString {
+    // When using sys::short_type_name() in the future, make sure global "func" and member "MyClass::func" are rendered as such.
+    // PascalCase heuristic should then be good enough.
+
+    std::any::type_name::<F>().into()
+}
