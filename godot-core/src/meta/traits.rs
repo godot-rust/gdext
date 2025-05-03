@@ -226,3 +226,28 @@ impl PackedArrayElement for builtin::Vector3 {}
 impl PackedArrayElement for builtin::Vector4 {}
 impl PackedArrayElement for builtin::Color {}
 impl PackedArrayElement for builtin::GString {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Implemented for types used in `#[func(constant)]`.
+///
+/// Post-processes the constant value in some cases, e.g. makes arrays/dicts read-only.
+// Could add diagnostic::on_unimplemented note if some types are unsupported as constants.
+#[doc(hidden)] // User currently never interacts with this directly.
+pub trait GodotFuncConstant {
+    fn into_runtime_constant(self) -> Self;
+    fn verify_main_thread();
+}
+
+// TODO specialize in a not too boilerplaty way...
+impl<T> GodotFuncConstant for T {
+    fn into_runtime_constant(self) -> Self {
+        self
+    }
+
+    fn verify_main_thread() {
+        // For :Copy or :Send types, do nothing. Maybe reuse async signal DynamicSend facilities.
+        // Disable in wasm(-nothreads?)
+        todo!()
+    }
+}
