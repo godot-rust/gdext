@@ -43,7 +43,7 @@ enum AttrParseResult {
     Rpc(RpcAttr),
     FuncRpc(FuncAttr, RpcAttr),
     Signal(SignalAttr, venial::AttributeValue),
-    Const(#[allow(dead_code)] venial::AttributeValue),
+    Constant(#[allow(dead_code)] venial::AttributeValue),
 }
 
 impl AttrParseResult {
@@ -54,7 +54,7 @@ impl AttrParseResult {
             AttrParseResult::Rpc(rpc) => ItemAttrType::Func(FuncAttr::default(), Some(rpc)),
             AttrParseResult::FuncRpc(func, rpc) => ItemAttrType::Func(func, Some(rpc)),
             AttrParseResult::Signal(signal, attr_val) => ItemAttrType::Signal(signal, attr_val),
-            AttrParseResult::Const(constant) => ItemAttrType::Const(constant),
+            AttrParseResult::Constant(constant) => ItemAttrType::Const(constant),
         }
     }
 }
@@ -517,111 +517,10 @@ where
         };
 
         let parsed_attr = match attr_name {
-            // #[func]
-            name if name == "func" => {
-                // Safe unwrap, since #[func] must be present if we got to this point.
-                let mut parser = KvParser::parse(attributes, "func")?.unwrap();
-
-                // #[func(rename = MyClass)]
-                let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
-
-                // #[func(virtual)]
-                let is_virtual = if let Some(span) = parser.handle_alone_with_span("virtual")? {
-                    require_api_version!("4.3", span, "#[func(virtual)]")?;
-                    true
-                } else {
-                    false
-                };
-
-                // #[func(gd_self)]
-                let has_gd_self = parser.handle_alone("gd_self")?;
-
-                parser.finish()?;
-
-                AttrParseResult::Func(FuncAttr {
-                    rename,
-                    is_virtual,
-                    has_gd_self,
-                })
-            }
-
-            // #[rpc]
-            name if name == "rpc" => {
-                // Safe unwrap, since #[rpc] must be present if we got to this point.
-                let mut parser = KvParser::parse(attributes, "rpc")?.unwrap();
-
-                let rpc_mode = handle_mutually_exclusive_keys(
-                    &mut parser,
-                    "#[rpc]",
-                    &["any_peer", "authority"],
-                )?
-                .map(|idx| RpcMode::from_usize(idx).unwrap());
-
-                let transfer_mode = handle_mutually_exclusive_keys(
-                    &mut parser,
-                    "#[rpc]",
-                    &["reliable", "unreliable", "unreliable_ordered"],
-                )?
-                .map(|idx| TransferMode::from_usize(idx).unwrap());
-
-                let call_local = handle_mutually_exclusive_keys(
-                    &mut parser,
-                    "#[rpc]",
-                    &["call_local", "call_remote"],
-                )?
-                .map(|idx| idx == 0);
-
-                let channel = parser.handle_usize("channel")?.map(|x| x as u32);
-
-                let config_expr = parser.handle_expr("config")?;
-
-                parser.finish()?;
-
-                let rpc_attr = match (config_expr, (&rpc_mode, &transfer_mode, &call_local, &channel)) {
-		            // Ok: Only `config = [expr]` is present.
-		            (Some(expr), (None, None, None, None)) => RpcAttr::Expression(expr),
-
-		            // Err: `config = [expr]` is present along other parameters, which is not allowed.
-		            (Some(_), _) => return bail!(
-                        &*item,
-                        "`#[rpc(config = ...)]` is mutually exclusive with any other parameters(`any_peer`, `reliable`, `call_local`, `channel = 0`)"
-                    ),
-
-		            // Ok: `config` is not present, any combination of the other parameters is allowed.
-		            _ => RpcAttr::SeparatedArgs {
-			            rpc_mode,
-			            transfer_mode,
-			            call_local,
-			            channel,
-		            }
-	            };
-
-                AttrParseResult::Rpc(rpc_attr)
-            }
-
-            // #[signal]
-            name if name == "signal" => {
-                // Safe unwrap, since #[signal] must be present if we got to this point.
-                let mut parser = KvParser::parse(attributes, "signal")?.unwrap();
-
-                // Private #[signal(__no_builder)]
-                let no_builder = parser.handle_alone("__no_builder")?;
-
-                parser.finish()?;
-
-                let signal_attr = SignalAttr { no_builder };
-
-                AttrParseResult::Signal(signal_attr, attr.value.clone())
-            }
-
-            // #[constant]
-            name if name == "constant" => {
-                // Ensure no keys are present.
-                let parser = KvParser::parse(attributes, "constant")?.unwrap();
-                parser.finish()?;
-
-                AttrParseResult::Const(attr.value.clone())
-            }
+            name if name == "func" => parse_func_attr(attributes)?,
+            name if name == "rpc" => parse_rpc_attr(attributes)?,
+            name if name == "signal" => parse_signal_attr(attributes, attr)?,
+            name if name == "constant" => parse_constant_attr(attributes, attr)?,
 
             // Ignore unknown attributes.
             _ => continue,
@@ -657,6 +556,113 @@ where
         attr_name,
         ty: attr.into_attr_ty(),
     }))
+}
+
+/// `#[func]` attribute.
+fn parse_func_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseResult> {
+    // Safe unwrap, since #[func] must be present if we got to this point.
+    let mut parser = KvParser::parse(attributes, "func")?.unwrap();
+
+    // #[func(rename = MyClass)]
+    let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
+
+    // #[func(virtual)]
+    let is_virtual = if let Some(span) = parser.handle_alone_with_span("virtual")? {
+        require_api_version!("4.3", span, "#[func(virtual)]")?;
+        true
+    } else {
+        false
+    };
+
+    // #[func(gd_self)]
+    let has_gd_self = parser.handle_alone("gd_self")?;
+
+    parser.finish()?;
+
+    Ok(AttrParseResult::Func(FuncAttr {
+        rename,
+        is_virtual,
+        has_gd_self,
+    }))
+}
+
+/// `#[rpc]` attribute.
+fn parse_rpc_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseResult> {
+    // Safe unwrap, since #[rpc] must be present if we got to this point.
+    let mut parser = KvParser::parse(attributes, "rpc")?.unwrap();
+
+    let rpc_mode =
+        handle_mutually_exclusive_keys(&mut parser, "#[rpc]", &["any_peer", "authority"])?
+            .map(|idx| RpcMode::from_usize(idx).unwrap());
+
+    let transfer_mode = handle_mutually_exclusive_keys(
+        &mut parser,
+        "#[rpc]",
+        &["reliable", "unreliable", "unreliable_ordered"],
+    )?
+    .map(|idx| TransferMode::from_usize(idx).unwrap());
+
+    let call_local =
+        handle_mutually_exclusive_keys(&mut parser, "#[rpc]", &["call_local", "call_remote"])?
+            .map(|idx| idx == 0);
+
+    let channel = parser.handle_usize("channel")?.map(|x| x as u32);
+
+    let config_expr = parser.handle_expr("config")?;
+
+    let item_span = parser.span();
+    parser.finish()?;
+
+    let rpc_attr = match (config_expr, (&rpc_mode, &transfer_mode, &call_local, &channel)) {
+        // Ok: Only `config = [expr]` is present.
+        (Some(expr), (None, None, None, None)) => RpcAttr::Expression(expr),
+
+        // Err: `config = [expr]` is present along other parameters, which is not allowed.
+        (Some(_), _) => return bail!(
+            item_span,
+            "`#[rpc(config = ...)]` is mutually exclusive with any other parameters(`any_peer`, `reliable`, `call_local`, `channel = 0`)"
+        ),
+
+        // Ok: `config` is not present, any combination of the other parameters is allowed.
+        _ => RpcAttr::SeparatedArgs {
+            rpc_mode,
+            transfer_mode,
+            call_local,
+            channel,
+        }
+    };
+
+    Ok(AttrParseResult::Rpc(rpc_attr))
+}
+
+/// `#[signal]` attribute.
+fn parse_signal_attr(
+    attributes: &[venial::Attribute],
+    attr: &venial::Attribute,
+) -> ParseResult<AttrParseResult> {
+    // Safe unwrap, since #[signal] must be present if we got to this point.
+    let mut parser = KvParser::parse(attributes, "signal")?.unwrap();
+
+    // Private #[signal(__no_builder)]
+    let no_builder = parser.handle_alone("__no_builder")?;
+
+    parser.finish()?;
+
+    let signal_attr = SignalAttr { no_builder };
+
+    Ok(AttrParseResult::Signal(signal_attr, attr.value.clone()))
+}
+
+/// `#[constant]` attribute.
+fn parse_constant_attr(
+    attributes: &[venial::Attribute],
+    attr: &venial::Attribute,
+) -> ParseResult<AttrParseResult> {
+    // Ensure no keys are present.
+    let parser = KvParser::parse(attributes, "constant")?.unwrap();
+    parser.finish()?;
+
+    Ok(AttrParseResult::Constant(attr.value.clone()))
 }
 
 fn bail_attr<R>(attr_name: Ident, msg: &str, method: &venial::Function) -> ParseResult<R> {
