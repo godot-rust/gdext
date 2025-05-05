@@ -35,19 +35,7 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// See also [book chapter _Registering classes_](https://godot-rust.github.io/book/register/classes.html).
 ///
-/// **Table of contents:**
-/// - [Construction](#construction)
-/// - [Inheritance](#inheritance)
-/// - [Properties and exports](#properties-and-exports)
-///    - [Property registration](#property-registration)
-///    - [Property exports](#property-exports)
-/// - [Further class customization](#further-class-customization)
-///    - [Running code in the editor](#running-code-in-the-editor)
-///    - [Editor plugins](#editor-plugins)
-///    - [Class renaming](#class-renaming)
-///    - [Class hiding](#class-hiding)
-/// - [Further field customization](#further-field-customization)
-///    - [Fine-grained inference hints](#fine-grained-inference-hints)
+/// **See sidebar on the left for table of contents.**
 ///
 ///
 /// # Construction
@@ -426,10 +414,10 @@ use crate::util::{bail, ident, KvParser};
 /// # }
 /// ```
 ///
+/// # Documentation
+///
 /// <div class="stab portability">Available on <strong>crate feature <code>register-docs</code></strong> only.</div>
 /// <div class="stab portability">Available on <strong>Godot version <code>4.3+</code></strong> only.</div>
-///
-/// # Documentation
 ///
 /// You can document your functions, classes, members, and signals with the `///` doc comment syntax.
 ///
@@ -504,18 +492,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///
 /// See also [book chapter _Registering functions_](https://godot-rust.github.io/book/register/functions.html) and following.
 ///
-/// **Table of contents**
-/// - [Constructors](#constructors)
-///   - [User-defined `init`](#user-defined-init)
-///   - [Generated `init`](#generated-init)
-/// - [Lifecycle functions](#lifecycle-functions)
-/// - [User-defined functions](#user-defined-functions)
-///   - [Associated functions and methods](#associated-functions-and-methods)
-///   - [Virtual methods](#virtual-methods)
-///   - [RPC attributes](#rpc-attributes)
-/// - [Signals](#signals)
-/// - [Constants](#constants)
-/// - [Multiple inherent `impl` blocks](#multiple-inherent-impl-blocks)
+/// **See sidebar on the left for table of contents.**
 ///
 /// # Constructors
 ///
