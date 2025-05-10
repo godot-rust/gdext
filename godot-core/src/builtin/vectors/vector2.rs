@@ -71,12 +71,6 @@ impl_vector_fns!(Vector2, RVec2, real, (x, y));
 
 /// # Specialized `Vector2` functions
 impl Vector2 {
-    #[deprecated = "Moved to `Vector2i::cast_float()`"]
-    #[inline]
-    pub const fn from_vector2i(v: Vector2i) -> Self {
-        v.cast_float()
-    }
-
     /// Creates a unit Vector2 rotated to the given `angle` in radians. This is equivalent to doing `Vector2::new(angle.cos(), angle.sin())`
     /// or `Vector2::RIGHT.rotated(angle)`.
     ///

@@ -71,12 +71,6 @@ impl Rect2i {
         }
     }
 
-    #[deprecated = "Moved to `Rect2::cast_int()`"]
-    #[inline]
-    pub const fn from_rect2(rect: Rect2) -> Self {
-        rect.cast_int()
-    }
-
     /// Create a new `Rect2` from a `Rect2i`, using `as` for `i32` to `real` conversions.
     ///
     /// _Godot equivalent: `Rect2(Rect2i from)`_
@@ -241,11 +235,6 @@ impl Rect2i {
         let new_end = b_end.coord_min(own_end);
 
         Some(Self::from_corners(new_pos, new_end))
-    }
-
-    #[deprecated = "Renamed to `intersect()`"]
-    pub fn intersection(self, b: Self) -> Option<Self> {
-        self.intersect(b)
     }
 
     /// Returns `true` if the `Rect2i` overlaps with `b` (i.e. they have at least one

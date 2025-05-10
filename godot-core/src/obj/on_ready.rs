@@ -135,11 +135,6 @@ impl<T: Inherits<Node>> OnReady<Gd<T>> {
 
         Self::from_base_fn(move |base| base.get_node_as(&path))
     }
-
-    #[deprecated = "Renamed to `from_node`."]
-    pub fn node(path: impl AsArg<NodePath>) -> Self {
-        Self::from_node(path)
-    }
 }
 
 impl<T: Inherits<Resource>> OnReady<Gd<T>> {
