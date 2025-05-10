@@ -524,7 +524,7 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
             type __SignalObj<'c> = ::godot::private::UserSignalObject<'c, Self>;
 
             #[doc(hidden)]
-            fn __signals_from_external(external: &mut ::godot::obj::Gd<Self>) -> Self::SignalCollection<'_, Self> {
+            fn __signals_from_external(external: & ::godot::obj::Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
                     __internal_obj: Some(::godot::private::UserSignalObject::External {
                         gd: external.clone().upcast_object()

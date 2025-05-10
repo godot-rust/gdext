@@ -7,6 +7,7 @@
 
 use crate::framework::itest;
 use godot::builtin::{GString, Signal, StringName};
+use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
@@ -79,7 +80,7 @@ fn signal_symbols_internal() {
 #[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_external() {
-    let mut emitter = Emitter::new_alloc();
+    let emitter = Emitter::new_alloc();
     let mut sig = emitter.signals().signal_int();
 
     // Local function; deliberately use a !Send type.
@@ -96,7 +97,7 @@ fn signal_symbols_external() {
 
     // Connect to other object.
     let receiver = Receiver::new_alloc();
-    sig.connect_obj(&receiver, Receiver::receive_int_mut);
+    sig.connect_other(&receiver, Receiver::receive_int_mut);
 
     // Emit signal (now via tuple).
     sig.emit_tuple((987,));
@@ -126,7 +127,7 @@ fn signal_symbols_external() {
 #[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_complex_emit() {
-    let mut emitter = Emitter::new_alloc();
+    let emitter = Emitter::new_alloc();
     let arg = emitter.clone();
     let mut sig = emitter.signals().signal_obj();
 
@@ -148,35 +149,24 @@ fn signal_symbols_complex_emit() {
 #[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_external_builder() {
-    let mut emitter = Emitter::new_alloc();
+    let emitter = Emitter::new_alloc();
     let mut sig = emitter.signals().signal_int();
 
     // Self-modifying method.
-    sig.connect_builder()
-        .object_self()
-        .method_mut(Emitter::self_receive)
-        .done();
+    sig.connect_self(Emitter::self_receive);
 
     // Connect to other object.
     let receiver_mut = Receiver::new_alloc();
     sig.connect_builder()
-        .object(&receiver_mut)
-        .method_mut(Receiver::receive_int_mut)
-        .done();
+        .name("receive_the_knowledge")
+        .connect_other(&receiver_mut, Receiver::receive_int_mut);
 
-    // Connect to yet another object, immutable receiver.
-    let receiver_immut = Receiver::new_alloc();
-    sig.connect_builder()
-        .object(&receiver_immut)
-        .method_immut(Receiver::receive_int)
-        .done();
+    sig.connect_other(&receiver_mut, Receiver::receive_int_mut);
 
     let tracker = Rc::new(Cell::new(0));
     {
         let tracker = tracker.clone();
-        sig.connect_builder()
-            .function(move |i| tracker.set(i))
-            .done();
+        sig.connect_builder().connect(move |i| tracker.set(i));
     }
 
     // Emit signal.
@@ -194,13 +184,6 @@ fn signal_symbols_external_builder() {
 
     // Check that *other* instance method is invoked.
     assert_eq!(
-        receiver_immut.bind().last_received(),
-        LastReceived::Int(552),
-        "Emit failed (other object, immut method)"
-    );
-
-    // Check that *other* instance method is invoked.
-    assert_eq!(
         receiver_mut.bind().last_received(),
         LastReceived::IntMut(552),
         "Emit failed (other object, mut method)"
@@ -209,7 +192,6 @@ fn signal_symbols_external_builder() {
     // Check that closures set up with builder are invoked.
     assert_eq!(tracker.get(), 552, "Emit failed (builder local)");
 
-    receiver_immut.free();
     receiver_mut.free();
     emitter.free();
 }
@@ -219,16 +201,14 @@ fn signal_symbols_external_builder() {
 fn signal_symbols_sync() {
     use std::sync::{Arc, Mutex};
 
-    let mut emitter = Emitter::new_alloc();
+    let emitter = Emitter::new_alloc();
     let mut sig = emitter.signals().signal_int();
 
     let sync_tracker = Arc::new(Mutex::new(0));
     {
         let sync_tracker = sync_tracker.clone();
         sig.connect_builder()
-            .function(move |i| *sync_tracker.lock().unwrap() = i)
-            .sync()
-            .done();
+            .connect_sync(move |i| *sync_tracker.lock().unwrap() = i);
     }
 
     sig.emit(1143);
@@ -249,24 +229,21 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
     ctx.scene_tree.clone().add_child(&node);
 
     // API allows to only modify one signal at a time (borrowing &mut self).
-    let mut renamed = node.signals().renamed();
+    let renamed = node.signals().renamed();
     let renamed_count = Rc::new(Cell::new(0));
     {
         let renamed_count = renamed_count.clone();
         renamed.connect(move || renamed_count.set(renamed_count.get() + 1));
     }
 
-    let mut entered = node.signals().child_entered_tree();
+    let entered = node.signals().child_entered_tree();
     let entered_tracker = Rc::new(RefCell::new(None));
     {
         let entered_tracker = entered_tracker.clone();
 
-        entered
-            .connect_builder()
-            .function(move |node| {
-                *entered_tracker.borrow_mut() = Some(node);
-            })
-            .done();
+        entered.connect_builder().connect(move |node| {
+            *entered_tracker.borrow_mut() = Some(node);
+        });
     }
 
     // Apply changes, triggering signals.
@@ -300,8 +277,8 @@ fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
     // Add to tree, so signals are propagated.
     ctx.scene_tree.clone().add_child(&node);
 
-    let mut sig = node.signals().renamed();
-    sig.connect_self(|this: &mut Emitter| {
+    let sig = node.signals().renamed();
+    sig.connect_self(|this| {
         this.last_received_int = 887;
     });
 
@@ -323,8 +300,8 @@ fn signal_symbols_engine_inherited_indirect(ctx: &crate::framework::TestContext)
     // Add to tree, so signals are propagated.
     ctx.scene_tree.clone().add_child(&node);
 
-    let mut sig = node.signals().renamed();
-    sig.connect_obj(&original, |this: &mut Emitter| {
+    let sig = node.signals().renamed();
+    sig.connect_other(&original, |this: &mut Emitter| {
         this.last_received_int = 887;
     });
 
@@ -349,6 +326,82 @@ fn signal_symbols_engine_inherited_internal() {
     node.free();
 }
 
+// Test that signal API methods accept engine types as receivers.
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_connect_engine() {
+    // No tree needed; signal is emitted manually.
+    let node = Emitter::new_alloc();
+    let mut engine = Node::new_alloc();
+    engine.set_name("hello");
+
+    node.signals()
+        .property_list_changed()
+        .connect_other(&engine, |this| {
+            assert_eq!(this.get_name(), StringName::from("hello"));
+        });
+
+    node.signals()
+        .property_list_changed()
+        .connect_builder()
+        .connect_other(&engine, |this| {
+            assert_eq!(this.get_name(), StringName::from("hello"));
+        });
+
+    node.signals().property_list_changed().emit();
+
+    node.free();
+    engine.free();
+}
+
+// Test that rustc is capable of inferring the parameter types of closures passed to the signal API's connect methods.
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_symbols_connect_inferred() {
+    let user = Emitter::new_alloc();
+    let engine = Node::new_alloc();
+
+    user.signals()
+        .child_entered_tree()
+        .connect_other(&engine, |this, mut child| {
+            // Use methods that `Node` declares.
+            let _ = this.get_path(); // ref.
+            this.set_unique_name_in_owner(true); // mut.
+
+            // `child` is also a node.
+            let _ = child.get_path(); // ref.
+            child.set_unique_name_in_owner(true); // mut.
+        });
+
+    user.signals().renamed().connect_self(|this| {
+        // Use method/field that `Emitter` declares.
+        this.connect_base_signals_internal();
+        let _ = this.last_received_int;
+    });
+
+    engine.signals().ready().connect_other(&user, |this| {
+        // Use method/field that `Emitter` declares.
+        this.connect_base_signals_internal();
+        let _ = this.last_received_int;
+    });
+
+    engine
+        .signals()
+        .tree_exiting()
+        .connect_builder()
+        .flags(ConnectFlags::DEFERRED)
+        .connect_self(|this| {
+            // Use methods that `Node` declares.
+            let _ = this.get_path(); // ref.
+            this.set_unique_name_in_owner(true); // mut.
+        });
+
+    // Don't emit any signals, this test just needs to compile.
+
+    user.free();
+    engine.free();
+}
+
 // Test that Node signals are accessible from a derived class, when the class itself has no #[signal] declarations.
 // Verifies the code path that only generates the traits, no dedicated signal collection.
 #[cfg(since_api = "4.2")]
@@ -356,8 +409,8 @@ fn signal_symbols_engine_inherited_internal() {
 fn signal_symbols_engine_inherited_no_own_signals() {
     let mut obj = Receiver::new_alloc();
 
-    let mut sig = obj.signals().property_list_changed();
-    sig.connect_self(|this: &mut Receiver| {
+    let sig = obj.signals().property_list_changed();
+    sig.connect_self(|this| {
         this.receive_int(941);
     });
 
@@ -445,7 +498,7 @@ mod emitter {
 
         #[cfg(since_api = "4.2")]
         pub fn connect_signals_internal(&mut self, tracker: Rc<Cell<i64>>) {
-            let mut sig = self.signals().signal_int();
+            let sig = self.signals().signal_int();
             sig.connect_self(Self::self_receive);
             sig.connect(Self::self_receive_static);
             sig.connect(move |i| tracker.set(i));
@@ -460,7 +513,7 @@ mod emitter {
         pub fn connect_base_signals_internal(&mut self) {
             self.signals()
                 .renamed()
-                .connect_self(Self::self_receive_constant);
+                .connect_self(Emitter::self_receive_constant);
         }
 
         #[cfg(since_api = "4.2")]

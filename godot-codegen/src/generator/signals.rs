@@ -120,9 +120,9 @@ fn make_with_signals_impl(
 
             // During construction, C = Self.
             #[doc(hidden)]
-            fn __signals_from_external(gd_mut: &mut Gd<Self>) -> Self::SignalCollection<'_, Self> {
+            fn __signals_from_external(gd_ref: & Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
-                    __internal_obj: Some(gd_mut.clone()),
+                    __internal_obj: Some(gd_ref.clone()),
                 }
             }
         }
