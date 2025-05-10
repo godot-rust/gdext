@@ -16,7 +16,6 @@ use godot::classes::{
     file_access, Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted,
 };
 #[allow(deprecated)]
-use godot::global::instance_from_id;
 use godot::meta::{FromGodot, GodotType, ToGodot};
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
 use godot::register::{godot_api, GodotClass};
@@ -181,36 +180,6 @@ fn object_from_invalid_instance_id() {
         .expect_err("invalid instance id should not return a valid object");
 }
 
-// `instance_from_id` is a normal FFI call, so works slightly differently from `Gd::try_from_instance_id`.
-#[itest]
-fn object_instance_from_id() {
-    let node = Node::new_alloc();
-
-    assert!(node.is_instance_valid());
-
-    let instance_id = node.instance_id();
-
-    #[allow(deprecated)]
-    let gd_from_instance_id = instance_from_id(instance_id.to_i64())
-        .expect("instance should be valid")
-        .cast::<Node>();
-
-    assert_eq!(gd_from_instance_id, node);
-
-    node.free();
-}
-
-#[itest]
-fn object_instance_from_invalid_id() {
-    #[allow(deprecated)]
-    let gd_from_instance_id = instance_from_id(0);
-
-    assert!(
-        gd_from_instance_id.is_none(),
-        "instance id 0 should never be valid"
-    );
-}
-
 #[itest]
 fn object_from_instance_id_inherits_type() {
     let descr = GString::from("some very long description");
@@ -283,7 +252,14 @@ fn object_user_free_during_bind() {
         obj.is_instance_valid(),
         "object lives on after failed free()"
     );
+
+    let copy = obj.clone();
     obj.free(); // now succeeds
+
+    assert!(
+        !copy.is_instance_valid(),
+        "object is finally destroyed after successful free()"
+    );
 }
 
 #[itest]
