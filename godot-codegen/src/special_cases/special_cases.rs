@@ -559,13 +559,25 @@ pub fn is_builtin_type_scalar(name: &str) -> bool {
 
 #[rustfmt::skip]
 pub fn is_utility_function_deleted(function: &JsonUtilityFunction, ctx: &mut Context) -> bool {
-    /*let hardcoded = match function.name.as_str() {
-        | "..."
+    let hardcoded = match function.name.as_str() {
+        // Removed in v0.3, but available as dedicated APIs.
+        | "instance_from_id"
 
         => true, _ => false
     };
 
-    hardcoded ||*/ codegen_special_cases::is_utility_function_excluded(function, ctx)
+    hardcoded || codegen_special_cases::is_utility_function_excluded(function, ctx)
+}
+
+#[rustfmt::skip]
+pub fn is_utility_function_private(function: &JsonUtilityFunction) -> bool {
+    match function.name.as_str() {
+        // Removed from public interface in v0.3, but available as dedicated APIs.
+        | "is_instance_valid"    // used in Variant::is_object_alive().
+        | "is_instance_id_valid" // used in InstanceId::lookup_validity().
+
+        => true, _ => false
+    }
 }
 
 pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
