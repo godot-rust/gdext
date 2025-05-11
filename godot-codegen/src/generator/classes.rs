@@ -73,6 +73,13 @@ struct GeneratedClassModule {
     is_pub_sidecar: bool,
 }
 
+struct Construction {
+    constructor: TokenStream,
+    construct_doc: &'static str,
+    final_doc: Option<&'static str>,
+    godot_default_impl: TokenStream,
+}
+
 fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClass {
     let class_name = class.name();
 
@@ -90,8 +97,16 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         None => (quote! { crate::obj::NoBase }, None),
     };
 
-    let (constructor, construct_doc, godot_default_impl) = make_constructor_and_default(class, ctx);
-    let construct_doc = construct_doc.replace("Self", &class_name.rust_ty.to_string());
+    let Construction {
+        constructor,
+        construct_doc,
+        final_doc,
+        godot_default_impl,
+    } = make_constructor_and_default(class, ctx);
+
+    let mut extended_class_doc = construct_doc.replace("Self", &class_name.rust_ty.to_string());
+    extended_class_doc.push_str(final_doc.unwrap_or_default());
+
     let api_level = class.api_level;
     let init_level = api_level.to_init_level();
 
@@ -194,7 +209,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
             use super::*;
 
             #[doc = #class_doc]
-            #[doc = #construct_doc]
+            #[doc = #extended_class_doc]
             #cfg_attributes
             #[derive(Debug)]
             #[repr(C)]
@@ -386,10 +401,7 @@ fn make_class_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> Tok
     }
 }
 
-fn make_constructor_and_default(
-    class: &Class,
-    ctx: &Context,
-) -> (TokenStream, &'static str, TokenStream) {
+fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
     let class_name = class.name();
 
     let godot_class_stringname = make_string_name(&class_name.godot_ty);
@@ -437,6 +449,15 @@ fn make_constructor_and_default(
         has_godot_default_impl = true;
     }
 
+    let final_doc = if class.is_final {
+        Some(
+            "\n\n# Final class\n\n\
+            This class is _final_, meaning you cannot inherit from it.",
+        )
+    } else {
+        None
+    };
+
     let godot_default_impl = if has_godot_default_impl {
         let class_name = &class.name().rust_ty;
         quote! {
@@ -450,7 +471,12 @@ fn make_constructor_and_default(
         TokenStream::new()
     };
 
-    (constructor, construct_doc, godot_default_impl)
+    Construction {
+        constructor,
+        construct_doc,
+        final_doc,
+        godot_default_impl,
+    }
 }
 
 fn make_deref_impl(class_name: &TyName, base_ty: &TokenStream) -> TokenStream {
