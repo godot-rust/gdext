@@ -162,3 +162,35 @@ macro_rules! generate_string_bytes_and_cstr_tests {
         }
     };
 }
+
+// Tests padding with the standard formatter.
+#[macro_export]
+macro_rules! generate_string_standard_fmt_tests {
+    (
+        builtin: $T:ty,
+        tests: [
+            $display:ident,
+            $standard_pad:ident,
+        ]
+    ) => {
+        #[itest]
+        fn $display() {
+            let s = <$T>::from("abcd");
+
+            assert_eq!(format!("{s}"), "abcd");
+        }
+
+        #[itest]
+        fn $standard_pad() {
+            let s = <$T>::from("abcd");
+
+            // Padding with spaces + alignment.
+            assert_eq!(format!("{s:<6}"), "abcd  ");
+            assert_eq!(format!("{s:>6}"), "  abcd");
+
+            // Precision.
+            assert_eq!(format!("{s:.2}"), "ab");
+            assert_eq!(format!("{s:.3}"), "abc");
+        }
+    };
+}

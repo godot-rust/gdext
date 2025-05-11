@@ -279,6 +279,14 @@ crate::generate_string_bytes_and_cstr_tests!(
     ]
 );
 
+crate::generate_string_standard_fmt_tests!(
+    builtin: GString,
+    tests: [
+        gstring_display,
+        gstring_standard_pad,
+    ]
+);
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helpers
 
