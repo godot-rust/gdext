@@ -26,7 +26,7 @@
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
 use crate::conv::to_enum_type_uncached;
-use crate::models::domain::{Enum, RustTy, TyName};
+use crate::models::domain::{Enum, RustTy, TyName, VirtualMethodPresence};
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::util::option_as_slice;
@@ -847,12 +847,14 @@ pub fn is_virtual_method_required(class_name: &TyName, rust_method_name: &str) -
 
 // Adjustments for Godot 4.4+, where a virtual method is no longer needed (e.g. in a derived class).
 #[rustfmt::skip]
-pub fn is_derived_virtual_method_required(class_name: &TyName, rust_method_name: &str) -> Option<bool> {
-      match (class_name.godot_ty.as_str(), rust_method_name) {
-          // Required in base class, no longer in derived; https://github.com/godot-rust/gdext/issues/1133.
-          | ("AudioStreamPlaybackResampled", "mix")
-        
-          => Some(false), _ => None
+pub fn get_derived_virtual_method_presence(class_name: &TyName, rust_method_name: &str) -> VirtualMethodPresence {
+     match (class_name.godot_ty.as_str(), rust_method_name) {
+         // Required in base class, no longer in derived; https://github.com/godot-rust/gdext/issues/1133.
+         | ("AudioStreamPlaybackResampled", "mix")
+         => VirtualMethodPresence::Remove,
+
+         // Default: inherit presence from base class.
+         _ => VirtualMethodPresence::Inherit,
     }
 }
 

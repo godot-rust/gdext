@@ -723,6 +723,20 @@ pub enum ArgPassing {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Behavior of virtual methods in derived classes.
+pub enum VirtualMethodPresence {
+    /// Preserve default behavior of base class (required or optional).
+    Inherit,
+
+    /// Virtual method is now required/optional according to `is_required`, independent of base method declaration.
+    Override { is_required: bool },
+
+    /// Virtual method is removed in derived classes (no longer appearing in their interface trait).
+    Remove,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Contains multiple naming conventions for types (classes, builtin classes, enums).
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct TyName {

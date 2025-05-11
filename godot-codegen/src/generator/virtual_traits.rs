@@ -8,7 +8,7 @@
 use crate::generator::functions_common::FnCode;
 use crate::generator::{docs, functions_common};
 use crate::models::domain::{
-    ApiView, Class, ClassLike, ClassMethod, FnQualifier, Function, TyName,
+    ApiView, Class, ClassLike, ClassMethod, FnQualifier, Function, TyName, VirtualMethodPresence,
 };
 use crate::special_cases;
 use crate::util::ident;
@@ -153,11 +153,19 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
 
 fn make_virtual_method(
     method: &ClassMethod,
-    override_is_required: Option<bool>,
+    presence: VirtualMethodPresence,
 ) -> Option<TokenStream> {
     if !method.is_virtual() {
         return None;
     }
+
+    // Possibly change behavior of required/optional-ness of the virtual method in derived classes.
+    // It's also possible that it's removed, which would not declare it at all in the `I*` trait.
+    let is_virtual_required = match presence {
+        VirtualMethodPresence::Inherit => method.is_virtual_required(),
+        VirtualMethodPresence::Override { is_required } => is_required,
+        VirtualMethodPresence::Remove => return None,
+    };
 
     // Virtual methods are never static.
     let qualifier = method.qualifier();
@@ -170,8 +178,7 @@ fn make_virtual_method(
             // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
-            is_virtual_required: override_is_required
-                .unwrap_or_else(|| method.is_virtual_required()),
+            is_virtual_required,
             is_varcall_fallible: true,
         },
         None,
@@ -191,7 +198,7 @@ fn make_all_virtual_methods(
 
     for method in class.methods.iter() {
         // Assumes that inner function filters on is_virtual.
-        if let Some(tokens) = make_virtual_method(method, None) {
+        if let Some(tokens) = make_virtual_method(method, VirtualMethodPresence::Inherit) {
             all_tokens.push(tokens);
         }
     }
@@ -201,10 +208,10 @@ fn make_all_virtual_methods(
         for method in base_class.methods.iter() {
             // Certain derived classes in Godot implement a virtual method declared in a base class, thus no longer
             // making it required. This isn't advertised in the extension_api, but instead manually tracked via special cases.
-            let is_required =
-                special_cases::is_derived_virtual_method_required(class.name(), method.name());
+            let derived_presence =
+                special_cases::get_derived_virtual_method_presence(class.name(), method.name());
 
-            if let Some(tokens) = make_virtual_method(method, is_required) {
+            if let Some(tokens) = make_virtual_method(method, derived_presence) {
                 all_tokens.push(tokens);
             }
         }
@@ -212,3 +219,6 @@ fn make_all_virtual_methods(
 
     all_tokens
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helper types
