@@ -14,6 +14,7 @@ use crate::special_cases;
 use crate::util::ident;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+use std::fmt::Write;
 
 pub fn make_virtual_methods_trait(
     class: &Class,
@@ -26,19 +27,20 @@ pub fn make_virtual_methods_trait(
     let trait_name = ident(trait_name_str);
     let class_name = &class.name().rust_ty;
 
-    let virtual_method_fns = make_all_virtual_methods(class, all_base_names, view);
+    let (virtual_method_fns, extra_docs) = make_all_virtual_methods(class, all_base_names, view);
     let special_virtual_methods = make_special_virtual_methods(notification_enum_name);
 
     let trait_doc = docs::make_virtual_trait_doc(trait_name_str, class.name());
 
     quote! {
         #[doc = #trait_doc]
+        #[doc = #extra_docs]
         #[allow(unused_variables)]
         #[allow(clippy::unimplemented)]
         #cfg_attributes
         pub trait #trait_name: crate::obj::GodotClass<Base = #class_name> + crate::private::You_forgot_the_attribute__godot_api {
             #special_virtual_methods
-            #( #virtual_method_fns )*
+            #virtual_method_fns
         }
     }
 }
@@ -193,15 +195,17 @@ fn make_all_virtual_methods(
     class: &Class,
     all_base_names: &[TyName],
     view: &ApiView,
-) -> Vec<TokenStream> {
-    let mut all_tokens = vec![];
+) -> (TokenStream, String) {
+    let mut all_tokens = TokenStream::new();
 
     for method in class.methods.iter() {
         // Assumes that inner function filters on is_virtual.
         if let Some(tokens) = make_virtual_method(method, VirtualMethodPresence::Inherit) {
-            all_tokens.push(tokens);
+            all_tokens.extend(tokens);
         }
     }
+
+    let mut changes_from_base = String::new();
 
     for base_name in all_base_names {
         let base_class = view.get_engine_class(base_name);
@@ -211,14 +215,56 @@ fn make_all_virtual_methods(
             let derived_presence =
                 special_cases::get_derived_virtual_method_presence(class.name(), method.name());
 
+            // Collect all changes in a Markdown table.
+            let new = match derived_presence {
+                VirtualMethodPresence::Inherit => None,
+                VirtualMethodPresence::Override { is_required } => {
+                    Some(format_required(is_required))
+                }
+                VirtualMethodPresence::Remove => Some("removed"),
+            };
+            if let Some(new) = new {
+                let orig = format_required(method.is_virtual_required());
+                let base_name = &base_name.rust_ty;
+                let method_name = format_method_name(method);
+
+                write!(
+                    changes_from_base,
+                    "\n| [`I{base_name}::{method_name}`](crate::classes::I{base_name}::{method_name}) | {orig} | {new} |"
+                )
+                .unwrap();
+            }
+
             if let Some(tokens) = make_virtual_method(method, derived_presence) {
-                all_tokens.push(tokens);
+                all_tokens.extend(tokens);
             }
         }
     }
 
-    all_tokens
+    let extra_docs = if changes_from_base.is_empty() {
+        String::new()
+    } else {
+        let class_name = &class.name().rust_ty;
+        format!(
+            "\n\n# Changes from base interface traits\n\
+            The following virtual methods originally declared in direct/indirect base classes have their presence (required/optional) changed \
+            in `I{class_name}`. This can happen if Godot already overrides virtual methods, discouraging the user from further overriding them.\n\
+            \n\n| Base method | Original | New |\n| --- | --- | --- |{changes_from_base}"
+        )
+    };
+
+    (all_tokens, extra_docs)
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Helper types
+fn format_required(is_required: bool) -> &'static str {
+    if is_required {
+        "required"
+    } else {
+        "optional"
+    }
+}
+
+fn format_method_name(method: &ClassMethod) -> &str {
+    // TODO when we have `_unsafe` or similar postfix with raw pointers, update this here.
+    method.name()
+}
