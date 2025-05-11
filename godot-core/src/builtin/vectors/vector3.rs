@@ -93,12 +93,6 @@ impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
 
 /// # Specialized `Vector3` functions
 impl Vector3 {
-    #[deprecated = "Moved to `Vector3i::cast_float()`"]
-    #[inline]
-    pub const fn from_vector3i(v: Vector3i) -> Self {
-        v.cast_float()
-    }
-
     #[doc(hidden)]
     #[inline]
     pub fn as_inner(&self) -> inner::InnerVector3 {

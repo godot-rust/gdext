@@ -21,6 +21,24 @@
 //! - Variant: [`VariantType`][crate::builtin::VariantType], [`VariantOperator`][crate::builtin::VariantOperator]
 //! - Vector: [`Vector2Axis`][crate::builtin::Vector2Axis], [`Vector3Axis`][crate::builtin::Vector3Axis], [`Vector4Axis`][crate::builtin::Vector4Axis]
 //!
+//! # Functions moved to dedicated APIs
+//!
+//! Some methods in `@GlobalScope` are not directly available in `godot::global` module, but rather in their related types.  \
+//! You can find them as follows:
+//!
+//! | Godot utility function | godot-rust APIs                                                                                                                      |
+//! |------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+//! | `instance_from_id`     | [`Gd::from_instance_id()`][crate::obj::Gd::from_instance_id]<br>[`Gd::try_from_instance_id()`][crate::obj::Gd::try_from_instance_id()] |
+//! | `is_instance_valid`    | [`Gd::is_instance_valid()`][crate::obj::Gd::is_instance_valid()]                                                                     |
+//! | `is_instance_id_valid` | [`InstanceId::lookup_validity()`][crate::obj::InstanceId::lookup_validity()]                                                         |
+//!
+
+// Doc aliases are also available in dedicated APIs, but directing people here may give them a bit more context.
+#![doc(
+    alias = "instance_from_id",
+    alias = "is_instance_valid",
+    alias = "is_instance_id_valid"
+)]
 
 mod print;
 
@@ -31,30 +49,8 @@ pub use crate::gen::central::global_enums::*;
 pub use crate::gen::utilities::*;
 
 // This is needed for generated classes to find symbols, even those that have been moved to crate::builtin.
-use crate::builtin::Variant;
 #[allow(unused_imports)] // micromanaging imports for generated code is not fun
 pub(crate) use crate::builtin::{Corner, EulerOrder, Side};
-use crate::obj::Gd;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Deprecations
-
-// Reminder: remove #![allow(deprecated)] in utilities.test along with the below functions.
-
-#[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
-    For detailed reasons, see https://github.com/godot-rust/gdext/pull/901."]
-pub fn instance_from_id(instance_id: i64) -> Option<Gd<crate::classes::Object>> {
-    crate::gen::utilities::instance_from_id(instance_id)
-}
-
-#[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
-    For detailed reasons, see https://github.com/godot-rust/gdext/pull/901."]
-pub fn is_instance_valid(instance: Variant) -> bool {
-    crate::gen::utilities::is_instance_valid(&instance)
-}
-
-#[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
-    For detailed reasons, see https://github.com/godot-rust/gdext/pull/901."]
-pub fn is_instance_id_valid(instance_id: i64) -> bool {
-    crate::gen::utilities::is_instance_id_valid(instance_id)
-}

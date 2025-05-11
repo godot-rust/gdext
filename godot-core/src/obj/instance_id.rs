@@ -66,7 +66,7 @@ impl InstanceId {
     /// This corresponds to Godot's global function `is_instance_id_valid()`.
     #[doc(alias = "is_instance_id_valid")]
     pub fn lookup_validity(self) -> bool {
-        crate::gen::utilities::is_instance_id_valid(self.to_i64())
+        crate::global::is_instance_id_valid(self.to_i64())
     }
 
     // Private: see rationale above

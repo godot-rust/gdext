@@ -546,6 +546,7 @@ impl UtilityFunction {
         if special_cases::is_utility_function_deleted(function, ctx) {
             return None;
         }
+        let is_private = special_cases::is_utility_function_private(function);
 
         // Some vararg functions like print() or str() are declared with a single argument "arg1: Variant", but that seems
         // to be a mistake. We change their parameter list by removing that.
@@ -571,7 +572,7 @@ impl UtilityFunction {
                 parameters,
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: function.is_vararg,
-                is_private: false,
+                is_private,
                 is_virtual_required: false,
                 direction: FnDirection::Outbound {
                     hash: function.hash,

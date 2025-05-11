@@ -274,7 +274,7 @@ impl Variant {
     pub(crate) fn is_object_alive(&self) -> bool {
         debug_assert_eq!(self.get_type(), VariantType::OBJECT);
 
-        crate::gen::utilities::is_instance_valid(self)
+        crate::global::is_instance_valid(self)
 
         // In case there are ever problems with this approach, alternative implementation:
         // self.stringify() != "<Freed Object>".into()

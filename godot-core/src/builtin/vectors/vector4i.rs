@@ -73,12 +73,6 @@ impl_vector_fns!(Vector4i, glam::IVec4, i32, (x, y, z, w));
 impl Vector4i {
     inline_impl_integer_vector_fns!(Vector4, x, y, z, w);
 
-    #[deprecated = "Moved to `Vector4::cast_int()`"]
-    #[inline]
-    pub const fn from_vector4(v: Vector4) -> Self {
-        v.cast_int()
-    }
-
     /// Converts `self` to the corresponding [`real`] `glam` type.
     #[doc(hidden)]
     #[inline]
