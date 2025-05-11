@@ -224,6 +224,24 @@ pub fn is_class_instantiable(class_ty: &TyName) -> Option<bool> {
     None
 }
 
+/// Whether a class is final, i.e. cannot be inherited from.
+///
+/// Note that cases where the final status can be inferred from other properties (e.g. being a singleton) are already handled outside this
+/// function.
+#[rustfmt::skip]
+pub fn is_class_final(class_ty: &TyName) -> bool {
+    match class_ty.godot_ty.as_str(){
+        // https://github.com/godot-rust/gdext/issues/1129
+        | "AudioStreamGeneratorPlayback"
+        | "AudioStreamPlaybackInteractive"
+        | "AudioStreamPlaybackPlaylist"
+        | "AudioStreamPlaybackPolyphonic"
+        | "AudioStreamPlaybackSynchronized"
+
+        => true, _ => false
+    }
+}
+
 /// Whether a method is available in the method table as a named accessor.
 #[rustfmt::skip]
 pub fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
