@@ -91,6 +91,8 @@ impl Class {
 
         // Already checked in is_class_deleted(), but code remains more maintainable if those are separate, and it's cheap to validate.
         let is_experimental = special_cases::is_class_experimental(&ty_name.godot_ty);
+        let is_instantiable =
+            special_cases::is_class_instantiable(&ty_name).unwrap_or(json.is_instantiable);
 
         let mod_name = ModName::from_godot(&ty_name.godot_ty);
 
@@ -129,7 +131,7 @@ impl Class {
                 mod_name,
             },
             is_refcounted: json.is_refcounted,
-            is_instantiable: json.is_instantiable,
+            is_instantiable,
             is_experimental,
             inherits: json.inherits.clone(),
             api_level: get_api_level(json),

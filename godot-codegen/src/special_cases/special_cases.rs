@@ -206,6 +206,24 @@ pub fn is_class_experimental(godot_class_name: &str) -> bool {
     }
 }
 
+/// Whether a class can be instantiated (overrides Godot's defaults in some cases).
+///
+/// Returns `None` if the Godot default should be taken.
+pub fn is_class_instantiable(class_ty: &TyName) -> Option<bool> {
+    let class_name = class_ty.godot_ty.as_str();
+
+    // The default constructor is available but callers meet with the following Godot error:
+    // "ERROR: XY can't be created directly. Use create_tween() method."
+    // for the following classes XY:
+    //Tween, PropertyTweener, PropertyTweener, IntervalTweener, CallbackTweener, MethodTweener, SubtweenTweener,
+
+    if class_name == "Tween" || class_name.ends_with("Tweener") {
+        return Some(false);
+    }
+
+    None
+}
+
 /// Whether a method is available in the method table as a named accessor.
 #[rustfmt::skip]
 pub fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
