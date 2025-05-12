@@ -161,6 +161,8 @@ pub struct Class {
     pub is_refcounted: bool,
     pub is_instantiable: bool,
     pub is_experimental: bool,
+    /// `true` if inheriting the class is disallowed.
+    pub is_final: bool,
     pub inherits: Option<String>,
     pub api_level: ClassCodegenLevel,
     pub constants: Vec<ClassConstant>,
