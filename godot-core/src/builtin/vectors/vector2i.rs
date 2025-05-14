@@ -69,12 +69,6 @@ impl Vector2i {
 impl Vector2i {
     inline_impl_integer_vector_fns!(Vector2, x, y);
 
-    #[deprecated = "Moved to `Vector2::cast_int()`"]
-    #[inline]
-    pub const fn from_vector2(v: Vector2) -> Self {
-        v.cast_int()
-    }
-
     /// Converts `self` to the corresponding [`real`] `glam` type.
     #[doc(hidden)]
     #[inline]

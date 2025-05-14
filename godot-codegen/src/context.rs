@@ -271,8 +271,8 @@ impl<'a> Context<'a> {
         self.native_structures_types.contains(ty_name)
     }
 
-    pub fn is_singleton(&self, class_name: &str) -> bool {
-        self.singletons.contains(class_name)
+    pub fn is_singleton(&self, class_name: &TyName) -> bool {
+        self.singletons.contains(class_name.godot_ty.as_str())
     }
 
     pub fn inheritance_tree(&self) -> &InheritanceTree {

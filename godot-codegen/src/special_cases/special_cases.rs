@@ -26,7 +26,7 @@
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
 use crate::conv::to_enum_type_uncached;
-use crate::models::domain::{Enum, RustTy, TyName};
+use crate::models::domain::{Enum, RustTy, TyName, VirtualMethodPresence};
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::util::option_as_slice;
@@ -64,16 +64,6 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("VisualShaderNodeComment", "set_description")
         | ("VisualShaderNodeComment", "get_description")
         => true,
-
-        // Workaround for methods unexposed in Release mode, see https://github.com/godotengine/godot/pull/100317
-        // and https://github.com/godotengine/godot/pull/100328.
-        #[cfg(not(debug_assertions))]
-        | ("CollisionShape2D", "set_debug_color")
-        | ("CollisionShape2D", "get_debug_color")
-        | ("CollisionShape3D", "set_debug_color")
-        | ("CollisionShape3D", "get_debug_color")
-        | ("CollisionShape3D", "set_debug_fill_enabled")
-        | ("CollisionShape3D", "get_debug_fill_enabled") => true,
 
         // Thread APIs
         #[cfg(not(feature = "experimental-threads"))]
@@ -211,6 +201,42 @@ pub fn is_class_experimental(godot_class_name: &str) -> bool {
         | "XRBodyTracker"
         | "XRFaceModifier3D"
         | "XRFaceTracker"
+
+        => true, _ => false
+    }
+}
+
+/// Whether a class can be instantiated (overrides Godot's defaults in some cases).
+///
+/// Returns `None` if the Godot default should be taken.
+pub fn is_class_instantiable(class_ty: &TyName) -> Option<bool> {
+    let class_name = class_ty.godot_ty.as_str();
+
+    // The default constructor is available but callers meet with the following Godot error:
+    // "ERROR: XY can't be created directly. Use create_tween() method."
+    // for the following classes XY:
+    //Tween, PropertyTweener, PropertyTweener, IntervalTweener, CallbackTweener, MethodTweener, SubtweenTweener,
+
+    if class_name == "Tween" || class_name.ends_with("Tweener") {
+        return Some(false);
+    }
+
+    None
+}
+
+/// Whether a class is final, i.e. cannot be inherited from.
+///
+/// Note that cases where the final status can be inferred from other properties (e.g. being a singleton) are already handled outside this
+/// function.
+#[rustfmt::skip]
+pub fn is_class_final(class_ty: &TyName) -> bool {
+    match class_ty.godot_ty.as_str(){
+        // https://github.com/godot-rust/gdext/issues/1129
+        | "AudioStreamGeneratorPlayback"
+        | "AudioStreamPlaybackInteractive"
+        | "AudioStreamPlaybackPlaylist"
+        | "AudioStreamPlaybackPolyphonic"
+        | "AudioStreamPlaybackSynchronized"
 
         => true, _ => false
     }
@@ -559,13 +585,25 @@ pub fn is_builtin_type_scalar(name: &str) -> bool {
 
 #[rustfmt::skip]
 pub fn is_utility_function_deleted(function: &JsonUtilityFunction, ctx: &mut Context) -> bool {
-    /*let hardcoded = match function.name.as_str() {
-        | "..."
+    let hardcoded = match function.name.as_str() {
+        // Removed in v0.3, but available as dedicated APIs.
+        | "instance_from_id"
 
         => true, _ => false
     };
 
-    hardcoded ||*/ codegen_special_cases::is_utility_function_excluded(function, ctx)
+    hardcoded || codegen_special_cases::is_utility_function_excluded(function, ctx)
+}
+
+#[rustfmt::skip]
+pub fn is_utility_function_private(function: &JsonUtilityFunction) -> bool {
+    match function.name.as_str() {
+        // Removed from public interface in v0.3, but available as dedicated APIs.
+        | "is_instance_valid"    // used in Variant::is_object_alive().
+        | "is_instance_id_valid" // used in InstanceId::lookup_validity().
+
+        => true, _ => false
+    }
 }
 
 pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
@@ -621,9 +659,11 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
 }
 
 #[cfg(before_api = "4.4")]
-pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
-    match (class_name, method) {
-        ("ScriptLanguageExtension", _) => method != "get_doc_comment_delimiters",
+pub fn is_virtual_method_required(class_name: &TyName, rust_method_name: &str) -> bool {
+    // Do not call is_derived_virtual_method_required() here; that is handled in virtual_traits.rs.
+
+    match (class_name.godot_ty.as_str(), rust_method_name) {
+        ("ScriptLanguageExtension", method) => method != "get_doc_comment_delimiters",
 
         ("ScriptExtension", "editor_can_reload_from_file")
         | ("ScriptExtension", "can_instantiate")
@@ -661,7 +701,7 @@ pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
         | ("EditorExportPlugin", "customize_scene")
         | ("EditorExportPlugin", "get_customization_configuration_hash")
         | ("EditorExportPlugin", "get_name")
-        | ("EditorVcsInterface", _)
+        | ("EditorVCSInterface", _)
         | ("MovieWriter", _)
         | ("TextServerExtension", "has_feature")
         | ("TextServerExtension", "get_name")
@@ -767,23 +807,23 @@ pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
         | ("PacketPeerExtension", "get_available_packet_count")
         | ("PacketPeerExtension", "get_max_packet_size")
         | ("StreamPeerExtension", "get_available_bytes")
-        | ("WebRtcDataChannelExtension", "poll")
-        | ("WebRtcDataChannelExtension", "close")
-        | ("WebRtcDataChannelExtension", "set_write_mode")
-        | ("WebRtcDataChannelExtension", "get_write_mode")
-        | ("WebRtcDataChannelExtension", "was_string_packet")
-        | ("WebRtcDataChannelExtension", "get_ready_state")
-        | ("WebRtcDataChannelExtension", "get_label")
-        | ("WebRtcDataChannelExtension", "is_ordered")
-        | ("WebRtcDataChannelExtension", "get_id")
-        | ("WebRtcDataChannelExtension", "get_max_packet_life_time")
-        | ("WebRtcDataChannelExtension", "get_max_retransmits")
-        | ("WebRtcDataChannelExtension", "get_protocol")
-        | ("WebRtcDataChannelExtension", "is_negotiated")
-        | ("WebRtcDataChannelExtension", "get_buffered_amount")
-        | ("WebRtcDataChannelExtension", "get_available_packet_count")
-        | ("WebRtcDataChannelExtension", "get_max_packet_size")
-        | ("WebRtcPeerConnectionExtension", _)
+        | ("WebRTCDataChannelExtension", "poll")
+        | ("WebRTCDataChannelExtension", "close")
+        | ("WebRTCDataChannelExtension", "set_write_mode")
+        | ("WebRTCDataChannelExtension", "get_write_mode")
+        | ("WebRTCDataChannelExtension", "was_string_packet")
+        | ("WebRTCDataChannelExtension", "get_ready_state")
+        | ("WebRTCDataChannelExtension", "get_label")
+        | ("WebRTCDataChannelExtension", "is_ordered")
+        | ("WebRTCDataChannelExtension", "get_id")
+        | ("WebRTCDataChannelExtension", "get_max_packet_life_time")
+        | ("WebRTCDataChannelExtension", "get_max_retransmits")
+        | ("WebRTCDataChannelExtension", "get_protocol")
+        | ("WebRTCDataChannelExtension", "is_negotiated")
+        | ("WebRTCDataChannelExtension", "get_buffered_amount")
+        | ("WebRTCDataChannelExtension", "get_available_packet_count")
+        | ("WebRTCDataChannelExtension", "get_max_packet_size")
+        | ("WebRTCPeerConnectionExtension", _)
         | ("MultiplayerPeerExtension", "get_available_packet_count")
         | ("MultiplayerPeerExtension", "get_max_packet_size")
         | ("MultiplayerPeerExtension", "set_transfer_channel")
@@ -801,7 +841,20 @@ pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
         | ("MultiplayerPeerExtension", "get_unique_id")
         | ("MultiplayerPeerExtension", "get_connection_status") => true,
 
-        (_, _) => false,
+        _ => false,
+    }
+}
+
+// Adjustments for Godot 4.4+, where a virtual method is no longer needed (e.g. in a derived class).
+#[rustfmt::skip]
+pub fn get_derived_virtual_method_presence(class_name: &TyName, rust_method_name: &str) -> VirtualMethodPresence {
+     match (class_name.godot_ty.as_str(), rust_method_name) {
+         // Required in base class, no longer in derived; https://github.com/godot-rust/gdext/issues/1133.
+         | ("AudioStreamPlaybackResampled", "mix")
+         => VirtualMethodPresence::Remove,
+
+         // Default: inherit presence from base class.
+         _ => VirtualMethodPresence::Inherit,
     }
 }
 

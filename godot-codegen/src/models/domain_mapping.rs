@@ -91,6 +91,9 @@ impl Class {
 
         // Already checked in is_class_deleted(), but code remains more maintainable if those are separate, and it's cheap to validate.
         let is_experimental = special_cases::is_class_experimental(&ty_name.godot_ty);
+        let is_instantiable =
+            special_cases::is_class_instantiable(&ty_name).unwrap_or(json.is_instantiable);
+        let is_final = ctx.is_singleton(&ty_name) || special_cases::is_class_final(&ty_name);
 
         let mod_name = ModName::from_godot(&ty_name.godot_ty);
 
@@ -129,8 +132,9 @@ impl Class {
                 mod_name,
             },
             is_refcounted: json.is_refcounted,
-            is_instantiable: json.is_instantiable,
+            is_instantiable,
             is_experimental,
+            is_final,
             inherits: json.inherits.clone(),
             api_level: get_api_level(json),
             constants,
@@ -483,19 +487,25 @@ impl ClassMethod {
 
         // Since Godot 4.4, GDExtension advertises whether virtual methods have a default implementation or are required to be overridden.
         #[cfg(before_api = "4.4")]
-        let is_virtual_required = special_cases::is_virtual_method_required(
-            &class_name.rust_ty.to_string(),
-            rust_method_name,
-        );
+        let is_virtual_required =
+            special_cases::is_virtual_method_required(&class_name, rust_method_name);
 
         #[cfg(since_api = "4.4")]
-        let is_virtual_required = method.is_virtual
-            && method.is_required.unwrap_or_else(|| {
+        #[allow(clippy::let_and_return)]
+        let is_virtual_required = method.is_virtual && {
+            // Evaluate this always first (before potential manual overrides), to detect mistakes in spec.
+            let is_required_in_json = method.is_required.unwrap_or_else(|| {
                 panic!(
                     "virtual method {}::{} lacks field `is_required`",
                     class_name.rust_ty, rust_method_name
                 );
             });
+
+            // Potential special cases come here. The situation "virtual function is required in base class, but not in derived"
+            // is not handled here, but in virtual_traits.rs. Here, virtual methods appear only once, in their base.
+
+            is_required_in_json
+        };
 
         Some(Self {
             common: FunctionCommon {
@@ -546,6 +556,7 @@ impl UtilityFunction {
         if special_cases::is_utility_function_deleted(function, ctx) {
             return None;
         }
+        let is_private = special_cases::is_utility_function_private(function);
 
         // Some vararg functions like print() or str() are declared with a single argument "arg1: Variant", but that seems
         // to be a mistake. We change their parameter list by removing that.
@@ -571,7 +582,7 @@ impl UtilityFunction {
                 parameters,
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: function.is_vararg,
-                is_private: false,
+                is_private,
                 is_virtual_required: false,
                 direction: FnDirection::Outbound {
                     hash: function.hash,

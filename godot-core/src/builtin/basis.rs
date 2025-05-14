@@ -128,11 +128,6 @@ impl Basis {
         RMat3::from_quat(quat.to_glam()).to_front()
     }
 
-    #[deprecated = "Renamed to `from_quaternion()`"]
-    pub fn from_quat(quat: Quaternion) -> Self {
-        Self::from_quaternion(quat)
-    }
-
     /// Create a `Basis` from three angles `a`, `b`, and `c` interpreted
     /// as Euler angles according to the given `EulerOrder`.
     ///
@@ -171,11 +166,6 @@ impl Basis {
         super::inner::InnerBasis::looking_at(target, up, use_model_front)
     }
 
-    #[deprecated = "Renamed to `looking_at()`"]
-    pub fn new_looking_at(target: Vector3, up: Vector3, use_model_front: bool) -> Self {
-        Self::looking_at(target, up, use_model_front)
-    }
-
     /// Creates a `[Vector3; 3]` with the columns of the `Basis`.
     pub fn to_cols(&self) -> [Vector3; 3] {
         self.transposed().rows
@@ -206,11 +196,6 @@ impl Basis {
         RQuat::from_mat3(&self.orthonormalized().to_glam()).to_front()
     }
 
-    #[deprecated = "Renamed to `get_quaternion()`"]
-    pub fn to_quat(&self) -> Quaternion {
-        self.get_quaternion()
-    }
-
     /// Returns the scale of the matrix.
     ///
     /// _Godot equivalent: `Basis.get_scale()`_
@@ -224,11 +209,6 @@ impl Basis {
             self.col_b().length(),
             self.col_c().length(),
         ) * det_sign
-    }
-
-    #[deprecated = "Renamed to `get_scale()`"]
-    pub fn scale(&self) -> Vector3 {
-        self.get_scale()
     }
 
     /// Returns the rotation of the matrix in euler angles, with the order `YXZ`.
@@ -301,11 +281,6 @@ impl Basis {
             }
         }
         .to_front()
-    }
-
-    #[deprecated = "Renamed to `get_euler()` + `get_euler_with()`"]
-    pub fn to_euler(&self, order: EulerOrder) -> Vector3 {
-        self.get_euler_with(order)
     }
 
     fn is_between_neg1_1(f: real) -> Ordering {

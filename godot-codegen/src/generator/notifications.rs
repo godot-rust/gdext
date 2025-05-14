@@ -60,7 +60,7 @@ pub fn make_notify_methods(class_name: &TyName, ctx: &mut Context) -> TokenStrea
 
 pub fn make_notification_enum(
     class_name: &TyName,
-    all_bases: &Vec<TyName>,
+    all_bases: &[TyName],
     cfg_attributes: &TokenStream,
     ctx: &mut Context,
 ) -> (Option<TokenStream>, Ident) {

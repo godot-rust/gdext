@@ -8,11 +8,13 @@
 use crate::generator::functions_common::FnCode;
 use crate::generator::{docs, functions_common};
 use crate::models::domain::{
-    ApiView, Class, ClassLike, ClassMethod, FnQualifier, Function, TyName,
+    ApiView, Class, ClassLike, ClassMethod, FnQualifier, Function, TyName, VirtualMethodPresence,
 };
+use crate::special_cases;
 use crate::util::ident;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+use std::fmt::Write;
 
 pub fn make_virtual_methods_trait(
     class: &Class,
@@ -25,19 +27,20 @@ pub fn make_virtual_methods_trait(
     let trait_name = ident(trait_name_str);
     let class_name = &class.name().rust_ty;
 
-    let virtual_method_fns = make_all_virtual_methods(class, all_base_names, view);
+    let (virtual_method_fns, extra_docs) = make_all_virtual_methods(class, all_base_names, view);
     let special_virtual_methods = make_special_virtual_methods(notification_enum_name);
 
     let trait_doc = docs::make_virtual_trait_doc(trait_name_str, class.name());
 
     quote! {
         #[doc = #trait_doc]
+        #[doc = #extra_docs]
         #[allow(unused_variables)]
         #[allow(clippy::unimplemented)]
         #cfg_attributes
         pub trait #trait_name: crate::obj::GodotClass<Base = #class_name> + crate::private::You_forgot_the_attribute__godot_api {
             #special_virtual_methods
-            #( #virtual_method_fns )*
+            #virtual_method_fns
         }
     }
 }
@@ -150,10 +153,21 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     }
 }
 
-fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
+fn make_virtual_method(
+    method: &ClassMethod,
+    presence: VirtualMethodPresence,
+) -> Option<TokenStream> {
     if !method.is_virtual() {
         return None;
     }
+
+    // Possibly change behavior of required/optional-ness of the virtual method in derived classes.
+    // It's also possible that it's removed, which would not declare it at all in the `I*` trait.
+    let is_virtual_required = match presence {
+        VirtualMethodPresence::Inherit => method.is_virtual_required(),
+        VirtualMethodPresence::Override { is_required } => is_required,
+        VirtualMethodPresence::Remove => return None,
+    };
 
     // Virtual methods are never static.
     let qualifier = method.qualifier();
@@ -166,7 +180,7 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
             // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
-            is_virtual_required: method.is_virtual_required(),
+            is_virtual_required,
             is_varcall_fallible: true,
         },
         None,
@@ -181,24 +195,76 @@ fn make_all_virtual_methods(
     class: &Class,
     all_base_names: &[TyName],
     view: &ApiView,
-) -> Vec<TokenStream> {
-    let mut all_tokens = vec![];
+) -> (TokenStream, String) {
+    let mut all_tokens = TokenStream::new();
 
     for method in class.methods.iter() {
         // Assumes that inner function filters on is_virtual.
-        if let Some(tokens) = make_virtual_method(method) {
-            all_tokens.push(tokens);
+        if let Some(tokens) = make_virtual_method(method, VirtualMethodPresence::Inherit) {
+            all_tokens.extend(tokens);
         }
     }
+
+    let mut changes_from_base = String::new();
 
     for base_name in all_base_names {
         let base_class = view.get_engine_class(base_name);
         for method in base_class.methods.iter() {
-            if let Some(tokens) = make_virtual_method(method) {
-                all_tokens.push(tokens);
+            // Certain derived classes in Godot implement a virtual method declared in a base class, thus no longer
+            // making it required. This isn't advertised in the extension_api, but instead manually tracked via special cases.
+            let derived_presence =
+                special_cases::get_derived_virtual_method_presence(class.name(), method.name());
+
+            // Collect all changes in a Markdown table.
+            let new = match derived_presence {
+                VirtualMethodPresence::Inherit => None,
+                VirtualMethodPresence::Override { is_required } => {
+                    Some(format_required(is_required))
+                }
+                VirtualMethodPresence::Remove => Some("removed"),
+            };
+            if let Some(new) = new {
+                let orig = format_required(method.is_virtual_required());
+                let base_name = &base_name.rust_ty;
+                let method_name = format_method_name(method);
+
+                write!(
+                    changes_from_base,
+                    "\n| [`I{base_name}::{method_name}`](crate::classes::I{base_name}::{method_name}) | {orig} | {new} |"
+                )
+                .unwrap();
+            }
+
+            if let Some(tokens) = make_virtual_method(method, derived_presence) {
+                all_tokens.extend(tokens);
             }
         }
     }
 
-    all_tokens
+    let extra_docs = if changes_from_base.is_empty() {
+        String::new()
+    } else {
+        let class_name = &class.name().rust_ty;
+        format!(
+            "\n\n# Changes from base interface traits\n\
+            The following virtual methods originally declared in direct/indirect base classes have their presence (required/optional) changed \
+            in `I{class_name}`. This can happen if Godot already overrides virtual methods, discouraging the user from further overriding them.\n\
+            \n\n| Base method | Original | New |\n| --- | --- | --- |{changes_from_base}"
+        )
+    };
+
+    (all_tokens, extra_docs)
+}
+
+fn format_required(is_required: bool) -> &'static str {
+    if is_required {
+        "required"
+    } else {
+        "optional"
+    }
+}
+
+fn format_method_name(method: &ClassMethod) -> &str {
+    // TODO when we have `_unsafe` or similar postfix with raw pointers, update this here.
+    method.name()
 }

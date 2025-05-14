@@ -9,7 +9,7 @@
 
 use crate::class::FuncDefinition;
 use crate::ParseResult;
-use proc_macro2::{Delimiter, Group, Ident, Literal, Punct, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 
@@ -64,11 +64,15 @@ macro_rules! require_api_version {
     };
 }
 
-pub fn error_fn<T>(msg: impl AsRef<str>, tokens: T) -> venial::Error
-where
-    T: Spanned,
-{
-    venial::Error::new_at_span(tokens.__span(), msg.as_ref())
+/// Returns the span of the given tokens.
+pub fn span_of<T: Spanned>(tokens: &T) -> Span {
+    // Use of private API due to lack of alternative. If this becomes an issue, we'll find another way.
+    tokens.__span()
+}
+
+pub fn error_fn<T: Spanned>(msg: impl AsRef<str>, tokens: T) -> venial::Error {
+    let span = span_of(&tokens);
+    venial::Error::new_at_span(span, msg.as_ref())
 }
 
 macro_rules! error {

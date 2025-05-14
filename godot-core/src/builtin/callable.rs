@@ -208,21 +208,6 @@ impl Callable {
         })
     }
 
-    #[deprecated = "Now split into from_local_fn (single-threaded) and from_sync_fn (multi-threaded)."]
-    #[cfg(since_api = "4.2")]
-    pub fn from_fn<F, S>(name: S, rust_function: F) -> Self
-    where
-        F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: Into<GString>,
-    {
-        // Do not call from_sync_fn() since that is feature-gated, but this isn't due to compatibility.
-        Self::from_fn_wrapper(FnWrapper {
-            rust_function,
-            name: name.into(),
-            thread_id: None,
-        })
-    }
-
     /// Create a highly configurable callable from Rust.
     ///
     /// See [`RustCallable`] for requirements on the type.

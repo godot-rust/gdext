@@ -69,7 +69,10 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
     let docs = quote! {};
     let base_class = quote! { ::godot::classes::#base_ty };
-    let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", base_ty);
+
+    // Use this name because when typing a non-existent class, users will be met with the following error:
+    //    could not find `inherit_from_OS__ensure_class_exists` in `class_macros`.
+    let inherits_macro_ident = format_ident!("inherit_from_{}__ensure_class_exists", base_ty);
 
     let prv = quote! { ::godot::private };
     let godot_exports_impl = make_property_impl(class_name, &fields);
@@ -186,7 +189,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             )
         ));
 
-        #prv::class_macros::#inherits_macro!(#class_name);
+        #prv::class_macros::#inherits_macro_ident!(#class_name);
     })
 }
 

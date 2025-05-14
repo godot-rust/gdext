@@ -65,12 +65,6 @@ impl Rect2 {
         }
     }
 
-    #[deprecated = "Moved to `Rect2i::cast_float()`"]
-    #[inline]
-    pub const fn from_rect2i(rect: Rect2i) -> Self {
-        rect.cast_float()
-    }
-
     /// Create a new `Rect2i` from a `Rect2`, using `as` for `real` to `i32` conversions.
     ///
     /// _Godot equivalent: `Rect2i(Rect2 from)`_
@@ -190,12 +184,6 @@ impl Rect2 {
         point.abs() == point && point.x < self.size.x && point.y < self.size.y
     }
 
-    #[inline]
-    #[deprecated = "Renamed to `contains_point()`, for consistency with `Rect2i`"]
-    pub fn has_point(self, point: Vector2) -> bool {
-        self.contains_point(point)
-    }
-
     /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, an empty Rect2 is returned.
     #[inline]
     pub fn intersect(self, b: Self) -> Option<Self> {
@@ -211,11 +199,6 @@ impl Rect2 {
         rect.size = end.coord_min(end_b) - rect.position;
 
         Some(rect)
-    }
-
-    #[deprecated = "Renamed to `intersect()`"]
-    pub fn intersection(self, b: Rect2) -> Option<Self> {
-        self.intersect(b)
     }
 
     /// Checks whether two rectangles have at least one point in common.

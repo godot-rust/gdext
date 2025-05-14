@@ -161,6 +161,8 @@ pub struct Class {
     pub is_refcounted: bool,
     pub is_instantiable: bool,
     pub is_experimental: bool,
+    /// `true` if inheriting the class is disallowed.
+    pub is_final: bool,
     pub inherits: Option<String>,
     pub api_level: ClassCodegenLevel,
     pub constants: Vec<ClassConstant>,
@@ -717,6 +719,20 @@ pub enum ArgPassing {
     ByValue,
     ByRef,
     ImplAsArg,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Behavior of virtual methods in derived classes.
+pub enum VirtualMethodPresence {
+    /// Preserve default behavior of base class (required or optional).
+    Inherit,
+
+    /// Virtual method is now required/optional according to `is_required`, independent of base method declaration.
+    Override { is_required: bool },
+
+    /// Virtual method is removed in derived classes (no longer appearing in their interface trait).
+    Remove,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
