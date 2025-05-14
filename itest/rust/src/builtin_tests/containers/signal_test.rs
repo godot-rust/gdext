@@ -344,7 +344,10 @@ fn signal_symbols_connect_engine() {
     node.signals()
         .property_list_changed()
         .connect_builder()
-        .connect_other(&engine, |this| {
+        .connect_other(&engine, |this: &mut Node| {
+            // TODO: allow |this: &Node|.
+            // ^^ Type annotation `: &Emitter` needed because builder works on traits, not macros.
+            // Indirect Fn(...) signatures hidden behind a trait cannot be type-inferred by rustc.
             assert_eq!(this.get_name(), StringName::from("hello"));
         });
 
@@ -390,7 +393,7 @@ fn signal_symbols_connect_inferred() {
         .tree_exiting()
         .connect_builder()
         .flags(ConnectFlags::DEFERRED)
-        .connect_self(|this| {
+        .connect_self(|this: &mut Node| {
             // Use methods that `Node` declares.
             let _ = this.get_path(); // ref.
             this.set_unique_name_in_owner(true); // mut.

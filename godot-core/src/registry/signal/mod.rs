@@ -10,6 +10,7 @@
 mod connect_builder;
 mod godot_deref;
 mod signal_object;
+mod signal_receiver;
 mod typed_signal;
 
 use crate::builtin::{GString, Variant};
