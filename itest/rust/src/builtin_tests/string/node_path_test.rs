@@ -31,6 +31,7 @@ fn node_path_conversion() {
 
     assert_eq!(string, back);
 }
+
 #[itest]
 fn node_path_equality() {
     let string = NodePath::from("some string");
@@ -126,3 +127,11 @@ fn node_path_get_subname() {
         assert_eq!(path.get_subname(2), "".into());
     })
 }
+
+crate::generate_string_standard_fmt_tests!(
+    builtin: NodePath,
+    tests: [
+        node_path_display,
+        node_path_standard_pad,
+    ]
+);

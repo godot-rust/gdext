@@ -175,3 +175,11 @@ crate::generate_string_bytes_and_cstr_tests!(
         string_name_from_cstr_utf8,
     ]
 );
+
+crate::generate_string_standard_fmt_tests!(
+    builtin: StringName,
+    tests: [
+        string_name_display,
+        string_name_standard_pad,
+    ]
+);
