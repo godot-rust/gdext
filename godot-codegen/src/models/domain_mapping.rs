@@ -487,19 +487,25 @@ impl ClassMethod {
 
         // Since Godot 4.4, GDExtension advertises whether virtual methods have a default implementation or are required to be overridden.
         #[cfg(before_api = "4.4")]
-        let is_virtual_required = special_cases::is_virtual_method_required(
-            &class_name.rust_ty.to_string(),
-            rust_method_name,
-        );
+        let is_virtual_required =
+            special_cases::is_virtual_method_required(&class_name, rust_method_name);
 
         #[cfg(since_api = "4.4")]
-        let is_virtual_required = method.is_virtual
-            && method.is_required.unwrap_or_else(|| {
+        #[allow(clippy::let_and_return)]
+        let is_virtual_required = method.is_virtual && {
+            // Evaluate this always first (before potential manual overrides), to detect mistakes in spec.
+            let is_required_in_json = method.is_required.unwrap_or_else(|| {
                 panic!(
                     "virtual method {}::{} lacks field `is_required`",
                     class_name.rust_ty, rust_method_name
                 );
             });
+
+            // Potential special cases come here. The situation "virtual function is required in base class, but not in derived"
+            // is not handled here, but in virtual_traits.rs. Here, virtual methods appear only once, in their base.
+
+            is_required_in_json
+        };
 
         Some(Self {
             common: FunctionCommon {
