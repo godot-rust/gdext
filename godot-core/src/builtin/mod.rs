@@ -26,6 +26,7 @@ pub use crate::sys::VariantType;
 pub mod __prelude_reexport {
     use super::*;
 
+    pub use super::math::XformInv;
     pub use aabb::*;
     pub use basis::*;
     pub use callable::*;
