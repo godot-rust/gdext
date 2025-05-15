@@ -161,6 +161,13 @@ jobs:
             rust-extra-args: --features itest/codegen-full
             with-hot-reload: true
 
+          - name: linux-custom-api-json
+            os: ubuntu-22.04
+            artifact-name: linux-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            rust-extra-args: --features godot/api-custom-json
+            godot-indirect-json: true
+
           - name: linux-features-experimental
             os: ubuntu-22.04
             artifact-name: linux-nightly
@@ -230,6 +237,7 @@ jobs:
           rust-target: ${{ matrix.rust-target }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
+          godot-indirect-json: ${{ matrix.godot-indirect-json }}
 
       - name: "Build and test hot-reload"
         if: ${{ matrix.with-hot-reload }}
