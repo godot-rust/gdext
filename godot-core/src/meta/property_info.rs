@@ -23,6 +23,13 @@ use godot_ffi::VariantType;
 /// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
 #[derive(Debug, Clone)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
+// Note: There was an idea of a high-level representation of the following, but it's likely easier and more efficient to use introspection
+// APIs like `is_array_of_elem()`, unless there's a real user-facing need.
+// pub(crate) enum SimplePropertyType {
+//     Variant { ty: VariantType },
+//     Array { elem_ty: VariantType },
+//     Object { class_name: ClassName },
+// }
 pub struct PropertyInfo {
     /// Which type this property has.
     ///
@@ -133,6 +140,21 @@ impl PropertyInfo {
             usage: PropertyUsageFlags::SUBGROUP,
         }
     }
+
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    // Introspection API -- could be made public in the future
+
+    pub(crate) fn is_array_of_elem<T>(&self) -> bool
+    where
+        T: ArrayElement,
+    {
+        self.variant_type == VariantType::ARRAY
+            && self.hint_info.hint == PropertyHint::ARRAY_TYPE
+            && self.hint_info.hint_string == T::Via::godot_type_name().into()
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    // FFI conversion functions
 
     /// Converts to the FFI type. Keep this object allocated while using that!
     pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {

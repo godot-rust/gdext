@@ -226,8 +226,10 @@ where
 pub mod export_info_functions {
     use crate::builtin::GString;
     use crate::global::PropertyHint;
-    use crate::meta::PropertyHintInfo;
+    use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
+    use crate::obj::EngineEnum;
     use crate::registry::property::Export;
+    use godot_ffi::VariantType;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
@@ -416,9 +418,19 @@ pub mod export_info_functions {
         is_global: bool,
         filter: impl AsRef<str>,
     ) -> PropertyHintInfo {
+        let field_ty = T::Via::property_info("");
         let filter = filter.as_ref();
         debug_assert!(is_file || filter.is_empty()); // Dir never has filter.
 
+        export_file_or_dir_inner(&field_ty, is_file, is_global, filter)
+    }
+
+    pub fn export_file_or_dir_inner(
+        field_ty: &PropertyInfo,
+        is_file: bool,
+        is_global: bool,
+        filter: &str,
+    ) -> PropertyHintInfo {
         let hint = match (is_file, is_global) {
             (true, true) => PropertyHint::GLOBAL_FILE,
             (true, false) => PropertyHint::FILE,
@@ -426,9 +438,47 @@ pub mod export_info_functions {
             (false, false) => PropertyHint::DIR,
         };
 
+        // Returned value depends on field type.
+        match field_ty.variant_type {
+            // GString field:
+            // { "type": 4, "hint": 13, "hint_string": "*.png" }
+            VariantType::STRING => PropertyHintInfo {
+                hint,
+                hint_string: GString::from(filter),
+            },
+
+            // Array<GString> or PackedStringArray field:
+            // { "type": 28, "hint": 23, "hint_string": "4/13:*.png" }
+            VariantType::PACKED_STRING_ARRAY => to_string_array_hint(hint, filter),
+            VariantType::ARRAY if field_ty.is_array_of_elem::<GString>() => {
+                to_string_array_hint(hint, filter)
+            }
+
+            _ => {
+                // E.g. `global_file`.
+                let attribute_name = hint.as_str().to_lowercase();
+
+                // TODO nicer error handling.
+                // Compile time may be difficult (at least without extra traits... maybe const fn?). But at least more context info, field name etc.
+                panic!(
+                    "#[export({attribute_name})] only supports GString, Array<String> or PackedStringArray field types\n\
+                    encountered: {field_ty:?}"
+                );
+            }
+        }
+    }
+
+    /// For `Array<GString>` and `PackedStringArray` fields using one of the `@export[_global]_{file|dir}` annotations.
+    ///
+    /// Formats: `"4/13:"`, `"4/15:*.png"`, ...
+    fn to_string_array_hint(hint: PropertyHint, filter: &str) -> PropertyHintInfo {
+        let variant_ord = VariantType::STRING.ord(); // "4"
+        let hint_ord = hint.ord();
+        let hint_string = format!("{variant_ord}/{hint_ord}");
+
         PropertyHintInfo {
-            hint,
-            hint_string: GString::from(filter),
+            hint: PropertyHint::TYPE_STRING,
+            hint_string: format!("{hint_string}:{filter}").into(),
         }
     }
 
@@ -603,9 +653,9 @@ pub(crate) fn builtin_type_string<T: GodotType>() -> String {
 
     // Godot 4.3 changed representation for type hints, see https://github.com/godotengine/godot/pull/90716.
     if sys::GdextBuild::since_api("4.3") {
-        format!("{}:", variant_type.sys())
+        format!("{}:", variant_type.ord())
     } else {
-        format!("{}:{}", variant_type.sys(), T::godot_type_name())
+        format!("{}:{}", variant_type.ord(), T::godot_type_name())
     }
 }
 
