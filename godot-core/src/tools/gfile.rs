@@ -106,13 +106,10 @@ impl GFile {
         arg_into_ref!(path);
 
         let fa = FileAccess::open(path, flags).ok_or_else(|| {
-            std::io::Error::new(
-                ErrorKind::Other,
-                format!(
-                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
-                    FileAccess::get_open_error()
-                ),
-            )
+            std::io::Error::other(format!(
+                "can't open file {path} in mode {flags:?}; GodotError: {:?}",
+                FileAccess::get_open_error()
+            ))
         })?;
 
         Ok(Self::from_inner(fa))
@@ -133,13 +130,10 @@ impl GFile {
             .compression_mode(compression_mode)
             .done()
             .ok_or_else(|| {
-                std::io::Error::new(
-                    ErrorKind::Other,
-                    format!(
-                        "can't open file {path} in mode {flags:?}; GodotError: {:?}",
-                        FileAccess::get_open_error()
-                    ),
-                )
+                std::io::Error::other(format!(
+                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
+                    FileAccess::get_open_error()
+                ))
             })?;
 
         Ok(Self::from_inner(fa))
@@ -157,13 +151,10 @@ impl GFile {
         arg_into_ref!(path);
 
         let fa = FileAccess::open_encrypted(path, flags, key).ok_or_else(|| {
-            std::io::Error::new(
-                ErrorKind::Other,
-                format!(
-                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
-                    FileAccess::get_open_error()
-                ),
-            )
+            std::io::Error::other(format!(
+                "can't open file {path} in mode {flags:?}; GodotError: {:?}",
+                FileAccess::get_open_error()
+            ))
         })?;
 
         Ok(Self::from_inner(fa))
@@ -182,13 +173,10 @@ impl GFile {
         arg_into_ref!(password);
 
         let fa = FileAccess::open_encrypted_with_pass(path, flags, password).ok_or_else(|| {
-            std::io::Error::new(
-                ErrorKind::Other,
-                format!(
-                    "can't open file {path} in mode {flags:?}; GodotError: {:?}",
-                    FileAccess::get_open_error()
-                ),
-            )
+            std::io::Error::other(format!(
+                "can't open file {path} in mode {flags:?}; GodotError: {:?}",
+                FileAccess::get_open_error()
+            ))
         })?;
         Ok(Self::from_inner(fa))
     }
@@ -224,10 +212,9 @@ impl GFile {
         let modified_time = FileAccess::get_modified_time(path);
 
         if modified_time == 0 {
-            Err(std::io::Error::new(
-                ErrorKind::Other,
-                format!("can't retrieve last modified time: {path}"),
-            ))
+            Err(std::io::Error::other(format!(
+                "can't retrieve last modified time: {path}"
+            )))
         } else {
             Ok(modified_time)
         }
@@ -240,10 +227,9 @@ impl GFile {
         let md5 = FileAccess::get_md5(path);
 
         if md5.is_empty() {
-            Err(std::io::Error::new(
-                ErrorKind::Other,
-                format!("failed to compute file's MD5 checksum: {path}"),
-            ))
+            Err(std::io::Error::other(format!(
+                "failed to compute file's MD5 checksum: {path}"
+            )))
         } else {
             Ok(md5)
         }
@@ -256,10 +242,9 @@ impl GFile {
         let sha256 = FileAccess::get_sha256(path);
 
         if sha256.is_empty() {
-            Err(std::io::Error::new(
-                ErrorKind::Other,
-                format!("failed to compute file's SHA-256 checksum: {path}"),
-            ))
+            Err(std::io::Error::other(format!(
+                "failed to compute file's SHA-256 checksum: {path}"
+            )))
         } else {
             Ok(sha256)
         }
@@ -684,10 +669,7 @@ impl GFile {
             return Ok(());
         }
 
-        Err(std::io::Error::new(
-            ErrorKind::Other,
-            format!("GodotError: {:?}", error),
-        ))
+        Err(std::io::Error::other(format!("GodotError: {:?}", error)))
     }
 
     // File length cache is stored and kept when possible because `FileAccess::get_length()` turned out to be slowing down
