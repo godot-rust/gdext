@@ -388,7 +388,15 @@ macro_rules! quote_export_func {
         Some(quote! {
             ::godot::register::property::export_info_functions::$function_name($($tt)*)
         })
-    }
+    };
+
+    // Passes in a previously declared local `type FieldType = ...` as first generic argument.
+    // Doesn't work if function takes other generic arguments -- in that case it could be converted to a Type<...> parameter.
+    ($function_name:ident < T > ($($tt:tt)*)) => {
+        Some(quote! {
+            ::godot::register::property::export_info_functions::$function_name::<FieldType>($($tt)*)
+        })
+    };
 }
 
 impl ExportType {
@@ -489,12 +497,12 @@ impl ExportType {
             Self::File {
                 global: false,
                 kind: FileKind::Dir,
-            } => quote_export_func! { export_dir() },
+            } => quote_export_func! { export_dir<T>() },
 
             Self::File {
                 global: true,
                 kind: FileKind::Dir,
-            } => quote_export_func! { export_global_dir() },
+            } => quote_export_func! { export_global_dir<T>() },
 
             Self::File {
                 global,
@@ -502,7 +510,7 @@ impl ExportType {
             } => {
                 let filter = filter.clone().unwrap_or(quote! { "" });
 
-                quote_export_func! { export_file_inner(#global, #filter) }
+                quote_export_func! { export_file_inner<T>(#global, #filter) }
             }
 
             Self::Multiline => quote_export_func! { export_multiline() },
