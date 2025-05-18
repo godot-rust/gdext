@@ -44,6 +44,16 @@ fn property_template_test(ctx: &TestContext) {
             continue;
         }
 
+        // Skip @export_file and similar properties for Array<GString> and PackedStringArray (only supported in Godot 4.3+).
+        // Here, we use API and not runtime level, because inclusion/exclusion of GDScript code is determined at build time in godot-bindings.
+        //
+        // Name can start in `export_file`, `export_global_file`, `export_dir`, `export_global_dir`.
+        // Can end in either `_array` or `_parray`.
+        #[cfg(before_api = "4.3")]
+        if (name.contains("_file_") || name.contains("_dir_")) && name.ends_with("array") {
+            continue;
+        }
+
         if name.starts_with("var_") || name.starts_with("export_") {
             properties.insert(name, property);
         }

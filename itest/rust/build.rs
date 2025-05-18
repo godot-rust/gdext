@@ -150,6 +150,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; PackedStringArray, PackedStringArray, PackedStringArray(), PackedStringArray::new());
     push!(inputs; PackedVector2Array, PackedVector2Array, PackedVector2Array(), PackedVector2Array::new());
     push!(inputs; PackedVector3Array, PackedVector3Array, PackedVector3Array(), PackedVector3Array::new());
+
     // This is being run in a build script at the same time as other build-scripts, so the `rustc-cfg` directives haven't been run for this
     // build-script. This means that `#[cfg(since_api = "4.3")]` wouldn't do anything.
     if godot_bindings::since_api("4.3") {
@@ -214,6 +215,7 @@ fn main() {
         rust: rust_property_tests,
         gdscript: gdscript_property_tests,
     } = generate_property_template(&inputs);
+
     let extras = inputs.iter().map(|input| &input.extra);
 
     let rust_tokens = quote::quote! {
@@ -465,49 +467,63 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
         }
     }
 
+    // Only available in Godot 4.3+.
+    let rust_exports_4_3 = if godot_bindings::before_api("4.3") {
+        TokenStream::new()
+    } else {
+        quote! {
+            #[export(file)]
+            export_file_array: Array<GString>,
+            #[export(file)]
+            export_file_parray: PackedStringArray,
+
+            #[export(file = "*.txt")]
+            export_file_wildcard_array: Array<GString>,
+            #[export(file = "*.txt")]
+            export_file_wildcard_parray: PackedStringArray,
+
+            #[export(global_file)]
+            export_global_file_array: Array<GString>,
+            #[export(global_file)]
+            export_global_file_parray: PackedStringArray,
+
+            #[export(global_file = "*.png")]
+            export_global_file_wildcard_array: Array<GString>,
+            #[export(global_file = "*.png")]
+            export_global_file_wildcard_parray: PackedStringArray,
+
+            #[export(dir)]
+            export_dir_array: Array<GString>,
+            #[export(dir)]
+            export_dir_parray: PackedStringArray,
+
+            #[export(global_dir)]
+            export_global_dir_array: Array<GString>,
+            #[export(global_dir)]
+            export_global_dir_parray: PackedStringArray,
+        }
+    };
+
     let rust = quote! {
         #[derive(GodotClass)]
         #[class(base = Node, init)]
         pub struct PropertyTestsRust {
             #(#rust,)*
+            #rust_exports_4_3
 
             // All the @export_file/dir variants, with GString, Array<GString> and PackedStringArray.
             #[export(file)]
             export_file: GString,
-            #[export(file)]
-            export_file_array: Array<GString>,
-            #[export(file)]
-            export_file_parray: PackedStringArray,
             #[export(file = "*.txt")]
             export_file_wildcard: GString,
-            #[export(file = "*.txt")]
-            export_file_wildcard_array: Array<GString>,
-            #[export(file = "*.txt")]
-            export_file_wildcard_parray: PackedStringArray,
             #[export(global_file)]
             export_global_file: GString,
-            #[export(global_file)]
-            export_global_file_array: Array<GString>,
-            #[export(global_file)]
-            export_global_file_parray: PackedStringArray,
             #[export(global_file = "*.png")]
             export_global_file_wildcard: GString,
-            #[export(global_file = "*.png")]
-            export_global_file_wildcard_array: Array<GString>,
-            #[export(global_file = "*.png")]
-            export_global_file_wildcard_parray: PackedStringArray,
             #[export(dir)]
             export_dir: GString,
-            #[export(dir)]
-            export_dir_array: Array<GString>,
-            #[export(dir)]
-            export_dir_parray: PackedStringArray,
             #[export(global_dir)]
             export_global_dir: GString,
-            #[export(global_dir)]
-            export_global_dir_array: Array<GString>,
-            #[export(global_dir)]
-            export_global_dir_parray: PackedStringArray,
 
             #[export(multiline)]
             export_multiline: GString,
@@ -548,27 +564,16 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
         }
     };
 
-    let gdscript = format!(
-        r#"
-{}
+    // `extends`, basic `var` and `@export var` declarations
+    let basic_exports = gdscript.join("\n");
+
+    let advanced_exports = r#"
 @export_file var export_file: String
-@export_file var export_file_array: Array[String]
-@export_file var export_file_parray: PackedStringArray
 @export_file("*.txt") var export_file_wildcard: String
-@export_file("*.txt") var export_file_wildcard_array: Array[String]
-@export_file("*.txt") var export_file_wildcard_parray: PackedStringArray
 @export_global_file var export_global_file: String
-@export_global_file var export_global_file_array: Array[String]
-@export_global_file var export_global_file_parray: PackedStringArray
 @export_global_file("*.png") var export_global_file_wildcard: String
-@export_global_file("*.png") var export_global_file_wildcard_array: Array[String]
-@export_global_file("*.png") var export_global_file_wildcard_parray: PackedStringArray
 @export_dir var export_dir: String
-@export_dir var export_dir_array: Array[String]
-@export_dir var export_dir_parray: PackedStringArray
 @export_global_dir var export_global_dir: String
-@export_global_dir var export_global_dir_array: Array[String]
-@export_global_dir var export_global_dir_parray: PackedStringArray
 
 @export_multiline var export_multiline: String
 @export_range(0, 20) var export_range_float_0_20: float
@@ -588,9 +593,29 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 @export_enum("Warrior", "Magician", "Thief") var export_enum_int_warrior_magician_thief: int
 @export_enum("Slow:30", "Average:60", "VeryFast:200") var export_enum_int_slow_30_average_60_very_fast_200: int
 @export_enum("Rebecca", "Mary", "Leah") var export_enum_string_rebecca_mary_leah: String
-"#,
-        gdscript.join("\n")
-    );
+"#;
+
+    // Only available in Godot 4.3+.
+    let advanced_exports_4_3 = r#"
+@export_file var export_file_array: Array[String]
+@export_file var export_file_parray: PackedStringArray
+@export_file("*.txt") var export_file_wildcard_array: Array[String]
+@export_file("*.txt") var export_file_wildcard_parray: PackedStringArray
+@export_global_file var export_global_file_array: Array[String]
+@export_global_file var export_global_file_parray: PackedStringArray
+@export_global_file("*.png") var export_global_file_wildcard_array: Array[String]
+@export_global_file("*.png") var export_global_file_wildcard_parray: PackedStringArray
+@export_dir var export_dir_array: Array[String]
+@export_dir var export_dir_parray: PackedStringArray
+@export_global_dir var export_global_dir_array: Array[String]
+@export_global_dir var export_global_dir_parray: PackedStringArray
+    "#;
+
+    let mut gdscript = format!("{basic_exports}\n{advanced_exports}");
+    if godot_bindings::since_api("4.3") {
+        gdscript.push('\n');
+        gdscript.push_str(advanced_exports_4_3);
+    }
 
     PropertyTests { rust, gdscript }
 }
