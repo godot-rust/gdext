@@ -102,7 +102,12 @@ fn property_template_test(ctx: &TestContext) {
         "not all properties were matched, missing: {properties:?}"
     );
 
-    assert!(errors.is_empty(), "{}", errors.join("\n"));
+    assert!(
+        errors.is_empty(),
+        "Encountered {} mismatches between GDScript and Rust:\n{}",
+        errors.len(),
+        errors.join("\n")
+    );
 
     rust_properties.free();
 }

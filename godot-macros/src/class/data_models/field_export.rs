@@ -495,22 +495,19 @@ impl ExportType {
             } => quote_export_func! { export_flags_3d_navigation() },
 
             Self::File {
-                global: false,
+                global,
                 kind: FileKind::Dir,
-            } => quote_export_func! { export_dir<T>() },
-
-            Self::File {
-                global: true,
-                kind: FileKind::Dir,
-            } => quote_export_func! { export_global_dir<T>() },
+            } => {
+                let filter = quote! { "" };
+                quote_export_func! { export_file_or_dir<T>(false, #global, #filter) }
+            }
 
             Self::File {
                 global,
                 kind: FileKind::File { filter },
             } => {
                 let filter = filter.clone().unwrap_or(quote! { "" });
-
-                quote_export_func! { export_file_inner<T>(#global, #filter) }
+                quote_export_func! { export_file_or_dir<T>(true, #global, #filter) }
             }
 
             Self::Multiline => quote_export_func! { export_multiline() },
@@ -518,6 +515,7 @@ impl ExportType {
             Self::PlaceholderText { placeholder } => quote_export_func! {
                 export_placeholder(#placeholder)
             },
+
             Self::ColorNoAlpha => quote_export_func! { export_color_no_alpha() },
         }
     }
