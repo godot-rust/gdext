@@ -21,7 +21,7 @@ use crate::framework::TestContext;
 
 use crate::register_tests::gen_ffi::PropertyTestsRust;
 
-#[itest(focus)]
+#[itest]
 fn property_template_test(ctx: &TestContext) {
     let rust_properties = PropertyTestsRust::new_alloc();
     let gdscript_properties = ctx.property_tests.clone();
@@ -92,9 +92,9 @@ fn property_template_test(ctx: &TestContext) {
             errors.push(format!(
                 "mismatch in property {name}:\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}"
             ));
-        } else {
-            println!("matching property {name}\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}");
-        }
+        } /*else {
+              println!("matching property {name}\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}");
+          }*/
     }
 
     assert!(
