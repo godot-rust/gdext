@@ -471,18 +471,44 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
         pub struct PropertyTestsRust {
             #(#rust,)*
 
+            // All the @export_file/dir variants, with GString, Array<GString> and PackedStringArray.
             #[export(file)]
             export_file: GString,
+            #[export(file)]
+            export_file_array: Array<GString>,
+            #[export(file)]
+            export_file_parray: PackedStringArray,
             #[export(file = "*.txt")]
-            export_file_wildcard_txt: GString,
+            export_file_wildcard: GString,
+            #[export(file = "*.txt")]
+            export_file_wildcard_array: Array<GString>,
+            #[export(file = "*.txt")]
+            export_file_wildcard_parray: PackedStringArray,
             #[export(global_file)]
             export_global_file: GString,
+            #[export(global_file)]
+            export_global_file_array: Array<GString>,
+            #[export(global_file)]
+            export_global_file_parray: PackedStringArray,
             #[export(global_file = "*.png")]
-            export_global_file_wildcard_png: GString,
+            export_global_file_wildcard: GString,
+            #[export(global_file = "*.png")]
+            export_global_file_wildcard_array: Array<GString>,
+            #[export(global_file = "*.png")]
+            export_global_file_wildcard_parray: PackedStringArray,
             #[export(dir)]
             export_dir: GString,
+            #[export(dir)]
+            export_dir_array: Array<GString>,
+            #[export(dir)]
+            export_dir_parray: PackedStringArray,
             #[export(global_dir)]
             export_global_dir: GString,
+            #[export(global_dir)]
+            export_global_dir_array: Array<GString>,
+            #[export(global_dir)]
+            export_global_dir_parray: PackedStringArray,
+
             #[export(multiline)]
             export_multiline: GString,
             #[export(range = (0.0, 20.0))]
@@ -526,11 +552,24 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
         r#"
 {}
 @export_file var export_file: String
-@export_file("*.txt") var export_file_wildcard_txt: String
+@export_file var export_file_array: Array[String]
+@export_file var export_file_parray: PackedStringArray
+@export_file("*.txt") var export_file_wildcard: String
+@export_file("*.txt") var export_file_wildcard_array: Array[String]
+@export_file("*.txt") var export_file_wildcard_parray: PackedStringArray
 @export_global_file var export_global_file: String
-@export_global_file("*.png") var export_global_file_wildcard_png: String
+@export_global_file var export_global_file_array: Array[String]
+@export_global_file var export_global_file_parray: PackedStringArray
+@export_global_file("*.png") var export_global_file_wildcard: String
+@export_global_file("*.png") var export_global_file_wildcard_array: Array[String]
+@export_global_file("*.png") var export_global_file_wildcard_parray: PackedStringArray
 @export_dir var export_dir: String
+@export_dir var export_dir_array: Array[String]
+@export_dir var export_dir_parray: PackedStringArray
 @export_global_dir var export_global_dir: String
+@export_global_dir var export_global_dir_array: Array[String]
+@export_global_dir var export_global_dir_parray: PackedStringArray
+
 @export_multiline var export_multiline: String
 @export_range(0, 20) var export_range_float_0_20: float
 @export_range(-10, 20, 0.2) var export_range_float_neg10_20_02: float
