@@ -227,6 +227,7 @@ pub mod export_info_functions {
     use crate::builtin::GString;
     use crate::global::PropertyHint;
     use crate::meta::PropertyHintInfo;
+    use crate::registry::property::Export;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
@@ -412,18 +413,39 @@ pub mod export_info_functions {
     /// Equivalent to `@export_file` in Godot.
     ///
     /// Pass an empty string to have no filter.
-    pub fn export_file<S: AsRef<str>>(filter: S) -> PropertyHintInfo {
-        export_file_inner(false, filter)
+    pub fn export_file<T: Export>(filter: impl AsRef<str>) -> PropertyHintInfo {
+        //T::var_hint()
+        export_file_inner::<T>(false, filter)
+    }
+
+    /// Equivalent to `@export_dir` in Godot.
+    ///
+    /// Pass an empty string to have no filter.
+    pub fn export_dir<T: Export>() -> PropertyHintInfo {
+        PropertyHintInfo {
+            hint: PropertyHint::DIR,
+            hint_string: GString::new(),
+        }
+    }
+
+    /// Equivalent to `@export_global_dir` in Godot.
+    ///
+    /// Pass an empty string to have no filter.
+    pub fn export_global_dir<T: Export>() -> PropertyHintInfo {
+        PropertyHintInfo {
+            hint: PropertyHint::GLOBAL_DIR,
+            hint_string: GString::new(),
+        }
     }
 
     /// Equivalent to `@export_global_file` in Godot.
     ///
     /// Pass an empty string to have no filter.
-    pub fn export_global_file<S: AsRef<str>>(filter: S) -> PropertyHintInfo {
-        export_file_inner(true, filter)
+    pub fn export_global_file<T: Export>(filter: impl AsRef<str>) -> PropertyHintInfo {
+        export_file_inner::<T>(true, filter)
     }
 
-    pub fn export_file_inner<S: AsRef<str>>(global: bool, filter: S) -> PropertyHintInfo {
+    pub fn export_file_inner<T: Export>(global: bool, filter: impl AsRef<str>) -> PropertyHintInfo {
         let hint = if global {
             PropertyHint::GLOBAL_FILE
         } else {
@@ -468,8 +490,6 @@ pub mod export_info_functions {
         export_flags_3d_physics => LAYERS_3D_PHYSICS,
         export_flags_3d_render => LAYERS_3D_RENDER,
         export_flags_3d_navigation => LAYERS_3D_NAVIGATION,
-        export_dir => DIR,
-        export_global_dir => GLOBAL_DIR,
         export_multiline => MULTILINE_TEXT,
         export_color_no_alpha => COLOR_NO_ALPHA,
     );
