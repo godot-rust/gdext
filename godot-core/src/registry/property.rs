@@ -410,58 +410,32 @@ pub mod export_info_functions {
         }
     }
 
-    /// Equivalent to `@export_file` in Godot.
-    ///
-    /// Pass an empty string to have no filter.
-    pub fn export_file<T: Export>(filter: impl AsRef<str>) -> PropertyHintInfo {
-        //T::var_hint()
-        export_file_inner::<T>(false, filter)
-    }
+    /// Handles `@export_file`, `@export_global_file`, `@export_dir` and `@export_global_dir`.
+    pub fn export_file_or_dir<T: Export>(
+        is_file: bool,
+        is_global: bool,
+        filter: impl AsRef<str>,
+    ) -> PropertyHintInfo {
+        let filter = filter.as_ref();
+        debug_assert!(is_file || filter.is_empty()); // Dir never has filter.
 
-    /// Equivalent to `@export_dir` in Godot.
-    ///
-    /// Pass an empty string to have no filter.
-    pub fn export_dir<T: Export>() -> PropertyHintInfo {
-        PropertyHintInfo {
-            hint: PropertyHint::DIR,
-            hint_string: GString::new(),
-        }
-    }
-
-    /// Equivalent to `@export_global_dir` in Godot.
-    ///
-    /// Pass an empty string to have no filter.
-    pub fn export_global_dir<T: Export>() -> PropertyHintInfo {
-        PropertyHintInfo {
-            hint: PropertyHint::GLOBAL_DIR,
-            hint_string: GString::new(),
-        }
-    }
-
-    /// Equivalent to `@export_global_file` in Godot.
-    ///
-    /// Pass an empty string to have no filter.
-    pub fn export_global_file<T: Export>(filter: impl AsRef<str>) -> PropertyHintInfo {
-        export_file_inner::<T>(true, filter)
-    }
-
-    pub fn export_file_inner<T: Export>(global: bool, filter: impl AsRef<str>) -> PropertyHintInfo {
-        let hint = if global {
-            PropertyHint::GLOBAL_FILE
-        } else {
-            PropertyHint::FILE
+        let hint = match (is_file, is_global) {
+            (true, true) => PropertyHint::GLOBAL_FILE,
+            (true, false) => PropertyHint::FILE,
+            (false, true) => PropertyHint::GLOBAL_DIR,
+            (false, false) => PropertyHint::DIR,
         };
 
         PropertyHintInfo {
             hint,
-            hint_string: filter.as_ref().into(),
+            hint_string: GString::from(filter),
         }
     }
 
     pub fn export_placeholder<S: AsRef<str>>(placeholder: S) -> PropertyHintInfo {
         PropertyHintInfo {
             hint: PropertyHint::PLACEHOLDER_TEXT,
-            hint_string: placeholder.as_ref().into(),
+            hint_string: GString::from(placeholder.as_ref()),
         }
     }
 
