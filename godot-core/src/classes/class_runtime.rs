@@ -111,11 +111,11 @@ where
         return;
     }
 
-    // Non-runtime classes can't be instantiated in the editor.
+    // Non-tool classes can't be instantiated in the editor.
     if crate::classes::Engine::singleton().is_editor_hint() {
         panic!(
             "Class {} -- null instance; does the class have a Godot creator function? \
-            Ensure that given Class is runtime class (#[class_tool]) if it is being accessed in the editor.",
+            Ensure that the given class is a tool class with #[class(tool)], if it is being accessed in the editor.",
             std::any::type_name::<T>()
         )
     } else {
