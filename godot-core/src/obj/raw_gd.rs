@@ -438,15 +438,13 @@ where
 
         let callbacks = crate::storage::nop_instance_callbacks();
         let token = sys::get_library() as *mut std::ffi::c_void;
-        let binding = interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
+        let binding = interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks)
+            as sys::GDExtensionClassInstancePtr;
 
-        debug_assert!(
-            !binding.is_null(),
-            "Class {} -- null instance; does the class have a Godot creator function?",
-            std::any::type_name::<T>()
-        );
+        #[cfg(debug_assertions)]
+        crate::classes::ensure_binding_not_null::<T>(binding);
 
-        let ptr = binding as sys::GDExtensionClassInstancePtr;
+        let ptr = binding;
         self.cached_storage_ptr.set(ptr);
         ptr
     }
