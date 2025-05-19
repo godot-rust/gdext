@@ -448,11 +448,14 @@ where
         }
 
         let callbacks = crate::storage::nop_instance_callbacks();
+
         // SAFETY: library is already initialized.
         let token = unsafe { sys::get_library() };
+        let token: *mut std::ffi::c_void = token.cast();
+
         // SAFETY: ensured that `self.obj` is non-null and valid.
         let binding = unsafe {
-            interface_fn!(object_get_instance_binding)(self.obj_sys(), token.cast(), &callbacks)
+            interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks)
         };
 
         let ptr: sys::GDExtensionClassInstancePtr = binding.cast();
