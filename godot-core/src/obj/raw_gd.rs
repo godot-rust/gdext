@@ -451,7 +451,7 @@ where
 
         // SAFETY: library is already initialized.
         let token = unsafe { sys::get_library() };
-        let token: *mut std::ffi::c_void = token.cast();
+        let token = token.cast::<std::ffi::c_void>();
 
         // SAFETY: ensured that `self.obj` is non-null and valid.
         let binding = unsafe {
