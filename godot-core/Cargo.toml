@@ -62,6 +62,7 @@ serde_json = { workspace = true }
 [package.metadata.docs.rs]
 features = ["experimental-godot-api"]
 rustdoc-args = ["--cfg", "published_docs"]
+rustc-args = ["--cfg", "published_docs"]
 
 # Currently causes "unused manifest key" warnings. Maybe re-enable in the future, to make `published_docs` known.
 #[lints.rust]
