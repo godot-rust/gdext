@@ -732,7 +732,7 @@ where
     ///
     /// [`WithUserSignals::signals()`]: crate::obj::WithUserSignals::signals()
     #[cfg(since_api = "4.2")]
-    pub fn signals(&mut self) -> T::SignalCollection<'_, T> {
+    pub fn signals(&self) -> T::SignalCollection<'_, T> {
         T::__signals_from_external(self)
     }
 }

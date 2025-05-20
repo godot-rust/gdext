@@ -204,8 +204,8 @@ fn resolver_callabable_equality() {
 
 #[itest(async)]
 fn async_typed_signal() -> TaskHandle {
-    let mut object = AsyncRefCounted::new_gd();
-    let mut copy = object.clone();
+    let object = AsyncRefCounted::new_gd();
+    let copy = object.clone();
 
     let task_handle = task::spawn(async move {
         let (result,) = copy.signals().custom_signal().deref().await;
@@ -220,8 +220,8 @@ fn async_typed_signal() -> TaskHandle {
 
 #[itest(async)]
 fn async_typed_signal_with_array() -> TaskHandle {
-    let mut object = AsyncRefCounted::new_gd();
-    let mut copy = object.clone();
+    let object = AsyncRefCounted::new_gd();
+    let copy = object.clone();
 
     let task_handle = task::spawn(async move {
         let (result,) = copy.signals().custom_signal_array().to_future().await;
