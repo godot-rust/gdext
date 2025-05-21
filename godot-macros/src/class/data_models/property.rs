@@ -154,7 +154,9 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         );
 
         export_tokens.push(quote! {
-            ::godot::register::private::#registration_fn::<#class_name, #field_type>(
+            // This type may be reused in #hint, in case of generic functions.
+            type FieldType = #field_type;
+            ::godot::register::private::#registration_fn::<#class_name, FieldType>(
                 #field_name,
                 #getter_tokens,
                 #setter_tokens,

@@ -388,7 +388,15 @@ macro_rules! quote_export_func {
         Some(quote! {
             ::godot::register::property::export_info_functions::$function_name($($tt)*)
         })
-    }
+    };
+
+    // Passes in a previously declared local `type FieldType = ...` as first generic argument.
+    // Doesn't work if function takes other generic arguments -- in that case it could be converted to a Type<...> parameter.
+    ($function_name:ident < T > ($($tt:tt)*)) => {
+        Some(quote! {
+            ::godot::register::property::export_info_functions::$function_name::<FieldType>($($tt)*)
+        })
+    };
 }
 
 impl ExportType {
@@ -487,22 +495,19 @@ impl ExportType {
             } => quote_export_func! { export_flags_3d_navigation() },
 
             Self::File {
-                global: false,
+                global,
                 kind: FileKind::Dir,
-            } => quote_export_func! { export_dir() },
-
-            Self::File {
-                global: true,
-                kind: FileKind::Dir,
-            } => quote_export_func! { export_global_dir() },
+            } => {
+                let filter = quote! { "" };
+                quote_export_func! { export_file_or_dir<T>(false, #global, #filter) }
+            }
 
             Self::File {
                 global,
                 kind: FileKind::File { filter },
             } => {
                 let filter = filter.clone().unwrap_or(quote! { "" });
-
-                quote_export_func! { export_file_inner(#global, #filter) }
+                quote_export_func! { export_file_or_dir<T>(true, #global, #filter) }
             }
 
             Self::Multiline => quote_export_func! { export_multiline() },
@@ -510,6 +515,7 @@ impl ExportType {
             Self::PlaceholderText { placeholder } => quote_export_func! {
                 export_placeholder(#placeholder)
             },
+
             Self::ColorNoAlpha => quote_export_func! { export_color_no_alpha() },
         }
     }
