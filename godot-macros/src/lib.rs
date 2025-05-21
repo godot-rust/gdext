@@ -325,7 +325,9 @@ use crate::util::{bail, ident, KvParser};
 /// See [`ExtensionLibrary::editor_run_behavior()`](../init/trait.ExtensionLibrary.html#method.editor_run_behavior)
 /// for more information and further customization.
 ///
-/// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
+/// This behaves similarly to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
+///
+/// **Note**: As in GDScript, the class must be marked as a `tool` to be accessible in the editor (e.g., for use by editor plugins and inspectors).
 ///
 /// ## Editor plugins
 ///
