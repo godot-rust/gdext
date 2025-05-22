@@ -8,7 +8,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{ApproxEq, GlamConv, GlamType};
+use crate::builtin::math::{ApproxEq, GlamConv, GlamType, XformInv};
 use crate::builtin::{real, Aabb, Basis, Plane, Projection, RAffine3, Vector3};
 
 use std::fmt::Display;
@@ -36,6 +36,15 @@ use std::ops::Mul;
 /// [`Basis`]: Basis
 /// [`Transform2D`]: crate::builtin::Transform2D
 /// [`Projection`]: Projection
+///
+/// # Transform operations
+///
+/// | Operation                      | Transform3D                    | Notes                                      |
+/// |--------------------------------|--------------------------------|--------------------------------------------|
+/// | Apply                          | `transform * v`                | Supports [`Aabb`], [`Plane`], [`Vector3`]. |
+/// | Apply inverse                  | `transform.xform_inv(v)`       | Supports [`Aabb`], [`Plane`], [`Vector3`]. |
+/// | Apply, no translate            | `transform.basis * v`          | Supports [`Vector3`].                      |
+/// | Apply inverse, no translate    | `transform.basis.xform_inv(v)` | Supports [`Vector3`].                      |
 ///
 /// # Godot docs
 ///
@@ -303,6 +312,19 @@ impl Mul<Vector3> for Transform3D {
     }
 }
 
+impl XformInv<Vector3> for Transform3D {
+    /// Inversely transforms given [`Vector3`] by this transformation matrix,
+    /// under the assumption that the transformation basis is orthonormal (i.e. rotation/reflection is fine, scaling/skew is not).
+    ///
+    /// For transforming by inverse of an affine transformation (e.g. with scaling) `transform.affine_inverse() * vector` can be used instead. See [`Transform3D::affine_inverse()`].
+    ///
+    /// _Godot equivalent: `aabb * transform`_
+    fn xform_inv(&self, rhs: Vector3) -> Vector3 {
+        let v = rhs - self.origin;
+        self.basis.xform_inv(v)
+    }
+}
+
 impl Mul<real> for Transform3D {
     type Output = Self;
 
@@ -342,6 +364,55 @@ impl Mul<Aabb> for Transform3D {
     }
 }
 
+impl XformInv<Aabb> for Transform3D {
+    /// Inversely transforms each vertex in given [`Aabb`] individually by this transformation matrix,
+    /// under the assumption that the transformation basis is orthonormal (i.e. rotation/reflection is fine, scaling/skew is not),
+    /// and then creates an `Aabb` encompassing all of them.
+    ///
+    /// For transforming by inverse of an affine transformation (e.g. with scaling) `transform.affine_inverse() * aabb` can be used instead. See [`Transform3D::affine_inverse()`].
+    ///
+    /// _Godot equivalent: `aabb * transform`_
+    fn xform_inv(&self, rhs: Aabb) -> Aabb {
+        // Same as Godot's `Transform3D::xform_inv` but omits unnecessary `Aabb::expand_to`.
+        // There is probably some more clever way to do that.
+
+        // Use the first vertex initialize our min/max.
+        let end = self.xform_inv(rhs.end());
+        // `min` is the "lowest" vertex of our Aabb, `max` is the farthest vertex.
+        let (mut min, mut max) = (end, end);
+
+        let vertices = [
+            Vector3::new(
+                rhs.position.x + rhs.size.x,
+                rhs.position.y + rhs.size.y,
+                rhs.position.z,
+            ),
+            Vector3::new(
+                rhs.position.x + rhs.size.x,
+                rhs.position.y,
+                rhs.position.z + rhs.size.z,
+            ),
+            Vector3::new(rhs.position.x + rhs.size.x, rhs.position.y, rhs.position.z),
+            Vector3::new(
+                rhs.position.x,
+                rhs.position.y + rhs.size.y,
+                rhs.position.z + rhs.size.z,
+            ),
+            Vector3::new(rhs.position.x, rhs.position.y + rhs.size.y, rhs.position.z),
+            Vector3::new(rhs.position.x, rhs.position.y, rhs.position.z + rhs.size.z),
+            rhs.position,
+        ];
+
+        for v in vertices {
+            let transformed = self.xform_inv(v);
+            min = Vector3::coord_min(min, transformed);
+            max = Vector3::coord_max(max, transformed);
+        }
+
+        Aabb::new(min, max - min)
+    }
+}
+
 impl Mul<Plane> for Transform3D {
     type Output = Plane;
 
@@ -351,6 +422,17 @@ impl Mul<Plane> for Transform3D {
         let basis = self.basis.inverse().transposed();
 
         Plane::from_point_normal(point, (basis * rhs.normal).normalized())
+    }
+}
+
+impl XformInv<Plane> for Transform3D {
+    /// Inversely transforms (multiplies) the Plane by the given Transform3D transformation matrix.
+    ///
+    /// `transform.xform_inv(plane)` is equivalent to `transform.affine_inverse() * plane`. See [`Transform3D::affine_inverse()`].
+    ///
+    /// _Godot equivalent: `plane * transform`_
+    fn xform_inv(&self, rhs: Plane) -> Plane {
+        self.affine_inverse() * rhs
     }
 }
 
