@@ -17,6 +17,7 @@ codegen-lazy-fptrs = []
 codegen-rustfmt = []
 double-precision = []
 api-custom = ["godot-bindings/api-custom"]
+api-custom-json = ["godot-bindings/api-custom-json"]
 experimental-godot-api = []
 experimental-threads = []
 

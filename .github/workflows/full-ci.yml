@@ -333,6 +333,15 @@ jobs:
             # Important to keep both experimental-threads and codegen-full. Some itests (native_st_audio) require both.
             rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
 
+          # Compiles godot-rust with `api-custom-json` feature against the JSON file generated via `--dump-extension-api`.
+          # Uses latest 4.x headers, while `extension_api.json` comes from the latest Godot binary.
+          - name: linux-custom-api-json
+            os: ubuntu-22.04
+            artifact-name: linux-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            rust-extra-args: --features godot/api-custom-json
+            godot-indirect-json: true
+
           - name: linux-release
             os: ubuntu-22.04
             artifact-name: linux-release-nightly
@@ -406,7 +415,8 @@ jobs:
           rust-cache-key: ${{ matrix.rust-cache-key }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
-          
+          godot-indirect-json: ${{ matrix.godot-indirect-json }}
+
       - name: "Build and test hot-reload"
         if: ${{ matrix.with-hot-reload }}
         working-directory: itest/hot-reload/godot
