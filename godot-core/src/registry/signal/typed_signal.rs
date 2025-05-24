@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::{make_callable_name, make_godot_fn, ConnectBuilder, GodotDeref, SignalObject};
+use super::{make_callable_name, make_godot_fn, ConnectBuilder, ObjectRefOrGd, SignalObject};
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
@@ -54,7 +54,7 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 /// - [`connect()`][Self::connect]: Connect a global/associated function or a closure.
 /// - [`connect_self()`][Self::connect_self]: Connect a method or closure that runs on the signal emitter.
 /// - [`connect_other()`][Self::connect_other]: Connect a method or closure that runs on a separate object.
-/// - [`connect_builder()`][Self::connect_builder] for more complex setups (such as choosing [`ConnectFlags`] or making thread-safe connections).
+/// - [`builder()`][Self::builder] for more complex setups (such as choosing [`ConnectFlags`] or making thread-safe connections).
 ///
 /// # Emitting a signal
 /// Code-generated signal types provide a method `emit(...)`, which adopts the names and types of the `#[signal]` parameter list.
@@ -119,8 +119,8 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     /// Fully customizable connection setup.
     ///
     /// The returned builder provides several methods to configure how to connect the signal. It needs to be finalized with a call
-    /// to any of the builder's `connect_**` methods.
-    pub fn connect_builder<'ts>(&'ts self) -> ConnectBuilder<'ts, 'c, C, Ps> {
+    /// to any of the builder's `connect_*` methods.
+    pub fn builder<'ts>(&'ts self) -> ConnectBuilder<'ts, 'c, C, Ps> {
         ConnectBuilder::new(self)
     }
 
@@ -189,7 +189,7 @@ macro_rules! impl_signal_connect {
             /// ```
             ///
             /// - To connect to a method on the object that owns this signal, use [`connect_self()`][Self::connect_self].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`connect_builder()`][Self::connect_builder].
+            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
             pub fn connect<F, R>(&self, mut function: F)
             where
                 F: FnMut($($Ps),*) -> R + 'static,
@@ -204,11 +204,11 @@ macro_rules! impl_signal_connect {
             /// Connect a method (member function) with `&mut self` as the first parameter.
             ///
             /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`connect_builder()`][Self::connect_builder].
-            pub fn connect_self<F, R, Decl>(&self, mut function: F)
+            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
+            pub fn connect_self<F, R, Declarer>(&self, mut function: F)
             where
                 F: FnMut(&mut C, $($Ps),*) -> R + 'static,
-                C: GodotDeref<Decl>,
+                C: ObjectRefOrGd<Declarer>,
             {
                 let mut gd = self.receiver_object();
                 let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
@@ -231,11 +231,11 @@ macro_rules! impl_signal_connect {
             /// ---
             ///
             /// - To connect to methods on the object that owns this signal, use [`connect_self()`][Self::connect_self].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`connect_builder()`][Self::connect_builder].
-            pub fn connect_other<F, R, OtherC, Decl>(&self, object: &impl ToSignalObj<OtherC>, mut method: F)
+            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
+            pub fn connect_other<F, R, OtherC, Declarer>(&self, object: &impl ToSignalObj<OtherC>, mut method: F)
             where
                 F: FnMut(&mut OtherC, $($Ps),*) -> R + 'static,
-                OtherC: GodotDeref<Decl>,
+                OtherC: ObjectRefOrGd<Declarer>,
             {
                 let mut gd = object.to_signal_obj();
 

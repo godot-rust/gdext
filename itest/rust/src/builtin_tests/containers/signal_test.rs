@@ -157,7 +157,7 @@ fn signal_symbols_external_builder() {
 
     // Connect to other object.
     let receiver_mut = Receiver::new_alloc();
-    sig.connect_builder()
+    sig.builder()
         .name("receive_the_knowledge")
         .connect_other_mut(&receiver_mut, Receiver::receive_int_mut);
 
@@ -166,7 +166,7 @@ fn signal_symbols_external_builder() {
     let tracker = Rc::new(Cell::new(0));
     {
         let tracker = tracker.clone();
-        sig.connect_builder().connect(move |i| tracker.set(i));
+        sig.builder().connect(move |i| tracker.set(i));
     }
 
     // Emit signal.
@@ -207,7 +207,7 @@ fn signal_symbols_sync() {
     let sync_tracker = Arc::new(Mutex::new(0));
     {
         let sync_tracker = sync_tracker.clone();
-        sig.connect_builder()
+        sig.builder()
             .connect_sync(move |i| *sync_tracker.lock().unwrap() = i);
     }
 
@@ -241,7 +241,7 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
     {
         let entered_tracker = entered_tracker.clone();
 
-        entered.connect_builder().connect(move |node| {
+        entered.builder().connect(move |node| {
             *entered_tracker.borrow_mut() = Some(node);
         });
     }
@@ -343,7 +343,7 @@ fn signal_symbols_connect_engine() {
 
     node.signals()
         .property_list_changed()
-        .connect_builder()
+        .builder()
         .connect_other_gd(&engine, |this| {
             assert_eq!(this.get_name(), StringName::from("hello"));
         });
@@ -381,14 +381,11 @@ fn signal_symbols_connect_inferred() {
     });
 
     // User signals, builder.
-    user.signals()
-        .renamed()
-        .connect_builder()
-        .connect_self_mut(|this| {
-            // Use method/field that `Emitter` declares.
-            this.connect_base_signals_internal();
-            let _ = this.last_received_int;
-        });
+    user.signals().renamed().builder().connect_self_mut(|this| {
+        // Use method/field that `Emitter` declares.
+        this.connect_base_signals_internal();
+        let _ = this.last_received_int;
+    });
 
     // Engine signals.
     engine.signals().ready().connect_other(&user, |this| {
@@ -401,7 +398,7 @@ fn signal_symbols_connect_inferred() {
     engine
         .signals()
         .tree_exiting()
-        .connect_builder()
+        .builder()
         .flags(ConnectFlags::DEFERRED)
         .connect_self_gd(|this| {
             // Use methods that `Node` declares.
@@ -412,7 +409,7 @@ fn signal_symbols_connect_inferred() {
     engine
         .signals()
         .tree_exiting()
-        .connect_builder()
+        .builder()
         .connect_other_mut(&user, |this| {
             // Use methods that `Node` declares.
             use godot::obj::WithBaseField; // not recommended pattern; `*_gd()` connectors preferred.
@@ -424,7 +421,7 @@ fn signal_symbols_connect_inferred() {
     engine
         .signals()
         .tree_exiting()
-        .connect_builder()
+        .builder()
         .connect_other_gd(&user, |this| {
             // Use methods that `Node` declares.
             let _ = this.get_path(); // ref.

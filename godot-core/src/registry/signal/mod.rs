@@ -8,20 +8,21 @@
 // Whole module only available in Godot 4.2+.
 
 mod connect_builder;
-mod godot_deref;
+mod object_ref_or_gd;
 mod signal_object;
 mod typed_signal;
 
 use crate::builtin::{GString, Variant};
 use crate::meta;
 pub(crate) use connect_builder::*;
-use godot_deref::GodotDeref;
+use object_ref_or_gd::ObjectRefOrGd;
 pub(crate) use signal_object::*;
 pub(crate) use typed_signal::*;
 
 // Used in `godot` crate.
 pub mod re_export {
     pub use super::connect_builder::ConnectBuilder;
+    pub use super::object_ref_or_gd::ObjectRefOrGd;
     pub use super::typed_signal::TypedSignal;
 }
 
