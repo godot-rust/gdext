@@ -159,7 +159,7 @@ fn signal_symbols_external_builder() {
     let receiver_mut = Receiver::new_alloc();
     sig.connect_builder()
         .name("receive_the_knowledge")
-        .connect_other(&receiver_mut, Receiver::receive_int_mut);
+        .connect_other_mut(&receiver_mut, Receiver::receive_int_mut);
 
     sig.connect_other(&receiver_mut, Receiver::receive_int_mut);
 
@@ -344,7 +344,7 @@ fn signal_symbols_connect_engine() {
     node.signals()
         .property_list_changed()
         .connect_builder()
-        .connect_other(&engine, |this| {
+        .connect_other_gd(&engine, |this| {
             assert_eq!(this.get_name(), StringName::from("hello"));
         });
 
@@ -361,6 +361,7 @@ fn signal_symbols_connect_inferred() {
     let user = Emitter::new_alloc();
     let engine = Node::new_alloc();
 
+    // User signals.
     user.signals()
         .child_entered_tree()
         .connect_other(&engine, |this, mut child| {
@@ -379,18 +380,52 @@ fn signal_symbols_connect_inferred() {
         let _ = this.last_received_int;
     });
 
+    // User signals, builder.
+    user.signals()
+        .renamed()
+        .connect_builder()
+        .connect_self_mut(|this| {
+            // Use method/field that `Emitter` declares.
+            this.connect_base_signals_internal();
+            let _ = this.last_received_int;
+        });
+
+    // Engine signals.
     engine.signals().ready().connect_other(&user, |this| {
         // Use method/field that `Emitter` declares.
         this.connect_base_signals_internal();
         let _ = this.last_received_int;
     });
 
+    // Engine signals, builder.
     engine
         .signals()
         .tree_exiting()
         .connect_builder()
         .flags(ConnectFlags::DEFERRED)
-        .connect_self(|this| {
+        .connect_self_gd(|this| {
+            // Use methods that `Node` declares.
+            let _ = this.get_path(); // ref.
+            this.set_unique_name_in_owner(true); // mut.
+        });
+
+    engine
+        .signals()
+        .tree_exiting()
+        .connect_builder()
+        .connect_other_mut(&user, |this| {
+            // Use methods that `Node` declares.
+            use godot::obj::WithBaseField; // not recommended pattern; `*_gd()` connectors preferred.
+
+            let _ = this.base().get_path(); // ref.
+            this.base_mut().set_unique_name_in_owner(true); // mut.
+        });
+
+    engine
+        .signals()
+        .tree_exiting()
+        .connect_builder()
+        .connect_other_gd(&user, |this| {
             // Use methods that `Node` declares.
             let _ = this.get_path(); // ref.
             this.set_unique_name_in_owner(true); // mut.

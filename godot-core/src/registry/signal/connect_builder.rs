@@ -10,10 +10,9 @@ use crate::builtin::{Callable, GString, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::FromGodot;
-use crate::obj::WithSignals;
-use crate::registry::signal::{GodotDeref, ToSignalObj, TypedSignal};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, WithSignals};
+use crate::registry::signal::{ToSignalObj, TypedSignal};
 use std::fmt::Debug;
-use std::ops::DerefMut;
 
 /// Builder for customizing signal connections.
 ///
@@ -150,50 +149,94 @@ macro_rules! impl_builder_connect {
                 self.inner_connect_godot_fn::<F>(godot_fn);
             }
 
-            /// Connect a method (member function) with `&mut self` as the first parameter.
+            /// Connect a method with `&mut self` as the first parameter (user classes only).
             ///
-            /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
-            /// - If you need [`connect flags`](ConnectFlags), call [`flags()`](Self::flags) before this.
-            /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
-            pub fn connect_self<F, R, Decl>(self, mut function: F)
+            /// - Use [`connect_self_gd()`][Self::connect_self_gd] to receive `Gd<Self>` instead and avoid implicit `bind_mut()` on emit.
+            ///   For engine classes, `&mut self` is not supported at all.
+            /// - To connect to methods on other objects, use [`connect_other_mut()`][Self::connect_other_mut].
+            /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
+            /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature `experimental-threads`).
+            pub fn connect_self_mut<F, R>(self, mut function: F)
             where
+                C: Bounds<Declarer = bounds::DeclUser>,
                 F: FnMut(&mut C, $($Ps),*) -> R + 'static,
-                C: GodotDeref<Decl>,
             {
                 let mut gd = self.parent_sig.receiver_object();
-                let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
-                    let mut target = C::get_mut(&mut gd);
-                    let target_mut = target.deref_mut();
-                    function(target_mut, $($args),*);
+                let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
+                    let mut guard = Gd::bind_mut(&mut gd);
+                    function(&mut *guard, $($args),*);
                 });
 
                 self.inner_connect_godot_fn::<F>(godot_fn);
             }
 
-            /// Connect a method (member function) with any `&mut OtherC` as the first parameter, where
-            /// `OtherC`: [`GodotClass`](crate::obj::GodotClass) (both user and engine classes are accepted).
+            /// Connect a method with `&mut Gd<Self>` as the first parameter (user + engine classes).
+            ///
+            /// - If your class `C` is user-defined and you'd like to have an automatic `bind_mut()` and receive `&mut self`, then
+            ///   use [`connect_self_mut()`][Self::connect_self_mut] instead.
+            /// - To connect to methods on other objects, use [`connect_other_gd()`][Self::connect_other_gd].
+            /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
+            /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature `experimental-threads`).
+            pub fn connect_self_gd<F, R>(self, mut function: F)
+            where
+                F: FnMut(&mut Gd<C>, $($Ps),*) -> R + 'static,
+            {
+                let mut gd = self.parent_sig.receiver_object();
+                let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
+                    function(&mut gd, $($args),*);
+                });
+
+                self.inner_connect_godot_fn::<F>(godot_fn);
+            }
+
+            /// Connect a method with any `&mut OtherC` as the first parameter (user classes only).
             ///
             /// The parameter `object` can be of 2 different "categories":
-            /// - Any `&Gd<OtherC>` (e.g.: `&Gd<Node>`, `&Gd<CustomUserClass>`).
-            /// - `&OtherC`, as long as `OtherC` is a user class that contains a `base` field (it implements the
+            /// - Any `&Gd<OtherC>` (e.g.: `&Gd<Node>`, `&Gd<MyClass>`).
+            /// - `&OtherC`, as long as `OtherC` is a user class that contains a `Base<T>` field (it implements the
             ///   [`WithBaseField`](crate::obj::WithBaseField) trait).
             ///
             /// ---
             ///
-            /// - To connect to methods on the object that owns this signal, use [`connect_self()`][Self::connect_self].
-            /// - If you need [`connect flags`](ConnectFlags), call [`flags()`](Self::flags) before this.
+            /// - To connect to methods on the object that owns this signal, use [`connect_self_mut()`][Self::connect_self].
+            /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
             /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
-            pub fn connect_other<F, R, OtherC, Decl>(self, object: &impl ToSignalObj<OtherC>, mut method: F)
+            pub fn connect_other_mut<F, R, OtherC>(self, object: &impl ToSignalObj<OtherC>, mut method: F)
             where
+                OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
                 F: FnMut(&mut OtherC, $($Ps),*) -> R + 'static,
-                OtherC: GodotDeref<Decl>,
             {
                 let mut gd = object.to_signal_obj();
 
-                let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
-                    let mut target = OtherC::get_mut(&mut gd);
-                    let target_mut = target.deref_mut();
-                    method(target_mut, $($args),*);
+                let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
+                    let mut guard = Gd::bind_mut(&mut gd);
+                    method(&mut *guard, $($args),*);
+                });
+
+                self.inner_connect_godot_fn::<F>(godot_fn);
+            }
+
+            /// Connect a method with any `&mut Gd<OtherC>` as the first parameter (user + engine classes).
+            ///
+            /// The parameter `object` can be of 2 different "categories":
+            /// - Any `&Gd<OtherC>` (e.g.: `&Gd<Node>`, `&Gd<MyClass>`).
+            /// - `&OtherC`, as long as `OtherC` is a user class that contains a `Base<T>` field (it implements the
+            ///   [`WithBaseField`](crate::obj::WithBaseField) trait).
+            ///
+            /// ---
+            ///
+            /// - To connect to methods on the object that owns this signal, use [`connect_self_gd()`][Self::connect_self_gd].
+            /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
+            /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
+            pub fn connect_other_gd<F, R, OtherC>(self, object: &impl ToSignalObj<OtherC>, mut method: F)
+            where
+                OtherC: GodotClass,
+                F: FnMut(&mut Gd<OtherC>, $($Ps),*) -> R + 'static,
+            {
+                let mut gd = object.to_signal_obj();
+
+                let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
+                    method(&mut gd, $($args),*);
                 });
 
                 self.inner_connect_godot_fn::<F>(godot_fn);
@@ -204,7 +247,7 @@ macro_rules! impl_builder_connect {
             /// Requires `Send` + `Sync` bounds on the provided function `F`, and is only available for the `experimental-threads`
             /// Cargo feature.
             ///
-            /// If you need [`connect flags`](ConnectFlags), call [`flags()`](Self::flags) before this.
+            /// If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
             #[cfg(feature = "experimental-threads")]
             pub fn connect_sync<F, R>(self, mut function: F)
             where
@@ -212,7 +255,7 @@ macro_rules! impl_builder_connect {
                 // (Send) or even call them from multiple threads (Sync). We don't differentiate the fine-grained needs, it's either thread-safe or not.
                 F: FnMut($($Ps),*) -> R + Send + Sync + 'static,
             {
-                let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
+                let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
                     function($($args),*);
                 });
 
