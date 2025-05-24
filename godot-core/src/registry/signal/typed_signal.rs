@@ -43,11 +43,13 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 /// Short-lived type, only valid in the scope of its surrounding object type `C`, for lifetime `'c`. The generic argument `Ps` represents
 /// the parameters of the signal, thus ensuring the type safety.
 ///
+/// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a general introduction and examples.
+///
 /// The [`WithSignals::SignalCollection`] struct returns multiple signals with distinct, code-generated types, but they all implement
 /// `Deref` and `DerefMut` to `TypedSignal`. This allows you to either use the concrete APIs of the generated types, or the more generic
 /// ones of `TypedSignal`.
 ///
-/// # Connecting a signal to a receiver.
+/// # Connecting a signal to a receiver
 /// Receiver functions are functions that are called when a signal is emitted. You can connect a signal in many different ways:
 /// - [`connect()`][Self::connect]: Connect a global/associated function or a closure.
 /// - [`connect_self()`][Self::connect_self]: Connect a method or closure that runs on the signal emitter.
@@ -60,8 +62,19 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 ///
 /// For generic use, you can also use [`emit_tuple()`][Self::emit_tuple], which does not provide parameter names.
 ///
-/// # More information
-/// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a detailed introduction and examples.
+/// # Implementation and documentation notes
+/// Individual `connect_*` methods are generated using a declarative macro, to support a variadic number of parameters **and** type inference.
+/// Without inference, it is not reliably possible[^rust-issue] to pass `|this, arg| { ... }` closures and would require the more verbose
+/// `|this: &mut MyClass, arg: GString| { ... }` syntax. Unfortunately, this design choice precludes the usage of traits for abstraction over
+/// different functions. There are potential workarounds[^workaround], let us know in case you find a way.
+///
+/// To keep this documentation readable, we only document one overload of each implementation: arbitrarily the one with three parameters
+/// `(P0, P1, P2)`. Keep this in mind when looking at a concrete signature.
+///
+/// [^rust-issue]: See Rust issue [#63702](https://github.com/rust-lang/rust/issues/63702) or
+///   [rust-lang discussion](https://users.rust-lang.org/t/what-are-the-limits-of-type-inference-in-closures/31519).
+/// [^workaround]: Using macros to have one less indirection level is one workaround.
+///   [Identity functions](https://users.rust-lang.org/t/type-inference-in-closures/78399/3) might be another.
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
     object: C::__SignalObj<'c>,
@@ -162,10 +175,8 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
 }
 
 macro_rules! impl_signal_connect {
-    ($( $args:ident : $Ps:ident ),*) => {
-        // --------------------------------------------------------------------------------------------------------------------------------------
-        // SignalReceiver
-
+    ($( #[$attr:meta] )? $( $args:ident : $Ps:ident ),*) => {
+        $( #[$attr] )?
         impl<C: WithSignals, $($Ps: Debug + FromGodot + 'static),*>
             TypedSignal<'_, C, ($($Ps,)*)> {
             /// Connect a non-member function (global function, associated function or closure).
@@ -240,14 +251,14 @@ macro_rules! impl_signal_connect {
     };
 }
 
-impl_signal_connect!();
-impl_signal_connect!(arg0: P0);
-impl_signal_connect!(arg0: P0, arg1: P1);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8, arg9: P9);
+impl_signal_connect!(#[doc(hidden)] );
+impl_signal_connect!(#[doc(hidden)] arg0: P0);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1);
+impl_signal_connect!(               arg0: P0, arg1: P1, arg2: P2);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8, arg9: P9);
