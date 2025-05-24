@@ -22,7 +22,7 @@ use std::fmt::Debug;
 ///
 /// # Customization
 /// Customizing your signal connection must be done **before** providing the function being connected
-/// (can be done by using of the `connect_**` methods) (see section `Finalizing` bellow).
+/// (can be done by using of the `connect_*` methods) (see section `Finalizing` bellow).
 ///
 /// All these methods are optional, and they can be combined.
 // Use HTML link due to conditional compilation; renders badly if target symbol is unavailable.
@@ -39,6 +39,9 @@ use std::fmt::Debug;
 /// |---------------|------------------------------------------------|----------------------------------------------|
 /// | `self`        | [`connect_self_mut`][Self::connect_self_mut]   | [`connect_self_gd`][Self::connect_self_gd]   |
 /// | other object  | [`connect_other_mut`][Self::connect_other_mut] | [`connect_other_gd`][Self::connect_other_gd] |
+///
+/// Methods taking `&C` can (e.g. using interior mutability) can be indirectly connected through a `*_gd` overload + a `Gd::bind()` call.
+/// If this turns out to be a common use case, we could consider `connect_*_ref()` in the future.
 ///
 /// <br>
 ///
@@ -143,8 +146,8 @@ macro_rules! impl_builder_connect {
             ///
             /// Example usages:
             /// ```ignore
-            /// sig.connect_builder().connect(Self::static_func);
-            /// sig.connect_builder().flags(ConnectFlags::DEFERRED).connect(global_func);
+            /// sig.builder().connect(Self::static_func);
+            /// sig.builder().flags(ConnectFlags::DEFERRED).connect(global_func);
             /// sig.connect(|arg| { /* closure */ });
             /// ```
             ///

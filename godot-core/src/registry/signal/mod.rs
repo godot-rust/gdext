@@ -8,21 +8,22 @@
 // Whole module only available in Godot 4.2+.
 
 mod connect_builder;
-mod godot_deref;
 mod signal_object;
 mod typed_signal;
+mod uniform_object_deref;
 
 use crate::builtin::{GString, Variant};
 use crate::meta;
 pub(crate) use connect_builder::*;
-use godot_deref::GodotDeref;
 pub(crate) use signal_object::*;
 pub(crate) use typed_signal::*;
+use uniform_object_deref::UniformObjectDeref;
 
 // Used in `godot` crate.
 pub mod re_export {
     pub use super::connect_builder::ConnectBuilder;
     pub use super::typed_signal::TypedSignal;
+    pub use super::uniform_object_deref::UniformObjectDeref;
 }
 
 // Used in `godot::private` module.
