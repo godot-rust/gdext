@@ -43,9 +43,10 @@ fn make_virtual_hashes_for_class(class: &Class, ctx: &mut Context) -> TokenStrea
             return None;
         };
 
-        let method_name = method.name_ident();
+        let rust_name = method.name_ident();
+        let godot_name_str = method.godot_name();
         let constant = quote! {
-            pub const #method_name: u32 = #hash;
+            pub const #rust_name: (&'static str, u32) = (#godot_name_str, #hash);
         };
 
         Some(constant)
