@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::{make_callable_name, make_godot_fn, ConnectBuilder, SignalObject, UniformObjectDeref};
+use super::{make_callable_name, make_godot_fn, ConnectBuilder, SignalObject};
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
-use crate::meta::FromGodot;
+use crate::meta::{FromGodot, UniformObjectDeref};
 use crate::obj::{Gd, GodotClass, WithBaseField, WithSignals};
 use std::borrow::Cow;
 use std::fmt::Debug;

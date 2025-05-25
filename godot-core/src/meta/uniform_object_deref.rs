@@ -32,8 +32,9 @@ use std::ops::{Deref, DerefMut};
 ///
 /// Despite being 2 different traits, a function can accept both by simply being generic over `Declarer`:
 /// ```no_run
-/// # use godot::register::UniformObjectDeref;
+/// use godot::meta::UniformObjectDeref;
 /// # use godot::prelude::*;
+///
 /// fn abstract_over_objects<Declarer, C>(obj: &Gd<C>)
 /// where
 ///     C: UniformObjectDeref<Declarer>,

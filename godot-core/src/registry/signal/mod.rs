@@ -10,20 +10,17 @@
 mod connect_builder;
 mod signal_object;
 mod typed_signal;
-mod uniform_object_deref;
 
 use crate::builtin::{GString, Variant};
 use crate::meta;
 pub(crate) use connect_builder::*;
 pub(crate) use signal_object::*;
 pub(crate) use typed_signal::*;
-use uniform_object_deref::UniformObjectDeref;
 
 // Used in `godot` crate.
 pub mod re_export {
     pub use super::connect_builder::ConnectBuilder;
     pub use super::typed_signal::TypedSignal;
-    pub use super::uniform_object_deref::UniformObjectDeref;
 }
 
 // Used in `godot::private` module.

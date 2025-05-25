@@ -72,6 +72,7 @@ where
 /// once the reference is returned. Could use more fancy syntax like `arg_into_ref! { let path = ref; }` or `let path = arg_into_ref!(path)`,
 /// but still isn't obvious enough to avoid doc lookup and might give a wrong idea about the scope. So being more exotic is a feature.
 #[macro_export]
+#[doc(hidden)] // Doesn't work at re-export.
 macro_rules! arg_into_ref {
     ($arg_variable:ident) => {
         // Non-generic version allows type inference. Only applicable for CowArg types.
@@ -88,6 +89,7 @@ macro_rules! arg_into_ref {
 ///
 /// A macro for consistency with [`arg_into_ref`][crate::arg_into_ref].
 #[macro_export]
+#[doc(hidden)] // Doesn't work at re-export.
 macro_rules! arg_into_owned {
     ($arg_variable:ident) => {
         // Non-generic version allows type inference. Only applicable for CowArg types.
