@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::{make_callable_name, make_godot_fn, ConnectBuilder, GodotDeref, SignalObject};
+use super::{make_callable_name, make_godot_fn, ConnectBuilder, SignalObject};
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
-use crate::meta::FromGodot;
+use crate::meta::{FromGodot, UniformObjectDeref};
 use crate::obj::{Gd, GodotClass, WithBaseField, WithSignals};
 use std::borrow::Cow;
 use std::fmt::Debug;
@@ -43,16 +43,18 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 /// Short-lived type, only valid in the scope of its surrounding object type `C`, for lifetime `'c`. The generic argument `Ps` represents
 /// the parameters of the signal, thus ensuring the type safety.
 ///
+/// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a general introduction and examples.
+///
 /// The [`WithSignals::SignalCollection`] struct returns multiple signals with distinct, code-generated types, but they all implement
 /// `Deref` and `DerefMut` to `TypedSignal`. This allows you to either use the concrete APIs of the generated types, or the more generic
 /// ones of `TypedSignal`.
 ///
-/// # Connecting a signal to a receiver.
+/// # Connecting a signal to a receiver
 /// Receiver functions are functions that are called when a signal is emitted. You can connect a signal in many different ways:
 /// - [`connect()`][Self::connect]: Connect a global/associated function or a closure.
 /// - [`connect_self()`][Self::connect_self]: Connect a method or closure that runs on the signal emitter.
 /// - [`connect_other()`][Self::connect_other]: Connect a method or closure that runs on a separate object.
-/// - [`connect_builder()`][Self::connect_builder] for more complex setups (such as choosing [`ConnectFlags`] or making thread-safe connections).
+/// - [`builder()`][Self::builder] for more complex setups (such as choosing [`ConnectFlags`] or making thread-safe connections).
 ///
 /// # Emitting a signal
 /// Code-generated signal types provide a method `emit(...)`, which adopts the names and types of the `#[signal]` parameter list.
@@ -60,8 +62,19 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 ///
 /// For generic use, you can also use [`emit_tuple()`][Self::emit_tuple], which does not provide parameter names.
 ///
-/// # More information
-/// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a detailed introduction and examples.
+/// # Implementation and documentation notes
+/// Individual `connect_*` methods are generated using a declarative macro, to support a variadic number of parameters **and** type inference.
+/// Without inference, it is not reliably possible[^rust-issue] to pass `|this, arg| { ... }` closures and would require the more verbose
+/// `|this: &mut MyClass, arg: GString| { ... }` syntax. Unfortunately, this design choice precludes the usage of traits for abstraction over
+/// different functions. There are potential workarounds[^workaround], let us know in case you find a way.
+///
+/// To keep this documentation readable, we only document one overload of each implementation: arbitrarily the one with three parameters
+/// `(P0, P1, P2)`. Keep this in mind when looking at a concrete signature.
+///
+/// [^rust-issue]: See Rust issue [#63702](https://github.com/rust-lang/rust/issues/63702) or
+///   [rust-lang discussion](https://users.rust-lang.org/t/what-are-the-limits-of-type-inference-in-closures/31519).
+/// [^workaround]: Using macros to have one less indirection level is one workaround.
+///   [Identity functions](https://users.rust-lang.org/t/type-inference-in-closures/78399/3) might be another.
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
     object: C::__SignalObj<'c>,
@@ -106,8 +119,8 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     /// Fully customizable connection setup.
     ///
     /// The returned builder provides several methods to configure how to connect the signal. It needs to be finalized with a call
-    /// to any of the builder's `connect_**` methods.
-    pub fn connect_builder<'ts>(&'ts self) -> ConnectBuilder<'ts, 'c, C, Ps> {
+    /// to any of the builder's `connect_*` methods.
+    pub fn builder<'ts>(&'ts self) -> ConnectBuilder<'ts, 'c, C, Ps> {
         ConnectBuilder::new(self)
     }
 
@@ -162,10 +175,8 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
 }
 
 macro_rules! impl_signal_connect {
-    ($( $args:ident : $Ps:ident ),*) => {
-        // --------------------------------------------------------------------------------------------------------------------------------------
-        // SignalReceiver
-
+    ($( #[$attr:meta] )? $( $args:ident : $Ps:ident ),*) => {
+        $( #[$attr] )?
         impl<C: WithSignals, $($Ps: Debug + FromGodot + 'static),*>
             TypedSignal<'_, C, ($($Ps,)*)> {
             /// Connect a non-member function (global function, associated function or closure).
@@ -178,7 +189,7 @@ macro_rules! impl_signal_connect {
             /// ```
             ///
             /// - To connect to a method on the object that owns this signal, use [`connect_self()`][Self::connect_self].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`connect_builder()`][Self::connect_builder].
+            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
             pub fn connect<F, R>(&self, mut function: F)
             where
                 F: FnMut($($Ps),*) -> R + 'static,
@@ -193,15 +204,15 @@ macro_rules! impl_signal_connect {
             /// Connect a method (member function) with `&mut self` as the first parameter.
             ///
             /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`connect_builder()`][Self::connect_builder].
-            pub fn connect_self<F, R, Decl>(&self, mut function: F)
+            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
+            pub fn connect_self<F, R, Declarer>(&self, mut function: F)
             where
                 F: FnMut(&mut C, $($Ps),*) -> R + 'static,
-                C: GodotDeref<Decl>,
+                C: UniformObjectDeref<Declarer>,
             {
                 let mut gd = self.receiver_object();
                 let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
-                    let mut target = C::get_mut(&mut gd);
+                    let mut target = C::object_as_mut(&mut gd);
                     let target_mut = target.deref_mut();
                     function(target_mut, $($args),*);
                 });
@@ -220,16 +231,16 @@ macro_rules! impl_signal_connect {
             /// ---
             ///
             /// - To connect to methods on the object that owns this signal, use [`connect_self()`][Self::connect_self].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`connect_builder()`][Self::connect_builder].
-            pub fn connect_other<F, R, OtherC, Decl>(&self, object: &impl ToSignalObj<OtherC>, mut method: F)
+            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
+            pub fn connect_other<F, R, OtherC, Declarer>(&self, object: &impl ToSignalObj<OtherC>, mut method: F)
             where
                 F: FnMut(&mut OtherC, $($Ps),*) -> R + 'static,
-                OtherC: GodotDeref<Decl>,
+                OtherC: UniformObjectDeref<Declarer>,
             {
                 let mut gd = object.to_signal_obj();
 
                 let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
-                    let mut target = OtherC::get_mut(&mut gd);
+                    let mut target = OtherC::object_as_mut(&mut gd);
                     let target_mut = target.deref_mut();
                     method(target_mut, $($args),*);
                 });
@@ -240,14 +251,14 @@ macro_rules! impl_signal_connect {
     };
 }
 
-impl_signal_connect!();
-impl_signal_connect!(arg0: P0);
-impl_signal_connect!(arg0: P0, arg1: P1);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8);
-impl_signal_connect!(arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8, arg9: P9);
+impl_signal_connect!(#[doc(hidden)] );
+impl_signal_connect!(#[doc(hidden)] arg0: P0);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1);
+impl_signal_connect!(               arg0: P0, arg1: P1, arg2: P2);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8);
+impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8, arg9: P9);
