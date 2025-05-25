@@ -50,6 +50,11 @@ macro_rules! inner_godot_msg {
 
 /// Pushes a warning message to Godot's built-in debugger and to the OS terminal.
 ///
+/// # See also
+/// [`godot_print!`](macro.godot_print.html) and [`godot_error!`](macro.godot_error.html).
+///
+/// Related to the utility function [`global::push_warning()`](crate::global::push_warning).
+///
 /// _Godot equivalent: [`@GlobalScope.push_warning()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-warning)_.
 #[macro_export]
 macro_rules! godot_warn {
@@ -60,6 +65,12 @@ macro_rules! godot_warn {
 
 /// Pushes an error message to Godot's built-in debugger and to the OS terminal.
 ///
+/// # See also
+/// [`godot_print!`](macro.godot_print.html) and [`godot_warn!`](macro.godot_warn.html).
+/// For script errors (less relevant in Rust), use [`godot_script_error!`](macro.godot_script_error.html).
+///
+/// Related to the utility function [`global::push_error()`][crate::global::push_error].
+///
 /// _Godot equivalent: [`@GlobalScope.push_error()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-error)_.
 #[macro_export]
 macro_rules! godot_error {
@@ -69,6 +80,13 @@ macro_rules! godot_error {
 }
 
 /// Logs a script error to Godot's built-in debugger and to the OS terminal.
+///
+/// This is rarely needed in Rust; script errors are typically emitted by the GDScript parser.
+///
+/// # See also
+/// [`godot_error!`](macro.godot_error.html) for a general error message.
+///
+///
 #[macro_export]
 macro_rules! godot_script_error {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
@@ -77,6 +95,22 @@ macro_rules! godot_script_error {
 }
 
 /// Prints to the Godot console.
+///
+/// Automatically appends a newline character at the end of the message.
+///
+/// Used exactly like standard [`println!`]:
+/// ```no_run
+/// use godot::global::godot_print;
+///
+/// let version = 4;
+/// godot_print!("Hello, Godot {version}!");
+/// ```
+///
+/// # See also
+/// [`godot_print_rich!`](macro.godot_print_rich.html) for a slower alternative that supports BBCode, color and URL tags.
+/// To print Godot errors and warnings, use [`godot_error!`](macro.godot_error.html) and [`godot_warn!`](macro.godot_warn.html), respectively.
+///
+/// This uses the underlying [`global::print()`][crate::global::print] function, which takes a variable-length slice of variants.
 ///
 /// _Godot equivalent: [`@GlobalScope.print()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print)_.
 #[macro_export]
@@ -92,7 +126,7 @@ macro_rules! godot_print {
 
 /// Prints to the Godot console. Supports BBCode, color and URL tags.
 ///
-/// Slower than [`godot_print!`].
+/// Slower than [`godot_print!`](macro.godot_print_rich.html).
 ///
 /// _Godot equivalent: [`@GlobalScope.print_rich()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print-rich)_.
 #[macro_export]
@@ -106,7 +140,24 @@ macro_rules! godot_print_rich {
     };
 }
 
-/// Concatenates format-style into a `GString`.
+/// Concatenates format-style arguments into a `GString`.
+///
+/// Works similar to Rust's standard [`format!`] macro but returns a Godot `GString`.
+///
+/// # Example
+/// ```no_run
+/// use godot::builtin::GString;
+/// use godot::global::godot_str;
+///
+/// let name = "Player";
+/// let score = 100;
+/// let message: GString = godot_str!("The {name} scored {score} points!");
+/// ```
+///
+/// # See also
+/// This macro uses the underlying [`global::str()`][crate::global::str] function, which takes a variable-length slice of variants.
+///
+/// _Godot equivalent: [`@GlobalScope.str()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-str)_.
 #[macro_export]
 macro_rules! godot_str {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
