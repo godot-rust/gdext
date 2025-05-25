@@ -59,10 +59,10 @@ fn signal_symbols_internal() {
     // Check that closure is invoked.
     assert_eq!(tracker.get(), 1234, "Emit failed (closure)");
 
-    // Check that instance method is invoked.
+    // Check that instance methods self_receive() and self_receive_gd_inc1() are invoked.
     assert_eq!(
         emitter.bind().last_received_int,
-        1234,
+        1234 + 1, // self_receive_gd_inc1() increments by 1, and should be called after self_receive().
         "Emit failed (method)"
     );
 
@@ -400,7 +400,7 @@ fn signal_symbols_connect_inferred() {
         .tree_exiting()
         .builder()
         .flags(ConnectFlags::DEFERRED)
-        .connect_self_gd(|this| {
+        .connect_self_gd(|mut this| {
             // Use methods that `Node` declares.
             let _ = this.get_path(); // ref.
             this.set_unique_name_in_owner(true); // mut.
@@ -422,7 +422,7 @@ fn signal_symbols_connect_inferred() {
         .signals()
         .tree_exiting()
         .builder()
-        .connect_other_gd(&user, |this| {
+        .connect_other_gd(&user, |mut this| {
             // Use methods that `Node` declares.
             let _ = this.get_path(); // ref.
             this.set_unique_name_in_owner(true); // mut.
@@ -514,6 +514,14 @@ mod emitter {
         }
 
         #[func]
+        pub fn self_receive_gd_inc1(mut this: Gd<Self>, _arg1: i64) {
+            #[cfg(since_api = "4.2")]
+            {
+                this.bind_mut().last_received_int += 1;
+            }
+        }
+
+        #[func]
         pub fn self_receive_constant(&mut self) {
             #[cfg(since_api = "4.2")]
             {
@@ -534,6 +542,7 @@ mod emitter {
             sig.connect_self(Self::self_receive);
             sig.connect(Self::self_receive_static);
             sig.connect(move |i| tracker.set(i));
+            sig.builder().connect_self_gd(Self::self_receive_gd_inc1);
         }
 
         #[cfg(since_api = "4.2")]

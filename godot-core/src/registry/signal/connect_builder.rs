@@ -183,6 +183,7 @@ macro_rules! impl_builder_connect {
                 F: FnMut(&mut C, $($Ps),*) -> R + 'static,
             {
                 let mut gd = self.parent_sig.receiver_object();
+
                 let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
                     let mut guard = Gd::bind_mut(&mut gd);
                     function(&mut *guard, $($args),*);
@@ -201,11 +202,12 @@ macro_rules! impl_builder_connect {
             /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature `experimental-threads`).
             pub fn connect_self_gd<F, R>(self, mut function: F)
             where
-                F: FnMut(&mut Gd<C>, $($Ps),*) -> R + 'static,
+                F: FnMut(Gd<C>, $($Ps),*) -> R + 'static,
             {
-                let mut gd = self.parent_sig.receiver_object();
+                let gd = self.parent_sig.receiver_object();
+
                 let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
-                    function(&mut gd, $($args),*);
+                    function(gd.clone(), $($args),*);
                 });
 
                 self.inner_connect_godot_fn::<F>(godot_fn);
@@ -253,12 +255,12 @@ macro_rules! impl_builder_connect {
             pub fn connect_other_gd<F, R, OtherC>(self, object: &impl ToSignalObj<OtherC>, mut method: F)
             where
                 OtherC: GodotClass,
-                F: FnMut(&mut Gd<OtherC>, $($Ps),*) -> R + 'static,
+                F: FnMut(Gd<OtherC>, $($Ps),*) -> R + 'static,
             {
-                let mut gd = object.to_signal_obj();
+                let gd = object.to_signal_obj();
 
                 let godot_fn = make_godot_fn(move |($($args,)*): ($($Ps,)*)| {
-                    method(&mut gd, $($args),*);
+                    method(gd.clone(), $($args),*);
                 });
 
                 self.inner_connect_godot_fn::<F>(godot_fn);
