@@ -10,7 +10,7 @@ use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
     Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn,
-    FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, Singleton, TyName,
+    FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, RustTy, Singleton, TyName,
     UtilityFunction,
 };
 use crate::models::json::{
@@ -374,6 +374,7 @@ impl BuiltinMethod {
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
                 is_virtual_required: false,
+                is_unsafe: false, // Builtin methods don't use raw pointers.
                 direction: FnDirection::Outbound {
                     hash: method.hash.expect("hash absent for builtin method"),
                 },
@@ -507,15 +508,20 @@ impl ClassMethod {
             is_required_in_json
         };
 
+        let parameters = FnParam::new_range(&method.arguments, ctx);
+        let return_value = FnReturn::new(&method.return_value, ctx);
+        let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
+
         Some(Self {
             common: FunctionCommon {
                 name: rust_method_name.to_string(),
                 godot_name: godot_method_name,
-                parameters: FnParam::new_range(&method.arguments, ctx),
-                return_value: FnReturn::new(&method.return_value, ctx),
+                parameters,
+                return_value,
                 is_vararg: method.is_vararg,
                 is_private,
                 is_virtual_required,
+                is_unsafe,
                 direction,
             },
             qualifier,
@@ -530,6 +536,17 @@ impl ClassMethod {
             .unwrap_or(godot_method_name);
 
         special_cases::maybe_rename_virtual_method(class_name, method_name)
+    }
+
+    fn function_uses_pointers(parameters: &[FnParam], return_value: &FnReturn) -> bool {
+        let has_pointer_params = parameters
+            .iter()
+            .any(|param| matches!(param.type_, RustTy::RawPointer { .. }));
+
+        let has_pointer_return = matches!(return_value.type_, Some(RustTy::RawPointer { .. }));
+
+        // No short-circuiting due to variable decls, but that's fine.
+        has_pointer_params || has_pointer_return
     }
 }
 
@@ -584,6 +601,7 @@ impl UtilityFunction {
                 is_vararg: function.is_vararg,
                 is_private,
                 is_virtual_required: false,
+                is_unsafe: false, // Utility functions don't use raw pointers.
                 direction: FnDirection::Outbound {
                     hash: function.hash,
                 },
