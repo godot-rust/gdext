@@ -400,13 +400,15 @@ fn make_user_class_impl(
         // See also __virtual_call() codegen.
         // This doesn't explicitly check if the base class inherits from Node (and thus has `_ready`), but the derive-macro already does
         // this for the `OnReady` field declaration.
-        let (hash_param, hash_check);
+        let (hash_param, matches_ready_hash);
         if cfg!(since_api = "4.4") {
             hash_param = quote! { hash: u32, };
-            hash_check = quote! { && hash == ::godot::sys::known_virtual_hashes::Node::ready };
+            matches_ready_hash = quote! {
+                (name, hash) == ::godot::sys::godot_virtual_consts::Node::ready
+            };
         } else {
             hash_param = TokenStream::new();
-            hash_check = TokenStream::new();
+            matches_ready_hash = quote! { name == "_ready" }
         }
 
         let default_virtual_fn = quote! {
@@ -417,7 +419,7 @@ fn make_user_class_impl(
                 use ::godot::obj::UserClass as _;
                 #tool_check
 
-                if name == "_ready" #hash_check {
+                if #matches_ready_hash {
                     #callback
                 } else {
                     None

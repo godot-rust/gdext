@@ -10,7 +10,7 @@ use crate::models::domain::{Class, ClassLike, ExtensionApi, FnDirection, Functio
 use proc_macro2::TokenStream;
 use quote::quote;
 
-pub fn make_virtual_hashes_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
+pub fn make_virtual_consts_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
     make_virtual_hashes_for_all_classes(&api.classes, ctx)
 }
 
@@ -39,13 +39,24 @@ fn make_virtual_hashes_for_class(class: &Class, ctx: &mut Context) -> TokenStrea
     };
 
     let constants = class.methods.iter().filter_map(|method| {
-        let FnDirection::Virtual { hash } = method.direction() else {
+        let FnDirection::Virtual {
+            #[cfg(since_api = "4.4")]
+            hash,
+        } = method.direction()
+        else {
             return None;
         };
 
-        let method_name = method.name_ident();
+        let rust_name = method.name_ident();
+        let godot_name_str = method.godot_name();
+
+        #[cfg(since_api = "4.4")]
         let constant = quote! {
-            pub const #method_name: u32 = #hash;
+            pub const #rust_name: (&'static str, u32) = (#godot_name_str, #hash);
+        };
+        #[cfg(before_api = "4.4")]
+        let constant = quote! {
+            pub const #rust_name: &'static str = #godot_name_str;
         };
 
         Some(constant)

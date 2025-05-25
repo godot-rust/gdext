@@ -102,14 +102,13 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
         && !decls
             .overridden_virtuals
             .iter()
-            .any(|v| v.method_name == "_ready")
+            .any(|v| v.rust_method_name == "_ready")
     {
         let match_arm = OverriddenVirtualFn {
             cfg_attrs: vec![],
-            method_name: "_ready".to_string(),
-            // Can't use `hashes::ready` here, as the base class might not be `Node` (see above why such a branch is still added).
-            #[cfg(since_api = "4.4")]
-            hash_constant: quote! { ::godot::sys::known_virtual_hashes::Node::ready },
+            rust_method_name: "_ready".to_string(),
+            // Can't use `virtuals::ready` here, as the base class might not be `Node` (see above why such a branch is still added).
+            godot_name_hash_constant: quote! { ::godot::sys::godot_virtual_consts::Node::ready },
             signature_info: SignatureInfo::fn_ready(),
             before_kind: BeforeKind::OnlyBefore,
             interface_trait: None,
@@ -136,16 +135,12 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
     };
 
     // See also __default_virtual_call() codegen.
-    let (hash_param, hashes_use, match_expr);
+    let (hash_param, match_expr);
     if cfg!(since_api = "4.4") {
         hash_param = quote! { hash: u32, };
-        hashes_use = quote! {
-            use ::godot::sys::known_virtual_hashes::#trait_base_class as hashes;
-        };
         match_expr = quote! { (name, hash) };
     } else {
         hash_param = TokenStream::new();
-        hashes_use = TokenStream::new();
         match_expr = quote! { name };
     };
 
@@ -164,9 +159,9 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             fn __virtual_call(name: &str, #hash_param) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
                 use ::godot::obj::UserClass as _;
+                use ::godot::sys::godot_virtual_consts::#trait_base_class as virtuals;
                 #tool_check
 
-                #hashes_use
                 match #match_expr {
                     #( #virtual_match_arms )*
                     _ => None,
@@ -459,7 +454,6 @@ fn handle_regular_virtual_fn<'a>(
     cfg_attrs: Vec<&'a venial::Attribute>,
     decls: &mut IDecls<'a>,
 ) -> Option<(venial::Punctuated<venial::FnParam>, Group)> {
-    #[cfg(since_api = "4.4")]
     let method_name_ident = original_method.name.clone();
     let method = util::reduce_to_signature(original_method);
 
@@ -518,12 +512,11 @@ fn handle_regular_virtual_fn<'a>(
     // each distinct method.
     decls.overridden_virtuals.push(OverriddenVirtualFn {
         cfg_attrs,
-        method_name: virtual_method_name,
+        rust_method_name: virtual_method_name,
         // If ever the `I*` verbatim validation is relaxed (it won't work with use-renames or other weird edge cases), the approach
-        // with known_virtual_hashes module could be changed to something like the following (GodotBase = nearest Godot base class):
+        // with godot_virtual_consts module could be changed to something like the following (GodotBase = nearest Godot base class):
         // __get_virtual_hash::<Self::GodotBase>("method")
-        #[cfg(since_api = "4.4")]
-        hash_constant: quote! { hashes::#method_name_ident },
+        godot_name_hash_constant: quote! { virtuals::#method_name_ident },
         signature_info,
         before_kind,
         interface_trait: Some(trait_path.clone()),
@@ -573,9 +566,11 @@ fn make_inactive_class_check(_return_value: TokenStream) -> TokenStream {
 
 struct OverriddenVirtualFn<'a> {
     cfg_attrs: Vec<&'a venial::Attribute>,
-    method_name: String,
-    #[cfg(since_api = "4.4")]
-    hash_constant: TokenStream,
+    rust_method_name: String,
+    /// Path to a pre-defined constant storing a `("_virtual_func", 123456789)` tuple with name and hash of the virtual function.
+    ///
+    /// Before Godot 4.4, this just stores the name `"_virtual_func"`.
+    godot_name_hash_constant: TokenStream,
     signature_info: SignatureInfo,
     before_kind: BeforeKind,
     interface_trait: Option<venial::TypeExpr>,
@@ -584,16 +579,7 @@ struct OverriddenVirtualFn<'a> {
 impl OverriddenVirtualFn<'_> {
     fn make_match_arm(&self, class_name: &Ident) -> TokenStream {
         let cfg_attrs = self.cfg_attrs.iter();
-        let method_name_str = self.method_name.as_str();
-
-        #[cfg(since_api = "4.4")]
-        let pattern = {
-            let hash_constant = &self.hash_constant;
-            quote! { (#method_name_str, #hash_constant) }
-        };
-
-        #[cfg(before_api = "4.4")]
-        let pattern = method_name_str;
+        let godot_name_hash_constant = &self.godot_name_hash_constant;
 
         // Lazily generate code for the actual work (calling user function).
         let method_callback = make_virtual_callback(
@@ -605,7 +591,7 @@ impl OverriddenVirtualFn<'_> {
 
         quote! {
             #(#cfg_attrs)*
-            #pattern => #method_callback,
+            #godot_name_hash_constant => #method_callback,
         }
     }
 }
