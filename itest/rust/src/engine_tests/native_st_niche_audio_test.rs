@@ -46,7 +46,7 @@ struct AudioEffectReceiverInstance {
 
 #[godot_api]
 impl IAudioEffectInstance for AudioEffectReceiverInstance {
-    unsafe fn process(
+    unsafe fn process_rawptr(
         &mut self,
         _src_buffer: *const std::ffi::c_void,
         dst_buffer: *mut AudioFrame,
@@ -80,7 +80,7 @@ struct AudioEffectAsserterInstance {
 
 #[godot_api]
 impl IAudioEffectInstance for AudioEffectAsserterInstance {
-    unsafe fn process(
+    unsafe fn process_rawptr(
         &mut self,
         src_buffer: *const std::ffi::c_void,
         _dst_buffer: *mut AudioFrame,

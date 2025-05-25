@@ -457,6 +457,7 @@ impl ClassMethod {
             },
         };
 
+        // May still be renamed further, for unsafe methods. Not done here because data to determine safety is not available yet.
         let rust_method_name = Self::make_virtual_method_name(class_name, &method.name);
 
         Self::from_json_inner(method, rust_method_name, class_name, direction, ctx)
@@ -512,9 +513,18 @@ impl ClassMethod {
         let return_value = FnReturn::new(&method.return_value, ctx);
         let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
 
+        // Future note: if further changes are made to the virtual method name, make sure to make it reversible so that #[godot_api]
+        // can match on the Godot name of the virtual method.
+        let rust_method_name = if is_unsafe && method.is_virtual {
+            // If the method is unsafe, we need to rename it to avoid conflicts with the safe version.
+            conv::make_unsafe_virtual_fn_name(rust_method_name)
+        } else {
+            rust_method_name.to_string()
+        };
+
         Some(Self {
             common: FunctionCommon {
-                name: rust_method_name.to_string(),
+                name: rust_method_name,
                 godot_name: godot_method_name,
                 parameters,
                 return_value,
