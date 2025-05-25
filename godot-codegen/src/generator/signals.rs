@@ -131,7 +131,7 @@ fn make_with_signals_impl(
 
 // Used outside, to document class with links to this type.
 pub fn make_collection_name(class_name: &TyName) -> Ident {
-    format_ident!("SignalsIn{}", class_name.rust_ty)
+    format_ident!("SignalsOf{}", class_name.rust_ty)
 }
 
 fn make_individual_struct_name(signal_name: &str) -> Ident {
