@@ -27,10 +27,8 @@ pub mod native_structures;
 pub mod notifications;
 pub mod signals;
 pub mod utility_functions;
+pub mod virtual_definition_consts;
 pub mod virtual_traits;
-
-#[cfg(since_api = "4.4")]
-pub mod virtual_hashes;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -43,11 +41,6 @@ pub mod virtual_hashes;
 pub fn generate_sys_module_file(sys_gen_path: &Path, submit_fn: &mut SubmitFn) {
     // Don't delegate #[cfg] to generated code; causes issues in release CI, reproducible with:
     // cargo clippy --features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde
-    let virtual_hashes_mod = if cfg!(since_api = "4.4") {
-        quote! { pub mod virtual_hashes; }
-    } else {
-        quote! {}
-    };
 
     let code = quote! {
         pub mod table_builtins;
@@ -56,11 +49,11 @@ pub fn generate_sys_module_file(sys_gen_path: &Path, submit_fn: &mut SubmitFn) {
         pub mod table_scene_classes;
         pub mod table_editor_classes;
         pub mod table_utilities;
-        #virtual_hashes_mod
 
         pub mod central;
         pub mod gdextension_interface;
         pub mod interface;
+        pub mod virtual_consts;
     };
 
     submit_fn(sys_gen_path.join("mod.rs"), code);
@@ -93,12 +86,9 @@ pub fn generate_sys_classes_file(
 
     // From 4.4 onward, generate table that maps all virtual methods to their known hashes.
     // This allows Godot to fall back to an older compatibility function if one is not supported.
-    #[cfg(since_api = "4.4")]
-    {
-        let code = virtual_hashes::make_virtual_hashes_file(api, ctx);
-        submit_fn(sys_gen_path.join("virtual_hashes.rs"), code);
-        watch.record("generate_virtual_hashes_file");
-    }
+    let code = virtual_definition_consts::make_virtual_consts_file(api, ctx);
+    submit_fn(sys_gen_path.join("virtual_consts.rs"), code);
+    watch.record("generate_virtual_consts_file");
 }
 
 pub fn generate_sys_utilities_file(
