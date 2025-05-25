@@ -614,7 +614,7 @@ pub(crate) fn make_params_exprs_virtual<'a>(
             RustTy::EngineClass { .. }
                 if !special_cases::is_class_method_param_required(
                     function_sig.surrounding_class().unwrap(),
-                    function_sig.name(),
+                    function_sig.godot_name(),
                     param_name,
                 ) =>
             {

@@ -212,8 +212,10 @@ fn make_all_virtual_methods(
         for method in base_class.methods.iter() {
             // Certain derived classes in Godot implement a virtual method declared in a base class, thus no longer
             // making it required. This isn't advertised in the extension_api, but instead manually tracked via special cases.
-            let derived_presence =
-                special_cases::get_derived_virtual_method_presence(class.name(), method.name());
+            let derived_presence = special_cases::get_derived_virtual_method_presence(
+                class.name(),
+                method.godot_name(),
+            );
 
             // Collect all changes in a Markdown table.
             let new = match derived_presence {

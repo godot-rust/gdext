@@ -19,7 +19,9 @@
 // * The deleted/private methods and classes deemed "dangerous" may be provided later as unsafe functions -- our safety model
 //   needs to first mature a bit.
 
-// NOTE: the methods are generally implemented on Godot types (e.g. AABB, not Aabb)
+// NOTE: the methods are generally implemented on Godot types and method names (e.g. AABB, not Aabb).
+// The Godot ones are stable and have a single source of truth; while Rust ones can be called at multiple times in the process (e.g. after
+// initial preprocessing/name mangling).
 
 // This file is deliberately private -- all checks must go through `special_cases`.
 
@@ -525,35 +527,35 @@ pub fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod
 /// instead of `Option<Gd<T>>`.
 pub fn is_class_method_param_required(
     class_name: &TyName,
-    method_name: &str,
+    godot_method_name: &str,
     param: &Ident, // Don't use `&str` to avoid to_string() allocations for each check on call-site.
 ) -> bool {
     // Note: magically, it's enough if a base class method is declared here; it will be picked up by derived classes.
 
-    match (class_name.godot_ty.as_str(), method_name) {
+    match (class_name.godot_ty.as_str(), godot_method_name) {
         // Nodes.
-        ("Node", "input") => true,
-        ("Node", "shortcut_input") => true,
-        ("Node", "unhandled_input") => true,
-        ("Node", "unhandled_key_input") => true,
+        ("Node", "_input") => true,
+        ("Node", "_shortcut_input") => true,
+        ("Node", "_unhandled_input") => true,
+        ("Node", "_unhandled_key_input") => true,
 
         // https://docs.godotengine.org/en/stable/classes/class_collisionobject2d.html#class-collisionobject2d-private-method-input-event
-        ("CollisionObject2D", "input_event") => true, // both parameters.
+        ("CollisionObject2D", "_input_event") => true, // both parameters.
 
         // UI.
-        ("Control", "gui_input") => true,
+        ("Control", "_gui_input") => true,
 
         // Script instances.
-        ("ScriptExtension", "instance_create") => param == "for_object",
-        ("ScriptExtension", "placeholder_instance_create") => param == "for_object",
-        ("ScriptExtension", "inherits_script") => param == "script",
-        ("ScriptExtension", "instance_has") => param == "object",
+        ("ScriptExtension", "_instance_create") => param == "for_object",
+        ("ScriptExtension", "_placeholder_instance_create") => param == "for_object",
+        ("ScriptExtension", "_inherits_script") => param == "script",
+        ("ScriptExtension", "_instance_has") => param == "object",
 
         // Editor.
-        ("EditorExportPlugin", "customize_resource") => param == "resource",
-        ("EditorExportPlugin", "customize_scene") => param == "scene",
+        ("EditorExportPlugin", "_customize_resource") => param == "resource",
+        ("EditorExportPlugin", "_customize_scene") => param == "scene",
 
-        ("EditorPlugin", "handles") => param == "object",
+        ("EditorPlugin", "_handles") => param == "object",
 
         _ => false,
     }
@@ -610,7 +612,7 @@ pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m
     // This is for non-virtual methods only. For virtual methods, use other handler below.
 
     match (class_name.godot_ty.as_str(), godot_method_name) {
-        // GDScript, GDScriptNativeClass, possibly more in the future
+        // GDScript class, possibly more in the future.
         (_, "new") => "instantiate",
 
         _ => godot_method_name,
@@ -618,17 +620,22 @@ pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m
 }
 
 // Maybe merge with above?
-pub fn maybe_rename_virtual_method<'m>(class_name: &TyName, rust_method_name: &'m str) -> &'m str {
-    match (class_name.godot_ty.as_str(), rust_method_name) {
-        // Workaround for 2 methods of same name; see https://github.com/godotengine/godot/pull/99181#issuecomment-2543311415.
-        ("AnimationNodeExtension", "process") => "process_animation",
+pub fn maybe_rename_virtual_method<'m>(
+    class_name: &TyName,
+    godot_method_name: &'m str,
+) -> Option<&'m str> {
+    let rust_name = match (class_name.godot_ty.as_str(), godot_method_name) {
+        // Should no longer be relevant (worked around https://github.com/godotengine/godot/pull/99181#issuecomment-2543311415).
+        // ("AnimationNodeExtension", "_process") => "process_animation",
 
         // A few classes define a virtual method called "_init" (distinct from the constructor)
         // -> rename those to avoid a name conflict in I* interface trait.
-        (_, "init") => "init_ext",
+        (_, "_init") => "init_ext",
 
-        _ => rust_method_name,
-    }
+        _ => return None,
+    };
+
+    Some(rust_name)
 }
 
 // TODO method-level extra docs, for:
@@ -659,187 +666,187 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
 }
 
 #[cfg(before_api = "4.4")]
-pub fn is_virtual_method_required(class_name: &TyName, rust_method_name: &str) -> bool {
+pub fn is_virtual_method_required(class_name: &TyName, godot_method_name: &str) -> bool {
     // Do not call is_derived_virtual_method_required() here; that is handled in virtual_traits.rs.
 
-    match (class_name.godot_ty.as_str(), rust_method_name) {
-        ("ScriptLanguageExtension", method) => method != "get_doc_comment_delimiters",
+    match (class_name.godot_ty.as_str(), godot_method_name) {
+        ("ScriptLanguageExtension", method) => method != "_get_doc_comment_delimiters",
 
-        ("ScriptExtension", "editor_can_reload_from_file")
-        | ("ScriptExtension", "can_instantiate")
-        | ("ScriptExtension", "get_base_script")
-        | ("ScriptExtension", "get_global_name")
-        | ("ScriptExtension", "inherits_script")
-        | ("ScriptExtension", "get_instance_base_type")
-        | ("ScriptExtension", "instance_create")
-        | ("ScriptExtension", "placeholder_instance_create")
-        | ("ScriptExtension", "instance_has")
-        | ("ScriptExtension", "has_source_code")
-        | ("ScriptExtension", "get_source_code")
-        | ("ScriptExtension", "set_source_code")
-        | ("ScriptExtension", "reload")
-        | ("ScriptExtension", "get_documentation")
-        | ("ScriptExtension", "has_method")
-        | ("ScriptExtension", "has_static_method")
-        | ("ScriptExtension", "get_method_info")
-        | ("ScriptExtension", "is_tool")
-        | ("ScriptExtension", "is_valid")
-        | ("ScriptExtension", "get_language")
-        | ("ScriptExtension", "has_script_signal")
-        | ("ScriptExtension", "get_script_signal_list")
-        | ("ScriptExtension", "has_property_default_value")
-        | ("ScriptExtension", "get_property_default_value")
-        | ("ScriptExtension", "update_exports")
-        | ("ScriptExtension", "get_script_method_list")
-        | ("ScriptExtension", "get_script_property_list")
-        | ("ScriptExtension", "get_member_line")
-        | ("ScriptExtension", "get_constants")
-        | ("ScriptExtension", "get_members")
-        | ("ScriptExtension", "is_placeholder_fallback_enabled")
-        | ("ScriptExtension", "get_rpc_config")
-        | ("EditorExportPlugin", "customize_resource")
-        | ("EditorExportPlugin", "customize_scene")
-        | ("EditorExportPlugin", "get_customization_configuration_hash")
-        | ("EditorExportPlugin", "get_name")
+        ("ScriptExtension", "_editor_can_reload_from_file")
+        | ("ScriptExtension", "_can_instantiate")
+        | ("ScriptExtension", "_get_base_script")
+        | ("ScriptExtension", "_get_global_name")
+        | ("ScriptExtension", "_inherits_script")
+        | ("ScriptExtension", "_get_instance_base_type")
+        | ("ScriptExtension", "_instance_create")
+        | ("ScriptExtension", "_placeholder_instance_create")
+        | ("ScriptExtension", "_instance_has")
+        | ("ScriptExtension", "_has_source_code")
+        | ("ScriptExtension", "_get_source_code")
+        | ("ScriptExtension", "_set_source_code")
+        | ("ScriptExtension", "_reload")
+        | ("ScriptExtension", "_get_documentation")
+        | ("ScriptExtension", "_has_method")
+        | ("ScriptExtension", "_has_static_method")
+        | ("ScriptExtension", "_get_method_info")
+        | ("ScriptExtension", "_is_tool")
+        | ("ScriptExtension", "_is_valid")
+        | ("ScriptExtension", "_get_language")
+        | ("ScriptExtension", "_has_script_signal")
+        | ("ScriptExtension", "_get_script_signal_list")
+        | ("ScriptExtension", "_has_property_default_value")
+        | ("ScriptExtension", "_get_property_default_value")
+        | ("ScriptExtension", "_update_exports")
+        | ("ScriptExtension", "_get_script_method_list")
+        | ("ScriptExtension", "_get_script_property_list")
+        | ("ScriptExtension", "_get_member_line")
+        | ("ScriptExtension", "_get_constants")
+        | ("ScriptExtension", "_get_members")
+        | ("ScriptExtension", "_is_placeholder_fallback_enabled")
+        | ("ScriptExtension", "_get_rpc_config")
+        | ("EditorExportPlugin", "_customize_resource")
+        | ("EditorExportPlugin", "_customize_scene")
+        | ("EditorExportPlugin", "_get_customization_configuration_hash")
+        | ("EditorExportPlugin", "_get_name")
         | ("EditorVCSInterface", _)
         | ("MovieWriter", _)
-        | ("TextServerExtension", "has_feature")
-        | ("TextServerExtension", "get_name")
-        | ("TextServerExtension", "get_features")
-        | ("TextServerExtension", "free_rid")
-        | ("TextServerExtension", "has")
-        | ("TextServerExtension", "create_font")
-        | ("TextServerExtension", "font_set_fixed_size")
-        | ("TextServerExtension", "font_get_fixed_size")
-        | ("TextServerExtension", "font_set_fixed_size_scale_mode")
-        | ("TextServerExtension", "font_get_fixed_size_scale_mode")
-        | ("TextServerExtension", "font_get_size_cache_list")
-        | ("TextServerExtension", "font_clear_size_cache")
-        | ("TextServerExtension", "font_remove_size_cache")
-        | ("TextServerExtension", "font_set_ascent")
-        | ("TextServerExtension", "font_get_ascent")
-        | ("TextServerExtension", "font_set_descent")
-        | ("TextServerExtension", "font_get_descent")
-        | ("TextServerExtension", "font_set_underline_position")
-        | ("TextServerExtension", "font_get_underline_position")
-        | ("TextServerExtension", "font_set_underline_thickness")
-        | ("TextServerExtension", "font_get_underline_thickness")
-        | ("TextServerExtension", "font_set_scale")
-        | ("TextServerExtension", "font_get_scale")
-        | ("TextServerExtension", "font_get_texture_count")
-        | ("TextServerExtension", "font_clear_textures")
-        | ("TextServerExtension", "font_remove_texture")
-        | ("TextServerExtension", "font_set_texture_image")
-        | ("TextServerExtension", "font_get_texture_image")
-        | ("TextServerExtension", "font_get_glyph_list")
-        | ("TextServerExtension", "font_clear_glyphs")
-        | ("TextServerExtension", "font_remove_glyph")
-        | ("TextServerExtension", "font_get_glyph_advance")
-        | ("TextServerExtension", "font_set_glyph_advance")
-        | ("TextServerExtension", "font_get_glyph_offset")
-        | ("TextServerExtension", "font_set_glyph_offset")
-        | ("TextServerExtension", "font_get_glyph_size")
-        | ("TextServerExtension", "font_set_glyph_size")
-        | ("TextServerExtension", "font_get_glyph_uv_rect")
-        | ("TextServerExtension", "font_set_glyph_uv_rect")
-        | ("TextServerExtension", "font_get_glyph_texture_idx")
-        | ("TextServerExtension", "font_set_glyph_texture_idx")
-        | ("TextServerExtension", "font_get_glyph_texture_rid")
-        | ("TextServerExtension", "font_get_glyph_texture_size")
-        | ("TextServerExtension", "font_get_glyph_index")
-        | ("TextServerExtension", "font_get_char_from_glyph_index")
-        | ("TextServerExtension", "font_has_char")
-        | ("TextServerExtension", "font_get_supported_chars")
-        | ("TextServerExtension", "font_draw_glyph")
-        | ("TextServerExtension", "font_draw_glyph_outline")
-        | ("TextServerExtension", "create_shaped_text")
-        | ("TextServerExtension", "shaped_text_clear")
-        | ("TextServerExtension", "shaped_text_add_string")
-        | ("TextServerExtension", "shaped_text_add_object")
-        | ("TextServerExtension", "shaped_text_resize_object")
-        | ("TextServerExtension", "shaped_get_span_count")
-        | ("TextServerExtension", "shaped_get_span_meta")
-        | ("TextServerExtension", "shaped_set_span_update_font")
-        | ("TextServerExtension", "shaped_text_substr")
-        | ("TextServerExtension", "shaped_text_get_parent")
-        | ("TextServerExtension", "shaped_text_shape")
-        | ("TextServerExtension", "shaped_text_is_ready")
-        | ("TextServerExtension", "shaped_text_get_glyphs")
-        | ("TextServerExtension", "shaped_text_sort_logical")
-        | ("TextServerExtension", "shaped_text_get_glyph_count")
-        | ("TextServerExtension", "shaped_text_get_range")
-        | ("TextServerExtension", "shaped_text_get_trim_pos")
-        | ("TextServerExtension", "shaped_text_get_ellipsis_pos")
-        | ("TextServerExtension", "shaped_text_get_ellipsis_glyphs")
-        | ("TextServerExtension", "shaped_text_get_ellipsis_glyph_count")
-        | ("TextServerExtension", "shaped_text_get_objects")
-        | ("TextServerExtension", "shaped_text_get_object_rect")
-        | ("TextServerExtension", "shaped_text_get_object_range")
-        | ("TextServerExtension", "shaped_text_get_object_glyph")
-        | ("TextServerExtension", "shaped_text_get_size")
-        | ("TextServerExtension", "shaped_text_get_ascent")
-        | ("TextServerExtension", "shaped_text_get_descent")
-        | ("TextServerExtension", "shaped_text_get_width")
-        | ("TextServerExtension", "shaped_text_get_underline_position")
-        | ("TextServerExtension", "shaped_text_get_underline_thickness")
-        | ("AudioStreamPlayback", "mix")
-        | ("AudioStreamPlaybackResampled", "mix_resampled")
-        | ("AudioStreamPlaybackResampled", "get_stream_sampling_rate")
-        | ("AudioEffectInstance", "process")
-        | ("AudioEffect", "instantiate")
+        | ("TextServerExtension", "_has_feature")
+        | ("TextServerExtension", "_get_name")
+        | ("TextServerExtension", "_get_features")
+        | ("TextServerExtension", "_free_rid")
+        | ("TextServerExtension", "_has")
+        | ("TextServerExtension", "_create_font")
+        | ("TextServerExtension", "_font_set_fixed_size")
+        | ("TextServerExtension", "_font_get_fixed_size")
+        | ("TextServerExtension", "_font_set_fixed_size_scale_mode")
+        | ("TextServerExtension", "_font_get_fixed_size_scale_mode")
+        | ("TextServerExtension", "_font_get_size_cache_list")
+        | ("TextServerExtension", "_font_clear_size_cache")
+        | ("TextServerExtension", "_font_remove_size_cache")
+        | ("TextServerExtension", "_font_set_ascent")
+        | ("TextServerExtension", "_font_get_ascent")
+        | ("TextServerExtension", "_font_set_descent")
+        | ("TextServerExtension", "_font_get_descent")
+        | ("TextServerExtension", "_font_set_underline_position")
+        | ("TextServerExtension", "_font_get_underline_position")
+        | ("TextServerExtension", "_font_set_underline_thickness")
+        | ("TextServerExtension", "_font_get_underline_thickness")
+        | ("TextServerExtension", "_font_set_scale")
+        | ("TextServerExtension", "_font_get_scale")
+        | ("TextServerExtension", "_font_get_texture_count")
+        | ("TextServerExtension", "_font_clear_textures")
+        | ("TextServerExtension", "_font_remove_texture")
+        | ("TextServerExtension", "_font_set_texture_image")
+        | ("TextServerExtension", "_font_get_texture_image")
+        | ("TextServerExtension", "_font_get_glyph_list")
+        | ("TextServerExtension", "_font_clear_glyphs")
+        | ("TextServerExtension", "_font_remove_glyph")
+        | ("TextServerExtension", "_font_get_glyph_advance")
+        | ("TextServerExtension", "_font_set_glyph_advance")
+        | ("TextServerExtension", "_font_get_glyph_offset")
+        | ("TextServerExtension", "_font_set_glyph_offset")
+        | ("TextServerExtension", "_font_get_glyph_size")
+        | ("TextServerExtension", "_font_set_glyph_size")
+        | ("TextServerExtension", "_font_get_glyph_uv_rect")
+        | ("TextServerExtension", "_font_set_glyph_uv_rect")
+        | ("TextServerExtension", "_font_get_glyph_texture_idx")
+        | ("TextServerExtension", "_font_set_glyph_texture_idx")
+        | ("TextServerExtension", "_font_get_glyph_texture_rid")
+        | ("TextServerExtension", "_font_get_glyph_texture_size")
+        | ("TextServerExtension", "_font_get_glyph_index")
+        | ("TextServerExtension", "_font_get_char_from_glyph_index")
+        | ("TextServerExtension", "_font_has_char")
+        | ("TextServerExtension", "_font_get_supported_chars")
+        | ("TextServerExtension", "_font_draw_glyph")
+        | ("TextServerExtension", "_font_draw_glyph_outline")
+        | ("TextServerExtension", "_create_shaped_text")
+        | ("TextServerExtension", "_shaped_text_clear")
+        | ("TextServerExtension", "_shaped_text_add_string")
+        | ("TextServerExtension", "_shaped_text_add_object")
+        | ("TextServerExtension", "_shaped_text_resize_object")
+        | ("TextServerExtension", "_shaped_get_span_count")
+        | ("TextServerExtension", "_shaped_get_span_meta")
+        | ("TextServerExtension", "_shaped_set_span_update_font")
+        | ("TextServerExtension", "_shaped_text_substr")
+        | ("TextServerExtension", "_shaped_text_get_parent")
+        | ("TextServerExtension", "_shaped_text_shape")
+        | ("TextServerExtension", "_shaped_text_is_ready")
+        | ("TextServerExtension", "_shaped_text_get_glyphs")
+        | ("TextServerExtension", "_shaped_text_sort_logical")
+        | ("TextServerExtension", "_shaped_text_get_glyph_count")
+        | ("TextServerExtension", "_shaped_text_get_range")
+        | ("TextServerExtension", "_shaped_text_get_trim_pos")
+        | ("TextServerExtension", "_shaped_text_get_ellipsis_pos")
+        | ("TextServerExtension", "_shaped_text_get_ellipsis_glyphs")
+        | ("TextServerExtension", "_shaped_text_get_ellipsis_glyph_count")
+        | ("TextServerExtension", "_shaped_text_get_objects")
+        | ("TextServerExtension", "_shaped_text_get_object_rect")
+        | ("TextServerExtension", "_shaped_text_get_object_range")
+        | ("TextServerExtension", "_shaped_text_get_object_glyph")
+        | ("TextServerExtension", "_shaped_text_get_size")
+        | ("TextServerExtension", "_shaped_text_get_ascent")
+        | ("TextServerExtension", "_shaped_text_get_descent")
+        | ("TextServerExtension", "_shaped_text_get_width")
+        | ("TextServerExtension", "_shaped_text_get_underline_position")
+        | ("TextServerExtension", "_shaped_text_get_underline_thickness")
+        | ("AudioStreamPlayback", "_mix")
+        | ("AudioStreamPlaybackResampled", "_mix_resampled")
+        | ("AudioStreamPlaybackResampled", "_get_stream_sampling_rate")
+        | ("AudioEffectInstance", "_process")
+        | ("AudioEffect", "_instantiate")
         | ("PhysicsDirectBodyState2DExtension", _)
         | ("PhysicsDirectBodyState3DExtension", _)
         | ("PhysicsDirectSpaceState2DExtension", _)
         | ("PhysicsDirectSpaceState3DExtension", _)
         | ("PhysicsServer3DExtension", _)
         | ("PhysicsServer2DExtension", _)
-        | ("EditorScript", "run")
-        | ("VideoStreamPlayback", "update")
+        | ("EditorScript", "_run")
+        | ("VideoStreamPlayback", "_update")
         | ("EditorFileSystemImportFormatSupportQuery", _)
         | ("Mesh", _)
-        | ("Texture2D", "get_width")
-        | ("Texture2D", "get_height")
+        | ("Texture2D", "_get_width")
+        | ("Texture2D", "_get_height")
         | ("Texture3D", _)
         | ("TextureLayered", _)
-        | ("StyleBox", "draw")
-        | ("Material", "get_shader_rid")
-        | ("Material", "get_shader_mode")
-        | ("PacketPeerExtension", "get_available_packet_count")
-        | ("PacketPeerExtension", "get_max_packet_size")
-        | ("StreamPeerExtension", "get_available_bytes")
-        | ("WebRTCDataChannelExtension", "poll")
-        | ("WebRTCDataChannelExtension", "close")
-        | ("WebRTCDataChannelExtension", "set_write_mode")
-        | ("WebRTCDataChannelExtension", "get_write_mode")
-        | ("WebRTCDataChannelExtension", "was_string_packet")
-        | ("WebRTCDataChannelExtension", "get_ready_state")
-        | ("WebRTCDataChannelExtension", "get_label")
-        | ("WebRTCDataChannelExtension", "is_ordered")
-        | ("WebRTCDataChannelExtension", "get_id")
-        | ("WebRTCDataChannelExtension", "get_max_packet_life_time")
-        | ("WebRTCDataChannelExtension", "get_max_retransmits")
-        | ("WebRTCDataChannelExtension", "get_protocol")
-        | ("WebRTCDataChannelExtension", "is_negotiated")
-        | ("WebRTCDataChannelExtension", "get_buffered_amount")
-        | ("WebRTCDataChannelExtension", "get_available_packet_count")
-        | ("WebRTCDataChannelExtension", "get_max_packet_size")
+        | ("StyleBox", "_draw")
+        | ("Material", "_get_shader_rid")
+        | ("Material", "_get_shader_mode")
+        | ("PacketPeerExtension", "_get_available_packet_count")
+        | ("PacketPeerExtension", "_get_max_packet_size")
+        | ("StreamPeerExtension", "_get_available_bytes")
+        | ("WebRTCDataChannelExtension", "_poll")
+        | ("WebRTCDataChannelExtension", "_close")
+        | ("WebRTCDataChannelExtension", "_set_write_mode")
+        | ("WebRTCDataChannelExtension", "_get_write_mode")
+        | ("WebRTCDataChannelExtension", "_was_string_packet")
+        | ("WebRTCDataChannelExtension", "_get_ready_state")
+        | ("WebRTCDataChannelExtension", "_get_label")
+        | ("WebRTCDataChannelExtension", "_is_ordered")
+        | ("WebRTCDataChannelExtension", "_get_id")
+        | ("WebRTCDataChannelExtension", "_get_max_packet_life_time")
+        | ("WebRTCDataChannelExtension", "_get_max_retransmits")
+        | ("WebRTCDataChannelExtension", "_get_protocol")
+        | ("WebRTCDataChannelExtension", "_is_negotiated")
+        | ("WebRTCDataChannelExtension", "_get_buffered_amount")
+        | ("WebRTCDataChannelExtension", "_get_available_packet_count")
+        | ("WebRTCDataChannelExtension", "_get_max_packet_size")
         | ("WebRTCPeerConnectionExtension", _)
-        | ("MultiplayerPeerExtension", "get_available_packet_count")
-        | ("MultiplayerPeerExtension", "get_max_packet_size")
-        | ("MultiplayerPeerExtension", "set_transfer_channel")
-        | ("MultiplayerPeerExtension", "get_transfer_channel")
-        | ("MultiplayerPeerExtension", "set_transfer_mode")
-        | ("MultiplayerPeerExtension", "get_transfer_mode")
-        | ("MultiplayerPeerExtension", "set_target_peer")
-        | ("MultiplayerPeerExtension", "get_packet_peer")
-        | ("MultiplayerPeerExtension", "get_packet_mode")
-        | ("MultiplayerPeerExtension", "get_packet_channel")
-        | ("MultiplayerPeerExtension", "is_server")
-        | ("MultiplayerPeerExtension", "poll")
-        | ("MultiplayerPeerExtension", "close")
-        | ("MultiplayerPeerExtension", "disconnect_peer")
-        | ("MultiplayerPeerExtension", "get_unique_id")
-        | ("MultiplayerPeerExtension", "get_connection_status") => true,
+        | ("MultiplayerPeerExtension", "_get_available_packet_count")
+        | ("MultiplayerPeerExtension", "_get_max_packet_size")
+        | ("MultiplayerPeerExtension", "_set_transfer_channel")
+        | ("MultiplayerPeerExtension", "_get_transfer_channel")
+        | ("MultiplayerPeerExtension", "_set_transfer_mode")
+        | ("MultiplayerPeerExtension", "_get_transfer_mode")
+        | ("MultiplayerPeerExtension", "_set_target_peer")
+        | ("MultiplayerPeerExtension", "_get_packet_peer")
+        | ("MultiplayerPeerExtension", "_get_packet_mode")
+        | ("MultiplayerPeerExtension", "_get_packet_channel")
+        | ("MultiplayerPeerExtension", "_is_server")
+        | ("MultiplayerPeerExtension", "_poll")
+        | ("MultiplayerPeerExtension", "_close")
+        | ("MultiplayerPeerExtension", "_disconnect_peer")
+        | ("MultiplayerPeerExtension", "_get_unique_id")
+        | ("MultiplayerPeerExtension", "_get_connection_status") => true,
 
         _ => false,
     }
@@ -847,10 +854,10 @@ pub fn is_virtual_method_required(class_name: &TyName, rust_method_name: &str) -
 
 // Adjustments for Godot 4.4+, where a virtual method is no longer needed (e.g. in a derived class).
 #[rustfmt::skip]
-pub fn get_derived_virtual_method_presence(class_name: &TyName, rust_method_name: &str) -> VirtualMethodPresence {
-     match (class_name.godot_ty.as_str(), rust_method_name) {
+pub fn get_derived_virtual_method_presence(class_name: &TyName, godot_method_name: &str) -> VirtualMethodPresence {
+     match (class_name.godot_ty.as_str(), godot_method_name) {
          // Required in base class, no longer in derived; https://github.com/godot-rust/gdext/issues/1133.
-         | ("AudioStreamPlaybackResampled", "mix")
+         | ("AudioStreamPlaybackResampled", "_mix")
          => VirtualMethodPresence::Remove,
 
          // Default: inherit presence from base class.
@@ -868,7 +875,7 @@ pub fn is_class_level_server(class_name: &str) -> bool {
         // TODO: These should actually be at level `Core`
         | "Object" | "OpenXRExtensionWrapperExtension" 
 
-        // Shouldn't be inherited from in rust but are still servers.
+        // Declared final (un-inheritable) in Rust, but those are still servers.
         | "AudioServer" | "CameraServer" | "NavigationServer2D" | "NavigationServer3D" | "RenderingServer" | "TranslationServer" | "XRServer" 
 
         // PhysicsServer2D

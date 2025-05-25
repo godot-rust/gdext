@@ -489,7 +489,7 @@ impl ClassMethod {
         // Since Godot 4.4, GDExtension advertises whether virtual methods have a default implementation or are required to be overridden.
         #[cfg(before_api = "4.4")]
         let is_virtual_required =
-            special_cases::is_virtual_method_required(&class_name, rust_method_name);
+            special_cases::is_virtual_method_required(&class_name, &method.name);
 
         #[cfg(since_api = "4.4")]
         #[allow(clippy::let_and_return)]
@@ -530,12 +530,17 @@ impl ClassMethod {
     }
 
     fn make_virtual_method_name<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
-        // Remove leading underscore from virtual method names.
-        let method_name = godot_method_name
-            .strip_prefix('_')
-            .unwrap_or(godot_method_name);
+        // Hardcoded overrides.
+        if let Some(rust_name) =
+            special_cases::maybe_rename_virtual_method(class_name, godot_method_name)
+        {
+            return rust_name;
+        }
 
-        special_cases::maybe_rename_virtual_method(class_name, method_name)
+        // In general, just rlemove leading underscore from virtual method names.
+        godot_method_name
+            .strip_prefix('_')
+            .unwrap_or(godot_method_name)
     }
 
     fn function_uses_pointers(parameters: &[FnParam], return_value: &FnReturn) -> bool {
