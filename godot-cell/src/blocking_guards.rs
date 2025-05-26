@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Condvar, Mutex};
 
@@ -16,7 +17,7 @@ use crate::guards::{MutGuard, RefGuard};
 /// See [`panicking::RefGuard`](crate::panicking::RefGuard) for more details.
 #[derive(Debug)]
 pub struct RefGuardBlocking<'a, T> {
-    inner: Option<RefGuard<'a, T>>,
+    inner: ManuallyDrop<RefGuard<'a, T>>,
     mut_condition: Arc<Condvar>,
     state: Arc<Mutex<ThreadTracker>>,
 }
@@ -28,7 +29,7 @@ impl<'a, T> RefGuardBlocking<'a, T> {
         state: Arc<Mutex<ThreadTracker>>,
     ) -> Self {
         Self {
-            inner: Some(inner),
+            inner: ManuallyDrop::new(inner),
             mut_condition,
             state,
         }
@@ -39,7 +40,7 @@ impl<'a, T> Deref for RefGuardBlocking<'a, T> {
     type Target = <RefGuard<'a, T> as Deref>::Target;
 
     fn deref(&self) -> &Self::Target {
-        self.inner.as_ref().unwrap().deref()
+        self.inner.deref().deref()
     }
 }
 
@@ -49,7 +50,8 @@ impl<T> Drop for RefGuardBlocking<'_, T> {
 
         state_lock.decrement_current_thread_shared_count();
 
-        drop(self.inner.take());
+        // SAFETY: guard is dropped exactly once, here.
+        unsafe { ManuallyDrop::drop(&mut self.inner) };
 
         self.mut_condition.notify_one();
         drop(state_lock);
@@ -61,7 +63,7 @@ impl<T> Drop for RefGuardBlocking<'_, T> {
 /// See [`panicking::MutGuard`](crate::panicking::MutGuard) for more details.
 #[derive(Debug)]
 pub struct MutGuardBlocking<'a, T> {
-    inner: Option<MutGuard<'a, T>>,
+    inner: ManuallyDrop<MutGuard<'a, T>>,
     mut_condition: Arc<Condvar>,
     immut_condition: Arc<Condvar>,
 }
@@ -73,7 +75,7 @@ impl<'a, T> MutGuardBlocking<'a, T> {
         immut_condition: Arc<Condvar>,
     ) -> Self {
         Self {
-            inner: Some(inner),
+            inner: ManuallyDrop::new(inner),
             immut_condition,
             mut_condition,
         }
@@ -84,19 +86,20 @@ impl<'a, T> Deref for MutGuardBlocking<'a, T> {
     type Target = <MutGuard<'a, T> as Deref>::Target;
 
     fn deref(&self) -> &Self::Target {
-        self.inner.as_ref().unwrap().deref()
+        self.inner.deref().deref()
     }
 }
 
 impl<T> DerefMut for MutGuardBlocking<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.inner.as_mut().unwrap().deref_mut()
+        self.inner.deref_mut().deref_mut()
     }
 }
 
 impl<T> Drop for MutGuardBlocking<'_, T> {
     fn drop(&mut self) {
-        drop(self.inner.take());
+        // SAFETY: guard is dropped exactly once, here.
+        unsafe { ManuallyDrop::drop(&mut self.inner) };
 
         self.mut_condition.notify_one();
         self.immut_condition.notify_all();
