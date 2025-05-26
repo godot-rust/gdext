@@ -284,6 +284,8 @@ pub struct FunctionCommon {
     pub is_vararg: bool,
     pub is_private: bool,
     pub is_virtual_required: bool,
+    /// Whether raw pointers appear in signature. Affects safety, and in case of virtual methods, the name.
+    pub is_unsafe: bool,
     pub direction: FnDirection,
 }
 

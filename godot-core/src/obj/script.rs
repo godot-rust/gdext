@@ -42,8 +42,8 @@ use crate::obj::Inherits;
 ///
 /// To use script instances, implement this trait for your own type.
 ///
-/// You can use the [`create_script_instance()`] function to create a low-level pointer to your script instance.
-/// This pointer should then be returned from [`IScriptExtension::instance_create()`](crate::classes::IScriptExtension::instance_create).
+/// You can use the [`create_script_instance()`] function to create a low-level pointer to your script instance. This pointer should then be
+/// returned from [`IScriptExtension::instance_create_rawptr()`](crate::classes::IScriptExtension::instance_create_rawptr).
 ///
 /// # Example
 ///

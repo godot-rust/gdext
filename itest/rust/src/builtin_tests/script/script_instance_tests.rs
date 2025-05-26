@@ -42,7 +42,7 @@ impl IScriptExtension for TestScript {
         true
     }
 
-    unsafe fn instance_create(&self, for_object: Gd<Object>) -> *mut c_void {
+    unsafe fn instance_create_rawptr(&self, for_object: Gd<Object>) -> *mut c_void {
         create_script_instance(TestScriptInstance::new(self.to_gd().upcast()), for_object)
     }
 
@@ -55,7 +55,7 @@ impl IScriptExtension for TestScript {
     fn get_global_name(&self) -> StringName { unreachable!() }
     fn inherits_script(&self, _script: Gd<Script>) -> bool { unreachable!() }
     fn get_instance_base_type(&self) -> StringName { unreachable!() }
-    unsafe fn placeholder_instance_create(&self, _for_object: Gd<Object>) -> *mut c_void { unreachable!() }
+    unsafe fn placeholder_instance_create_rawptr(&self, _for_object: Gd<Object>) -> *mut c_void { unreachable!() }
     fn instance_has(&self, _object: Gd<Object>) -> bool { unreachable!() }
     fn has_source_code(&self) -> bool { unreachable!() }
     fn get_source_code(&self) -> GString { unreachable!() }
@@ -76,8 +76,8 @@ impl IScriptExtension for TestScript {
     fn get_script_method_list(&self) -> Array<Dictionary> { unreachable!() }
     fn get_script_property_list(&self) -> Array<Dictionary> { unreachable!() }
     fn get_member_line(&self, _member: StringName) -> i32 { unreachable!() }
-    fn get_constants(&self) -> godot::prelude::Dictionary { unreachable!() }
-    fn get_members(&self) -> godot::prelude::Array<StringName> { unreachable!() }
+    fn get_constants(&self) -> Dictionary { unreachable!() }
+    fn get_members(&self) -> Array<StringName> { unreachable!() }
     fn is_placeholder_fallback_enabled(&self) -> bool { unreachable!() }
     fn get_rpc_config(&self) -> Variant { unreachable!() }
     
@@ -190,7 +190,10 @@ impl ScriptInstance for TestScriptInstance {
                 Ok(result)
             }
 
-            _ => Err(sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD),
+            other => {
+                println!("CALL: {other} with args: {args:?}");
+                Err(sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD)
+            }
         }
     }
 
@@ -302,7 +305,7 @@ impl IScriptLanguageExtension for TestScriptLanguage {
     fn debug_get_stack_level_function(&self, _level: i32) -> GString { unreachable!() }
     fn debug_get_stack_level_locals(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> Dictionary { unreachable!() }
     fn debug_get_stack_level_members(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> Dictionary { unreachable!() }
-    unsafe fn debug_get_stack_level_instance(&mut self, _level: i32) -> *mut c_void { unreachable!() }
+    unsafe fn debug_get_stack_level_instance_rawptr(&mut self, _level: i32) -> *mut c_void { unreachable!() }
     fn debug_get_globals(&mut self, _max_subitems: i32,_max_depthh: i32) -> Dictionary { unreachable!() }
     fn debug_parse_stack_level_expression(&mut self, _level: i32, _expression: GString, _max_subitems: i32, _max_depth: i32) -> GString { unreachable!() }
     fn debug_get_current_stack_info(&mut self) -> Array<Dictionary> { unreachable!() }
@@ -314,8 +317,8 @@ impl IScriptLanguageExtension for TestScriptLanguage {
     fn get_public_annotations(&self) -> Array<Dictionary> { unreachable!() }
     fn profiling_start(&mut self) { unreachable!() }
     fn profiling_stop(&mut self) { unreachable!() }
-    unsafe fn profiling_get_accumulated_data(&mut self, _info_array: *mut godot::classes::native::ScriptLanguageExtensionProfilingInfo, _info_max: i32) -> i32 { unreachable!() }
-    unsafe fn profiling_get_frame_data(&mut self, _info_array: *mut godot::classes::native::ScriptLanguageExtensionProfilingInfo, _info_max: i32) -> i32 { unreachable!() }
+    unsafe fn profiling_get_accumulated_data_rawptr(&mut self, _info_array: *mut godot::classes::native::ScriptLanguageExtensionProfilingInfo, _info_max: i32) -> i32 { unreachable!() }
+    unsafe fn profiling_get_frame_data_rawptr(&mut self, _info_array: *mut godot::classes::native::ScriptLanguageExtensionProfilingInfo, _info_max: i32) -> i32 { unreachable!() }
     fn frame(&mut self) { unreachable!() }
     fn handles_global_class_type(&self, _type_: GString) -> bool { unreachable!() }
     fn get_global_class_name(&self, _path: GString) -> Dictionary { unreachable!() }
