@@ -45,6 +45,7 @@ pub fn generate_class_files(
             own_notification_enum_name: generated_class.notification_enum.try_to_own_name(),
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub_sidecar: generated_class.has_sidecar_module,
+            has_interface_trait: generated_class.has_interface_trait,
         });
     }
 
@@ -63,6 +64,7 @@ struct GeneratedClass {
     inherits_macro_ident: Option<Ident>,
     /// Sidecars are the associated modules with related enum/flag types, such as `node_3d` for `Node3D` class.
     has_sidecar_module: bool,
+    has_interface_trait: bool,
 }
 
 struct GeneratedClassModule {
@@ -71,6 +73,7 @@ struct GeneratedClassModule {
     own_notification_enum_name: Option<Ident>,
     inherits_macro_ident: Option<Ident>,
     is_pub_sidecar: bool,
+    has_interface_trait: bool,
 }
 
 struct Construction {
@@ -86,7 +89,6 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     // Strings
     let godot_class_str = &class_name.godot_ty;
     let class_name_cstr = util::c_str(godot_class_str);
-    let virtual_trait_str = class_name.virtual_trait_name();
 
     // Idents and tokens
     let (base_ty, base_ident_opt) = match class.inherits.as_ref() {
@@ -157,23 +159,31 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     // This checks if token streams (i.e. code) is empty.
     let has_sidecar_module = !enums.is_empty() || !builders.is_empty() || has_own_signals;
 
+    let module_doc = docs::make_module_doc(class_name);
+
+    // Classes that can't be inherited from don't need to provide an interface with overridable virtual methods.
+    let has_interface_trait = !class.is_final;
+    let interface_trait = if has_interface_trait {
+        let virtual_trait_str = class_name.virtual_trait_name();
+        virtual_traits::make_virtual_methods_trait(
+            class,
+            &all_bases,
+            &virtual_trait_str,
+            &notification_enum_name,
+            &cfg_attributes,
+            view,
+        )
+    } else {
+        TokenStream::new()
+    };
+
     let class_doc = docs::make_class_doc(
         class_name,
         base_ident_opt,
         notification_enum.is_some(),
         has_sidecar_module,
+        has_interface_trait,
         has_own_signals,
-    );
-
-    let module_doc = docs::make_module_doc(class_name);
-
-    let virtual_trait = virtual_traits::make_virtual_methods_trait(
-        class,
-        &all_bases,
-        &virtual_trait_str,
-        &notification_enum_name,
-        &cfg_attributes,
-        view,
     );
 
     // notify() and notify_reversed() are added after other methods, to list others first in docs.
@@ -220,7 +230,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                 // The RawGd<T>'s identity field can be None because of generality (it can represent null pointers, as opposed to Gd<T>).
                 rtti: Option<crate::private::ObjectRtti>,
             }
-            #virtual_trait
+            #interface_trait
             #notification_enum
             impl #class_name {
                 #constructor
@@ -274,6 +284,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         },
         inherits_macro_ident,
         has_sidecar_module,
+        has_interface_trait,
     }
 }
 
@@ -351,10 +362,14 @@ fn make_class_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> Tok
 
         let vis = is_pub.then_some(quote! { pub });
 
+        let interface_reexport = m.has_interface_trait.then(|| {
+            quote! { pub use #module_name::re_export::#virtual_trait_name; }
+        });
+
         let class_decl = quote! {
             #vis mod #module_name;
             pub use #module_name::re_export::#class_name;
-            pub use #module_name::re_export::#virtual_trait_name;
+            #interface_reexport
         };
         class_decls.push(class_decl);
 
@@ -452,7 +467,7 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
     let final_doc = if class.is_final {
         Some(
             "\n\n# Final class\n\n\
-            This class is _final_, meaning you cannot inherit from it.",
+            This class is _final_, meaning you cannot inherit from it, and it comes without `I*` interface trait.",
         )
     } else {
         None

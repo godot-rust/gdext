@@ -19,6 +19,7 @@ pub fn make_class_doc(
     base_ident_opt: Option<Ident>,
     has_notification_enum: bool,
     has_sidecar_module: bool,
+    has_interface_trait: bool,
     has_signal_collection: bool,
 ) -> String {
     let TyName { rust_ty, godot_ty } = class_name;
@@ -62,7 +63,12 @@ pub fn make_class_doc(
         godot_ty.to_ascii_lowercase()
     );
 
-    let trait_name = class_name.virtual_trait_name();
+    let interface_trait_line = if has_interface_trait {
+        let trait_name = class_name.virtual_trait_name();
+        format!("* [`{trait_name}`][crate::classes::{trait_name}]: virtual methods\n")
+    } else {
+        String::new()
+    };
 
     let notes = special_cases::get_class_extra_docs(class_name)
         .map(|notes| format!("# Specific notes for this class\n\n{}", notes))
@@ -75,7 +81,7 @@ pub fn make_class_doc(
         \
         Related symbols:\n\n\
         {sidecar_signal_lines}\
-        * [`{trait_name}`][crate::classes::{trait_name}]: virtual methods\n\
+        {interface_trait_line}\
         {signal_line}\
         {notify_line}\
         \n\n\
