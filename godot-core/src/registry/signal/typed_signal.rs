@@ -9,10 +9,10 @@ use super::{make_callable_name, make_godot_fn, ConnectBuilder, SignalObject};
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
-use crate::meta::{FromGodot, UniformObjectDeref};
+use crate::meta::{InParamTuple, UniformObjectDeref};
 use crate::obj::{Gd, GodotClass, WithBaseField, WithSignals};
+use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 use std::borrow::Cow;
-use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 
@@ -174,91 +174,85 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     }
 }
 
-macro_rules! impl_signal_connect {
-    ($( #[$attr:meta] )? $( $args:ident : $Ps:ident ),*) => {
-        $( #[$attr] )?
-        impl<C: WithSignals, $($Ps: Debug + FromGodot + 'static),*>
-            TypedSignal<'_, C, ($($Ps,)*)> {
-            /// Connect a non-member function (global function, associated function or closure).
-            ///
-            /// Example usages:
-            /// ```ignore
-            /// sig.connect(Self::static_func);
-            /// sig.connect(global_func);
-            /// sig.connect(|arg| { /* closure */ });
-            /// ```
-            ///
-            /// - To connect to a method on the object that owns this signal, use [`connect_self()`][Self::connect_self].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
-            pub fn connect<F, R>(&self, mut function: F)
-            where
-                F: FnMut($($Ps),*) -> R + 'static,
-            {
-                let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
-                    function($($args),*);
-                });
+impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
+    /// Connect a non-member function (global function, associated function or closure).
+    ///
+    /// Example usages:
+    /// ```ignore
+    /// sig.connect(Self::static_func);
+    /// sig.connect(global_func);
+    /// sig.connect(|arg| { /* closure */ });
+    /// ```
+    ///
+    /// - To connect to a method on the object that owns this signal, use [`connect_self()`][Self::connect_self].
+    /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
+    pub fn connect<F>(&self, mut function: F)
+    where
+        for<'c_rcv> F: SignalReceiver<(), Ps> + 'static,
+        for<'c_rcv> IndirectSignalReceiver<'c_rcv, (), Ps, F>: From<&'c_rcv mut F>,
+    {
+        let godot_fn = make_godot_fn(move |args| {
+            IndirectSignalReceiver::from(&mut function)
+                .function()
+                .call((), args);
+        });
 
-                self.inner_connect_godot_fn::<F>(godot_fn);
-            }
+        self.inner_connect_godot_fn::<F>(godot_fn);
+    }
 
-            /// Connect a method (member function) with `&mut self` as the first parameter.
-            ///
-            /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
-            pub fn connect_self<F, R, Declarer>(&self, mut function: F)
-            where
-                F: FnMut(&mut C, $($Ps),*) -> R + 'static,
-                C: UniformObjectDeref<Declarer>,
-            {
-                let mut gd = self.receiver_object();
-                let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
-                    let mut target = C::object_as_mut(&mut gd);
-                    let target_mut = target.deref_mut();
-                    function(target_mut, $($args),*);
-                });
+    /// Connect a method (member function) with `&mut self` as the first parameter.
+    ///
+    /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
+    /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
+    pub fn connect_self<F, Declarer>(&self, mut function: F)
+    where
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps> + 'static,
+        for<'c_rcv> IndirectSignalReceiver<'c_rcv, &'c_rcv mut C, Ps, F>: From<&'c_rcv mut F>,
+        C: UniformObjectDeref<Declarer>,
+    {
+        let mut gd = self.receiver_object();
+        let godot_fn = make_godot_fn(move |args| {
+            let mut target = C::object_as_mut(&mut gd);
+            let target_mut = target.deref_mut();
+            IndirectSignalReceiver::from(&mut function)
+                .function()
+                .call(target_mut, args);
+        });
 
-                self.inner_connect_godot_fn::<F>(godot_fn);
-            }
+        self.inner_connect_godot_fn::<F>(godot_fn);
+    }
 
-            /// Connect a method (member function) with any `&mut OtherC` as the first parameter, where
-            /// `OtherC`: [`GodotClass`](GodotClass) (both user and engine classes are accepted).
-            ///
-            /// The parameter `object` can be of 2 different "categories":
-            /// - Any `&Gd<OtherC>` (e.g.: `&Gd<Node>`, `&Gd<CustomUserClass>`).
-            /// - `&OtherC`, as long as `OtherC` is a user class that contains a `base` field (it implements the
-            ///   [`WithBaseField`](WithBaseField) trait).
-            ///
-            /// ---
-            ///
-            /// - To connect to methods on the object that owns this signal, use [`connect_self()`][Self::connect_self].
-            /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
-            pub fn connect_other<F, R, OtherC, Declarer>(&self, object: &impl ToSignalObj<OtherC>, mut method: F)
-            where
-                F: FnMut(&mut OtherC, $($Ps),*) -> R + 'static,
-                OtherC: UniformObjectDeref<Declarer>,
-            {
-                let mut gd = object.to_signal_obj();
+    /// Connect a method (member function) with any `&mut OtherC` as the first parameter, where
+    /// `OtherC`: [`GodotClass`](GodotClass) (both user and engine classes are accepted).
+    ///
+    /// The parameter `object` can be of 2 different "categories":
+    /// - Any `&Gd<OtherC>` (e.g.: `&Gd<Node>`, `&Gd<CustomUserClass>`).
+    /// - `&OtherC`, as long as `OtherC` is a user class that contains a `base` field (it implements the
+    ///   [`WithBaseField`](WithBaseField) trait).
+    ///
+    /// ---
+    ///
+    /// - To connect to methods on the object that owns this signal, use [`connect_self()`][Self::connect_self].
+    /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
+    pub fn connect_other<F, OtherC, Declarer>(
+        &self,
+        object: &impl ToSignalObj<OtherC>,
+        mut method: F,
+    ) where
+        OtherC: UniformObjectDeref<Declarer>,
+        for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps> + 'static,
+        for<'c_rcv> IndirectSignalReceiver<'c_rcv, &'c_rcv mut OtherC, Ps, F>: From<&'c_rcv mut F>,
+    {
+        let mut gd = object.to_signal_obj();
 
-                let godot_fn = make_godot_fn(move |($($args,)*):($($Ps,)*)| {
-                    let mut target = OtherC::object_as_mut(&mut gd);
-                    let target_mut = target.deref_mut();
-                    method(target_mut, $($args),*);
-                });
+        let godot_fn = make_godot_fn(move |args| {
+            let mut target = OtherC::object_as_mut(&mut gd);
+            let target_mut = target.deref_mut();
+            IndirectSignalReceiver::from(&mut method)
+                .function()
+                .call(target_mut, args);
+        });
 
-                self.inner_connect_godot_fn::<F>(godot_fn);
-            }
-        }
-    };
+        self.inner_connect_godot_fn::<F>(godot_fn);
+    }
 }
-
-impl_signal_connect!(#[doc(hidden)] );
-impl_signal_connect!(#[doc(hidden)] arg0: P0);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1);
-impl_signal_connect!(               arg0: P0, arg1: P1, arg2: P2);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8);
-impl_signal_connect!(#[doc(hidden)] arg0: P0, arg1: P1, arg2: P2, arg3: P3, arg4: P4, arg5: P5, arg6: P6, arg7: P7, arg8: P8, arg9: P9);
