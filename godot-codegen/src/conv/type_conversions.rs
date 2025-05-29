@@ -249,15 +249,11 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 /// I.e. just `Mesh.ArrayFormat` or `Error`.
 pub(crate) fn to_enum_type_uncached(enum_or_bitfield: &str, is_bitfield: bool) -> RustTy {
     if let Some((class, enum_)) = enum_or_bitfield.split_once('.') {
-        // Class-local enum or bitfield.
-        let module = ModName::from_godot(class);
-        let enum_or_bitfield_name = conv::make_enum_name(enum_);
-
-        RustTy::EngineEnum {
-            tokens: quote! { crate::classes::#module::#enum_or_bitfield_name },
-            surrounding_class: Some(class.to_string()),
-            is_bitfield,
-        }
+        to_class_enum_uncached(class, enum_, is_bitfield)
+    } else if enum_or_bitfield == "ResourceDeepDuplicateMode" {
+        // FIXME – in https://github.com/godotengine/godot/pull/100673#issuecomment-2916116489 `ResourceDeepDuplicateMode` has been wrongly marked as an Engine Enum.
+        // Remove this workaround after the fix appears.
+        to_class_enum_uncached("Resource", enum_or_bitfield, is_bitfield)
     } else {
         // Global enum or bitfield.
         let enum_or_bitfield_name = conv::make_enum_name(enum_or_bitfield);
@@ -267,6 +263,18 @@ pub(crate) fn to_enum_type_uncached(enum_or_bitfield: &str, is_bitfield: bool) -
             surrounding_class: None,
             is_bitfield,
         }
+    }
+}
+
+fn to_class_enum_uncached(class: &str, enum_: &str, is_bitfield: bool) -> RustTy {
+    // Class-local enum or bitfield.
+    let module = ModName::from_godot(class);
+    let enum_or_bitfield_name = conv::make_enum_name(enum_);
+
+    RustTy::EngineEnum {
+        tokens: quote! { crate::classes::#module::#enum_or_bitfield_name },
+        surrounding_class: Some(class.to_string()),
+        is_bitfield,
     }
 }
 
