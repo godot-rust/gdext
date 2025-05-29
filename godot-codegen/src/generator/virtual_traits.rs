@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::context::Context;
 use crate::generator::functions_common::FnCode;
 use crate::generator::{docs, functions_common};
 use crate::models::domain::{
@@ -19,18 +20,20 @@ use std::fmt::Write;
 pub fn make_virtual_methods_trait(
     class: &Class,
     all_base_names: &[TyName],
-    trait_name_str: &str,
     notification_enum_name: &Ident,
     cfg_attributes: &TokenStream,
     view: &ApiView,
+    ctx: &Context,
 ) -> TokenStream {
-    let trait_name = ident(trait_name_str);
     let class_name = &class.name().rust_ty;
+    let trait_name_str = class.name().virtual_trait_name();
+    let trait_name = ident(&trait_name_str);
 
     let (virtual_method_fns, extra_docs) = make_all_virtual_methods(class, all_base_names, view);
     let special_virtual_methods = make_special_virtual_methods(notification_enum_name);
 
-    let trait_doc = docs::make_virtual_trait_doc(trait_name_str, class.name());
+    let base_traits = collect_base_traits(all_base_names, ctx);
+    let trait_doc = docs::make_virtual_trait_doc(&trait_name_str, &base_traits, class.name());
 
     quote! {
         #[doc = #trait_doc]
@@ -43,6 +46,22 @@ pub fn make_virtual_methods_trait(
             #virtual_method_fns
         }
     }
+}
+
+/// Collects base traits (without current) in order towards root.
+///
+/// Results contain the name of the trait `I*` and whether code for it is generated (e.g. `false` for final classes).
+fn collect_base_traits(all_base_classes: &[TyName], ctx: &Context) -> Vec<(String, bool)> {
+    let mut base_traits = vec![];
+
+    for class_name in all_base_classes {
+        let trait_name = class_name.virtual_trait_name();
+        let has_interface_trait = !ctx.is_final(class_name);
+
+        base_traits.push((trait_name, has_interface_trait))
+    }
+
+    base_traits
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

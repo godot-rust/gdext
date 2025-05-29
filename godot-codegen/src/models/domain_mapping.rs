@@ -91,9 +91,11 @@ impl Class {
 
         // Already checked in is_class_deleted(), but code remains more maintainable if those are separate, and it's cheap to validate.
         let is_experimental = special_cases::is_class_experimental(&ty_name.godot_ty);
-        let is_instantiable =
-            special_cases::is_class_instantiable(&ty_name).unwrap_or(json.is_instantiable);
-        let is_final = ctx.is_singleton(&ty_name) || special_cases::is_class_final(&ty_name);
+
+        let is_instantiable = special_cases::is_class_instantiable(&ty_name) //.
+            .unwrap_or(json.is_instantiable);
+
+        let is_final = ctx.is_final(&ty_name);
 
         let mod_name = ModName::from_godot(&ty_name.godot_ty);
 
@@ -126,6 +128,11 @@ impl Class {
             })
             .collect();
 
+        let base_class = json
+            .inherits
+            .as_ref()
+            .map(|godot_name| TyName::from_godot(godot_name));
+
         Some(Self {
             common: ClassCommons {
                 name: ty_name,
@@ -135,7 +142,7 @@ impl Class {
             is_instantiable,
             is_experimental,
             is_final,
-            inherits: json.inherits.clone(),
+            base_class,
             api_level: get_api_level(json),
             constants,
             enums,

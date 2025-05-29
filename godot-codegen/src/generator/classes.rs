@@ -15,7 +15,7 @@ use crate::models::domain::{
     ModName, TyName,
 };
 use crate::util::{ident, make_string_name};
-use crate::{conv, util, SubmitFn};
+use crate::{util, SubmitFn};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::path::Path;
@@ -91,10 +91,9 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let class_name_cstr = util::c_str(godot_class_str);
 
     // Idents and tokens
-    let (base_ty, base_ident_opt) = match class.inherits.as_ref() {
-        Some(base) => {
-            let base = ident(&conv::to_pascal_case(base));
-            (quote! { crate::classes::#base }, Some(base))
+    let (base_ty, base_ident_opt) = match class.base_class.as_ref() {
+        Some(TyName { rust_ty, .. }) => {
+            (quote! { crate::classes::#rust_ty }, Some(rust_ty.clone()))
         }
         None => (quote! { crate::obj::NoBase }, None),
     };
@@ -164,14 +163,13 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     // Classes that can't be inherited from don't need to provide an interface with overridable virtual methods.
     let has_interface_trait = !class.is_final;
     let interface_trait = if has_interface_trait {
-        let virtual_trait_str = class_name.virtual_trait_name();
         virtual_traits::make_virtual_methods_trait(
             class,
             &all_bases,
-            &virtual_trait_str,
             &notification_enum_name,
             &cfg_attributes,
             view,
+            ctx,
         )
     } else {
         TokenStream::new()
@@ -305,7 +303,7 @@ fn make_inherits_macro(class: &Class, all_bases: &[TyName]) -> (Option<Ident>, T
     // For final classes, we can directly create a meaningful compile error.
     if class.is_final {
         let error_msg = format!(
-            "Class `{}` is final and cannot be inherited from.",
+            "Class `{}` is final, meaning it cannot be inherited in GDExtension or GDScript.",
             class_name.rust_ty
         );
 
@@ -467,7 +465,8 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
     let final_doc = if class.is_final {
         Some(
             "\n\n# Final class\n\n\
-            This class is _final_, meaning you cannot inherit from it, and it comes without `I*` interface trait.",
+            This class is _final_, meaning you cannot inherit from it, and it comes without `I*` interface trait. \
+            It is still possible that other Godot classes inherit from it, but that is limited to the engine itself.",
         )
     } else {
         None

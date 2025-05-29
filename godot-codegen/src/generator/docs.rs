@@ -89,7 +89,11 @@ pub fn make_class_doc(
     )
 }
 
-pub fn make_virtual_trait_doc(trait_name_str: &str, class_name: &TyName) -> String {
+pub fn make_virtual_trait_doc(
+    trait_name_str: &str,
+    base_traits: &[(String, bool)],
+    class_name: &TyName,
+) -> String {
     let TyName { rust_ty, godot_ty } = class_name;
 
     let online_link = format!(
@@ -101,12 +105,40 @@ pub fn make_virtual_trait_doc(trait_name_str: &str, class_name: &TyName) -> Stri
         .map(|notes| format!("# Specific notes for this interface\n\n{}", notes))
         .unwrap_or_default();
 
+    // Detect if a base interface exists. This is not the case if intermediate Godot classes are marked "abstract" (aka final for GDExtension).
+    // In such cases, still show interfaces as strikethrough.
+    let inherits_line = if base_traits.is_empty() {
+        String::new()
+    } else {
+        let mut parts = vec![];
+        let mut strikethrough_explanation = "";
+        for (trait_name, is_generated) in base_traits {
+            let part = if *is_generated {
+                format!("[`{trait_name}`][crate::classes::{trait_name}]")
+            } else {
+                strikethrough_explanation =
+                    "  \n(Strike-through means some intermediate Godot classes are marked final, \
+                    and can thus not be inherited by GDExtension.)\n\n";
+                format!("~~`{trait_name}`~~")
+            };
+            parts.push(part);
+        }
+
+        format!(
+            "\n\nBase interfaces: {}.{}",
+            parts.join(" > "),
+            strikethrough_explanation
+        )
+    };
+
     format!(
-        "Virtual methods for class [`{rust_ty}`][crate::classes::{rust_ty}].\
+        "# Interface trait for class [`{rust_ty}`][crate::classes::{rust_ty}].\
         \n\n\
-        These methods represent constructors (`init`) or callbacks invoked by the engine.\
-        \n\n\
-        See also [Godot docs for `{godot_ty}` methods]({online_link}).\n\n{notes}"
+        Functions in this trait represent constructors (`init`) or virtual method callbacks invoked by the engine.\
+        \n\n{notes}\
+        \n\n# Related symbols\
+        {inherits_line}\
+        \n\nSee also [Godot docs for `{godot_ty}` methods]({online_link})."
     )
 }
 

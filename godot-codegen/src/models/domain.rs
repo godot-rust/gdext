@@ -161,9 +161,8 @@ pub struct Class {
     pub is_refcounted: bool,
     pub is_instantiable: bool,
     pub is_experimental: bool,
-    /// `true` if inheriting the class is disallowed.
     pub is_final: bool,
-    pub inherits: Option<String>,
+    pub base_class: Option<TyName>,
     pub api_level: ClassCodegenLevel,
     pub constants: Vec<ClassConstant>,
     pub enums: Vec<Enum>,
@@ -762,6 +761,9 @@ impl TyName {
         }
     }
 
+    /// Get name of virtual interface trait.
+    ///
+    /// This is also valid if the outer class generates no traits (e.g. to explicitly mention absence in docs).
     pub fn virtual_trait_name(&self) -> String {
         format!("I{}", self.rust_ty)
     }
