@@ -7,14 +7,20 @@
 
 use crate::framework::itest;
 
+use crate::builtin_tests::common::assert_evaluate_approx_eq;
 use godot::builtin::inner::InnerTransform2D;
-use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2};
-use godot::meta::ToGodot;
+use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2, XformInv};
 use godot::private::class_macros::assert_eq_approx;
 
 const TEST_TRANSFORM: Transform2D = Transform2D::from_cols(
     Vector2::new(1.0, 2.0),
     Vector2::new(3.0, 4.0),
+    Vector2::new(5.0, 6.0),
+);
+
+const TEST_TRANSFORM_ORTHONORMAL: Transform2D = Transform2D::from_cols(
+    Vector2::new(1.0, 0.0),
+    Vector2::new(0.0, 1.0),
     Vector2::new(5.0, 6.0),
 );
 
@@ -73,36 +79,62 @@ fn transform2d_determinant() {
 fn transform2d_xform_equiv() {
     let vec = Vector2::new(1.0, 2.0);
 
-    assert_eq_approx!(
+    // operator: Transform2D * Vector2
+    assert_evaluate_approx_eq(
+        TEST_TRANSFORM,
+        vec,
+        VariantOperator::MULTIPLY,
         TEST_TRANSFORM * vec,
-        TEST_TRANSFORM
-            .to_variant()
-            .evaluate(&vec.to_variant(), VariantOperator::MULTIPLY)
-            .unwrap()
-            .to::<Vector2>(),
-        "operator: Transform2D * Vector2"
     );
 
     let rect_2 = Rect2::new(Vector2::new(1.0, 2.0), Vector2::new(3.0, 4.0));
 
-    assert_eq_approx!(
+    // operator: Transform2D * Rect2 (1)
+    assert_evaluate_approx_eq(
+        TEST_TRANSFORM,
+        rect_2,
+        VariantOperator::MULTIPLY,
         TEST_TRANSFORM * rect_2,
-        TEST_TRANSFORM
-            .to_variant()
-            .evaluate(&rect_2.to_variant(), VariantOperator::MULTIPLY)
-            .unwrap()
-            .to::<Rect2>(),
-        "operator: Transform2D * Rect2 (1)"
     );
 
-    assert_eq_approx!(
-        TEST_TRANSFORM.rotated(0.8) * rect_2,
-        TEST_TRANSFORM
-            .rotated(0.8)
-            .to_variant()
-            .evaluate(&rect_2.to_variant(), VariantOperator::MULTIPLY)
-            .unwrap()
-            .to::<Rect2>(),
-        "operator: Transform2D * Rect2 (2)"
+    // "operator: Transform2D * Rect2 (2)"
+    let transform_rotated = TEST_TRANSFORM_ORTHONORMAL.rotated(0.8);
+    assert_evaluate_approx_eq(
+        transform_rotated,
+        rect_2,
+        VariantOperator::MULTIPLY,
+        transform_rotated * rect_2,
+    );
+}
+
+#[itest]
+fn transform2d_xform_inv_equiv() {
+    let vec = Vector2::new(1.0, 2.0);
+
+    // operator: Vector2 * Transform2D
+    assert_evaluate_approx_eq(
+        vec,
+        TEST_TRANSFORM_ORTHONORMAL,
+        VariantOperator::MULTIPLY,
+        TEST_TRANSFORM_ORTHONORMAL.xform_inv(vec),
+    );
+
+    let rect_2 = Rect2::new(Vector2::new(1.0, 2.0), Vector2::new(3.0, 4.0));
+
+    // operator: Rect2 * Transform2D (1)
+    assert_evaluate_approx_eq(
+        rect_2,
+        TEST_TRANSFORM_ORTHONORMAL,
+        VariantOperator::MULTIPLY,
+        TEST_TRANSFORM_ORTHONORMAL.xform_inv(rect_2),
+    );
+
+    // operator: Rect2 * Transform2D (2)
+    let transform_rotated = TEST_TRANSFORM_ORTHONORMAL.rotated(0.8);
+    assert_evaluate_approx_eq(
+        rect_2,
+        transform_rotated,
+        VariantOperator::MULTIPLY,
+        transform_rotated.xform_inv(rect_2),
     );
 }
