@@ -102,6 +102,30 @@ pub(crate) fn ensure_object_inherits(derived: ClassName, base: ClassName, instan
     )
 }
 
+#[cfg(debug_assertions)]
+pub(crate) fn ensure_binding_not_null<T>(binding: sys::GDExtensionClassInstancePtr)
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
+{
+    if !binding.is_null() {
+        return;
+    }
+
+    // Non-tool classes can't be instantiated in the editor.
+    if crate::classes::Engine::singleton().is_editor_hint() {
+        panic!(
+            "Class {} -- null instance; does the class have a Godot creator function? \
+            Ensure that the given class is a tool class with #[class(tool)], if it is being accessed in the editor.",
+            std::any::type_name::<T>()
+        )
+    } else {
+        panic!(
+            "Class {} -- null instance; does the class have a Godot creator function?",
+            std::any::type_name::<T>()
+        );
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation of this file
 
