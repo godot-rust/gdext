@@ -45,9 +45,13 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 ///
 /// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a general introduction and examples.
 ///
-/// The [`WithSignals::SignalCollection`] struct returns multiple signals with distinct, code-generated types, but they all implement
+/// # Listing signals of a class
+/// The [`WithSignals::SignalCollection`] struct stores multiple signals with distinct, code-generated types, but they all implement
 /// `Deref` and `DerefMut` to `TypedSignal`. This allows you to either use the concrete APIs of the generated types, or the more generic
 /// ones of `TypedSignal`.
+///
+/// You can access the signal collection of a class via [`self.signals()`][crate::obj::WithUserSignals::signals] or
+/// [`Gd::signals()`][Gd::signals].
 ///
 /// # Connecting a signal to a receiver
 /// Receiver functions are functions that are called when a signal is emitted. You can connect a signal in many different ways:
@@ -62,19 +66,8 @@ impl<C: WithBaseField> ToSignalObj<C> for C {
 ///
 /// For generic use, you can also use [`emit_tuple()`][Self::emit_tuple], which does not provide parameter names.
 ///
-/// # Implementation and documentation notes
-/// Individual `connect_*` methods are generated using a declarative macro, to support a variadic number of parameters **and** type inference.
-/// Without inference, it is not reliably possible[^rust-issue] to pass `|this, arg| { ... }` closures and would require the more verbose
-/// `|this: &mut MyClass, arg: GString| { ... }` syntax. Unfortunately, this design choice precludes the usage of traits for abstraction over
-/// different functions. There are potential workarounds[^workaround], let us know in case you find a way.
-///
-/// To keep this documentation readable, we only document one overload of each implementation: arbitrarily the one with three parameters
-/// `(P0, P1, P2)`. Keep this in mind when looking at a concrete signature.
-///
-/// [^rust-issue]: See Rust issue [#63702](https://github.com/rust-lang/rust/issues/63702) or
-///   [rust-lang discussion](https://users.rust-lang.org/t/what-are-the-limits-of-type-inference-in-closures/31519).
-/// [^workaround]: Using macros to have one less indirection level is one workaround.
-///   [Identity functions](https://users.rust-lang.org/t/type-inference-in-closures/78399/3) might be another.
+/// # Generic programming and code reuse
+/// If you want to build higher-level abstractions that operate on `TypedSignal`, you will need the [`SignalReceiver`] trait.
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
     object: C::__SignalObj<'c>,

@@ -25,13 +25,51 @@ use crate::private::handle_panic;
 /// This function allows creating a new async task in which Godot signals can be awaited, like it is possible in GDScript. The
 /// [`TaskHandle`] that is returned provides synchronous introspection into the current state of the task.
 ///
-/// Refer to [`Signal::to_future`](crate::builtin::Signal::to_future) and [`Signal::to_fallible_future`](crate::builtin::Signal::to_fallible_future)
-/// for details on how to await a signal.
+/// Signals can be converted to futures in the following ways:
+///
+/// | Signal type | Simple future                | Fallible future (handles freed object) |
+/// |-------------|------------------------------|----------------------------------------|
+/// | Untyped     | [`Signal::to_future()`]      | [`Signal::to_fallible_future()`]       |
+/// | Typed       | [`TypedSignal::to_future()`] | [`TypedSignal::to_fallible_future()`]  |
+///
+/// [`Signal::to_future()`]: crate::builtin::Signal::to_future
+/// [`Signal::to_fallible_future()`]: crate::builtin::Signal::to_fallible_future
+/// [`TypedSignal::to_future()`]: crate::registry::signal::TypedSignal::to_future
+/// [`TypedSignal::to_fallible_future()`]: crate::registry::signal::TypedSignal::to_fallible_future
 ///
 /// # Panics
-/// - If called from any other thread than the main-thread.
+/// If called from any other thread than the main thread.
 ///
-/// # Example
+/// # Examples
+/// With typed signals:
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Building {
+///    base: Base<RefCounted>,
+/// }
+///
+/// #[godot_api]
+/// impl Building {
+///    #[signal]
+///    fn constructed(seconds: u32);
+/// }
+///
+/// let house = Building::new_gd();
+/// godot::task::spawn(async move {
+///     println!("Wait for construction...");
+///
+///     // Emitted arguments can be fetched in tuple form.
+///     // If the signal has no parameters, you can skip `let` and just await the future.
+///     let (seconds,) = house.signals().constructed().to_future().await;
+///
+///     println!("Construction complete after {seconds}s.");
+/// });
+/// ```
+///
+/// With untyped signals:
 /// ```no_run
 /// # use godot::builtin::Signal;
 /// # use godot::classes::Node;
@@ -40,13 +78,15 @@ use crate::private::handle_panic;
 /// let signal = Signal::from_object_signal(&node, "signal");
 ///
 /// godot::task::spawn(async move {
-///     println!("starting task...");
+///     println!("Starting task...");
 ///
+///     // Explicit generic arguments needed, here `()`:
 ///     signal.to_future::<()>().await;
 ///
-///     println!("node has changed: {}", node.get_name());
+///     println!("Node has changed: {}", node.get_name());
 /// });
 /// ```
+#[doc(alias = "async")]
 pub fn spawn(future: impl Future<Output = ()> + 'static) -> TaskHandle {
     // Spawning new tasks is only allowed on the main thread for now.
     // We can not accept Sync + Send futures since all object references (i.e. Gd<T>) are not thread-safe. So a future has to remain on the

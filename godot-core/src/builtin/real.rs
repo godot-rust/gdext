@@ -196,7 +196,7 @@ macro_rules! real {
     }};
 }
 
-/// Array of reals.
+/// Array of [`real`]s.
 ///
 /// The expression has type `[real; N]` where `N` is the number of elements in the array.
 ///

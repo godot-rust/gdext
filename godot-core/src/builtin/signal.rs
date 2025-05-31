@@ -19,12 +19,13 @@ use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
 use sys::{ffi_methods, GodotFfi};
 
-/// A `Signal` represents a signal of an Object instance in Godot.
+/// Untyped Godot signal.
 ///
-/// Signals are composed of a reference to an `Object` and the name of the signal on this object.
+/// Signals are composed of a pointer to an `Object` and the name of the signal on this object.
+///
+/// In Rust, you might want to work with type-safe signals, available under the [`TypedSignal`](crate::registry::signal::TypedSignal) struct.
 ///
 /// # Godot docs
-///
 /// [`Signal` (stable)](https://docs.godotengine.org/en/stable/classes/class_signal.html)
 pub struct Signal {
     opaque: sys::types::OpaqueSignal,
@@ -75,7 +76,7 @@ impl Signal {
     /// A signal can only be connected once to the same [`Callable`]. If the signal is already connected,
     /// returns [`Error::ERR_INVALID_PARAMETER`] and
     /// pushes an error message, unless the signal is connected with [`ConnectFlags::REFERENCE_COUNTED`](crate::classes::object::ConnectFlags::REFERENCE_COUNTED).
-    /// To prevent this, use [`Self::is_connected`] first to check for existing connections.
+    /// To prevent this, check for existing connections with [`is_connected()`][Self::is_connected].
     pub fn connect(&self, callable: &Callable, flags: i64) -> Error {
         let error = self.as_inner().connect(callable, flags);
 
@@ -84,7 +85,7 @@ impl Signal {
 
     /// Disconnects this signal from the specified [`Callable`].
     ///
-    /// If the connection does not exist, generates an error. Use [`Self::is_connected`] to make sure that the connection exists.
+    /// If the connection does not exist, generates an error. Use [`is_connected()`](Self::is_connected) to make sure that the connection exists.
     pub fn disconnect(&self, callable: &Callable) {
         self.as_inner().disconnect(callable);
     }

@@ -499,13 +499,21 @@ pub trait WithUserSignals: WithSignals + WithBaseField {
     /// fn damage_taken(&mut self, amount: i32);
     /// ```
     /// ...then you can access the signal as `self.signals().damage_taken()`, which returns an object with the following API:
+    /// ```ignore
+    /// // Connects global or associated function, or a closure.
+    /// fn connect(f: impl FnMut(i32));
     ///
-    /// | Method signature | Description |
-    /// |------------------|-------------|
-    /// | `connect(f: impl FnMut(i32))` | Connects global or associated function, or a closure. |
-    /// | `connect_self(f: impl FnMut(&mut Self, i32))` | Connects a `&mut self` method or closure. |
-    /// | `emit(amount: i32)` | Emits the signal with the given arguments. |
+    /// // Connects a &mut self method or closure on the emitter object.
+    /// fn connect_self(f: impl FnMut(&mut Self, i32));
     ///
+    /// // Connects a &mut self method or closure on another object.
+    /// fn connect_other<C>(f: impl FnMut(&mut C, i32));
+    ///
+    /// // Emits the signal with the given arguments.
+    /// fn emit(amount: i32);
+    /// ```
+    ///
+    /// See [`TypedSignal`](crate::registry::signal::TypedSignal) for more information.
     fn signals(&mut self) -> Self::SignalCollection<'_, Self>;
 }
 

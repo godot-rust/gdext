@@ -208,6 +208,7 @@ fn async_typed_signal() -> TaskHandle {
     let copy = object.clone();
 
     let task_handle = task::spawn(async move {
+        // Could also use to_future() instead of deref().
         let (result,) = copy.signals().custom_signal().deref().await;
 
         assert_eq!(result, 66);
