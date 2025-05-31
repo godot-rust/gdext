@@ -13,7 +13,7 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::string::Encoding;
+use crate::builtin::string::{pad_if_needed, Encoding};
 use crate::builtin::{inner, NodePath, StringName, Variant};
 use crate::meta::error::StringError;
 use crate::meta::AsArg;
@@ -298,11 +298,13 @@ impl_shared_string_api! {
 
 impl fmt::Display for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for ch in self.chars() {
-            f.write_char(*ch)?;
-        }
+        pad_if_needed(f, |f| {
+            for ch in self.chars() {
+                f.write_char(*ch)?;
+            }
 
-        Ok(())
+            Ok(())
+        })
     }
 }
 
