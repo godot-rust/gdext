@@ -217,20 +217,16 @@ pub fn remove_dir_all_reliable(path: &Path) {
     }
 }
 
-// Duplicates code from `make_gdext_build_struct` in `godot-codegen/generator/gdext_build_struct.rs`.
+/// Concrete check against an API level, not runtime level.
+///
+/// Necessary in `build.rs`, which doesn't itself have the cfgs.
 pub fn before_api(major_minor: &str) -> bool {
-    let mut parts = major_minor.split('.');
-    let queried_major = parts
-        .next()
-        .unwrap()
-        .parse::<u8>()
-        .expect("invalid major version");
-    let queried_minor = parts
-        .next()
-        .unwrap()
-        .parse::<u8>()
-        .expect("invalid minor version");
-    assert_eq!(queried_major, 4, "major version must be 4");
+    let queried_minor = major_minor
+        .strip_prefix("4.")
+        .expect("major version must be 4");
+
+    let queried_minor = queried_minor.parse::<u8>().expect("invalid minor version");
+
     let godot_version = get_godot_version();
     godot_version.minor < queried_minor
 }

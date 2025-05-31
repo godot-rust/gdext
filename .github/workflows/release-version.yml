@@ -20,6 +20,8 @@ env:
   # Crates to publish -- important, this doesn't work when there are spaces in any of the paths!
   # Keep in sync with update-version.sh
   GDEXT_CRATES: >
+    godot-bindings
+    godot-codegen
     godot-macros
     godot-ffi
     godot-cell
