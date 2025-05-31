@@ -19,6 +19,7 @@ pub fn make_class_doc(
     base_ident_opt: Option<Ident>,
     has_notification_enum: bool,
     has_sidecar_module: bool,
+    has_interface_trait: bool,
     has_signal_collection: bool,
 ) -> String {
     let TyName { rust_ty, godot_ty } = class_name;
@@ -62,7 +63,12 @@ pub fn make_class_doc(
         godot_ty.to_ascii_lowercase()
     );
 
-    let trait_name = class_name.virtual_trait_name();
+    let interface_trait_line = if has_interface_trait {
+        let trait_name = class_name.virtual_trait_name();
+        format!("* [`{trait_name}`][crate::classes::{trait_name}]: virtual methods\n")
+    } else {
+        String::new()
+    };
 
     let notes = special_cases::get_class_extra_docs(class_name)
         .map(|notes| format!("# Specific notes for this class\n\n{}", notes))
@@ -75,7 +81,7 @@ pub fn make_class_doc(
         \
         Related symbols:\n\n\
         {sidecar_signal_lines}\
-        * [`{trait_name}`][crate::classes::{trait_name}]: virtual methods\n\
+        {interface_trait_line}\
         {signal_line}\
         {notify_line}\
         \n\n\
@@ -83,7 +89,11 @@ pub fn make_class_doc(
     )
 }
 
-pub fn make_virtual_trait_doc(trait_name_str: &str, class_name: &TyName) -> String {
+pub fn make_virtual_trait_doc(
+    trait_name_str: &str,
+    base_traits: &[(String, bool)],
+    class_name: &TyName,
+) -> String {
     let TyName { rust_ty, godot_ty } = class_name;
 
     let online_link = format!(
@@ -95,12 +105,40 @@ pub fn make_virtual_trait_doc(trait_name_str: &str, class_name: &TyName) -> Stri
         .map(|notes| format!("# Specific notes for this interface\n\n{}", notes))
         .unwrap_or_default();
 
+    // Detect if a base interface exists. This is not the case if intermediate Godot classes are marked "abstract" (aka final for GDExtension).
+    // In such cases, still show interfaces as strikethrough.
+    let inherits_line = if base_traits.is_empty() {
+        String::new()
+    } else {
+        let mut parts = vec![];
+        let mut strikethrough_explanation = "";
+        for (trait_name, is_generated) in base_traits {
+            let part = if *is_generated {
+                format!("[`{trait_name}`][crate::classes::{trait_name}]")
+            } else {
+                strikethrough_explanation =
+                    "  \n(Strike-through means some intermediate Godot classes are marked final, \
+                    and can thus not be inherited by GDExtension.)\n\n";
+                format!("~~`{trait_name}`~~")
+            };
+            parts.push(part);
+        }
+
+        format!(
+            "\n\nBase interfaces: {}.{}",
+            parts.join(" > "),
+            strikethrough_explanation
+        )
+    };
+
     format!(
-        "Virtual methods for class [`{rust_ty}`][crate::classes::{rust_ty}].\
+        "# Interface trait for class [`{rust_ty}`][crate::classes::{rust_ty}].\
         \n\n\
-        These methods represent constructors (`init`) or callbacks invoked by the engine.\
-        \n\n\
-        See also [Godot docs for `{godot_ty}` methods]({online_link}).\n\n{notes}"
+        Functions in this trait represent constructors (`init`) or virtual method callbacks invoked by the engine.\
+        \n\n{notes}\
+        \n\n# Related symbols\
+        {inherits_line}\
+        \n\nSee also [Godot docs for `{godot_ty}` methods]({online_link})."
     )
 }
 
