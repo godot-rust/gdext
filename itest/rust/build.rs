@@ -472,6 +472,9 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
         TokenStream::new()
     } else {
         quote! {
+            #[export(storage)]
+            export_storage: GString,
+
             #[export(file)]
             export_file_array: Array<GString>,
             #[export(file)]
@@ -597,6 +600,7 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 
     // Only available in Godot 4.3+.
     let advanced_exports_4_3 = r#"
+@export_storage var export_storage: String
 @export_file var export_file_array: Array[String]
 @export_file var export_file_parray: PackedStringArray
 @export_file("*.txt") var export_file_wildcard_array: Array[String]
