@@ -70,11 +70,15 @@ fn property_template_test(ctx: &TestContext) {
 
         let mut rust_usage = rust_prop.at("usage").to::<i64>();
 
-        // the GDSscript variables are script variables, and so have `PROPERTY_USAGE_SCRIPT_VARIABLE` set.
-        if rust_usage == PropertyUsageFlags::STORAGE.ord() as i64 {
-            // `PROPERTY_USAGE_SCRIPT_VARIABLE` does the same thing as `PROPERTY_USAGE_STORAGE` and so
-            // GDScript doesn't set both if it doesn't need to.
-            rust_usage = PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64
+        // The GDSscript variables are script variables, and so have `PROPERTY_USAGE_SCRIPT_VARIABLE` set.
+        // Before 4.3, `PROPERTY_USAGE_SCRIPT_VARIABLE` did the same thing as `PROPERTY_USAGE_STORAGE` and
+        // so GDScript didn't set both if it didn't need to.
+        if GdextBuild::before_api("4.3") {
+            if rust_usage == PropertyUsageFlags::STORAGE.ord() as i64 {
+                rust_usage = PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64
+            } else {
+                rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64;
+            }
         } else {
             rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64;
         }
@@ -102,10 +106,10 @@ fn property_template_test(ctx: &TestContext) {
             errors.push(format!(
                 "mismatch in property {name}:\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}"
             ));
-        } /*else {
-              println!("matching property {name}\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}");
-          }*/
+        }
     }
+
+    rust_properties.free();
 
     assert!(
         properties.is_empty(),
@@ -118,6 +122,4 @@ fn property_template_test(ctx: &TestContext) {
         errors.len(),
         errors.join("\n")
     );
-
-    rust_properties.free();
 }

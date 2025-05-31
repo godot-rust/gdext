@@ -517,6 +517,7 @@ pub mod export_info_functions {
     // right side are the corresponding property hint. Godot is not always consistent between the two, such
     // as `export_multiline` being `PROPERTY_HINT_MULTILINE_TEXT`.
     default_export_funcs!(
+        export_storage => NONE, // Storage exports don't display in the editor.
         export_flags_2d_physics => LAYERS_2D_PHYSICS,
         export_flags_2d_render => LAYERS_2D_RENDER,
         export_flags_2d_navigation => LAYERS_2D_NAVIGATION,
