@@ -9,6 +9,7 @@
 
 mod connect_builder;
 mod signal_object;
+mod signal_receiver;
 mod typed_signal;
 
 use crate::builtin::{GString, Variant};
@@ -20,6 +21,8 @@ pub(crate) use typed_signal::*;
 // Used in `godot` crate.
 pub mod re_export {
     pub use super::connect_builder::ConnectBuilder;
+    pub use super::signal_receiver::IndirectSignalReceiver;
+    pub use super::signal_receiver::SignalReceiver;
     pub use super::typed_signal::TypedSignal;
 }
 
