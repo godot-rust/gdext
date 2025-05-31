@@ -16,7 +16,7 @@ pub use float::FloatExt;
 // Internal glam re-exports
 pub(crate) use glam_helpers::*;
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 

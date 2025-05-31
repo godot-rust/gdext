@@ -23,7 +23,7 @@ pub use futures::{
 };
 
 // Only exported for itest.
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub use async_runtime::has_godot_task_panicked;
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub use futures::{create_test_signal_future_resolver, SignalFutureResolver};
