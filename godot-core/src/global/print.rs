@@ -105,3 +105,15 @@ macro_rules! godot_print_rich {
         ])
     };
 }
+
+/// Concatenates format-style into a `GString`.
+#[macro_export]
+macro_rules! godot_str {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {
+        $crate::global::str(&[
+            $crate::builtin::Variant::from(
+                format!($fmt $(, $args)*)
+            )
+        ])
+    };
+}
