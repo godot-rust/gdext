@@ -298,7 +298,7 @@ impl Signal {
     /// Creates a fallible future for this signal.
     ///
     /// The future will resolve the next time the signal is emitted.
-    /// See [`TrySignalFuture`] for details.
+    /// See [`FallibleSignalFuture`] for details.
     ///
     /// Since the `Signal` type does not contain information on the signal argument types, the future output type has to be inferred from
     /// the call to this function.

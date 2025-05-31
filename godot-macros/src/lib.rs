@@ -764,7 +764,6 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// [`WithSignals`]: ../obj/trait.WithSignals.html
 /// [`TypedSignal`]: ../register/struct.TypedSignal.html
 ///
-///
 /// # Constants
 ///
 /// Please refer to [the book](https://godot-rust.github.io/book/register/constants.html).

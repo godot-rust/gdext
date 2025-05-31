@@ -84,7 +84,7 @@ impl GString {
     ///
     /// Some notes on the encodings:
     /// - **Latin-1:** Since every byte is a valid Latin-1 character, no validation besides the `NUL` byte is performed.
-    ///   It is your responsibility to ensure that the input is valid Latin-1.
+    ///   It is your responsibility to ensure that the input is meaningful under Latin-1.
     /// - **ASCII**: Subset of Latin-1, which is additionally validated to be valid, non-`NUL` ASCII characters.
     /// - **UTF-8**: The input is validated to be UTF-8.
     ///
