@@ -8,7 +8,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{assert_ne_approx, ApproxEq, FloatExt, GlamConv, GlamType};
+use crate::builtin::math::{assert_ne_approx, ApproxEq, FloatExt, GlamConv, GlamType, XformInv};
 use crate::builtin::real_consts::PI;
 use crate::builtin::{real, RAffine2, RMat2, Rect2, Vector2};
 
@@ -36,6 +36,15 @@ use std::ops::{Mul, MulAssign};
 /// [`Basis`]: crate::builtin::Basis
 /// [`Transform3D`]: crate::builtin::Transform3D
 /// [`Projection`]: crate::builtin::Projection
+///
+/// # Transform operations
+///
+/// | Operation                      | Transform2D                      | Notes                               |
+/// |--------------------------------|----------------------------------|-------------------------------------|
+/// | Apply                          | `transform * v`                  | Supports [`Rect2`] and [`Vector2`]. |
+/// | Apply inverse                  | `transform.xform_inv(v)`         | Supports [`Rect2`] and [`Vector2`]. |
+/// | Apply, no translate            | `transform.basis_xform(v)`       | Supports [`Vector2`].               |
+/// | Apply inverse, no translate    | `transform.basis_xform_inv(v)`   | Supports [`Vector2`].               |
 ///
 /// # Godot docs
 ///
@@ -349,6 +358,19 @@ impl Mul<Vector2> for Transform2D {
     }
 }
 
+impl XformInv<Vector2> for Transform2D {
+    /// Inversely transforms (multiplies) the given [`Vector2`] by this transformation matrix,
+    /// under the assumption that the transformation basis is orthonormal (i.e. rotation/reflection is fine, scaling/skew is not).
+    ///
+    /// For transforming by inverse of an affine transformation (e.g. with scaling) `transform.affine_inverse() * vector` can be used instead. See: [`Transform2D::affine_inverse()`].
+    ///
+    /// _Godot equivalent: `vector * transform` or `transform.inverse() * vector`_
+    fn xform_inv(&self, rhs: Vector2) -> Vector2 {
+        let v = rhs - self.origin;
+        self.basis_xform_inv(v)
+    }
+}
+
 impl Mul<real> for Transform2D {
     type Output = Self;
 
@@ -370,9 +392,41 @@ impl Mul<Rect2> for Transform2D {
         let ya = self.b * rhs.position.y;
         let yb = self.b * rhs.end().y;
 
-        let position = Vector2::coord_min(xa, xb) + Vector2::coord_min(ya, yb) + self.origin;
-        let end = Vector2::coord_max(xa, xb) + Vector2::coord_max(ya, yb) + self.origin;
-        Rect2::new(position, end - position)
+        let position = Vector2::coord_min(xa, xb) + Vector2::coord_min(ya, yb);
+        let end = Vector2::coord_max(xa, xb) + Vector2::coord_max(ya, yb);
+        Rect2::new(position + self.origin, end - position)
+    }
+}
+
+impl XformInv<Rect2> for Transform2D {
+    /// Inversely transforms (multiplies) the given [`Rect2`] by this [`Transform2D`] transformation matrix, under the assumption that the transformation basis is orthonormal (i.e. rotation/reflection is fine, scaling/skew is not).
+    ///
+    /// For transforming by inverse of an affine transformation (e.g. with scaling) `transform.affine_inverse() * vector` can be used instead. See: [`Transform2D::affine_inverse()`].
+    ///
+    /// _Godot equivalent: `rect2 * transform` or `transform.inverse() * rect2`_
+    fn xform_inv(&self, rhs: Rect2) -> Rect2 {
+        // https://web.archive.org/web/20220317024830/https://dev.theomader.com/transform-bounding-boxes/
+        // Same as Godot's `Transform2D::xform_inv` but omits unnecessary `Rect2::expand_to`.
+        // There is probably some more clever way to do that.
+
+        // Use the first point initialize our min/max.
+        let start = self.xform_inv(rhs.position);
+        // `min` is position of our aabb, `max` is the farthest vertex.
+        let (mut min, mut max) = (start, start);
+
+        let vertices = [
+            Vector2::new(rhs.position.x, rhs.position.y + rhs.size.y),
+            rhs.end(),
+            Vector2::new(rhs.position.x + rhs.size.x, rhs.position.y),
+        ];
+
+        for v in vertices {
+            let transformed = self.xform_inv(v);
+            min = Vector2::coord_min(min, transformed);
+            max = Vector2::coord_max(max, transformed);
+        }
+
+        Rect2::new(min, max - min)
     }
 }
 
