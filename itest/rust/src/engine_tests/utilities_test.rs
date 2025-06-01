@@ -31,17 +31,22 @@ fn utilities_sign() {
 
 #[itest]
 fn utilities_str() {
+    let a = 12;
+    let b = " is a ";
+    let c = true;
+    let d = " number";
     let concat = str(&[
-        Variant::from(12),
-        Variant::from(" is a "),
-        Variant::from(true),
-        Variant::from(" number"),
+        Variant::from(a),
+        Variant::from(b),
+        Variant::from(c),
+        Variant::from(d),
     ]);
 
     let empty = str(&[]);
 
     // TODO: implement GString==&str operator. Then look for "...".into() patterns and replace them.
     assert_eq!(concat, "12 is a true number".into());
+    assert_eq!(concat, godot_str!("{a}{b}{c}{d}"));
     assert_eq!(empty, GString::new());
 }
 
