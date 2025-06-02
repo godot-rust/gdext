@@ -5,56 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use regex::Regex;
+use std::env;
 use std::path::Path;
-use std::{env, fs};
-
-pub(crate) fn patch_c_header(in_h_path: &Path, out_h_path: &Path) {
-    // The C header path *must* be passed in by the invoking crate, as the path cannot be relative to this crate.
-    // Otherwise, it can be something like `/home/runner/.cargo/git/checkouts/gdext-76630c89719e160c/efd3b94/godot-bindings`.
-
-    println!("Patch C header '{}'...", in_h_path.display());
-
-    let mut c = fs::read_to_string(in_h_path)
-        .unwrap_or_else(|_| panic!("failed to read C header file {}", in_h_path.display()));
-
-    // Detect whether header is legacy (4.0) format. This should generally already be checked outside.
-    assert!(
-        c.contains("GDExtensionInterfaceGetProcAddress"),
-        "C header file '{}' seems to be GDExtension version 4.0, which is no longer support by godot-rust.",
-        in_h_path.display()
-    );
-
-    // Patch for variant converters and type constructors.
-    c = c.replace(
-        "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionVariantPtr, GDExtensionTypePtr);",
-        "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr);"
-    )
-        .replace(
-            "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionTypePtr, GDExtensionVariantPtr);",
-            "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr);"
-        )
-        .replace(
-            "typedef void (*GDExtensionPtrConstructor)(GDExtensionTypePtr p_base, const GDExtensionConstTypePtr *p_args);",
-            "typedef void (*GDExtensionPtrConstructor)(GDExtensionUninitializedTypePtr p_base, const GDExtensionConstTypePtr *p_args);"
-        );
-
-    // Use single regex with independent "const"/"Const", as there are definitions like this:
-    // typedef const void *GDExtensionMethodBindPtr;
-    let c = Regex::new(r"typedef (const )?void \*GDExtension(Const)?([a-zA-Z0-9]+?)Ptr;") //
-        .expect("regex for mut typedef")
-        .replace_all(&c, "typedef ${1}struct __Gdext$3 *GDExtension${2}${3}Ptr;");
-
-    // println!("Patched contents:\n\n{}\n\n", c.as_ref());
-
-    // Write the modified contents back to the file
-    fs::write(out_h_path, c.as_ref()).unwrap_or_else(|_| {
-        panic!(
-            "failed to write patched C header file {}",
-            out_h_path.display()
-        )
-    });
-}
 
 pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
     let c_header_path = in_h_path.display().to_string();

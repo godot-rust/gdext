@@ -94,6 +94,7 @@ runs:
         with-llvm: ${{ inputs.with-llvm }}
         cache-key: ${{ inputs.rust-cache-key }}
 
+    # if
     - name: "Patch prebuilt version ({{ inputs.godot-prebuilt-patch }})"
       if: inputs.godot-prebuilt-patch != ''
       env:
@@ -132,7 +133,7 @@ runs:
 
     # else if
     - name: "Dump extension api"
-      if: inputs.godot-indirect-json == 'true' && inputs.godot-prebuilt-patch == ''
+      if: inputs.godot-prebuilt-patch == '' && inputs.godot-indirect-json == 'true'
       run: |
         $GODOT4_BIN --headless --dump-extension-api
         mv extension_api.json $RUNNER_DIR/godot_bin/extension_api.json

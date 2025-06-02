@@ -14,7 +14,7 @@
 // Moving said types to `godot-bindings` would increase the cognitive overhead (since domain mapping is responsibility of `godot-codegen`, while godot-bindings is responsible for providing required resources & emitting the version).
 // In the future we might experiment with splitting said types into separate crates.
 
-use crate::depend_on_custom_json::header_gen::{generate_rust_binding, patch_c_header};
+use crate::depend_on_custom_json::header_gen::generate_rust_binding;
 use crate::godot_version::validate_godot_version;
 use crate::{GodotVersion, StopWatch};
 use nanoserde::DeJson;
@@ -79,7 +79,7 @@ pub(crate) fn read_godot_version() -> GodotVersion {
         .expect("failed to deserialize JSON");
     let version = extension_api.header.into_godot_version();
 
-    validate_godot_version(&version, &version.full_string);
+    validate_godot_version(&version);
 
     version
 }
@@ -89,17 +89,10 @@ pub(crate) fn write_gdextension_headers(
     out_rs_path: &Path,
     watch: &mut StopWatch,
 ) {
-    // Allow to use custom gdextension headers in unlikely case if one uses heavily modified version of the engine.
-    if let Ok(path) = std::env::var("GODOT4_GDEXTENSION_HEADERS") {
-        let in_h_path = Path::new(&path);
-        patch_c_header(in_h_path, out_h_path);
-        watch.record("patch_header_h");
-    } else {
-        let h_contents = load_latest_gdextension_headers();
-        fs::write(out_h_path, h_contents.as_ref())
-            .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
-        watch.record("write_header_h");
-    }
+    let h_contents = load_latest_gdextension_headers();
+    fs::write(out_h_path, h_contents.as_ref())
+        .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
+    watch.record("write_header_h");
 
     generate_rust_binding(out_h_path, out_rs_path);
     watch.record("generate_header_rs");

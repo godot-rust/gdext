@@ -77,10 +77,8 @@
 //!
 //!   `api-custom` feature requires specifying `GODOT4_BIN` environment variable with a path to your Godot4 binary.
 //!
-//!   `api-custom-json` feature requires specifying `GODOT4_GDEXTENSION_JSON` environment variable with a path
-//!   to extension api json.
-//!   By default, `api-custom-json` will fetch the latest GDExtension headers, which are backward-compatible and will work with all the up-to-date Godot versions.
-//!   `GODOT4_GDEXTENSION_HEADERS` can be set to use custom, user-specified headers instead.<br><br>
+//!   The `api-custom-json` feature requires specifying `GODOT4_GDEXTENSION_JSON` environment variable with a path
+//!   to your custom-defined `extension_api.json`.<br><br>
 //!
 //! * **`double-precision`**
 //!

@@ -92,7 +92,7 @@ mod depend_on_custom_json {
 
     pub fn load_gdextension_json(watch: &mut StopWatch) -> Cow<'static, str> {
         let result = godot_json::load_custom_gdextension_json();
-        watch.record("read_api_json");
+        watch.record("read_api_custom_json");
         Cow::Owned(result)
     }
 

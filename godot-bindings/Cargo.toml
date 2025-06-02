@@ -43,7 +43,7 @@ gdextension-api = { workspace = true }
 bindgen = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
 which = { workspace = true, optional = true }
-# required by `api-custom-json` to parse the extension api header (to get the Godot version).
+# Required by `api-custom-json` to parse the extension API JSON (to get the Godot version).
 nanoserde = { workspace = true, optional = true }
 
 [dev-dependencies]

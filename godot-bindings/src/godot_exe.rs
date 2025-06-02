@@ -8,14 +8,14 @@
 //! Commands related to Godot executable
 
 use crate::godot_version::{parse_godot_version, validate_godot_version};
-use crate::header_gen::{generate_rust_binding, patch_c_header};
+use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
 use crate::GodotVersion;
 
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-
 // Note: CARGO_BUILD_TARGET_DIR and CARGO_TARGET_DIR are not set.
 // OUT_DIR would be standing to reason, but it's an unspecified path that cannot be referenced by CI.
 // const GODOT_VERSION_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/godot_version.txt");
@@ -111,7 +111,7 @@ pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
 
     let version = parse_godot_version(stdout)
         .unwrap_or_else(|err| panic!("failed to parse Godot version '{stdout}': {err}"));
-    validate_godot_version(&version, stdout);
+    validate_godot_version(&version);
 
     // `--dump-extension-api`, `--dump-gdextension-interface` etc. are only available in Debug builds (editor, debug export template).
     // If we try to run them in release builds, Godot tries to run, causing a popup alert with an unhelpful message:
@@ -168,6 +168,53 @@ fn dump_header_file(godot_bin: &Path, out_file: &Path) {
 
     execute(cmd, "dump Godot header file");
     println!("Generated {}/gdextension_interface.h.", cwd.display());
+}
+
+pub(crate) fn patch_c_header(in_h_path: &Path, out_h_path: &Path) {
+    // The C header path *must* be passed in by the invoking crate, as the path cannot be relative to this crate.
+    // Otherwise, it can be something like `/home/runner/.cargo/git/checkouts/gdext-76630c89719e160c/efd3b94/godot-bindings`.
+
+    println!("Patch C header '{}'...", in_h_path.display());
+
+    let mut c = fs::read_to_string(in_h_path)
+        .unwrap_or_else(|_| panic!("failed to read C header file {}", in_h_path.display()));
+
+    // Detect whether header is legacy (4.0) format. This should generally already be checked outside.
+    assert!(
+        c.contains("GDExtensionInterfaceGetProcAddress"),
+        "C header file '{}' seems to be GDExtension version 4.0, which is no longer support by godot-rust.",
+        in_h_path.display()
+    );
+
+    // Patch for variant converters and type constructors.
+    c = c.replace(
+        "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionVariantPtr, GDExtensionTypePtr);",
+        "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr);"
+    )
+    .replace(
+        "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionTypePtr, GDExtensionVariantPtr);",
+        "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr);"
+    )
+    .replace(
+        "typedef void (*GDExtensionPtrConstructor)(GDExtensionTypePtr p_base, const GDExtensionConstTypePtr *p_args);",
+        "typedef void (*GDExtensionPtrConstructor)(GDExtensionUninitializedTypePtr p_base, const GDExtensionConstTypePtr *p_args);"
+    );
+
+    // Use single regex with independent "const"/"Const", as there are definitions like this:
+    // typedef const void *GDExtensionMethodBindPtr;
+    let c = Regex::new(r"typedef (const )?void \*GDExtension(Const)?([a-zA-Z0-9]+?)Ptr;") //
+        .expect("regex for mut typedef")
+        .replace_all(&c, "typedef ${1}struct __Gdext$3 *GDExtension${2}${3}Ptr;");
+
+    // println!("Patched contents:\n\n{}\n\n", c.as_ref());
+
+    // Write the modified contents back to the file
+    fs::write(out_h_path, c.as_ref()).unwrap_or_else(|_| {
+        panic!(
+            "failed to write patched C header file {}",
+            out_h_path.display()
+        )
+    });
 }
 
 pub(crate) fn locate_godot_binary() -> PathBuf {
