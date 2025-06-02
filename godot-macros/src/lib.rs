@@ -243,7 +243,11 @@ use crate::util::{bail, ident, KvParser};
 ///     // @export
 ///     #[export]
 ///     float: f64,
-///     
+///
+///     // @export_storage
+///     #[export(storage)]
+///     hidden_string: GString,
+///
 ///     // @export_range(0.0, 10.0, or_greater)
 ///     #[export(range = (0.0, 10.0, or_greater))]
 ///     range_f64: f64,
