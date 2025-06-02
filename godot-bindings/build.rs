@@ -13,6 +13,7 @@
 fn main() {    
     let mut count = 0;
     if cfg!(feature = "api-custom") { count += 1; }
+    if cfg!(feature = "api-custom-json") { count += 1; }
 
     // [version-sync] [[
     //  [line] \tif cfg!(feature = "api-$kebabVersion") { count += 1; }

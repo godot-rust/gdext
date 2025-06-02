@@ -5,7 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//#![allow(unused_variables, dead_code)]
+// This file is explicitly included in unit tests
+// while all the functions included are used only with `custom-api` and `custom-api-json` features.
+#![cfg_attr(not(feature = "api-custom"), allow(unused_variables, dead_code))]
 
 use crate::GodotVersion;
 use regex::{Captures, Regex};
@@ -50,6 +52,20 @@ pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Er
         status: cap(&caps, "status")?.unwrap(),
         custom_rev: cap(&caps, "custom_rev")?,
     })
+}
+
+pub(crate) fn validate_godot_version(godot_version: &GodotVersion) {
+    assert_eq!(
+        godot_version.major, 4,
+        "Only Godot versions with major version 4 are supported; found version {}.",
+        godot_version.full_string
+    );
+
+    assert!(
+        godot_version.minor > 0,
+        "Godot 4.0 is no longer supported by godot-rust; found version {}.",
+        godot_version.full_string
+    );
 }
 
 /// Extracts and parses a named capture group from a regex match.

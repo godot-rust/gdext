@@ -27,6 +27,7 @@ debug-log = ["godot-ffi/debug-log"]
 trace = []
 
 api-custom = ["godot-ffi/api-custom", "godot-codegen/api-custom"]
+api-custom-json = ["godot-codegen/api-custom-json"]
 # [version-sync] [[
 #  [line] api-$kebabVersion = ["godot-ffi/api-$kebabVersion"]
 api-4-1 = ["godot-ffi/api-4-1"]

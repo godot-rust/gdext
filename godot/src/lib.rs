@@ -69,10 +69,16 @@
 //! * **`api-4-{minor}`**
 //! * **`api-4-{minor}-{patch}`**
 //! * **`api-custom`**
+//! * **`api-custom-json`**
 //!
 //!   Sets the [**API level**](https://godot-rust.github.io/book/toolchain/godot-version.html) to the specified Godot version,
 //!   or a custom-built local binary.
-//!   You can use at most one `api-*` feature. If absent, the current Godot minor version is used, with patch level 0.<br><br>
+//!   You can use at most one `api-*` feature. If absent, the current Godot minor version is used, with patch level 0.
+//!
+//!   `api-custom` feature requires specifying `GODOT4_BIN` environment variable with a path to your Godot4 binary.
+//!
+//!   The `api-custom-json` feature requires specifying `GODOT4_GDEXTENSION_JSON` environment variable with a path
+//!   to your custom-defined `extension_api.json`.<br><br>
 //!
 //! * **`double-precision`**
 //!
@@ -158,8 +164,13 @@ compile_error!(
 
 // See also https://github.com/godotengine/godot/issues/86346.
 // Could technically be moved to godot-codegen to reduce time-to-failure slightly, but would scatter validations even more.
-#[cfg(all(feature = "double-precision", not(feature = "api-custom")))]
-compile_error!("The feature `double-precision` currently requires `api-custom` due to incompatibilities in the GDExtension API JSON.");
+#[cfg(all(
+    feature = "double-precision",
+    not(feature = "api-custom"),
+    not(feature = "api-custom-json")
+))]
+compile_error!("The feature `double-precision` currently requires `api-custom` or `api-custom-json` due to incompatibilities in the GDExtension API JSON. \
+See: https://github.com/godotengine/godot/issues/86346");
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Modules
