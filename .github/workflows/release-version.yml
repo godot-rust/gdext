@@ -11,12 +11,9 @@ on:
       - '!**'
     tags:
       # To include pre-releases: 'v0.1.[0-9]+-?*'
-      - 'v0.[0-9]+.[0-9]+'
+      - 'trigger-v0.[0-9]+.[0-9]+'
 
 env:
-  # Note: used for test and clippy, not for publish. Test features are different from other CIs.
-  CLIPPY_TEST_FEATURES: "--features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde"
-
   # Crates to publish -- important, this doesn't work when there are spaces in any of the paths!
   # Keep in sync with update-version.sh
   GDEXT_CRATES: >
@@ -28,6 +25,22 @@ env:
     godot-core
     godot
 
+  # Used for integration test artifact, must be without patch version.
+  GODOT_ARTIFACT_VERSION: "4.4"
+
+  # Note: used for test and clippy, not for publish. Test features are different from other CIs.
+  CLIPPY_TEST_FEATURES: "--features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde"
+
+  CLIPPY_ARGS: >-
+    -D clippy::suspicious
+    -D clippy::style
+    -D clippy::complexity
+    -D clippy::perf
+    -D clippy::dbg_macro
+    -D clippy::todo
+    -D clippy::unimplemented
+    -D warnings
+
 defaults:
   run:
     shell: bash
@@ -36,7 +49,7 @@ jobs:
   validation:
     runs-on: ubuntu-latest
     outputs:
-      GDEXT_PUBLISHED_VERSION: ${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}
+      PUBLISHED_CRATE_VERSION: ${{ steps.parse-crate-version.outputs.PUBLISHED_CRATE_VERSION }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,32 +69,32 @@ jobs:
 #            exit 2
 #          fi
 #
-#          echo "GDEXT_PUBLISHED_VERSION=$crateVer" >> $GITHUB_OUTPUT
+#          echo "PUBLISHED_CRATE_VERSION=$crateVer" >> $GITHUB_OUTPUT
 #          echo "Validated version: $crateVer"
 
       - name: "Parse crate version from tag"
         id: parse-crate-version
         run: |
-          crateVer=$(echo "$GITHUB_REF" | sed -n "s#refs/tags/v\(.*\)#\1#p")
+          crateVer=$(echo "$GITHUB_REF" | sed -n "s#refs/tags/trigger-v\(.*\)#\1#p")
           if [[ -z "$crateVer" ]]; then
             printf "\n::error::Failed to parse GitHub ref '$GITHUB_REF'.\n"
             exit 2
           fi
-      
-          echo "GDEXT_PUBLISHED_VERSION=$crateVer" >> $GITHUB_OUTPUT
+
+          echo "PUBLISHED_CRATE_VERSION=$crateVer" >> $GITHUB_OUTPUT
           echo "Validated version: $crateVer"
 
-      - name: "Verify that Cargo.toml versions match ${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}"
+      - name: "Verify that Cargo.toml versions match ${{ steps.parse-crate-version.outputs.PUBLISHED_CRATE_VERSION }}"
         run: |
           echo "Checking crate versions..."
-          publishedVersion="${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}"
-          
+          publishedVersion="${{ steps.parse-crate-version.outputs.PUBLISHED_CRATE_VERSION }}"
+
           # Check if each Cargo.toml has that version
           IFS=' ' read -r -a publishedCrates <<< "$GDEXT_CRATES"
           for crate in "${publishedCrates[@]}"; do
             readVersion=$(grep -Po '^version = "\K[^"]*' "$crate/Cargo.toml")
             printf "* $crate -> $readVersion"
-          
+
             if [[ "$readVersion" != "$publishedVersion" ]]; then
               printf "     ERROR\n"
               versionMismatch="1"
@@ -89,7 +102,7 @@ jobs:
               printf "\n"
             fi
           done
-          
+
           if [[ -n "$versionMismatch" ]]; then
             printf "\n::error::At least one crate has a version mismatching the git tag.\n"
             exit 2
@@ -97,43 +110,6 @@ jobs:
             printf "\nAll versions OK.\n"
           fi
 
-  # Keep all in sync with minimal-ci and full-ci.
-  unit-test:
-    runs-on: ubuntu-latest
-    needs: validation
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
-
-      - name: "Install Rust (uncached)"
-        run: rustup update stable
-
-      - name: "Compile and run test"
-        run: cargo test $CLIPPY_TEST_FEATURES
-
-  clippy:
-    runs-on: ubuntu-latest
-    needs: validation
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
-
-      - name: "Install Rust (uncached)"
-        run: rustup update stable
-
-      - name: "Check clippy"
-        run: |
-          cargo clippy --all-targets $CLIPPY_TEST_FEATURES -- \
-          -D clippy::suspicious \
-          -D clippy::style \
-          -D clippy::complexity \
-          -D clippy::perf \
-          -D clippy::dbg_macro \
-          -D clippy::todo \
-          -D clippy::unimplemented \
-          -D warnings
 
   rustfmt:
     runs-on: ubuntu-latest
@@ -141,7 +117,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
+          ref: ${{ github.ref }}
 
       - name: "Install Rust (uncached)"
         run: rustup update stable
@@ -161,25 +137,41 @@ jobs:
             exit 1
           }
 
+
+  clippy:
+    runs-on: ubuntu-latest
+    needs: validation
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: "Install Rust (uncached)"
+        run: rustup update stable
+
+      - name: "Check clippy"
+        run: |
+          cargo clippy --all-targets $CLIPPY_TEST_FEATURES -- $CLIPPY_ARGS
+
+
   docs-and-commit:
     runs-on: ubuntu-latest
     needs:
       - validation
-      - unit-test
-      - clippy
       - rustfmt
+      - clippy
     env:
-      GDEXT_PUBLISHED_VERSION: ${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}
+      PUBLISHED_CRATE_VERSION: ${{ needs.validation.outputs.PUBLISHED_CRATE_VERSION }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
+          ref: 'trigger-v${{ needs.validation.outputs.PUBLISHED_CRATE_VERSION }}'
 
       - name: "Install Rust (uncached)"
         run: rustup update stable
 
 #      - name: "Tag base commit"
-#        run: git tag "v$GDEXT_PUBLISHED_VERSION"
+#        run: git tag "v$PUBLISHED_CRATE_VERSION"
 
 #      - name: "Commit raw changes"
 #        # Note: first block was for an alternative approach, where a separate `releases` branch tracks deployments.
@@ -194,7 +186,7 @@ jobs:
 #          rsync -av --ignore-existing /tmp/repo/ .
 #
 #          git add .
-#          git commit -m "Repo state for v${{ env.GDEXT_PUBLISHED_VERSION }}"
+#          git commit -m "Repo state for v${{ env.PUBLISHED_CRATE_VERSION }}"
 
       - name: "Apply #[doc(cfg(...))]"
         # Skip --rustfmt, as it causes weird reformatting of quote! {} statements.
@@ -206,27 +198,69 @@ jobs:
           git config user.name "Godot-Rust Automation"
           git config user.email "GodotRust@users.noreply.github.com"
           git switch -c tmp
-          git commit -am "v${{ env.GDEXT_PUBLISHED_VERSION }} (with doc attributes)"
+          git commit -am "v${{ env.PUBLISHED_CRATE_VERSION }} (with doc attributes)"
 
-      - name: "Tag processed commit + push"
+      - name: "Tag post-processed library, commit + push, remove trigger tag"
         run: |
-          docTag="docs-v$GDEXT_PUBLISHED_VERSION"
+          docTag="v$PUBLISHED_CRATE_VERSION"
           git tag "$docTag"
           git push origin "$docTag"
+          git push origin --delete "trigger-v$PUBLISHED_CRATE_VERSION"
+
+
+  # Keep all in sync with minimal-ci and full-ci.
+  unit-test:
+    runs-on: ubuntu-latest
+    needs:
+      - validation # for outputs
+      - docs-and-commit
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.PUBLISHED_CRATE_VERSION }}'
+
+      - name: "Install Rust (uncached)"
+        run: rustup update stable
+
+      - name: "Compile and run test"
+        run: cargo test $CLIPPY_TEST_FEATURES
+
+
+  godot-itest:
+    name: godot-itest
+    runs-on: ubuntu-latest
+    needs:
+      - validation # for outputs
+      - docs-and-commit
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.PUBLISHED_CRATE_VERSION }}'
+
+      - name: "Run Godot integration test"
+        uses: ./.github/composite/godot-itest
+        with:
+          artifact-name: godot-linux-${{ env.GODOT_ARTIFACT_VERSION }}
+          godot-binary: godot.linuxbsd.editor.dev.x86_64
+          rust-extra-args: --features itest/codegen-full
+          rust-toolchain: stable
+
 
   publish:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.skip-release != 'y' }}
     environment: 'Crates.io'
     needs:
-      - validation
-      - docs-and-commit
+      - validation # for outputs
+      - unit-test
+      - godot-itest
     steps:
       # Note: we cannot dry-run the publishing, since crates depend on each other, and dry-run will fail if they aren't yet on crates.io.
       # Sleep to leave crates.io and docs.rs some time to index the dependencies, before releasing dependents.
       - uses: actions/checkout@v4
         with:
-          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
+          ref: 'v${{ needs.validation.outputs.PUBLISHED_CRATE_VERSION }}'
 
       - name: "Install Rust (uncached)"
         run: rustup update stable
@@ -243,5 +277,5 @@ jobs:
               exit 2
             }
             echo "Wait..."
-            sleep 10s
+            sleep 5s
           done
