@@ -56,6 +56,7 @@ features = ["experimental-godot-api"]
 rustdoc-args = ["--cfg", "published_docs"]
 rustc-args = ["--cfg", "published_docs"]
 
-# Currently causes "unused manifest key" warnings. Maybe re-enable in the future, to make `published_docs` known.
-#[lints.rust]
-#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }
+# Enabled only for godot-bindings; the others have it set via build.rs.
+# Necessary to avoid warnings in release workflow.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }
