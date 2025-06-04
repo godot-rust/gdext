@@ -548,6 +548,7 @@ impl ExportType {
         }
     }
 
+    /// Returns a `PropertyUsageFlags` identifier if this export type has a _usage_.
     pub fn to_export_usage(&self) -> Option<Ident> {
         match self {
             Self::Storage => Some(ident("STORAGE")),
