@@ -139,9 +139,9 @@ use crate::util::{bail, ident, KvParser};
 /// (fields annotated with `@export`). In the gdext API, these two concepts are represented with `#[var]` and `#[export]` attributes respectively,
 /// which in turn are backed by the [`Var`](../register/property/trait.Var.html) and [`Export`](../register/property/trait.Export.html) traits.
 ///
-/// ## Property registration
+/// ## Register properties -- `#[var]`
 ///
-/// To create a property, you can use the `#[var]` annotation:
+/// To create a property, you can use the `#[var]` annotation, which supports types implementing [`Var`](../register/property/trait.Var.html).
 ///
 /// ```
 /// # use godot::prelude::*;
@@ -207,9 +207,10 @@ use crate::util::{bail, ident, KvParser};
 /// }
 /// ```
 ///
-/// ## Property exports
+/// ## Export properties -- `#[export]`
 ///
-/// For exporting properties to the editor, you can use the `#[export]` attribute:
+/// To export properties to the editor, you can use the `#[export]` attribute, which supports types implementing
+/// [`Export`](../register/property/trait.Export.html):
 ///
 /// ```
 /// # use godot::prelude::*;
@@ -221,19 +222,21 @@ use crate::util::{bail, ident, KvParser};
 /// }
 /// ```
 ///
-/// If you don't also include a `#[var]` attribute, then a default one will be generated.
-/// `#[export]` also supports all of GDScript's annotations, in a slightly different format. The format is
+/// If you don't include an additional `#[var]` attribute, then a default one will be generated.
+///
+/// `#[export]` also supports all of [GDScript's annotations][gdscript-annotations], in a slightly different format. The format is
 /// translated from an annotation by following these four rules:
 ///
-/// - `@export` becomes `#[export]`
-/// - `@export_{name}` becomes `#[export(name)]`
-/// - `@export_{name}(elem1, ...)` becomes `#[export(name = (elem1, ...))]`
-/// - `@export_{flags/enum}("elem1", "elem2:key2", ...)`
-///   becomes
-///   `#[export(flags/enum = (elem1, elem2 = key2, ...))]`
+/// [gdscript-annotations]: https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html
 ///
+/// | GDScript annotation                         | Rust attribute                                 |
+/// |---------------------------------------------|-------------------------------------------------|
+/// | `@export`                                   | `#[export]`                                     |
+/// | `@export_key`                               | `#[export(key)]`                                |
+/// | `@export_key(elem1, ...)`                   | `#[export(key = (elem1, ...))]`                 |
+/// | `@export_flags("elem1", "elem2:val2", ...)`<br>`@export_enum("elem1", "elem2:val2", ...)` | `#[export(flags = (elem1, elem2 = val2, ...))]`<br>`#[export(enum = (elem1, elem2 = val2, ...))]` |
 ///
-/// As an example of some different export attributes:
+/// As an example of different export attributes:
 ///
 /// ```
 /// # use godot::prelude::*;
@@ -279,9 +282,8 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// ```
 ///
-/// Most values in expressions like `key = value`, can be an arbitrary expression that evaluates to the
-/// right value. Meaning you can use constants or variables, as well as any other rust syntax you'd like in
-/// the export attributes.
+/// Most values in syntax such as `key = value` can be arbitrary expressions. For example, you can use constants, function calls or
+/// other Rust expressions that are valid in that context.
 ///
 /// ```
 /// # use godot::prelude::*;
@@ -298,18 +300,24 @@ use crate::util::{bail, ident, KvParser};
 /// }
 /// ```
 ///
-/// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the
-/// `hint`, `hint_string`, and `usage_flags` keys in the attribute. These are constants in the `PropertyHint`
-/// and `PropertyUsageFlags` enums, respectively.
+/// ## Low-level property hints and usage
 ///
-/// ```
+/// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the `hint`, `hint_string`
+/// and `usage_flags` keys in the attribute. Hint and usage flags are constants in the [`PropertyHint`] and [`PropertyUsageFlags`] enums,
+/// while hint strings are dependent on the hint, property type and context. Using these low-level keys is rarely necessary, as most common
+/// combinations are covered by `#[var]` and `#[export]` already.
+///
+/// [`PropertyHint`]: ../global/struct.PropertyHint.html
+/// [`PropertyUsageFlags`]: ../global/struct.PropertyUsageFlags.html
+///
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// # #[class(init)]
 /// struct MyStruct {
-///     // Treated as an enum with two values: "One" and "Two"
-///     // Displayed in the editor
-///     // Treated as read-only by the editor
+///     // Treated as an enum with two values: "One" and "Two",
+///     // displayed in the editor,
+///     // treated as read-only by the editor.
 ///     #[var(
 ///         hint = ENUM,
 ///         hint_string = "One,Two",
@@ -319,9 +327,10 @@ use crate::util::{bail, ident, KvParser};
 /// }
 /// ```
 ///
+///
 /// # Further class customization
 ///
-/// ## Running code in the editor
+/// ## Running code in the editor (tool)
 ///
 /// If you annotate a class with `#[class(tool)]`, its lifecycle methods (`ready()`, `process()` etc.) will be invoked in the editor. This
 /// is useful for writing custom editor plugins, as opposed to classes running simply in-game.
