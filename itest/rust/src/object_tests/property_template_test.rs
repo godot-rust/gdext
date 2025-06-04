@@ -107,6 +107,11 @@ fn property_template_test(ctx: &TestContext) {
                 "mismatch in property {name}:\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}"
             ));
         }
+        /*else { // Keep around for debugging.
+            println!(
+                "good property {name}:\n  GDScript: {gdscript_prop:?}\n  Rust:     {rust_prop:?}"
+            );
+        }*/
     }
 
     rust_properties.free();
