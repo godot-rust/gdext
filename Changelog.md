@@ -10,16 +10,43 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.3.0](#v030)
+- [v0.3.0](#v030), [v0.3.1](#v031)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
 
 
-## [v0.3.0](https://docs.rs/godot/0.3.0)
+## [v0.3.1](https://docs.rs/godot/0.3.1)
+
+_5 June 2025_
+
+### 🌻 Features
+
+- Support `@export_file`, `@export_dir` etc. for `Array<GString>` and `PackedStringArray` ([#1166](https://github.com/godot-rust/gdext/pull/1166))
+- Support `@export_storage` attribute ([#1183](https://github.com/godot-rust/gdext/pull/1183))
+- Implement `XformInv<...>` for `Transform2D`, `Transform3D`, `Basis` ([#1082](https://github.com/godot-rust/gdext/pull/1082))
+- Implement `GString` concatenation operator ([#1117](https://github.com/godot-rust/gdext/pull/1117))
+- Codegen from user-provided JSON via `api-custom-json` feature ([#1124](https://github.com/godot-rust/gdext/pull/1124))
+- String formatting: support padding, alignment and precision ([#1161](https://github.com/godot-rust/gdext/pull/1161))
+
+### 📈 Performance
+
+- Switch from `Option` to `ManuallyDrop` for blocking guard inner type ([#1176](https://github.com/godot-rust/gdext/pull/1176))
+
+### 🛠️ Bugfixes
+
+- Release CI: fix doc post-processing, add integration tests ([#1187](https://github.com/godot-rust/gdext/pull/1187))
+
+### 📚 Documentation
+
+- Improve `#[var]` + `#[export]` docs ([#1188](https://github.com/godot-rust/gdext/pull/1188))
+- Clarify `Node::duplicate()` semantics on `#[var]` and `#[export]` fields ([#1141](https://github.com/godot-rust/gdext/pull/1141))
+
+
+## v0.3.0
 
 _31 May 2025_
 
-See [devlog article](https://godot-rust.github.io/dev/may-2025-update) for highlights.
+See [devlog article](https://godot-rust.github.io/dev/may-2025-update) for highlights, and [migration guide](https://godot-rust.github.io/book/migrate/v0.3.html) to update.
 
 ### 🌻 Features
 
