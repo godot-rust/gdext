@@ -283,7 +283,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     /// Cargo feature.
     ///
     /// If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
-    #[cfg(feature = "experimental-threads")]
+    #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
     pub fn connect_sync<F>(self, mut function: F)
     where
         // Why both Send+Sync: closure can not only impact another thread (Sync), but it's also possible to share such Callables across threads

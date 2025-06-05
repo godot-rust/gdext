@@ -11,19 +11,19 @@ use crate::{
     GdextRuntimeMetadata, ManualInitCell, UtilityFunctionTable,
 };
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 mod multi_threaded;
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 mod single_threaded;
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 use multi_threaded::BindingStorage;
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 use single_threaded::BindingStorage;
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 pub use multi_threaded::GdextConfig;
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 pub use single_threaded::GdextConfig;
 
 // Note, this is `Sync` and `Send` when "experimental-threads" is enabled because all its fields are. We have avoided implementing `Sync`
