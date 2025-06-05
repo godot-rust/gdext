@@ -70,7 +70,7 @@ pub trait SwizzleToVector: Sized {
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use crate::assert_eq_approx;
     use crate::builtin::*;

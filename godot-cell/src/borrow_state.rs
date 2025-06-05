@@ -298,7 +298,7 @@ impl From<String> for BorrowStateErr {
     }
 }
 
-#[cfg(all(test, feature = "proptest"))]
+#[cfg(all(test, feature = "proptest"))] #[cfg_attr(published_docs, doc(cfg(all(test, feature = "proptest"))))]
 mod proptests {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
@@ -632,7 +632,7 @@ mod proptests {
     }
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 

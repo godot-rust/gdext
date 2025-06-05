@@ -24,27 +24,27 @@ pub(crate) fn is_builtin_method_excluded(method: &JsonBuiltinMethod) -> bool {
     }
 }
 
-#[cfg(not(feature = "codegen-full"))]
+#[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
 pub(crate) fn is_class_excluded(godot_class_name: &str) -> bool {
     !SELECTED_CLASSES.contains(&godot_class_name)
 }
 
-#[cfg(feature = "codegen-full")]
+#[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
 pub(crate) fn is_class_excluded(_godot_class_name: &str) -> bool {
     false
 }
 
-#[cfg(not(feature = "codegen-full"))]
+#[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
 pub(crate) fn is_native_struct_excluded(native_struct: &str) -> bool {
     native_struct == "CaretInfo"
 }
 
-#[cfg(feature = "codegen-full")]
+#[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
 pub(crate) fn is_native_struct_excluded(_native_struct: &str) -> bool {
     false
 }
 
-#[cfg(not(feature = "codegen-full"))]
+#[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     use crate::conv;
     use crate::models::domain::RustTy;
@@ -68,7 +68,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
 }
 
-#[cfg(feature = "codegen-full")]
+#[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
 fn is_type_excluded(_ty: &str, _ctx: &mut Context) -> bool {
     false
 }
@@ -103,7 +103,7 @@ pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Conte
     false
 }
 
-#[cfg(feature = "codegen-full")]
+#[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
 pub(crate) fn is_utility_function_excluded(
     _function: &JsonUtilityFunction,
     _ctx: &mut Context,
@@ -111,7 +111,7 @@ pub(crate) fn is_utility_function_excluded(
     false
 }
 
-#[cfg(not(feature = "codegen-full"))]
+#[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
 pub(crate) fn is_utility_function_excluded(
     function: &JsonUtilityFunction,
     ctx: &mut Context,
@@ -130,7 +130,7 @@ pub(crate) fn is_utility_function_excluded(
 // Allowed-classes
 
 // Classes for minimal config
-#[cfg(not(feature = "codegen-full"))]
+#[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
 const SELECTED_CLASSES: &[&str] = &[
     // Core class hierarchy
     "Object",

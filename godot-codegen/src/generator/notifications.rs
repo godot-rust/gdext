@@ -157,7 +157,7 @@ pub fn try_to_notification(constant: &JsonClassConstant) -> Option<Ident> {
 /// This cannot be represented in a Rust enum, so we merge the two constants into a single enumerator.
 fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
     // This constant has never been used by the engine.
-    #[cfg(before_api = "4.2")]
+    #[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
     all_constants.retain(|(constant_name, _)| constant_name != "NODE_RECACHE_REQUESTED");
 
     let _ = &all_constants; // unused warning

@@ -89,13 +89,13 @@ fn log_drop<T: StorageRefCounted>(storage: &T) {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tracking borrows in Debug mode
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 use borrow_info::DebugBorrowTracker;
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
 use borrow_info_noop::DebugBorrowTracker;
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 mod borrow_info {
     use std::backtrace::Backtrace;
     use std::fmt;
@@ -160,7 +160,7 @@ mod borrow_info {
     }
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
 mod borrow_info_noop {
     use std::fmt;
 

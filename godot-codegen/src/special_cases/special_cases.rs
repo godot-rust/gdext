@@ -105,7 +105,7 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         match target_os.as_deref() {
             Ok("ios") | Ok("emscripten") => return true,
             Ok("macos") => {
-                #[cfg(before_api = "4.2")]
+                #[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
                 return true;
             }
             _ => {}
@@ -784,7 +784,7 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
     }
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub fn is_virtual_method_required(class_name: &TyName, godot_method_name: &str) -> bool {
     // Do not call is_derived_virtual_method_required() here; that is handled in virtual_traits.rs.
 
