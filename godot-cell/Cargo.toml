@@ -18,7 +18,7 @@ proptest = { workspace = true, optional = true }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
-features = ["experimental-godot-api"]
+features = ["experimental-godot-api", "experimental-threads"]
 rustdoc-args = ["--cfg", "published_docs"]
 rustc-args = ["--cfg", "published_docs"]
 
