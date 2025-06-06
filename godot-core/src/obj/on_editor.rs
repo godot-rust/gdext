@@ -173,15 +173,17 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///
 /// When used with `#[class(tool)]`, the before-ready checks are omitted.
 /// Otherwise, `OnEditor<T>` behaves the same — accessing an uninitialized value will cause a panic.
+#[derive(Debug)]
 pub struct OnEditor<T> {
-    inner: OnEditorState<T>,
+    state: OnEditorState<T>,
 }
 
+#[derive(Debug)]
 pub(crate) enum OnEditorState<T> {
     /// Uninitialized null value.
-    Null,
+    UninitNull,
     /// Uninitialized state, but with a value marked as invalid (required to represent non-nullable type in the editor).
-    Uninitialized(T),
+    UninitSentinel(T),
     /// Initialized with a value.
     Initialized(T),
 }
@@ -195,10 +197,10 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
     /// # Panics
     /// If `init()` was called before.
     pub fn init(&mut self, val: T) {
-        match self.inner {
-            OnEditorState::Null | OnEditorState::Uninitialized(_) => {
+        match self.state {
+            OnEditorState::UninitNull | OnEditorState::UninitSentinel(_) => {
                 *self = OnEditor {
-                    inner: OnEditorState::Initialized(val),
+                    state: OnEditorState::Initialized(val),
                 };
             }
             OnEditorState::Initialized(_) => {
@@ -215,7 +217,7 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
         T::Via: BuiltinExport,
     {
         OnEditor {
-            inner: OnEditorState::Uninitialized(val),
+            state: OnEditorState::UninitSentinel(val),
         }
     }
 
@@ -224,23 +226,23 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
     /// Not a part of public API – available only via `Default` implementation on `OnEditor<Gd<T>>` and `OnEditor<DynGd<D, T>>`.
     pub(crate) fn gd_invalid() -> Self {
         OnEditor {
-            inner: OnEditorState::Null,
+            state: OnEditorState::UninitNull,
         }
     }
 
     #[doc(hidden)]
     pub fn is_invalid(&self) -> bool {
-        match self.inner {
-            OnEditorState::Null | OnEditorState::Uninitialized(_) => true,
+        match self.state {
+            OnEditorState::UninitNull | OnEditorState::UninitSentinel(_) => true,
             OnEditorState::Initialized(_) => false,
         }
     }
 
     /// `Var::get_property` implementation that works both for nullable and non-nullable types.
     pub(crate) fn get_property_inner(&self) -> Option<T::Via> {
-        match &self.inner {
-            OnEditorState::Null => None,
-            OnEditorState::Uninitialized(val) | OnEditorState::Initialized(val) => {
+        match &self.state {
+            OnEditorState::UninitNull => None,
+            OnEditorState::UninitSentinel(val) | OnEditorState::Initialized(val) => {
                 Some(val.get_property())
             }
         }
@@ -251,18 +253,18 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
     /// All the state transitions are valid, since it is being run only in the editor.
     /// See also [`Option::set_property()`].
     pub(crate) fn set_property_inner(&mut self, value: Option<T::Via>) {
-        match (value, &mut self.inner) {
-            (None, _) => self.inner = OnEditorState::Null,
+        match (value, &mut self.state) {
+            (None, _) => self.state = OnEditorState::UninitNull,
             (Some(value), OnEditorState::Initialized(current_value)) => {
                 current_value.set_property(value);
             }
-            (Some(value), OnEditorState::Null) => {
-                self.inner = OnEditorState::Initialized(FromGodot::from_godot(value))
+            (Some(value), OnEditorState::UninitNull) => {
+                self.state = OnEditorState::Initialized(FromGodot::from_godot(value))
             }
-            (Some(value), OnEditorState::Uninitialized(current_value)) => {
+            (Some(value), OnEditorState::UninitSentinel(current_value)) => {
                 let value = FromGodot::from_godot(value);
                 if value != *current_value {
-                    self.inner = OnEditorState::Initialized(value)
+                    self.state = OnEditorState::Initialized(value)
                 }
             }
         }
@@ -272,8 +274,8 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
 impl<T> std::ops::Deref for OnEditor<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        match &self.inner {
-            OnEditorState::Null | OnEditorState::Uninitialized(_) => {
+        match &self.state {
+            OnEditorState::UninitNull | OnEditorState::UninitSentinel(_) => {
                 panic!("OnEditor field hasn't been initialized.")
             }
             OnEditorState::Initialized(v) => v,
@@ -283,8 +285,8 @@ impl<T> std::ops::Deref for OnEditor<T> {
 
 impl<T> std::ops::DerefMut for OnEditor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        match &mut self.inner {
-            OnEditorState::Null | OnEditorState::Uninitialized(_) => {
+        match &mut self.state {
+            OnEditorState::UninitNull | OnEditorState::UninitSentinel(_) => {
                 panic!("OnEditor field hasn't been initialized.")
             }
             OnEditorState::Initialized(v) => v,
@@ -307,7 +309,7 @@ where
     T::Via: BuiltinExport,
 {
     fn get_property(&self) -> Self::Via {
-        // Will never fail – `PrimitiveGodotType` can not be represented by the `OnEditorState::Null`.
+        // Will never fail – `PrimitiveGodotType` can not be represented by the `OnEditorState::UninitNull`.
         OnEditor::<T>::get_property_inner(self).expect("DirectExport is not nullable.")
     }
 
