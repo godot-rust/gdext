@@ -83,3 +83,24 @@ impl INode for OnEditorNoDefault {
         self.was_ready_run = true;
     }
 }
+
+#[itest]
+fn oneditor_debug() {
+    let val = OnEditor::from_sentinel(-1);
+    assert_eq!(format!("{val:?}"), "OnEditor { state: UninitSentinel(-1) }");
+
+    let mut val = OnEditor::<Gd<Node>>::default();
+    assert_eq!(format!("{val:?}"), "OnEditor { state: UninitNull }");
+
+    let obj = Node::new_alloc();
+    val.init(obj.clone());
+
+    let id = obj.instance_id();
+
+    let actual = format!(".:{val:?}:.");
+    let expected = format!(".:OnEditor {{ state: Initialized(Gd {{ id: {id}, class: Node }}) }}:.");
+
+    assert_eq!(actual, expected);
+
+    obj.free();
+}
