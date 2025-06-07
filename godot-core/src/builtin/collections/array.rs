@@ -1579,6 +1579,8 @@ macro_rules! array {
 /// To create a typed `Array` with a single element type, see the [`array!`] macro.
 ///
 /// For dictionaries, a similar macro [`dict!`] exists.
+///
+/// To construct slices of variants, use [`vslice!`].
 #[macro_export]
 macro_rules! varray {
     // Note: use to_variant() and not Variant::from(), as that works with both references and values
@@ -1590,6 +1592,49 @@ macro_rules! varray {
                 array.push(&$elements.to_variant());
             )*
             array
+        }
+    };
+}
+
+/// Constructs a slice of [`Variant`] literals, useful for passing to vararg functions.
+///
+/// Many APIs in Godot have variable-length arguments. GDScript can call such functions by simply passing more arguments, but in Rust,
+/// the parameter type `&[Variant]` is used.
+///
+/// This macro creates a [slice](https://doc.rust-lang.org/std/primitive.slice.html) of `Variant` values.
+///
+/// # Examples
+/// Variable number of arguments:
+/// ```no_run
+/// # use godot::prelude::*;
+/// let slice: &[Variant] = vslice![42, "hello", true];
+///
+/// let concat: GString = godot::global::str(slice);
+/// ```
+/// _(In practice, you might want to use [`godot_str!`][crate::global::godot_str] instead of `str()`.)_
+///
+/// Dynamic function call via reflection. NIL can still be passed inside `vslice!`, just use `Variant::nil()`.
+/// ```no_run
+/// # use godot::prelude::*;
+/// # fn some_object() -> Gd<Object> { unimplemented!() }
+/// let mut obj: Gd<Object> = some_object();
+/// obj.call("some_method", vslice![Vector2i::new(1, 2), Variant::nil()]);
+/// ```
+///
+/// # See also
+/// To create typed and untyped `Array`s, use the [`array!`] and [`varray!`] macros respectively.
+///
+/// For dictionaries, a similar macro [`dict!`] exists.
+#[macro_export]
+macro_rules! vslice {
+    // Note: use to_variant() and not Variant::from(), as that works with both references and values
+    ($($elements:expr),* $(,)?) => {
+        {
+            use $crate::meta::ToGodot as _;
+            let mut array = $crate::builtin::VariantArray::default();
+            &[
+                $( $elements.to_variant(), )*
+            ]
         }
     };
 }

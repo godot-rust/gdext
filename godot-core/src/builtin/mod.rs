@@ -48,7 +48,7 @@ pub mod __prelude_reexport {
     pub use vectors::*;
 
     pub use super::{EulerOrder, Side, VariantOperator, VariantType};
-    pub use crate::{array, dict, real, reals, varray};
+    pub use crate::{array, dict, real, reals, varray, vslice};
 }
 
 pub use __prelude_reexport::*;
