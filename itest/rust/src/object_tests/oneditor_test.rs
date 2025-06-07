@@ -104,3 +104,24 @@ fn oneditor_debug() {
 
     obj.free();
 }
+
+#[itest]
+fn oneditor_display() {
+    let val = OnEditor::from_sentinel(-1);
+    assert_eq!(format!("{val}"), "uninitialized");
+
+    let mut val = OnEditor::<Gd<Node>>::default();
+    assert_eq!(format!("{val}"), "null");
+
+    let obj = Node::new_alloc();
+    val.init(obj.clone());
+
+    let id = obj.instance_id();
+
+    let actual = format!("{val}");
+    let expected = format!("<Node#{id}>");
+
+    assert_eq!(actual, expected);
+
+    obj.free();
+}

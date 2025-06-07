@@ -330,3 +330,16 @@ where
 }
 
 impl<T> BuiltinExport for OnEditor<T> {}
+
+impl<T> std::fmt::Display for OnEditor<T>
+where
+    T: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.state {
+            OnEditorState::UninitNull => f.write_str("null"),
+            OnEditorState::UninitSentinel(_) => f.write_str("uninitialized"),
+            OnEditorState::Initialized(val) => std::fmt::Display::fmt(val, f),
+        }
+    }
+}
