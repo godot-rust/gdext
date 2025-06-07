@@ -195,7 +195,12 @@ pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + meta::ParamType {
 // Non-polymorphic helper functions, to avoid constant `<T::Via as GodotType>::` in the code.
 
 #[doc(hidden)]
-pub(crate) fn element_variant_type<T: ArrayElement>() -> VariantType {
+pub(crate) const fn element_variant_type<T: ArrayElement>() -> VariantType {
+    <T::Via as GodotType>::Ffi::VARIANT_TYPE
+}
+
+#[doc(hidden)]
+pub(crate) const fn ffi_variant_type<T: GodotConvert>() -> VariantType {
     <T::Via as GodotType>::Ffi::VARIANT_TYPE
 }
 
