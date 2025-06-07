@@ -10,7 +10,7 @@
 
 use crate::framework::itest;
 
-use godot::builtin::{GString, Variant};
+use godot::builtin::{vslice, GString, Variant};
 use godot::global::*;
 
 #[itest]
@@ -35,12 +35,7 @@ fn utilities_str() {
     let b = " is a ";
     let c = true;
     let d = " number";
-    let concat = str(&[
-        Variant::from(a),
-        Variant::from(b),
-        Variant::from(c),
-        Variant::from(d),
-    ]);
+    let concat = str(vslice![a, b, c, d]);
 
     let empty = str(&[]);
 
@@ -69,17 +64,13 @@ fn utilities_wrap() {
 
 #[itest]
 fn utilities_max() {
-    let output = max(
-        &Variant::from(1.0),
-        &Variant::from(3.0),
-        &[Variant::from(5.0), Variant::from(7.0)],
-    );
+    let output = max(&Variant::from(1.0), &Variant::from(3.0), vslice![5.0, 7.0]);
     assert_eq!(output, Variant::from(7.0));
 
     let output = max(
         &Variant::from(-1.0),
         &Variant::from(-3.0),
-        &[Variant::from(-5.0), Variant::from(-7.0)],
+        vslice![-5.0, -7.0],
     );
     assert_eq!(output, Variant::from(-1.0));
 }

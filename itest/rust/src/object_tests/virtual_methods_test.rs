@@ -8,7 +8,7 @@
 use crate::framework::{itest, TestContext};
 
 use godot::builtin::{
-    real, varray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
+    real, varray, vslice, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
     PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv, StringName, Variant,
     VariantArray, Vector2, Vector3,
 };
@@ -337,7 +337,7 @@ fn test_ready_dynamic_panic(test_context: &TestContext) {
 
     // NOTE: Current implementation catches panics, but does not propagate them to the user.
     // Godot has no mechanism to transport errors across ptrcalls (e.g. virtual function calls), so this would need to be emulated somehow.
-    let result = test_node.try_call("add_child", &[obj.to_variant()]);
+    let result = test_node.try_call("add_child", vslice![obj]);
     // let err = result.expect_err("add_child() should have panicked");
     let returned = result.expect("at the moment, panics in virtual functions are swallowed");
     assert_eq!(returned, Variant::nil());

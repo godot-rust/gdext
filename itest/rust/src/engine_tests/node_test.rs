@@ -7,7 +7,7 @@
 
 use std::str::FromStr;
 
-use godot::builtin::{NodePath, Variant};
+use godot::builtin::{vslice, NodePath};
 use godot::classes::{Node, Node3D, PackedScene, SceneTree};
 use godot::global;
 use godot::obj::{NewAlloc, NewGd};
@@ -90,5 +90,5 @@ fn node_call_group(ctx: &TestContext) {
     let mut tree = node.get_tree().unwrap();
 
     node.add_to_group("group");
-    tree.call_group("group", "set_name", &[Variant::from("name")]);
+    tree.call_group("group", "set_name", vslice!["name"]);
 }

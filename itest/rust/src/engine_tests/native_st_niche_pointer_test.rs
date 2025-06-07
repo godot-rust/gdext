@@ -11,11 +11,10 @@
 
 use std::ptr;
 
-use godot::builtin::{Dictionary, Rect2, Rid};
+use godot::builtin::{vslice, Dictionary, Rect2, Rid};
 use godot::classes::native::{CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult};
 use godot::classes::text_server::Direction;
 use godot::classes::{IRefCounted, Node3D, RefCounted};
-use godot::meta::ToGodot;
 use godot::obj::{Base, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 
@@ -80,7 +79,7 @@ fn native_structure_parameter() {
 
     let ptr = ptr::addr_of!(caret);
     let mut object = NativeStructTests::new_gd();
-    let result: Dictionary = object.call("pass_native_struct", &[ptr.to_variant()]).to();
+    let result: Dictionary = object.call("pass_native_struct", vslice![ptr]).to();
 
     assert_eq!(
         result.at("leading_caret").to::<Rect2>(),

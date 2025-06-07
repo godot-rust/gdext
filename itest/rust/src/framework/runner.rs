@@ -7,10 +7,9 @@
 
 use std::time::{Duration, Instant};
 
-use godot::builtin::{Array, Callable, GString, Variant, VariantArray};
+use godot::builtin::{vslice, Array, Callable, GString, Variant, VariantArray};
 use godot::classes::{Engine, Node, Os};
 use godot::global::godot_error;
-use godot::meta::ToGodot;
 use godot::obj::Gd;
 use godot::register::{godot_api, GodotClass};
 
@@ -140,7 +139,7 @@ impl IntegrationTests {
                 );
 
                 // Calling deferred to break a potentially synchronous call stack and avoid re-entrancy.
-                on_finished.call_deferred(&[result.to_variant()]);
+                on_finished.call_deferred(vslice![result]);
             };
 
             Self::run_async_rust_tests(
@@ -587,12 +586,12 @@ fn print_bench_post(result: BenchResult) {
 }
 
 fn get_property(test: &Variant, property: &str) -> String {
-    test.call("get", &[property.to_variant()]).to::<String>()
+    test.call("get", vslice![property]).to::<String>()
 }
 
 fn get_execution_time(test: &Variant) -> Option<Duration> {
     let seconds = test
-        .call("get", &["execution_time_seconds".to_variant()])
+        .call("get", vslice!["execution_time_seconds"])
         .try_to::<f64>()
         .ok()?;
 
@@ -600,7 +599,7 @@ fn get_execution_time(test: &Variant) -> Option<Duration> {
 }
 
 fn get_errors(test: &Variant) -> Array<GString> {
-    test.call("get", &["errors".to_variant()])
+    test.call("get", vslice!["errors"])
         .try_to::<Array<GString>>()
         .unwrap_or_default()
 }
