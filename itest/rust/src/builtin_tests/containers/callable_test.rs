@@ -7,7 +7,7 @@
 
 use crate::framework::itest;
 use godot::builtin::{
-    array, dict, varray, Array, Callable, Color, GString, NodePath, StringName, Variant,
+    array, dict, varray, vslice, Array, Callable, Color, GString, NodePath, StringName, Variant,
     VariantArray, Vector2,
 };
 use godot::classes::{Node2D, Object, RefCounted};
@@ -104,20 +104,20 @@ fn callable_variant_method() {
     // Dictionary
     let dict = dict! { "one": 1, "value": 2 };
     let dict_get = Callable::from_variant_method(&dict.to_variant(), "get");
-    assert_eq!(dict_get.call(&["one".to_variant()]), 1.to_variant());
+    assert_eq!(dict_get.call(vslice!["one"]), 1.to_variant());
 
     // GString
     let string = GString::from("some string").to_variant();
     let string_md5 = Callable::from_variant_method(&string, "md5_text");
     assert_eq!(
-        string_md5.call(&[]),
+        string_md5.call(vslice![]), // use vslice![] as alternative &[] syntax.
         "5ac749fbeec93607fc28d666be85e73a".to_variant()
     );
 
     // Object
     let obj = CallableTestObj::new_gd().to_variant();
     let obj_stringify = Callable::from_variant_method(&obj, "stringify_int");
-    assert_eq!(obj_stringify.call(&[10.to_variant()]), "10".to_variant());
+    assert_eq!(obj_stringify.call(vslice![10]), "10".to_variant());
 
     // Vector3
     let vector = Vector2::new(-1.2, 2.5).to_variant();
@@ -220,18 +220,15 @@ fn callable_call() {
     let callable = obj.callable("assign_int");
 
     assert_eq!(obj.bind().value, 0);
-    callable.call(&[10.to_variant()]);
+    callable.call(vslice![10]);
     assert_eq!(obj.bind().value, 10);
 
-    callable.call(&[20.to_variant(), 30.to_variant()]);
+    callable.call(vslice![20, 30]);
     assert_eq!(obj.bind().value, 10);
 
-    assert_eq!(callable.call(&["string".to_variant()]), Variant::nil());
+    assert_eq!(callable.call(vslice!["string"]), Variant::nil());
 
-    assert_eq!(
-        Callable::invalid().call(&[1.to_variant(), 2.to_variant(), 3.to_variant()]),
-        Variant::nil()
-    );
+    assert_eq!(Callable::invalid().call(vslice![1, 2, 3]), Variant::nil());
 }
 
 #[itest]
@@ -259,11 +256,11 @@ fn callable_call_engine() {
     assert_eq!(cb.method_name(), Some(StringName::from("set_position")));
 
     let pos = Vector2::new(5.0, 7.0);
-    cb.call(&[pos.to_variant()]);
+    cb.call(vslice![pos]);
     assert_eq!(obj.get_position(), pos);
 
     let pos = Vector2::new(1.0, 23.0);
-    let bound = cb.bind(&[pos.to_variant()]);
+    let bound = cb.bind(vslice![pos]);
     bound.call(&[]);
     assert_eq!(obj.get_position(), pos);
 
@@ -287,7 +284,7 @@ fn callable_bindv() {
 fn callable_bind() {
     let obj = CallableTestObj::new_gd();
     let callable = obj.callable("stringify_int");
-    let callable_bound = callable.bind(&[10.to_variant()]);
+    let callable_bound = callable.bind(vslice![10]);
 
     assert_eq!(
         callable_bound.call(&[]),
@@ -303,12 +300,7 @@ fn callable_unbind() {
     let callable_unbound = callable.unbind(3);
 
     assert_eq!(
-        callable_unbound.call(&[
-            121.to_variant(),
-            20.to_variant(),
-            30.to_variant(),
-            40.to_variant()
-        ]),
+        callable_unbound.call(vslice![121, 20, 30, 40]),
         121.to_variant().stringify().to_variant()
     );
 }
@@ -327,9 +319,7 @@ fn callable_get_argument_count() {
     let concat_array = obj.callable("concat_array");
     assert_eq!(concat_array.get_argument_count(), 4);
     assert_eq!(
-        concat_array
-            .bind(&[10.to_variant(), "hello".to_variant()])
-            .get_argument_count(),
+        concat_array.bind(vslice![10, "hello"]).get_argument_count(),
         2
     );
 }

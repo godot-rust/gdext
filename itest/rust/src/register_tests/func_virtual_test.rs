@@ -9,6 +9,7 @@
 #![allow(clippy::non_minimal_cfg)]
 
 use crate::framework::itest;
+use godot::builtin::vslice;
 use godot::classes::GDScript;
 use godot::prelude::*;
 
@@ -60,7 +61,7 @@ fn func_virtual() {
     assert_eq!(object.bind().greet_lang(72), GString::from("GDScript#72"));
 
     // Dynamic call: "GDScript".
-    let result = object.call("_greet_lang", &[72.to_variant()]);
+    let result = object.call("_greet_lang", vslice![72]);
     assert_eq!(result, "GDScript#72".to_variant());
 }
 
@@ -81,7 +82,7 @@ fn func_virtual_renamed() {
     );
 
     // Dynamic call: "GDScript".
-    let result = object.call("greet_lang2", &["Hello".to_variant()]);
+    let result = object.call("greet_lang2", vslice!["Hello"]);
     assert_eq!(result, "Hello GDScript".to_variant());
 }
 
@@ -102,7 +103,7 @@ fn func_virtual_gd_self() {
     );
 
     // Dynamic call: "GDScript".
-    let result = object.call("_greet_lang3", &["Hoi".to_variant()]);
+    let result = object.call("_greet_lang3", vslice!["Hoi"]);
     assert_eq!(result, "Hoi GDScript".to_variant());
 }
 

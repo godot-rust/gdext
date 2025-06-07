@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{dict, Color, Dictionary, GString, Variant, VariantType};
+use godot::builtin::{dict, vslice, Color, Dictionary, GString, Variant, VariantType};
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
@@ -521,7 +521,7 @@ fn test_var_with_renamed_funcs() {
     assert_eq!(obj.call("f1", &[]).to::<i32>(), 42);
     assert_eq!(obj.get("int_val").to::<i32>(), 42);
 
-    obj.call("f2", &[84.to_variant()]);
+    obj.call("f2", vslice![84]);
 
     assert_eq!(obj.bind().int_val, 84);
     assert_eq!(obj.bind().get_int_val(), 84);

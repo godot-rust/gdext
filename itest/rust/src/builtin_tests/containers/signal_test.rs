@@ -6,7 +6,7 @@
  */
 
 use crate::framework::itest;
-use godot::builtin::{GString, Signal, StringName};
+use godot::builtin::{vslice, GString, Signal, StringName};
 use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
 use godot::meta::ToGodot;
@@ -27,7 +27,7 @@ fn signal_basic_connect_emit() {
     assert_eq!(receiver.bind().last_received(), LastReceived::Unit);
 
     emitter.connect("signal_int", &receiver.callable("receive_int"));
-    emitter.emit_signal("signal_int", &[1278.to_variant()]);
+    emitter.emit_signal("signal_int", vslice![1278]);
     assert_eq!(receiver.bind().last_received(), LastReceived::Int(1278));
 
     let emitter_variant = emitter.to_variant();
@@ -636,9 +636,8 @@ impl PubClassPrivSignal {
 
 #[cfg(since_api = "4.2")]
 mod custom_callable {
-    use godot::builtin::{Callable, Signal};
+    use godot::builtin::{vslice, Callable, Signal};
     use godot::classes::Node;
-    use godot::meta::ToGodot;
     use godot::obj::{Gd, NewAlloc};
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
@@ -655,7 +654,7 @@ mod custom_callable {
                 node.add_user_signal("test_signal");
             },
             |node| {
-                node.emit_signal("test_signal", &[987i64.to_variant()]);
+                node.emit_signal("test_signal", vslice![987i64]);
             },
         );
     }
@@ -669,7 +668,7 @@ mod custom_callable {
                 node.add_user_signal("test_signal");
             },
             |node| {
-                node.emit_signal("test_signal", &[987i64.to_variant()]);
+                node.emit_signal("test_signal", vslice![987i64]);
             },
         );
     }

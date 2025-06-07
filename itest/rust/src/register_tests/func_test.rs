@@ -9,6 +9,7 @@
 #![allow(clippy::non_minimal_cfg)]
 
 use crate::framework::{expect_panic, itest};
+use godot::builtin::vslice;
 use godot::classes::ClassDb;
 use godot::prelude::*;
 
@@ -198,7 +199,7 @@ impl GdSelfObj {
         // GDScript tries to call update_internal(), there will be a failure due
         // to the double borrow and self.internal_value won't be changed.
         self.base_mut()
-            .emit_signal("update_internal_signal", &[new_internal.to_variant()]);
+            .emit_signal("update_internal_signal", vslice![new_internal]);
         self.internal_value
     }
 
@@ -206,7 +207,7 @@ impl GdSelfObj {
     fn succeed_at_updating_internal_value(mut this: Gd<Self>, new_internal: i32) -> i32 {
         // Since this isn't bound while the signal is emitted, GDScript will succeed at calling
         // update_internal() and self.internal_value will be changed.
-        this.emit_signal("update_internal_signal", &[new_internal.to_variant()]);
+        this.emit_signal("update_internal_signal", vslice![new_internal]);
 
         this.bind().internal_value
     }
