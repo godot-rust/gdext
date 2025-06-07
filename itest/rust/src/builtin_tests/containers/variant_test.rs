@@ -9,7 +9,8 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 
 use godot::builtin::{
-    array, dict, varray, Array, GString, NodePath, Signal, StringName, Variant, Vector2, Vector3,
+    array, dict, varray, vslice, Array, GString, NodePath, Signal, StringName, Variant, Vector2,
+    Vector3,
 };
 use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
 use godot::classes::{Node, Node2D};
@@ -308,7 +309,7 @@ fn variant_call() {
 
     // Object
     let position = Vector2::new(4.0, 5.0);
-    let result = variant.call("set_position", &[position.to_variant()]);
+    let result = variant.call("set_position", vslice![position]);
     assert!(result.is_nil());
 
     let result = variant
@@ -333,7 +334,7 @@ fn variant_call() {
     // Vector2
     let vector = Vector2::new(5.0, 3.0);
     let vector_rhs = Vector2::new(1.0, -1.0);
-    let result = vector.to_variant().call("dot", &[vector_rhs.to_variant()]);
+    let result = vector.to_variant().call("dot", vslice![vector_rhs]);
     assert_eq!(result, 2.0.to_variant());
 
     // Dynamic checks are only available in Debug builds.
@@ -478,7 +479,7 @@ fn variant_null_object_is_nil() {
 
     // Simulates an object that is returned but null
     // Use reflection to get a variant as return type
-    let variant = node.call("get_node_or_null", &[node_path.to_variant()]);
+    let variant = node.call("get_node_or_null", vslice![node_path]);
     let raw_type: sys::GDExtensionVariantType =
         unsafe { sys::interface_fn!(variant_get_type)(variant.var_sys()) };
 
