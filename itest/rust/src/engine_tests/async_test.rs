@@ -7,9 +7,8 @@
 
 use std::ops::Deref;
 
-use godot::builtin::{array, Array, Callable, Signal, Variant};
+use godot::builtin::{array, vslice, Array, Callable, Signal, Variant};
 use godot::classes::{Object, RefCounted};
-use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::prelude::{godot_api, GodotClass};
 use godot::task::{self, create_test_signal_future_resolver, SignalFuture, TaskHandle};
@@ -50,10 +49,7 @@ fn start_async_task() -> TaskHandle {
 
     let ref_counted_arg = RefCounted::new_gd();
 
-    object.emit_signal(
-        "custom_signal",
-        &[10.to_variant(), ref_counted_arg.to_variant()],
-    );
+    object.emit_signal("custom_signal", vslice![10, ref_counted_arg]);
 
     task_handle
 }
@@ -77,7 +73,7 @@ fn async_task_array() -> TaskHandle {
 
     object.emit_signal(
         "custom_signal_array",
-        &[array![1, 2, 3].to_variant(), ref_counted_arg.to_variant()],
+        vslice![array![1, 2, 3], ref_counted_arg],
     );
 
     task_handle
@@ -154,7 +150,7 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
     std::thread::spawn(move || {
         let mut object = unsafe { object.extract() };
 
-        object.emit_signal("custom_signal", &[RefCounted::new_gd().to_variant()])
+        object.emit_signal("custom_signal", vslice![RefCounted::new_gd()])
     });
 
     handle
@@ -181,7 +177,7 @@ fn signal_future_send_arg_no_panic() -> TaskHandle {
     std::thread::spawn(move || {
         let mut object = unsafe { object.extract() };
 
-        object.emit_signal("custom_signal", &[1u8.to_variant()])
+        object.emit_signal("custom_signal", vslice![1u8])
     });
 
     handle
