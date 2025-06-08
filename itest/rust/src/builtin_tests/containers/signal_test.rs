@@ -9,8 +9,9 @@ use crate::framework::itest;
 use godot::builtin::{vslice, GString, Signal, StringName};
 use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
-use godot::meta::ToGodot;
+use godot::meta::{FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
+use godot::prelude::ConvertError;
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
 use godot::sys::Global;
@@ -470,6 +471,55 @@ fn signal_construction_and_id() {
     drop(object);
     assert_eq!(signal.object_id(), Some(object_id));
     assert_eq!(signal.object(), None);
+}
+
+#[cfg(since_api = "4.2")]
+#[itest]
+fn enums_as_signal_args() {
+    #[derive(Debug, Clone)]
+    enum EventType {
+        Ready,
+    }
+
+    impl GodotConvert for EventType {
+        type Via = u8;
+    }
+
+    impl ToGodot for EventType {
+        type ToVia<'v> = Self::Via;
+
+        fn to_godot(&self) -> Self::ToVia<'_> {
+            match self {
+                EventType::Ready => 0,
+            }
+        }
+    }
+
+    impl FromGodot for EventType {
+        fn try_from_godot(via: Self::Via) -> Result<Self, godot::prelude::ConvertError> {
+            match via {
+                0 => Ok(Self::Ready),
+                _ => Err(ConvertError::new("value out of range")),
+            }
+        }
+    }
+
+    #[derive(GodotClass)]
+    #[class(base = RefCounted, init)]
+    struct SignalObject {
+        base: Base<RefCounted>,
+    }
+
+    #[godot_api]
+    impl SignalObject {
+        #[signal]
+        fn game_event(ty: EventType);
+    }
+
+    let object = SignalObject::new_gd();
+    let event = EventType::Ready;
+
+    object.signals().game_event().emit(&event);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

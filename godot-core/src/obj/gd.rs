@@ -842,16 +842,6 @@ impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
     }
 }
 
-impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
-    #[doc(hidden)] // Repeated despite already hidden in trait; some IDEs suggest this otherwise.
-    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
-    where
-        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-    {
-        CowArg::Borrowed(self)
-    }
-}
-
 /*
 // TODO find a way to generalize AsArg to derived->base conversions without breaking type inference in array![].
 // Possibly we could use a "canonical type" with unambiguous mapping (&Gd<T> -> &Gd<T>, not &Gd<T> -> &Gd<TBase>).

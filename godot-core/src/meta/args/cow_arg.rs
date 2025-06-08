@@ -11,6 +11,7 @@ use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, RefArg, ToGodot};
 use crate::sys;
 use godot_ffi::{GodotFfi, GodotNullableFfi, PtrcallType};
 use std::fmt;
+use std::ops::Deref;
 
 /// Owned or borrowed value, used when passing arguments through `impl AsArg` to Godot APIs.
 #[doc(hidden)]
@@ -180,5 +181,16 @@ where
 
     fn is_null(&self) -> bool {
         self.cow_as_ref().is_null()
+    }
+}
+
+impl<T> Deref for CowArg<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            CowArg::Owned(value) => value,
+            CowArg::Borrowed(value) => value,
+        }
     }
 }

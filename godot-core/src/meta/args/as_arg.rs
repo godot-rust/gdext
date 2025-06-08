@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::{GString, NodePath, StringName};
-use crate::meta::{sealed, CowArg};
+use crate::meta::{sealed, CowArg, ToGodot};
 use std::ffi::CStr;
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -53,14 +53,35 @@ use std::ffi::CStr;
     note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method.",
     note = "see also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
 )]
-pub trait AsArg<T: ParamType>
+pub trait AsArg<T: ToGodot>
 where
     Self: Sized,
 {
+    // The usage of the CowArg return type introduces a small runtime penalty for values that implement Copy. Currently, the usage
+    // ergonomics out weigh the runtime cost. Using the CowArg allows us to create a blanket implementation of the trait for all types that
+    // implement ToGodot.
     #[doc(hidden)]
-    fn into_arg<'r>(self) -> <T as ParamType>::Arg<'r>
+    fn into_arg<'r>(self) -> CowArg<'r, T>
     where
         Self: 'r;
+}
+
+impl<T: ToGodot> AsArg<T> for &T {
+    fn into_arg<'r>(self) -> CowArg<'r, T>
+    where
+        Self: 'r,
+    {
+        CowArg::Borrowed(self)
+    }
+}
+
+impl<T: ToGodot + Copy> AsArg<T> for T {
+    fn into_arg<'r>(self) -> CowArg<'r, T>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(self)
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -81,7 +102,7 @@ macro_rules! arg_into_ref {
     };
     ($arg_variable:ident: $T:ty) => {
         let $arg_variable = $arg_variable.into_arg();
-        let $arg_variable: &$T = $crate::meta::ParamType::arg_to_ref(&$arg_variable);
+        let $arg_variable: &$T = $arg_variable.cow_as_ref();
     };
 }
 
@@ -102,20 +123,13 @@ macro_rules! arg_into_owned {
     };
     (infer $arg_variable:ident) => {
         let $arg_variable = $arg_variable.into_arg();
-        let $arg_variable = $crate::meta::ParamType::arg_into_owned($arg_variable);
+        let $arg_variable = $arg_variable.cow_into_owned();
     };
 }
 
 #[macro_export]
 macro_rules! impl_asarg_by_value {
     ($T:ty) => {
-        impl $crate::meta::AsArg<$T> for $T {
-            fn into_arg<'r>(self) -> <$T as $crate::meta::ParamType>::Arg<'r> {
-                // Moves value (but typically a Copy type).
-                self
-            }
-        }
-
         impl $crate::meta::ParamType for $T {
             type Arg<'v> = $T;
 
@@ -137,22 +151,6 @@ macro_rules! impl_asarg_by_value {
 #[macro_export]
 macro_rules! impl_asarg_by_ref {
     ($T:ty) => {
-        impl<'r> $crate::meta::AsArg<$T> for &'r $T {
-            // 1 rustfmt + 1 rustc problems (bugs?) here:
-            // - formatting doesn't converge; `where` keeps being further indented on each run.
-            // - a #[rustfmt::skip] annotation over the macro causes a compile error when mentioning `crate::impl_asarg_by_ref`.
-            //   "macro-expanded `macro_export` macros from the current crate cannot be referred to by absolute paths"
-            // Thus, keep `where` on same line.
-            // type ArgType<'v> = &'v $T where Self: 'v;
-
-            fn into_arg<'cow>(self) -> <$T as $crate::meta::ParamType>::Arg<'cow>
-            where
-                'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-            {
-                $crate::meta::CowArg::Borrowed(self)
-            }
-        }
-
         impl $crate::meta::ParamType for $T {
             type Arg<'v> = $crate::meta::CowArg<'v, $T>;
 
@@ -199,7 +197,7 @@ macro_rules! declare_arg_method {
 /// This is necessary for packed array dispatching to different "inner" backend signatures.
 impl<T> AsArg<T> for CowArg<'_, T>
 where
-    for<'r> T: ParamType<Arg<'r> = CowArg<'r, T>> + 'r,
+    for<'r> T: ToGodot,
 {
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
@@ -273,7 +271,7 @@ impl AsArg<NodePath> for &String {
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
 // ParamType used to be a subtrait of GodotType, but this can be too restrictive. For example, DynGd is not a "Godot canonical type"
 // (GodotType), however it's still useful to store it in arrays -- which requires AsArg and subsequently ParamType.
-pub trait ParamType: sealed::Sealed + Sized + 'static
+pub trait ParamType: sealed::Sealed + Sized + 'static + ToGodot
 // GodotType bound not required right now, but conceptually should always be the case.
 {
     /// Canonical argument passing type, either `T` or an internally-used CoW type.

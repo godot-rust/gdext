@@ -530,19 +530,6 @@ where
     }
 }
 
-impl<'r, T, D> meta::AsArg<DynGd<T, D>> for &'r DynGd<T, D>
-where
-    T: GodotClass,
-    D: ?Sized + 'static,
-{
-    fn into_arg<'cow>(self) -> meta::CowArg<'cow, DynGd<T, D>>
-    where
-        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-    {
-        meta::CowArg::Borrowed(self)
-    }
-}
-
 /*
 // See `impl AsArg for Gd<T>` for why this isn't yet implemented.
 impl<'r, T, TBase, D> meta::AsArg<DynGd<TBase, D>> for &'r DynGd<T, D>

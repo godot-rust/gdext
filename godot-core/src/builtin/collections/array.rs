@@ -1118,15 +1118,6 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
 impl ArrayElement for VariantArray {}
 
-impl<'r, T: ArrayElement> AsArg<Array<T>> for &'r Array<T> {
-    fn into_arg<'cow>(self) -> CowArg<'cow, Array<T>>
-    where
-        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-    {
-        CowArg::Borrowed(self)
-    }
-}
-
 impl<T: ArrayElement> ParamType for Array<T> {
     type Arg<'v> = CowArg<'v, Self>;
 
