@@ -22,6 +22,8 @@ use sys::{ffi_methods, GodotFfi};
 ///
 /// To access its [**HSVA**](ColorHsv) representation, use [`Color::to_hsv`].
 ///
+/// Predefined colors are available as constants, see the corresponding [`impl` block](#impl-Color-1).
+///
 /// # Godot docs
 ///
 /// [`Color` (stable)](https://docs.godotengine.org/en/stable/classes/class_color.html)
