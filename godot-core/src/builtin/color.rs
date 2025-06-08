@@ -58,20 +58,21 @@ impl Color {
     /// mapped to 1.0.
     ///
     /// _Godot equivalent: the global `Color8` function_
-    pub fn from_rgba8(r: u8, g: u8, b: u8, a: u8) -> Self {
+    pub const fn from_rgba8(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self::from_rgba(from_u8(r), from_u8(g), from_u8(b), from_u8(a))
     }
 
-    /// Constructs a new `Color` with the given components as `u16` words. 0 is mapped to 0.0,
-    /// 65535 (`0xffff`) is mapped to 1.0.
-    pub fn from_rgba16(r: u16, g: u16, b: u16, a: u16) -> Self {
+    /// Constructs a new `Color` with the given components as `u16` words.
+    ///
+    /// 0 is mapped to 0.0, 65535 (`0xFFFF`) is mapped to 1.0.
+    pub const fn from_rgba16(r: u16, g: u16, b: u16, a: u16) -> Self {
         Self::from_rgba(from_u16(r), from_u16(g), from_u16(b), from_u16(a))
     }
 
     /// Constructs a new `Color` from a 32-bits value with the given channel `order`.
     ///
     /// _Godot equivalent: `Color.hex`, if `ColorChannelOrder::Rgba` is used_
-    pub fn from_u32_rgba(u: u32, order: ColorChannelOrder) -> Self {
+    pub const fn from_u32_rgba(u: u32, order: ColorChannelOrder) -> Self {
         let [r, g, b, a] = order.unpack(u.to_be_bytes());
         Color::from_rgba8(r, g, b, a)
     }
@@ -79,7 +80,7 @@ impl Color {
     /// Constructs a new `Color` from a 64-bits value with the given channel `order`.
     ///
     /// _Godot equivalent: `Color.hex64`, if `ColorChannelOrder::Rgba` is used_
-    pub fn from_u64_rgba(u: u64, order: ColorChannelOrder) -> Self {
+    pub const fn from_u64_rgba(u: u64, order: ColorChannelOrder) -> Self {
         let [r, g, b, a] = order.unpack(to_be_words(u));
         Color::from_rgba16(r, g, b, a)
     }
@@ -383,7 +384,7 @@ pub enum ColorChannelOrder {
 }
 
 impl ColorChannelOrder {
-    fn pack<T>(self, rgba: [T; 4]) -> [T; 4] {
+    const fn pack<T: Copy>(self, rgba: [T; 4]) -> [T; 4] {
         let [r, g, b, a] = rgba;
         match self {
             ColorChannelOrder::RGBA => [r, g, b, a],
@@ -392,7 +393,7 @@ impl ColorChannelOrder {
         }
     }
 
-    fn unpack<T>(self, xyzw: [T; 4]) -> [T; 4] {
+    const fn unpack<T: Copy>(self, xyzw: [T; 4]) -> [T; 4] {
         let [x, y, z, w] = xyzw;
         match self {
             ColorChannelOrder::RGBA => [x, y, z, w],
@@ -510,12 +511,12 @@ impl ops::Neg for Color {
 }
 
 /// Converts a single channel byte to a float in the range 0 to 1.
-fn from_u8(byte: u8) -> f32 {
+const fn from_u8(byte: u8) -> f32 {
     byte as f32 / 255.0
 }
 
 /// Converts a single channel `u16` word to a float in the range 0 to 1.
-fn from_u16(byte: u16) -> f32 {
+const fn from_u16(byte: u16) -> f32 {
     byte as f32 / 65535.0
 }
 
@@ -542,7 +543,7 @@ fn from_be_words(words: [u16; 4]) -> u64 {
 }
 
 /// Unpacks a `u64` into four `u16` words in big-endian order.
-fn to_be_words(mut u: u64) -> [u16; 4] {
+const fn to_be_words(mut u: u64) -> [u16; 4] {
     let w = (u & 0xffff) as u16;
     u >>= 16;
     let z = (u & 0xffff) as u16;
