@@ -13,6 +13,7 @@ mod ref_arg;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public APIs
 
+#[expect(deprecated)]
 pub use as_arg::{AsArg, ParamType};
 pub use object_arg::AsObjectArg;
 pub use ref_arg::RefArg;

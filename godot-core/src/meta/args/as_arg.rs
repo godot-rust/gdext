@@ -26,8 +26,6 @@ use std::ffi::CStr;
 /// Implicitly converting from `T` for by-ref builtins is explicitly not supported. This emphasizes that there is no need to consume the object,
 /// thus discourages unnecessary cloning.
 ///
-/// If you need to pass owned values in generic code, you can use [`ParamType::owned_to_arg()`].
-///
 /// # Performance for strings
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
 /// them, is generally expensive because of allocations, re-encoding, validations, hashing, etc. While this doesn't matter for a few strings
@@ -130,19 +128,12 @@ macro_rules! arg_into_owned {
 #[macro_export]
 macro_rules! impl_asarg_by_value {
     ($T:ty) => {
+        #[expect(deprecated)]
         impl $crate::meta::ParamType for $T {
             type Arg<'v> = $T;
 
             fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
                 self
-            }
-
-            fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-                arg
-            }
-
-            fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-                arg
             }
         }
     };
@@ -151,19 +142,12 @@ macro_rules! impl_asarg_by_value {
 #[macro_export]
 macro_rules! impl_asarg_by_ref {
     ($T:ty) => {
+        #[expect(deprecated)]
         impl $crate::meta::ParamType for $T {
             type Arg<'v> = $crate::meta::CowArg<'v, $T>;
 
             fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
                 $crate::meta::CowArg::Owned(self)
-            }
-
-            fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-                arg.cow_as_ref()
-            }
-
-            fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-                arg.cow_into_owned()
             }
         }
     };
@@ -180,7 +164,7 @@ macro_rules! declare_arg_method {
         pub fn arg<T>(&self) -> impl $crate::meta::AsArg<T>
         where
             for<'a> T: From<&'a Self>
-                + $crate::meta::ParamType<Arg<'a> = $crate::meta::CowArg<'a, T>>
+                + $crate::meta::ToGodot
                 + 'a,
         {
             $crate::meta::CowArg::Owned(T::from(self))
@@ -271,6 +255,10 @@ impl AsArg<NodePath> for &String {
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
 // ParamType used to be a subtrait of GodotType, but this can be too restrictive. For example, DynGd is not a "Godot canonical type"
 // (GodotType), however it's still useful to store it in arrays -- which requires AsArg and subsequently ParamType.
+#[deprecated(
+    since = "0.3.2",
+    note = "This trait is no longer needed and will be removed in 0.4"
+)]
 pub trait ParamType: sealed::Sealed + Sized + 'static + ToGodot
 // GodotType bound not required right now, but conceptually should always be the case.
 {
@@ -290,16 +278,4 @@ pub trait ParamType: sealed::Sealed + Sized + 'static + ToGodot
     ///
     /// You should not rely on the exact return type, as it may change in future versions; treat it like `impl AsArg<Self>`.
     fn owned_to_arg<'v>(self) -> Self::Arg<'v>;
-
-    /// Converts an argument to a shared reference.
-    ///
-    /// Useful in generic contexts where you need to extract a reference of an argument, independently of how it is passed.
-    #[doc(hidden)] // for now, users are encouraged to use only call-site of impl AsArg; declaration-site may still develop.
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self;
-
-    /// Clones an argument into an owned value.
-    ///
-    /// Useful in generic contexts where you need to extract a value of an argument, independently of how it is passed.
-    #[doc(hidden)] // for now, users are encouraged to use only call-site of impl AsArg; declaration-site may still develop.
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self;
 }

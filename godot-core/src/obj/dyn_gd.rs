@@ -547,6 +547,7 @@ where
 }
 */
 
+#[expect(deprecated)]
 impl<T, D> meta::ParamType for DynGd<T, D>
 where
     T: GodotClass,
@@ -556,14 +557,6 @@ where
 
     fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
         meta::CowArg::Owned(self)
-    }
-
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-        arg.cow_as_ref()
-    }
-
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-        arg.cow_into_owned()
     }
 }
 

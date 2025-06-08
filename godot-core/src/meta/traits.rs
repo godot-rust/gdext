@@ -8,15 +8,16 @@
 use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
+#[expect(deprecated)]
 use crate::meta::{
-    sealed, ClassName, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
+    sealed, ClassName, FromGodot, GodotConvert, ParamType, PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
 use godot_ffi as sys;
 
 // Re-export sys traits in this module, so all are in one place.
+use crate::builtin;
 use crate::registry::property::builtin_type_string;
-use crate::{builtin, meta};
 pub use sys::{GodotFfi, GodotNullableFfi};
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
@@ -163,11 +164,14 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 ///
 /// Also, keep in mind that Godot uses `Variant` for each element. If performance matters and you have small element types such as `u8`,
 /// consider using packed arrays (e.g. `PackedByteArray`) instead.
+//
+// TODO: The ParamType super trait is no longer needed and can be removed in 0.4. We are only keeping it for backwards compatebility.
 #[diagnostic::on_unimplemented(
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
     label = "has invalid element type"
 )]
-pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + meta::ParamType {
+#[expect(deprecated)]
+pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + ParamType + 'static {
     // Note: several indirections in ArrayElement and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: GodotType. What matters is how array elements map to Godot on the FFI level (GodotType trait).
 

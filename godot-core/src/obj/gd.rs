@@ -13,6 +13,8 @@ use sys::{static_assert_eq_size_align, SysPtr as _};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
+
+#[expect(deprecated)]
 use crate::meta::{
     ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
     ParamType, PropertyHintInfo, RefArg, ToGodot,
@@ -866,19 +868,12 @@ where
 }
 */
 
+#[expect(deprecated)]
 impl<T: GodotClass> ParamType for Gd<T> {
     type Arg<'v> = CowArg<'v, Gd<T>>;
 
     fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
-    }
-
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-        arg.cow_as_ref()
-    }
-
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-        arg.cow_into_owned()
     }
 }
 
@@ -892,19 +887,12 @@ impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
     }
 }
 
+#[expect(deprecated)]
 impl<T: GodotClass> ParamType for Option<Gd<T>> {
     type Arg<'v> = CowArg<'v, Option<Gd<T>>>;
 
     fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
         CowArg::Owned(self)
-    }
-
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-        arg.cow_as_ref()
-    }
-
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-        arg.cow_into_owned()
     }
 }
 
