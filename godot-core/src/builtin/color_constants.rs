@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::Color;
+use crate::builtin::{Color, ColorChannelOrder};
 
 /// Godot's predefined colors.
 ///
@@ -17,6 +17,7 @@ impl Color {
     ///
     /// This color is not provided by Godot, so [`Color::from_string("TRANSPARENT_BLACK")`](Color::from_string) will be `None`.
     pub const TRANSPARENT_BLACK: Color = Color::from_rgba(0.0, 0.0, 0.0, 0.0);
+
     /// Transparent white.
     ///
     /// This color is not provided by Godot, so [`Color::from_string("TRANSPARENT_WHITE")`](Color::from_string) will be `None`.
@@ -24,158 +25,162 @@ impl Color {
     ///
     /// _Godot equivalent: `Color.TRANSPARENT`_
     pub const TRANSPARENT_WHITE: Color = Color::from_rgba(1.0, 1.0, 1.0, 0.0);
+
+    // All predefined values. Values sourced from testing Color::from_string() directly.
+
+    pub const ALICE_BLUE: Color = rgba(0xfff0f8ff);
+    pub const ANTIQUE_WHITE: Color = rgba(0xfffaebd7);
+    pub const AQUA: Color = rgba(0xff00ffff);
+    pub const AQUAMARINE: Color = rgba(0xff7fffd4);
+    pub const AZURE: Color = rgba(0xfff0ffff);
+    pub const BEIGE: Color = rgba(0xfff5f5dc);
+    pub const BISQUE: Color = rgba(0xffffe4c4);
     /// Black color. This is the [default](Color::default) value.
-    pub const BLACK: Color = Color::from_rgba(0.0, 0.0, 0.0, 1.0);
-    pub const WHITE: Color = Color::from_rgba(1.0, 1.0, 1.0, 1.0);
-    pub const ALICE_BLUE: Color = Color::from_rgba(0.941176, 0.972549, 1.0, 1.0);
-    pub const ANTIQUE_WHITE: Color = Color::from_rgba(0.980392, 0.921569, 0.843137, 1.0);
-    pub const AQUA: Color = Color::from_rgba(0.0, 1.0, 1.0, 1.0);
-    pub const AQUAMARINE: Color = Color::from_rgba(0.498039, 1.0, 0.831373, 1.0);
-    pub const AZURE: Color = Color::from_rgba(0.941176, 1.0, 1.0, 1.0);
-    pub const BEIGE: Color = Color::from_rgba(0.960784, 0.960784, 0.862745, 1.0);
-    pub const BISQUE: Color = Color::from_rgba(1.0, 0.894118, 0.768627, 1.0);
-    pub const BLANCHED_ALMOND: Color = Color::from_rgba(1.0, 0.921569, 0.803922, 1.0);
-    pub const BLUE: Color = Color::from_rgba(0.0, 0.0, 1.0, 1.0);
-    pub const BLUE_VIOLET: Color = Color::from_rgba(0.541176, 0.168627, 0.886275, 1.0);
-    pub const BROWN: Color = Color::from_rgba(0.647059, 0.164706, 0.164706, 1.0);
-    pub const BURLYWOOD: Color = Color::from_rgba(0.870588, 0.721569, 0.529412, 1.0);
-    pub const CADET_BLUE: Color = Color::from_rgba(0.372549, 0.619608, 0.627451, 1.0);
-    pub const CHARTREUSE: Color = Color::from_rgba(0.498039, 1.0, 0.0, 1.0);
-    pub const CHOCOLATE: Color = Color::from_rgba(0.823529, 0.411765, 0.117647, 1.0);
-    pub const CORAL: Color = Color::from_rgba(1.0, 0.498039, 0.313726, 1.0);
-    pub const CORNFLOWER_BLUE: Color = Color::from_rgba(0.392157, 0.584314, 0.929412, 1.0);
-    pub const CORNSILK: Color = Color::from_rgba(1.0, 0.972549, 0.862745, 1.0);
-    pub const CRIMSON: Color = Color::from_rgba(0.862745, 0.0784314, 0.235294, 1.0);
-    pub const CYAN: Color = Color::from_rgba(0.0, 1.0, 1.0, 1.0);
-    pub const DARK_BLUE: Color = Color::from_rgba(0.0, 0.0, 0.545098, 1.0);
-    pub const DARK_CYAN: Color = Color::from_rgba(0.0, 0.545098, 0.545098, 1.0);
-    pub const DARK_GOLDENROD: Color = Color::from_rgba(0.721569, 0.52549, 0.0431373, 1.0);
-    pub const DARK_GRAY: Color = Color::from_rgba(0.662745, 0.662745, 0.662745, 1.0);
-    pub const DARK_GREEN: Color = Color::from_rgba(0.0, 0.392157, 0.0, 1.0);
-    pub const DARK_KHAKI: Color = Color::from_rgba(0.741176, 0.717647, 0.419608, 1.0);
-    pub const DARK_MAGENTA: Color = Color::from_rgba(0.545098, 0.0, 0.545098, 1.0);
-    pub const DARK_OLIVE_GREEN: Color = Color::from_rgba(0.333333, 0.419608, 0.184314, 1.0);
-    pub const DARK_ORANGE: Color = Color::from_rgba(1.0, 0.54902, 0.0, 1.0);
-    pub const DARK_ORCHID: Color = Color::from_rgba(0.6, 0.196078, 0.8, 1.0);
-    pub const DARK_RED: Color = Color::from_rgba(0.545098, 0.0, 0.0, 1.0);
-    pub const DARK_SALMON: Color = Color::from_rgba(0.913725, 0.588235, 0.478431, 1.0);
-    pub const DARK_SEA_GREEN: Color = Color::from_rgba(0.560784, 0.737255, 0.560784, 1.0);
-    pub const DARK_SLATE_BLUE: Color = Color::from_rgba(0.282353, 0.239216, 0.545098, 1.0);
-    pub const DARK_SLATE_GRAY: Color = Color::from_rgba(0.184314, 0.309804, 0.309804, 1.0);
-    pub const DARK_TURQUOISE: Color = Color::from_rgba(0.0, 0.807843, 0.819608, 1.0);
-    pub const DARK_VIOLET: Color = Color::from_rgba(0.580392, 0.0, 0.827451, 1.0);
-    pub const DEEP_PINK: Color = Color::from_rgba(1.0, 0.0784314, 0.576471, 1.0);
-    pub const DEEP_SKY_BLUE: Color = Color::from_rgba(0.0, 0.74902, 1.0, 1.0);
-    pub const DIM_GRAY: Color = Color::from_rgba(0.411765, 0.411765, 0.411765, 1.0);
-    pub const DODGER_BLUE: Color = Color::from_rgba(0.117647, 0.564706, 1.0, 1.0);
-    pub const FIREBRICK: Color = Color::from_rgba(0.698039, 0.133333, 0.133333, 1.0);
-    pub const FLORAL_WHITE: Color = Color::from_rgba(1.0, 0.980392, 0.941176, 1.0);
-    pub const FOREST_GREEN: Color = Color::from_rgba(0.133333, 0.545098, 0.133333, 1.0);
-    pub const FUCHSIA: Color = Color::from_rgba(1.0, 0.0, 1.0, 1.0);
-    pub const GAINSBORO: Color = Color::from_rgba(0.862745, 0.862745, 0.862745, 1.0);
-    pub const GHOST_WHITE: Color = Color::from_rgba(0.972549, 0.972549, 1.0, 1.0);
-    pub const GOLD: Color = Color::from_rgba(1.0, 0.843137, 0.0, 1.0);
-    pub const GOLDENROD: Color = Color::from_rgba(0.854902, 0.647059, 0.12549, 1.0);
-    pub const GRAY: Color = Color::from_rgba(0.745098, 0.745098, 0.745098, 1.0);
-    pub const GREEN: Color = Color::from_rgba(0.0, 1.0, 0.0, 1.0);
-    pub const GREEN_YELLOW: Color = Color::from_rgba(0.678431, 1.0, 0.184314, 1.0);
-    pub const HONEYDEW: Color = Color::from_rgba(0.941176, 1.0, 0.941176, 1.0);
-    pub const HOT_PINK: Color = Color::from_rgba(1.0, 0.411765, 0.705882, 1.0);
-    pub const INDIAN_RED: Color = Color::from_rgba(0.803922, 0.360784, 0.360784, 1.0);
-    pub const INDIGO: Color = Color::from_rgba(0.294118, 0.0, 0.509804, 1.0);
-    pub const IVORY: Color = Color::from_rgba(1.0, 1.0, 0.941176, 1.0);
-    pub const KHAKI: Color = Color::from_rgba(0.941176, 0.901961, 0.54902, 1.0);
-    pub const LAVENDER: Color = Color::from_rgba(0.901961, 0.901961, 0.980392, 1.0);
-    pub const LAVENDER_BLUSH: Color = Color::from_rgba(1.0, 0.941176, 0.960784, 1.0);
-    pub const LAWN_GREEN: Color = Color::from_rgba(0.486275, 0.988235, 0.0, 1.0);
-    pub const LEMON_CHIFFON: Color = Color::from_rgba(1.0, 0.980392, 0.803922, 1.0);
-    pub const LIGHT_BLUE: Color = Color::from_rgba(0.678431, 0.847059, 0.901961, 1.0);
-    pub const LIGHT_CORAL: Color = Color::from_rgba(0.941176, 0.501961, 0.501961, 1.0);
-    pub const LIGHT_CYAN: Color = Color::from_rgba(0.878431, 1.0, 1.0, 1.0);
-    pub const LIGHT_GOLDENROD: Color = Color::from_rgba(0.980392, 0.980392, 0.823529, 1.0);
-    pub const LIGHT_GRAY: Color = Color::from_rgba(0.827451, 0.827451, 0.827451, 1.0);
-    pub const LIGHT_GREEN: Color = Color::from_rgba(0.564706, 0.933333, 0.564706, 1.0);
-    pub const LIGHT_PINK: Color = Color::from_rgba(1.0, 0.713726, 0.756863, 1.0);
-    pub const LIGHT_SALMON: Color = Color::from_rgba(1.0, 0.627451, 0.478431, 1.0);
-    pub const LIGHT_SEA_GREEN: Color = Color::from_rgba(0.12549, 0.698039, 0.666667, 1.0);
-    pub const LIGHT_SKY_BLUE: Color = Color::from_rgba(0.529412, 0.807843, 0.980392, 1.0);
-    pub const LIGHT_SLATE_GRAY: Color = Color::from_rgba(0.466667, 0.533333, 0.6, 1.0);
-    pub const LIGHT_STEEL_BLUE: Color = Color::from_rgba(0.690196, 0.768627, 0.870588, 1.0);
-    pub const LIGHT_YELLOW: Color = Color::from_rgba(1.0, 1.0, 0.878431, 1.0);
-    pub const LIME: Color = Color::from_rgba(0.0, 1.0, 0.0, 1.0);
-    pub const LIME_GREEN: Color = Color::from_rgba(0.196078, 0.803922, 0.196078, 1.0);
-    pub const LINEN: Color = Color::from_rgba(0.980392, 0.941176, 0.901961, 1.0);
-    pub const MAGENTA: Color = Color::from_rgba(1.0, 0.0, 1.0, 1.0);
-    pub const MAROON: Color = Color::from_rgba(0.690196, 0.188235, 0.376471, 1.0);
-    pub const MEDIUM_AQUAMARINE: Color = Color::from_rgba(0.4, 0.803922, 0.666667, 1.0);
-    pub const MEDIUM_BLUE: Color = Color::from_rgba(0.0, 0.0, 0.803922, 1.0);
-    pub const MEDIUM_ORCHID: Color = Color::from_rgba(0.729412, 0.333333, 0.827451, 1.0);
-    pub const MEDIUM_PURPLE: Color = Color::from_rgba(0.576471, 0.439216, 0.858824, 1.0);
-    pub const MEDIUM_SEA_GREEN: Color = Color::from_rgba(0.235294, 0.701961, 0.443137, 1.0);
-    pub const MEDIUM_SLATE_BLUE: Color = Color::from_rgba(0.482353, 0.407843, 0.933333, 1.0);
-    pub const MEDIUM_SPRING_GREEN: Color = Color::from_rgba(0.0, 0.980392, 0.603922, 1.0);
-    pub const MEDIUM_TURQUOISE: Color = Color::from_rgba(0.282353, 0.819608, 0.8, 1.0);
-    pub const MEDIUM_VIOLET_RED: Color = Color::from_rgba(0.780392, 0.0823529, 0.521569, 1.0);
-    pub const MIDNIGHT_BLUE: Color = Color::from_rgba(0.0980392, 0.0980392, 0.439216, 1.0);
-    pub const MINT_CREAM: Color = Color::from_rgba(0.960784, 1.0, 0.980392, 1.0);
-    pub const MISTY_ROSE: Color = Color::from_rgba(1.0, 0.894118, 0.882353, 1.0);
-    pub const MOCCASIN: Color = Color::from_rgba(1.0, 0.894118, 0.709804, 1.0);
-    pub const NAVAJO_WHITE: Color = Color::from_rgba(1.0, 0.870588, 0.678431, 1.0);
-    pub const NAVY_BLUE: Color = Color::from_rgba(0.0, 0.0, 0.501961, 1.0);
-    pub const OLD_LACE: Color = Color::from_rgba(0.992157, 0.960784, 0.901961, 1.0);
-    pub const OLIVE: Color = Color::from_rgba(0.501961, 0.501961, 0.0, 1.0);
-    pub const OLIVE_DRAB: Color = Color::from_rgba(0.419608, 0.556863, 0.137255, 1.0);
-    pub const ORANGE: Color = Color::from_rgba(1.0, 0.647059, 0.0, 1.0);
-    pub const ORANGE_RED: Color = Color::from_rgba(1.0, 0.270588, 0.0, 1.0);
-    pub const ORCHID: Color = Color::from_rgba(0.854902, 0.439216, 0.839216, 1.0);
-    pub const PALE_GOLDENROD: Color = Color::from_rgba(0.933333, 0.909804, 0.666667, 1.0);
-    pub const PALE_GREEN: Color = Color::from_rgba(0.596078, 0.984314, 0.596078, 1.0);
-    pub const PALE_TURQUOISE: Color = Color::from_rgba(0.686275, 0.933333, 0.933333, 1.0);
-    pub const PALE_VIOLET_RED: Color = Color::from_rgba(0.858824, 0.439216, 0.576471, 1.0);
-    pub const PAPAYA_WHIP: Color = Color::from_rgba(1.0, 0.937255, 0.835294, 1.0);
-    pub const PEACH_PUFF: Color = Color::from_rgba(1.0, 0.854902, 0.72549, 1.0);
-    pub const PERU: Color = Color::from_rgba(0.803922, 0.521569, 0.247059, 1.0);
-    pub const PINK: Color = Color::from_rgba(1.0, 0.752941, 0.796078, 1.0);
-    pub const PLUM: Color = Color::from_rgba(0.866667, 0.627451, 0.866667, 1.0);
-    pub const POWDER_BLUE: Color = Color::from_rgba(0.690196, 0.878431, 0.901961, 1.0);
-    pub const PURPLE: Color = Color::from_rgba(0.627451, 0.12549, 0.941176, 1.0);
-    pub const REBECCA_PURPLE: Color = Color::from_rgba(0.4, 0.2, 0.6, 1.0);
-    pub const RED: Color = Color::from_rgba(1.0, 0.0, 0.0, 1.0);
-    pub const ROSY_BROWN: Color = Color::from_rgba(0.737255, 0.560784, 0.560784, 1.0);
-    pub const ROYAL_BLUE: Color = Color::from_rgba(0.254902, 0.411765, 0.882353, 1.0);
-    pub const SADDLE_BROWN: Color = Color::from_rgba(0.545098, 0.270588, 0.0745098, 1.0);
-    pub const SALMON: Color = Color::from_rgba(0.980392, 0.501961, 0.447059, 1.0);
-    pub const SANDY_BROWN: Color = Color::from_rgba(0.956863, 0.643137, 0.376471, 1.0);
-    pub const SEA_GREEN: Color = Color::from_rgba(0.180392, 0.545098, 0.341176, 1.0);
-    pub const SEASHELL: Color = Color::from_rgba(1.0, 0.960784, 0.933333, 1.0);
-    pub const SIENNA: Color = Color::from_rgba(0.627451, 0.321569, 0.176471, 1.0);
-    pub const SILVER: Color = Color::from_rgba(0.752941, 0.752941, 0.752941, 1.0);
-    pub const SKY_BLUE: Color = Color::from_rgba(0.529412, 0.807843, 0.921569, 1.0);
-    pub const SLATE_BLUE: Color = Color::from_rgba(0.415686, 0.352941, 0.803922, 1.0);
-    pub const SLATE_GRAY: Color = Color::from_rgba(0.439216, 0.501961, 0.564706, 1.0);
-    pub const SNOW: Color = Color::from_rgba(1.0, 0.980392, 0.980392, 1.0);
-    pub const SPRING_GREEN: Color = Color::from_rgba(0.0, 1.0, 0.498039, 1.0);
-    pub const STEEL_BLUE: Color = Color::from_rgba(0.27451, 0.509804, 0.705882, 1.0);
-    pub const TAN: Color = Color::from_rgba(0.823529, 0.705882, 0.54902, 1.0);
-    pub const TEAL: Color = Color::from_rgba(0.0, 0.501961, 0.501961, 1.0);
-    pub const THISTLE: Color = Color::from_rgba(0.847059, 0.74902, 0.847059, 1.0);
-    pub const TOMATO: Color = Color::from_rgba(1.0, 0.388235, 0.278431, 1.0);
-    pub const TURQUOISE: Color = Color::from_rgba(0.25098, 0.878431, 0.815686, 1.0);
-    pub const VIOLET: Color = Color::from_rgba(0.933333, 0.509804, 0.933333, 1.0);
-    pub const WEB_GRAY: Color = Color::from_rgba(0.501961, 0.501961, 0.501961, 1.0);
-    pub const WEB_GREEN: Color = Color::from_rgba(0.0, 0.501961, 0.0, 1.0);
-    pub const WEB_MAROON: Color = Color::from_rgba(0.501961, 0.0, 0.0, 1.0);
-    pub const WEB_PURPLE: Color = Color::from_rgba(0.501961, 0.0, 0.501961, 1.0);
-    pub const WHEAT: Color = Color::from_rgba(0.960784, 0.870588, 0.701961, 1.0);
-    pub const WHITE_SMOKE: Color = Color::from_rgba(0.960784, 0.960784, 0.960784, 1.0);
-    pub const YELLOW: Color = Color::from_rgba(1.0, 1.0, 0.0, 1.0);
-    pub const YELLOW_GREEN: Color = Color::from_rgba(0.603922, 0.803922, 0.196078, 1.0);
+    pub const BLACK: Color = rgba(0xff000000);
+    pub const BLANCHED_ALMOND: Color = rgba(0xffffebcd);
+    pub const BLUE: Color = rgba(0xff0000ff);
+    pub const BLUE_VIOLET: Color = rgba(0xff8a2be2);
+    pub const BROWN: Color = rgba(0xffa52a2a);
+    pub const BURLYWOOD: Color = rgba(0xffdeb887);
+    pub const CADET_BLUE: Color = rgba(0xff5f9ea0);
+    pub const CHARTREUSE: Color = rgba(0xff7fff00);
+    pub const CHOCOLATE: Color = rgba(0xffd2691e);
+    pub const CORAL: Color = rgba(0xffff7f50);
+    pub const CORNFLOWER_BLUE: Color = rgba(0xff6495ed);
+    pub const CORNSILK: Color = rgba(0xfffff8dc);
+    pub const CRIMSON: Color = rgba(0xffdc143c);
+    pub const CYAN: Color = rgba(0xff00ffff);
+    pub const DARK_BLUE: Color = rgba(0xff00008b);
+    pub const DARK_CYAN: Color = rgba(0xff008b8b);
+    pub const DARK_GOLDENROD: Color = rgba(0xffb8860b);
+    pub const DARK_GRAY: Color = rgba(0xffa9a9a9);
+    pub const DARK_GREEN: Color = rgba(0xff006400);
+    pub const DARK_KHAKI: Color = rgba(0xffbdb76b);
+    pub const DARK_MAGENTA: Color = rgba(0xff8b008b);
+    pub const DARK_OLIVE_GREEN: Color = rgba(0xff556b2f);
+    pub const DARK_ORANGE: Color = rgba(0xffff8c00);
+    pub const DARK_ORCHID: Color = rgba(0xff9932cc);
+    pub const DARK_RED: Color = rgba(0xff8b0000);
+    pub const DARK_SALMON: Color = rgba(0xffe9967a);
+    pub const DARK_SEA_GREEN: Color = rgba(0xff8fbc8f);
+    pub const DARK_SLATE_BLUE: Color = rgba(0xff483d8b);
+    pub const DARK_SLATE_GRAY: Color = rgba(0xff2f4f4f);
+    pub const DARK_TURQUOISE: Color = rgba(0xff00ced1);
+    pub const DARK_VIOLET: Color = rgba(0xff9400d3);
+    pub const DEEP_PINK: Color = rgba(0xffff1493);
+    pub const DEEP_SKY_BLUE: Color = rgba(0xff00bfff);
+    pub const DIM_GRAY: Color = rgba(0xff696969);
+    pub const DODGER_BLUE: Color = rgba(0xff1e90ff);
+    pub const FIREBRICK: Color = rgba(0xffb22222);
+    pub const FLORAL_WHITE: Color = rgba(0xfffffaf0);
+    pub const FOREST_GREEN: Color = rgba(0xff228b22);
+    pub const FUCHSIA: Color = rgba(0xffff00ff);
+    pub const GAINSBORO: Color = rgba(0xffdcdcdc);
+    pub const GHOST_WHITE: Color = rgba(0xfff8f8ff);
+    pub const GOLD: Color = rgba(0xffffd700);
+    pub const GOLDENROD: Color = rgba(0xffdaa520);
+    pub const GRAY: Color = rgba(0xffbebebe);
+    pub const GREEN: Color = rgba(0xff00ff00);
+    pub const GREEN_YELLOW: Color = rgba(0xffadff2f);
+    pub const HONEYDEW: Color = rgba(0xfff0fff0);
+    pub const HOT_PINK: Color = rgba(0xffff69b4);
+    pub const INDIAN_RED: Color = rgba(0xffcd5c5c);
+    pub const INDIGO: Color = rgba(0xff4b0082);
+    pub const IVORY: Color = rgba(0xfffffff0);
+    pub const KHAKI: Color = rgba(0xfff0e68c);
+    pub const LAVENDER: Color = rgba(0xffe6e6fa);
+    pub const LAVENDER_BLUSH: Color = rgba(0xfffff0f5);
+    pub const LAWN_GREEN: Color = rgba(0xff7cfc00);
+    pub const LEMON_CHIFFON: Color = rgba(0xfffffacd);
+    pub const LIGHT_BLUE: Color = rgba(0xffadd8e6);
+    pub const LIGHT_CORAL: Color = rgba(0xfff08080);
+    pub const LIGHT_CYAN: Color = rgba(0xffe0ffff);
+    pub const LIGHT_GOLDENROD: Color = rgba(0xfffafad2);
+    pub const LIGHT_GRAY: Color = rgba(0xffd3d3d3);
+    pub const LIGHT_GREEN: Color = rgba(0xff90ee90);
+    pub const LIGHT_PINK: Color = rgba(0xffffb6c1);
+    pub const LIGHT_SALMON: Color = rgba(0xffffa07a);
+    pub const LIGHT_SEA_GREEN: Color = rgba(0xff20b2aa);
+    pub const LIGHT_SKY_BLUE: Color = rgba(0xff87cefa);
+    pub const LIGHT_SLATE_GRAY: Color = rgba(0xff778899);
+    pub const LIGHT_STEEL_BLUE: Color = rgba(0xffb0c4de);
+    pub const LIGHT_YELLOW: Color = rgba(0xffffffe0);
+    pub const LIME: Color = rgba(0xff00ff00);
+    pub const LIME_GREEN: Color = rgba(0xff32cd32);
+    pub const LINEN: Color = rgba(0xfffaf0e6);
+    pub const MAGENTA: Color = rgba(0xffff00ff);
+    pub const MAROON: Color = rgba(0xffb03060);
+    pub const MEDIUM_AQUAMARINE: Color = rgba(0xff66cdaa);
+    pub const MEDIUM_BLUE: Color = rgba(0xff0000cd);
+    pub const MEDIUM_ORCHID: Color = rgba(0xffba55d3);
+    pub const MEDIUM_PURPLE: Color = rgba(0xff9370db);
+    pub const MEDIUM_SEA_GREEN: Color = rgba(0xff3cb371);
+    pub const MEDIUM_SLATE_BLUE: Color = rgba(0xff7b68ee);
+    pub const MEDIUM_SPRING_GREEN: Color = rgba(0xff00fa9a);
+    pub const MEDIUM_TURQUOISE: Color = rgba(0xff48d1cc);
+    pub const MEDIUM_VIOLET_RED: Color = rgba(0xffc71585);
+    pub const MIDNIGHT_BLUE: Color = rgba(0xff191970);
+    pub const MINT_CREAM: Color = rgba(0xfff5fffa);
+    pub const MISTY_ROSE: Color = rgba(0xffffe4e1);
+    pub const MOCCASIN: Color = rgba(0xffffe4b5);
+    pub const NAVAJO_WHITE: Color = rgba(0xffffdead);
+    pub const NAVY_BLUE: Color = rgba(0xff000080);
+    pub const OLD_LACE: Color = rgba(0xfffdf5e6);
+    pub const OLIVE: Color = rgba(0xff808000);
+    pub const OLIVE_DRAB: Color = rgba(0xff6b8e23);
+    pub const ORANGE: Color = rgba(0xffffa500);
+    pub const ORANGE_RED: Color = rgba(0xffff4500);
+    pub const ORCHID: Color = rgba(0xffda70d6);
+    pub const PALE_GOLDENROD: Color = rgba(0xffeee8aa);
+    pub const PALE_GREEN: Color = rgba(0xff98fb98);
+    pub const PALE_TURQUOISE: Color = rgba(0xffafeeee);
+    pub const PALE_VIOLET_RED: Color = rgba(0xffdb7093);
+    pub const PAPAYA_WHIP: Color = rgba(0xffffefd5);
+    pub const PEACH_PUFF: Color = rgba(0xffffdab9);
+    pub const PERU: Color = rgba(0xffcd853f);
+    pub const PINK: Color = rgba(0xffffc0cb);
+    pub const PLUM: Color = rgba(0xffdda0dd);
+    pub const POWDER_BLUE: Color = rgba(0xffb0e0e6);
+    pub const PURPLE: Color = rgba(0xffa020f0);
+    pub const REBECCA_PURPLE: Color = rgba(0xff663399);
+    pub const RED: Color = rgba(0xffff0000);
+    pub const ROSY_BROWN: Color = rgba(0xffbc8f8f);
+    pub const ROYAL_BLUE: Color = rgba(0xff4169e1);
+    pub const SADDLE_BROWN: Color = rgba(0xff8b4513);
+    pub const SALMON: Color = rgba(0xfffa8072);
+    pub const SANDY_BROWN: Color = rgba(0xfff4a460);
+    pub const SEA_GREEN: Color = rgba(0xff2e8b57);
+    pub const SEASHELL: Color = rgba(0xfffff5ee);
+    pub const SIENNA: Color = rgba(0xffa0522d);
+    pub const SILVER: Color = rgba(0xffc0c0c0);
+    pub const SKY_BLUE: Color = rgba(0xff87ceeb);
+    pub const SLATE_BLUE: Color = rgba(0xff6a5acd);
+    pub const SLATE_GRAY: Color = rgba(0xff708090);
+    pub const SNOW: Color = rgba(0xfffffafa);
+    pub const SPRING_GREEN: Color = rgba(0xff00ff7f);
+    pub const STEEL_BLUE: Color = rgba(0xff4682b4);
+    pub const TAN: Color = rgba(0xffd2b48c);
+    pub const TEAL: Color = rgba(0xff008080);
+    pub const THISTLE: Color = rgba(0xffd8bfd8);
+    pub const TOMATO: Color = rgba(0xffff6347);
+    pub const TURQUOISE: Color = rgba(0xff40e0d0);
+    pub const VIOLET: Color = rgba(0xffee82ee);
+    pub const WEB_GRAY: Color = rgba(0xff808080);
+    pub const WEB_GREEN: Color = rgba(0xff008000);
+    pub const WEB_MAROON: Color = rgba(0xff800000);
+    pub const WEB_PURPLE: Color = rgba(0xff800080);
+    pub const WHEAT: Color = rgba(0xfff5deb3);
+    pub const WHITE: Color = rgba(0xffffffff);
+    pub const WHITE_SMOKE: Color = rgba(0xfff5f5f5);
+    pub const YELLOW: Color = rgba(0xffffff00);
+    pub const YELLOW_GREEN: Color = rgba(0xff9acd32);
 
     /// All colors that Godot itself defines on the `Color` builtin type, in alphabetic order.
     ///
-    /// Contains tuples where the first element is the name of the color constant, and the second element is the corresponding [`Color`].
+    /// Contains tuples where the first element is the name of the color constant **as available in Godot**, and the second element is the
+    /// corresponding [`Color`]. For each tuple `(name, color)`, the property `Color::from_string(name) == color` holds.
     ///
-    /// Excludes Rust-specific colors like `TRANSPARENT_BLACK` and `TRANSPARENT_WHITE`.
+    /// Excludes Rust-specific additions like `TRANSPARENT_BLACK` and `TRANSPARENT_WHITE` (however includes `TRANSPARENT`).
     ///
     /// This list may change over time.
     pub const ALL_GODOT_COLORS: &'static [(&'static str, Color)] = &[
@@ -313,6 +318,7 @@ impl Color {
         ("TEAL", Self::TEAL),
         ("THISTLE", Self::THISTLE),
         ("TOMATO", Self::TOMATO),
+        ("TRANSPARENT", Self::TRANSPARENT_WHITE),
         ("TURQUOISE", Self::TURQUOISE),
         ("VIOLET", Self::VIOLET),
         ("WEB_GRAY", Self::WEB_GRAY),
@@ -325,4 +331,8 @@ impl Color {
         ("YELLOW", Self::YELLOW),
         ("YELLOW_GREEN", Self::YELLOW_GREEN),
     ];
+}
+
+const fn rgba(value: u32) -> Color {
+    Color::from_u32_rgba(value, ColorChannelOrder::ARGB)
 }

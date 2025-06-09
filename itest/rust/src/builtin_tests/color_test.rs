@@ -198,3 +198,17 @@ fn color_hsv_multi_roundtrip() {
         assert_eq_approx!(original, c_back);
     }
 }
+
+// Check that color constants match their Godot value exactly.
+//
+// Occasionally, this can be manually cross-checked against extension_api.json. We currently don't codegen those constants, and the values
+// there are in float, so may not match exactly.
+#[itest]
+fn color_constants() {
+    for (name, rust_color) in Color::ALL_GODOT_COLORS.iter().copied() {
+        let godot_color = Color::from_string(name)
+            .unwrap_or_else(|| panic!("Color constant {name} not found in Godot"));
+
+        assert_eq!(rust_color, godot_color, "Color mismatch for {name}");
+    }
+}
