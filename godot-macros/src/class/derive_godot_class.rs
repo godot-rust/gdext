@@ -148,6 +148,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     // Note: one limitation is that macros don't work for `impl nested::MyClass` blocks.
     let visibility_macro = make_visibility_macro(class_name, class.vis_marker.as_ref());
     let base_field_macro = make_base_field_macro(class_name, fields.base_field.is_some());
+    let deny_manual_init_macro = make_deny_manual_init_macro(class_name, struct_cfg.init_strategy);
 
     Ok(quote! {
         impl ::godot::obj::GodotClass for #class_name {
@@ -180,6 +181,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #init_expecter
         #visibility_macro
         #base_field_macro
+        #deny_manual_init_macro
         #( #deprecations )*
         #( #errors )*
 
@@ -232,6 +234,35 @@ fn make_base_field_macro(class_name: &Ident, has_base_field: bool) -> TokenStrea
             macro_rules! #macro_name {
                 ( $( $tt:tt )* ) => {};
             }
+        }
+    }
+}
+
+/// Generates code for a decl-macro that prevents manual `init()` for incompatible init strategies.
+fn make_deny_manual_init_macro(class_name: &Ident, init_strategy: InitStrategy) -> TokenStream {
+    let macro_name = util::format_class_deny_manual_init_macro(class_name);
+
+    let class_attr = match init_strategy {
+        InitStrategy::Absent => "#[class(no_init)]",
+        InitStrategy::Generated => "#[class(init)]",
+        InitStrategy::UserDefined => {
+            // For classes that expect manual init, do nothing.
+            return quote! {
+                macro_rules! #macro_name {
+                    () => {};
+                }
+            };
+        }
+    };
+
+    let error_message =
+        format!("Class `{class_name}` is marked with {class_attr} but provides an init() method.");
+
+    quote! {
+        macro_rules! #macro_name {
+            () => {
+                compile_error!(#error_message);
+            };
         }
     }
 }
