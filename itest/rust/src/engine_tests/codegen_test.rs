@@ -142,7 +142,7 @@ impl CodegenTest2 {
 macro_rules! make_class {
     ($ClassName:ident, $BaseName:ident) => {
         #[derive(GodotClass)]
-        #[class(no_init, base=$BaseName)]
+        #[class(base=$BaseName)]
         pub struct $ClassName {
             base: Base<godot::classes::$BaseName>,
         }

@@ -227,8 +227,12 @@ fn handle_init<'a>(
         godot_init_impl, ..
     } = decls;
 
+    // If #[class(init)] or #[class(no_init)] is provided, deny overriding manual init().
+    let deny_manual_init_macro = util::format_class_deny_manual_init_macro(class_name);
+
     *godot_init_impl = quote! {
         #godot_init_impl
+        #deny_manual_init_macro!();
 
         #(#cfg_attrs)*
         impl ::godot::obj::cap::GodotDefault for #class_name {

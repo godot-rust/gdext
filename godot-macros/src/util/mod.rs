@@ -418,3 +418,8 @@ pub fn format_class_visibility_macro(class_name: &Ident) -> Ident {
 pub fn format_class_base_field_macro(class_name: &Ident) -> Ident {
     format_ident!("__godot_{class_name}_has_base_field_macro")
 }
+
+/// Returns the name of the macro used to deny manual `init()` for incompatible init strategies.
+pub fn format_class_deny_manual_init_macro(class_name: &Ident) -> Ident {
+    format_ident!("__deny_manual_init_{class_name}")
+}
