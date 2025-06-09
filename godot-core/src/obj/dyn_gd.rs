@@ -547,17 +547,12 @@ where
 }
 */
 
-#[expect(deprecated)]
 impl<T, D> meta::ParamType for DynGd<T, D>
 where
     T: GodotClass,
     D: ?Sized + 'static,
 {
-    type Arg<'v> = meta::CowArg<'v, DynGd<T, D>>;
-
-    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-        meta::CowArg::Owned(self)
-    }
+    type ArgPassing = meta::ByRef;
 }
 
 impl<T, D> meta::ArrayElement for DynGd<T, D>

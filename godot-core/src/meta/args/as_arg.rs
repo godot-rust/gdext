@@ -6,7 +6,8 @@
  */
 
 use crate::builtin::{GString, NodePath, StringName};
-use crate::meta::{sealed, CowArg, ToGodot};
+use crate::meta::sealed::Sealed;
+use crate::meta::{CowArg, ToGodot};
 use std::ffi::CStr;
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -64,7 +65,19 @@ where
         Self: 'r;
 }
 
-impl<T: ToGodot> AsArg<T> for &T {
+/// Generic abstraction over `T` and `&T` that should be passed as `AsArg<T>`.
+#[doc(hidden)]
+pub fn val_into_arg<'r, T>(arg: T) -> impl AsArg<T> + 'r
+where
+    T: ToGodot + 'r,
+{
+    CowArg::Owned(arg)
+}
+
+impl<T> AsArg<T> for &T
+where
+    T: ToGodot + ParamType<ArgPassing = ByRef>,
+{
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
         Self: 'r,
@@ -73,7 +86,10 @@ impl<T: ToGodot> AsArg<T> for &T {
     }
 }
 
-impl<T: ToGodot + Copy> AsArg<T> for T {
+impl<T> AsArg<T> for T
+where
+    T: ToGodot + ParamType<ArgPassing = ByValue>,
+{
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
         Self: 'r,
@@ -128,13 +144,8 @@ macro_rules! arg_into_owned {
 #[macro_export]
 macro_rules! impl_asarg_by_value {
     ($T:ty) => {
-        #[expect(deprecated)]
         impl $crate::meta::ParamType for $T {
-            type Arg<'v> = $T;
-
-            fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-                self
-            }
+            type ArgPassing = $crate::meta::ByValue;
         }
     };
 }
@@ -142,13 +153,8 @@ macro_rules! impl_asarg_by_value {
 #[macro_export]
 macro_rules! impl_asarg_by_ref {
     ($T:ty) => {
-        #[expect(deprecated)]
         impl $crate::meta::ParamType for $T {
-            type Arg<'v> = $crate::meta::CowArg<'v, $T>;
-
-            fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-                $crate::meta::CowArg::Owned(self)
-            }
+            type ArgPassing = $crate::meta::ByRef;
         }
     };
 }
@@ -255,27 +261,31 @@ impl AsArg<NodePath> for &String {
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
 // ParamType used to be a subtrait of GodotType, but this can be too restrictive. For example, DynGd is not a "Godot canonical type"
 // (GodotType), however it's still useful to store it in arrays -- which requires AsArg and subsequently ParamType.
-#[deprecated(
-    since = "0.3.2",
-    note = "This trait is no longer needed and will be removed in 0.4"
-)]
-pub trait ParamType: sealed::Sealed + Sized + 'static + ToGodot
+//
+// TODO(v0.4): merge ParamType::ArgPassing into ToGodot::ToVia, reducing redundancy on user side.
+pub trait ParamType: ToGodot + Sized + 'static
 // GodotType bound not required right now, but conceptually should always be the case.
 {
-    /// Canonical argument passing type, either `T` or an internally-used CoW type.
-    ///
-    /// The general rule is that `Copy` types are passed by value, while the rest is passed by reference.
-    ///
-    /// This associated type is closely related to [`ToGodot::ToVia<'v>`][crate::meta::ToGodot::ToVia] and may be reorganized in the future.
-    #[doc(hidden)]
-    type Arg<'v>: AsArg<Self>
-    where
-        Self: 'v;
+    type ArgPassing: ArgPassing;
 
-    /// Converts an owned value to the canonical argument type, which can be passed to [`impl AsArg<T>`][AsArg].
-    ///
-    /// Useful in generic contexts where only a value is available, and one doesn't want to dispatch between value/reference.
-    ///
-    /// You should not rely on the exact return type, as it may change in future versions; treat it like `impl AsArg<Self>`.
-    fn owned_to_arg<'v>(self) -> Self::Arg<'v>;
+    #[deprecated(
+        since = "0.3.2",
+        note = "This method is no longer needed and will be removed in 0.4"
+    )]
+    fn owned_to_arg(self) -> impl AsArg<Self> {
+        val_into_arg(self)
+    }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Argument passing (mutually exclusive by-val or by-ref).
+
+pub trait ArgPassing: Sealed {}
+
+pub enum ByValue {}
+impl ArgPassing for ByValue {}
+impl Sealed for ByValue {}
+
+pub enum ByRef {}
+impl ArgPassing for ByRef {}
+impl Sealed for ByRef {}

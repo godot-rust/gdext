@@ -9,12 +9,12 @@ use crate::framework::itest;
 use godot::builtin::{vslice, GString, Signal, StringName};
 use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
-use godot::meta::{FromGodot, GodotConvert, ToGodot};
+use godot::meta::{FromGodot, GodotConvert, ParamType, ToGodot};
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
 use godot::prelude::ConvertError;
 use godot::register::{godot_api, GodotClass};
-use godot::sys;
 use godot::sys::Global;
+use godot::{meta, sys};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -495,8 +495,12 @@ fn enums_as_signal_args() {
         }
     }
 
+    impl ParamType for EventType {
+        type ArgPassing = meta::ByValue;
+    }
+
     impl FromGodot for EventType {
-        fn try_from_godot(via: Self::Via) -> Result<Self, godot::prelude::ConvertError> {
+        fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
             match via {
                 0 => Ok(Self::Ready),
                 _ => Err(ConvertError::new("value out of range")),
@@ -519,7 +523,7 @@ fn enums_as_signal_args() {
     let object = SignalObject::new_gd();
     let event = EventType::Ready;
 
-    object.signals().game_event().emit(&event);
+    object.signals().game_event().emit(event);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

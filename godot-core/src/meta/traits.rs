@@ -8,7 +8,6 @@
 use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
-#[expect(deprecated)]
 use crate::meta::{
     sealed, ClassName, FromGodot, GodotConvert, ParamType, PropertyHintInfo, PropertyInfo, ToGodot,
 };
@@ -170,7 +169,6 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
     label = "has invalid element type"
 )]
-#[expect(deprecated)]
 pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + ParamType + 'static {
     // Note: several indirections in ArrayElement and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: GodotType. What matters is how array elements map to Godot on the FFI level (GodotType trait).
