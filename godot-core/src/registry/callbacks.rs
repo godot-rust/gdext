@@ -43,6 +43,24 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     create_custom(T::__godot_user_init).unwrap_or(std::ptr::null_mut())
 }
 
+/// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
+///
+/// Godot expects a creator function, but doesn't require an actual object to be instantiated.
+#[cfg(all(since_api = "4.4", before_api = "4.5"))]
+pub unsafe extern "C" fn create_null<T>(
+    _class_userdata: *mut std::ffi::c_void,
+    _notify_postinitialize: sys::GDExtensionBool,
+) -> sys::GDExtensionObjectPtr {
+    std::ptr::null_mut()
+}
+
+#[cfg(before_api = "4.4")]
+pub unsafe extern "C" fn create_null<T>(
+    _class_userdata: *mut std::ffi::c_void,
+) -> sys::GDExtensionObjectPtr {
+    std::ptr::null_mut()
+}
+
 /// Godot FFI function for recreating a GDExtension instance, e.g. after a hot reload.
 ///
 /// If the `init()` constructor panics, null is returned.
@@ -53,6 +71,17 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
 ) -> sys::GDExtensionClassInstancePtr {
     create_rust_part_for_existing_godot_part(T::__godot_user_init, object)
         .unwrap_or(std::ptr::null_mut())
+}
+
+/// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
+///
+/// Godot expects a creator function, but doesn't require an actual object to be instantiated.
+#[cfg(all(since_api = "4.2", before_api = "4.5"))]
+pub unsafe extern "C" fn recreate_null<T>(
+    _class_userdata: *mut std::ffi::c_void,
+    _object: sys::GDExtensionObjectPtr,
+) -> sys::GDExtensionClassInstancePtr {
+    std::ptr::null_mut()
 }
 
 pub(crate) fn create_custom<T, F>(

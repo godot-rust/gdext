@@ -122,6 +122,10 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         }
         InitStrategy::Absent => {
             is_instantiable = false;
+
+            // Workaround for https://github.com/godot-rust/gdext/issues/874 before Godot 4.5.
+            #[cfg(before_api = "4.5")]
+            modifiers.push(quote! { with_generated_no_default::<#class_name> });
         }
     };
     if is_instantiable {
