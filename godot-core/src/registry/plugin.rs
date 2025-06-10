@@ -147,6 +147,10 @@ pub struct Struct {
 
     /// Godot low-level `create` function, wired up to library-generated `init`.
     ///
+    /// For `#[class(no_init)]`, behavior depends on Godot version:
+    /// - 4.5 and later: `None`
+    /// - until 4.4: a dummy function that fails, to not break hot reloading.
+    ///
     /// This is mutually exclusive with [`ITraitImpl::user_create_fn`].
     pub(crate) generated_create_fn: Option<GodotCreateFn>,
 
@@ -219,6 +223,19 @@ impl Struct {
 
         #[cfg(since_api = "4.2")]
         set(&mut self.generated_recreate_fn, callbacks::recreate::<T>);
+        self
+    }
+
+    // Workaround for https://github.com/godot-rust/gdext/issues/874, before https://github.com/godotengine/godot/pull/99133 is merged in 4.5.
+    #[cfg(before_api = "4.5")]
+    pub fn with_generated_no_default<T: GodotClass>(mut self) -> Self {
+        set(&mut self.generated_create_fn, callbacks::create_null::<T>);
+
+        #[cfg(since_api = "4.2")]
+        set(
+            &mut self.generated_recreate_fn,
+            callbacks::recreate_null::<T>,
+        );
         self
     }
 
