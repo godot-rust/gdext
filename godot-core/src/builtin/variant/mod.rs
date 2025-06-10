@@ -114,6 +114,17 @@ impl Variant {
         try_from_variant_relaxed(self)
     }
 
+    /// Helper function for relaxed variant conversion with panic on failure.
+    /// Similar to [`to()`](Self::to) but uses relaxed conversion rules.
+    pub(crate) fn to_relaxed_or_panic<T, F>(&self, context: F) -> T
+    where
+        T: FromGodot,
+        F: FnOnce() -> String,
+    {
+        self.try_to_relaxed::<T>()
+            .unwrap_or_else(|err| panic!("{}: {err}", context()))
+    }
+
     /// Checks whether the variant is empty (`null` value in GDScript).
     ///
     /// See also [`get_type()`][Self::get_type].
