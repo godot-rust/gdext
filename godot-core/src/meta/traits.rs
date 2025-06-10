@@ -36,10 +36,10 @@ pub trait GodotFfiVariant: Sized + GodotFfi {
 //
 // Unlike `GodotFfi`, types implementing this trait don't need to fully represent its corresponding Godot
 // type. For instance [`i32`] does not implement `GodotFfi` because it cannot represent all values of
-// Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
+// Godot's `int` type, however it does implement `GodotType` because we can set the meta-data of values with
 // this type to indicate that they are 32 bits large.
 pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
-// 'static is not technically required, but it simplifies a few things (limits e.g. ObjectArg).
+// 'static is not technically required, but it simplifies a few things (limits e.g. `ObjectArg`).
 {
     // Value type for this type's FFI representation.
     #[doc(hidden)]
@@ -122,7 +122,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     ///
     /// Examples:
     /// - `MyClass` for objects
-    /// - `StringName`, `AABB` or `int` for builtins
+    /// - `StringName`, `AABB` or `int` for built-ins
     /// - `Array` for arrays
     #[doc(hidden)]
     fn godot_type_name() -> String;
@@ -131,7 +131,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     ///
     /// Returning false only means that this is not a special case, not that it cannot be `None`. Regular checks are expected to run afterward.
     ///
-    /// This exists only for varcalls and serves a similar purpose as `GodotNullableFfi::is_null()` (although that handles general cases).
+    /// This exists only for var-calls and serves a similar purpose as `GodotNullableFfi::is_null()` (although that handles general cases).
     #[doc(hidden)]
     fn qualifies_as_special_none(_from_variant: &Variant) -> bool {
         false
@@ -164,14 +164,14 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 /// Also, keep in mind that Godot uses `Variant` for each element. If performance matters and you have small element types such as `u8`,
 /// consider using packed arrays (e.g. `PackedByteArray`) instead.
 //
-// TODO: The ParamType super trait is no longer needed and can be removed in 0.4. We are only keeping it for backwards compatebility.
+// TODO: The `ParamType` super trait is no longer needed and can be removed in 0.4. We are only keeping it for backwards compatibility.
 #[diagnostic::on_unimplemented(
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
     label = "has invalid element type"
 )]
 pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + ParamType + 'static {
-    // Note: several indirections in ArrayElement and the global `element_*` functions go through `GodotConvert::Via`,
-    // to not require Self: GodotType. What matters is how array elements map to Godot on the FFI level (GodotType trait).
+    // Note: several indirections in `ArrayElement` and the global `element_*` functions go through `GodotConvert::Via`,
+    // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).
 
     /// Returns the representation of this type as a type string, e.g. `"4:"` for string, or `"24:34/MyClass"` for objects.
     ///

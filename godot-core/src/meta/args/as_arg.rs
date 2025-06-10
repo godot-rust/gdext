@@ -16,15 +16,15 @@ use std::ffi::CStr;
 /// this trait is implemented more conservatively.
 ///
 /// As a result, `AsArg<T>` is currently only implemented for certain argument types:
-/// - `T` for by-value builtins (typically `Copy`): `i32`, `bool`, `Vector3`, `Transform2D`, ...
-/// - `&T` for by-ref builtins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
+/// - `T` for by-value built-ins (typically `Copy`): `i32`, `bool`, `Vector3`, `Transform2D`, ...
+/// - `&T` for by-ref built-ins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
 /// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`.
 ///
 /// See also the [`AsObjectArg`][crate::meta::AsObjectArg] trait which is specialized for object arguments. It may be merged with `AsArg`
 /// in the future.
 ///
 /// # Pass by value
-/// Implicitly converting from `T` for by-ref builtins is explicitly not supported. This emphasizes that there is no need to consume the object,
+/// Implicitly converting from `T` for by-ref built-ins is explicitly not supported. This emphasizes that there is no need to consume the object,
 /// thus discourages unnecessary cloning.
 ///
 /// # Performance for strings
@@ -44,8 +44,7 @@ use std::ffi::CStr;
 /// `AsArg` is meant to be used from the function call site, not the declaration site. If you declare a parameter as `impl AsArg<...>` yourself,
 /// you can only forward it as-is to a Godot API -- there are no stable APIs to access the inner object yet.
 ///
-/// Furthermore, there is currently no benefit in implementing `AsArg` for your own types, as it's only used by Godot APIs which don't accept
-/// custom types. Classes are already supported through upcasting and [`AsObjectArg`][crate::meta::AsObjectArg].
+/// If you want to pass your own types to a Godot API i.e. to emit a signal, you should implement the [`ParamType`] trait.
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "if you pass by value, consider borrowing instead.",
@@ -259,6 +258,10 @@ impl AsArg<NodePath> for &String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
+///
+/// **Deprecated**: This trait is considered deprecated and will be removed in 0.4. It is still required to be implemented by types that should
+/// be passed `AsArg` in the current version, though.
+//
 // ParamType used to be a subtrait of GodotType, but this can be too restrictive. For example, DynGd is not a "Godot canonical type"
 // (GodotType), however it's still useful to store it in arrays -- which requires AsArg and subsequently ParamType.
 //
