@@ -11,6 +11,7 @@ mod class_rename_test;
 mod dyn_gd_test;
 mod dynamic_call_test;
 mod enum_test;
+mod weakref_test;
 // `get_property_list` is only supported in Godot 4.3+
 #[cfg(since_api = "4.3")]
 mod get_property_list_test;
