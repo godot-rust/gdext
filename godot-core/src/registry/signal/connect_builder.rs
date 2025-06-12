@@ -12,7 +12,7 @@ use crate::meta;
 use crate::meta::InParamTuple;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithSignals};
 use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
-use crate::registry::signal::{ToSignalObj, TypedSignal};
+use crate::registry::signal::{ConnectHandle, ToSignalObj, TypedSignal};
 
 /// Builder for customizing signal connections.
 ///
@@ -125,7 +125,7 @@ where
     fn inner_connect_godot_fn<F>(
         self,
         godot_fn: impl FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
-    ) {
+    ) -> ConnectHandle {
         let callable_name = match &self.data.callable_name {
             Some(user_provided_name) => user_provided_name,
             None => &make_callable_name::<F>(),
@@ -133,7 +133,7 @@ where
 
         let callable = Callable::from_local_fn(callable_name, godot_fn);
         self.parent_sig
-            .inner_connect_untyped(&callable, self.data.connect_flags);
+            .inner_connect_untyped(callable, self.data.connect_flags)
     }
 }
 
@@ -154,7 +154,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     ///   [`connect_other_gd()`][Self::connect_other_gd].
     /// - If you need [`connect flags`](ConnectFlags), call [`flags()`](Self::flags) before this.
     /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
-    pub fn connect<F>(self, mut function: F)
+    pub fn connect<F>(self, mut function: F) -> ConnectHandle
     where
         for<'c_rcv> F: SignalReceiver<(), Ps>,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, (), Ps, F>: From<&'c_rcv mut F>,
@@ -165,7 +165,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call((), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 
     /// Connect a method with `&mut self` as the first parameter (user classes only).
@@ -176,7 +176,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     /// - To connect to methods on other objects, use [`connect_other_mut()`][Self::connect_other_mut].
     /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
     /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature `experimental-threads`).
-    pub fn connect_self_mut<F>(self, mut function: F)
+    pub fn connect_self_mut<F>(self, mut function: F) -> ConnectHandle
     where
         C: Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps>,
@@ -191,7 +191,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(&mut *guard, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 
     /// Connect a method with `&mut Gd<Self>` as the first parameter (user + engine classes).
@@ -202,7 +202,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     /// - To connect to methods on other objects, use [`connect_other_gd()`][Self::connect_other_gd].
     /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
     /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature `experimental-threads`).
-    pub fn connect_self_gd<F>(self, mut function: F)
+    pub fn connect_self_gd<F>(self, mut function: F) -> ConnectHandle
     where
         F: SignalReceiver<Gd<C>, Ps>,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, Gd<C>, Ps, F>: From<&'c_rcv mut F>,
@@ -215,7 +215,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(gd.clone(), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 
     /// Connect a method with any `&mut OtherC` as the first parameter (user classes only).
@@ -231,7 +231,11 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     /// - To connect to methods on the object that owns this signal, use [`connect_self_mut()`][Self::connect_self_mut].
     /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
     /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
-    pub fn connect_other_mut<F, OtherC>(self, object: &impl ToSignalObj<OtherC>, mut method: F)
+    pub fn connect_other_mut<F, OtherC>(
+        self,
+        object: &impl ToSignalObj<OtherC>,
+        mut method: F,
+    ) -> ConnectHandle
     where
         OtherC: GodotClass + Bounds<Declarer = bounds::DeclUser>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
@@ -246,7 +250,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(&mut *guard, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 
     /// Connect a method with any `&mut Gd<OtherC>` as the first parameter (user + engine classes).
@@ -260,7 +264,11 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     /// - To connect to methods on the object that owns this signal, use [`connect_self_gd()`][Self::connect_self_gd].
     /// - If you need [connect flags](ConnectFlags), call [`flags()`](Self::flags) before this.
     /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
-    pub fn connect_other_gd<F, OtherC>(self, object: &impl ToSignalObj<OtherC>, mut method: F)
+    pub fn connect_other_gd<F, OtherC>(
+        self,
+        object: &impl ToSignalObj<OtherC>,
+        mut method: F,
+    ) -> ConnectHandle
     where
         OtherC: GodotClass,
         F: SignalReceiver<Gd<OtherC>, Ps>,
@@ -274,7 +282,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(gd.clone(), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 
     /// Connect to this signal using a thread-safe function, allows the signal to be called across threads.
@@ -304,6 +312,6 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
 
         let callable = Callable::from_sync_fn(callable_name, godot_fn);
         self.parent_sig
-            .inner_connect_untyped(&callable, self.data.connect_flags);
+            .inner_connect_untyped(callable, self.data.connect_flags);
     }
 }
