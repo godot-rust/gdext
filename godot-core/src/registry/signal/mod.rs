@@ -8,6 +8,7 @@
 // Whole module only available in Godot 4.2+.
 
 mod connect_builder;
+mod connect_handle;
 mod signal_object;
 mod signal_receiver;
 mod typed_signal;
@@ -15,12 +16,14 @@ mod typed_signal;
 use crate::builtin::{GString, Variant};
 use crate::meta;
 pub(crate) use connect_builder::*;
+pub(crate) use connect_handle::*;
 pub(crate) use signal_object::*;
 pub(crate) use typed_signal::*;
 
 // Used in `godot` crate.
 pub mod re_export {
     pub use super::connect_builder::ConnectBuilder;
+    pub use super::connect_handle::ConnectHandle;
     pub use super::signal_receiver::IndirectSignalReceiver;
     pub use super::signal_receiver::SignalReceiver;
     pub use super::typed_signal::TypedSignal;
