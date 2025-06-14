@@ -13,7 +13,7 @@ use crate::builtin::{ColorHsv, GString};
 use crate::meta::{arg_into_ref, AsArg};
 use godot_ffi as sys;
 use std::ops;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 /// Color built-in type, in floating-point RGBA format.
 ///
@@ -358,7 +358,7 @@ impl Color {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Color {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::COLOR;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::COLOR);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

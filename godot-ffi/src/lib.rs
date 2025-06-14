@@ -73,7 +73,9 @@ macro_rules! wasm_declare_init_fn {
     () => {};
 }
 
-pub use crate::godot_ffi::{GodotFfi, GodotNullableFfi, PrimitiveConversionError, PtrcallType};
+pub use crate::godot_ffi::{
+    ExtVariantType, GodotFfi, GodotNullableFfi, PrimitiveConversionError, PtrcallType,
+};
 
 // Method tables
 pub use gen::table_builtins::*;

@@ -7,7 +7,7 @@
 
 use godot_ffi as sys;
 use std::cmp::Ordering;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{GlamConv, GlamType};
 use crate::builtin::{inner, real, RVec2, Vector2, Vector2Axis};
@@ -98,7 +98,7 @@ impl fmt::Display for Vector2i {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2i {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::VECTOR2I;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::VECTOR2I);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

@@ -8,7 +8,7 @@
 use std::{fmt, ptr};
 
 use godot_ffi as sys;
-use sys::{interface_fn, GodotFfi, GodotNullableFfi, PtrcallType};
+use sys::{interface_fn, ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::{ConvertError, FromVariantError};
@@ -482,7 +482,7 @@ where
 {
     // If anything changes here, keep in sync with ObjectArg impl.
 
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::OBJECT;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::OBJECT);
 
     unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self {
         Self::from_obj_sys_weak(ptr as sys::GDExtensionObjectPtr)

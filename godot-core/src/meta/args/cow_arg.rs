@@ -9,7 +9,7 @@ use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, RefArg, ToGodot};
 use crate::sys;
-use godot_ffi::{GodotFfi, GodotNullableFfi, PtrcallType};
+use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 use std::fmt;
 
 /// Owned or borrowed value, used when passing arguments through `impl AsArg` to Godot APIs.
@@ -119,7 +119,7 @@ unsafe impl<T> GodotFfi for CowArg<'_, T>
 where
     T: GodotFfi,
 {
-    const VARIANT_TYPE: sys::VariantType = T::VARIANT_TYPE;
+    const VARIANT_TYPE: ExtVariantType = T::VARIANT_TYPE;
 
     unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {
         wrong_direction!(new_from_sys)

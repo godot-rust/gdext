@@ -10,7 +10,7 @@ use std::cmp;
 use crate::builtin::{Rect2, Side, Vector2i};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 /// 2D axis-aligned integer bounding box.
 ///
@@ -282,7 +282,7 @@ impl Rect2i {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rect2i {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::RECT2I;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::RECT2I);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

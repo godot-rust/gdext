@@ -8,7 +8,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::{inner, Variant, VariantArray};
-use crate::meta::{FromGodot, ToGodot};
+use crate::meta::{ExtVariantType, FromGodot, ToGodot};
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
@@ -394,7 +394,7 @@ impl Dictionary {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(dictionary.clone())`.
 unsafe impl GodotFfi for Dictionary {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::DICTIONARY;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::DICTIONARY);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }

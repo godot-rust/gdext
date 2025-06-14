@@ -8,7 +8,7 @@ use std::fmt;
 
 use godot_ffi as sys;
 use godot_ffi::interface_fn;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::{inner, Encoding, GString, NodePath, Variant};
 use crate::meta::error::StringError;
@@ -268,7 +268,7 @@ impl StringName {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(string_name.clone())`.
 unsafe impl GodotFfi for StringName {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::STRING_NAME;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::STRING_NAME);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }

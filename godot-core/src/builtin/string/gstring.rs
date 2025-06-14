@@ -11,7 +11,7 @@ use std::fmt::Write;
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
-use sys::{ffi_methods, interface_fn, GodotFfi};
+use sys::{ffi_methods, interface_fn, ExtVariantType, GodotFfi};
 
 use crate::builtin::string::{pad_if_needed, Encoding};
 use crate::builtin::{inner, NodePath, StringName, Variant};
@@ -272,7 +272,7 @@ impl GString {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(string.clone())`.
 unsafe impl GodotFfi for GString {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::STRING;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::STRING);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
