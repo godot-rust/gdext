@@ -98,6 +98,34 @@ func test_export_dyn_gd_should_fail_for_wrong_type():
 
 	assert_fail("`DynGdExporter.second` should only accept NodeHealth and only if it implements `InstanceIdProvider` trait")
 
+
+# Test that relaxed conversions (Variant::try_to_relaxed) are used in both varcall/ptrcall.
+func test_ffi_relaxed_conversions_in_varcall_ptrcall():
+	mark_test_pending()
+
+	# Enforce varcall by having untyped object, and ptrcall by object + arguments typed.
+	var varcaller: Variant = ConversionTest.new()
+	var ptrcaller: ConversionTest = ConversionTest.new()
+
+	var result1: String = ptrcaller.accept_f32(42)
+	assert_eq(result1, "42", "ptrcall int->f32 should work with relaxed conversion")
+
+	var result2: String = ptrcaller.accept_i32(42.7)
+	assert_eq(result2, "42", "ptrcall float->i32 should work with relaxed conversion")
+
+	var untyped_int: Variant = 42
+	var result3 = varcaller.accept_f32(untyped_int)
+	assert_eq(result3, "42", "varcall int->f32 should work with relaxed conversion")
+
+	var untyped_float: Variant = 42.7
+	var result4 = varcaller.accept_i32(untyped_float)
+	assert_eq(result4, "42", "varcall float->i32 should work with relaxed conversion")
+
+	# If we reach this point, all conversions succeeded.
+	assert_eq(ConversionTest.successful_calls(), 4, "all calls should succeed with relaxed conversion")
+	mark_test_succeeded()
+
+
 class MockObjGd extends Object:
 	var i: int = 0
 
@@ -454,4 +482,3 @@ func test_renamed_func_get_set():
 	assert_eq(obj.f1(), 84)
 
 	obj.free()
-
