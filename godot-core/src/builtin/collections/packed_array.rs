@@ -17,7 +17,7 @@ use crate::meta::{AsArg, ToGodot};
 use std::mem::size_of;
 use std::{fmt, ops, ptr};
 use sys::types::*;
-use sys::{ffi_methods, interface_fn, GodotFfi};
+use sys::{ffi_methods, interface_fn, ExtVariantType, GodotFfi};
 
 use crate::classes::file_access::CompressionMode;
 use crate::meta;
@@ -625,7 +625,7 @@ macro_rules! impl_packed_array {
         }
 
         unsafe impl GodotFfi for $PackedArray {
-            const VARIANT_TYPE: sys::VariantType = sys::VariantType::$VariantType;
+            const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::$VariantType);
 
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }

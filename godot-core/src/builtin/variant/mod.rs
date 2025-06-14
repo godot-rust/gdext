@@ -10,7 +10,8 @@ use crate::builtin::{
 };
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
-    arg_into_ref, ffi_variant_type, ArrayElement, AsArg, FromGodot, GodotType, ToGodot,
+    arg_into_ref, ffi_variant_type, ArrayElement, AsArg, ExtVariantType, FromGodot, GodotType,
+    ToGodot,
 };
 use godot_ffi as sys;
 use std::{fmt, ptr};
@@ -519,7 +520,7 @@ crate::meta::impl_asarg_by_ref!(Variant);
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
 // `std::mem::swap` is sufficient for returning a value.
 unsafe impl GodotFfi for Variant {
-    const VARIANT_TYPE: VariantType = VariantType::NIL;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Variant;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
@@ -589,18 +590,19 @@ impl fmt::Debug for Variant {
 }
 
 fn try_from_variant_relaxed<T: FromGodot>(variant: &Variant) -> Result<T, ConvertError> {
-    // See C++ implementation mentioned in RustDoc comment of `try_to_relaxed()`.
-
-    // First check if the current type can be converted using strict rules.
     let from_type = variant.get_type();
-    let to_type = ffi_variant_type::<T>();
-
-    // If types are the same, use the regular conversion.
-    // This is both an optimization (avoids FFI calls) and ensures consistency
-    // between strict and relaxed conversions for identical types.
-    if from_type == to_type {
-        return T::try_from_variant(variant);
-    }
+    let to_type = match ffi_variant_type::<T>() {
+        ExtVariantType::Variant => {
+            // Converting to Variant always succeeds.
+            return T::try_from_variant(variant);
+        }
+        ExtVariantType::Concrete(to_type) if from_type == to_type => {
+            // If types are the same, use the regular conversion.
+            // This is both an optimization (avoids more FFI) and ensures consistency between strict and relaxed conversions for identical types.
+            return T::try_from_variant(variant);
+        }
+        ExtVariantType::Concrete(to_type) => to_type,
+    };
 
     // Non-NIL types can technically be converted to NIL according to `variant_can_convert_strict()`, however that makes no sense -- from
     // neither a type perspective (NIL is unit, not never type), nor a practical one. Disallow any such conversions.

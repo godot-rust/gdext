@@ -6,7 +6,7 @@
  */
 
 use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, FloatExt};
 use crate::builtin::{real, Vector3};
@@ -265,7 +265,7 @@ impl Neg for Plane {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Plane {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::PLANE;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::PLANE);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self;
         fn new_from_sys;
