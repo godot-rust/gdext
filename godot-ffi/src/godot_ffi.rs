@@ -6,6 +6,7 @@
  */
 
 use crate as sys;
+use crate::VariantType;
 use std::marker::PhantomData;
 
 /// Types that can directly and fully represent some Godot type.
@@ -25,7 +26,7 @@ use std::marker::PhantomData;
 #[doc(hidden)] // shows up in implementors otherwise
 pub unsafe trait GodotFfi {
     #[doc(hidden)]
-    const VARIANT_TYPE: sys::VariantType;
+    const VARIANT_TYPE: ExtVariantType;
 
     #[doc(hidden)]
     fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
@@ -120,8 +121,32 @@ pub trait GodotNullableFfi: Sized + GodotFfi {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Variant type that differentiates between `Variant` and `NIL` types.
+#[doc(hidden)]
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ExtVariantType {
+    /// The type `Variant` itself.
+    Variant,
+
+    /// A Godot built-in type. `NIL` means actually nil (unit type `()` in Rust), not `Variant`.
+    Concrete(VariantType),
+}
+
+impl ExtVariantType {
+    /// Returns the variant type as Godot `VariantType`, using `NIL` for the `Variant` case.
+    pub const fn variant_as_nil(&self) -> VariantType {
+        match self {
+            ExtVariantType::Variant => VariantType::NIL,
+            ExtVariantType::Concrete(variant_type) => *variant_type,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// An indication of what type of pointer call is being made.
 #[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
+#[doc(hidden)]
 pub enum PtrcallType {
     /// Standard pointer call.
     ///
@@ -372,7 +397,7 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
-    use super::GodotFfi;
+    use super::{ExtVariantType, GodotFfi};
     use crate as sys;
 
     /*
@@ -427,13 +452,13 @@ mod scalars {
     }
     */
     unsafe impl GodotFfi for bool {
-        const VARIANT_TYPE: sys::VariantType = sys::VariantType::BOOL;
+        const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::BOOL);
 
         ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
     }
 
     unsafe impl GodotFfi for i64 {
-        const VARIANT_TYPE: sys::VariantType = sys::VariantType::INT;
+        const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::INT);
 
         fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
             sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
@@ -443,7 +468,7 @@ mod scalars {
     }
 
     unsafe impl GodotFfi for f64 {
-        const VARIANT_TYPE: sys::VariantType = sys::VariantType::FLOAT;
+        const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::FLOAT);
 
         fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
             sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE
@@ -453,7 +478,7 @@ mod scalars {
     }
 
     unsafe impl GodotFfi for () {
-        const VARIANT_TYPE: sys::VariantType = sys::VariantType::NIL;
+        const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::NIL);
 
         unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {
             // Do nothing

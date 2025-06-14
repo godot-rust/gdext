@@ -46,7 +46,7 @@ pub fn register_var<C: GodotClass, T: Var>(
     usage: PropertyUsageFlags,
 ) {
     let info = PropertyInfo {
-        variant_type: <<T as GodotConvert>::Via as GodotType>::Ffi::VARIANT_TYPE,
+        variant_type: <<T as GodotConvert>::Via as GodotType>::Ffi::VARIANT_TYPE.variant_as_nil(),
         class_name: <T as GodotConvert>::Via::class_name(),
         property_name: StringName::from(property_name),
         hint_info,

@@ -47,9 +47,9 @@ macro_rules! impl_ffi_variant {
 
             fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
                 // Type check -- at the moment, a strict match is required.
-                if variant.get_type() != Self::VARIANT_TYPE {
+                if variant.get_type() != Self::VARIANT_TYPE.variant_as_nil() {
                     return Err(FromVariantError::BadType {
-                        expected: Self::VARIANT_TYPE,
+                        expected: Self::VARIANT_TYPE.variant_as_nil(),
                         actual: variant.get_type(),
                     }
                     .into_error(variant.clone()));
@@ -249,13 +249,13 @@ const _: () = {
 
     #[cfg(before_api = "4.2")]
     const fn variant_type<T: GodotType + ArrayElement>() -> VariantType {
-        <T::Ffi as sys::GodotFfi>::VARIANT_TYPE
+        <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()
     }
 
     #[cfg(since_api = "4.2")]
     const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + ArrayElement>(
     ) -> VariantType {
-        <T::Ffi as sys::GodotFfi>::VARIANT_TYPE
+        <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()
     }
 
     const NIL: VariantType = variant_type::<Variant>();
@@ -423,7 +423,7 @@ impl GodotType for Variant {
 
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
-            variant_type: Self::VARIANT_TYPE,
+            variant_type: Self::VARIANT_TYPE.variant_as_nil(),
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
             hint_info: PropertyHintInfo::none(),

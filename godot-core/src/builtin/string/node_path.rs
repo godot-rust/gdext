@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GdextBuild, GodotFfi};
+use godot_ffi::{ffi_methods, ExtVariantType, GdextBuild, GodotFfi};
 
 use crate::builtin::inner;
 
@@ -195,7 +195,7 @@ impl NodePath {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(node_path.clone())`.
 unsafe impl GodotFfi for NodePath {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::NODE_PATH;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::NODE_PATH);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }

@@ -67,7 +67,8 @@ pub use uniform_object_deref::UniformObjectDeref;
 
 pub(crate) use array_type_info::ArrayTypeInfo;
 pub(crate) use traits::{
-    element_godot_type_name, element_variant_type, GodotFfiVariant, GodotNullableFfi,
+    element_godot_type_name, element_variant_type, ffi_variant_type, ExtVariantType,
+    GodotFfiVariant, GodotNullableFfi,
 };
 
 use crate::registry::method::MethodParamOrReturnInfo;

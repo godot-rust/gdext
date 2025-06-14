@@ -8,7 +8,7 @@
 use std::num::NonZeroU64;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, static_assert, static_assert_eq_size_align, GodotFfi};
+use sys::{ffi_methods, static_assert, static_assert_eq_size_align, ExtVariantType, GodotFfi};
 
 /// A RID ("resource ID") is an opaque handle that refers to a Godot `Resource`.
 ///
@@ -121,7 +121,7 @@ impl std::fmt::Display for Rid {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rid {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::RID;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::RID);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self;
         fn new_from_sys;

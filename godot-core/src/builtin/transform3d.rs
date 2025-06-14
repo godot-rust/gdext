@@ -6,7 +6,7 @@
  */
 
 use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, GlamConv, GlamType, XformInv};
 use crate::builtin::{real, Aabb, Basis, Plane, Projection, RAffine3, Vector3};
@@ -469,7 +469,7 @@ impl GlamConv for Transform3D {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Transform3D {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::TRANSFORM3D;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::TRANSFORM3D);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

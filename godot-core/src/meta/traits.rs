@@ -17,7 +17,7 @@ use godot_ffi as sys;
 // Re-export sys traits in this module, so all are in one place.
 use crate::registry::property::builtin_type_string;
 use crate::{builtin, meta};
-pub use sys::{GodotFfi, GodotNullableFfi};
+pub use sys::{ExtVariantType, GodotFfi, GodotNullableFfi};
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
 #[doc(hidden)]
@@ -89,7 +89,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     #[doc(hidden)]
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
-            variant_type: Self::Ffi::VARIANT_TYPE,
+            variant_type: Self::Ffi::VARIANT_TYPE.variant_as_nil(),
             class_name: Self::class_name(),
             property_name: builtin::StringName::from(property_name),
             hint_info: Self::property_hint_info(),
@@ -192,10 +192,17 @@ pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + meta::ParamType {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Non-polymorphic helper functions, to avoid constant `<T::Via as GodotType>::` in the code.
 
 #[doc(hidden)]
-pub(crate) fn element_variant_type<T: ArrayElement>() -> VariantType {
+pub(crate) const fn element_variant_type<T: ArrayElement>() -> VariantType {
+    <T::Via as GodotType>::Ffi::VARIANT_TYPE.variant_as_nil()
+}
+
+/// Classifies `T` into one of Godot's builtin types. **Important:** variants are mapped to `NIL`.
+#[doc(hidden)]
+pub(crate) const fn ffi_variant_type<T: GodotConvert>() -> ExtVariantType {
     <T::Via as GodotType>::Ffi::VARIANT_TYPE
 }
 

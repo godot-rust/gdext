@@ -87,11 +87,11 @@ func _ready():
 
 
 class GDScriptTestCase:
-	var suite: Object
+	var suite: RefCounted # not always TestSuite, e.g. InheritTests.
 	var method_name: String
 	var suite_name: String
 	
-	func _init(suite: Object, method_name: String):
+	func _init(suite: RefCounted, method_name: String):
 		self.suite = suite
 		self.method_name = method_name
 		self.suite_name = _suite_name(suite)
@@ -100,7 +100,7 @@ class GDScriptTestCase:
 		push_error("run unimplemented")
 		return false
 	
-	static func _suite_name(suite: Object) -> String:
+	static func _suite_name(suite: RefCounted) -> String:
 		var script: GDScript = suite.get_script()
 		return str(script.resource_path.get_file().get_basename(), ".gd")
 
@@ -108,9 +108,9 @@ class GDScriptTestCase:
 class GDScriptExecutableTestCase extends GDScriptTestCase:
 	func run():
 		# This is a no-op if the suite doesn't have this property.
-		suite.set("_assertion_failed", false)
+		suite.reset_state()
 		var result = suite.call(method_name)
-		var ok: bool = (result == true or result == null) and not suite.get("_assertion_failed")
+		var ok: bool = (result == true or result == null) and not suite.is_test_failed()
 		return ok
 
 # Hardcoded test case used for special cases where the standard testing API is not sufficient.
