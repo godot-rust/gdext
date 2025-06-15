@@ -17,7 +17,7 @@ use std::{cell::Cell, rc::Rc};
 #[cfg(debug_assertions)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum InitState {
-    /// Object is being constructed (inside `init()` or `Gd::from_init_fn()`).
+    /// Object is being constructed (inside `I*::init()` or `Gd::from_init_fn()`).
     ObjectConstructing,
     /// Object construction is complete.
     ObjectInitialized,
@@ -155,11 +155,12 @@ impl<T: GodotClass> Base<T> {
 
     /// Returns a [`Gd`] referencing the base object, for use during initialization.
     ///
-    /// This method provides safe access to the base object during `init()` or [`Gd::from_init_fn()`] code, allowing you to call base class
-    /// methods before the derived object is constructed. This is the only way to interact with the base object during initialization.
+    /// This method provides safe access to the base object during [`I*::init()`][crate::classes::IObject::init] or [`Gd::from_init_fn()`]
+    /// code, allowing you to call base class methods before the derived object is constructed. This is the only way to interact with the base
+    /// object during initialization.
     ///
-    /// # Panics
-    /// In Debug builds, this method will panic if called outside a constructor (i.e. after `init()` has completed).
+    /// # Panics (Debug)
+    /// If called outside a constructor (i.e. after `init()` has completed).
     ///
     /// # Example
     /// ```no_run
@@ -174,10 +175,10 @@ impl<T: GodotClass> Base<T> {
     /// #[godot_api]
     /// impl INode for MyClass {
     ///     fn init(mut base: Base<Node>) -> Self {
-    ///         // Retrieve a Gd<Node> temporarily.
+    ///         // Retrieve a &mut Gd<Node> temporarily.
     ///         let base_obj = base.as_init_gd();
     ///         base_obj.set_name("fancy_name");
-    ///         
+    ///
     ///         Self { base }
     ///     }
     /// }
