@@ -36,5 +36,6 @@ pub use super::obj::EngineEnum as _;
 pub use super::obj::NewAlloc as _;
 pub use super::obj::NewGd as _;
 pub use super::obj::WithBaseField as _; // base(), base_mut(), to_gd()
+pub use super::obj::WithDeferredCall as _; // apply_deferred()
 pub use super::obj::WithSignals as _; // Gd::signals()
 pub use super::obj::WithUserSignals as _; // self.signals()

@@ -8,6 +8,7 @@ use crate::framework::itest;
 use godot::obj::WithBaseField;
 use godot::prelude::*;
 use godot::task::{SignalFuture, TaskHandle};
+use std::ops::DerefMut;
 
 const ACCEPTED_NAME: &str = "touched";
 
@@ -64,6 +65,42 @@ fn call_deferred_untyped(ctx: &crate::framework::TestContext) -> TaskHandle {
 
     // Called through Godot and therefore requires #[func] on the method.
     test_node.call_deferred("accept", &[]);
+
+    let mut gd_mut = test_node.bind_mut();
+    gd_mut.create_assertion_task()
+}
+
+#[itest(async)]
+fn call_deferred_godot_class(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    let mut gd_mut = test_node.bind_mut();
+    // Explicitly check that this can be invoked on &mut T.
+    let godot_class_ref: &mut DeferredTestNode = gd_mut.deref_mut();
+    godot_class_ref.apply_deferred(DeferredTestNode::accept);
+
+    gd_mut.create_assertion_task()
+}
+
+#[itest(async)]
+fn call_deferred_gd_user_class(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    test_node.apply_deferred(DeferredTestNode::accept);
+
+    let mut gd_mut = test_node.bind_mut();
+    gd_mut.create_assertion_task()
+}
+
+#[itest(async)]
+fn call_deferred_gd_engine_class(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    let mut node = test_node.clone().upcast::<Node>();
+    node.apply_deferred(|that_node| that_node.set_name(ACCEPTED_NAME));
 
     let mut gd_mut = test_node.bind_mut();
     gd_mut.create_assertion_task()
