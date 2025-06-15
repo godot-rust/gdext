@@ -482,3 +482,44 @@ func test_renamed_func_get_set():
 	assert_eq(obj.f1(), 84)
 
 	obj.free()
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# Tests below verify the following:
+# Calling a typed Rust function with a Variant that cannot be converted to the Rust type will cause a failed function call on _GDScript_ side,
+# meaning the GDScript function aborts immediately. This happens because a `Variant -> T` conversion occurs dynamically *on GDScript side*,
+# before the Rust function is called.In contrast, panics inside the Rust function (e.g. variant.to::<T>()) just cause the *Rust* function to fail.
+#
+# Store arguments as Variant, as GDScript wouldn't parse script otherwise. Results in varcall being used.
+
+func test_marshalling_fail_variant_type():
+	# Expects Object, pass GString.
+	var obj := ObjectTest.new()
+	var arg: Variant = "not an object"
+	obj.pass_object(arg)
+
+	assert_fail("GDScript function should fail after marshalling error (bad variant type)")
+
+func test_marshalling_fail_non_null():
+	# Expects Object, pass null.
+	var obj := ObjectTest.new()
+	obj.pass_object(null)
+
+	assert_fail("GDScript function should fail after marshalling error (required non-null)")
+
+func test_marshalling_fail_integer_overflow():
+	# Expects i32. This overflows.
+	var obj := ObjectTest.new()
+	var arg: Variant = 9223372036854775807
+	obj.pass_i32(arg)
+
+	assert_fail("GDScript function should fail after marshalling error (int overflow)")
+
+func test_marshalling_continues_on_panic():
+	mark_test_pending()
+
+	# Expects i32. This overflows.
+	var obj := ObjectTest.new()
+	var result = obj.cause_panic()
+
+	assert_eq(result, Vector3.ZERO, "Default value returned on failed function call")
+	mark_test_succeeded()

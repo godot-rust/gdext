@@ -1023,6 +1023,14 @@ pub mod object_test_gd {
             // Forward compat: .upcast() here becomes a breaking change if we generalize AsArg to include derived->base conversions.
             array![&Self::return_self().upcast()]
         }
+
+        #[func]
+        fn pass_i32(&self, _i: i32) {}
+
+        #[func]
+        fn cause_panic(&self) -> Vector3 {
+            panic!("Rust panics")
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------------------------------------------------
