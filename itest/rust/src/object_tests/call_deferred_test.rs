@@ -4,72 +4,107 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
 use crate::framework::itest;
-use crate::object_tests::call_deferred_test::TestState::{Accepted, Initial};
+use godot::obj::WithBaseField;
 use godot::prelude::*;
 use godot::task::{SignalFuture, TaskHandle};
+use std::ops::DerefMut;
 
-#[derive(GodotConvert, Var, Export, Clone, PartialEq, Debug)]
-#[godot(via = GString)]
-enum TestState {
-    Initial,
-    Accepted,
-}
+const ACCEPTED_NAME: &str = "touched";
 
 #[derive(GodotClass)]
-#[class(base=Node)]
+#[class(init,base=Node2D)]
 struct DeferredTestNode {
-    base: Base<Node>,
-    state: TestState,
+    base: Base<Node2D>,
 }
 
 #[godot_api]
 impl DeferredTestNode {
     #[signal]
-    fn test_completed(state: TestState);
+    fn test_completed(name: StringName);
 
     #[func]
     fn accept(&mut self) {
-        self.state = Accepted;
+        self.base_mut().set_name(ACCEPTED_NAME);
     }
 
-    fn as_expectation_task(&self) -> TaskHandle {
-        assert_eq!(Initial, self.state, "accept evaluated synchronously");
+    fn to_assertion_task(&self) -> TaskHandle {
+        assert_ne!(
+            self.base().get_name().to_string(),
+            ACCEPTED_NAME,
+            "accept evaluated synchronously"
+        );
 
-        let test_will_succeed: SignalFuture<(Variant,)> =
+        let test_will_succeed: SignalFuture<(StringName,)> =
             Signal::from_object_signal(&self.to_gd(), "test_completed").to_future();
-        godot::task::spawn(async move {
-            let (final_state,) = test_will_succeed.await;
-            let final_state: TestState = final_state.to();
 
-            assert_eq!(Accepted, final_state);
+        godot::task::spawn(async move {
+            let (name,) = test_will_succeed.await;
+
+            assert_eq!(name.to_string(), ACCEPTED_NAME);
         })
     }
 }
 
 #[godot_api]
-impl INode for DeferredTestNode {
-    fn init(base: Base<Self::Base>) -> Self {
-        Self {
-            base,
-            state: Initial,
-        }
+impl INode2D for DeferredTestNode {
+    fn process(&mut self, _delta: f64) {
+        let name = self.base().get_name();
+        self.signals().test_completed().emit(&name);
+        self.base_mut().queue_free();
     }
 
-    fn process(&mut self, _delta: f64) {
-        let args = vslice![self.state];
-        self.base_mut().emit_signal("test_completed", args);
+    fn ready(&mut self) {
+        self.base_mut().set_name("verify")
     }
 }
 
 #[itest(async)]
-fn calls_method_names_deferred(ctx: &crate::framework::TestContext) -> TaskHandle {
+fn call_deferred_untyped(ctx: &crate::framework::TestContext) -> TaskHandle {
     let mut test_node = DeferredTestNode::new_alloc();
     ctx.scene_tree.clone().add_child(&test_node);
-    
+
+    // this is called through godot binding and therefore requires #[func] on the method
     test_node.call_deferred("accept", &[]);
 
-    let handle = test_node.bind().as_expectation_task();
+    let handle = test_node.bind().to_assertion_task();
+    handle
+}
+
+#[itest(async)]
+fn call_deferred_godot_class(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    let mut gd_mut = test_node.bind_mut();
+    // Explicitly check that this can be invoked on &mut T.
+    let godot_class_ref: &mut DeferredTestNode = gd_mut.deref_mut();
+    godot_class_ref.apply_deferred(DeferredTestNode::accept);
+    drop(gd_mut);
+
+    let handle = test_node.bind().to_assertion_task();
+    handle
+}
+
+#[itest(async)]
+fn call_deferred_gd_user_class(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    test_node.apply_deferred(DeferredTestNode::accept);
+
+    let handle = test_node.bind().to_assertion_task();
+    handle
+}
+
+#[itest(async)]
+fn call_deferred_gd_engine_class(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    let mut node = test_node.clone().upcast::<Node>();
+    node.apply_deferred(|that_node| that_node.set_name(ACCEPTED_NAME));
+
+    let handle = test_node.bind().to_assertion_task();
     handle
 }
