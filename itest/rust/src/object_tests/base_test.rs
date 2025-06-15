@@ -95,6 +95,53 @@ fn base_with_init() {
 }
 
 #[itest]
+fn base_during_init() {
+    let obj = Gd::<Based>::from_init_fn(|base| {
+        let mut gd = base.during_init();
+        gd.set_rotation(22.0);
+        gd.set_position(Vector2::new(100.0, 200.0));
+
+        Based { base, i: 456 }
+    });
+
+    let guard = obj.bind();
+    assert_eq!(guard.i, 456);
+    assert_eq!(guard.base().get_rotation(), 22.0);
+    assert_eq!(guard.base().get_position(), Vector2::new(100.0, 200.0));
+    drop(guard);
+
+    obj.free();
+}
+
+#[cfg(debug_assertions)]
+#[itest]
+fn base_during_init_outside_init() {
+    let obj = Based::new_alloc();
+
+    expect_panic("during_init() outside init() function", || {
+        let guard = obj.bind();
+        let _gd = guard.base.during_init(); // Panics in Debug builds.
+    });
+
+    obj.free();
+}
+
+#[cfg(debug_assertions)]
+#[itest]
+fn base_during_init_to_gd() {
+    expect_panic("WithBaseField::to_gd() inside init() function", || {
+        let _obj = Gd::<Based>::from_init_fn(|base| {
+            let temp_obj = Based { base, i: 999 };
+            
+            // This should panic because we're calling to_gd() during initialization
+            let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
+            
+            temp_obj
+        });
+    });
+}
+
+#[itest]
 fn base_gd_self() {
     let obj = Based::new_alloc();
     let obj2 = obj.bind().access_gd_self();
