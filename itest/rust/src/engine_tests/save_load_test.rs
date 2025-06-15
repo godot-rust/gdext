@@ -32,7 +32,7 @@ struct SavedGame {
 #[class(base=Node, init)]
 struct GameLoader {
     // Test also more complex expressions.
-    #[init(load = &format!("res://{}", RESOURCE_NAME))]
+    #[init(load = &format!("res://{RESOURCE_NAME}"))]
     game: OnReady<Gd<SavedGame>>,
 
     _base: Base<classes::Node>,
@@ -43,7 +43,7 @@ const FAULTY_PATH: &str = "no_such_path";
 
 #[itest]
 fn save_test() {
-    let res_path = format!("res://{}", RESOURCE_NAME);
+    let res_path = format!("res://{RESOURCE_NAME}");
 
     let resource = SavedGame::new_gd();
 
@@ -61,7 +61,7 @@ fn save_test() {
 #[itest]
 fn load_test() {
     let level = 2317;
-    let res_path = format!("res://{}", RESOURCE_NAME);
+    let res_path = format!("res://{RESOURCE_NAME}");
 
     let mut resource = SavedGame::new_gd();
     resource.bind_mut().set_level(level);
@@ -85,7 +85,7 @@ fn load_test() {
 
 #[itest]
 fn load_with_onready() {
-    let res_path = format!("res://{}", RESOURCE_NAME);
+    let res_path = format!("res://{RESOURCE_NAME}");
 
     let mut resource = SavedGame::new_gd();
     resource.bind_mut().set_level(555);

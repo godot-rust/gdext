@@ -336,7 +336,7 @@ impl ToGodot for u64 {
         i64::try_from(*self)
             .map(|v| v.to_variant())
             .unwrap_or_else(|_| {
-                panic!("to_variant(): u64 value {} is not representable inside Variant, which can only store i64 integers", self)
+                panic!("to_variant(): u64 value {self} is not representable inside Variant, which can only store i64 integers")
             })
     }
 }

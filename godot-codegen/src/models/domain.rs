@@ -43,7 +43,7 @@ impl ExtensionApi {
         self.builtins
             .iter()
             .find(|b| b.godot_original_name() == name)
-            .unwrap_or_else(|| panic!("builtin_by_name: invalid `{}`", name))
+            .unwrap_or_else(|| panic!("builtin_by_name: invalid `{name}`"))
     }
 }
 

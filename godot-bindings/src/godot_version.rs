@@ -132,7 +132,7 @@ Current path: /Users/runner/work/gdext/gdext/godot-core
             custom_rev,
         };
         let parsed: GodotVersion = parse_godot_version(full).unwrap();
-        assert_eq!(parsed, expected, "{}", full);
+        assert_eq!(parsed, expected, "{full}");
     }
 
     for full in bad_versions {

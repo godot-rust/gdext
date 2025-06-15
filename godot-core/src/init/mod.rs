@@ -91,7 +91,7 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     init_level: sys::GDExtensionInitializationLevel,
 ) {
     let level = InitLevel::from_sys(init_level);
-    let ctx = || format!("failed to initialize GDExtension level `{:?}`", level);
+    let ctx = || format!("failed to initialize GDExtension level `{level:?}`");
 
     fn try_load<E: ExtensionLibrary>(level: InitLevel) {
         // Workaround for https://github.com/godot-rust/gdext/issues/629:
@@ -126,7 +126,7 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
     init_level: sys::GDExtensionInitializationLevel,
 ) {
     let level = InitLevel::from_sys(init_level);
-    let ctx = || format!("failed to deinitialize GDExtension level `{:?}`", level);
+    let ctx = || format!("failed to deinitialize GDExtension level `{level:?}`");
 
     // Swallow panics.
     let _ = crate::private::handle_panic(ctx, || {

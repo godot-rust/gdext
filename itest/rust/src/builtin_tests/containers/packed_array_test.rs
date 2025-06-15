@@ -60,7 +60,7 @@ fn packed_array_from_vec_color() {
 
     assert_eq!(color_array.len(), SRC.len());
     for (i, c) in SRC.into_iter().enumerate() {
-        assert_eq!(color_array[i], c, "value mismatch at index {}", i);
+        assert_eq!(color_array[i], c, "value mismatch at index {i}");
     }
 }
 
@@ -93,7 +93,7 @@ fn packed_array_from_array_color() {
 
     assert_eq!(color_array.len(), SRC.len());
     for (i, c) in SRC.into_iter().enumerate() {
-        assert_eq!(color_array[i], c, "value mismatch at index {}", i);
+        assert_eq!(color_array[i], c, "value mismatch at index {i}");
     }
 }
 
