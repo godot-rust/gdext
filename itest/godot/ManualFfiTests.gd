@@ -92,9 +92,8 @@ func test_export_dyn_gd_should_fail_for_wrong_type():
 	var dyn_gd_exporter = RefcDynGdVarDeclarer.new()
 	var refc = RefcHealth.new()
 
-	disable_error_messages()
-	dyn_gd_exporter.second = refc # Should fail.
-	enable_error_messages()
+	expect_fail()
+	dyn_gd_exporter.second = refc # Causes current function to fail. Following code unreachable.
 
 	assert_fail("`DynGdExporter.second` should only accept NodeHealth and only if it implements `InstanceIdProvider` trait")
 
@@ -310,9 +309,9 @@ func test_custom_property_wrong_values_1():
 		return
 
 	var has_property: HasCustomProperty = HasCustomProperty.new()
-	disable_error_messages()
-	has_property.some_c_style_enum = 10 # Should fail.
-	enable_error_messages()
+	expect_fail()
+	has_property.some_c_style_enum = 10 # Causes current function to fail. Following code unreachable.
+
 	assert_fail("HasCustomProperty.some_c_style_enum should only accept integers in the range `(0 ..= 2)`")
 
 func test_custom_property_wrong_values_2():
@@ -320,9 +319,9 @@ func test_custom_property_wrong_values_2():
 		return
 
 	var has_property: HasCustomProperty = HasCustomProperty.new()
-	disable_error_messages()
-	has_property.not_exportable = {"a": "hello", "b": Callable()} # Should fail.
-	enable_error_messages()
+	expect_fail()
+	has_property.not_exportable = {"a": "hello", "b": Callable()} # Causes current function to fail. Following code unreachable.
+
 	assert_fail("HasCustomProperty.not_exportable should only accept dictionaries with float values")
 
 func test_option_export():
@@ -482,3 +481,58 @@ func test_renamed_func_get_set():
 	assert_eq(obj.f1(), 84)
 
 	obj.free()
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# Tests below verify the following:
+# Calling a typed Rust function with a Variant that cannot be converted to the Rust type will cause a failed function call on _GDScript_ side,
+# meaning the GDScript function aborts immediately. This happens because a `Variant -> T` conversion occurs dynamically *on GDScript side*,
+# before the Rust function is called.In contrast, panics inside the Rust function (e.g. variant.to::<T>()) just cause the *Rust* function to fail.
+#
+# Store arguments as Variant, as GDScript wouldn't parse script otherwise. Results in varcall being used.
+
+func test_marshalling_fail_variant_type():
+	if runs_release():
+		return
+
+	# Expects Object, pass GString.
+	var obj := ObjectTest.new()
+	var arg: Variant = "not an object"
+	expect_fail()
+	obj.pass_object(arg) # Causes current function to fail. Following code unreachable.
+
+	assert_fail("GDScript function should fail after marshalling error (bad variant type)")
+
+func test_marshalling_fail_non_null():
+	if runs_release():
+		return
+
+	# Expects Object, pass null.
+	var obj := ObjectTest.new()
+
+	expect_fail()
+	obj.pass_object(null) # Causes current function to fail. Following code unreachable.
+
+	assert_fail("GDScript function should fail after marshalling error (required non-null)")
+
+func test_marshalling_fail_integer_overflow():
+	if runs_release():
+		return
+
+	# Expects i32. This overflows.
+	var obj := ObjectTest.new()
+	var arg: Variant = 9223372036854775807
+
+	expect_fail()
+	obj.pass_i32(arg) # Causes current function to fail. Following code unreachable.
+
+	assert_fail("GDScript function should fail after marshalling error (int overflow)")
+
+func test_marshalling_continues_on_panic():
+	mark_test_pending()
+
+	# Expects i32. This overflows.
+	var obj := ObjectTest.new()
+	var result = obj.cause_panic() # Fails in Rust, current function continues.
+
+	assert_eq(result, Vector3.ZERO, "Default value returned on failed function call")
+	mark_test_succeeded()
