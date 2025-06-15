@@ -88,7 +88,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                     // By not referencing the base field directly here we ensure that the user only gets one error when the base
                     // field's type is wrong.
                     let base = <#class_name as ::godot::obj::WithBaseField>::base_field(self);
-                    base.to_gd().cast()
+
+                    base.__fully_constructed_gd().cast()
                 }
 
                 fn base_field(&self) -> &::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base> {

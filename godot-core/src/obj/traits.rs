@@ -354,9 +354,13 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// This is intended to be stored or passed to engine methods. You cannot call `bind()` or `bind_mut()` on it, while the method
     /// calling `to_gd()` is still running; that would lead to a double borrow panic.
+    ///
+    /// # Panics
+    /// If called during initialization (the `init()` function or `Gd::from_init_fn()`). Use [`Base::during_init()`] instead.
     fn to_gd(&self) -> Gd<Self>;
 
     /// Returns a reference to the `Base` stored by this object.
+    #[doc(hidden)]
     fn base_field(&self) -> &Base<Self::Base>;
 
     /// Returns a shared reference suitable for calling engine methods on this object.

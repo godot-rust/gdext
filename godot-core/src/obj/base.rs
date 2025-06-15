@@ -97,6 +97,56 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
+    /// Returns a [`Gd`] referencing the base object, for use during initialization.
+    ///
+    /// This method provides safe access to the base object during `init()` or [`Gd::from_init_fn()`] code, allowing you to call base class
+    /// methods before the derived object is constructed. This is the only way to interact with the base object during initialization.
+    ///
+    /// # Panics
+    /// In Debug builds, this method will panic if called outside a constructor (i.e. after `init()` has completed).
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::prelude::*;
+    ///
+    /// #[derive(GodotClass)]
+    /// #[class(base=Node)]
+    /// struct MyClass {
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode for MyClass {
+    ///     fn init(base: Base<Node>) -> Self {
+    ///         // Retrieve a Gd<Node> temporarily.
+    ///         let mut base_obj = base.during_init();
+    ///         base_obj.set_name("fancy_name");
+    ///         
+    ///         Self { base }
+    ///     }
+    /// }
+    /// ```
+    pub fn during_init(&self) -> Gd<T> {
+        #[cfg(debug_assertions)]
+        assert!(
+            self.is_initializing(),
+            "Base::during_init() can only be called during object initialization, inside init() or Gd::from_init_fn()"
+        );
+
+        (*self.obj).clone()
+    }
+
+    #[doc(hidden)]
+    pub fn __fully_constructed_gd(&self) -> Gd<T> {
+        #[cfg(debug_assertions)]
+        assert!(
+            !self.is_initializing(),
+            "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after init() or Gd::from_init_fn()"
+        );
+
+        (*self.obj).clone()
+    }
+
     // Currently only used in outbound virtual calls (for scripts); search for: base_field(self).obj_sys().
     #[doc(hidden)]
     pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
@@ -107,6 +157,21 @@ impl<T: GodotClass> Base<T> {
     #[cfg(feature = "debug-log")]
     pub(crate) fn debug_instance_id(&self) -> crate::obj::InstanceId {
         self.obj.instance_id()
+    }
+
+    /// If initialization is still in progress (`true`) or the derived object is fully constructed (`false`).
+    #[cfg(debug_assertions)]
+    fn is_initializing(&self) -> bool {
+        let object_ptr = self.obj.obj_sys();
+        let has_binding = unsafe {
+            sys::interface_fn!(object_get_instance_binding)(
+                object_ptr,
+                sys::get_library() as *mut std::ffi::c_void,
+                std::ptr::null(),
+            )
+        };
+
+        has_binding.is_null()
     }
 }
 
