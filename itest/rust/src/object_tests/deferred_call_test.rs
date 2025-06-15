@@ -67,8 +67,19 @@ impl INode for DeferredTestNode {
 fn calls_method_names_deferred(ctx: &crate::framework::TestContext) -> TaskHandle {
     let mut test_node = DeferredTestNode::new_alloc();
     ctx.scene_tree.clone().add_child(&test_node);
-    
+
     test_node.call_deferred("accept", &[]);
+
+    let handle = test_node.bind().as_expectation_task();
+    handle
+}
+
+#[itest(async)]
+fn calls_closure_deferred(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    test_node.apply_deferred(|mut this| this.bind_mut().accept());
 
     let handle = test_node.bind().as_expectation_task();
     handle
