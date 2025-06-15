@@ -60,6 +60,17 @@ pub trait ToGodot: Sized + GodotConvert {
     where
         Self: 'v;
 
+    /*
+    // TODO(v0.4): add this type, to replace ParamType::ArgPassing and possibly Self::ToVia<'v>.
+    /// Whether this type is passed by value or by reference in `AsArg` contexts.
+    ///
+    /// Can be either [`ArgPassing::ByValue`] or [`ArgPassing::ByRef`]. For types implementing `Copy`, by-value is strongly recommended.
+    ///
+    /// Will auto-implement `AsArg<T>` for either `T` (by-value) or for `&T` (by-reference). This has an influence on contexts such as
+    /// [`Array::push()`](crate::builtin::Array::push) or generated signal `emit()` signatures.
+    type ArgPassing: ArgPassing;
+     */
+
     /// Converts this type to the Godot type by reference, usually by cloning.
     fn to_godot(&self) -> Self::ToVia<'_>;
 

@@ -14,7 +14,7 @@ use sys::{static_assert_eq_size_align, SysPtr as _};
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
+    ArrayElement, AsArg, ByRef, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
     ParamType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
@@ -842,16 +842,6 @@ impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
     }
 }
 
-impl<'r, T: GodotClass> AsArg<Gd<T>> for &'r Gd<T> {
-    #[doc(hidden)] // Repeated despite already hidden in trait; some IDEs suggest this otherwise.
-    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
-    where
-        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-    {
-        CowArg::Borrowed(self)
-    }
-}
-
 /*
 // TODO find a way to generalize AsArg to derived->base conversions without breaking type inference in array![].
 // Possibly we could use a "canonical type" with unambiguous mapping (&Gd<T> -> &Gd<T>, not &Gd<T> -> &Gd<TBase>).
@@ -877,19 +867,7 @@ where
 */
 
 impl<T: GodotClass> ParamType for Gd<T> {
-    type Arg<'v> = CowArg<'v, Gd<T>>;
-
-    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-        CowArg::Owned(self)
-    }
-
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-        arg.cow_as_ref()
-    }
-
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-        arg.cow_into_owned()
-    }
+    type ArgPassing = ByRef;
 }
 
 impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
@@ -903,19 +881,7 @@ impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
 }
 
 impl<T: GodotClass> ParamType for Option<Gd<T>> {
-    type Arg<'v> = CowArg<'v, Option<Gd<T>>>;
-
-    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-        CowArg::Owned(self)
-    }
-
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-        arg.cow_as_ref()
-    }
-
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-        arg.cow_into_owned()
-    }
+    type ArgPassing = ByRef;
 }
 
 impl<T> Default for Gd<T>

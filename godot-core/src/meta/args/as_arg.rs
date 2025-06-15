@@ -6,7 +6,8 @@
  */
 
 use crate::builtin::{GString, NodePath, StringName};
-use crate::meta::{sealed, CowArg};
+use crate::meta::sealed::Sealed;
+use crate::meta::{CowArg, ToGodot};
 use std::ffi::CStr;
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -15,18 +16,16 @@ use std::ffi::CStr;
 /// this trait is implemented more conservatively.
 ///
 /// As a result, `AsArg<T>` is currently only implemented for certain argument types:
-/// - `T` for by-value builtins (typically `Copy`): `i32`, `bool`, `Vector3`, `Transform2D`, ...
-/// - `&T` for by-ref builtins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
+/// - `T` for by-value built-ins (typically `Copy`): `i32`, `bool`, `Vector3`, `Transform2D`, ...
+/// - `&T` for by-ref built-ins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
 /// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`.
 ///
 /// See also the [`AsObjectArg`][crate::meta::AsObjectArg] trait which is specialized for object arguments. It may be merged with `AsArg`
 /// in the future.
 ///
 /// # Pass by value
-/// Implicitly converting from `T` for by-ref builtins is explicitly not supported. This emphasizes that there is no need to consume the object,
+/// Implicitly converting from `T` for by-ref built-ins is explicitly not supported. This emphasizes that there is no need to consume the object,
 /// thus discourages unnecessary cloning.
-///
-/// If you need to pass owned values in generic code, you can use [`ParamType::owned_to_arg()`].
 ///
 /// # Performance for strings
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
@@ -45,22 +44,57 @@ use std::ffi::CStr;
 /// `AsArg` is meant to be used from the function call site, not the declaration site. If you declare a parameter as `impl AsArg<...>` yourself,
 /// you can only forward it as-is to a Godot API -- there are no stable APIs to access the inner object yet.
 ///
-/// Furthermore, there is currently no benefit in implementing `AsArg` for your own types, as it's only used by Godot APIs which don't accept
-/// custom types. Classes are already supported through upcasting and [`AsObjectArg`][crate::meta::AsObjectArg].
+/// If you want to pass your own types to a Godot API i.e. to emit a signal, you should implement the [`ParamType`] trait.
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "if you pass by value, consider borrowing instead.",
     note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method.",
     note = "see also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
 )]
-pub trait AsArg<T: ParamType>
+pub trait AsArg<T: ToGodot>
 where
     Self: Sized,
 {
+    // The usage of the CowArg return type introduces a small runtime penalty for values that implement Copy. Currently, the usage
+    // ergonomics out weigh the runtime cost. Using the CowArg allows us to create a blanket implementation of the trait for all types that
+    // implement ToGodot.
     #[doc(hidden)]
-    fn into_arg<'r>(self) -> <T as ParamType>::Arg<'r>
+    fn into_arg<'r>(self) -> CowArg<'r, T>
     where
         Self: 'r;
+}
+
+/// Generic abstraction over `T` and `&T` that should be passed as `AsArg<T>`.
+#[doc(hidden)]
+pub fn val_into_arg<'r, T>(arg: T) -> impl AsArg<T> + 'r
+where
+    T: ToGodot + 'r,
+{
+    CowArg::Owned(arg)
+}
+
+impl<T> AsArg<T> for &T
+where
+    T: ToGodot + ParamType<ArgPassing = ByRef>,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, T>
+    where
+        Self: 'r,
+    {
+        CowArg::Borrowed(self)
+    }
+}
+
+impl<T> AsArg<T> for T
+where
+    T: ToGodot + ParamType<ArgPassing = ByValue>,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, T>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(self)
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -81,7 +115,7 @@ macro_rules! arg_into_ref {
     };
     ($arg_variable:ident: $T:ty) => {
         let $arg_variable = $arg_variable.into_arg();
-        let $arg_variable: &$T = $crate::meta::ParamType::arg_to_ref(&$arg_variable);
+        let $arg_variable: &$T = $arg_variable.cow_as_ref();
     };
 }
 
@@ -102,34 +136,15 @@ macro_rules! arg_into_owned {
     };
     (infer $arg_variable:ident) => {
         let $arg_variable = $arg_variable.into_arg();
-        let $arg_variable = $crate::meta::ParamType::arg_into_owned($arg_variable);
+        let $arg_variable = $arg_variable.cow_into_owned();
     };
 }
 
 #[macro_export]
 macro_rules! impl_asarg_by_value {
     ($T:ty) => {
-        impl $crate::meta::AsArg<$T> for $T {
-            fn into_arg<'r>(self) -> <$T as $crate::meta::ParamType>::Arg<'r> {
-                // Moves value (but typically a Copy type).
-                self
-            }
-        }
-
         impl $crate::meta::ParamType for $T {
-            type Arg<'v> = $T;
-
-            fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-                self
-            }
-
-            fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-                arg
-            }
-
-            fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-                arg
-            }
+            type ArgPassing = $crate::meta::ByValue;
         }
     };
 }
@@ -137,36 +152,8 @@ macro_rules! impl_asarg_by_value {
 #[macro_export]
 macro_rules! impl_asarg_by_ref {
     ($T:ty) => {
-        impl<'r> $crate::meta::AsArg<$T> for &'r $T {
-            // 1 rustfmt + 1 rustc problems (bugs?) here:
-            // - formatting doesn't converge; `where` keeps being further indented on each run.
-            // - a #[rustfmt::skip] annotation over the macro causes a compile error when mentioning `crate::impl_asarg_by_ref`.
-            //   "macro-expanded `macro_export` macros from the current crate cannot be referred to by absolute paths"
-            // Thus, keep `where` on same line.
-            // type ArgType<'v> = &'v $T where Self: 'v;
-
-            fn into_arg<'cow>(self) -> <$T as $crate::meta::ParamType>::Arg<'cow>
-            where
-                'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-            {
-                $crate::meta::CowArg::Borrowed(self)
-            }
-        }
-
         impl $crate::meta::ParamType for $T {
-            type Arg<'v> = $crate::meta::CowArg<'v, $T>;
-
-            fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-                $crate::meta::CowArg::Owned(self)
-            }
-
-            fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-                arg.cow_as_ref()
-            }
-
-            fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-                arg.cow_into_owned()
-            }
+            type ArgPassing = $crate::meta::ByRef;
         }
     };
 }
@@ -182,7 +169,7 @@ macro_rules! declare_arg_method {
         pub fn arg<T>(&self) -> impl $crate::meta::AsArg<T>
         where
             for<'a> T: From<&'a Self>
-                + $crate::meta::ParamType<Arg<'a> = $crate::meta::CowArg<'a, T>>
+                + $crate::meta::ToGodot
                 + 'a,
         {
             $crate::meta::CowArg::Owned(T::from(self))
@@ -199,7 +186,7 @@ macro_rules! declare_arg_method {
 /// This is necessary for packed array dispatching to different "inner" backend signatures.
 impl<T> AsArg<T> for CowArg<'_, T>
 where
-    for<'r> T: ParamType<Arg<'r> = CowArg<'r, T>> + 'r,
+    for<'r> T: ToGodot,
 {
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
@@ -271,37 +258,37 @@ impl AsArg<NodePath> for &String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
+///
+/// **Deprecated**: This trait is considered deprecated and will be removed in 0.4. It is still required to be implemented by types that should
+/// be passed `AsArg` in the current version, though.
+//
 // ParamType used to be a subtrait of GodotType, but this can be too restrictive. For example, DynGd is not a "Godot canonical type"
 // (GodotType), however it's still useful to store it in arrays -- which requires AsArg and subsequently ParamType.
-pub trait ParamType: sealed::Sealed + Sized + 'static
+//
+// TODO(v0.4): merge ParamType::ArgPassing into ToGodot::ToVia, reducing redundancy on user side.
+pub trait ParamType: ToGodot + Sized + 'static
 // GodotType bound not required right now, but conceptually should always be the case.
 {
-    /// Canonical argument passing type, either `T` or an internally-used CoW type.
-    ///
-    /// The general rule is that `Copy` types are passed by value, while the rest is passed by reference.
-    ///
-    /// This associated type is closely related to [`ToGodot::ToVia<'v>`][crate::meta::ToGodot::ToVia] and may be reorganized in the future.
-    #[doc(hidden)]
-    type Arg<'v>: AsArg<Self>
-    where
-        Self: 'v;
+    type ArgPassing: ArgPassing;
 
-    /// Converts an owned value to the canonical argument type, which can be passed to [`impl AsArg<T>`][AsArg].
-    ///
-    /// Useful in generic contexts where only a value is available, and one doesn't want to dispatch between value/reference.
-    ///
-    /// You should not rely on the exact return type, as it may change in future versions; treat it like `impl AsArg<Self>`.
-    fn owned_to_arg<'v>(self) -> Self::Arg<'v>;
-
-    /// Converts an argument to a shared reference.
-    ///
-    /// Useful in generic contexts where you need to extract a reference of an argument, independently of how it is passed.
-    #[doc(hidden)] // for now, users are encouraged to use only call-site of impl AsArg; declaration-site may still develop.
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self;
-
-    /// Clones an argument into an owned value.
-    ///
-    /// Useful in generic contexts where you need to extract a value of an argument, independently of how it is passed.
-    #[doc(hidden)] // for now, users are encouraged to use only call-site of impl AsArg; declaration-site may still develop.
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self;
+    #[deprecated(
+        since = "0.3.2",
+        note = "This method is no longer needed and will be removed in 0.4"
+    )]
+    fn owned_to_arg(self) -> impl AsArg<Self> {
+        val_into_arg(self)
+    }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Argument passing (mutually exclusive by-val or by-ref).
+
+pub trait ArgPassing: Sealed {}
+
+pub enum ByValue {}
+impl ArgPassing for ByValue {}
+impl Sealed for ByValue {}
+
+pub enum ByRef {}
+impl ArgPassing for ByRef {}
+impl Sealed for ByRef {}

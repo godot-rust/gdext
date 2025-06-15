@@ -12,8 +12,8 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ClassName,
-    CowArg, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType,
+    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ByRef,
+    ClassName, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType,
     PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
@@ -675,7 +675,7 @@ impl<T: ArrayElement> Array<T> {
         // We need one dummy element of type T, because Godot's bsearch_custom() checks types (so Variant::nil() can't be passed).
         // Optimization: roundtrip Variant -> T -> Variant could be avoided, but anyone needing speed would use Rust binary search...
         let ignored_value = self.at(0);
-        let ignored_value = <T as ParamType>::owned_to_arg(ignored_value);
+        let ignored_value = meta::val_into_arg(ignored_value); //AsArg::into_arg(&ignored_value);
 
         let godot_comparator = |args: &[&Variant]| {
             let value = T::from_variant(args[0]);
@@ -1118,29 +1118,8 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
 impl ArrayElement for VariantArray {}
 
-impl<'r, T: ArrayElement> AsArg<Array<T>> for &'r Array<T> {
-    fn into_arg<'cow>(self) -> CowArg<'cow, Array<T>>
-    where
-        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-    {
-        CowArg::Borrowed(self)
-    }
-}
-
 impl<T: ArrayElement> ParamType for Array<T> {
-    type Arg<'v> = CowArg<'v, Self>;
-
-    fn owned_to_arg<'v>(self) -> Self::Arg<'v> {
-        CowArg::Owned(self)
-    }
-
-    fn arg_to_ref<'r>(arg: &'r Self::Arg<'_>) -> &'r Self {
-        arg.cow_as_ref()
-    }
-
-    fn arg_into_owned(arg: Self::Arg<'_>) -> Self {
-        arg.cow_into_owned()
-    }
+    type ArgPassing = ByRef;
 }
 
 impl<T: ArrayElement> GodotConvert for Array<T> {
@@ -1436,7 +1415,7 @@ impl<T: ArrayElement + ToGodot> FromIterator<T> for Array<T> {
 }
 
 /// Extends a `Array` with the contents of an iterator.
-impl<T: ArrayElement + ToGodot> Extend<T> for Array<T> {
+impl<T: ArrayElement> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
         // Otherwise, we could use it to pre-allocate based on `iter.size_hint()`.
@@ -1444,7 +1423,8 @@ impl<T: ArrayElement + ToGodot> Extend<T> for Array<T> {
         // A faster implementation using `resize()` and direct pointer writes might still be possible.
         // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
         for item in iter.into_iter() {
-            self.push(ParamType::owned_to_arg(item));
+            // self.push(AsArg::into_arg(&item));
+            self.push(meta::val_into_arg(item));
         }
     }
 }

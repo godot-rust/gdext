@@ -17,14 +17,14 @@ use godot::{
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct SignalObject {
+struct SignalDisc {
     counter: i32,
 
     _base: Base<Object>,
 }
 
 #[godot_api]
-impl SignalObject {
+impl SignalDisc {
     #[signal]
     fn my_signal();
 
@@ -35,7 +35,7 @@ impl SignalObject {
 
 #[itest]
 fn disconnect_static() {
-    let obj = SignalObject::new_alloc();
+    let obj = SignalDisc::new_alloc();
     let mut closure_obj = obj.clone();
     let handle = obj.signals().my_signal().connect(move || {
         closure_obj.bind_mut().increment_self();
@@ -61,7 +61,7 @@ fn disconnect_self() {
         signal_object
             .signals()
             .my_signal()
-            .connect_self(SignalObject::increment_self)
+            .connect_self(SignalDisc::increment_self)
     })
 }
 
@@ -97,7 +97,7 @@ fn disconnect_other() {
         broadcaster
             .signals()
             .my_signal()
-            .connect_other(receiver, SignalObject::increment_self)
+            .connect_other(receiver, SignalDisc::increment_self)
     });
 }
 
@@ -162,14 +162,14 @@ fn handle_recognizes_freed_object() {
 
 fn test_disconnect(
     connect_to_self: bool,
-    handle_function: impl FnOnce(&Gd<SignalObject>, &Gd<SignalObject>) -> ConnectHandle,
+    handle_function: impl FnOnce(&Gd<SignalDisc>, &Gd<SignalDisc>) -> ConnectHandle,
 ) {
     // If we mean to connect to self, broadcaster and receiver is the same object.
-    let broadcaster = SignalObject::new_alloc();
+    let broadcaster = SignalDisc::new_alloc();
     let receiver = if connect_to_self {
         broadcaster.clone()
     } else {
-        SignalObject::new_alloc()
+        SignalDisc::new_alloc()
     };
 
     // Connection handle created by the handle_function.
@@ -203,13 +203,13 @@ fn test_disconnect(
     }
 }
 
-fn test_handle_recognizes_non_valid_state(disconnect_function: impl FnOnce(&mut Gd<SignalObject>)) {
-    let mut obj = SignalObject::new_alloc();
+fn test_handle_recognizes_non_valid_state(disconnect_function: impl FnOnce(&mut Gd<SignalDisc>)) {
+    let mut obj = SignalDisc::new_alloc();
 
     let handle = obj
         .signals()
         .my_signal()
-        .connect_self(SignalObject::increment_self);
+        .connect_self(SignalDisc::increment_self);
 
     // We do not need to emit here, but done just to demonstrate that it works.
     assert_eq!(obj.bind().counter, 0);
@@ -229,6 +229,6 @@ fn test_handle_recognizes_non_valid_state(disconnect_function: impl FnOnce(&mut 
     obj.free();
 }
 
-fn has_connections(obj: &Gd<SignalObject>) -> bool {
+fn has_connections(obj: &Gd<SignalDisc>) -> bool {
     !obj.get_signal_connection_list("my_signal").is_empty()
 }
