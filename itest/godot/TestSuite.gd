@@ -12,9 +12,11 @@ var _pending: bool = false
 # -----------------------------------------------------------------------------------------------------------------------------------------------
 # Public API, called by the test runner.
 
-func reset_state():
+func reset_state() -> void:
 	_assertion_failed = false
 	_pending = false
+
+	# Note: some tests disable error messages, but they are re-enabled by the Rust test runner before each test.
 
 func is_test_failed() -> bool:
 	return _assertion_failed
@@ -22,10 +24,10 @@ func is_test_failed() -> bool:
 # -----------------------------------------------------------------------------------------------------------------------------------------------
 # Protected API, called by individual test .gd files.
 
-func print_newline():
+func print_newline() -> void:
 	printerr()
 
-func print_error(s: String):
+func print_error(s: String) -> void:
 	push_error(s)
 
 ## Asserts that `what` is `true`, but does not abort the test. Returns `what` so you can return
@@ -62,7 +64,7 @@ func assert_eq(actual, expected, message: String = "") -> bool:
 ## Pre-emptively mark this test as "failed unless confirmed success". Use mark_test_succeeded() to rollback if test actually succeeds.
 ##
 ## For situations where statements coming after this will abort the test function without reliable ways to detect.
-func mark_test_pending():
+func mark_test_pending() -> void:
 	if _pending:
 		push_error("Test is already pending.")
 		_assertion_failed = true
@@ -73,7 +75,7 @@ func mark_test_pending():
 	#print("Test will fail unless rolled back: ", message)
 
 ## Roll back the failure assumption if the test actually succeeded.
-func mark_test_succeeded():
+func mark_test_succeeded() -> void:
 	if not _pending:
 		push_error("Cannot mark test as succeeded, test was not marked as pending.")
 		_assertion_failed = true
@@ -82,17 +84,15 @@ func mark_test_succeeded():
 	_pending = false
 	_assertion_failed = false
 
-# Disable error message printing from godot. 
-#
-# Error messages are always re-enabled by the rust test runner after a test has been run.
-func disable_error_messages():
-	Engine.print_error_messages = false
+## Expects that one of the next statements will cause the calling GDScript function to abort.
+##
+## This should always be followed by an assert_fail() call at the end of the function.
+func expect_fail() -> void:
+	if runs_release():
+		push_warning("Release builds do not have proper error handling, the calling test is likely to not work as expected.")
 
-# Enable error message printing from godot. 
-# 
-# Error messages are always re-enabled by the rust test runner after a test has been run.
-func enable_error_messages():
-	Engine.print_error_messages = true
+	# Note: error messages are re-enabled by the Rust test runner before each test.
+	Engine.print_error_messages = false
 
 # Asserts that the test failed to reach this point. You should disable error messages before running code 
 # that is expected to print an error message that would otherwise cause the CI to report failure.
