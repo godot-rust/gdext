@@ -293,10 +293,11 @@ impl<T: GodotClass> Gd<T> {
 
     /// Returns the dynamic class name of the object as `StringName`.
     ///
-    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_name()`] if derived
-    /// classes are involved.
+    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_name()`][GodotClass::class_name]
+    /// if derived classes are involved.
     ///
-    /// Unlike [`Object::get_class()`], this returns `StringName` instead of `GString` and needs no `Inherits<Object>` bound.
+    /// Unlike [`Object::get_class()`][crate::classes::Object::get_class], this returns `StringName` instead of `GString` and needs no
+    /// `Inherits<Object>` bound.
     pub(crate) fn dynamic_class_string(&self) -> StringName {
         unsafe {
             StringName::new_with_string_uninit(|ptr| {
