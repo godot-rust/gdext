@@ -14,7 +14,7 @@ use crate::obj::bounds::DynMemory;
 use crate::obj::Bounds;
 use crate::obj::{Gd, GodotClass, InstanceId};
 use std::{fmt, ptr};
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 #[cfg(all(since_api = "4.2", before_api = "4.3"))]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo;
@@ -441,7 +441,7 @@ impl_builtin_traits! {
 // The `opaque` in `Callable` is just a pair of pointers, and requires no special initialization or cleanup
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Callable {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::CALLABLE;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::CALLABLE);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn new_from_sys;

@@ -8,8 +8,11 @@
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
-use crate::meta::error::ConvertError;
-use crate::meta::{arg_into_ref, ArrayElement, AsArg, FromGodot, ToGodot};
+use crate::meta::error::{ConvertError, FromVariantError};
+use crate::meta::{
+    arg_into_ref, ffi_variant_type, ArrayElement, AsArg, ExtVariantType, FromGodot, GodotType,
+    ToGodot,
+};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -63,9 +66,64 @@ impl Variant {
 
     /// Convert to type `T`, returning `Err` on failure.
     ///
+    /// The conversion only succeeds if the type stored in the variant matches `T`'s FFI representation.
+    /// For lenient conversions like in GDScript, use [`try_to_relaxed()`](Self::try_to_relaxed) instead.
+    ///
     /// Equivalent to [`T::try_from_variant(&self)`][FromGodot::try_from_variant].
     pub fn try_to<T: FromGodot>(&self) -> Result<T, ConvertError> {
         T::try_from_variant(self)
+    }
+
+    /// Convert to `T` using Godot's less strict conversion rules.
+    ///
+    /// More lenient than [`try_to()`](Self::try_to), which only allows exact type matches.
+    /// Enables conversions between related types that Godot considers compatible under its conversion rules.
+    ///
+    /// Precisely matches GDScript's behavior to converts arguments, when a function declares a parameter of different type.
+    ///
+    /// # Conversion diagram
+    /// Exhaustive list of all possible conversions, as of Godot 4.4. The arrow `──►` means "converts to".
+    ///
+    /// ```text
+    ///                                                               * ───► Variant
+    ///                                                               * ───► itself (reflexive)
+    ///         float          StringName
+    ///         ▲   ▲             ▲                            Vector2 ◄───► Vector2i
+    ///        ╱     ╲            │                            Vector3 ◄───► Vector3i
+    ///       ▼       ▼           ▼                            Vector4 ◄───► Vector4i
+    ///    bool ◄───► int       GString ◄───► NodePath           Rect2 ◄───► Rect2i
+    ///                 ╲       ╱
+    ///                  ╲     ╱                                 Array ◄───► Packed*Array
+    ///                   ▼   ▼
+    ///                   Color                                   Gd<T> ───► Rid
+    ///                                                             nil ───► Option<Gd<T>>
+    ///
+    ///                                Basis ◄───► Quaternion
+    ///                                    ╲       ╱
+    ///                                     ╲     ╱
+    ///                                      ▼   ▼
+    ///                 Transform2D ◄───► Transform3D ◄───► Projection
+    /// ```
+    ///
+    /// # Godot implementation details
+    /// See [GDExtension interface](https://github.com/godotengine/godot/blob/4.4-stable/core/extension/gdextension_interface.h#L1353-L1364)
+    /// and [C++ implementation](https://github.com/godotengine/godot/blob/4.4-stable/core/variant/variant.cpp#L532) (Godot 4.4 at the time of
+    /// writing). The "strict" part refers to excluding certain conversions, such as between `int` and `GString`.
+    ///
+    // ASCII arsenal: / ╱ ⟋ ⧸ ⁄ ╱ ↗ ╲ \ ╲ ⟍ ⧹ ∖
+    pub fn try_to_relaxed<T: FromGodot>(&self) -> Result<T, ConvertError> {
+        try_from_variant_relaxed(self)
+    }
+
+    /// Helper function for relaxed variant conversion with panic on failure.
+    /// Similar to [`to()`](Self::to) but uses relaxed conversion rules.
+    pub(crate) fn to_relaxed_or_panic<T, F>(&self, context: F) -> T
+    where
+        T: FromGodot,
+        F: FnOnce() -> String,
+    {
+        self.try_to_relaxed::<T>()
+            .unwrap_or_else(|err| panic!("{}: {err}", context()))
     }
 
     /// Checks whether the variant is empty (`null` value in GDScript).
@@ -462,7 +520,7 @@ crate::meta::impl_asarg_by_ref!(Variant);
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
 // `std::mem::swap` is sufficient for returning a value.
 unsafe impl GodotFfi for Variant {
-    const VARIANT_TYPE: VariantType = VariantType::NIL;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Variant;
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
@@ -528,5 +586,64 @@ impl fmt::Debug for Variant {
             // VariantDispatch also includes dead objects via `FreedObject` enumerator, which maps to "<Freed Object>".
             _ => VariantDispatch::from_variant(self).fmt(f),
         }
+    }
+}
+
+fn try_from_variant_relaxed<T: FromGodot>(variant: &Variant) -> Result<T, ConvertError> {
+    let from_type = variant.get_type();
+    let to_type = match ffi_variant_type::<T>() {
+        ExtVariantType::Variant => {
+            // Converting to Variant always succeeds.
+            return T::try_from_variant(variant);
+        }
+        ExtVariantType::Concrete(to_type) if from_type == to_type => {
+            // If types are the same, use the regular conversion.
+            // This is both an optimization (avoids more FFI) and ensures consistency between strict and relaxed conversions for identical types.
+            return T::try_from_variant(variant);
+        }
+        ExtVariantType::Concrete(to_type) => to_type,
+    };
+
+    // Non-NIL types can technically be converted to NIL according to `variant_can_convert_strict()`, however that makes no sense -- from
+    // neither a type perspective (NIL is unit, not never type), nor a practical one. Disallow any such conversions.
+    if to_type == VariantType::NIL || !can_convert_godot_strict(from_type, to_type) {
+        return Err(FromVariantError::BadType {
+            expected: to_type,
+            actual: from_type,
+        }
+        .into_error(variant.clone()));
+    }
+
+    // Find correct from->to conversion constructor.
+    let converter = unsafe {
+        let get_constructor = interface_fn!(get_variant_to_type_constructor);
+        get_constructor(to_type.sys())
+    };
+
+    // Must be available, since we checked with `variant_can_convert_strict`.
+    let converter =
+        converter.unwrap_or_else(|| panic!("missing converter for {from_type:?} -> {to_type:?}"));
+
+    // Perform actual conversion on the FFI types. The GDExtension conversion constructor only works with types supported
+    // by Godot (i.e. GodotType), not GodotConvert (like i8).
+    let ffi_result = unsafe {
+        <<T::Via as GodotType>::Ffi as GodotFfi>::new_with_uninit(|result_ptr| {
+            converter(result_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+        })
+    };
+
+    // Try to convert the FFI types back to the user type. Can still fail, e.g. i64 -> i8.
+    let via = <T::Via as GodotType>::try_from_ffi(ffi_result)?;
+    let concrete = T::try_from_godot(via)?;
+
+    Ok(concrete)
+}
+
+fn can_convert_godot_strict(from_type: VariantType, to_type: VariantType) -> bool {
+    // Godot "strict" conversion is still quite permissive.
+    // See Variant::can_convert_strict() in C++, https://github.com/godotengine/godot/blob/master/core/variant/variant.cpp#L532-L532.
+    unsafe {
+        let can_convert_fn = interface_fn!(variant_can_convert_strict);
+        can_convert_fn(from_type.sys(), to_type.sys()) == sys::conv::SYS_TRUE
     }
 }

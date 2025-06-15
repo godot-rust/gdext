@@ -7,6 +7,13 @@ extends ArrayTest
 
 var test_suite: TestSuite = TestSuite.new()
 
+# Override public state management methods of TestSuite, since this is treated as a suite by the runner.
+func reset_state():
+	test_suite.reset_state()
+
+func is_test_failed() -> bool:
+	return test_suite.is_test_failed()
+
 # In order to reproduce the behavior discovered in https://github.com/godot-rust/gdext/issues/138
 # we must inherit a Godot Node. Because of this we can't just inherit TesSuite like the rest of the tests.
 func assert_that(what: bool, message: String = "") -> bool:

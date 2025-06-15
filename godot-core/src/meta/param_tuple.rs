@@ -47,6 +47,7 @@ pub trait InParamTuple: ParamTuple {
     ///
     /// - `args_ptr` must be a pointer to an array of length [`Self::LEN`](ParamTuple::LEN)
     /// - Each element of `args_ptr` must be reborrowable as a `&Variant` with a lifetime that lasts for the duration of the call.
+    #[doc(hidden)] // Hidden since v0.3.2.
     unsafe fn from_varcall_args(
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         call_ctx: &CallContext,
@@ -58,6 +59,7 @@ pub trait InParamTuple: ParamTuple {
     ///
     /// - `args_ptr` must be a pointer to a valid array of length [`Self::LEN`](ParamTuple::LEN)
     /// - each element of `args_ptr` must be of the same type as each element of `Self`
+    #[doc(hidden)] // Hidden since v0.3.2.
     unsafe fn from_ptrcall_args(
         args_ptr: *const sys::GDExtensionConstTypePtr,
         call_type: sys::PtrcallType,
@@ -79,11 +81,13 @@ pub trait OutParamTuple: ParamTuple {
         F: FnOnce(&[Variant]) -> R;
 
     /// Call `f` on the tuple `self` by first converting `self` to an array of [`Variant`] pointers.
+    #[doc(hidden)] // Hidden since v0.3.2.
     fn with_variant_pointers<F, R>(self, f: F) -> R
     where
         F: FnOnce(&[sys::GDExtensionConstVariantPtr]) -> R;
 
     /// Call `f` on the tuple `self` by first converting `self` to an array of Godot type pointers.
+    #[doc(hidden)] // Hidden since v0.3.2.
     fn with_type_pointers<F, R>(self, f: F) -> R
     where
         F: FnOnce(&[sys::GDExtensionConstTypePtr]) -> R;

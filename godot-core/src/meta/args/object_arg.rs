@@ -10,7 +10,7 @@ use crate::meta::error::ConvertError;
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits, RawGd};
 use crate::{obj, sys};
-use godot_ffi::{GodotFfi, GodotNullableFfi, PtrcallType};
+use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 use std::ptr;
 
 /// Objects that can be passed as arguments to Godot engine functions.
@@ -274,7 +274,7 @@ where
 {
     // If anything changes here, keep in sync with RawGd impl.
 
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::OBJECT;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::OBJECT);
 
     unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {
         unreachable!("ObjectArg should only be passed *to* Godot, not *from*.")
