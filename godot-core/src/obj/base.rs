@@ -148,7 +148,7 @@ impl<T: GodotClass> Base<T> {
     /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
     /// methods from [`WithBaseField`](super::WithBaseField) when possible.
     #[doc(hidden)]
-    #[deprecated = "Private API. Use `Base::during_init()` or `WithBaseField::to_gd()` instead."] // TODO(v0.4): remove.
+    #[deprecated = "Private API. Use `Base::as_init_gd()` or `WithBaseField::to_gd()` instead."] // TODO(v0.4): remove.
     pub fn to_gd(&self) -> Gd<T> {
         (*self.obj).clone()
     }
@@ -173,23 +173,42 @@ impl<T: GodotClass> Base<T> {
     ///
     /// #[godot_api]
     /// impl INode for MyClass {
-    ///     fn init(base: Base<Node>) -> Self {
+    ///     fn init(mut base: Base<Node>) -> Self {
     ///         // Retrieve a Gd<Node> temporarily.
-    ///         let mut base_obj = base.during_init();
+    ///         let base_obj = base.as_init_gd();
     ///         base_obj.set_name("fancy_name");
     ///         
     ///         Self { base }
     ///     }
     /// }
     /// ```
-    pub fn during_init(&self) -> Gd<T> {
+    pub fn as_init_gd(&mut self) -> &mut Gd<T> {
         #[cfg(debug_assertions)]
-        assert_eq!(
-            self.init_state.get(),
-            InitState::ObjectConstructing,
-            "Base::during_init() can only be called during init() or Gd::from_init_fn()"
+        assert!(
+            self.is_initializing(),
+            "Base::as_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
         );
 
+        &mut self.obj
+    }
+
+    /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
+    #[doc(hidden)]
+    pub fn __fully_constructed_gd(&self) -> Gd<T> {
+        #[cfg(debug_assertions)]
+        assert!(
+            !self.is_initializing(),
+            "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
+        );
+
+        (*self.obj).clone()
+    }
+
+    /// Returns a [`Gd`] referencing the base object, for use in script contexts only.
+    #[doc(hidden)]
+    pub fn __script_gd(&self) -> Gd<T> {
+        // Used internally by `SiMut::base()` and `SiMut::base_mut()` for script re-entrancy.
+        // Could maybe add debug validation to ensure script context in the future.
         (*self.obj).clone()
     }
 
@@ -204,35 +223,6 @@ impl<T: GodotClass> Base<T> {
     pub(crate) fn debug_instance_id(&self) -> crate::obj::InstanceId {
         self.obj.instance_id()
     }
-
-    /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
-    #[doc(hidden)]
-    pub fn __constructed_gd(&self) -> Gd<T> {
-        #[cfg(debug_assertions)]
-        assert_eq!(
-            self.init_state.get(),
-            InitState::ObjectInitialized,
-            "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after init() or Gd::from_init_fn()"
-        );
-
-        (*self.obj).clone()
-    }
-
-    /// If initialization is still in progress (`true`) or the derived object is fully constructed (`false`).
-    #[cfg(debug_assertions)]
-    fn is_initializing(&self) -> bool {
-        let object_ptr = self.obj.obj_sys();
-        let has_binding = unsafe {
-            sys::interface_fn!(object_get_instance_binding)(
-                object_ptr,
-                sys::get_library() as *mut std::ffi::c_void,
-                std::ptr::null(),
-            )
-        };
-
-        has_binding.is_null()
-    }
-
     /// Returns a [`Gd`] referencing the base object, for use in script contexts only.
     pub(crate) fn to_script_gd(&self) -> Gd<T> {
         #[cfg(debug_assertions)]
@@ -256,6 +246,32 @@ impl<T: GodotClass> Base<T> {
 
             self.init_state.set(InitState::ObjectInitialized);
         }
+    }
+
+    /// Returns `true` if this `Base<T>` is currently in the initializing state.
+    #[cfg(debug_assertions)]
+    fn is_initializing(&self) -> bool {
+        self.init_state.get() == InitState::ObjectConstructing
+    }
+
+    /// Returns `true` if this `Base<T>` is currently in the initializing state.
+    #[cfg(not(debug_assertions))]
+    fn is_initializing(&self) -> bool {
+        // In release builds, we don't track initialization state, so always return false
+        // to allow access (no runtime checks in release mode)
+        false
+    }
+
+    /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
+    #[doc(hidden)]
+    pub fn __constructed_gd(&self) -> Gd<T> {
+        #[cfg(debug_assertions)]
+        assert!(
+            !self.is_initializing(),
+            "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
+        );
+
+        (*self.obj).clone()
     }
 }
 

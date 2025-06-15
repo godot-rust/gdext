@@ -356,7 +356,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// calling `to_gd()` is still running; that would lead to a double borrow panic.
     ///
     /// # Panics
-    /// If called during initialization (the `init()` function or `Gd::from_init_fn()`). Use [`Base::during_init()`] instead.
+    /// If called during initialization (the `init()` function or `Gd::from_init_fn()`). Use [`Base::as_init_gd()`] instead.
     fn to_gd(&self) -> Gd<Self>;
 
     /// Returns a reference to the `Base` stored by this object.

@@ -98,9 +98,11 @@ fn base_with_init() {
 
 #[itest]
 fn base_during_init() {
-    let obj = Gd::<Based>::from_init_fn(|base| {
-        let mut gd = base.during_init();
-        gd.set_rotation(22.0);
+    let obj = Gd::<Based>::from_init_fn(|mut base| {
+        // Test both temporary + local-variable syntax.
+        base.as_init_gd().set_rotation(22.0);
+
+        let gd = base.as_init_gd();
         gd.set_position(Vector2::new(100.0, 200.0));
 
         Based { base, i: 456 }
@@ -118,11 +120,11 @@ fn base_during_init() {
 #[cfg(debug_assertions)]
 #[itest]
 fn base_during_init_outside_init() {
-    let obj = Based::new_alloc();
+    let mut obj = Based::new_alloc();
 
-    expect_panic("during_init() outside init() function", || {
-        let guard = obj.bind();
-        let _gd = guard.base.during_init(); // Panics in Debug builds.
+    expect_panic("as_init_gd() outside init() function", || {
+        let mut guard = obj.bind_mut();
+        let _gd = guard.base.as_init_gd(); // Panics in Debug builds.
     });
 
     obj.free();
