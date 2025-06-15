@@ -7,6 +7,20 @@ class_name TestSuite
 extends RefCounted
 
 var _assertion_failed: bool = false
+var _pending: bool = false
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# Public API, called by the test runner.
+
+func reset_state():
+	_assertion_failed = false
+	_pending = false
+
+func is_test_failed() -> bool:
+	return _assertion_failed
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------
+# Protected API, called by individual test .gd files.
 
 func print_newline():
 	printerr()
@@ -44,6 +58,29 @@ func assert_eq(actual, expected, message: String = "") -> bool:
 
 	# Note: stacktrace cannot be printed, because not connected to a debugging server (editor).
 	return false
+
+## Pre-emptively mark this test as "failed unless confirmed success". Use mark_test_succeeded() to rollback if test actually succeeds.
+##
+## For situations where statements coming after this will abort the test function without reliable ways to detect.
+func mark_test_pending():
+	if _pending:
+		push_error("Test is already pending.")
+		_assertion_failed = true
+		return
+
+	_pending = true
+	_assertion_failed = true
+	#print("Test will fail unless rolled back: ", message)
+
+## Roll back the failure assumption if the test actually succeeded.
+func mark_test_succeeded():
+	if not _pending:
+		push_error("Cannot mark test as succeeded, test was not marked as pending.")
+		_assertion_failed = true
+		return
+
+	_pending = false
+	_assertion_failed = false
 
 # Disable error message printing from godot. 
 #

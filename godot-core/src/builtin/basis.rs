@@ -6,7 +6,7 @@
  */
 
 use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType, XformInv};
 use crate::builtin::real_consts::FRAC_PI_2;
@@ -631,7 +631,7 @@ impl XformInv<Vector3> for Basis {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Basis {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::BASIS;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::BASIS);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

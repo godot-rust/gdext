@@ -13,8 +13,8 @@ use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
     element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ByRef,
-    ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType, PropertyHintInfo,
-    RefArg, ToGodot,
+    ClassName, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType,
+    PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
 use crate::registry::property::{BuiltinExport, Export, Var};
@@ -1110,7 +1110,7 @@ impl VariantArray {
 //   Arrays are properly initialized through a `from_sys` call, but the ref-count should be incremented
 //   as that is the callee's responsibility. Which we do by calling `std::mem::forget(array.clone())`.
 unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
-    const VARIANT_TYPE: VariantType = VariantType::ARRAY;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(VariantType::ARRAY);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
@@ -1350,9 +1350,9 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         // First check if the variant is an array. The array conversion shouldn't be called otherwise.
-        if variant.get_type() != Self::VARIANT_TYPE {
+        if variant.get_type() != Self::VARIANT_TYPE.variant_as_nil() {
             return Err(FromVariantError::BadType {
-                expected: Self::VARIANT_TYPE,
+                expected: Self::VARIANT_TYPE.variant_as_nil(),
                 actual: variant.get_type(),
             }
             .into_error(variant.clone()));

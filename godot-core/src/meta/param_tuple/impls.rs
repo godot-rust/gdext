@@ -93,9 +93,13 @@ macro_rules! unsafe_impl_param_tuple {
                 let mut iter = array.iter();
                 (
                     $(
-                        <$P>::from_variant(
-                            iter.next().unwrap_or_else(|| panic!("ParamTuple: {} access out-of-bounds (len {})", stringify!($p), array.len()))
-                    ),
+                        {
+                            let variant = iter.next().unwrap_or_else(
+                                || panic!("ParamTuple: {} access out-of-bounds (len {})", stringify!($p), array.len()));
+
+                            variant.to_relaxed_or_panic(
+                                || format!("ParamTuple: failed to convert parameter {}", stringify!($p)))
+                        },
                     )*
                 )
             }
@@ -222,7 +226,8 @@ pub(super) unsafe fn varcall_arg<P: FromGodot>(
     // SAFETY: It is safe to dereference `args_ptr` at `N` as a `Variant`.
     let variant_ref = unsafe { Variant::borrow_var_sys(arg) };
 
-    P::try_from_variant(variant_ref)
+    variant_ref
+        .try_to_relaxed::<P>()
         .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, param_index, err))
 }
 

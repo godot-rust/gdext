@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::{make_callable_name, make_godot_fn, ConnectBuilder, SignalObject};
+use super::{make_callable_name, make_godot_fn, ConnectBuilder, ConnectHandle, SignalObject};
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
@@ -139,27 +139,34 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     fn inner_connect_godot_fn<F>(
         &self,
         godot_fn: impl FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
-    ) {
+    ) -> ConnectHandle {
         let callable_name = make_callable_name::<F>();
         let callable = Callable::from_local_fn(&callable_name, godot_fn);
-        self.inner_connect_untyped(&callable, None);
+        self.inner_connect_untyped(callable, None)
     }
 
     /// Connect an untyped callable, with optional flags.
     ///
     /// Used by [`inner_connect_godot_fn`] and `ConnectBuilder::connect_sync`.
-    pub(super) fn inner_connect_untyped(&self, callable: &Callable, flags: Option<ConnectFlags>) {
+    pub(super) fn inner_connect_untyped(
+        &self,
+        callable: Callable,
+        flags: Option<ConnectFlags>,
+    ) -> ConnectHandle {
         use crate::obj::EngineBitfield;
 
         let signal_name = self.name.as_ref();
 
-        self.object.to_owned_object().with_object_mut(|obj| {
-            let mut c = obj.connect_ex(signal_name, callable);
+        let mut owned_object = self.object.to_owned_object();
+        owned_object.with_object_mut(|obj| {
+            let mut c = obj.connect_ex(signal_name, &callable);
             if let Some(flags) = flags {
                 c = c.flags(flags.ord() as u32);
             }
             c.done();
         });
+
+        ConnectHandle::new(owned_object, self.name.clone(), callable)
     }
 
     pub(crate) fn to_untyped(&self) -> crate::builtin::Signal {
@@ -179,7 +186,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     ///
     /// - To connect to a method on the object that owns this signal, use [`connect_self()`][Self::connect_self].
     /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
-    pub fn connect<F>(&self, mut function: F)
+    pub fn connect<F>(&self, mut function: F) -> ConnectHandle
     where
         for<'c_rcv> F: SignalReceiver<(), Ps> + 'static,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, (), Ps, F>: From<&'c_rcv mut F>,
@@ -190,14 +197,14 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
                 .call((), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 
     /// Connect a method (member function) with `&mut self` as the first parameter.
     ///
     /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
     /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
-    pub fn connect_self<F, Declarer>(&self, mut function: F)
+    pub fn connect_self<F, Declarer>(&self, mut function: F) -> ConnectHandle
     where
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut C, Ps> + 'static,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, &'c_rcv mut C, Ps, F>: From<&'c_rcv mut F>,
@@ -212,7 +219,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
                 .call(target_mut, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 
     /// Connect a method (member function) with any `&mut OtherC` as the first parameter, where
@@ -231,7 +238,8 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
         &self,
         object: &impl ToSignalObj<OtherC>,
         mut method: F,
-    ) where
+    ) -> ConnectHandle
+    where
         OtherC: UniformObjectDeref<Declarer>,
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps> + 'static,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, &'c_rcv mut OtherC, Ps, F>: From<&'c_rcv mut F>,
@@ -246,6 +254,6 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
                 .call(target_mut, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn);
+        self.inner_connect_godot_fn::<F>(godot_fn)
     }
 }

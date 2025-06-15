@@ -6,6 +6,16 @@
 
 rel="."
 
+# If argument is 'api-custom', set 'cargoArgs' to use that feature. If 'stable', set 'cargoArgs' to empty string. Otherwise, error.
+if [[ $1 == "api-custom" ]]; then
+  cargoArgs="--features godot/api-custom"
+elif [[ $1 == "stable" ]]; then
+  cargoArgs=""
+else
+  echo "[Bash]      Error: Unknown argument '$1'. Expected 'api-custom' or 'stable'."
+  exit 1
+fi
+
 # Restore un-reloaded files on exit (for local testing).
 cleanedUp=0 # avoid recursion if cleanup fails
 godotPid=0 # kill previous instance if necessary
@@ -36,7 +46,6 @@ cp editor_layout.cfg $rel/.godot/editor/editor_layout.cfg
 #cp MainScene.tscn $rel/MainScene.tscn
 
 # Compile original Rust source.
-cargoArgs=""
 #cargoArgs="--features godot/__debug-log"
 cargo build -p hot-reload $cargoArgs
 

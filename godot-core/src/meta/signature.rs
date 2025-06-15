@@ -21,8 +21,6 @@ use godot_ffi::{self as sys, GodotFfi};
 
 pub(super) type CallResult<R> = Result<R, CallError>;
 
-//mod impls;
-
 /// A full signature for a function.
 ///
 /// For in-calls (that is, calls from the Godot engine to Rust code) `Params` will implement [`InParamTuple`] and `Ret`
@@ -30,6 +28,7 @@ pub(super) type CallResult<R> = Result<R, CallError>;
 ///
 /// For out-calls (that is calls from Rust code to the Godot engine) `Params` will implement [`OutParamTuple`] and `Ret`
 /// will implement [`FromGodot`].
+#[doc(hidden)] // Hidden since v0.3.2.
 pub struct Signature<Params, Ret> {
     _p: PhantomData<Params>,
     _r: PhantomData<Ret>,

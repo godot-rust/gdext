@@ -17,7 +17,7 @@ use crate::meta;
 use crate::meta::{FromGodot, GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 /// Untyped Godot signal.
 ///
@@ -167,7 +167,7 @@ impl Signal {
 // The `opaque` in `Signal` is just a pair of pointers, and requires no special initialization or cleanup
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Signal {
-    const VARIANT_TYPE: sys::VariantType = sys::VariantType::SIGNAL;
+    const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::SIGNAL);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn new_from_sys;

@@ -246,7 +246,7 @@ jobs:
             os: macos-13
             artifact-name: macos-x86-nightly
             godot-binary: godot.macos.editor.dev.x86_64
-            with-hot-reload: true
+            hot-reload: stable
 
           - name: macos-double-x86
             os: macos-13
@@ -264,7 +264,7 @@ jobs:
             os: macos-latest
             artifact-name: macos-arm-nightly
             godot-binary: godot.macos.editor.dev.arm64
-            with-hot-reload: true
+            hot-reload: stable
 
            # api-custom on macOS arm64 not working, due to clang linker issues.
 #          - name: macos-double-arm
@@ -285,7 +285,7 @@ jobs:
             os: windows-latest
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
-            with-hot-reload: true
+            hot-reload: stable
 
           - name: windows-double
             os: windows-latest
@@ -317,7 +317,7 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full
-            with-hot-reload: true
+            hot-reload: api-custom
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
           - name: linux-double-lazy
@@ -352,12 +352,14 @@ jobs:
             rust-cache-key: release
 
           # Linux compat (4.1 disabled, already covered by memcheck)
+          # No hot-reload before 4.4, as the Godot project is 4.4+.
 
           - name: linux-4.4
             os: ubuntu-22.04
             artifact-name: linux-4.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.4'
+            hot-reload: stable
 
           - name: linux-4.3
             os: ubuntu-22.04
@@ -418,10 +420,11 @@ jobs:
           godot-indirect-json: ${{ matrix.godot-indirect-json }}
 
       - name: "Build and test hot-reload"
-        if: ${{ matrix.with-hot-reload }}
+        if: ${{ matrix.hot-reload }}
         working-directory: itest/hot-reload/godot
         # Repeat a few times, our hot reload integration test can sometimes be a bit flaky.
-        run: $RETRY ./run-test.sh
+        # Don't pass in rust-extra-args as environment; they're intended for itest.
+        run: $RETRY ./run-test.sh ${{ matrix.hot-reload }}
         shell: bash
 
 
