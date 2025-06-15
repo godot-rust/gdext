@@ -444,6 +444,23 @@ impl<T: GodotClass> Gd<T> {
         })
     }
 
+    /// Runs the given Closure deferred.
+    ///
+    /// This can be a type-safe alternative to [`classes::Object::call_deferred`], but does not handle dynamic dispatch, unless explicitly used.
+    /// This constructor only allows the callable to be invoked from the same thread as creating it.The closure receives a reference to this object back.
+    #[cfg(since_api = "4.2")]
+    pub fn apply_deferred<F>(&mut self, mut rust_function: F)
+    where
+        F: FnMut(Gd<T>) + 'static,
+    {
+        let this = self.clone();
+        let callable = Callable::from_local_fn("apply_deferred", move |_| {
+            rust_function(this.clone());
+            Ok(Variant::nil())
+        });
+        callable.call_deferred(&[]);
+    }
+
     /// Returns `Ok(cast_obj)` on success, `Err(self)` on error.
     // Visibility: used by DynGd.
     pub(crate) fn owned_cast<U>(self) -> Result<Gd<U>, Self>
