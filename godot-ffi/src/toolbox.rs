@@ -349,10 +349,7 @@ pub(crate) fn load_class_method(
         unsafe { get_method_bind(class_sname_ptr, method_sname_ptr, hash) };
 
     if method.is_null() {
-        panic!(
-            "Failed to load class method {}::{} (hash {}).{INFO}",
-            class_name, method_name, hash
-        )
+        panic!("Failed to load class method {class_name}::{method_name} (hash {hash}).{INFO}")
     }
 
     ClassMethodBind(method)

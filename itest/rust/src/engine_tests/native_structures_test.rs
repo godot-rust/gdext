@@ -64,11 +64,11 @@ fn native_structure_debug() {
     // Test debug output, both pretty-printed and not.
     let object_id = ObjectId { id: 256 };
     assert_eq!(
-        format!("{:?}", object_id),
+        format!("{object_id:?}"),
         String::from("ObjectId { id: 256 }")
     );
     assert_eq!(
-        format!("{:#?}", object_id),
+        format!("{object_id:#?}"),
         String::from("ObjectId {\n    id: 256,\n}")
     );
 }

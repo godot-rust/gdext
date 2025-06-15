@@ -427,7 +427,7 @@ impl LifetimeGen {
 
         let mut tokens = quote! { < };
         for i in 0..self.count {
-            let lft = lifetime(&format!("a{}", i));
+            let lft = lifetime(&format!("a{i}"));
             tokens.extend(quote! { #lft, });
         }
         tokens.extend(quote! { > });

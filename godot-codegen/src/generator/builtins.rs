@@ -99,7 +99,7 @@ fn make_builtin_class(
         ty: outer_class, ..
     } = conv::to_rust_type(godot_name, None, ctx)
     else {
-        panic!("Rust type `{}` categorized wrong", godot_name)
+        panic!("Rust type `{godot_name}` categorized wrong")
     };
     let inner_class = class.inner_name();
 

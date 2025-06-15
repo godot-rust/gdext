@@ -38,7 +38,7 @@ pub fn bool_from_sys(value: sys::GDExtensionBool) -> bool {
     match value {
         SYS_TRUE => true,
         SYS_FALSE => false,
-        _ => panic!("Invalid GDExtensionBool value: {}", value),
+        _ => panic!("Invalid GDExtensionBool value: {value}"),
     }
 }
 

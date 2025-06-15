@@ -153,7 +153,7 @@ fn bufread_trait_works() {
 
     for i in 0..5 {
         file.read_line(&mut read_lines)
-            .unwrap_or_else(|_| panic!("couldn't read line {}", i));
+            .unwrap_or_else(|_| panic!("couldn't read line {i}"));
     }
 
     assert_eq!(lines, read_lines);

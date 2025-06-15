@@ -669,7 +669,7 @@ impl GFile {
             return Ok(());
         }
 
-        Err(std::io::Error::other(format!("GodotError: {:?}", error)))
+        Err(std::io::Error::other(format!("GodotError: {error:?}")))
     }
 
     // File length cache is stored and kept when possible because `FileAccess::get_length()` turned out to be slowing down

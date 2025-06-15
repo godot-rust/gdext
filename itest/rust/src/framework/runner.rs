@@ -165,7 +165,7 @@ impl IntegrationTests {
             return;
         }
 
-        println!("\n\n{}Run{} Godot benchmarks...", FMT_CYAN_BOLD, FMT_END);
+        println!("\n\n{FMT_CYAN_BOLD}Run{FMT_END} Godot benchmarks...");
 
         self.warn_if_debug();
 
@@ -394,7 +394,7 @@ impl IntegrationTests {
 
         print!("\n{FMT_CYAN}{space}", space = " ".repeat(36));
         for metrics in bencher::metrics() {
-            print!("{:>13}", metrics);
+            print!("{metrics:>13}");
         }
         print!("{FMT_END}");
 

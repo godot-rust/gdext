@@ -328,7 +328,7 @@ impl BuildConfiguration {
             "float_64" => Self::Float64,
             "double_32" => Self::Double32,
             "double_64" => Self::Double64,
-            _ => panic!("invalid build configuration: {}", json),
+            _ => panic!("invalid build configuration: {json}"),
         }
     }
 }
