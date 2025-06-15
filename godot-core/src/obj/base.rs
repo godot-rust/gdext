@@ -93,6 +93,7 @@ impl<T: GodotClass> Base<T> {
     /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
     /// methods from [`WithBaseField`](super::WithBaseField) when possible.
     #[doc(hidden)]
+    #[deprecated = "Private API. Use `Base::during_init()` or `WithBaseField::to_gd()` instead."] // TODO(v0.4): remove.
     pub fn to_gd(&self) -> Gd<T> {
         (*self.obj).clone()
     }
@@ -136,6 +137,7 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
+    /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     #[doc(hidden)]
     pub fn __fully_constructed_gd(&self) -> Gd<T> {
         #[cfg(debug_assertions)]
@@ -144,6 +146,14 @@ impl<T: GodotClass> Base<T> {
             "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after init() or Gd::from_init_fn()"
         );
 
+        (*self.obj).clone()
+    }
+
+    /// Returns a [`Gd`] referencing the base object, for use in script contexts only.
+    #[doc(hidden)]
+    pub fn __script_gd(&self) -> Gd<T> {
+        // Used internally by `SiMut::base()` and `SiMut::base_mut()` for script re-entrancy.
+        // Could maybe add debug validation to ensure script context in the future.
         (*self.obj).clone()
     }
 

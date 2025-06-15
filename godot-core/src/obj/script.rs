@@ -451,7 +451,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// }
     /// ```
     pub fn base(&self) -> ScriptBaseRef<T> {
-        ScriptBaseRef::new(self.base_ref.to_gd(), self.mut_ref)
+        ScriptBaseRef::new(self.base_ref.__script_gd(), self.mut_ref)
     }
 
     /// Returns a mutable reference suitable for calling engine methods on this object.
@@ -515,7 +515,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     pub fn base_mut(&mut self) -> ScriptBaseMut<T> {
         let guard = self.cell.make_inaccessible(self.mut_ref).unwrap();
 
-        ScriptBaseMut::new(self.base_ref.to_gd(), guard)
+        ScriptBaseMut::new(self.base_ref.__script_gd(), guard)
     }
 }
 
