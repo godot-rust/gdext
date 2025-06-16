@@ -8,21 +8,22 @@
 use crate::context::Context;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
-    ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
-    Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn,
-    FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, RustTy, Singleton, TyName,
-    UtilityFunction,
+    ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassProperty, ClassSignal,
+    Constructor, Enum, Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam,
+    FnQualifier, FnReturn, FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator,
+    RustTy, Singleton, TyName, UtilityFunction,
 };
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
     JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
-    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
+    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonProperty, JsonSignal, JsonSingleton,
     JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
 use crate::{conv, special_cases};
 use proc_macro2::Ident;
 use std::collections::HashMap;
+use std::option;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Top-level
@@ -128,6 +129,11 @@ impl Class {
             })
             .collect();
 
+        let properties = option_as_slice(&json.properties)
+            .iter()
+            .map(|p| ClassProperty::from_json(p, ctx))
+            .collect::<Vec<_>>();
+
         let base_class = json
             .inherits
             .as_ref()
@@ -148,6 +154,7 @@ impl Class {
             enums,
             methods,
             signals,
+            properties,
         })
     }
 }
@@ -587,6 +594,15 @@ impl ClassSignal {
             parameters: FnParam::new_range(&json_signal.arguments, ctx),
             surrounding_class: surrounding_class.clone(),
         })
+    }
+}
+impl ClassProperty {
+    pub fn from_json(json_property: &JsonProperty, _ctx: &mut Context) -> Self {
+        Self {
+            name: json_property.name.clone(),
+            getter: json_property.getter.clone(),
+            setter: json_property.setter.clone(),
+        }
     }
 }
 

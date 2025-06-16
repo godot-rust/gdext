@@ -10,7 +10,7 @@
 //! Single module for documentation, rather than having it in each symbol-specific file, so it's easier to keep docs consistent.
 
 use crate::generator::signals;
-use crate::models::domain::{ModName, TyName};
+use crate::models::domain::{Class, ClassLike as _, ModName, TyName};
 use crate::special_cases;
 use proc_macro2::Ident;
 
@@ -159,46 +159,55 @@ pub fn make_module_doc(class_name: &TyName) -> String {
     )
 }
 
-pub fn make_method_doc(class_name: &TyName, method_name: &str) -> String {
+pub fn make_method_doc(class: &Class, method_name: &str) -> String {
+    let class_name = class.name();
     let TyName { rust_ty, godot_ty } = class_name;
 
     let class_name_lower = godot_ty.to_ascii_lowercase();
     let method_name_slug = method_name.to_ascii_lowercase().replace('_', "-");
 
-    // note: godot properties are in the method table of the json file
-    let is_property = method_name.starts_with("get_") || method_name.starts_with("set_");
-    let is_actual_method = !is_property;
+    let getter_for = class
+        .properties
+        .iter()
+        .find(|prop| prop.getter == Some(method_name.to_string()));
+    let setter_for = class
+        .properties
+        .iter()
+        .find(|prop| prop.setter == Some(method_name.to_string()));
 
-    if is_actual_method {
-        let online_link = format!(
+    let property_for = getter_for.or(setter_for);
+
+    match property_for {
+        None => {
+            let online_link = format!(
         "https://docs.godotengine.org/en/stable/classes/class_{class_name_lower}.html#class-{class_name_lower}-method-{method_name_slug}"
     );
 
-        format!(
-            "Method `{method_name}` of class [`{rust_ty}`][crate::classes::{rust_ty}].\
+            format!(
+                "Method `{method_name}` of class [`{rust_ty}`][crate::classes::{rust_ty}].\
         \n\n\
         See also [Godot docs for `{godot_ty}.{method_name}`]({online_link}).\n\n"
-        )
-    } else
-    /* it's a property */
-    {
-        let prop_name = method_name[4..].to_string();
-        let prop_name_slug = prop_name.to_ascii_lowercase().replace('_', "-");
+            )
+        }
+        Some(prop) => {
+            let prop_name = &prop.name;
+            let prop_name_slug = prop_name.to_ascii_lowercase().replace('_', "-");
 
-        let getter_setter = if method_name.starts_with("get_") {
-            "Getter"
-        } else {
-            "Setter"
-        };
+            let getter_setter = if getter_for.is_some() {
+                "Getter"
+            } else {
+                "Setter"
+            };
 
-        let online_link = format!(
+            let online_link = format!(
         "https://docs.godotengine.org/en/stable/classes/class_{class_name_lower}.html#class-{class_name_lower}-property-{prop_name_slug}"
     );
 
-        format!(
+            format!(
             "{getter_setter} function for Property `{prop_name}` of class [`{rust_ty}`][crate::classes::{rust_ty}].\
         \n\n\
         See also [Godot docs for `{godot_ty}.{prop_name}`]({online_link}).\n\n"
         )
+        }
     }
 }
