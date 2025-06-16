@@ -79,9 +79,11 @@ fn base_debug() {
     obj.free();
 }
 
+// Compatibility check until v0.4 Base::to_gd() is removed.
 #[itest]
 fn base_with_init() {
     let obj = Gd::<Based>::from_init_fn(|base| {
+        #[allow(deprecated)]
         base.to_gd().set_rotation(11.0);
         Based { base, i: 732 }
     });
@@ -132,10 +134,10 @@ fn base_during_init_to_gd() {
     expect_panic("WithBaseField::to_gd() inside init() function", || {
         let _obj = Gd::<Based>::from_init_fn(|base| {
             let temp_obj = Based { base, i: 999 };
-            
+
             // This should panic because we're calling to_gd() during initialization
             let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
-            
+
             temp_obj
         });
     });
@@ -158,17 +160,15 @@ fn base_smuggling() {
     let (mut obj, extracted_base) = create_object_with_extracted_base();
 
     // This works because Gd<T> additionally stores the instance ID (through cached_rtti).
-    assert_eq!(extracted_base.to_gd().instance_id(), obj.instance_id());
+    let extracted_base_obj = extracted_base.__constructed_gd();
+    assert_eq!(extracted_base_obj.instance_id(), obj.instance_id());
 
     // This _also_ works because Gd<T> has the direct object pointer to the Godot object.
     obj.set_position(Vector2::new(1.0, 2.0));
-    assert_eq!(
-        extracted_base.to_gd().get_position(),
-        Vector2::new(1.0, 2.0)
-    );
+    assert_eq!(extracted_base_obj.get_position(), Vector2::new(1.0, 2.0));
 
     // Destroy base externally.
-    extracted_base.to_gd().free();
+    extracted_base_obj.free();
 
     // Access to object should now fail.
     expect_panic("object with dead base: calling base methods", || {
@@ -192,7 +192,7 @@ fn base_smuggling() {
     obj.free();
 
     expect_panic("accessing extracted base of dead object", || {
-        extracted_base.to_gd().get_position();
+        extracted_base.__constructed_gd().get_position();
     });
 }
 
@@ -218,7 +218,10 @@ fn base_swapping() {
     // Base<T> side, since that only has direct access to the object pointer, while Gd<T> has access to the object pointer _and_ the base field).
     // Not sure if this is worth the effort + complexity though, given that it almost requires malice to get into such a situation.
     assert_eq!(one.instance_id(), two.bind().base().instance_id());
-    assert_eq!(two.instance_id(), one_ext_base.to_gd().instance_id());
+    assert_eq!(
+        two.instance_id(),
+        one_ext_base.__constructed_gd().instance_id()
+    );
 
     one.free();
     two.free();
