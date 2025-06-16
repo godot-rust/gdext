@@ -422,7 +422,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
     fn base(&self) -> BaseRef<'_, Self> {
-        let gd = self.base_field().to_gd();
+        let gd = self.base_field().__constructed_gd();
 
         BaseRef::new(gd, self)
     }
@@ -493,7 +493,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// ```
     #[allow(clippy::let_unit_value)]
     fn base_mut(&mut self) -> BaseMut<'_, Self> {
-        let base_gd = self.base_field().to_gd();
+        let base_gd = self.base_field().__constructed_gd();
 
         let gd = self.to_gd();
         // SAFETY:

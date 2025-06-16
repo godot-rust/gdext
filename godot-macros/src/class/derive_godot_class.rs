@@ -89,7 +89,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                     // field's type is wrong.
                     let base = <#class_name as ::godot::obj::WithBaseField>::base_field(self);
 
-                    base.__fully_constructed_gd().cast()
+                    base.__constructed_gd().cast()
                 }
 
                 fn base_field(&self) -> &::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base> {

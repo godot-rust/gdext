@@ -316,7 +316,7 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         method_lists: BoundedPtrList::new(),
         // SAFETY: The script instance is always freed before the base object is destroyed. The weak reference should therefore never be
         // accessed after it has been freed.
-        base: unsafe { Base::from_gd(&for_object) },
+        base: unsafe { Base::from_script_gd(&for_object) },
     };
 
     let data_ptr = Box::into_raw(Box::new(data));
@@ -451,7 +451,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// }
     /// ```
     pub fn base(&self) -> ScriptBaseRef<'_, T> {
-        ScriptBaseRef::new(self.base_ref.to_gd(), self.mut_ref)
+        ScriptBaseRef::new(self.base_ref.to_script_gd(), self.mut_ref)
     }
 
     /// Returns a mutable reference suitable for calling engine methods on this object.
@@ -515,7 +515,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     pub fn base_mut(&mut self) -> ScriptBaseMut<'_, T> {
         let guard = self.cell.make_inaccessible(self.mut_ref).unwrap();
 
-        ScriptBaseMut::new(self.base_ref.to_gd(), guard)
+        ScriptBaseMut::new(self.base_ref.to_script_gd(), guard)
     }
 }
 
