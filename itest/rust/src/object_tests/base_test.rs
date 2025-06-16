@@ -117,6 +117,29 @@ fn base_during_init() {
     obj.free();
 }
 
+// This isn't recommended, but test what happens if someone clones and stores the Gd<T>.
+#[itest]
+fn base_during_init_extracted() {
+    let mut extractor = None;
+
+    let obj = Gd::<Based>::from_init_fn(|mut base| {
+        extractor = Some(base.as_init_gd().clone());
+
+        Based { base, i: 456 }
+    });
+
+    let extracted = extractor.expect("extraction failed");
+    assert_eq!(extracted.instance_id(), obj.instance_id());
+    assert_eq!(extracted, obj.clone().upcast());
+
+    // Destroy through the extracted Gd<T>.
+    extracted.free();
+    assert!(
+        !obj.is_instance_valid(),
+        "object should be invalid after base ptr is freed"
+    );
+}
+
 #[cfg(debug_assertions)]
 #[itest]
 fn base_during_init_outside_init() {
