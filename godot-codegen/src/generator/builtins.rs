@@ -8,7 +8,7 @@
 use crate::context::Context;
 use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
-use crate::generator::{enums, functions_common};
+use crate::generator::{docs, enums, functions_common};
 use crate::models::domain::{
     BuiltinClass, BuiltinMethod, ClassLike, ExtensionApi, FnDirection, Function, ModName, RustTy,
     TyName,
@@ -276,6 +276,7 @@ fn make_builtin_method_definition(
         )
     };
 
+    let doc = docs::make_method_doc(builtin_class.name(), method.name());
     let safety_doc = method_safety_doc(builtin_class.name(), method);
 
     functions_common::make_function_definition(
@@ -287,6 +288,7 @@ fn make_builtin_method_definition(
             is_virtual_required: false,
             is_varcall_fallible: false,
         },
+        Some(quote! {#[doc = #doc] }),
         safety_doc,
         &TokenStream::new(),
     )

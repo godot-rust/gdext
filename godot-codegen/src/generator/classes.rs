@@ -574,6 +574,8 @@ fn make_class_method_definition(
     let rust_method_name = method.name();
     let godot_method_name = method.godot_name();
 
+    let doc = docs::make_method_doc(&class.name(), &method.name());
+
     let receiver = functions_common::make_receiver(method.qualifier(), quote! { self.object_ptr });
 
     let table_index = ctx.get_table_index(&MethodTableKey::from_class(class, method));
@@ -634,6 +636,7 @@ fn make_class_method_definition(
             is_virtual_required: false,
             is_varcall_fallible: true,
         },
+        Some(quote! {#[doc = #doc] }),
         None,
         cfg_attributes,
     )

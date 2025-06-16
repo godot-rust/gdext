@@ -203,6 +203,7 @@ fn make_virtual_method(
             is_varcall_fallible: true,
         },
         None,
+        None,
         &TokenStream::new(),
     );
 
