@@ -119,7 +119,7 @@ fn base_during_init() {
 
 // This isn't recommended, but test what happens if someone clones and stores the Gd<T>.
 #[itest]
-fn base_during_init_extracted() {
+fn base_during_init_extracted_gd() {
     let mut extractor = None;
 
     let obj = Gd::<Based>::from_init_fn(|mut base| {
@@ -138,6 +138,13 @@ fn base_during_init_extracted() {
         !obj.is_instance_valid(),
         "object should be invalid after base ptr is freed"
     );
+}
+
+#[itest(focus)]
+fn base_during_init_refcounted() {
+    let _obj = RefcBased::new_gd();
+
+
 }
 
 #[cfg(debug_assertions)]
@@ -302,5 +309,21 @@ impl Baseless {
             *other_base = Some(base);
             Self {}
         })
+    }
+}
+
+#[derive(GodotClass)]
+#[class] // <- also test this syntax.
+struct RefcBased {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for RefcBased {
+    fn init(base: Base<RefCounted>) -> Self {
+        let copy = base.to_init_gd();
+        drop(copy);
+
+        Self { base }
     }
 }

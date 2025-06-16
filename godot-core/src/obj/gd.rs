@@ -475,6 +475,14 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
+    pub(crate) fn to_strong(&self) -> Gd<T> {
+        let mut raw = self.raw.clone();
+
+        raw.with_ref_counted(|refc| refc.reference());
+
+        Self { raw }
+    }
+
     /// Upgrades to a `DynGd<T, D>` pointer, enabling the `D` abstraction.
     ///
     /// The `D` parameter can typically be inferred when there is a single `AsDyn<...>` implementation for `T`.  \

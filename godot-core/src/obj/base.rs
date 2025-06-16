@@ -193,6 +193,16 @@ impl<T: GodotClass> Base<T> {
         &mut self.obj
     }
 
+    pub fn to_init_gd(&self) -> Gd<T> {
+        #[cfg(debug_assertions)]
+        assert!(
+            self.is_initializing(),
+            "Base::as_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
+        );
+
+        (*self.obj).to_strong()
+    }
+
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     #[doc(hidden)]
     pub fn __fully_constructed_gd(&self) -> Gd<T> {
