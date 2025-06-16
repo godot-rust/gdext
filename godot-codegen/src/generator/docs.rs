@@ -176,7 +176,7 @@ pub fn make_method_doc(class_name: &TyName, method_name: &str) -> String {
 
         format!(
             "Method `{method_name}` of class [`{rust_ty}`][crate::classes::{rust_ty}].\
-        \n\n
+        \n\n\
         See also [Godot docs for `{godot_ty}.{method_name}`]({online_link}).\n\n"
         )
     } else
@@ -197,7 +197,7 @@ pub fn make_method_doc(class_name: &TyName, method_name: &str) -> String {
 
         format!(
             "{getter_setter} function for Property `{prop_name}` of class [`{rust_ty}`][crate::classes::{rust_ty}].\
-        \n\n
+        \n\n\
         See also [Godot docs for `{godot_ty}.{prop_name}`]({online_link}).\n\n"
         )
     }
