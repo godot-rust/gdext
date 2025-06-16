@@ -103,6 +103,7 @@ pub struct FnParamTokens {
 pub fn make_function_definition(
     sig: &dyn Function,
     code: &FnCode,
+    doc: Option<TokenStream>,
     safety_doc: Option<TokenStream>,
     cfg_attributes: &TokenStream,
 ) -> FnDefinition {
@@ -113,6 +114,12 @@ pub fn make_function_definition(
         quote! { pub(crate) }
     } else {
         make_vis(sig.is_private())
+    };
+
+    let maybe_doc = if let Some(doc) = doc {
+        doc
+    } else {
+        TokenStream::new()
     };
 
     // Functions are marked unsafe as soon as raw pointers are involved, irrespectively of whether they appear in parameter or return type
@@ -196,6 +203,7 @@ pub fn make_function_definition(
 
         quote! {
             #maybe_safety_doc
+            #maybe_doc
             #maybe_unsafe fn #primary_fn_name (
                 #receiver_param
                 #( #params, )*
@@ -211,6 +219,7 @@ pub fn make_function_definition(
         if !code.is_varcall_fallible {
             quote! {
                 #maybe_safety_doc
+                #maybe_doc
                 #vis #maybe_unsafe fn #primary_fn_name (
                     #receiver_param
                     #( #params, )*
@@ -243,6 +252,7 @@ pub fn make_function_definition(
                 /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
                 /// It can detect call failures and will panic in such a case.
                 #maybe_safety_doc
+                #maybe_doc
                 #vis #maybe_unsafe fn #primary_fn_name (
                     #receiver_param
                     #( #params, )*
@@ -256,6 +266,7 @@ pub fn make_function_definition(
                 /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
                 /// It can detect call failures and will return `Err` in such a case.
                 #maybe_safety_doc
+                #maybe_doc
                 #vis #maybe_unsafe fn #try_fn_name(
                     #receiver_param
                     #( #params, )*
@@ -278,6 +289,7 @@ pub fn make_function_definition(
 
         quote! {
             #maybe_safety_doc
+            #maybe_doc
             #vis #maybe_unsafe fn #primary_fn_name #fn_lifetime (
                 #receiver_param
                 #( #params, )*
