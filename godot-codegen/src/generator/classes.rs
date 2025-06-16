@@ -574,7 +574,7 @@ fn make_class_method_definition(
     let rust_method_name = method.name();
     let godot_method_name = method.godot_name();
 
-    let doc = docs::make_method_doc(&class, &method.name());
+    let doc = docs::make_method_doc(class, method.name());
 
     let receiver = functions_common::make_receiver(method.qualifier(), quote! { self.object_ptr });
 

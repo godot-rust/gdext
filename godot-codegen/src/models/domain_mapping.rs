@@ -23,7 +23,6 @@ use crate::util::{get_api_level, ident, option_as_slice};
 use crate::{conv, special_cases};
 use proc_macro2::Ident;
 use std::collections::HashMap;
-use std::option;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Top-level
