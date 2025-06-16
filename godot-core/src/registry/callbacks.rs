@@ -131,11 +131,14 @@ where
     let context = || format!("panic during {class_name}::init() constructor");
     let code = || make_user_instance(unsafe { Base::from_base(&base) });
     let user_instance = handle_panic(context, std::panic::AssertUnwindSafe(code))?;
+    println!("Passed user init for {base:?}");
+
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
     // godot_error!("failed to create instance of {class_name}; Rust init() panicked");
 
     // Mark initialization as complete, now that user constructor has finished.
     base.mark_initialized();
+    println!("Passed mark_init for {base:?}");
 
     let instance = InstanceStorage::<T>::construct(user_instance, base);
     let instance_ptr = instance.into_raw();

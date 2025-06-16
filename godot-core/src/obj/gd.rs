@@ -476,8 +476,9 @@ impl<T: GodotClass> Gd<T> {
     }
 
     pub(crate) fn to_strong(&self) -> Gd<T> {
-        let mut raw = self.raw.clone();
+        let raw = self.raw.clone();
 
+        println!("\n!!! Inc ref count for {:?}", raw);
         raw.with_ref_counted(|refc| refc.reference());
 
         Self { raw }

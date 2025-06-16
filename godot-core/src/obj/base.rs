@@ -66,6 +66,8 @@ pub struct Base<T: GodotClass> {
     // 2.
     obj: ManuallyDrop<Gd<T>>,
 
+    needs_strong: Rc<Cell<bool>>,
+
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
@@ -88,6 +90,7 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
+            needs_strong: Rc::clone(&base.needs_strong), // Before user init(), no handing out of Gd pointers occurs.
             #[cfg(debug_assertions)]
             init_state: Rc::clone(&base.init_state),
         }
@@ -132,6 +135,7 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
+            needs_strong: Rc::new(Cell::new(false)), // Before user init(), no handing out of Gd pointers occurs.
             init_state: Rc::new(Cell::new(init_state)),
         }
     }
@@ -140,6 +144,7 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
+            needs_strong: Cell::new(false),
         }
     }
 
@@ -200,7 +205,13 @@ impl<T: GodotClass> Base<T> {
             "Base::as_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
         );
 
+        self.needs_strong.set(true);
         (*self.obj).to_strong()
+        // (*self.obj).to_strong()
+
+        // std::mem::forget((*self.obj).clone());
+
+        // (*self.obj).clone()
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
@@ -242,6 +253,17 @@ impl<T: GodotClass> Base<T> {
     }
 
     pub(crate) fn mark_initialized(&mut self) {
+        /*if self.needs_strong.get() {
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            println!(">   Ref count: {ref_count}");
+            println!("!!! Dec ref count for {:?}", self.obj.raw);
+
+            self.obj.raw.with_ref_counted(|refc| refc.unreference());
+        }*/
+
         #[cfg(debug_assertions)]
         {
             assert_eq!(
