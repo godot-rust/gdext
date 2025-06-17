@@ -198,7 +198,9 @@ impl<T: GodotClass> RawGd<T> {
         // Any accesses to user objects (e.g. destruction if refc=0) would bind anyway.
 
         let tmp = unsafe { self.ffi_cast::<classes::RefCounted>() };
-        let mut tmp = tmp.expect("object expected to inherit RefCounted");
+        let mut tmp =
+            tmp.unwrap_or_else(|| panic!("object expected to inherit RefCounted, but is {self:?}"));
+
         let return_val = apply(tmp.as_target_mut());
 
         std::mem::forget(tmp); // no ownership transfer

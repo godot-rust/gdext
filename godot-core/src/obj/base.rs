@@ -66,7 +66,7 @@ pub struct Base<T: GodotClass> {
     // 2.
     obj: ManuallyDrop<Gd<T>>,
 
-    needs_strong: Rc<Cell<bool>>,
+    extra_strong_ref: Rc<Cell<Option<Gd<T>>>>,
 
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
@@ -90,7 +90,7 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
-            needs_strong: Rc::clone(&base.needs_strong), // Before user init(), no handing out of Gd pointers occurs.
+            extra_strong_ref: Rc::clone(&base.extra_strong_ref), // Before user init(), no handing out of Gd pointers occurs.
             #[cfg(debug_assertions)]
             init_state: Rc::clone(&base.init_state),
         }
@@ -135,7 +135,7 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
-            needs_strong: Rc::new(Cell::new(false)), // Before user init(), no handing out of Gd pointers occurs.
+            extra_strong_ref: Rc::new(Cell::new(None)), // Before user init(), no handing out of Gd pointers occurs.
             init_state: Rc::new(Cell::new(init_state)),
         }
     }
@@ -144,7 +144,7 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
-            needs_strong: Cell::new(false),
+            extra_strong_ref: Rc::new(Cell::new(None)),
         }
     }
 
@@ -205,8 +205,9 @@ impl<T: GodotClass> Base<T> {
             "Base::as_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
         );
 
-        self.needs_strong.set(true);
-        (*self.obj).to_strong()
+        let keeper = (*self.obj).clone();
+        self.extra_strong_ref.set(Some(keeper.clone()));
+        keeper
         // (*self.obj).to_strong()
 
         // std::mem::forget((*self.obj).clone());
@@ -253,7 +254,7 @@ impl<T: GodotClass> Base<T> {
     }
 
     pub(crate) fn mark_initialized(&mut self) {
-        /*if self.needs_strong.get() {
+        if self.extra_strong_ref.get().is_some() {
             let ref_count = self
                 .obj
                 .raw
@@ -262,7 +263,8 @@ impl<T: GodotClass> Base<T> {
             println!("!!! Dec ref count for {:?}", self.obj.raw);
 
             self.obj.raw.with_ref_counted(|refc| refc.unreference());
-        }*/
+        }
+        //self.needs_strong.set(None);
 
         #[cfg(debug_assertions)]
         {
