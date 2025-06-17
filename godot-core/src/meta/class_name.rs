@@ -151,8 +151,7 @@ impl ClassName {
 
         assert!(
             utf8.is_ascii(),
-            "ClassName::alloc_next_ascii() with non-ASCII Unicode string '{}'",
-            utf8
+            "ClassName::alloc_next_ascii() with non-ASCII Unicode string '{utf8}'"
         );
 
         let global_index = insert_class(ClassNameSource::Borrowed(class_name_cstr));
@@ -169,8 +168,7 @@ impl ClassName {
 
         assert!(
             !class_name_str.is_ascii(),
-            "ClassName::alloc_next_unicode() with ASCII string '{}'",
-            class_name_str
+            "ClassName::alloc_next_unicode() with ASCII string '{class_name_str}'"
         );
 
         // StringNames use optimized 1-byte-per-char layout for Latin-1/ASCII, so Unicode can as well use the regular constructor.

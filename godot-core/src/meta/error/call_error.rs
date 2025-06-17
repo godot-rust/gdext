@@ -327,7 +327,7 @@ impl CallError {
             call_expr: format!("{call_ctx}()"),
             reason: reason.into(),
             source: source.map(|e| SourceError::Convert {
-                value: e.value().map_or_else(String::new, |v| format!("{:?}", v)),
+                value: e.value().map_or_else(String::new, |v| format!("{v:?}")),
                 erased_error: e.into(),
             }),
         };

@@ -394,7 +394,7 @@ impl IntegrationTests {
 
         print!("\n{FMT_CYAN}{space}", space = " ".repeat(36));
         for metrics in bencher::metrics() {
-            print!("{:>13}", metrics);
+            print!("{metrics:>13}");
         }
         print!("{FMT_END}");
 

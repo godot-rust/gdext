@@ -761,7 +761,7 @@ fn handle_opposite_keys(
     key: &str,
     attribute: &str,
 ) -> ParseResult<Option<bool>> {
-    let antikey = format!("no_{}", key);
+    let antikey = format!("no_{key}");
     let result = handle_mutually_exclusive_keys(parser, attribute, &[key, &antikey])?;
 
     if let Some(idx) = result {

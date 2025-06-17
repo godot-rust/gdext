@@ -112,7 +112,7 @@ impl std::fmt::Display for Rid {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // godot output: `RID(0)`
         match self {
-            Rid::Valid(x) => write!(f, "RID({})", x),
+            Rid::Valid(x) => write!(f, "RID({x})"),
             Rid::Invalid => write!(f, "RID(0)"),
         }
     }
