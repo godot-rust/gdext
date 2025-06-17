@@ -140,11 +140,30 @@ fn base_during_init_extracted_gd() {
     );
 }
 
+// Checks bad practice of rug-pulling the base pointer.
+#[itest]
+fn base_during_init_freed_gd() {
+    let mut free_executed = false;
+
+    expect_panic("base object is destroyed", || {
+        let _obj = Gd::<Based>::from_init_fn(|mut base| {
+            let obj = base.as_init_gd().clone();
+            obj.free(); // Causes the problem, but doesn't panic yet.
+            free_executed = true;
+
+            Based { base, i: 456 }
+        });
+    });
+
+    assert!(
+        free_executed,
+        "free() itself doesn't panic, but following construction does"
+    );
+}
+
 #[itest(focus)]
 fn base_during_init_refcounted() {
     let _obj = RefcBased::new_gd();
-
-
 }
 
 #[cfg(debug_assertions)]
