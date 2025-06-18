@@ -163,7 +163,13 @@ fn base_during_init_freed_gd() {
 
 #[itest(focus)]
 fn base_during_init_refcounted() {
-    let _obj = RefcBased::new_gd();
+    let mut obj = RefcBased::new_gd();
+
+    println!("After construction: refc={}", obj.get_reference_count());
+    obj.call("unreference", &[]);
+
+    println!("After dec-ref: refc={}", obj.get_reference_count());
+
 }
 
 #[cfg(debug_assertions)]
@@ -339,9 +345,12 @@ struct RefcBased {
 
 #[godot_api]
 impl IRefCounted for RefcBased {
-    fn init(base: Base<RefCounted>) -> Self {
+    fn init(mut base: Base<RefCounted>) -> Self {
+        println!("Before to_init_gd(): refc={}", base.as_init_gd().get_reference_count());
         let copy = base.to_init_gd();
+        println!("Inside init(): refc={}", copy.get_reference_count());
         drop(copy);
+        println!("After to_init_gd(): refc={}", base.as_init_gd().get_reference_count());
 
         Self { base }
     }

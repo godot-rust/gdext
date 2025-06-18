@@ -207,7 +207,10 @@ impl<T: GodotClass> Base<T> {
         );
 
         let keeper = (*self.obj).clone();
-        *self.extra_strong_ref.borrow_mut() = Some(keeper.clone());
+        //*self.extra_strong_ref.borrow_mut() = Some(keeper.clone());
+
+        keeper.raw.with_ref_counted(|refc| refc.reference());
+
         keeper
         // (*self.obj).to_strong()
 
@@ -255,19 +258,6 @@ impl<T: GodotClass> Base<T> {
     }
 
     pub(crate) fn mark_initialized(&mut self) {
-        if self.extra_strong_ref.borrow().is_some() {
-            let ref_count = self
-                .obj
-                .raw
-                .with_ref_counted(|refc| refc.get_reference_count());
-            println!(">   Ref count: {ref_count}");
-            // println!("!!! Dec ref count for {:?}", self.obj.raw);
-            //
-            // self.obj.raw.with_ref_counted(|refc| refc.unreference());
-            *self.extra_strong_ref.borrow_mut() = None;
-        }
-        //*self.extra_strong_ref.borrow_mut() = None;
-
         #[cfg(debug_assertions)]
         {
             assert_eq!(
@@ -278,6 +268,21 @@ impl<T: GodotClass> Base<T> {
 
             self.init_state.set(InitState::ObjectInitialized);
         }
+
+
+        if self.extra_strong_ref.borrow().is_some() {
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            println!(">   Ref count: {ref_count}");
+            // println!("!!! Dec ref count for {:?}", self.obj.raw);
+            //
+            // self.obj.raw.with_ref_counted(|refc| refc.unreference());
+            // *self.extra_strong_ref.borrow_mut() = None;
+        }
+        //*self.extra_strong_ref.borrow_mut() = None;
+
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
