@@ -136,10 +136,9 @@ where
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
     // godot_error!("failed to create instance of {class_name}; Rust init() panicked");
 
-    let mut base_copy = unsafe { Base::from_base(&base) };;
+    let mut base_copy = unsafe { Base::from_base(&base) };
 
     let instance = InstanceStorage::<T>::construct(user_instance, base);
-
 
     let instance_ptr = instance.into_raw();
     let instance_ptr = instance_ptr as sys::GDExtensionClassInstancePtr;

@@ -161,7 +161,7 @@ fn base_during_init_freed_gd() {
     );
 }
 
-#[itest(focus)]
+#[itest]
 fn base_during_init_refcounted() {
     let mut obj = RefcBased::new_gd();
 
@@ -169,7 +169,21 @@ fn base_during_init_refcounted() {
     obj.call("unreference", &[]);
 
     println!("After dec-ref: refc={}", obj.get_reference_count());
+}
 
+#[itest(focus)]
+fn base_during_init_refcounted_2() {
+    // Instantiate with multiple Gd<T> references.
+    let (obj, base) = RefcBased::with_split();
+    let id = obj.instance_id();
+    assert_eq!(obj.instance_id(), base.instance_id());
+    assert_eq!(obj.get_reference_count(), 2);
+
+    drop(base);
+    assert_eq!(obj.get_reference_count(), 1);
+    drop(obj);
+
+    assert!(!id.lookup_validity(), "last drop destroyed the object");
 }
 
 #[cfg(debug_assertions)]
@@ -346,12 +360,34 @@ struct RefcBased {
 #[godot_api]
 impl IRefCounted for RefcBased {
     fn init(mut base: Base<RefCounted>) -> Self {
-        println!("Before to_init_gd(): refc={}", base.as_init_gd().get_reference_count());
+        println!(
+            "Before to_init_gd(): refc={}",
+            base.as_init_gd().get_reference_count()
+        );
         let copy = base.to_init_gd();
         println!("Inside init(): refc={}", copy.get_reference_count());
         drop(copy);
-        println!("After to_init_gd(): refc={}", base.as_init_gd().get_reference_count());
+        println!(
+            "After to_init_gd(): refc={}",
+            base.as_init_gd().get_reference_count()
+        );
 
         Self { base }
+    }
+}
+
+impl RefcBased {
+    fn with_split() -> (Gd<Self>, Gd<RefCounted>) {
+        let mut moved_out = None;
+
+        let self_gd = Gd::from_init_fn(|base| {
+            base.to_init_gd(); // Immediately dropped.
+
+            let _local_copy = base.to_init_gd(); // At end of scope.
+            moved_out = Some(base.to_init_gd()); // Moved out.
+            Self { base }
+        });
+
+        (self_gd, moved_out.unwrap())
     }
 }

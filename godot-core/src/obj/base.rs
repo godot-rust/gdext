@@ -10,9 +10,9 @@ use crate::{classes, sys};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
+use std::cell::RefCell;
 #[cfg(debug_assertions)]
 use std::{cell::Cell, rc::Rc};
-use std::cell::RefCell;
 
 /// Represents the initialization state of a `Base<T>` object.
 #[cfg(debug_assertions)]
@@ -269,7 +269,6 @@ impl<T: GodotClass> Base<T> {
             self.init_state.set(InitState::ObjectInitialized);
         }
 
-
         if self.extra_strong_ref.borrow().is_some() {
             let ref_count = self
                 .obj
@@ -282,7 +281,6 @@ impl<T: GodotClass> Base<T> {
             // *self.extra_strong_ref.borrow_mut() = None;
         }
         //*self.extra_strong_ref.borrow_mut() = None;
-
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
