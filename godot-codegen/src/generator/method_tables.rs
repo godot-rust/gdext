@@ -337,8 +337,7 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
         assert_eq!(
             last.method_inits.last().unwrap().index,
             method_count - 1,
-            "last method should have highest index (table {})",
-            table_name
+            "last method should have highest index (table {table_name})"
         );
     } else {
         assert_eq!(method_count, 0, "empty method table should have count 0");

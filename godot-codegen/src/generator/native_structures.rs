@@ -244,7 +244,7 @@ fn make_native_structure_field_and_accessor(
 fn normalize_native_structure_field_type(field_type: &str) -> String {
     if field_type.contains("::") {
         let with_dot = field_type.replace("::", ".");
-        format!("enum::{}", with_dot)
+        format!("enum::{with_dot}")
     } else {
         field_type.to_string()
     }

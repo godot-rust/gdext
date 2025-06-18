@@ -35,7 +35,7 @@ fn rect2i_equiv_unary() {
     where
         T: Eq + Debug,
     {
-        assert_eq!(a, b, "{}: outer != inner ({:?} != {:?})", key, a, b);
+        assert_eq!(a, b, "{key}: outer != inner ({a:?} != {b:?})");
     }
 
     for a in test_rects {

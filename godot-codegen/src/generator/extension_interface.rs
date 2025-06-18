@@ -54,7 +54,7 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
             doc,
         } = fptr;
 
-        let name_str = Literal::byte_string(format!("{}\0", name).as_bytes());
+        let name_str = Literal::byte_string(format!("{name}\0").as_bytes());
 
         let decl = quote! {
             #[doc = #doc]

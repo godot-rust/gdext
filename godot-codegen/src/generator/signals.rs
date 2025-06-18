@@ -308,7 +308,7 @@ impl SignalParams {
                 write!(formatted_types, ", ").unwrap();
             }
 
-            write!(formatted_types, "{}: {}", param_name, formatted_ty).unwrap();
+            write!(formatted_types, "{param_name}: {formatted_ty}").unwrap();
         }
 
         Self {
