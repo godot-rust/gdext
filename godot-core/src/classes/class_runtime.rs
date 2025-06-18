@@ -60,9 +60,14 @@ pub(crate) fn construct_engine_object<T>() -> Gd<T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
 {
+    #[cfg(before_api = "4.4")]
+    let construct_fn = sys::interface_fn!(classdb_construct_object);
+    #[cfg(since_api = "4.4")]
+    let construct_fn = sys::interface_fn!(classdb_construct_object2);
+
     // SAFETY: adhere to Godot API; valid class name and returned pointer is an object.
     unsafe {
-        let object_ptr = sys::interface_fn!(classdb_construct_object)(T::class_name().string_sys());
+        let object_ptr = construct_fn(T::class_name().string_sys());
         Gd::from_obj_sys(object_ptr)
     }
 }

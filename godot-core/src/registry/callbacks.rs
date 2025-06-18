@@ -91,8 +91,13 @@ where
     T: GodotClass,
     F: FnOnce(Base<T::Base>) -> T,
 {
+    #[cfg(before_api = "4.4")]
+    let construct_fn = sys::interface_fn!(classdb_construct_object);
+    #[cfg(since_api = "4.4")]
+    let construct_fn = sys::interface_fn!(classdb_construct_object2);
+
     let base_class_name = T::Base::class_name();
-    let base_ptr = unsafe { interface_fn!(classdb_construct_object)(base_class_name.string_sys()) };
+    let base_ptr = unsafe { construct_fn(base_class_name.string_sys()) };
 
     match create_rust_part_for_existing_godot_part(make_user_instance, base_ptr) {
         Ok(_extension_ptr) => Ok(base_ptr),

@@ -389,9 +389,13 @@ impl Declarer for DeclEngine {
     where
         T: GodotDefault + Bounds<Declarer = Self>,
     {
+        #[cfg(before_api = "4.4")]
+        let construct_fn = sys::interface_fn!(classdb_construct_object);
+        #[cfg(since_api = "4.4")]
+        let construct_fn = sys::interface_fn!(classdb_construct_object2);
+
         unsafe {
-            let object_ptr =
-                sys::interface_fn!(classdb_construct_object)(T::class_name().string_sys());
+            let object_ptr = construct_fn(T::class_name().string_sys());
             Gd::from_obj_sys(object_ptr)
         }
     }

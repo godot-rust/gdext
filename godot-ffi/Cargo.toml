@@ -16,6 +16,7 @@ codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = ["godot-codegen/experimental-threads"]
 experimental-wasm-nothreads = ["godot-bindings/experimental-wasm-nothreads"]
+no-deprecated = ["godot-codegen/no-deprecated"]
 debug-log = []
 
 api-custom = ["godot-bindings/api-custom"]

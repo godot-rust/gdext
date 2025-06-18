@@ -38,6 +38,7 @@ struct GodotFuncPtr {
     name: Ident,
     func_ptr_ty: Ident,
     doc: String,
+    is_deprecated: bool,
 }
 
 fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
@@ -52,7 +53,13 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
             name,
             func_ptr_ty,
             doc,
+            is_deprecated,
         } = fptr;
+
+        if is_deprecated {
+            #[cfg(feature = "no-deprecated")]
+            continue;
+        }
 
         let name_str = Literal::byte_string(format!("{name}\0").as_bytes());
 
@@ -149,6 +156,7 @@ fn parse_function_pointers(header_code: &str) -> Vec<GodotFuncPtr> {
             name: ident(name.as_str()),
             func_ptr_ty: ident(funcptr_ty.as_str()),
             doc: doc.as_str().replace("\n *", "\n").trim().to_string(),
+            is_deprecated: doc.as_str().contains("@deprecated"),
         });
     }
 
@@ -170,7 +178,7 @@ fn test_parse_function_pointers() {
 
 /**
  * @name classdb_register_extension_class
- *
+ * @deprecated This method is deprecated.
  * Registers an extension class in the ClassDB.
  *
  * Provided struct can be safely freed once the function returns.
@@ -200,6 +208,7 @@ typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClass)(GDExtensionCla
     assert_eq!(
         func_ptr.doc,
         r#"
+ @deprecated This method is deprecated.
  Registers an extension class in the ClassDB.
 
  Provided struct can be safely freed once the function returns.
@@ -211,4 +220,6 @@ typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClass)(GDExtensionCla
 		 "#
         .trim()
     );
+
+    assert!(func_ptr.is_deprecated);
 }

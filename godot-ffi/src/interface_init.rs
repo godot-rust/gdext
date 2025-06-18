@@ -127,8 +127,13 @@ unsafe fn runtime_version_inner(
         *const std::ffi::c_char,
     ) -> sys::GDExtensionInterfaceFunctionPtr,
 ) -> sys::GDExtensionGodotVersion {
+    #[cfg(before_api = "4.5")]
+    let godot_version_addr = b"get_godot_version\0";
+    #[cfg(since_api = "4.5")]
+    let godot_version_addr = b"get_godot_version2\0";
+
     // SAFETY: `self.0` is a valid `get_proc_address` pointer.
-    let get_godot_version = unsafe { get_proc_address(sys::c_str(b"get_godot_version\0")) }; //.expect("get_godot_version unexpectedly null");
+    let get_godot_version = unsafe { get_proc_address(sys::c_str(godot_version_addr)) }; //.expect("get_godot_version unexpectedly null");
 
     // SAFETY: `sys::GDExtensionInterfaceGetGodotVersion` is an `Option` of an `unsafe extern "C"` function pointer.
     let get_godot_version =

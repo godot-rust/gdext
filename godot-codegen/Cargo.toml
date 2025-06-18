@@ -20,6 +20,7 @@ api-custom = ["godot-bindings/api-custom"]
 api-custom-json = ["godot-bindings/api-custom-json"]
 experimental-godot-api = []
 experimental-threads = []
+no-deprecated = []
 
 [dependencies]
 godot-bindings = { path = "../godot-bindings", version = "=0.3.1" }
