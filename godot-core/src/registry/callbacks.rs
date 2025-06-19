@@ -155,8 +155,9 @@ where
     }
 
     // Mark initialization as complete, now that user constructor has finished.
-    println!("Passed mark_init for {base_copy:?}");
+    println!("Mark inited... {base_copy:?}");
     base_copy.mark_initialized();
+    println!("Marked inited: {base_copy:?}");
     std::mem::forget(base_copy);
 
     // std::mem::forget(class_name);

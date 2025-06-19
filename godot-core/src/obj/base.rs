@@ -10,8 +10,7 @@ use crate::{classes, sys};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
-use std::cell::RefCell;
-#[cfg(debug_assertions)]
+// #[cfg(debug_assertions)]
 use std::{cell::Cell, rc::Rc};
 
 /// Represents the initialization state of a `Base<T>` object.
@@ -67,7 +66,8 @@ pub struct Base<T: GodotClass> {
     // 2.
     obj: ManuallyDrop<Gd<T>>,
 
-    extra_strong_ref: Rc<RefCell<Option<Gd<T>>>>,
+    //extra_strong_ref: Rc<RefCell<Option<Gd<T>>>>,
+    handed_out_strong_refs: Rc<Cell<bool>>,
 
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
@@ -91,7 +91,7 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
-            extra_strong_ref: Rc::clone(&base.extra_strong_ref), // Before user init(), no handing out of Gd pointers occurs.
+            handed_out_strong_refs: Rc::clone(&base.handed_out_strong_refs), // Before user init(), no handing out of Gd pointers occurs.
             #[cfg(debug_assertions)]
             init_state: Rc::clone(&base.init_state),
         }
@@ -136,7 +136,7 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
-            extra_strong_ref: Rc::new(RefCell::new(None)), // Before user init(), no handing out of Gd pointers occurs.
+            handed_out_strong_refs: Rc::new(Cell::new(false)), // Before user init(), no handing out of Gd pointers occurs.
             init_state: Rc::new(Cell::new(init_state)),
         }
     }
@@ -206,17 +206,35 @@ impl<T: GodotClass> Base<T> {
             "Base::as_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
         );
 
-        let keeper = (*self.obj).clone();
+        // let keeper = (*self.obj).clone();
         //*self.extra_strong_ref.borrow_mut() = Some(keeper.clone());
 
-        keeper.raw.with_ref_counted(|refc| refc.reference());
+        // First time handing out a Gd<T>, we need to take measures to temporarily upgrade the Base's weak pointer to a strong one.
+        // During the initialization phase (derived object being constructed), increment refcount by 1.
+        if !self.handed_out_strong_refs.get() {
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            println!("Ref count before first handout: {}", ref_count);
 
-        keeper
+            //self.obj.raw.with_ref_counted(|refc| refc.reference());
+            self.obj.raw.with_ref_counted(|refc| refc.init_ref());
+            self.handed_out_strong_refs.set(true);
+
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            println!("Ref count after first handout: {}", ref_count);
+        }
+
+        // keeper
         // (*self.obj).to_strong()
 
         // std::mem::forget((*self.obj).clone());
 
-        // (*self.obj).clone()
+        (*self.obj).clone()
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
@@ -269,7 +287,7 @@ impl<T: GodotClass> Base<T> {
             self.init_state.set(InitState::ObjectInitialized);
         }
 
-        if self.extra_strong_ref.borrow().is_some() {
+        if self.handed_out_strong_refs.get() {
             let ref_count = self
                 .obj
                 .raw
@@ -277,8 +295,14 @@ impl<T: GodotClass> Base<T> {
             println!(">   Ref count: {ref_count}");
             // println!("!!! Dec ref count for {:?}", self.obj.raw);
             //
-            // self.obj.raw.with_ref_counted(|refc| refc.unreference());
+            self.obj.raw.with_ref_counted(|refc| refc.unreference());
             // *self.extra_strong_ref.borrow_mut() = None;
+
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            println!(">   Ref count after unref: {ref_count}");
         }
         //*self.extra_strong_ref.borrow_mut() = None;
     }

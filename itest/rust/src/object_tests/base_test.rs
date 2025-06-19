@@ -161,15 +161,40 @@ fn base_during_init_freed_gd() {
     );
 }
 
+#[itest(focus)]
+fn base_during_init_refcounted_simple() {
+    let mut obj = Gd::from_init_fn(|mut base| {
+        base.to_init_gd(); // Immediately dropped.
+
+        RefcBased { base }
+    });
+
+    println!("After construction: refc={}", obj.get_reference_count());
+    // obj.call("unreference", &[]);
+    //
+    // println!("After dec-ref: refc={}", obj.get_reference_count());
+}
+
 #[itest]
 fn base_during_init_refcounted() {
     let mut obj = RefcBased::new_gd();
 
     println!("After construction: refc={}", obj.get_reference_count());
-    obj.call("unreference", &[]);
-
-    println!("After dec-ref: refc={}", obj.get_reference_count());
+    // obj.call("unreference", &[]);
+    //
+    // println!("After dec-ref: refc={}", obj.get_reference_count());
 }
+
+// #[itest(focus)]
+// fn refcounted_drop() {
+//     let a = RefCounted::new_gd();
+//     let b = a.clone();
+//     a.clone();
+//     let c = b.clone();
+//     drop(b);
+//
+//     assert_eq!(a.get_reference_count(), 2);
+// }
 
 #[itest(focus)]
 fn base_during_init_refcounted_2() {
@@ -177,6 +202,7 @@ fn base_during_init_refcounted_2() {
     let (obj, base) = RefcBased::with_split();
     let id = obj.instance_id();
     assert_eq!(obj.instance_id(), base.instance_id());
+    assert_eq!(base.get_reference_count(), 2);
     assert_eq!(obj.get_reference_count(), 2);
 
     drop(base);
@@ -359,19 +385,35 @@ struct RefcBased {
 
 #[godot_api]
 impl IRefCounted for RefcBased {
+    // fn init(mut base: Base<RefCounted>) -> Self {
+    //     println!(
+    //         "Before to_init_gd(): refc={}",
+    //         base.as_init_gd().get_reference_count()
+    //     );
+    //     let copy = base.to_init_gd();
+    //     println!("Inside init(): refc={}", copy.get_reference_count());
+    //     drop(copy);
+    //     println!(
+    //         "After to_init_gd(): refc={}",
+    //         base.as_init_gd().get_reference_count()
+    //     );
+    //
+    //     Self { base }
+    // }
     fn init(mut base: Base<RefCounted>) -> Self {
-        println!(
-            "Before to_init_gd(): refc={}",
-            base.as_init_gd().get_reference_count()
-        );
-        let copy = base.to_init_gd();
-        println!("Inside init(): refc={}", copy.get_reference_count());
-        drop(copy);
-        println!(
-            "After to_init_gd(): refc={}",
-            base.as_init_gd().get_reference_count()
-        );
+        // let gd = base.to_init_gd();
 
+        base.to_init_gd(); // Immediately dropped.
+
+        // let _local_copy = base.to_init_gd(); // At end of scope.
+        // let moved_out = Some(base.to_init_gd()); // Moved out.
+        // std::mem::forget(moved_out);
+
+        // drop(gd);
+
+        // let refc: &mut Gd<RefCounted> = base.as_init_gd();
+        // let refc = refc.get_reference_count();
+        // println!("Inside init(): refc={}", refc);
         Self { base }
     }
 }
@@ -380,11 +422,19 @@ impl RefcBased {
     fn with_split() -> (Gd<Self>, Gd<RefCounted>) {
         let mut moved_out = None;
 
-        let self_gd = Gd::from_init_fn(|base| {
+        let self_gd = Gd::from_init_fn(|mut base| {
+            let gd = base.to_init_gd();
+
             base.to_init_gd(); // Immediately dropped.
 
             let _local_copy = base.to_init_gd(); // At end of scope.
             moved_out = Some(base.to_init_gd()); // Moved out.
+
+            drop(gd);
+
+            let refc: &mut Gd<RefCounted> = base.as_init_gd();
+            let refc = refc.get_reference_count();
+            println!("Inside init(): refc={}", refc);
             Self { base }
         });
 
