@@ -65,6 +65,10 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("VisualShaderNodeComment", "get_title")
         | ("VisualShaderNodeComment", "set_description")
         | ("VisualShaderNodeComment", "get_description")
+
+        // Removed in https://github.com/godotengine/godot/pull/98566
+        | ("VisualShader", "set_graph_offset")
+        | ("VisualShader", "get_graph_offset")
         => true,
 
         // Thread APIs
