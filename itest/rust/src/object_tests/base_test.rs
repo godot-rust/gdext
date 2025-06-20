@@ -163,7 +163,7 @@ fn base_during_init_freed_gd() {
 
 #[itest(focus)]
 fn base_during_init_refcounted_simple() {
-    let mut obj = Gd::from_init_fn(|mut base| {
+    let obj = Gd::from_init_fn(|base| {
         base.to_init_gd(); // Immediately dropped.
 
         RefcBased { base }
@@ -177,7 +177,7 @@ fn base_during_init_refcounted_simple() {
 
 #[itest]
 fn base_during_init_refcounted() {
-    let mut obj = RefcBased::new_gd();
+    let obj = RefcBased::new_gd();
 
     println!("After construction: refc={}", obj.get_reference_count());
     // obj.call("unreference", &[]);
@@ -400,7 +400,7 @@ impl IRefCounted for RefcBased {
     //
     //     Self { base }
     // }
-    fn init(mut base: Base<RefCounted>) -> Self {
+    fn init(base: Base<RefCounted>) -> Self {
         // let gd = base.to_init_gd();
 
         base.to_init_gd(); // Immediately dropped.

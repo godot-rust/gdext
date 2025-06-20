@@ -125,7 +125,7 @@ where
 
     //out!("create callback: {}", class_name.backing);
 
-    let mut base = unsafe { Base::from_sys(base_ptr) };
+    let base = unsafe { Base::from_sys(base_ptr) };
 
     // User constructor init() can panic, which crashes the engine if unhandled.
     let context = || format!("panic during {class_name}::init() constructor");
