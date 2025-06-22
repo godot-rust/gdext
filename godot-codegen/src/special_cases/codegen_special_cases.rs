@@ -140,7 +140,6 @@ const SELECTED_CLASSES: &[&str] = &[
     "Node3D",
     "RefCounted",
     "Resource",
-    "WeakRef",
     //
     // Runtime + reflection support
     "ClassDB",
