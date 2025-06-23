@@ -96,5 +96,5 @@ public class Player : Node2D
   </description>
 </signal>
 </signals>
-<members><member name="item" type="f32" default="">this is very documented</member><member name="a" type="i32" default="" deprecated="use on your own risk!!">not to be confused with B!</member><member name="b" type="i64" default="" experimental="idk.">Some docs…</member><member name="item_2" type="i64" default="">is it documented?</member><member name="item_xml" type="GString" default="">this docstring has &lt; a special character</member></members>
+<members><member name="item" type="f32" default="">this is very documented</member><member name="item_2" type="i64" default="">is it documented?</member><member name="item_xml" type="GString" default="">this docstring has &lt; a special character</member><member name="a" type="i32" default="" deprecated="use on your own risk!!">not to be confused with B!</member><member name="b" type="i64" default="" experimental="idk.">Some docs…</member></members>
 </class>
