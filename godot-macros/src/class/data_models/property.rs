@@ -7,8 +7,10 @@
 
 //! Parses the `#[var]` and `#[export]` attributes on fields.
 
-use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetterImpl, UsageFlags};
-use crate::util::{format_funcs_collection_constant, format_funcs_collection_struct};
+use crate::class::data_models::fields::Fields;
+use crate::class::data_models::group_export::FieldGroup;
+use crate::class::{Field, FieldVar, GetSet, GetterSetterImpl, UsageFlags};
+use crate::util::{format_funcs_collection_constant, format_funcs_collection_struct, ident};
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
@@ -42,12 +44,15 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let mut func_name_consts = Vec::new();
     let mut export_tokens = Vec::new();
 
+    let (mut current_group, mut current_subgroup) = (None, None);
+
     for field in &fields.all_fields {
         let Field {
             name: field_ident,
             ty: field_type,
             var,
             export,
+            group,
             ..
         } = field;
 
@@ -59,18 +64,24 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 } else {
                     UsageFlags::InferredExport
                 };
-                Some(FieldVar {
+                FieldVar {
                     usage_flags,
                     ..Default::default()
-                })
+                }
             }
 
-            (_, var) => var.clone(),
+            (_, Some(var)) => var.clone(),
+            _ => continue,
         };
 
-        let Some(var) = var else {
-            continue;
-        };
+        register_group_or_subgroup(
+            group,
+            &mut current_group,
+            &mut current_subgroup,
+            &fields.groups,
+            &mut export_tokens,
+            class_name,
+        );
 
         let field_name = field_ident.to_string();
 
@@ -219,4 +230,63 @@ fn make_getter_setter(
     let constant = format_funcs_collection_constant(class_name, &gs.function_name);
 
     quote! { #funcs_collection::#constant }
+}
+
+/// Pushes registration of group or subgroup in case if they differ from previously registered ones.
+///
+/// Group membership of properties is based on the order of their registration.
+/// All the properties belong to group or subgroup registered beforehand.
+fn register_group_or_subgroup(
+    field_group: &Option<FieldGroup>,
+    current_group: &mut Option<usize>,
+    current_subgroup: &mut Option<usize>,
+    groups: &[String],
+    export_tokens: &mut Vec<TokenStream>,
+    class_name: &Ident,
+) {
+    let Some(group) = field_group else {
+        return;
+    };
+
+    if let Some(group_registration) = make_group_registration(
+        current_group,
+        group.group_name_index,
+        groups,
+        ident("register_group"),
+        class_name,
+    ) {
+        export_tokens.push(group_registration);
+    }
+
+    if let Some(subgroup_registration) = make_group_registration(
+        current_subgroup,
+        group.subgroup_name_index,
+        groups,
+        ident("register_subgroup"),
+        class_name,
+    ) {
+        export_tokens.push(subgroup_registration);
+    }
+}
+
+fn make_group_registration(
+    current: &mut Option<usize>,
+    new: Option<usize>,
+    groups: &[String],
+    register_fn: Ident,
+    class_name: &Ident,
+) -> Option<TokenStream> {
+    let new_group = new?;
+
+    if current.is_none_or(|cur| cur != new_group) {
+        *current = Some(new_group);
+        let group = groups.get(new_group)?;
+        Some(quote! {
+        ::godot::register::private::#register_fn::<#class_name>(
+                        #group,
+                    );
+        })
+    } else {
+        None
+    }
 }
