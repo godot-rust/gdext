@@ -100,6 +100,12 @@ impl Rid {
     }
 }
 
+impl Default for Rid {
+    fn default() -> Self {
+        Self::Invalid
+    }
+}
+
 impl std::fmt::Display for Rid {
     /// Formats `Rid` to match Godot's string representation.
     ///
