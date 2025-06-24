@@ -95,7 +95,6 @@ pub fn spawn(future: impl Future<Output = ()> + 'static) -> TaskHandle {
     // By limiting async tasks to the main thread we can redirect all signal callbacks back to the main thread via `call_deferred`.
     //
     // Once thread-safe futures are possible the restriction can be lifted.
-    #[cfg(not(wasm_nothreads))]
     assert!(
         crate::init::is_main_thread(),
         "godot_task() can only be used on the main thread"
