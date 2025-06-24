@@ -60,6 +60,7 @@ pub(crate) struct ExportGroupOrdering {
 
 impl ExportGroupOrdering {
     /// Creates root which holds all the groups&subgroups.
+    /// Should be called only once in a given context.
     fn root() -> Self {
         Self {
             identifier: None,
@@ -96,7 +97,7 @@ enum OrderingStage {
     SubGroup,
 }
 
-// It is recursive but max recursion depth is 1 so it's fine.
+// It is recursive but max recursion depth is 2 (root -> group -> subgroup) so it's fine.
 fn compare_by_group_and_declaration_order(
     field_a: &FieldGroup,
     field_b: &FieldGroup,
@@ -172,7 +173,7 @@ pub(crate) fn sort_fields_by_group(fields: &mut Fields) {
 
     // `sort_by` instead of `sort_unstable_by` to preserve original order of declaration.
     // Which is not guaranteed by the way albeit worked reliably so far.
-    fields.all_fields.sort_unstable_by(|a, b| {
+    fields.all_fields.sort_by(|a, b| {
         let (group_a, group_b) = match (&a.group, &b.group) {
             (Some(a), Some(b)) => (a, b),
             (Some(_), None) => return Ordering::Greater,
