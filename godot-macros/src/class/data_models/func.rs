@@ -7,7 +7,7 @@
 
 use crate::class::RpcAttr;
 use crate::util::{bail_fn, ident, safe_ident};
-use crate::{util, ParseResult};
+use crate::{bail, util, ParseResult};
 use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 
@@ -126,6 +126,9 @@ pub fn make_method_registration(
         .iter()
         .map(|ident| ident.to_string());
 
+    let default_parameters =
+        validate_default_parameters(&func_definition.signature_info.default_parameters)?;
+
     // Transport #[cfg] attrs to the FFI glue to ensure functions which were conditionally
     // removed from compilation don't cause errors.
     let cfg_attrs = util::extract_cfg_attrs(&func_definition.external_attributes)
@@ -158,6 +161,9 @@ pub fn make_method_registration(
                     &[
                         #( #param_ident_strs ),*
                     ],
+                    vec![
+                        #(::godot::builtin::Variant::from(#default_parameters)),*
+                    ]
                 )
             };
 
@@ -173,6 +179,32 @@ pub fn make_method_registration(
     };
 
     Ok(registration)
+}
+
+fn validate_default_parameters(
+    default_parameters: &[Option<TokenStream>],
+) -> ParseResult<Vec<TokenStream>> {
+    let mut res = vec![];
+    let mut allowed = true;
+    for param in default_parameters.iter().rev() {
+        match (param, allowed) {
+            (Some(tk), true) => {
+                res.push(tk.clone()); // toreview: if we really care about it, we can use &mut sig_info and mem::take() as we don't use this later
+            }
+            (None, true) => {
+                allowed = false;
+            }
+            (None, false) => {}
+            (Some(tk), false) => {
+                return bail!(
+                    tk,
+                    "opt arguments are only allowed at the end of the argument list."
+                );
+            }
+        }
+    }
+    res.reverse();
+    Ok(res)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -199,6 +231,8 @@ pub struct SignatureInfo {
     ///
     /// Index points into original venial tokens (i.e. takes into account potential receiver params).
     pub modified_param_types: Vec<(usize, venial::TypeExpr)>,
+    /// Contains expressions of the default values of parameters.
+    pub default_parameters: Vec<Option<TokenStream>>,
 }
 
 impl SignatureInfo {
@@ -210,6 +244,7 @@ impl SignatureInfo {
             param_types: vec![],
             return_type: quote! { () },
             modified_param_types: vec![],
+            default_parameters: vec![],
         }
     }
 
@@ -412,6 +447,7 @@ pub(crate) fn into_signature_info(
         param_types,
         return_type: ret_type,
         modified_param_types,
+        default_parameters: vec![],
     }
 }
 
