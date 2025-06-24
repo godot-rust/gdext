@@ -68,12 +68,13 @@ where
         call_ctx: &CallContext,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         arg_count: i64,
+        default_arg_count: usize,
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
         func: unsafe fn(sys::GDExtensionClassInstancePtr, Params) -> Ret,
     ) -> CallResult<()> {
         //$crate::out!("in_varcall: {call_ctx}");
-        CallError::check_arg_count(call_ctx, arg_count as usize, Params::LEN)?;
+        CallError::check_arg_count(call_ctx, arg_count as usize, default_arg_count, Params::LEN)?;
 
         #[cfg(feature = "trace")]
         trace::push(true, false, call_ctx);

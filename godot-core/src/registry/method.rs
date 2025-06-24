@@ -59,12 +59,11 @@ impl ClassMethodInfo {
         ptrcall_func: sys::GDExtensionClassMethodPtrCall,
         method_flags: MethodFlags,
         param_names: &[&str],
-        // default_arguments: Vec<Variant>, - not yet implemented
+        default_arguments: Vec<Variant>,
     ) -> Self {
         let return_value = Ret::Via::return_info();
         let arguments = Signature::<Params, Ret>::param_names(param_names);
 
-        let default_arguments = vec![]; // not yet implemented.
         assert!(
             default_arguments.len() <= arguments.len(),
             "cannot have more default arguments than arguments"

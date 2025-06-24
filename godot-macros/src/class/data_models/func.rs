@@ -120,12 +120,15 @@ pub fn make_method_registration(
         interface_trait,
     );
 
+    let (default_parameters, default_parameters_count) =
+        make_default_parameters(&func_definition, signature_info)?;
+
     // String literals
     let class_name_str = class_name.to_string();
     let method_name_str = func_definition.godot_name();
 
     let call_ctx = make_call_context(&class_name_str, &method_name_str);
-    let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure);
+    let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure, default_parameters_count);
     let ptrcall_fn_decl = make_ptrcall_fn(&call_ctx, &forwarding_closure);
 
     // String literals II
@@ -166,6 +169,7 @@ pub fn make_method_registration(
                     &[
                         #( #param_ident_strs ),*
                     ],
+                    #default_parameters,
                 )
             };
 
@@ -181,6 +185,54 @@ pub fn make_method_registration(
     };
 
     Ok(registration)
+}
+
+fn make_default_parameters(
+    func_definition: &FuncDefinition,
+    signature_info: &SignatureInfo,
+) -> Result<(TokenStream, usize), venial::Error> {
+    let default_parameters =
+        validate_default_parameters(&func_definition.signature_info.default_parameters)?;
+    let len = default_parameters.len();
+    let default_parameters_type = signature_info
+        .param_types
+        .iter()
+        .rev()
+        .take(default_parameters.len())
+        .rev();
+    let default_parameters = default_parameters
+        .iter()
+        .zip(default_parameters_type)
+        .map(|(value, ty)| quote!(::godot::builtin::Variant::from(#value)));
+    // .map(|(value, ty)| quote!(::godot::meta::arg_into_ref!(#value: #ty)));
+    let default_parameters = quote! {vec![#(#default_parameters),*]};
+    Ok((default_parameters, len))
+}
+
+fn validate_default_parameters(
+    default_parameters: &[Option<TokenStream>],
+) -> ParseResult<Vec<TokenStream>> {
+    let mut res = vec![];
+    let mut allowed = true;
+    for param in default_parameters.iter().rev() {
+        match (param, allowed) {
+            (Some(tk), true) => {
+                res.push(tk.clone()); // toreview: if we really care about it, we can use &mut sig_info and mem::take() as we don't use this later
+            }
+            (None, true) => {
+                allowed = false;
+            }
+            (None, false) => {}
+            (Some(tk), false) => {
+                return bail!(
+                    tk,
+                    "opt arguments are only allowed at the end of the argument list."
+                );
+            }
+        }
+    }
+    res.reverse();
+    Ok(res)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -208,6 +260,8 @@ pub struct SignatureInfo {
     ///
     /// Index points into original venial tokens (i.e. takes into account potential receiver params).
     pub modified_param_types: Vec<(usize, venial::TypeExpr)>,
+    /// Contains expressions of the default values of parameters.
+    pub default_parameters: Vec<Option<TokenStream>>,
 }
 
 impl SignatureInfo {
@@ -220,6 +274,7 @@ impl SignatureInfo {
             param_types: vec![],
             return_type: quote! { () },
             modified_param_types: vec![],
+            default_parameters: vec![],
         }
     }
 
@@ -471,6 +526,7 @@ pub(crate) fn into_signature_info(
         param_types,
         return_type: ret_type,
         modified_param_types,
+        default_parameters: vec![],
     }
 }
 
@@ -552,8 +608,12 @@ fn make_method_flags(
 }
 
 /// Generate code for a C FFI function that performs a varcall.
-fn make_varcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> TokenStream {
-    let invocation = make_varcall_invocation(wrapped_method);
+fn make_varcall_fn(
+    call_ctx: &TokenStream,
+    wrapped_method: &TokenStream,
+    default_parameters_count: usize,
+) -> TokenStream {
+    let invocation = make_varcall_invocation(wrapped_method, default_parameters_count);
 
     // TODO reduce amount of code generated, by delegating work to a library function. Could even be one that produces this function pointer.
     quote! {
@@ -616,13 +676,17 @@ fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> To
 }
 
 /// Generate code for a `varcall()` call expression.
-fn make_varcall_invocation(wrapped_method: &TokenStream) -> TokenStream {
+fn make_varcall_invocation(
+    wrapped_method: &TokenStream,
+    default_parameters_count: usize,
+) -> TokenStream {
     quote! {
         ::godot::meta::Signature::<CallParams, CallRet>::in_varcall(
             instance_ptr,
             &call_ctx,
             args_ptr,
             arg_count,
+            #default_parameters_count,
             ret,
             err,
             #wrapped_method,
