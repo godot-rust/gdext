@@ -780,7 +780,7 @@ pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
 
         _ => return None,
     };
-    
+
     Some(docs)
 }
 
