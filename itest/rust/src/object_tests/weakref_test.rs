@@ -8,7 +8,7 @@
 // WeakRef is so rarely needed, makes no sense to include in minimal set.
 #![cfg(feature = "codegen-full")]
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::itest;
 use godot::classes::{Node, RefCounted, WeakRef};
 use godot::global::weakref;
 use godot::meta::ToGodot;
