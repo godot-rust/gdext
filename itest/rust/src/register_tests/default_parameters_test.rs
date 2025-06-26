@@ -18,7 +18,7 @@ impl HasDefaultParameters {
     }
 }
 
-#[itest]
+#[itest(focus)]
 fn tests_default_parameters() {
     let mut obj = HasDefaultParameters::new_gd();
     let r = obj.call("function_with_default_params", &[0.to_variant()]);

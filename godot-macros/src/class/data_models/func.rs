@@ -197,7 +197,8 @@ fn make_default_parameters(
     let default_parameters = default_parameters
         .iter()
         .zip(default_parameters_type)
-        .map(|(value, ty)| quote!(::godot::meta::arg_into_ref!(#value: #ty)));
+        .map(|(value, ty)| quote!(::godot::builtin::Variant::from(#value)));
+    // .map(|(value, ty)| quote!(::godot::meta::arg_into_ref!(#value: #ty)));
     let default_parameters = quote! {vec![#(#default_parameters),*]};
     Ok((default_parameters, len))
 }
