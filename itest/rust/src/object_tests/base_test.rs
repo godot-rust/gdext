@@ -175,6 +175,7 @@ fn base_during_init_refcounted_simple() {
     // println!("After dec-ref: refc={}", obj.get_reference_count());
 }
 
+// #[itest(focus)]
 #[itest]
 fn base_during_init_refcounted() {
     let obj = RefcBased::new_gd();
@@ -199,13 +200,21 @@ fn base_during_init_refcounted() {
 #[itest(focus)]
 fn base_during_init_refcounted_2() {
     // Instantiate with multiple Gd<T> references.
-    let (obj, base) = RefcBased::with_split();
+    let (obj, mut base) = RefcBased::with_split();
     let id = obj.instance_id();
+    dbg!(&id);
+    dbg!(id.to_i64() as u64);
+    dbg!(base.instance_id().to_i64() as u64);
+
+    // base.call("unreference", &[]);
+    base.call("unreference", &[]);
+
     assert_eq!(obj.instance_id(), base.instance_id());
     assert_eq!(base.get_reference_count(), 2);
     assert_eq!(obj.get_reference_count(), 2);
 
     drop(base);
+    assert_eq!(obj.get_reference_count(), 1);
     assert_eq!(obj.get_reference_count(), 1);
     drop(obj);
 

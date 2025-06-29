@@ -68,7 +68,6 @@ pub struct Base<T: GodotClass> {
     obj: ManuallyDrop<Gd<T>>,
 
     extra_strong_ref: Rc<RefCell<Option<Gd<T>>>>,
-    handed_out_strong_refs: Rc<RefCell<bool>>,
 
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
@@ -93,7 +92,6 @@ impl<T: GodotClass> Base<T> {
         Self {
             obj: ManuallyDrop::new(obj),
             extra_strong_ref: Rc::clone(&base.extra_strong_ref), // Before user init(), no handing out of Gd pointers occurs.
-            handed_out_strong_refs: Rc::clone(&base.handed_out_strong_refs), // Before user init(), no handing out of Gd pointers occurs.
             #[cfg(debug_assertions)]
             init_state: Rc::clone(&base.init_state),
         }
@@ -139,7 +137,6 @@ impl<T: GodotClass> Base<T> {
         Self {
             obj: ManuallyDrop::new(obj),
             extra_strong_ref: Rc::new(RefCell::new(None)),
-            handed_out_strong_refs: Rc::new(RefCell::new(false)), // Before user init(), no handing out of Gd pointers occurs.
             init_state: Rc::new(Cell::new(init_state)),
         }
     }
@@ -215,7 +212,7 @@ impl<T: GodotClass> Base<T> {
 
         // First time handing out a Gd<T>, we need to take measures to temporarily upgrade the Base's weak pointer to a strong one.
         // During the initialization phase (derived object being constructed), increment refcount by 1.
-        if !*self.handed_out_strong_refs.borrow() {
+        if self.extra_strong_ref.borrow().is_none() {
             let ref_count = self
                 .obj
                 .raw
@@ -224,7 +221,7 @@ impl<T: GodotClass> Base<T> {
 
             //self.obj.raw.with_ref_counted(|refc| refc.reference());
             self.obj.raw.with_ref_counted(|refc| refc.init_ref());
-            *self.handed_out_strong_refs.borrow_mut() = true;
+            *self.extra_strong_ref.borrow_mut() = Some((*self.obj).clone());
 
             let ref_count = self
                 .obj
@@ -239,6 +236,40 @@ impl<T: GodotClass> Base<T> {
         // std::mem::forget((*self.obj).clone());
 
         (*self.obj).clone()
+    }
+
+
+    pub(crate) fn mark_initialized(&mut self) {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(
+                self.init_state.get(),
+                InitState::ObjectConstructing,
+                "Base<T> is already initialized, or holds a script instance"
+            );
+
+            self.init_state.set(InitState::ObjectInitialized);
+        }
+
+        if self.extra_strong_ref.borrow().is_some() {
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            println!(">   Ref count: {ref_count}");
+            // println!("!!! Dec ref count for {:?}", self.obj.raw);
+            //
+            *self.extra_strong_ref.borrow_mut() = None;
+            //self.obj.raw.with_ref_counted(|refc| refc.unreference());
+
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            println!(">   Ref count after unref: {ref_count}");
+        }
+
+        //*self.extra_strong_ref.borrow_mut() = None;
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
@@ -277,39 +308,6 @@ impl<T: GodotClass> Base<T> {
         );
 
         (*self.obj).clone()
-    }
-
-    pub(crate) fn mark_initialized(&mut self) {
-        #[cfg(debug_assertions)]
-        {
-            assert_eq!(
-                self.init_state.get(),
-                InitState::ObjectConstructing,
-                "Base<T> is already initialized, or holds a script instance"
-            );
-
-            self.init_state.set(InitState::ObjectInitialized);
-        }
-
-        if *self.handed_out_strong_refs.borrow() {
-            let ref_count = self
-                .obj
-                .raw
-                .with_ref_counted(|refc| refc.get_reference_count());
-            println!(">   Ref count: {ref_count}");
-            // println!("!!! Dec ref count for {:?}", self.obj.raw);
-            //
-            *self.extra_strong_ref.borrow_mut() = None;
-            self.obj.raw.with_ref_counted(|refc| refc.unreference());
-
-            let ref_count = self
-                .obj
-                .raw
-                .with_ref_counted(|refc| refc.get_reference_count());
-            println!(">   Ref count after unref: {ref_count}");
-        }
-
-        //*self.extra_strong_ref.borrow_mut() = None;
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
