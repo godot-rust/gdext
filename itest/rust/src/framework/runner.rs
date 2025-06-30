@@ -158,6 +158,7 @@ impl IntegrationTests {
         cfg!(feature = "codegen-full")
     }
 
+    #[allow(clippy::uninlined_format_args)]
     #[func]
     fn run_all_benchmarks(&mut self, scene_tree: Gd<Node>) {
         if self.focus_run {

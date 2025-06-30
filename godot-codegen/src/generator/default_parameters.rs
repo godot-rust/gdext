@@ -184,6 +184,7 @@ fn make_extender_doc(sig: &dyn Function, extended_fn_name: &Ident) -> (String, T
     let surround_class_prefix;
     let builder_doc;
 
+    #[allow(clippy::uninlined_format_args)]
     match sig.surrounding_class() {
         Some(TyName { rust_ty, .. }) => {
             surround_class_prefix = quote! { re_export::#rust_ty:: };
