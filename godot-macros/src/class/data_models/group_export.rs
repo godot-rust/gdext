@@ -7,6 +7,7 @@
 
 use crate::class::data_models::fields::Fields;
 use crate::util::KvParser;
+use crate::ParseResult;
 use std::cmp::Ordering;
 
 /// Points to index of a given group name in [Fields.groups](field@Fields::groups).
@@ -24,26 +25,40 @@ impl FieldGroup {
         expr: &'static str,
         parser: &mut KvParser,
         groups: &mut Vec<String>,
-    ) -> Option<GroupIdentifier> {
-        let group = parser.handle_expr(expr).unwrap_or(None)?.to_string();
+    ) -> ParseResult<Option<GroupIdentifier>> {
+        let Some(group) = parser.handle_string(expr)? else {
+            return Ok(None);
+        };
 
         if let Some(group_index) = groups
             .iter()
             .position(|existing_group| existing_group == &group)
         {
-            Some(group_index)
+            Ok(Some(group_index))
         } else {
             groups.push(group);
-            Some(groups.len() - 1)
+            Ok(Some(groups.len() - 1))
         }
     }
 
-    pub(crate) fn new_from_kv(parser: &mut KvParser, groups: &mut Vec<String>) -> Self {
-        Self {
-            group_name_index: Self::parse_group("group", parser, groups),
-            subgroup_name_index: Self::parse_group("subgroup", parser, groups),
-        }
+    pub(crate) fn new_from_kv(
+        parser: &mut KvParser,
+        groups: &mut Vec<String>,
+    ) -> ParseResult<Self> {
+        Ok(Self {
+            group_name_index: Self::parse_group("group", parser, groups)?,
+            subgroup_name_index: Self::parse_group("subgroup", parser, groups)?,
+        })
     }
+}
+
+/// Remove surrounding quotes to display declared "group name" in editor as `group name` instead of `"group name"`.
+/// Should be called after parsing all the fields to avoid unnecessary operations.
+pub(crate) fn format_groups(groups: Vec<String>) -> Vec<String> {
+    groups
+        .into_iter()
+        .map(|g| g.trim_matches('"').to_string())
+        .collect()
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -189,6 +204,4 @@ pub(crate) fn sort_fields_by_group(fields: &mut Fields) {
             OrderingStage::Group,
         )
     });
-
-    fields.format_groups();
 }

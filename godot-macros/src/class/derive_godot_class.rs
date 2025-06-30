@@ -6,7 +6,7 @@
  */
 
 use crate::class::data_models::fields::{named_fields, Fields};
-use crate::class::data_models::group_export::{sort_fields_by_group, FieldGroup};
+use crate::class::data_models::group_export::{format_groups, sort_fields_by_group, FieldGroup};
 use crate::class::{
     make_property_impl, make_virtual_callback, BeforeKind, Field, FieldCond, FieldDefault,
     FieldExport, FieldVar, SignatureInfo,
@@ -613,10 +613,10 @@ fn parse_fields(
             }
 
             // Deprecated #[init(default = expr)]
-            if let Some(default) = parser.handle_expr("default")? {
+            if let Some((key, default)) = parser.handle_expr_with_key("default")? {
                 if field.default_val.is_some() {
                     return bail!(
-                        parser.span(),
+                        key,
                         "Cannot use both `val` and `default` keys in #[init]; prefer using `val`"
                     );
                 }
@@ -666,7 +666,7 @@ fn parse_fields(
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export")? {
             let export = FieldExport::new_from_kv(&mut parser)?;
             field.export = Some(export);
-            let group = FieldGroup::new_from_kv(&mut parser, &mut groups);
+            let group = FieldGroup::new_from_kv(&mut parser, &mut groups)?;
             field.group = Some(group);
             parser.finish()?;
         }
@@ -737,7 +737,7 @@ fn parse_fields(
     }
 
     Ok(Fields {
-        groups,
+        groups: format_groups(groups),
         all_fields,
         base_field,
         deprecations,

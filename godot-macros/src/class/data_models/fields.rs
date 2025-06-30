@@ -31,16 +31,6 @@ pub struct Fields {
     pub errors: Vec<venial::Error>,
 }
 
-impl Fields {
-    /// Remove surrounding quotes to display declared "group name" in editor as `group name` instead of `"group name"`.
-    /// Should be called after parsing all the fields to avoid unnecessary operations.
-    pub fn format_groups(&mut self) {
-        self.groups
-            .iter_mut()
-            .for_each(|g| *g = g.trim_matches('"').to_string());
-    }
-}
-
 /// Fetches data for all named fields for a struct.
 ///
 /// Errors if `class` is a tuple struct.
