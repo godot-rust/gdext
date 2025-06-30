@@ -301,7 +301,7 @@ use crate::util::{bail, ident, KvParser};
 /// ```
 ///
 /// To declare groups and subgroups append `group` key to a `#[export]` attribute. Fields without group will be exported first,
-/// followed by properties with subgroup only, tailed by ones with group declaration.
+/// followed by properties with group only, tailed by ones with group & subgroup declarations. Relative order of fields is being preserved
 ///
 ///```
 /// # use godot::prelude::*;
@@ -316,16 +316,29 @@ use crate::util::{bail, ident, KvParser};
 ///     #[export]
 ///     will_be_displayed_as_1st: i64,
 ///
-///     #[export(subgroup = "my_other_subgroup_with_no_group")]
-///     will_be_displayed_as_the_2nd: i64,
+///     #[export(group = "my_other_group")]
+///     will_be_displayed_as_the_3rd: i64,
 ///
 ///     #[export(range = (0.0, MAX_HEALTH), group = "my_group")]
-///     will_be_displayed_as_3rd: f64,
+///     will_be_displayed_as_2nd: f64,
 ///
 ///     #[export(group = "last_group")]
 ///     will_be_displayed_last: i64
 /// }
 ///```
+///
+/// Using subgroup with no group specified is not allowed and will result in compile error.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// # #[class(init)]
+/// struct MyStruct {
+///     #[export(subgroup = "my_subgroup")]
+///     illegal: u32
+/// }
+/// ```
 ///
 /// ## Low-level property hints and usage
 ///
