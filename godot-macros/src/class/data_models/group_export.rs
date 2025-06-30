@@ -6,7 +6,7 @@
  */
 
 use crate::class::data_models::fields::Fields;
-use crate::util::KvParser;
+use crate::util::{bail, KvParser};
 use crate::ParseResult;
 use std::cmp::Ordering;
 
@@ -45,9 +45,21 @@ impl FieldGroup {
         parser: &mut KvParser,
         groups: &mut Vec<String>,
     ) -> ParseResult<Self> {
+        let (group_name_index, subgroup_name_index) = (
+            Self::parse_group("group", parser, groups)?,
+            Self::parse_group("subgroup", parser, groups)?,
+        );
+
+        // Declaring only a subgroup for given property – with no group at all – is totally valid in Godot.
+        // Unfortunately it leads to a lot of very janky and not too ideal behaviours
+        // So it is better to treat it as a user error.
+        if subgroup_name_index.is_some() && group_name_index.is_none() {
+            return bail!(parser.span(), "Subgroups without groups are not supported.");
+        }
+
         Ok(Self {
-            group_name_index: Self::parse_group("group", parser, groups)?,
-            subgroup_name_index: Self::parse_group("subgroup", parser, groups)?,
+            group_name_index,
+            subgroup_name_index,
         })
     }
 }

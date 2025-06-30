@@ -242,7 +242,7 @@ struct CheckAllExports {
     #[export(group = "test_group")]
     grouped: i64,
 
-    #[export(subgroup = "test_subgroup")]
+    #[export(group = "another group")]
     subgrouped: i64,
 
     #[export(group = "test_group", subgroup = "test_subgroup")]
