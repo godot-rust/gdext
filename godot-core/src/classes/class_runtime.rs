@@ -13,7 +13,7 @@ use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
 #[cfg(debug_assertions)]
 use crate::meta::ClassName;
-use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
 use crate::sys;
 
 pub(crate) fn debug_string<T: GodotClass>(
@@ -23,9 +23,29 @@ pub(crate) fn debug_string<T: GodotClass>(
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
         let class: StringName = obj.dynamic_class_string();
-        write!(f, "{ty} {{ id: {id}, class: {class} }}")
+        f.debug_struct(ty)
+            .field("id", &id)
+            .field("class", &class)
+            .finish()
     } else {
         write!(f, "{ty} {{ freed obj }}")
+    }
+}
+
+pub(crate) fn debug_string_nullable<T: GodotClass>(
+    obj: &RawGd<T>,
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
+) -> std::fmt::Result {
+    if obj.is_null() {
+        write!(f, "{ty} {{ null }}")
+    } else {
+        // Unsafety introduced here to avoid creating a new Gd<T> (which can have all sorts of side effects, logs, refcounts etc.)
+        // *and* pushing down all high-level Gd<T> functions to RawGd<T> as pure delegates.
+
+        // SAFETY: layout of Gd<T> is currently equivalent to RawGd<T>.
+        let obj: &Gd<T> = unsafe { std::mem::transmute::<&RawGd<T>, &Gd<T>>(obj) };
+        debug_string(obj, f, ty)
     }
 }
 
@@ -37,7 +57,11 @@ pub(crate) fn debug_string_with_trait<T: GodotClass>(
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
         let class: StringName = obj.dynamic_class_string();
-        write!(f, "{ty} {{ id: {id}, class: {class}, trait: {trt} }}")
+        f.debug_struct(ty)
+            .field("id", &id)
+            .field("class", &class)
+            .field("trait", &trt)
+            .finish()
     } else {
         write!(f, "{ty} {{ freed obj }}")
     }
@@ -83,7 +107,7 @@ pub(crate) fn ensure_object_alive(
     // namely in PR https://github.com/godotengine/godot/pull/36189. Double-check to make sure.
     assert_eq!(
         new_object_ptr, old_object_ptr,
-        "{call_ctx}: instance ID {instance_id} points to a stale, reused object. Please report this to gdext maintainers."
+        "{call_ctx}: instance ID {instance_id} points to a stale, reused object. Please report this to godot-rust maintainers."
     );
 }
 

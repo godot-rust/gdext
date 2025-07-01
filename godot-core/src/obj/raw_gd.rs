@@ -95,8 +95,7 @@ impl<T: GodotClass> RawGd<T> {
 
     /// Returns `true` if the object is null.
     ///
-    /// This does not check if the object is dead, for that use
-    /// [`instance_id_or_none()`](Self::instance_id_or_none).
+    /// This does not check if the object is dead. For that, use [`is_instance_valid()`](Self::is_instance_valid).
     pub(crate) fn is_null(&self) -> bool {
         self.obj.is_null() || self.cached_rtti.is_none()
     }
@@ -689,12 +688,7 @@ impl<T: GodotClass> Clone for RawGd<T> {
 
 impl<T: GodotClass> fmt::Debug for RawGd<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.is_null() {
-            return write!(f, "{} {{ null obj }}", std::any::type_name::<T>());
-        }
-
-        let gd = super::Gd::from_ffi(self.clone());
-        write!(f, "{gd:?}")
+        classes::debug_string_nullable(self, f, "RawGd")
     }
 }
 
