@@ -653,7 +653,7 @@ impl<T: GodotClass> Drop for RawGd<T> {
     fn drop(&mut self) {
         // No-op for manually managed objects
 
-        out!("RawGd::drop   <{}>", std::any::type_name::<T>());
+        out!("RawGd::drop:      {self:?}");
 
         // SAFETY: This `Gd` won't be dropped again after this.
         // If destruction is triggered by Godot, Storage already knows about it, no need to notify it
@@ -668,7 +668,7 @@ impl<T: GodotClass> Drop for RawGd<T> {
 
 impl<T: GodotClass> Clone for RawGd<T> {
     fn clone(&self) -> Self {
-        out!("RawGd::clone");
+        out!("RawGd::clone:     {self:?}  (before clone)");
 
         if self.is_null() {
             Self::null()
