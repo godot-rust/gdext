@@ -152,6 +152,32 @@ impl Callable {
             rust_function,
             name,
             thread_id: Some(std::thread::current().id()),
+            linked_obj_id: None,
+        })
+    }
+
+    /// Creates a new callable linked to the given object from **single-threaded** Rust function or closure.
+    ///
+    /// `name` is used for the string representation of the closure, which helps with debugging.
+    ///
+    /// Such a callable will be automatically invalidated by Godot when a linked object is freed.
+    /// Prefer using [`Gd::linked_callable()`] instead.
+    ///
+    /// If you need a callable which can live indefinitely use [`Callable::from_local_fn()`].
+    #[cfg(since_api = "4.2")]
+    pub fn from_linked_fn<F, T, S>(name: S, linked_object: &Gd<T>, rust_function: F) -> Self
+    where
+        T: GodotClass,
+        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        S: meta::AsArg<GString>,
+    {
+        meta::arg_into_owned!(name);
+
+        Self::from_fn_wrapper(FnWrapper {
+            rust_function,
+            name,
+            thread_id: Some(std::thread::current().id()),
+            linked_obj_id: Some(linked_object.instance_id()),
         })
     }
 
@@ -168,6 +194,7 @@ impl Callable {
             rust_function,
             name,
             thread_id: Some(std::thread::current().id()),
+            linked_obj_id: None,
         });
 
         callable_usage(&callable)
@@ -205,6 +232,7 @@ impl Callable {
             rust_function,
             name,
             thread_id: None,
+            linked_obj_id: None,
         })
     }
 
@@ -238,9 +266,12 @@ impl Callable {
     where
         F: FnMut(&[&Variant]) -> Result<Variant, ()>,
     {
+        let object_id = inner.linked_object_id();
+
         let userdata = CallableUserdata { inner };
 
         let info = CallableCustomInfo {
+            object_id,
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
             call_func: Some(rust_callable_call_fn::<F>),
             free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
@@ -493,6 +524,7 @@ pub use custom_callable::RustCallable;
 mod custom_callable {
     use super::*;
     use crate::builtin::GString;
+    use godot_ffi::GDObjectInstanceID;
     use std::hash::Hash;
     use std::thread::ThreadId;
 
@@ -515,6 +547,14 @@ mod custom_callable {
 
         /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
         pub(super) thread_id: Option<ThreadId>,
+        /// `None` if callable is not linked with any object.
+        pub(super) linked_obj_id: Option<InstanceId>,
+    }
+
+    impl<F> FnWrapper<F> {
+        pub(crate) fn linked_object_id(&self) -> GDObjectInstanceID {
+            self.linked_obj_id.map(InstanceId::to_u64).unwrap_or(0)
+        }
     }
 
     /// Represents a custom callable object defined in Rust.
