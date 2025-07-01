@@ -43,7 +43,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
         user_instance: Self::Instance,
         base: Base<<Self::Instance as GodotClass>::Base>,
     ) -> Self {
-        super::log_construct::<T>();
+        super::log_construct::<T>(&base);
 
         Self {
             user_instance: GdCell::new(user_instance),

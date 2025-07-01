@@ -53,16 +53,16 @@ fn bug_inaccessible<T>(err: Box<dyn std::error::Error>) -> ! {
     )
 }
 
-fn log_construct<T>() {
+fn log_construct<T: GodotClass>(base: &Base<T::Base>) {
     out!(
-        "    Storage::construct             <{ty}>",
+        "    Storage::construct:             {base:?}  (T={ty})",
         ty = type_name::<T>()
     );
 }
 
 fn log_inc_ref<T: StorageRefCounted>(storage: &T) {
     out!(
-        "    Storage::on_inc_ref (rc={rc})     <{ty}> -- {base:?}",
+        "    Storage::on_inc_ref (rc={rc}):  {base:?}  (T={ty})",
         rc = T::godot_ref_count(storage),
         base = storage.base(),
         ty = type_name::<T>(),
@@ -71,7 +71,7 @@ fn log_inc_ref<T: StorageRefCounted>(storage: &T) {
 
 fn log_dec_ref<T: StorageRefCounted>(storage: &T) {
     out!(
-        "  | Storage::on_dec_ref (rc={rc})     <{ty}> -- {base:?}",
+        "  | Storage::on_dec_ref (rc={rc}):  {base:?}  (T={ty})",
         rc = T::godot_ref_count(storage),
         base = storage.base(),
         ty = type_name::<T>(),
@@ -80,7 +80,7 @@ fn log_dec_ref<T: StorageRefCounted>(storage: &T) {
 
 fn log_drop<T: StorageRefCounted>(storage: &T) {
     out!(
-        "    Storage::drop (rc={rc})           <{base:?}>",
+        "    Storage::drop (rc={rc}):        {base:?}",
         rc = storage.godot_ref_count(),
         base = storage.base(),
     );
@@ -92,6 +92,7 @@ fn log_drop<T: StorageRefCounted>(storage: &T) {
 #[cfg(debug_assertions)]
 use borrow_info::DebugBorrowTracker;
 
+use crate::obj::{Base, GodotClass};
 #[cfg(not(debug_assertions))]
 use borrow_info_noop::DebugBorrowTracker;
 
