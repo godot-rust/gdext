@@ -302,6 +302,15 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
+    /// Returns the reference count, if the dynamic object inherits `RefCounted`; and `None` otherwise.
+    pub(crate) fn maybe_refcount(&self) -> Option<usize> {
+        // Fast check if ref-counted without downcast.
+        self.instance_id_unchecked().is_ref_counted().then(|| {
+            let rc = self.raw.with_ref_counted(|refc| refc.get_reference_count());
+            rc as usize
+        })
+    }
+
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
     ///
     /// Moves out of this value. If you want to create _another_ smart pointer instance,

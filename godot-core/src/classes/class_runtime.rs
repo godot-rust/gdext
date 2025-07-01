@@ -23,10 +23,13 @@ pub(crate) fn debug_string<T: GodotClass>(
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
         let class: StringName = obj.dynamic_class_string();
-        f.debug_struct(ty)
-            .field("id", &id)
-            .field("class", &class)
-            .finish()
+
+        let mut builder = f.debug_struct(ty);
+        builder.field("id", &id).field("class", &class);
+        if let Some(refcount) = obj.maybe_refcount() {
+            builder.field("refc", &refcount);
+        }
+        builder.finish()
     } else {
         write!(f, "{ty} {{ freed obj }}")
     }
@@ -57,11 +60,16 @@ pub(crate) fn debug_string_with_trait<T: GodotClass>(
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
         let class: StringName = obj.dynamic_class_string();
-        f.debug_struct(ty)
+
+        let mut builder = f.debug_struct(ty);
+        builder
             .field("id", &id)
             .field("class", &class)
-            .field("trait", &trt)
-            .finish()
+            .field("trait", &trt);
+        if let Some(refcount) = obj.maybe_refcount() {
+            builder.field("refc", &refcount);
+        }
+        builder.finish()
     } else {
         write!(f, "{ty} {{ freed obj }}")
     }
