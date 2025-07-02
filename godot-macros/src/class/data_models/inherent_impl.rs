@@ -58,6 +58,7 @@ struct FuncAttr {
     pub rename: Option<String>,
     pub is_virtual: bool,
     pub has_gd_self: bool,
+    pub is_async: bool, // *** Added: Support async functions ***
 }
 
 #[derive(Default)]
@@ -267,16 +268,38 @@ fn process_godot_fns(
             continue;
         };
 
-        if function.qualifiers.tk_default.is_some()
+        // *** Modified: Check qualifiers, but allow async for #[async_func] ***
+        let has_disallowed_qualifiers = function.qualifiers.tk_default.is_some()
             || function.qualifiers.tk_const.is_some()
-            || function.qualifiers.tk_async.is_some()
             || function.qualifiers.tk_unsafe.is_some()
             || function.qualifiers.tk_extern.is_some()
-            || function.qualifiers.extern_abi.is_some()
-        {
+            || function.qualifiers.extern_abi.is_some();
+
+        // For async qualifier, we need special handling - only #[async_func] allows it
+        let has_async_qualifier = function.qualifiers.tk_async.is_some();
+        let is_async_func = match &attr.ty {
+            ItemAttrType::Func(func_attr, _) => func_attr.is_async,
+            _ => false,
+        };
+
+        if has_disallowed_qualifiers {
             return bail!(
                 &function.qualifiers,
-                "#[func]: fn qualifiers are not allowed"
+                "#[func]: fn qualifiers (const, unsafe, extern, default) are not allowed"
+            );
+        }
+
+        if has_async_qualifier && !is_async_func {
+            return bail!(
+                &function.qualifiers,
+                "async functions must use #[async_func] instead of #[func]"
+            );
+        }
+
+        if !has_async_qualifier && is_async_func {
+            return bail!(
+                &function.qualifiers,
+                "#[async_func] requires the function to have 'async' keyword"
             );
         }
 
@@ -329,6 +352,7 @@ fn process_godot_fns(
                     external_attributes,
                     registered_name,
                     is_script_virtual: func.is_virtual,
+                    is_async: func.is_async, // *** Added: Pass async flag ***
                     rpc_info,
                 });
             }
@@ -541,6 +565,7 @@ fn parse_attributes_inner(
 
         let parsed_attr = match attr_name {
             name if name == "func" => parse_func_attr(attributes)?,
+            name if name == "async_func" => parse_async_func_attr(attributes)?, // *** Added: Async function support ***
             name if name == "rpc" => parse_rpc_attr(attributes)?,
             name if name == "signal" => parse_signal_attr(attributes, attr)?,
             name if name == "constant" => parse_constant_attr(attributes, attr)?,
@@ -606,6 +631,38 @@ fn parse_func_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseRes
         rename,
         is_virtual,
         has_gd_self,
+        is_async: false, // Default to non-async, will be set to true for async_func later
+    }))
+}
+
+/// `#[async_func]` attribute.
+///
+/// Similar to `#[func]` but marks the function as async, enabling automatic
+/// cross-thread Future support with IntoDynamicSend return value handling.
+fn parse_async_func_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseResult> {
+    // Safe unwrap, since #[async_func] must be present if we got to this point.
+    let mut parser = KvParser::parse(attributes, "async_func")?.unwrap();
+
+    // #[async_func(rename = MyClass)]
+    let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
+
+    // #[async_func(virtual)] - Note: async virtual functions are not supported yet
+    let is_virtual = if let Some(span) = parser.handle_alone_with_span("virtual")? {
+        return bail!(span, "#[async_func(virtual)] is not supported yet - async virtual functions require more complex implementation");
+    } else {
+        false
+    };
+
+    // #[async_func(gd_self)]
+    let has_gd_self = parser.handle_alone("gd_self")?;
+
+    parser.finish()?;
+
+    Ok(AttrParseResult::Func(FuncAttr {
+        rename,
+        is_virtual,
+        has_gd_self,
+        is_async: true, // *** Key: Mark as async function ***
     }))
 }
 

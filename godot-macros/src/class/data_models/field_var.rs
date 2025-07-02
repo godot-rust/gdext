@@ -224,6 +224,7 @@ impl GetterSetterImpl {
                 external_attributes: Vec::new(),
                 registered_name: None,
                 is_script_virtual: false,
+                is_async: false, // Getter/setter functions are never async
                 rpc_info: None,
             },
             None,

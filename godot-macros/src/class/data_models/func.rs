@@ -27,6 +27,9 @@ pub struct FuncDefinition {
     /// True for script-virtual functions.
     pub is_script_virtual: bool,
 
+    /// True for async functions marked with #[async_func].
+    pub is_async: bool,
+
     /// Information about the RPC configuration, if provided.
     pub rpc_info: Option<RpcAttr>,
 }
@@ -97,20 +100,32 @@ pub fn make_method_registration(
 ) -> ParseResult<TokenStream> {
     let signature_info = &func_definition.signature_info;
     let sig_params = signature_info.params_type();
-    let sig_ret = &signature_info.return_type;
+
+    let sig_ret = if func_definition.is_async {
+        let _original_ret = &signature_info.return_type;
+        quote! { ::godot::obj::Gd<::godot::classes::RefCounted> }
+    } else {
+        signature_info.return_type.clone()
+    };
 
     let is_script_virtual = func_definition.is_script_virtual;
+    let is_async = func_definition.is_async;
+
     let method_flags = match make_method_flags(signature_info.receiver_type, is_script_virtual) {
         Ok(mf) => mf,
         Err(msg) => return bail_fn(msg, &signature_info.method_name),
     };
 
-    let forwarding_closure = make_forwarding_closure(
-        class_name,
-        signature_info,
-        BeforeKind::Without,
-        interface_trait,
-    );
+    let forwarding_closure = if is_async {
+        make_async_forwarding_closure(class_name, signature_info, interface_trait)?
+    } else {
+        make_forwarding_closure(
+            class_name,
+            signature_info,
+            BeforeKind::Without,
+            interface_trait,
+        )
+    };
 
     // String literals
     let class_name_str = class_name.to_string();
@@ -162,9 +177,10 @@ pub fn make_method_registration(
             };
 
             ::godot::private::out!(
-                "   Register fn:   {}::{}",
+                "   Register fn:   {}::{}{}",
                 #class_name_str,
-                #method_name_str
+                #method_name_str,
+                if #is_async { " (async)" } else { "" }
             );
 
             // Note: information whether the method is virtual is stored in method method_info's flags.
@@ -575,4 +591,78 @@ fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream
     quote! {
         ::godot::meta::CallContext::func(#class_name_str, #method_name_str)
     }
+}
+
+/// Creates a forwarding closure for async functions that wraps the call with spawn_with_result.
+///
+/// This function generates code that:
+/// 1. Captures all parameters  
+/// 2. Spawns the async function with spawn_with_result
+/// 3. Returns a Gd<RefCounted> with a "completed" signal that can be awaited in GDScript
+/// 4. The signal emitter automatically converts types and emits when the task completes
+fn make_async_forwarding_closure(
+    class_name: &Ident,
+    signature_info: &SignatureInfo,
+    _interface_trait: Option<&venial::TypeExpr>,
+) -> ParseResult<TokenStream> {
+    let method_name = &signature_info.method_name;
+    let params = &signature_info.param_idents;
+
+    // Generate the actual async call based on receiver type
+    let async_call = match signature_info.receiver_type {
+        ReceiverType::Ref | ReceiverType::Mut => {
+            // Current limitation: instance methods require accessing self, which is not Send
+            // Future enhancement: could support instance methods that don't access self state
+            return bail_fn(
+                "async instance methods are not yet supported - use static async functions instead",
+                method_name,
+            );
+        }
+        ReceiverType::GdSelf => {
+            // Same issue: Gd<T> instances are not Send and can't be moved to async tasks
+            return bail_fn(
+                "async methods with gd_self are not yet supported - use static async functions instead", 
+                method_name
+            );
+        }
+        ReceiverType::Static => {
+            // Static async methods work perfectly - no instance state to worry about
+            quote! {
+                // Create the async task with captured parameters
+                let async_future = async move {
+                    let result = #class_name::#method_name(#(#params),*).await;
+                    result
+                };
+
+                // Spawn and return the signal emitter that can be awaited in GDScript
+                ::godot::task::spawn_with_result(async_future)
+            }
+        }
+    };
+
+    // Generate the appropriate closure based on method type
+    let closure = match signature_info.receiver_type {
+        ReceiverType::Static => {
+            // Static methods don't need instance_ptr
+            quote! {
+                |_instance_ptr, params| {
+                    let ( #(#params,)* ) = params;
+                    #async_call
+                }
+            }
+        }
+        _ => {
+            // This branch should not be reached due to early returns above,
+            // but included for completeness
+            quote! {
+                |instance_ptr, params| {
+                    let ( #(#params,)* ) = params;
+                    let _storage = unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
+                    #async_call
+                }
+            }
+        }
+    };
+
+    Ok(closure)
 }

@@ -22,10 +22,12 @@ serde = ["dep:serde", "dep:serde_json", "godot/serde"]
 # Instead, compile itest with `--features godot/my-feature`.
 
 [dependencies]
-godot = { path = "../../godot", default-features = false, features = ["__trace"] }
+godot = { path = "../../godot", default-features = false, features = ["__trace", "tokio"] }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 pin-project-lite = { workspace = true }
+tokio = { version = "1.0", features = ["time", "rt", "macros"] }
+reqwest = { version = "0.11", features = ["json"] }
 
 [build-dependencies]
 godot-bindings = { path = "../../godot-bindings" } # emit_godot_version_cfg
