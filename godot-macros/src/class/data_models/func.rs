@@ -103,7 +103,7 @@ pub fn make_method_registration(
 
     let sig_ret = if func_definition.is_async {
         let _original_ret = &signature_info.return_type;
-        quote! { ::godot::obj::Gd<::godot::classes::RefCounted> }
+        quote! { ::godot::builtin::Signal }
     } else {
         signature_info.return_type.clone()
     };
@@ -593,13 +593,18 @@ fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream
     }
 }
 
-/// Creates a forwarding closure for async functions that wraps the call with spawn_with_result.
+/// Creates a forwarding closure for async functions that directly returns a Signal.
 ///
 /// This function generates code that:
 /// 1. Captures all parameters  
-/// 2. Spawns the async function with spawn_with_result
-/// 3. Returns a Gd<RefCounted> with a "finished" signal that can be awaited in GDScript
-/// 4. The signal emitter automatically converts types and emits when the task completes
+/// 2. Creates a Signal that can be directly awaited in GDScript
+/// 3. Spawns the async function in the background
+/// 4. Emits the signal with the result when the task completes
+///
+/// Usage in GDScript becomes extremely simple:
+/// ```gdscript
+/// var result = await obj.async_method(args)  # No wrapper needed!
+/// ```
 fn make_async_forwarding_closure(
     class_name: &Ident,
     signature_info: &SignatureInfo,
@@ -628,14 +633,22 @@ fn make_async_forwarding_closure(
         ReceiverType::Static => {
             // Static async methods work perfectly - no instance state to worry about
             quote! {
+                // Create a RefCounted object to hold the signal
+                let mut signal_holder = ::godot::classes::RefCounted::new_gd();
+                signal_holder.add_user_signal("finished");
+                let signal = ::godot::builtin::Signal::from_object_signal(&signal_holder, "finished");
+
                 // Create the async task with captured parameters
                 let async_future = async move {
                     let result = #class_name::#method_name(#(#params),*).await;
                     result
                 };
 
-                // Spawn and return the signal emitter that can be awaited in GDScript
-                ::godot::task::spawn_with_result(async_future)
+                // Spawn the async task using our runtime
+                ::godot::task::spawn_with_result_signal(signal_holder, async_future);
+
+                // Return the signal directly - can be awaited in GDScript!
+                signal
             }
         }
     };

@@ -161,13 +161,42 @@ where
     // Add a user-defined signal that takes a Variant parameter
     signal_emitter.add_user_signal("finished");
 
-    let emitter_clone = signal_emitter.clone();
+    spawn_with_result_signal(signal_emitter.clone(), future);
+    signal_emitter
+}
+
+/// Spawn an async task that emits to an existing signal holder.
+///
+/// This is used internally by the #[async_func] macro to enable direct Signal returns.
+/// The signal holder should already have a "finished" signal defined.
+///
+/// # Example
+/// ```rust
+/// let signal_holder = RefCounted::new_gd();
+/// signal_holder.add_user_signal("finished");
+/// let signal = Signal::from_object_signal(&signal_holder, "finished");
+///
+/// spawn_with_result_signal(signal_holder, async { 42 });
+/// // Now you can: await signal
+/// ```
+pub fn spawn_with_result_signal<F, R>(signal_emitter: Gd<RefCounted>, future: F)
+where
+    F: Future<Output = R> + Send + 'static,
+    R: ToGodot + Send + Sync + 'static,
+{
+    // In single-threaded mode, spawning is only allowed on the main thread
+    // In multi-threaded mode, we allow spawning from any thread
+    #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
+    assert!(
+        crate::init::is_main_thread(),
+        "spawn_with_result_signal() can only be used on the main thread in single-threaded mode"
+    );
 
     let godot_waker = ASYNC_RUNTIME.with_runtime_mut(|rt| {
         // Create a wrapper that will emit the signal when complete
         let result_future = SignalEmittingFuture {
             inner: future,
-            signal_emitter: emitter_clone,
+            signal_emitter,
         };
 
         // Spawn the signal-emitting future using standard spawn mechanism
@@ -183,8 +212,6 @@ where
 
     // Trigger initial poll
     poll_future(godot_waker);
-
-    signal_emitter
 }
 
 /// Handle for an active background task.
