@@ -6,29 +6,6 @@
 extends TestSuiteSpecial
 
 # Test cases for async functions functionality
-
-# Simplified async helper functions
-static func await_rust_async(future_obj) -> Variant:
-	"""
-	Simplified way to await Rust async functions.
-	Usage: var result = await await_rust_async(some_async_function())
-	"""
-	if not future_obj.has_signal("finished"):
-		push_error("Object does not have 'finished' signal - not a valid async future")
-		return null
-	
-	var signal_obj = Signal(future_obj, "finished")
-	return await signal_obj
-
-# Direct async function call with await
-static func call_async(object: Object, method_name: String, args: Array = []) -> Variant:
-	"""
-	Call an async method and await its result in one line.
-	Usage: var result = await call_async(obj, "async_method_name", [arg1, arg2])
-	"""
-	var future_obj = object.callv(method_name, args)
-	return await await_rust_async(future_obj)
-
 func test_async_vector2_multiply():
 	print("=== Testing async Vector2 multiplication (REVOLUTIONARY!) ===")
 	var async_obj = AsyncTestClass.new()
@@ -142,18 +119,6 @@ func test_direct_signal_return():
 	var expected = Vector2(30.0, 60.0)  # input * 3
 	assert_that(result.is_equal_approx(expected), "Direct signal test should return input * 3")
 	print("✓ Direct Signal return works! This is REVOLUTIONARY!")
-
-func async_vector2_multiply(input: Vector2) -> Vector2:
-	var async_obj = AsyncTestClass.new()
-	return await call_async(async_obj, "async_vector2_multiply", [input])
-
-func async_string_process(input: StringName) -> StringName:
-	var async_obj = AsyncTestClass.new()
-	return await call_async(async_obj, "async_string_process", [input])
-
-func async_simple_calc(x: int, y: int) -> int:
-	var async_obj = AsyncTestClass.new()
-	return await call_async(async_obj, "async_simple_calc", [x, y])
 
 # *** EXPERIMENTAL: Direct Signal Await Test ***
 # Test if we can directly await a function that returns Signal
