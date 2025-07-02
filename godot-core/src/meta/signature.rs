@@ -78,6 +78,7 @@ impl<Params: InParamTuple, Ret: ToGodot> Signature<Params, Ret> {
         trace::push(true, false, call_ctx);
 
         // SAFETY: TODO.
+        // no-commit: problem with default args here!
         let args = unsafe { Params::from_varcall_args(args_ptr, call_ctx)? };
 
         let rust_result = unsafe { func(instance_ptr, args) };
