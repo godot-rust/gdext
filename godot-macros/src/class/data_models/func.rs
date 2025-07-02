@@ -598,7 +598,7 @@ fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream
 /// This function generates code that:
 /// 1. Captures all parameters  
 /// 2. Spawns the async function with spawn_with_result
-/// 3. Returns a Gd<RefCounted> with a "completed" signal that can be awaited in GDScript
+/// 3. Returns a Gd<RefCounted> with a "finished" signal that can be awaited in GDScript
 /// 4. The signal emitter automatically converts types and emits when the task completes
 fn make_async_forwarding_closure(
     class_name: &Ident,

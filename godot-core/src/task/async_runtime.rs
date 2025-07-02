@@ -15,14 +15,12 @@ use std::task::{Context, Poll, Wake, Waker};
 use std::thread::{self, LocalKey, ThreadId};
 
 #[cfg(feature = "tokio")]
-use tokio::runtime::Runtime;
+use tokio::runtime::Handle;
 
 use crate::builtin::{Callable, Variant};
 use crate::private::handle_panic;
 
 // *** Added: Support async Future with return values ***
-use crate::task::{DynamicSend, IntoDynamicSend};
-use std::sync::Mutex;
 
 use crate::classes::RefCounted;
 use crate::meta::ToGodot;
@@ -131,7 +129,7 @@ pub fn spawn(future: impl Future<Output = ()> + 'static) -> TaskHandle {
 ///
 /// Unlike [`spawn`], this function returns a [`Gd<RefCounted>`] that can be
 /// directly awaited in GDScript. When the async task completes, the object emits
-/// a `completed` signal with the result.
+/// a `finished` signal with the result.
 ///
 /// # Example
 /// ```rust
@@ -142,7 +140,8 @@ pub fn spawn(future: impl Future<Output = ()> + 'static) -> TaskHandle {
 ///     42
 /// });
 ///
-/// // In GDScript: var result = await async_task
+/// // In GDScript:
+/// // var result = await Signal(async_task, "finished")
 /// ```
 pub fn spawn_with_result<F, R>(future: F) -> Gd<RefCounted>
 where
@@ -159,7 +158,7 @@ where
     // Create a RefCounted object that will emit the completion signal
     let mut signal_emitter = RefCounted::new_gd();
 
-    // Add a user-defined "finished" signal that takes a Variant parameter
+    // Add a user-defined signal that takes a Variant parameter
     signal_emitter.add_user_signal("finished");
 
     let emitter_clone = signal_emitter.clone();
@@ -251,67 +250,6 @@ impl TaskHandle {
                 FutureSlotState::Pending(_) | FutureSlotState::Polling
             )
         })
-    }
-}
-
-/// A Future that represents a cross-thread async task with return value.
-///
-/// This Future can be awaited to get the result of the background async task.
-/// It automatically handles the conversion of Send/non-Send types using the
-/// [`IntoDynamicSend`] trait system.
-pub struct CrossThreadFuture<R: IntoDynamicSend> {
-    result_storage: Arc<Mutex<Option<R::Target>>>,
-    _phantom: PhantomData<R>,
-}
-
-impl<R: IntoDynamicSend + Send + Sync> CrossThreadFuture<R> {}
-
-impl<R: IntoDynamicSend + Send + Sync> Future for CrossThreadFuture<R> {
-    type Output = R;
-
-    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // Check if the result is ready in storage
-        let mut storage_guard = self.result_storage.lock().unwrap();
-        if let Some(target_result) = storage_guard.take() {
-            drop(storage_guard);
-
-            // Convert from Target back to original type using DynamicSend
-            match target_result.extract_if_safe() {
-                Some(original) => Poll::Ready(original),
-                None => {
-                    // Should not happen if IntoDynamicSend is implemented correctly
-                    panic!("Failed to convert result back from dynamic send type");
-                }
-            }
-        } else {
-            drop(storage_guard);
-            Poll::Pending
-        }
-    }
-}
-
-// Implement GodotConvert for CrossThreadFuture to make it work with GDScript
-impl<R: IntoDynamicSend + Send + Sync> crate::meta::GodotConvert for CrossThreadFuture<R> {
-    // Use Variant as the intermediary type for complex objects
-    type Via = crate::builtin::Variant;
-}
-
-impl<R: IntoDynamicSend + Send + Sync> crate::meta::ToGodot for CrossThreadFuture<R> {
-    type ToVia<'v> = crate::builtin::Variant;
-
-    fn to_godot(&self) -> Self::ToVia<'_> {
-        // For now, convert to a placeholder variant
-        // In a full implementation, this would be a proper handle object
-        crate::builtin::Variant::from("AsyncTask")
-    }
-}
-
-impl<R: IntoDynamicSend + Send + Sync> crate::meta::FromGodot for CrossThreadFuture<R> {
-    fn try_from_godot(_via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
-        // This conversion should not normally be used from GDScript side
-        Err(crate::meta::error::ConvertError::new(
-            "CrossThreadFuture cannot be constructed from GDScript",
-        ))
     }
 }
 
@@ -426,7 +364,7 @@ struct AsyncRuntime {
     #[cfg(feature = "trace")]
     panicked_tasks: std::collections::HashSet<u64>,
     #[cfg(feature = "tokio")]
-    _tokio_runtime: Option<Runtime>,
+    _tokio_handle: Option<Handle>,
 }
 
 /// Wrapper for futures that stores results as Variants in external storage
@@ -454,7 +392,7 @@ where
 
         match inner_pin.poll(cx) {
             Poll::Ready(result) => {
-                // Convert the result to Variant and emit the finished signal
+                // Convert the result to Variant and emit the completion signal
                 let variant_result = result.to_variant();
 
                 // Use call_deferred to ensure signal emission happens on the main thread
@@ -484,7 +422,7 @@ where
 impl AsyncRuntime {
     fn new() -> Self {
         #[cfg(feature = "tokio")]
-        let tokio_runtime = {
+        let tokio_handle = {
             // Use multi-threaded runtime when experimental-threads is enabled
             #[cfg(feature = "experimental-threads")]
             let mut builder = tokio::runtime::Builder::new_multi_thread();
@@ -492,7 +430,23 @@ impl AsyncRuntime {
             #[cfg(not(feature = "experimental-threads"))]
             let mut builder = tokio::runtime::Builder::new_current_thread();
 
-            builder.enable_all().build().ok()
+            match builder.enable_all().build() {
+                Ok(rt) => {
+                    // Start the runtime in a separate thread to keep it running
+                    let rt_handle = rt.handle().clone();
+                    std::thread::spawn(move || {
+                        rt.block_on(async {
+                            // Keep the runtime alive indefinitely
+                            loop {
+                                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+                            }
+                        })
+                    });
+
+                    Some(rt_handle)
+                }
+                Err(_e) => None,
+            }
         };
 
         Self {
@@ -501,7 +455,7 @@ impl AsyncRuntime {
             #[cfg(feature = "trace")]
             panicked_tasks: std::collections::HashSet::new(),
             #[cfg(feature = "tokio")]
-            _tokio_runtime: tokio_runtime,
+            _tokio_handle: tokio_handle,
         }
     }
 
@@ -657,8 +611,8 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         #[cfg(feature = "tokio")]
         {
             ASYNC_RUNTIME.with_runtime(|rt| {
-                if let Some(tokio_rt) = rt._tokio_runtime.as_ref() {
-                    let _guard = tokio_rt.enter();
+                if let Some(tokio_handle) = rt._tokio_handle.as_ref() {
+                    let _guard = tokio_handle.enter();
                     handle_panic(error_context, move || {
                         (future.as_mut().poll(&mut ctx), future)
                     })

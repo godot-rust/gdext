@@ -57,6 +57,7 @@ impl AsyncTestClass {
 
     #[async_func]
     async fn async_get_magic_number() -> i32 {
+        // Test with a short tokio sleep
         time::sleep(Duration::from_millis(15)).await;
         42
     }
