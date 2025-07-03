@@ -239,6 +239,15 @@ struct CheckAllExports {
     #[export]
     normal: GString,
 
+    #[export(group = "test_group")]
+    grouped: i64,
+
+    #[export(group = "another group")]
+    subgrouped: i64,
+
+    #[export(group = "test_group", subgroup = "test_subgroup")]
+    grouped_with_subgroup: i64,
+
     // `suffix = "px"` should be in the third slot to test that key-value pairs in that position no longer error.
     #[export(range = (0.0, 10.0, suffix = "px", or_greater, or_less, exp, degrees, hide_slider))]
     range_exported: f64,
