@@ -575,6 +575,24 @@ impl<T: GodotClass> Gd<T> {
         // Do not increment ref-count; assumed to be return value from FFI.
         sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
     }
+
+    pub(crate) fn new_alloc_postinited() -> Self {
+        #[cfg(before_api = "4.4")]
+        unsafe {
+            let object_ptr = sys::classdb_construct_object(T::class_name().string_sys());
+            Gd::from_obj_sys(object_ptr)
+        }
+        #[cfg(since_api = "4.4")]
+        unsafe {
+            let object_ptr =
+                sys::classdb_construct_object_no_postinit(T::class_name().string_sys());
+            let obj = Gd::<T>::from_obj_sys(object_ptr);
+            obj.clone()
+                .upcast_object()
+                .notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
+            obj
+        }
+    }
 }
 
 /// _The methods in this impl block are only available for objects `T` that are manually managed,
