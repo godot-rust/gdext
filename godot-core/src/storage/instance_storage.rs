@@ -15,8 +15,9 @@ use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 #[cfg(feature = "experimental-threads")]
 use godot_cell::blocking::{InaccessibleGuard, MutGuard, RefGuard};
 
+use crate::godot_error;
 use crate::obj::{Base, Gd, GodotClass, Inherits};
-use crate::{godot_error, out};
+use crate::storage::log_pre_drop;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
@@ -134,20 +135,12 @@ pub unsafe trait Storage {
     }
 
     fn mark_destroyed_by_godot(&self) {
-        out!(
-            "    Storage::mark_destroyed_by_godot", // -- {:?}",
-                                                    //self.user_instance
-        );
         self.set_lifecycle(Lifecycle::Destroying);
-        out!(
-            "    mark;  self={:?}, val={:?}, obj={:?}",
-            self as *const _,
-            self.get_lifecycle(),
-            self.base(),
-        );
+
+        log_pre_drop(self);
     }
 
-    #[inline(always)]
+    /*#[inline(always)]
     fn destroyed_by_godot(&self) -> bool {
         out!(
             "    is_d;  self={:?}, val={:?}, obj={:?}",
@@ -156,11 +149,12 @@ pub unsafe trait Storage {
             self.base(),
         );
         matches!(self.get_lifecycle(), Lifecycle::Destroying)
-    }
+    }*/
 }
 
 /// An internal trait for keeping track of reference counts for a storage.
 pub(crate) trait StorageRefCounted: Storage {
+    #[allow(dead_code)] // used in `debug-log` feature. Don't micromanage.
     fn godot_ref_count(&self) -> u32;
 
     fn on_inc_ref(&self);

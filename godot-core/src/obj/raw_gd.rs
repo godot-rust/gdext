@@ -18,7 +18,7 @@ use crate::meta::{
 use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::casts::CastSuccess;
 use crate::obj::rtti::ObjectRtti;
-use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
+use crate::obj::{bounds, Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceCache, InstanceStorage, Storage};
 use crate::{classes, out};
 
@@ -147,10 +147,15 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// On success, you'll get a `CastSuccess<T, U>` instance, which holds a weak `RawGd<U>`. You can only extract that one by trading
     /// a strong `RawGd<T>` for it, to maintain the balance.
+    ///
+    /// This function is unreliable when invoked _during_ destruction (e.g. C++ `~RefCounted()` destructor). This can occur when debug-logging
+    /// instances during cleanups. `Object::object_cast_to()` is a virtual function, but virtual dispatch during destructor doesn't work in C++.
     pub(super) fn ffi_cast<U>(&self) -> Result<CastSuccess<T, U>, ()>
     where
         U: GodotClass,
     {
+        //eprintln!("ffi_cast: {} (dyn {}) -> {}", T::class_name(), self.as_non_null().dynamic_class_string(), U::class_name());
+
         // `self` may be null when we convert a null-variant into a `Option<Gd<T>>`, since we use `ffi_cast`
         // in the `ffi_from_variant` conversion function to ensure type-correctness. So the chain would be as follows:
         // - Variant::nil()
@@ -183,24 +188,57 @@ impl<T: GodotClass> RawGd<T> {
         Ok(CastSuccess::from_weak(weak))
     }
 
+    /// Executes a function, assuming that `self` inherits `RefCounted`.
+    ///
+    /// This function is unreliable when invoked _during_ destruction (e.g. C++ `~RefCounted()` destructor). This can occur when debug-logging
+    /// instances during cleanups. `Object::object_cast_to()` is a virtual function, but virtual dispatch during destructor doesn't work in C++.
+    ///
+    /// # Panics
+    /// If `self` does not inherit `RefCounted` or is null.
     pub(crate) fn with_ref_counted<R>(&self, apply: impl Fn(&mut classes::RefCounted) -> R) -> R {
         // Note: this previously called Declarer::scoped_mut() - however, no need to go through bind() for changes in base RefCounted.
         // Any accesses to user objects (e.g. destruction if refc=0) would bind anyway.
+        //
+        // Might change implementation as follows -- but last time caused UB; investigate.
+        // pub(crate) unsafe fn as_ref_counted_unchecked(&mut self) -> &mut classes::RefCounted {
+        //     self.as_target_mut()
+        // }
 
-        let mut cast_obj = self
-            .ffi_cast::<classes::RefCounted>()
-            .expect("object expected to inherit RefCounted");
+        let mut ref_counted = match self.ffi_cast::<classes::RefCounted>() {
+            Ok(cast_success) => cast_success,
+            Err(()) if self.is_null() => {
+                panic!("RawGd::with_ref_counted(): expected to inherit RefCounted, encountered null pointer");
+            }
+            Err(()) => {
+                // SAFETY: this branch implies non-null.
+                let gd_ref = unsafe { self.as_non_null() };
+                let class = gd_ref.dynamic_class_string();
 
-        // Using as_dest_mut() ensures that there is no refcount increment happening, i.e. any apply() function happens on *current* object.
-        // Apart from performance considerations, this is relevant when examining RefCounted::get_reference_count() -- otherwise we have an
-        // Observer effect, where reading the RefCounted object changes its reference count -- e.g. in Debug impl.
-        apply(cast_obj.as_dest_mut().as_target_mut())
+                // One way how this may panic is when invoked during destruction of a RefCounted object. The C++ `Object::object_cast_to()`
+                // function is virtual but cannot be dynamically dispatched in a C++ destructor.
+                panic!("RawGd::with_ref_counted(): expected to inherit RefCounted, but encountered {class}");
+            }
+        };
+
+        let return_val = apply(ref_counted.as_dest_mut().as_target_mut());
+
+        // CastSuccess is forgotten when dropped, so no ownership transfer.
+        return_val
     }
 
-    // TODO replace the above with this -- last time caused UB; investigate.
-    // pub(crate) unsafe fn as_ref_counted_unchecked(&mut self) -> &mut classes::RefCounted {
-    //     self.as_target_mut()
-    // }
+    /// Enables outer `Gd` APIs or bypasses additional null checks, in cases where `RawGd` is guaranteed non-null.
+    ///
+    /// # Safety
+    /// `self` must not be null.
+    pub(crate) unsafe fn as_non_null(&self) -> &Gd<T> {
+        debug_assert!(
+            !self.is_null(),
+            "RawGd::as_non_null() called on null pointer; this is UB"
+        );
+
+        // SAFETY: layout of Gd<T> is currently equivalent to RawGd<T>.
+        unsafe { std::mem::transmute::<&RawGd<T>, &Gd<T>>(self) }
+    }
 
     pub(crate) fn as_object_ref(&self) -> &classes::Object {
         // SAFETY: Object is always a valid upcast target.

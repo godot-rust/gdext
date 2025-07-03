@@ -22,13 +22,21 @@ pub(crate) fn debug_string<T: GodotClass>(
     ty: &str,
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
+        // Sample the reference count FIRST, before any other operations that might affect it.
+        // This avoids the +1 temporary reference from subsequent FFI calls during debug formatting.
+        let refcount = obj.maybe_refcount();
+
         let class: StringName = obj.dynamic_class_string();
 
         let mut builder = f.debug_struct(ty);
-        builder.field("id", &id).field("class", &class);
-        if let Some(refcount) = obj.maybe_refcount() {
+        builder
+            .field("id", &id.to_i64())
+            .field("class", &format_args!("{class}"));
+
+        if let Some(refcount) = refcount {
             builder.field("refc", &refcount);
         }
+
         builder.finish()
     } else {
         write!(f, "{ty} {{ freed obj }}")
@@ -46,8 +54,8 @@ pub(crate) fn debug_string_nullable<T: GodotClass>(
         // Unsafety introduced here to avoid creating a new Gd<T> (which can have all sorts of side effects, logs, refcounts etc.)
         // *and* pushing down all high-level Gd<T> functions to RawGd<T> as pure delegates.
 
-        // SAFETY: layout of Gd<T> is currently equivalent to RawGd<T>.
-        let obj: &Gd<T> = unsafe { std::mem::transmute::<&RawGd<T>, &Gd<T>>(obj) };
+        // SAFETY: checked non-null.
+        let obj = unsafe { obj.as_non_null() };
         debug_string(obj, f, ty)
     }
 }
@@ -59,16 +67,21 @@ pub(crate) fn debug_string_with_trait<T: GodotClass>(
     trt: &str,
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
+        // Sample the reference count FIRST, before any other operations that might affect it.
+        let refcount = obj.maybe_refcount();
+
         let class: StringName = obj.dynamic_class_string();
 
         let mut builder = f.debug_struct(ty);
         builder
-            .field("id", &id)
-            .field("class", &class)
-            .field("trait", &trt);
-        if let Some(refcount) = obj.maybe_refcount() {
+            .field("id", &id.to_i64())
+            .field("class", &format_args!("{class}"))
+            .field("trait", &format_args!("{trt}"));
+
+        if let Some(refcount) = refcount {
             builder.field("refc", &refcount);
         }
+
         builder.finish()
     } else {
         write!(f, "{ty} {{ freed obj }}")
