@@ -168,6 +168,7 @@ pub struct Class {
     pub enums: Vec<Enum>,
     pub methods: Vec<ClassMethod>,
     pub signals: Vec<ClassSignal>,
+    pub properties: Vec<ClassProperty>,
 }
 
 impl ClassLike for Class {
@@ -449,6 +450,14 @@ pub struct ClassSignal {
     pub name: String,
     pub parameters: Vec<FnParam>,
     pub surrounding_class: TyName,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub struct ClassProperty {
+    pub name: String,
+    pub getter: Option<String>,
+    pub setter: Option<String>,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

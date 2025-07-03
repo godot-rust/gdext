@@ -287,6 +287,7 @@ fn make_builtin_method_definition(
             is_virtual_required: false,
             is_varcall_fallible: false,
         },
+        None,
         safety_doc,
         &TokenStream::new(),
     )
