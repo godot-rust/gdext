@@ -447,7 +447,7 @@ impl From<NodePath> for GString {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use super::*;
     use serde::de::{Error, Visitor};
