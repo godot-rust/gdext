@@ -154,12 +154,12 @@ fn handle_recognizes_direct_object_disconnect() {
 
 #[itest]
 fn test_handle_after_freeing_broadcaster() {
-    test_freed_nodes(true);
+    test_freed_nodes_handles(true);
 }
 
 #[itest]
 fn test_handle_after_freeing_receiver() {
-    test_freed_nodes(false);
+    test_freed_nodes_handles(false);
 }
 
 // Helper functions:
@@ -233,7 +233,7 @@ fn test_handle_recognizes_non_valid_state(disconnect_function: impl FnOnce(&mut 
     obj.free();
 }
 
-fn test_freed_nodes(free_broadcaster_first: bool) {
+fn test_freed_nodes_handles(free_broadcaster_first: bool) {
     let broadcaster = SignalDisc::new_alloc();
     let receiver = SignalDisc::new_alloc();
 
@@ -251,21 +251,13 @@ fn test_freed_nodes(free_broadcaster_first: bool) {
     };
 
     // Free one of the nodes, and check if the handle thinks the objects are connected.
-    // If the broadcaster is freed, its signals to other objects is implicitly freed as well. Thus, the handle should not be connected.
-    // If the receiver is freed, the connection between the valid broadcaster and the non-valid freed object still exists.
-    // In the latter case, the connection can - and probably should - be freed with disconnect().
+    // In both cases godot runtime should handle disconnecting the signals.
     to_free.free();
-    let is_connected = handle.is_connected();
-    assert_ne!(
-        free_broadcaster_first, is_connected,
-        "Handle should only return false if broadcasting is freed!"
-    );
+    assert!(!handle.is_connected());
 
-    // It should be possible to disconnect a connection between a valid broadcaster and a non-valid receiver.
-    // If the connection is not valid (e.g. because of freed broadcaster), calling disconnect() should panic.
-    if is_connected {
-        handle.disconnect();
-    } else {
+    // Calling disconnect() on already disconnected handle should panic in the Debug mode.
+    // Otherwise, in release mode, the error will happen in Godot runtime.
+    if cfg!(debug_assertions) {
         expect_panic("Disconnected invalid handle!", || {
             handle.disconnect();
         });
