@@ -7,7 +7,7 @@
 
 #![cfg(since_api = "4.2")]
 
-use crate::framework::{expect_debug_panic_or_release_ok, itest};
+use crate::framework::{expect_debug_panic_or_release_ok, expect_panic, itest};
 use godot::{
     builtin::{Callable, Signal},
     classes::Object,
@@ -152,10 +152,14 @@ fn handle_recognizes_direct_object_disconnect() {
     })
 }
 
-#[itest(skip)]
-fn handle_recognizes_freed_object() {
-    // TODO
-    // We should define what happens when either the broadcasting object or (potential) receiving object is freed.
+#[itest]
+fn test_handle_after_freeing_broadcaster() {
+    test_freed_nodes(true);
+}
+
+#[itest]
+fn test_handle_after_freeing_receiver() {
+    test_freed_nodes(false);
 }
 
 // Helper functions:
@@ -227,6 +231,47 @@ fn test_handle_recognizes_non_valid_state(disconnect_function: impl FnOnce(&mut 
     });
 
     obj.free();
+}
+
+fn test_freed_nodes(free_broadcaster_first: bool) {
+    let broadcaster = SignalDisc::new_alloc();
+    let receiver = SignalDisc::new_alloc();
+
+    let handle = broadcaster
+        .signals()
+        .my_signal()
+        .connect_other(&receiver, |r| {
+            r.increment_self();
+        });
+
+    let (to_free, other) = if free_broadcaster_first {
+        (broadcaster, receiver)
+    } else {
+        (receiver, broadcaster)
+    };
+
+    // Free one of the nodes, and check if the handle thinks the objects are connected.
+    // If the broadcaster is freed, its signals to other objects is implicitly freed as well. Thus, the handle should not be connected.
+    // If the receiver is freed, the connection between the valid broadcaster and the non-valid freed object still exists.
+    // In the latter case, the connection can - and probably should - be freed with disconnect().
+    to_free.free();
+    let is_connected = handle.is_connected();
+    assert_ne!(
+        free_broadcaster_first, is_connected,
+        "Handle should only return false if broadcasting is freed!"
+    );
+
+    // It should be possible to disconnect a connection between a valid broadcaster and a non-valid receiver.
+    // If the connection is not valid (e.g. because of freed broadcaster), calling disconnect() should panic.
+    if is_connected {
+        handle.disconnect();
+    } else {
+        expect_panic("Disconnected invalid handle!", || {
+            handle.disconnect();
+        });
+    }
+
+    other.free();
 }
 
 fn has_connections(obj: &Gd<SignalDisc>) -> bool {
