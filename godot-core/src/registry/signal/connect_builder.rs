@@ -6,7 +6,9 @@
  */
 
 use super::{make_callable_name, make_godot_fn};
-use crate::builtin::{Callable, GString, Variant};
+#[cfg(feature = "experimental-threads")]
+use crate::builtin::Callable;
+use crate::builtin::{GString, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::InParamTuple;
@@ -125,13 +127,14 @@ where
     fn inner_connect_godot_fn<F>(
         self,
         godot_fn: impl FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
+        bound: &Gd<impl GodotClass>,
     ) -> ConnectHandle {
         let callable_name = match &self.data.callable_name {
             Some(user_provided_name) => user_provided_name,
             None => &make_callable_name::<F>(),
         };
 
-        let callable = Callable::from_local_fn(callable_name, godot_fn);
+        let callable = bound.linked_callable(callable_name, godot_fn);
         self.parent_sig
             .inner_connect_untyped(callable, self.data.connect_flags)
     }
@@ -165,7 +168,8 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call((), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn)
+        let bound = self.parent_sig.receiver_object();
+        self.inner_connect_godot_fn::<F>(godot_fn, &bound)
     }
 
     /// Connect a method with `&mut self` as the first parameter (user classes only).
@@ -191,7 +195,8 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(&mut *guard, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn)
+        let bound = self.parent_sig.receiver_object();
+        self.inner_connect_godot_fn::<F>(godot_fn, &bound)
     }
 
     /// Connect a method with `&mut Gd<Self>` as the first parameter (user + engine classes).
@@ -208,6 +213,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, Gd<C>, Ps, F>: From<&'c_rcv mut F>,
     {
         let gd = self.parent_sig.receiver_object();
+        let bound = gd.clone();
 
         let godot_fn = make_godot_fn(move |args| {
             IndirectSignalReceiver::from(&mut function)
@@ -215,7 +221,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(gd.clone(), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn)
+        self.inner_connect_godot_fn::<F>(godot_fn, &bound)
     }
 
     /// Connect a method with any `&mut OtherC` as the first parameter (user classes only).
@@ -250,7 +256,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(&mut *guard, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn)
+        self.inner_connect_godot_fn::<F>(godot_fn, &object.to_signal_obj())
     }
 
     /// Connect a method with any `&mut Gd<OtherC>` as the first parameter (user + engine classes).
@@ -282,7 +288,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(gd.clone(), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn)
+        self.inner_connect_godot_fn::<F>(godot_fn, &object.to_signal_obj())
     }
 
     /// Connect to this signal using a thread-safe function, allows the signal to be called across threads.

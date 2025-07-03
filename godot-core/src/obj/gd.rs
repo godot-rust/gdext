@@ -11,7 +11,7 @@ use std::ops::{Deref, DerefMut};
 use godot_ffi as sys;
 use sys::{static_assert_eq_size_align, SysPtr as _};
 
-use crate::builtin::{Callable, NodePath, StringName, Variant};
+use crate::builtin::{Callable, GString, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
     ArrayElement, AsArg, ByRef, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
@@ -492,6 +492,21 @@ impl<T: GodotClass> Gd<T> {
     /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
     pub fn callable(&self, method_name: impl AsArg<StringName>) -> Callable {
         Callable::from_object_method(self, method_name)
+    }
+
+    /// Creates a new callable linked to the given object from **single-threaded** Rust function or closure.
+    /// This is shorter syntax for [`Callable::from_linked_fn()`].
+    ///
+    /// `name` is used for the string representation of the closure, which helps with debugging.
+    ///
+    /// Such a callable will be automatically invalidated by Godot when a linked Object is freed.
+    /// If you need a Callable which can live indefinitely use [`Callable::from_local_fn()`].
+    #[cfg(since_api = "4.2")]
+    pub fn linked_callable<F>(&self, method_name: impl AsArg<GString>, rust_function: F) -> Callable
+    where
+        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+    {
+        Callable::from_linked_fn(method_name, self, rust_function)
     }
 
     pub(crate) unsafe fn from_obj_sys_or_none(

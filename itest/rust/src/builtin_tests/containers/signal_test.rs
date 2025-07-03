@@ -55,6 +55,9 @@ fn signal_symbols_internal() {
     internal.connect_signals_internal(tracker.clone());
     drop(internal);
 
+    // Make sure that connection has been properly registered by Godot.
+    assert!(!emitter.get_incoming_connections().is_empty());
+
     emitter.bind_mut().emit_signals_internal();
 
     // Check that closure is invoked.
@@ -143,6 +146,29 @@ fn signal_symbols_complex_emit() {
     // Forward compat: .upcast() here becomes a breaking change if we generalize AsArg to include derived->base conversions.
     sig.emit(&arg.upcast(), "hello");
 
+    emitter.free();
+}
+
+#[cfg(since_api = "4.2")]
+#[itest]
+fn signal_receiver_auto_disconnect() {
+    let emitter = Emitter::new_alloc();
+    let sig = emitter.signals().signal_int();
+
+    let receiver = Receiver::new_alloc();
+    sig.connect_other(&receiver, Receiver::receive_int_mut);
+
+    let outgoing_connections = emitter.get_signal_connection_list("signal_int");
+    let incoming_connections = receiver.get_incoming_connections();
+
+    assert_eq!(incoming_connections.len(), 1);
+    assert_eq!(incoming_connections, outgoing_connections);
+
+    receiver.free();
+
+    // Should be auto-disconnected by Godot.
+    let outgoing_connections = emitter.get_signal_connection_list("signal_int");
+    assert!(outgoing_connections.is_empty());
     emitter.free();
 }
 
