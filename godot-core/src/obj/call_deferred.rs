@@ -23,9 +23,8 @@ pub trait WithDeferredCall<T: GodotClass> {}
 ///
 /// # Usage
 ///
-/// ```no_compile
+/// ```no_run
 /// # use godot::prelude::*;
-/// # use godot::classes::CollisionShape2D;
 /// # use std::f32::consts::PI;
 /// fn some_fn(mut node: Gd<Node2D>)
 /// {
