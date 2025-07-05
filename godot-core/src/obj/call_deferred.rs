@@ -23,9 +23,8 @@ pub trait WithDeferredCall<T: GodotClass> {}
 ///
 /// # Usage
 ///
-/// ```no_compile
+/// ```no_run
 /// # use godot::prelude::*;
-/// # use godot::classes::CollisionShape2D;
 /// # use std::f32::consts::PI;
 /// fn some_fn(mut node: Gd<Node2D>)
 /// {
@@ -36,7 +35,10 @@ pub trait WithDeferredCall<T: GodotClass> {}
 pub trait WithDeferredCall<T: GodotClass> {
     /// Runs the given Closure deferred.
     ///
-    /// This can be a type-safe alternative to [`Object::call_deferred`][crate::classes::Object::call_deferred]. This method must be used on the main thread.
+    /// This is a type-safe alternative to [`Object::call_deferred`][crate::classes::Object::call_deferred].
+    ///
+    /// # Panics
+    /// If called outside the main thread.
     fn apply_deferred<F>(&mut self, rust_function: F)
     where
         F: FnMut(&mut T) + 'static;
