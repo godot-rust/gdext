@@ -115,21 +115,8 @@ impl<T: GodotClass> RawGd<T> {
     where
         U: GodotClass,
     {
-        if self.is_null() {
-            // Null can be cast to anything.
-            return true;
-        }
-
-        // SAFETY: object is forgotten below.
-        let as_obj =
-            unsafe { self.ffi_cast::<classes::Object>() }.expect("everything inherits Object");
-
-        // SAFETY: Object is always a base class.
-        let cast_is_valid = unsafe { as_obj.as_upcast_ref::<classes::Object>() }
-            .is_class(&U::class_name().to_gstring());
-
-        std::mem::forget(as_obj);
-        cast_is_valid
+        self.is_null() // Null can be cast to anything.
+            || self.as_object_ref().is_class(&U::class_name().to_gstring())
     }
 
     /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
