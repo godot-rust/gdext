@@ -496,11 +496,10 @@ fn object_engine_convert_variant_nil() {
     });
 }
 
-#[itest(focus)]
+#[itest]
 fn object_engine_convert_variant_error() {
     let refc = RefCounted::new_gd();
     let variant = refc.to_variant();
-
     assert_eq!(refc.test_refcount(), Some(2));
 
     let err = Gd::<Node2D>::try_from_variant(&variant)
@@ -510,11 +509,10 @@ fn object_engine_convert_variant_error() {
     assert_eq!(refc.test_refcount(), Some(3));
 
     let expected_debug = format!(
-        "cannot convert to class Node2D: Gd {{ id: {}, class: RefCounted, refc: 3 }}",
+        "cannot convert to class Node2D: VariantGd {{ id: {}, class: RefCounted, refc: 3 }}",
         refc.instance_id().to_i64()
     );
     assert_eq!(err.to_string(), expected_debug);
-    // was: format!("cannot convert to class Node2D: {refc:?}")
 }
 
 #[itest]

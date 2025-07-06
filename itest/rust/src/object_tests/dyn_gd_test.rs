@@ -375,15 +375,16 @@ fn dyn_gd_error_unregistered_trait() {
     let node = node.into_gd();
 
     let err = back.expect_err("DynGd::try_to() should have failed");
-    let expected_err =
-        format!("trait `dyn UnrelatedTrait` has not been registered with #[godot_dyn]: {node:?}");
+    let expected_err = // Variant Debug uses "VariantGd" prefix.
+        format!("trait `dyn UnrelatedTrait` has not been registered with #[godot_dyn]: Variant{node:?}");
 
     assert_eq!(err.to_string(), expected_err);
 
     let back = variant.try_to::<DynGd<foreign::NodeHealth, dyn InstanceIdProvider<Id = i32>>>();
 
+    // Variant Debug uses "VariantGd" prefix.
     let err = back.expect_err("DynGd::try_to() should have failed");
-    let expected_err = format!("trait `dyn InstanceIdProvider<Id = i32>` has not been registered with #[godot_dyn]: {node:?}");
+    let expected_err = format!("trait `dyn InstanceIdProvider<Id = i32>` has not been registered with #[godot_dyn]: Variant{node:?}");
 
     assert_eq!(err.to_string(), expected_err);
 
@@ -401,10 +402,9 @@ fn dyn_gd_error_unimplemented_trait() {
 
     let refc_id = obj.instance_id().to_i64();
     let expected_debug = format!(
-            "none of the classes derived from `RefCounted` have been linked to trait `dyn Health` with #[godot_dyn]: \
-         Gd {{ id: {refc_id}, class: RefCounted, refc: 3 }}")
-    ;
-    // was: {obj:?}
+        "none of the classes derived from `RefCounted` have been linked to trait `dyn Health` with #[godot_dyn]: \
+         VariantGd {{ id: {refc_id}, class: RefCounted, refc: 3 }}"
+    );
     assert_eq!(err.to_string(), expected_debug);
 
     let node = foreign::NodeHealth::new_alloc();
@@ -415,9 +415,9 @@ fn dyn_gd_error_unimplemented_trait() {
 
     // NodeHealth is manually managed (inherits Node), so no refcount in debug output.
     let node_id = node.instance_id().to_i64();
-    let expected_debug =        format!(
-            "none of the classes derived from `NodeHealth` have been linked to trait `dyn InstanceIdProvider<Id = f32>` with #[godot_dyn]: \
-         Gd {{ id: {node_id}, class: NodeHealth }}"
+    let expected_debug = format!(
+        "none of the classes derived from `NodeHealth` have been linked to trait `dyn InstanceIdProvider<Id = f32>` with #[godot_dyn]: \
+         VariantGd {{ id: {node_id}, class: NodeHealth }}"
     );
     assert_eq!(err.to_string(), expected_debug);
 
