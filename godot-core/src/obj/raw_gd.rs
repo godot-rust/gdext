@@ -16,6 +16,7 @@ use crate::meta::{
     CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot,
 };
 use crate::obj::bounds::{Declarer, DynMemory as _};
+use crate::obj::casts::CastSuccess;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceCache, InstanceStorage, Storage};
@@ -115,21 +116,8 @@ impl<T: GodotClass> RawGd<T> {
     where
         U: GodotClass,
     {
-        if self.is_null() {
-            // Null can be cast to anything.
-            return true;
-        }
-
-        // SAFETY: object is forgotten below.
-        let as_obj =
-            unsafe { self.ffi_cast::<classes::Object>() }.expect("everything inherits Object");
-
-        // SAFETY: Object is always a base class.
-        let cast_is_valid = unsafe { as_obj.as_upcast_ref::<classes::Object>() }
-            .is_class(&U::class_name().to_gstring());
-
-        std::mem::forget(as_obj);
-        cast_is_valid
+        self.is_null() // Null can be cast to anything.
+            || self.as_object_ref().is_class(&U::class_name().to_gstring())
     }
 
     /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
@@ -150,21 +138,17 @@ impl<T: GodotClass> RawGd<T> {
         // The Deref/DerefMut impls for T implement an "implicit upcast" on the object (not Gd) level and
         // rely on this (e.g. &Node3D -> &Node).
 
-        let result = unsafe { self.ffi_cast::<U>() };
-        match result {
-            Some(cast_obj) => {
-                // duplicated ref, one must be wiped
-                std::mem::forget(self);
-                Ok(cast_obj)
-            }
-            None => Err(self),
+        match self.ffi_cast::<U>() {
+            Ok(success) => Ok(success.into_dest(self)),
+            Err(_) => Err(self),
         }
     }
 
-    /// # Safety
-    /// Does not transfer ownership and is thus unsafe. Also operates on shared ref. Either the parameter or
-    /// the return value *must* be forgotten (since reference counts are not updated).
-    pub(super) unsafe fn ffi_cast<U>(&self) -> Option<RawGd<U>>
+    /// Low-level cast that allows selective use of either input or output type.
+    ///
+    /// On success, you'll get a `CastSuccess<T, U>` instance, which holds a weak `RawGd<U>`. You can only extract that one by trading
+    /// a strong `RawGd<T>` for it, to maintain the balance.
+    pub(super) fn ffi_cast<U>(&self) -> Result<CastSuccess<T, U>, ()>
     where
         U: GodotClass,
     {
@@ -177,7 +161,7 @@ impl<T: GodotClass> RawGd<T> {
         if self.is_null() {
             // Null can be cast to anything.
             // Forgetting a null doesn't do anything, since dropping a null also does nothing.
-            return Some(RawGd::null());
+            return Ok(CastSuccess::null());
         }
 
         // Before Godot API calls, make sure the object is alive (and in Debug mode, of the correct type).
@@ -186,23 +170,32 @@ impl<T: GodotClass> RawGd<T> {
         // a bug that must be solved by the user.
         self.check_rtti("ffi_cast");
 
-        let class_tag = interface_fn!(classdb_get_class_tag)(U::class_name().string_sys());
-        let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
+        let cast_object_ptr = unsafe {
+            let class_tag = interface_fn!(classdb_get_class_tag)(U::class_name().string_sys());
+            interface_fn!(object_cast_to)(self.obj_sys(), class_tag)
+        };
+
+        if cast_object_ptr.is_null() {
+            return Err(());
+        }
 
         // Create weak object, as ownership will be moved and reference-counter stays the same.
-        sys::ptr_then(cast_object_ptr, |ptr| RawGd::from_obj_sys_weak(ptr))
+        let weak = unsafe { RawGd::from_obj_sys_weak(cast_object_ptr) };
+        Ok(CastSuccess::from_weak(weak))
     }
 
     pub(crate) fn with_ref_counted<R>(&self, apply: impl Fn(&mut classes::RefCounted) -> R) -> R {
         // Note: this previously called Declarer::scoped_mut() - however, no need to go through bind() for changes in base RefCounted.
         // Any accesses to user objects (e.g. destruction if refc=0) would bind anyway.
 
-        let tmp = unsafe { self.ffi_cast::<classes::RefCounted>() };
-        let mut tmp = tmp.expect("object expected to inherit RefCounted");
-        let return_val = apply(tmp.as_target_mut());
+        let mut cast_obj = self
+            .ffi_cast::<classes::RefCounted>()
+            .expect("object expected to inherit RefCounted");
 
-        std::mem::forget(tmp); // no ownership transfer
-        return_val
+        // Using as_dest_mut() ensures that there is no refcount increment happening, i.e. any apply() function happens on *current* object.
+        // Apart from performance considerations, this is relevant when examining RefCounted::get_reference_count() -- otherwise we have an
+        // Observer effect, where reading the RefCounted object changes its reference count -- e.g. in Debug impl.
+        apply(cast_obj.as_dest_mut().as_target_mut())
     }
 
     // TODO replace the above with this -- last time caused UB; investigate.
@@ -314,21 +307,21 @@ impl<T: GodotClass> RawGd<T> {
         #[cfg(debug_assertions)]
         {
             // SAFETY: we forget the object below and do not leave the function before.
-            let ffi_ref: RawGd<Base> =
-                unsafe { self.ffi_cast::<Base>().expect("failed FFI upcast") };
+            let ffi_dest = self.ffi_cast::<Base>().expect("failed FFI upcast");
 
             // The ID check is not that expressive; we should do a complete comparison of the ObjectRtti, but currently the dynamic types can
             // be different (see comment in ObjectRtti struct). This at least checks that the transmuted object is not complete garbage.
             // We get direct_id from Self and not Base because the latter has no API with current bounds; but this equivalence is tested in Deref.
             let direct_id = self.instance_id_unchecked().expect("direct_id null");
-            let ffi_id = ffi_ref.instance_id_unchecked().expect("ffi_id null");
+            let ffi_id = ffi_dest
+                .as_dest_ref()
+                .instance_id_unchecked()
+                .expect("ffi_id null");
 
             assert_eq!(
                 direct_id, ffi_id,
-                "upcast_ref: direct and FFI IDs differ. This is a bug, please report to gdext maintainers."
+                "upcast_ref: direct and FFI IDs differ. This is a bug, please report to godot-rust maintainers."
             );
-
-            std::mem::forget(ffi_ref);
         }
     }
 
