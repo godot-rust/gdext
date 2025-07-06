@@ -7,7 +7,7 @@
 
 //! Runtime checks and inspection of Godot classes.
 
-use crate::builtin::{GString, StringName, Variant};
+use crate::builtin::{GString, StringName, Variant, VariantType};
 #[cfg(debug_assertions)]
 use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
@@ -35,6 +35,8 @@ pub(crate) fn debug_string_variant(
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
 ) -> std::fmt::Result {
+    debug_assert_eq!(obj.get_type(), VariantType::OBJECT);
+
     let id = obj
         .object_id_unchecked()
         .expect("Variant must be of type OBJECT");
