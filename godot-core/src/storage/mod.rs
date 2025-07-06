@@ -11,7 +11,6 @@ mod multi_threaded;
 #[cfg_attr(feature = "experimental-threads", allow(dead_code))]
 mod single_threaded;
 
-use godot_ffi::out;
 pub use instance_storage::*;
 use std::any::type_name;
 
@@ -53,37 +52,74 @@ fn bug_inaccessible<T>(err: Box<dyn std::error::Error>) -> ! {
     )
 }
 
-fn log_construct<T>() {
-    out!(
-        "    Storage::construct             <{ty}>",
-        ty = type_name::<T>()
-    );
+#[cfg(feature = "debug-log")]
+use log_active::*;
+
+#[cfg(not(feature = "debug-log"))]
+use log_inactive::*;
+
+#[cfg(feature = "debug-log")]
+mod log_active {
+    use super::*;
+    use godot_ffi::out;
+
+    pub fn log_construct<T: GodotClass>(base: &Base<T::Base>) {
+        out!(
+            "    Storage::construct:             {base:?}  (T={ty})",
+            ty = type_name::<T>()
+        );
+    }
+
+    pub fn log_inc_ref<T: StorageRefCounted>(storage: &T) {
+        out!(
+            "    Storage::on_inc_ref (rc={rc}):  {base:?}  (T={ty})",
+            rc = T::godot_ref_count(storage),
+            base = storage.base(),
+            ty = type_name::<T>(),
+        );
+    }
+
+    pub fn log_dec_ref<T: StorageRefCounted>(storage: &T) {
+        out!(
+            "  | Storage::on_dec_ref (rc={rc}):  {base:?}  (T={ty})",
+            rc = T::godot_ref_count(storage),
+            base = storage.base(),
+            ty = type_name::<T>(),
+        );
+    }
+
+    pub fn log_pre_drop<T: Storage + ?Sized>(storage: &T) {
+        // Do not Debug-fmt `self.base()` object here, as the C++ destructor may already be running. Debug::fmt fetches dynamic object information
+        // (class type, virtual object_cast_to(), ...), but virtual dispatch won't run in active C++ destructors, thus causing weird behavior.
+
+        out!(
+            "    Storage::mark_destroyed_by_godot:  {base_id} (lcy={lifecycle:?})",
+            base_id = storage.base().debug_instance_id(),
+            lifecycle = storage.get_lifecycle(),
+        );
+    }
+
+    pub fn log_drop<T: StorageRefCounted>(storage: &T) {
+        // Do not Debug-fmt `self.base()` object here, see above.
+
+        out!(
+            "    Storage::drop (rc={rc}):        {base_id}",
+            rc = storage.godot_ref_count(),
+            base_id = storage.base().debug_instance_id(),
+        );
+    }
 }
 
-fn log_inc_ref<T: StorageRefCounted>(storage: &T) {
-    out!(
-        "    Storage::on_inc_ref (rc={rc})     <{ty}> -- {base:?}",
-        rc = T::godot_ref_count(storage),
-        base = storage.base(),
-        ty = type_name::<T>(),
-    );
-}
+// out! macro still mentions arguments in all cfgs, so they must exist (and may or may not be optimized away).
+#[cfg(not(feature = "debug-log"))]
+mod log_inactive {
+    use super::*;
 
-fn log_dec_ref<T: StorageRefCounted>(storage: &T) {
-    out!(
-        "  | Storage::on_dec_ref (rc={rc})     <{ty}> -- {base:?}",
-        rc = T::godot_ref_count(storage),
-        base = storage.base(),
-        ty = type_name::<T>(),
-    );
-}
-
-fn log_drop<T: StorageRefCounted>(storage: &T) {
-    out!(
-        "    Storage::drop (rc={rc})           <{base:?}>",
-        rc = storage.godot_ref_count(),
-        base = storage.base(),
-    );
+    pub fn log_construct<T: GodotClass>(_base: &Base<T::Base>) {}
+    pub fn log_inc_ref<T: StorageRefCounted>(_storage: &T) {}
+    pub fn log_dec_ref<T: StorageRefCounted>(_storage: &T) {}
+    pub fn log_pre_drop<T: Storage + ?Sized>(_storage: &T) {}
+    pub fn log_drop<T: StorageRefCounted>(_storage: &T) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -92,6 +128,7 @@ fn log_drop<T: StorageRefCounted>(storage: &T) {
 #[cfg(debug_assertions)]
 use borrow_info::DebugBorrowTracker;
 
+use crate::obj::{Base, GodotClass};
 #[cfg(not(debug_assertions))]
 use borrow_info_noop::DebugBorrowTracker;
 

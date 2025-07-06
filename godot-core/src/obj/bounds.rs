@@ -208,7 +208,7 @@ impl Sealed for MemRefCounted {}
 impl Memory for MemRefCounted {}
 impl DynMemory for MemRefCounted {
     fn maybe_init_ref<T: GodotClass>(obj: &mut RawGd<T>) {
-        out!("  MemRefc::init  <{}>", std::any::type_name::<T>());
+        out!("  MemRefc::init:  {obj:?}");
         if obj.is_null() {
             return;
         }
@@ -226,7 +226,7 @@ impl DynMemory for MemRefCounted {
     }
 
     fn maybe_inc_ref<T: GodotClass>(obj: &mut RawGd<T>) {
-        out!("  MemRefc::inc   <{}>", std::any::type_name::<T>());
+        out!("  MemRefc::inc:   {obj:?}");
         if obj.is_null() {
             return;
         }
@@ -237,7 +237,7 @@ impl DynMemory for MemRefCounted {
     }
 
     unsafe fn maybe_dec_ref<T: GodotClass>(obj: &mut RawGd<T>) -> bool {
-        out!("  MemRefc::dec   <{}>", std::any::type_name::<T>());
+        out!("  MemRefc::dec:   {obj:?}");
         if obj.is_null() {
             return false;
         }
@@ -278,7 +278,7 @@ impl MemDynamic {
 impl Sealed for MemDynamic {}
 impl DynMemory for MemDynamic {
     fn maybe_init_ref<T: GodotClass>(obj: &mut RawGd<T>) {
-        out!("  MemDyn::init  <{}>", std::any::type_name::<T>());
+        out!("  MemDyn::init:  {obj:?}");
         if Self::inherits_refcounted(obj) {
             // Will call `RefCounted::init_ref()` which checks for liveness.
             out!("    MemDyn -> MemRefc");
@@ -289,7 +289,7 @@ impl DynMemory for MemDynamic {
     }
 
     fn maybe_inc_ref<T: GodotClass>(obj: &mut RawGd<T>) {
-        out!("  MemDyn::inc   <{}>", std::any::type_name::<T>());
+        out!("  MemDyn::inc:   {obj:?}");
         if Self::inherits_refcounted(obj) {
             // Will call `RefCounted::reference()` which checks for liveness.
             MemRefCounted::maybe_inc_ref(obj)
@@ -297,7 +297,7 @@ impl DynMemory for MemDynamic {
     }
 
     unsafe fn maybe_dec_ref<T: GodotClass>(obj: &mut RawGd<T>) -> bool {
-        out!("  MemDyn::dec   <{}>", std::any::type_name::<T>());
+        out!("  MemDyn::dec:   {obj:?}");
         if obj
             .instance_id_unchecked()
             .is_some_and(|id| id.is_ref_counted())

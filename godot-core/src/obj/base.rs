@@ -102,6 +102,12 @@ impl<T: GodotClass> Base<T> {
     pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.obj.obj_sys()
     }
+
+    // Internal use only, do not make public.
+    #[cfg(feature = "debug-log")]
+    pub(crate) fn debug_instance_id(&self) -> crate::obj::InstanceId {
+        self.obj.instance_id()
+    }
 }
 
 impl<T: GodotClass> Debug for Base<T> {
