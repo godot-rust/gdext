@@ -907,7 +907,8 @@ impl ObjPayload {
 
     #[func]
     fn do_panic(&self) {
-        panic!("do_panic exploded");
+        // Unicode character as regression test for https://github.com/godot-rust/gdext/issues/384.
+        panic!("do_panic exploded 💥");
     }
 
     // Obtain the line number of the panic!() call above; keep equidistant to do_panic() method.
