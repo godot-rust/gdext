@@ -406,18 +406,17 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
          Current thread: {:?}, Main thread: {:?}\n\
          Consider using the 'experimental-threads' feature if you need multi-threaded async support.",
         std::thread::current().id(),
-        std::thread::current().id() // This is not actually the main thread ID, but it's for illustrative purposes
+        crate::init::main_thread_id()
     );
 
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
-        let task_handle = rt.add_task(Box::pin(future))
-            .unwrap_or_else(|spawn_error| {
-                panic!(
-                    "Failed to spawn async task: {spawn_error}\n\
+        let task_handle = rt.add_task(Box::pin(future)).unwrap_or_else(|spawn_error| {
+            panic!(
+                "Failed to spawn async task: {spawn_error}\n\
                      This indicates the task queue is full or the runtime is overloaded.\n\
                      Consider reducing concurrent task load or increasing task limits."
-                );
-            });
+            );
+        });
         let godot_waker = Arc::new(GodotWaker::new(
             task_handle.index,
             task_handle.id,
@@ -474,7 +473,8 @@ pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
     );
 
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
-        let task_handle = rt.add_task_non_send(Box::pin(future))
+        let task_handle = rt
+            .add_task_non_send(Box::pin(future))
             .unwrap_or_else(|spawn_error| {
                 panic!(
                     "Failed to spawn async task: {spawn_error}\n\
@@ -624,7 +624,8 @@ where
         };
 
         // Spawn the signal-emitting future using standard spawn mechanism
-        let task_handle = rt.add_task_non_send(Box::pin(result_future))
+        let task_handle = rt
+            .add_task_non_send(Box::pin(result_future))
             .unwrap_or_else(|spawn_error| {
                 panic!(
                     "Failed to spawn async task with result: {spawn_error}\n\
@@ -783,9 +784,20 @@ pub mod lifecycle {
                 let storage_stats = rt.task_storage.get_stats();
                 let task_count = storage_stats.active_tasks;
 
-                // Log shutdown information
-                if task_count > 0 {
-                    eprintln!("Async runtime shutdown: canceling {task_count} pending tasks");
+                // Log comprehensive shutdown information using all monitoring fields
+                if task_count > 0 || storage_stats.queued_tasks > 0 {
+                    eprintln!("Async runtime shutdown:");
+                    eprintln!("  - Active tasks: {}", storage_stats.active_tasks);
+                    eprintln!("  - Queued tasks: {}", storage_stats.queued_tasks);
+                    eprintln!("  - Total slots: {}", storage_stats.total_slots);
+                    eprintln!("  - Memory pressure: {}", storage_stats.memory_pressure);
+
+                    if task_count > 0 {
+                        eprintln!("  -> Canceling {task_count} pending tasks");
+                    }
+                    if storage_stats.queued_tasks > 0 {
+                        eprintln!("  -> Dropping {} queued tasks", storage_stats.queued_tasks);
+                    }
                 }
 
                 // Clear all components
@@ -899,10 +911,7 @@ pub enum TaskPriority {
 
 /// Queued task waiting to be scheduled
 struct QueuedTask {
-    // This field is accessed via `queued_task.future` when the entire struct
-    // is consumed during scheduling, but the compiler doesn't detect this usage pattern.
-    #[allow(dead_code)]
-    future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    future: Pin<Box<dyn ErasedPinnedFuture>>,
     priority: TaskPriority,
     queued_at: std::time::Instant,
     task_id: u64,
@@ -922,7 +931,7 @@ impl std::fmt::Debug for QueuedTask {
 /// Trait for type-erased pinned future storage with safe pin handling
 trait ErasedPinnedFuture: Send + 'static {
     /// Poll the pinned future in a type-erased way
-    /// 
+    ///
     /// # Safety
     /// This method must only be called on a properly pinned future that has never been moved
     /// since being pinned. The caller must ensure proper pin projection.
@@ -1034,7 +1043,15 @@ impl TaskStorage {
 
         // Check for memory pressure warning
         if active_tasks >= self.limits.memory_warning_threshold {
-            eprintln!("Warning: High task load detected ({active_tasks} active tasks)");
+            let stats = self.get_stats();
+            eprintln!(
+                "Warning: High task load detected - {} active tasks (threshold: {})",
+                active_tasks, self.limits.memory_warning_threshold
+            );
+            eprintln!(
+                "  -> Runtime state: {} total slots, {} queued, memory pressure: {}",
+                stats.total_slots, stats.queued_tasks, stats.memory_pressure
+            );
         }
 
         self.schedule_task_immediately(future, id)
@@ -1061,7 +1078,15 @@ impl TaskStorage {
 
         // Check for memory pressure warning
         if active_tasks >= self.limits.memory_warning_threshold {
-            eprintln!("Warning: High task load detected ({active_tasks} active tasks)");
+            let stats = self.get_stats();
+            eprintln!(
+                "Warning: High task load detected - {} active tasks (threshold: {})",
+                active_tasks, self.limits.memory_warning_threshold
+            );
+            eprintln!(
+                "  -> Runtime state: {} total slots, {} queued, memory pressure: {}",
+                stats.total_slots, stats.queued_tasks, stats.memory_pressure
+            );
         }
 
         self.schedule_task_immediately_non_send(future, id)
@@ -1104,7 +1129,7 @@ impl TaskStorage {
 
         // Queue the task
         let queued_task = QueuedTask {
-            future: Box::pin(future),
+            future: Box::pin(future), // Box::pin automatically creates the right trait object
             priority,
             queued_at: std::time::Instant::now(),
             task_id: id,
@@ -1221,19 +1246,158 @@ impl TaskStorage {
         if let Some(slot) = self.tasks.get_mut(index) {
             slot.clear();
         }
+
+        // Process queued tasks when capacity becomes available
+        self.process_queued_tasks();
+    }
+
+    /// Process queued tasks when capacity becomes available
+    ///
+    /// This method moves tasks from the queue to active storage when there's capacity.
+    /// It respects priority ordering if enabled and handles task creation properly.
+    fn process_queued_tasks(&mut self) {
+        // Cleanup completed tasks periodically to prevent memory leaks
+        self.cleanup_completed_tasks();
+
+        while !self.task_queue.is_empty()
+            && self.get_active_task_count() < self.limits.max_concurrent_tasks
+        {
+            let queued_task = self.task_queue.remove(0);
+
+            // Try to schedule the queued task immediately
+            match self.schedule_task_immediately_from_queue(queued_task.future, queued_task.task_id)
+            {
+                Ok(_handle) => {
+                    // Task successfully scheduled from queue
+                    // Note: We don't return the handle since this is internal processing
+                }
+                Err(err) => {
+                    // This shouldn't happen since we checked capacity, but log it
+                    eprintln!(
+                        "Warning: Failed to schedule queued task {}: {}",
+                        queued_task.task_id, err
+                    );
+                    self.total_tasks_rejected += 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// Internal method to schedule a task from the queue
+    ///
+    /// This is similar to `schedule_task_immediately` but takes a boxed future
+    /// from the queue instead of a generic future parameter.
+    fn schedule_task_immediately_from_queue(
+        &mut self,
+        future: Pin<Box<dyn ErasedPinnedFuture>>,
+        id: u64,
+    ) -> Result<TaskHandle, TaskSpawnError> {
+        let storage = FutureStorage::Inline(future);
+
+        let index_slot = self.tasks.iter_mut().enumerate().find_map(|(index, slot)| {
+            if slot.is_empty() {
+                Some((index, slot))
+            } else {
+                None
+            }
+        });
+
+        let index = match index_slot {
+            Some((index, slot)) => {
+                *slot = FutureSlot::pending(id, storage);
+                index
+            }
+            None => {
+                self.tasks.push(FutureSlot::pending(id, storage));
+                self.tasks.len() - 1
+            }
+        };
+
+        Ok(TaskHandle::new(index, id))
     }
 
     /// Get statistics about task storage
     fn get_stats(&self) -> TaskStorageStats {
         let active_tasks = self.tasks.iter().filter(|slot| !slot.is_empty()).count();
+        let total_slots = self.tasks.len();
+        let queued_tasks = self.task_queue.len();
+
+        // Check for memory pressure
+        let memory_pressure = if total_slots > self.limits.max_concurrent_tasks * 3 {
+            "High - cleanup recommended"
+        } else if total_slots > self.limits.max_concurrent_tasks * 2 {
+            "Medium - monitoring"
+        } else {
+            "Normal"
+        };
+
         TaskStorageStats {
             active_tasks,
+            total_slots,
+            queued_tasks,
+            memory_pressure: memory_pressure.to_string(),
         }
     }
 
     /// Clear all tasks
     fn clear_all(&mut self) {
         self.tasks.clear();
+        self.task_queue.clear();
+    }
+
+    /// Cleanup completed tasks to prevent memory leaks
+    ///
+    /// This method removes slots marked as `Gone` when the task vector becomes too large.
+    /// It's called periodically to prevent unbounded memory growth from completed tasks.
+    fn cleanup_completed_tasks(&mut self) {
+        let current_size = self.tasks.len();
+        let max_size_before_cleanup = self.limits.max_concurrent_tasks * 2;
+
+        // Only cleanup when we have significantly more slots than our limit
+        if current_size > max_size_before_cleanup {
+            let mut active_tasks = Vec::new();
+            let mut empty_slots_to_keep = 0;
+            let max_empty_slots = self.limits.max_concurrent_tasks / 4; // Keep some empty slots for efficiency
+
+            // Separate active tasks from completed ones
+            for slot in std::mem::take(&mut self.tasks) {
+                match slot.value {
+                    FutureSlotState::Empty | FutureSlotState::Gone => {
+                        // Keep a small number of empty slots for reuse efficiency
+                        if empty_slots_to_keep < max_empty_slots {
+                            let mut empty_slot = slot;
+                            empty_slot.value = FutureSlotState::Empty;
+                            active_tasks.push(empty_slot);
+                            empty_slots_to_keep += 1;
+                        }
+                        // Otherwise drop the slot to free memory
+                    }
+                    FutureSlotState::Pending(_) | FutureSlotState::Polling => {
+                        // Keep all active tasks
+                        active_tasks.push(slot);
+                    }
+                }
+            }
+
+            // Update the tasks vector with cleaned up slots
+            self.tasks = active_tasks;
+
+            let new_size = self.tasks.len();
+            if new_size < current_size {
+                let stats = self.get_stats();
+                println!(
+                    "Async runtime cleanup: Freed {} task slots (was {}, now {})",
+                    current_size - new_size,
+                    current_size,
+                    new_size
+                );
+                println!(
+                    "  -> Current state: {} active tasks, {} queued, memory pressure: {}",
+                    stats.active_tasks, stats.queued_tasks, stats.memory_pressure
+                );
+            }
+        }
     }
 }
 
@@ -1241,6 +1405,9 @@ impl TaskStorage {
 #[derive(Debug, Clone)]
 pub struct TaskStorageStats {
     pub active_tasks: usize,
+    pub total_slots: usize,
+    pub queued_tasks: usize,
+    pub memory_pressure: String,
 }
 
 /// Task scheduler component - handles task scheduling, polling, and execution
@@ -1325,12 +1492,14 @@ where
                 expected_thread: *this.creation_thread,
                 actual_thread: current_thread,
             };
-            
+
             eprintln!("FATAL: {error}");
             eprintln!("SignalEmittingFuture with Gd<RefCounted> cannot be accessed from different threads!");
-            eprintln!("This would cause memory corruption. Future created on {:?}, polled on {:?}.", 
-                this.creation_thread, current_thread);
-            
+            eprintln!(
+                "This would cause memory corruption. Future created on {:?}, polled on {:?}.",
+                this.creation_thread, current_thread
+            );
+
             // MUST panic to prevent memory corruption - Godot objects are not thread-safe
             panic!("Thread safety violation in SignalEmittingFuture: {error}");
         }
@@ -1353,11 +1522,13 @@ where
                             expected_thread: creation_thread_id,
                             actual_thread: emission_thread,
                         };
-                        
+
                         eprintln!("FATAL: {error}");
-                        eprintln!("Signal emission must happen on the same thread as future creation!");
+                        eprintln!(
+                            "Signal emission must happen on the same thread as future creation!"
+                        );
                         eprintln!("This would cause memory corruption with Gd<RefCounted>. Created on {creation_thread_id:?}, emitting on {emission_thread:?}");
-                        
+
                         // MUST panic to prevent memory corruption - signal_emitter is not thread-safe
                         panic!("Thread safety violation in signal emission: {error}");
                     }
@@ -1447,7 +1618,10 @@ impl AsyncRuntime {
         id: u64,
         cx: &mut Context<'_>,
     ) -> Result<Poll<()>, AsyncRuntimeError> {
-        let slot = self.task_storage.tasks.get_mut(index)
+        let slot = self
+            .task_storage
+            .tasks
+            .get_mut(index)
             .ok_or(AsyncRuntimeError::RuntimeDeinitialized)?;
 
         // Check if the task ID matches and is in the right state
@@ -1459,42 +1633,32 @@ impl AsyncRuntime {
         }
 
         match &mut slot.value {
-            FutureSlotState::Empty => {
-                Err(AsyncRuntimeError::InvalidTaskState {
-                    task_id: id,
-                    expected_state: "non-empty".to_string(),
-                })
-            }
-            FutureSlotState::Gone => {
-                Err(AsyncRuntimeError::TaskCanceled { task_id: id })
-            }
-            FutureSlotState::Polling => {
-                Err(AsyncRuntimeError::InvalidTaskState {
-                    task_id: id,
-                    expected_state: "not currently polling".to_string(),
-                })
-            }
+            FutureSlotState::Empty => Err(AsyncRuntimeError::InvalidTaskState {
+                task_id: id,
+                expected_state: "non-empty".to_string(),
+            }),
+            FutureSlotState::Gone => Err(AsyncRuntimeError::TaskCanceled { task_id: id }),
+            FutureSlotState::Polling => Err(AsyncRuntimeError::InvalidTaskState {
+                task_id: id,
+                expected_state: "not currently polling".to_string(),
+            }),
             FutureSlotState::Pending(_future_storage) => {
                 // Temporarily mark as polling to prevent reentrant polling
                 let old_state = std::mem::replace(&mut slot.value, FutureSlotState::Polling);
-                
+
                 // Extract the future storage for polling
                 let mut future_storage = if let FutureSlotState::Pending(fs) = old_state {
                     fs
                 } else {
                     unreachable!("We just matched on Pending")
                 };
-                
+
                 // Poll the future in place using safe pin projection
                 let poll_result = match &mut future_storage {
-                    FutureStorage::Inline(pinned_future) => {
-                        pinned_future.as_mut().poll_erased(cx)
-                    }
-                    FutureStorage::NonSend(pinned_future) => {
-                        pinned_future.as_mut().poll(cx)
-                    }
+                    FutureStorage::Inline(pinned_future) => pinned_future.as_mut().poll_erased(cx),
+                    FutureStorage::NonSend(pinned_future) => pinned_future.as_mut().poll(cx),
                 };
-                
+
                 // Handle the result and restore appropriate state
                 match poll_result {
                     Poll::Pending => {
@@ -1505,6 +1669,10 @@ impl AsyncRuntime {
                     Poll::Ready(()) => {
                         // Task completed, mark as gone
                         slot.value = FutureSlotState::Gone;
+
+                        // Process any queued tasks now that we have capacity
+                        self.task_storage.process_queued_tasks();
+
                         Ok(Poll::Ready(()))
                     }
                 }
@@ -1568,10 +1736,13 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         // Poll within the runtime context for proper tokio/async-std support
         let result = std::cell::RefCell::new(None);
         let ctx_ref = std::cell::RefCell::new(Some(ctx));
-        
+
         (storage.with_context)(&|| {
-            let mut ctx = ctx_ref.borrow_mut().take().expect("Context should be available");
-            
+            let mut ctx = ctx_ref
+                .borrow_mut()
+                .take()
+                .expect("Context should be available");
+
             let poll_result = ASYNC_RUNTIME.with_runtime_mut(|rt| {
                 handle_panic(
                     error_context,
@@ -1584,10 +1755,10 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
                     }),
                 )
             });
-            
+
             *result.borrow_mut() = Some(poll_result);
         });
-        
+
         result.into_inner().expect("Result should have been set")
     } else {
         // Fallback: direct polling without runtime context
@@ -1595,11 +1766,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
             handle_panic(
                 error_context,
                 AssertUnwindSafe(|| {
-                    rt.poll_task_in_place(
-                        godot_waker.runtime_index,
-                        godot_waker.task_id,
-                        &mut ctx,
-                    )
+                    rt.poll_task_in_place(godot_waker.runtime_index, godot_waker.task_id, &mut ctx)
                 }),
             )
         })
@@ -1616,7 +1783,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         Ok(Err(async_error)) => {
             // Task had an error (canceled, invalid state, etc.)
             eprintln!("Async task error: {async_error}");
-            
+
             // Clear the task slot for cleanup
             ASYNC_RUNTIME.with_runtime_mut(|rt| {
                 rt.clear_task(godot_waker.runtime_index);
