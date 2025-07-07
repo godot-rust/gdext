@@ -10,14 +10,15 @@ use crate::{classes, sys};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
-#[cfg(debug_assertions)]
+// #[cfg(debug_assertions)]
+use std::cell::RefCell;
 use std::{cell::Cell, rc::Rc};
 
 /// Represents the initialization state of a `Base<T>` object.
 #[cfg(debug_assertions)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum InitState {
-    /// Object is being constructed (inside `init()` or `Gd::from_init_fn()`).
+    /// Object is being constructed (inside `I*::init()` or `Gd::from_init_fn()`).
     ObjectConstructing,
     /// Object construction is complete.
     ObjectInitialized,
@@ -66,6 +67,8 @@ pub struct Base<T: GodotClass> {
     // 2.
     obj: ManuallyDrop<Gd<T>>,
 
+    extra_strong_ref: Rc<RefCell<Option<Gd<T>>>>,
+
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
@@ -88,6 +91,7 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
+            extra_strong_ref: Rc::clone(&base.extra_strong_ref), // Before user init(), no handing out of Gd pointers occurs.
             #[cfg(debug_assertions)]
             init_state: Rc::clone(&base.init_state),
         }
@@ -132,6 +136,7 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
+            extra_strong_ref: Rc::new(RefCell::new(None)),
             init_state: Rc::new(Cell::new(init_state)),
         }
     }
@@ -140,6 +145,7 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
+            extra_strong_ref: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -155,11 +161,12 @@ impl<T: GodotClass> Base<T> {
 
     /// Returns a [`Gd`] referencing the base object, for use during initialization.
     ///
-    /// This method provides safe access to the base object during `init()` or [`Gd::from_init_fn()`] code, allowing you to call base class
-    /// methods before the derived object is constructed. This is the only way to interact with the base object during initialization.
+    /// This method provides safe access to the base object during [`I*::init()`][crate::classes::IObject::init] or [`Gd::from_init_fn()`]
+    /// code, allowing you to call base class methods before the derived object is constructed. This is the only way to interact with the base
+    /// object during initialization.
     ///
-    /// # Panics
-    /// In Debug builds, this method will panic if called outside a constructor (i.e. after `init()` has completed).
+    /// # Panics (Debug)
+    /// If called outside a constructor (i.e. after `init()` has completed).
     ///
     /// # Example
     /// ```no_run
@@ -174,10 +181,10 @@ impl<T: GodotClass> Base<T> {
     /// #[godot_api]
     /// impl INode for MyClass {
     ///     fn init(mut base: Base<Node>) -> Self {
-    ///         // Retrieve a Gd<Node> temporarily.
+    ///         // Retrieve a &mut Gd<Node> temporarily.
     ///         let base_obj = base.as_init_gd();
     ///         base_obj.set_name("fancy_name");
-    ///         
+    ///
     ///         Self { base }
     ///     }
     /// }
@@ -190,6 +197,82 @@ impl<T: GodotClass> Base<T> {
         );
 
         &mut self.obj
+    }
+
+    pub fn to_init_gd(&self) -> Gd<T> {
+        #[cfg(debug_assertions)]
+        assert!(
+            self.is_initializing(),
+            "Base::as_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
+        );
+
+        // let keeper = (*self.obj).clone();
+        //*self.extra_strong_ref.borrow_mut() = Some(keeper.clone());
+
+        // First time handing out a Gd<T>, we need to take measures to temporarily upgrade the Base's weak pointer to a strong one.
+        // During the initialization phase (derived object being constructed), increment refcount by 1.
+        if self.extra_strong_ref.borrow().is_none() {
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            eprintln!("Ref count before first handout: {}", ref_count);
+
+            // Convert the weak reference to a strong reference and store it
+            let strong_ref = unsafe { Gd::from_obj_sys(self.obj.obj_sys()) };
+            *self.extra_strong_ref.borrow_mut() = Some(strong_ref);
+
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            eprintln!("Ref count after first handout: {}", ref_count);
+        }
+
+        // keeper
+        // (*self.obj).to_strong()
+
+        // std::mem::forget((*self.obj).clone());
+
+        (*self.obj).clone()
+    }
+
+    pub(crate) fn mark_initialized(&mut self) {
+        #[cfg(debug_assertions)]
+        {
+            assert_eq!(
+                self.init_state.get(),
+                InitState::ObjectConstructing,
+                "Base<T> is already initialized, or holds a script instance"
+            );
+
+            self.init_state.set(InitState::ObjectInitialized);
+        }
+
+        if self.extra_strong_ref.borrow().is_some() {
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            eprintln!(">   Ref count: {ref_count}");
+            // println!("!!! Dec ref count for {:?}", self.obj.raw);
+            //
+            //*self.extra_strong_ref.borrow_mut() = None;
+
+            let extract = self.extra_strong_ref.borrow_mut().take();
+            std::mem::forget(extract);
+            // drop(extract);
+
+            // The drop(extract) above already decrements the reference count
+
+            let ref_count = self
+                .obj
+                .raw
+                .with_ref_counted(|refc| refc.get_reference_count());
+            eprintln!(">   Ref count after unref: {ref_count}");
+        }
+
+        //*self.extra_strong_ref.borrow_mut() = None;
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
@@ -233,19 +316,6 @@ impl<T: GodotClass> Base<T> {
         );
 
         (*self.obj).clone()
-    }
-
-    pub(crate) fn mark_initialized(&mut self) {
-        #[cfg(debug_assertions)]
-        {
-            assert_eq!(
-                self.init_state.get(),
-                InitState::ObjectConstructing,
-                "Base<T> is already initialized, or holds a script instance"
-            );
-
-            self.init_state.set(InitState::ObjectInitialized);
-        }
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.

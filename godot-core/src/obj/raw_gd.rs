@@ -708,7 +708,7 @@ impl<T: GodotClass> Clone for RawGd<T> {
     fn clone(&self) -> Self {
         out!("RawGd::clone:     {self:?}  (before clone)");
 
-        if self.is_null() {
+        let cloned = if self.is_null() {
             Self::null()
         } else {
             self.check_rtti("clone");
@@ -720,7 +720,10 @@ impl<T: GodotClass> Clone for RawGd<T> {
                 cached_storage_ptr: self.cached_storage_ptr.clone(),
             };
             copy.with_inc_refcount()
-        }
+        };
+
+        out!("                  {self:?}  (after clone)");
+        cloned
     }
 }
 

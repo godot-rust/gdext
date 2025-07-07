@@ -125,19 +125,22 @@ where
 
     //out!("create callback: {}", class_name.backing);
 
-    let mut base = unsafe { Base::from_sys(base_ptr) };
+    let base = unsafe { Base::from_sys(base_ptr) };
+    dbg!(&base);
 
     // User constructor init() can panic, which crashes the engine if unhandled.
     let context = || format!("panic during {class_name}::init() constructor");
     let code = || make_user_instance(unsafe { Base::from_base(&base) });
     let user_instance = handle_panic(context, std::panic::AssertUnwindSafe(code))?;
+    eprintln!("Passed user init for {base:?}");
+
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
     // godot_error!("failed to create instance of {class_name}; Rust init() panicked");
 
-    // Mark initialization as complete, now that user constructor has finished.
-    base.mark_initialized();
+    let mut base_copy = unsafe { Base::from_base(&base) };
 
     let instance = InstanceStorage::<T>::construct(user_instance, base);
+
     let instance_ptr = instance.into_raw();
     let instance_ptr = instance_ptr as sys::GDExtensionClassInstancePtr;
 
@@ -151,6 +154,12 @@ where
             &binding_data_callbacks,
         );
     }
+
+    // Mark initialization as complete, now that user constructor has finished.
+    eprintln!("Mark inited... {base_copy:?}");
+    base_copy.mark_initialized();
+    eprintln!("Marked inited: {base_copy:?}");
+    std::mem::forget(base_copy);
 
     // std::mem::forget(class_name);
     Ok(instance_ptr)

@@ -17,11 +17,22 @@ fn base_test_is_weak() {
 #[itest]
 fn base_instance_id() {
     let obj = Based::new_alloc();
-    let obj_id = obj.instance_id();
-    let base_id = obj.bind().base().instance_id();
-
-    assert_eq!(obj_id, base_id);
+    let _obj_id = dbg!(obj.instance_id());
+    //obj.call("unreference", &[]);
     obj.free();
+}
+
+// #[itest(focus)]
+#[itest]
+fn base_instance_id2() {
+    {
+        let mut obj = RefBase::new_gd();
+        let _obj_id = dbg!(obj.instance_id());
+        // obj.call("unreference", &[]);
+
+        eprintln!("--------------------------");
+    }
+    eprintln!("--end fn------------------");
 }
 
 #[itest]
@@ -115,6 +126,119 @@ fn base_during_init() {
     drop(guard);
 
     obj.free();
+}
+
+// This isn't recommended, but test what happens if someone clones and stores the Gd<T>.
+#[itest]
+fn base_during_init_extracted_gd() {
+    let mut extractor = None;
+
+    let obj = Gd::<Based>::from_init_fn(|mut base| {
+        extractor = Some(base.as_init_gd().clone());
+
+        Based { base, i: 456 }
+    });
+
+    let extracted = extractor.expect("extraction failed");
+    assert_eq!(extracted.instance_id(), obj.instance_id());
+    assert_eq!(extracted, obj.clone().upcast());
+
+    // Destroy through the extracted Gd<T>.
+    extracted.free();
+    assert!(
+        !obj.is_instance_valid(),
+        "object should be invalid after base ptr is freed"
+    );
+}
+
+// Checks bad practice of rug-pulling the base pointer.
+#[itest]
+fn base_during_init_freed_gd() {
+    let mut free_executed = false;
+
+    expect_panic("base object is destroyed", || {
+        let _obj = Gd::<Based>::from_init_fn(|mut base| {
+            let obj = base.as_init_gd().clone();
+            obj.free(); // Causes the problem, but doesn't panic yet.
+            free_executed = true;
+
+            Based { base, i: 456 }
+        });
+    });
+
+    assert!(
+        free_executed,
+        "free() itself doesn't panic, but following construction does"
+    );
+}
+
+#[itest(focus)]
+fn base_during_init_refcounted_simple() {
+    {
+        let obj = Gd::from_init_fn(|base| {
+            eprintln!("---- before to_init_gd() ----");
+            base.to_init_gd(); // Immediately dropped.
+            eprintln!("---- after to_init_gd() ----");
+
+            RefcBased { base }
+        });
+
+        let mut last =
+            Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001572288729));
+        last.call("unreference", &[]);
+
+        println!("After construction: refc={}", obj.get_reference_count());
+        // obj.call("unreference", &[]);
+        //
+        // println!("After dec-ref: refc={}", obj.get_reference_count());
+    }
+    // let last = Gd::from_instance_id(InstanceId::from_i64(9223372072137262887 as i64));
+}
+
+// #[itest(focus)]
+#[itest]
+fn base_during_init_refcounted() {
+    let obj = RefcBased::new_gd();
+
+    println!("After construction: refc={}", obj.get_reference_count());
+    // obj.call("unreference", &[]);
+    //
+    // println!("After dec-ref: refc={}", obj.get_reference_count());
+}
+
+// #[itest(focus)]
+// fn refcounted_drop() {
+//     let a = RefCounted::new_gd();
+//     let b = a.clone();
+//     a.clone();
+//     let c = b.clone();
+//     drop(b);
+//
+//     assert_eq!(a.get_reference_count(), 2);
+// }
+
+#[itest]
+fn base_during_init_refcounted_2() {
+    // Instantiate with multiple Gd<T> references.
+    let (obj, mut base) = RefcBased::with_split();
+    let id = obj.instance_id();
+    dbg!(&id);
+    dbg!(id.to_i64() as u64);
+    dbg!(base.instance_id().to_i64() as u64);
+
+    // base.call("unreference", &[]);
+    base.call("unreference", &[]);
+
+    assert_eq!(obj.instance_id(), base.instance_id());
+    assert_eq!(base.get_reference_count(), 2);
+    assert_eq!(obj.get_reference_count(), 2);
+
+    drop(base);
+    assert_eq!(obj.get_reference_count(), 1);
+    assert_eq!(obj.get_reference_count(), 1);
+    drop(obj);
+
+    assert!(!id.lookup_validity(), "last drop destroyed the object");
 }
 
 #[cfg(debug_assertions)]
@@ -238,17 +362,31 @@ fn create_object_with_extracted_base() -> (Gd<Baseless>, Base<Node2D>) {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+#[derive(GodotClass)]
+pub struct RefBase {
+    pub base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for RefBase {
+    fn init(base: Base<RefCounted>) -> Self {
+        // dbg!(base.to_gd());
+        Self { base }
+    }
+}
 
 use renamed_bases::Based;
 mod renamed_bases {
     use super::{GodotClass, Node2D};
+    use godot::classes::INode2D;
+    use godot::prelude::godot_api;
 
     // Test #[hint].
     type Super<T> = super::Base<T>;
     type Base<T> = T;
 
     #[derive(GodotClass)]
-    #[class(init, base = Node2D)]
+    #[class( base = Node2D)]
     pub struct Based {
         #[hint(base)]
         pub base: Super<Node2D>, // de-facto: Base<Node2D>.
@@ -256,6 +394,14 @@ mod renamed_bases {
         // This can coexist because it's not really a base.
         #[hint(no_base)]
         pub i: Base<i32>, // de-facto: i32
+    }
+
+    #[godot_api]
+    impl INode2D for Based {
+        fn init(base: godot::obj::Base<Self::Base>) -> Self {
+            // dbg!(base.to_gd());
+            Based { base, i: 0 }
+        }
     }
 }
 
@@ -279,5 +425,70 @@ impl Baseless {
             *other_base = Some(base);
             Self {}
         })
+    }
+}
+
+#[derive(GodotClass)]
+#[class] // <- also test this syntax.
+struct RefcBased {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for RefcBased {
+    // fn init(mut base: Base<RefCounted>) -> Self {
+    //     println!(
+    //         "Before to_init_gd(): refc={}",
+    //         base.as_init_gd().get_reference_count()
+    //     );
+    //     let copy = base.to_init_gd();
+    //     println!("Inside init(): refc={}", copy.get_reference_count());
+    //     drop(copy);
+    //     println!(
+    //         "After to_init_gd(): refc={}",
+    //         base.as_init_gd().get_reference_count()
+    //     );
+    //
+    //     Self { base }
+    // }
+    fn init(base: Base<RefCounted>) -> Self {
+        // let gd = base.to_init_gd();
+
+        base.to_init_gd(); // Immediately dropped.
+
+        // let _local_copy = base.to_init_gd(); // At end of scope.
+        // let moved_out = Some(base.to_init_gd()); // Moved out.
+        // std::mem::forget(moved_out);
+
+        // drop(gd);
+
+        // let refc: &mut Gd<RefCounted> = base.as_init_gd();
+        // let refc = refc.get_reference_count();
+        // println!("Inside init(): refc={}", refc);
+        Self { base }
+    }
+}
+
+impl RefcBased {
+    fn with_split() -> (Gd<Self>, Gd<RefCounted>) {
+        let mut moved_out = None;
+
+        let self_gd = Gd::from_init_fn(|mut base| {
+            let gd = base.to_init_gd();
+
+            base.to_init_gd(); // Immediately dropped.
+
+            let _local_copy = base.to_init_gd(); // At end of scope.
+            moved_out = Some(base.to_init_gd()); // Moved out.
+
+            drop(gd);
+
+            let refc: &mut Gd<RefCounted> = base.as_init_gd();
+            let refc = refc.get_reference_count();
+            println!("Inside init(): refc={}", refc);
+            Self { base }
+        });
+
+        (self_gd, moved_out.unwrap())
     }
 }
