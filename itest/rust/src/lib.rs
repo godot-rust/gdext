@@ -7,6 +7,7 @@
 
 use godot::init::{gdextension, ExtensionLibrary, InitLevel};
 
+pub mod async_runtimes;
 mod benchmarks;
 mod builtin_tests;
 mod common;
@@ -15,12 +16,25 @@ mod framework;
 mod object_tests;
 mod register_tests;
 
+// Import the async runtime integration
+use async_runtimes::TokioIntegration;
+use godot::task::register_runtime;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Entry point
 
 #[gdextension(entry_symbol = itest_init)]
 unsafe impl ExtensionLibrary for framework::IntegrationTests {
     fn on_level_init(level: InitLevel) {
+        // Show which initialization level is being processed
+        println!("📍 gdext initialization: level = {level:?}");
+
+        // Register the async runtime early in the initialization process
+        // This is the proper way to integrate async runtimes with gdext
+        if level == InitLevel::Scene {
+            register_runtime::<TokioIntegration>();
+        }
+
         // Testing that we can initialize and use `Object`-derived classes during `Servers` init level. See `object_tests::init_level_test`.
         object_tests::initialize_init_level_test(level);
     }

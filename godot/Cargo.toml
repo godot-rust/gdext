@@ -24,7 +24,7 @@ experimental-wasm-nothreads = ["godot-core/experimental-wasm-nothreads"]
 codegen-rustfmt = ["godot-core/codegen-rustfmt"]
 lazy-function-tables = ["godot-core/codegen-lazy-fptrs"]
 serde = ["godot-core/serde"]
-tokio = ["godot-core/tokio"]
+
 
 register-docs = ["godot-macros/register-docs", "godot-core/register-docs"]
 

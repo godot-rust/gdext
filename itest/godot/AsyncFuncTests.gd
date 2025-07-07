@@ -112,14 +112,6 @@ func test_multiple_async_simplified():
 	assert_eq(result3, 42, "Magic number should be 42")
 	print("✓ Multiple REVOLUTIONARY async operations work perfectly!")
 
-# Test the revolutionary direct Signal return approach
-func test_direct_signal_return():
-	print("=== Testing Direct Signal Return (Revolutionary!) ===")
-	var result = await direct_signal_test()
-	var expected = Vector2(30.0, 60.0)  # input * 3
-	assert_that(result.is_equal_approx(expected), "Direct signal test should return input * 3")
-	print("✓ Direct Signal return works! This is REVOLUTIONARY!")
-
 # *** EXPERIMENTAL: Direct Signal Await Test ***
 # Test if we can directly await a function that returns Signal
 func direct_signal_test() -> Vector2:

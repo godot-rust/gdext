@@ -633,6 +633,17 @@ fn make_async_forwarding_closure(
         ReceiverType::Static => {
             // Static async methods work perfectly - no instance state to worry about
             quote! {
+                // Check if async runtime is registered - this will panic with helpful message if not
+                // The spawn_with_result_signal function will also check, but we want to fail fast
+                if !::godot::task::is_runtime_registered() {
+                    panic!(
+                        "No async runtime has been registered!\n\
+                         Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using #[async_func].\n\
+                         This function ({}) requires an async runtime to work.",
+                        stringify!(#method_name)
+                    );
+                }
+
                 // Create a RefCounted object to hold the signal
                 let mut signal_holder = ::godot::classes::RefCounted::new_gd();
                 signal_holder.add_user_signal("finished");

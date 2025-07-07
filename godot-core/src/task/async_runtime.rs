@@ -14,9 +14,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll, Wake, Waker};
 use std::thread::{self, LocalKey, ThreadId};
 
-#[cfg(feature = "tokio")]
-use tokio::runtime::Handle;
-
 // Use pin-project-lite for safe pin projection
 use pin_project_lite::pin_project;
 
@@ -28,6 +25,176 @@ use crate::private::handle_panic;
 use crate::classes::RefCounted;
 use crate::meta::ToGodot;
 use crate::obj::{Gd, NewGd};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Scoped Runtime Context - Zero Static Storage!
+
+// Removed RuntimeContext - not needed with the simplified API
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Runtime Abstraction Trait
+
+/// Trait for integrating external async runtimes with gdext's async system.
+///
+/// This trait provides the minimal interface for pluggable async runtime support.
+/// Users need to implement `create_runtime()` and `with_context()`.
+///
+/// # Simple Example Implementation
+///
+/// ```rust
+/// struct TokioIntegration;
+///
+/// impl AsyncRuntimeIntegration for TokioIntegration {
+///     type Handle = tokio::runtime::Handle;
+///     
+///     fn create_runtime() -> Result<(Box<dyn std::any::Any + Send + Sync>, Self::Handle), String> {
+///         let runtime = tokio::runtime::Runtime::new()
+///             .map_err(|e| format!("Failed to create tokio runtime: {}", e))?;
+///         let handle = runtime.handle().clone();
+///         Ok((Box::new(runtime), handle))
+///     }
+///     
+///     fn with_context<R>(handle: &Self::Handle, f: impl FnOnce() -> R) -> R {
+///         let _guard = handle.enter();
+///         f()
+///     }
+/// }
+/// ```
+pub trait AsyncRuntimeIntegration: Send + Sync + 'static {
+    /// Handle type for the async runtime (e.g., `tokio::runtime::Handle`)
+    type Handle: Clone + Send + Sync + 'static;
+
+    /// Create a new runtime instance and return its handle
+    ///
+    /// Returns a tuple of:
+    /// - Boxed runtime instance (kept alive via RAII)
+    /// - Handle to the runtime for context operations
+    ///
+    /// The runtime should be configured appropriately for Godot integration.
+    /// If creation fails, return a descriptive error message.
+    fn create_runtime() -> Result<(Box<dyn std::any::Any + Send + Sync>, Self::Handle), String>;
+
+    /// Execute a closure within the runtime context
+    ///
+    /// This method should execute the provided closure while the runtime
+    /// is current. This ensures that async operations within the closure
+    /// have access to the proper runtime context (timers, I/O, etc.).
+    ///
+    /// For runtimes that don't need explicit context management,
+    /// this can simply call the closure directly.
+    fn with_context<R>(handle: &Self::Handle, f: impl FnOnce() -> R) -> R;
+}
+
+/// Configuration for the async runtime
+///
+/// This allows users to specify which runtime integration to use and configure
+/// its behavior. By default, gdext will try to auto-detect an existing runtime
+/// or use a built-in minimal implementation.
+pub struct AsyncRuntimeConfig<T: AsyncRuntimeIntegration> {
+    /// The runtime integration implementation
+    _integration: PhantomData<T>,
+
+    /// Whether to try auto-detecting existing runtime context
+    pub auto_detect: bool,
+
+    /// Whether to create a new runtime if none is detected
+    pub create_if_missing: bool,
+}
+
+impl<T: AsyncRuntimeIntegration> Default for AsyncRuntimeConfig<T> {
+    fn default() -> Self {
+        Self {
+            _integration: PhantomData,
+            auto_detect: true,
+            create_if_missing: true,
+        }
+    }
+}
+
+impl<T: AsyncRuntimeIntegration> AsyncRuntimeConfig<T> {
+    /// Create a new runtime configuration
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set whether to auto-detect existing runtime context
+    pub fn with_auto_detect(mut self, auto_detect: bool) -> Self {
+        self.auto_detect = auto_detect;
+        self
+    }
+
+    /// Set whether to create a new runtime if none is detected
+    pub fn with_create_if_missing(mut self, create_if_missing: bool) -> Self {
+        self.create_if_missing = create_if_missing;
+        self
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Runtime Registry
+
+use std::sync::OnceLock;
+
+/// Type alias for the context function to avoid clippy complexity warnings
+type ContextFunction = Box<dyn Fn(&dyn Fn()) + Send + Sync>;
+
+/// Runtime storage with context management
+struct RuntimeStorage {
+    /// The actual runtime instance (kept alive via RAII)
+    _runtime_instance: Box<dyn std::any::Any + Send + Sync>,
+    /// Function to execute closures within runtime context
+    with_context: ContextFunction,
+}
+
+/// Single consolidated storage - no scattered statics
+static RUNTIME_STORAGE: OnceLock<RuntimeStorage> = OnceLock::new();
+
+/// Register an async runtime integration with gdext
+///
+/// This must be called before using any async functions like `#[async_func]`.
+/// Only one runtime can be registered per application.
+///
+/// # Panics
+///
+/// Panics if a runtime has already been registered.
+///
+/// # Example
+///
+/// ```rust
+/// use your_runtime_integration::YourRuntimeIntegration;
+///
+/// // Register your runtime at application startup
+/// gdext::task::register_runtime::<YourRuntimeIntegration>();
+///
+/// // Now async functions will work
+/// ```
+pub fn register_runtime<T: AsyncRuntimeIntegration>() {
+    // Create the runtime immediately during registration
+    let (runtime_instance, handle) = T::create_runtime().expect("Failed to create async runtime");
+
+    // Clone the handle for the closure
+    let handle_clone = handle.clone();
+
+    // Create the storage structure with context management
+    let storage = RuntimeStorage {
+        _runtime_instance: runtime_instance,
+        with_context: Box::new(move |f| T::with_context(&handle_clone, f)),
+    };
+
+    if RUNTIME_STORAGE.set(storage).is_err() {
+        panic!(
+            "Async runtime has already been registered. Only one runtime can be registered per application.\n\
+             If you need to change runtimes, restart the application."
+        );
+    }
+}
+
+/// Check if a runtime is registered
+pub fn is_runtime_registered() -> bool {
+    RUNTIME_STORAGE.get().is_some()
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // *** Added: Enhanced Error Handling ***
 
@@ -45,8 +212,8 @@ pub enum AsyncRuntimeError {
         task_id: u64,
         expected_state: String,
     },
-    /// Tokio runtime creation failed
-    TokioRuntimeCreationFailed { reason: String },
+    /// No async runtime has been registered
+    NoRuntimeRegistered,
     /// Task spawning failed
     TaskSpawningFailed { reason: String },
     /// Signal emission failed
@@ -79,8 +246,8 @@ impl std::fmt::Display for AsyncRuntimeError {
                     "Task {task_id} is in invalid state, expected: {expected_state}"
                 )
             }
-            AsyncRuntimeError::TokioRuntimeCreationFailed { reason } => {
-                write!(f, "Failed to create tokio runtime: {reason}")
+            AsyncRuntimeError::NoRuntimeRegistered => {
+                write!(f, "No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.")
             }
             AsyncRuntimeError::TaskSpawningFailed { reason } => {
                 write!(f, "Failed to spawn task: {reason}")
@@ -135,90 +302,6 @@ impl std::fmt::Display for TaskSpawnError {
 }
 
 impl std::error::Error for TaskSpawnError {}
-
-/// Context guard that ensures proper runtime context is entered
-/// Similar to tokio's EnterGuard, ensures async operations run in the right context
-pub struct RuntimeContextGuard<'a> {
-    #[cfg(feature = "tokio")]
-    _tokio_guard: Option<tokio::runtime::EnterGuard<'a>>,
-    #[cfg(not(feature = "tokio"))]
-    _phantom: PhantomData<&'a ()>,
-}
-
-impl<'a> RuntimeContextGuard<'a> {
-    /// Create a new context guard
-    ///
-    /// # Safety
-    /// This should only be called when we have confirmed that a runtime context is available
-    #[cfg(feature = "tokio")]
-    fn new(handle: &'a tokio::runtime::Handle) -> Self {
-        Self {
-            _tokio_guard: Some(handle.enter()),
-        }
-    }
-
-    #[cfg(not(feature = "tokio"))]
-    fn new() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
-    }
-
-    // Note: dummy() method was removed because it was designed as a fallback
-    // for when no runtime context is available, but the current implementation
-    // always uses proper context guards or the new() constructor directly.
-}
-
-/// Context management for async runtime operations
-/// Provides tokio-style runtime context entering and exiting
-#[derive(Default)]
-pub struct RuntimeContext {
-    #[cfg(feature = "tokio")]
-    tokio_handle: Option<tokio::runtime::Handle>,
-}
-
-impl RuntimeContext {
-    /// Create a new runtime context
-    pub fn new() -> Self {
-        Self {
-            #[cfg(feature = "tokio")]
-            tokio_handle: None,
-        }
-    }
-
-    /// Initialize the context with a tokio handle
-    #[cfg(feature = "tokio")]
-    pub fn with_tokio_handle(handle: tokio::runtime::Handle) -> Self {
-        Self {
-            tokio_handle: Some(handle),
-        }
-    }
-
-    /// Enter the runtime context
-    /// Returns a guard that ensures the context remains active
-    pub fn enter(&self) -> RuntimeContextGuard<'_> {
-        #[cfg(feature = "tokio")]
-        {
-            if let Some(handle) = &self.tokio_handle {
-                RuntimeContextGuard::new(handle)
-            } else {
-                // When no tokio handle is available, create a guard with None
-                RuntimeContextGuard { _tokio_guard: None }
-            }
-        }
-
-        #[cfg(not(feature = "tokio"))]
-        {
-            RuntimeContextGuard::new()
-        }
-    }
-
-    // Note: has_tokio_runtime() and try_current_tokio() methods were removed because:
-    // - has_tokio_runtime(): Was designed for public API to check tokio availability,
-    //   but current implementation doesn't expose this check to users
-    // - try_current_tokio(): Was designed for automatic tokio runtime detection,
-    //   but current implementation uses explicit runtime management instead
-}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public interface
@@ -308,6 +391,15 @@ impl RuntimeContext {
 /// ```
 #[doc(alias = "async")]
 pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
+    // Check if runtime is registered
+    if !is_runtime_registered() {
+        panic!(
+            "No async runtime has been registered!\n\
+             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
+             See the documentation for examples of runtime integrations."
+        );
+    }
+
     // In single-threaded mode, spawning is only allowed on the main thread.
     // We can not accept Sync + Send futures since all object references (i.e. Gd<T>) are not thread-safe. So a future has to remain on the
     // same thread it was created on. Godots signals on the other hand can be emitted on any thread, so it can't be guaranteed on which thread
@@ -366,6 +458,15 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
 /// });
 /// ```
 pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
+    // Check if runtime is registered
+    if !is_runtime_registered() {
+        panic!(
+            "No async runtime has been registered!\n\
+             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
+             See the documentation for examples of runtime integrations."
+        );
+    }
+
     // Must be called from the main thread since Godot objects are not thread-safe
     assert!(
         crate::init::is_main_thread(),
@@ -436,6 +537,15 @@ where
     F: Future<Output = R> + Send + 'static,
     R: ToGodot + Send + Sync + 'static,
 {
+    // Check if runtime is registered
+    if !is_runtime_registered() {
+        panic!(
+            "No async runtime has been registered!\n\
+             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
+             See the documentation for examples of runtime integrations."
+        );
+    }
+
     // In single-threaded mode, spawning is only allowed on the main thread
     // In multi-threaded mode, we allow spawning from any thread
     #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
@@ -481,6 +591,15 @@ where
     F: Future<Output = R> + Send + 'static,
     R: ToGodot + Send + Sync + 'static,
 {
+    // Check if runtime is registered
+    if !is_runtime_registered() {
+        panic!(
+            "No async runtime has been registered!\n\
+             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
+             See the documentation for examples of runtime integrations."
+        );
+    }
+
     // In single-threaded mode, spawning is only allowed on the main thread
     // In multi-threaded mode, we allow spawning from any thread
     #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
@@ -684,7 +803,7 @@ pub(crate) fn cleanup() {
 
 #[cfg(feature = "trace")]
 pub fn has_godot_task_panicked(task_handle: TaskHandle) -> bool {
-    ASYNC_RUNTIME.with_runtime(|rt| rt.task_scheduler.has_task_panicked(task_handle.id))
+    ASYNC_RUNTIME.with_runtime(|rt| rt._task_scheduler.has_task_panicked(task_handle.id))
 }
 
 // Note: The following public API functions were removed because they were designed
@@ -1204,15 +1323,14 @@ pub struct TaskStorageStats {
 struct TaskScheduler {
     #[cfg(feature = "trace")]
     panicked_tasks: std::collections::HashSet<u64>,
-    runtime_context: RuntimeContext,
+    // Runtime context is now managed by the registered runtime
 }
 
 impl TaskScheduler {
-    fn new(runtime_context: RuntimeContext) -> Self {
+    fn new() -> Self {
         Self {
             #[cfg(feature = "trace")]
             panicked_tasks: std::collections::HashSet::new(),
-            runtime_context,
         }
     }
 
@@ -1258,12 +1376,12 @@ impl TaskScheduler {
 /// The main async runtime that coordinates between all components
 struct AsyncRuntime {
     task_storage: TaskStorage,
-    task_scheduler: TaskScheduler,
+    _task_scheduler: TaskScheduler,
     // Note: signal_bridge field was removed because SignalBridge component
     // was designed as a placeholder for future signal management features,
     // but the current implementation handles signals directly without a bridge.
-    #[cfg(feature = "tokio")]
-    _runtime_manager: Option<RuntimeManager>,
+    // Note: _runtime_manager field was removed because tokio integration
+    // was removed in favor of pluggable runtime system.
 }
 
 impl Default for AsyncRuntime {
@@ -1361,95 +1479,14 @@ where
 // SignalEmittingFuture is automatically Send if all its components are Send
 // We ensure this through proper bounds rather than unsafe impl
 
-/// Proper tokio runtime management with cleanup
-#[cfg(feature = "tokio")]
-struct RuntimeManager {
-    _runtime: Option<tokio::runtime::Runtime>,
-    handle: tokio::runtime::Handle,
-}
-
-#[cfg(feature = "tokio")]
-impl RuntimeManager {
-    fn new() -> Option<Self> {
-        // Try to use current tokio runtime first
-        if let Ok(current_handle) = Handle::try_current() {
-            return Some(Self {
-                _runtime: None,
-                handle: current_handle,
-            });
-        }
-
-        // Create a new runtime if none exists
-        #[cfg(feature = "experimental-threads")]
-        let mut builder = tokio::runtime::Builder::new_multi_thread();
-
-        #[cfg(not(feature = "experimental-threads"))]
-        let mut builder = tokio::runtime::Builder::new_current_thread();
-
-        match builder.enable_all().build() {
-            Ok(runtime) => {
-                let handle = runtime.handle().clone();
-                Some(Self {
-                    _runtime: Some(runtime),
-                    handle,
-                })
-            }
-            Err(e) => {
-                // Log the error but don't panic, just continue without tokio support
-                eprintln!("Warning: Failed to create tokio runtime: {e}");
-                #[cfg(feature = "trace")]
-                eprintln!("  This will disable tokio-based async operations");
-                None
-            }
-        }
-    }
-
-    fn handle(&self) -> &tokio::runtime::Handle {
-        &self.handle
-    }
-}
-
-#[cfg(feature = "tokio")]
-impl Drop for RuntimeManager {
-    fn drop(&mut self) {
-        // Runtime will be properly dropped when _runtime is dropped
-        // No manual shutdown needed as Drop handles it
-    }
-}
+// RuntimeManager removed - runtime management is now handled by user-provided integrations
 
 impl AsyncRuntime {
     fn new() -> Self {
-        #[cfg(feature = "tokio")]
-        let (runtime_manager, tokio_handle) = {
-            match RuntimeManager::new() {
-                Some(manager) => {
-                    let handle = manager.handle().clone();
-                    (Some(manager), Some(handle))
-                }
-                None => (None, None),
-            }
-        };
-
-        let runtime_context = {
-            #[cfg(feature = "tokio")]
-            {
-                if let Some(handle) = tokio_handle.as_ref() {
-                    RuntimeContext::with_tokio_handle(handle.clone())
-                } else {
-                    RuntimeContext::new()
-                }
-            }
-            #[cfg(not(feature = "tokio"))]
-            {
-                RuntimeContext::new()
-            }
-        };
-
+        // No runtime initialization needed - runtime is provided by user registration
         Self {
             task_storage: TaskStorage::new(),
-            task_scheduler: TaskScheduler::new(runtime_context),
-            #[cfg(feature = "tokio")]
-            _runtime_manager: runtime_manager,
+            _task_scheduler: TaskScheduler::new(),
         }
     }
 
@@ -1514,7 +1551,7 @@ impl AsyncRuntime {
     /// Delegates to task scheduler component
     #[cfg(feature = "trace")]
     fn track_panic(&mut self, task_id: u64) {
-        self.task_scheduler.track_panic(task_id);
+        self._task_scheduler.track_panic(task_id);
     }
 
     // Note: The following methods were removed because they were designed for
@@ -1529,7 +1566,7 @@ impl AsyncRuntime {
     fn clear_all(&mut self) {
         self.task_storage.clear_all();
         #[cfg(feature = "trace")]
-        self.task_scheduler.clear_panic_tracking();
+        self._task_scheduler.clear_panic_tracking();
     }
 }
 
@@ -1623,20 +1660,47 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     let task_id = godot_waker.task_id;
     let error_context = || format!("Godot async task failed (task_id: {task_id})");
 
-    // Execute the poll operation within proper runtime context
-    let panic_result = {
-        ASYNC_RUNTIME.with_runtime(|rt| {
-            // Enter the runtime context for proper tokio integration
-            let _context_guard = rt.task_scheduler.runtime_context.enter();
+    // Execute the poll operation within the runtime context
+    let panic_result = if let Some(storage) = RUNTIME_STORAGE.get() {
+        // Poll within the runtime context for proper tokio/async-std support
+        use std::cell::RefCell;
+        let future_cell = RefCell::new(Some(future_storage));
+        let ctx_cell = RefCell::new(Some(ctx));
+        let result_cell = RefCell::new(None);
 
-            handle_panic(
+        (storage.with_context)(&|| {
+            let mut future_storage = future_cell
+                .borrow_mut()
+                .take()
+                .expect("Future should be available");
+            let mut ctx = ctx_cell
+                .borrow_mut()
+                .take()
+                .expect("Context should be available");
+
+            let result = handle_panic(
                 error_context,
                 AssertUnwindSafe(move || {
                     let poll_result = future_storage.poll(&mut ctx);
                     (poll_result, future_storage)
                 }),
-            )
-        })
+            );
+
+            *result_cell.borrow_mut() = Some(result);
+        });
+
+        result_cell
+            .into_inner()
+            .expect("Result should have been set")
+    } else {
+        // Fallback: direct polling without context (for simple runtimes)
+        handle_panic(
+            error_context,
+            AssertUnwindSafe(move || {
+                let poll_result = future_storage.poll(&mut ctx);
+                (poll_result, future_storage)
+            }),
+        )
     };
 
     let Ok((poll_result, future_storage)) = panic_result else {

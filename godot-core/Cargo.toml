@@ -13,7 +13,7 @@ homepage = "https://godot-rust.github.io"
 [features]
 default = []
 register-docs = []
-tokio = ["dep:tokio"]
+
 codegen-rustfmt = ["godot-ffi/codegen-rustfmt", "godot-codegen/codegen-rustfmt"]
 codegen-full = ["godot-codegen/codegen-full"]
 codegen-lazy-fptrs = [
@@ -50,7 +50,7 @@ godot-ffi = { path = "../godot-ffi", version = "=0.3.1" }
 glam = { workspace = true }
 serde = { workspace = true, optional = true }
 godot-cell = { path = "../godot-cell", version = "=0.3.1" }
-tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "time"], optional = true }
+
 pin-project-lite = { workspace = true }
 
 [build-dependencies]
