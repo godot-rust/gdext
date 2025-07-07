@@ -141,7 +141,7 @@ pub fn make_enum_definition_with(
 ///
 /// Returns `None` if `enum_` isn't an indexable enum.
 fn make_enum_index_impl(enum_: &Enum) -> Option<TokenStream> {
-    let enum_max = enum_.find_index_enum_max()?;
+    let enum_max = enum_.max_index?; // Do nothing if enum isn't sequential with a MAX constant.
     let name = &enum_.name;
 
     Some(quote! {
