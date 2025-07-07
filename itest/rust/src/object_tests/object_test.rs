@@ -500,14 +500,19 @@ fn object_engine_convert_variant_nil() {
 fn object_engine_convert_variant_error() {
     let refc = RefCounted::new_gd();
     let variant = refc.to_variant();
+    assert_eq!(refc.test_refcount(), Some(2));
 
     let err = Gd::<Node2D>::try_from_variant(&variant)
         .expect_err("`Gd<RefCounted>` should not convert to `Gd<Node2D>`");
 
-    assert_eq!(
-        err.to_string(),
-        format!("cannot convert to class Node2D: {refc:?}")
+    // ConvertError::Err holds a copy of the value, i.e. refcount is +1.
+    assert_eq!(refc.test_refcount(), Some(3));
+
+    let expected_debug = format!(
+        "cannot convert to class Node2D: VariantGd {{ id: {}, class: RefCounted, refc: 3 }}",
+        refc.instance_id().to_i64()
     );
+    assert_eq!(err.to_string(), expected_debug);
 }
 
 #[itest]

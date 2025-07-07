@@ -261,14 +261,14 @@ fn variant_dead_object_conversions() {
 
     // Verify Display + Debug impl.
     assert_eq!(format!("{variant}"), "<Freed Object>");
-    assert_eq!(format!("{variant:?}"), "<Freed Object>");
+    assert_eq!(format!("{variant:?}"), "VariantGd { freed obj }");
 
     // Variant::try_to().
     let result = variant.try_to::<Gd<Node>>();
     let err = result.expect_err("Variant::try_to::<Gd>() with dead object should fail");
     assert_eq!(
         err.to_string(),
-        "variant holds object which is no longer alive: <Freed Object>"
+        "variant holds object which is no longer alive: VariantGd { freed obj }"
     );
 
     // Variant::to().
@@ -282,7 +282,7 @@ fn variant_dead_object_conversions() {
     let err = result.expect_err("Variant::try_to::<Option<Gd>>() with dead object should fail");
     assert_eq!(
         err.to_string(),
-        "variant holds object which is no longer alive: <Freed Object>"
+        "variant holds object which is no longer alive: VariantGd { freed obj }"
     );
 }
 

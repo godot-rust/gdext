@@ -89,7 +89,7 @@ mod rustfmt {
 
             let status = command.status().expect("failed to invoke rustfmt");
             if !status.success() {
-                panic!("rustfmt failed on {:?}", command);
+                panic!("rustfmt failed on {command:?}");
             }
         }
 

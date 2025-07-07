@@ -8,6 +8,7 @@
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
+use crate::classes;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
     arg_into_ref, ffi_variant_type, ArrayElement, AsArg, ExtVariantType, FromGodot, GodotType,
@@ -582,6 +583,10 @@ impl fmt::Debug for Variant {
                 let array = unsafe { VariantArray::from_variant_unchecked(self) };
                 array.fmt(f)
             }
+
+            // Converting to objects before printing causes their refcount to increment, leading to an Observer effect
+            // where `Debug` actually changes the object statistics. As such, fetch information without instantiating Gd<T>.
+            VariantType::OBJECT => classes::debug_string_variant(self, f, "VariantGd"),
 
             // VariantDispatch also includes dead objects via `FreedObject` enumerator, which maps to "<Freed Object>".
             _ => VariantDispatch::from_variant(self).fmt(f),

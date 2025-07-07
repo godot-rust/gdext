@@ -7,13 +7,13 @@
 
 //! Runtime checks and inspection of Godot classes.
 
-use crate::builtin::{GString, StringName};
+use crate::builtin::{GString, StringName, Variant, VariantType};
 #[cfg(debug_assertions)]
 use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
 #[cfg(debug_assertions)]
 use crate::meta::ClassName;
-use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
 use crate::sys;
 
 pub(crate) fn debug_string<T: GodotClass>(
@@ -23,9 +23,82 @@ pub(crate) fn debug_string<T: GodotClass>(
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
         let class: StringName = obj.dynamic_class_string();
-        write!(f, "{ty} {{ id: {id}, class: {class} }}")
+        debug_string_parts(f, ty, id, class, obj.maybe_refcount(), None)
     } else {
         write!(f, "{ty} {{ freed obj }}")
+    }
+}
+
+#[cfg(since_api = "4.4")]
+pub(crate) fn debug_string_variant(
+    obj: &Variant,
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
+) -> std::fmt::Result {
+    debug_assert_eq!(obj.get_type(), VariantType::OBJECT);
+
+    let id = obj
+        .object_id_unchecked()
+        .expect("Variant must be of type OBJECT");
+
+    if id.lookup_validity() {
+        // Object::get_class() currently returns String, but this is future-proof if the return type changes to StringName.
+        let class = obj
+            .call("get_class", &[])
+            .try_to_relaxed::<StringName>()
+            .expect("get_class() must be compatible with StringName");
+
+        let refcount = id.is_ref_counted().then(|| {
+            obj.call("get_reference_count", &[])
+                .try_to_relaxed::<i32>()
+                .expect("get_reference_count() must return integer") as usize
+        });
+
+        debug_string_parts(f, ty, id, class, refcount, None)
+    } else {
+        write!(f, "{ty} {{ freed obj }}")
+    }
+}
+
+// Polyfill for Godot < 4.4, where Variant::object_id_unchecked() is not available.
+#[cfg(before_api = "4.4")]
+pub(crate) fn debug_string_variant(
+    obj: &Variant,
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
+) -> std::fmt::Result {
+    debug_assert_eq!(obj.get_type(), VariantType::OBJECT);
+
+    match obj.try_to::<Gd<crate::classes::Object>>() {
+        Ok(obj) => {
+            let id = obj.instance_id(); // Guaranteed valid, since conversion would have failed otherwise.
+            let class = obj.dynamic_class_string();
+
+            // Refcount is off-by-one due to now-created Gd<T> from conversion; correct by -1.
+            let refcount = obj.maybe_refcount().map(|rc| rc.saturating_sub(1));
+
+            debug_string_parts(f, ty, id, class, refcount, None)
+        }
+        Err(_) => {
+            write!(f, "{ty} {{ freed obj }}")
+        }
+    }
+}
+
+pub(crate) fn debug_string_nullable<T: GodotClass>(
+    obj: &RawGd<T>,
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
+) -> std::fmt::Result {
+    if obj.is_null() {
+        write!(f, "{ty} {{ null }}")
+    } else {
+        // Unsafety introduced here to avoid creating a new Gd<T> (which can have all sorts of side effects, logs, refcounts etc.)
+        // *and* pushing down all high-level Gd<T> functions to RawGd<T> as pure delegates.
+
+        // SAFETY: checked non-null.
+        let obj = unsafe { obj.as_non_null() };
+        debug_string(obj, f, ty)
     }
 }
 
@@ -37,10 +110,34 @@ pub(crate) fn debug_string_with_trait<T: GodotClass>(
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
         let class: StringName = obj.dynamic_class_string();
-        write!(f, "{ty} {{ id: {id}, class: {class}, trait: {trt} }}")
+        debug_string_parts(f, ty, id, class, obj.maybe_refcount(), Some(trt))
     } else {
         write!(f, "{ty} {{ freed obj }}")
     }
+}
+
+fn debug_string_parts(
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
+    id: InstanceId,
+    class: StringName,
+    refcount: Option<usize>,
+    trait_name: Option<&str>,
+) -> std::fmt::Result {
+    let mut builder = f.debug_struct(ty);
+    builder
+        .field("id", &id.to_i64())
+        .field("class", &format_args!("{class}"));
+
+    if let Some(trait_name) = trait_name {
+        builder.field("trait", &format_args!("{trait_name}"));
+    }
+
+    if let Some(refcount) = refcount {
+        builder.field("refc", &refcount);
+    }
+
+    builder.finish()
 }
 
 pub(crate) fn display_string<T: GodotClass>(
@@ -83,7 +180,7 @@ pub(crate) fn ensure_object_alive(
     // namely in PR https://github.com/godotengine/godot/pull/36189. Double-check to make sure.
     assert_eq!(
         new_object_ptr, old_object_ptr,
-        "{call_ctx}: instance ID {instance_id} points to a stale, reused object. Please report this to gdext maintainers."
+        "{call_ctx}: instance ID {instance_id} points to a stale, reused object. Please report this to godot-rust maintainers."
     );
 }
 

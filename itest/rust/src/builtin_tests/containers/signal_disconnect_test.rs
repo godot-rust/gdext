@@ -7,7 +7,7 @@
 
 #![cfg(since_api = "4.2")]
 
-use crate::framework::{expect_debug_panic_or_release_ok, itest};
+use crate::framework::{expect_debug_panic_or_release_ok, expect_panic, itest};
 use godot::{
     builtin::{Callable, Signal},
     classes::Object,
@@ -152,10 +152,14 @@ fn handle_recognizes_direct_object_disconnect() {
     })
 }
 
-#[itest(skip)]
-fn handle_recognizes_freed_object() {
-    // TODO
-    // We should define what happens when either the broadcasting object or (potential) receiving object is freed.
+#[itest]
+fn test_handle_after_freeing_broadcaster() {
+    test_freed_nodes_handles(true);
+}
+
+#[itest]
+fn test_handle_after_freeing_receiver() {
+    test_freed_nodes_handles(false);
 }
 
 // Helper functions:
@@ -227,6 +231,39 @@ fn test_handle_recognizes_non_valid_state(disconnect_function: impl FnOnce(&mut 
     });
 
     obj.free();
+}
+
+fn test_freed_nodes_handles(free_broadcaster_first: bool) {
+    let broadcaster = SignalDisc::new_alloc();
+    let receiver = SignalDisc::new_alloc();
+
+    let handle = broadcaster
+        .signals()
+        .my_signal()
+        .connect_other(&receiver, |r| {
+            r.increment_self();
+        });
+
+    let (to_free, other) = if free_broadcaster_first {
+        (broadcaster, receiver)
+    } else {
+        (receiver, broadcaster)
+    };
+
+    // Free one of the nodes, and check if the handle thinks the objects are connected.
+    // In both cases godot runtime should handle disconnecting the signals.
+    to_free.free();
+    assert!(!handle.is_connected());
+
+    // Calling disconnect() on already disconnected handle should panic in the Debug mode.
+    // Otherwise, in release mode, the error will happen in Godot runtime.
+    if cfg!(debug_assertions) {
+        expect_panic("Disconnected invalid handle!", || {
+            handle.disconnect();
+        });
+    }
+
+    other.free();
 }
 
 fn has_connections(obj: &Gd<SignalDisc>) -> bool {

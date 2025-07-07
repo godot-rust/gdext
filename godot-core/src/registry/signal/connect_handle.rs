@@ -50,11 +50,15 @@ impl ConnectHandle {
 
     /// Whether the handle represents a valid connection.
     ///
-    /// Returns false if the signals and callables managed by this handle have been disconnected in any other way than by using
-    /// [`disconnect()`][Self::disconnect] -- e.g. through [`Signal::disconnect()`][crate::builtin::Signal::disconnect] or
-    /// [`Object::disconnect()`][crate::classes::Object::disconnect].
+    /// Returns false if:
+    /// - ... the signals and callables managed by this handle have been disconnected in any other way than by using
+    ///   [`disconnect()`][Self::disconnect] -- e.g. through [`Signal::disconnect()`][crate::builtin::Signal::disconnect] or
+    ///   [`Object::disconnect()`][crate::classes::Object::disconnect].
+    /// - ... the broadcasting object managed by this handle is not valid -- e.g. if the object has been freed.
     pub fn is_connected(&self) -> bool {
-        self.receiver_object
-            .is_connected(&*self.signal_name, &self.callable)
+        self.receiver_object.is_instance_valid()
+            && self
+                .receiver_object
+                .is_connected(&*self.signal_name, &self.callable)
     }
 }

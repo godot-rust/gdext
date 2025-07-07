@@ -12,6 +12,7 @@
 //! * [`Gd`], a smart pointer that manages instances of Godot classes.
 
 mod base;
+mod casts;
 mod dyn_gd;
 mod gd;
 mod guards;

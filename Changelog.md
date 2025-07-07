@@ -10,9 +10,39 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.3.0](#v030), [v0.3.1](#v031)
+- [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.3.2](https://docs.rs/godot/0.3.2)
+
+_3 July 2025_
+
+### 🌻 Features
+
+- `vslice![a, b]` for variant slices ([#1191](https://github.com/godot-rust/gdext/pull/1191))
+- Disconnection of type-safe signals ([#1198](https://github.com/godot-rust/gdext/pull/1198))
+- Callables linked to objects; let Godot auto-disconnect signals ([#1223](https://github.com/godot-rust/gdext/pull/1223))
+
+### 🧹 Quality of life
+
+- Implement `Debug` for `OnEditor` ([#1189](https://github.com/godot-rust/gdext/pull/1189))
+- `Color`: const constructors, add `ALL_GODOT_COLORS` constant ([#1194](https://github.com/godot-rust/gdext/pull/1194))
+- Deny manual `init()` if `#[class(init|no_init)]` is present ([#1196](https://github.com/godot-rust/gdext/pull/1196))
+- Relaxed Variant conversions ([#1201](https://github.com/godot-rust/gdext/pull/1201))
+- Allow custom types to be passed as `impl AsArg<T>` ([#1193](https://github.com/godot-rust/gdext/pull/1193))
+- Verify that marshalling errors cause failed *GDScript* function ([#1203](https://github.com/godot-rust/gdext/pull/1203))
+- Inline most string interpolations (`cargo +nightly clippy --fix --workspace`) ([#1206](https://github.com/godot-rust/gdext/pull/1206))
+- Work around breaking change in GDExtension API (`VisualShader` class) ([#1210](https://github.com/godot-rust/gdext/pull/1210))
+- Allow `clippy::uninlined_format_args` (Rust 1.88) ([#1222](https://github.com/godot-rust/gdext/pull/1222))
+
+### 🛠️ Bugfixes
+
+- Fix inaccurate `Color` constants ([#1195](https://github.com/godot-rust/gdext/pull/1195))
+- Make hot-reload work with `#[class(no_init)]` ([#1197](https://github.com/godot-rust/gdext/pull/1197))
+- Wasm registration fn names now based on crate name + index ([#1205](https://github.com/godot-rust/gdext/pull/1205))
+- Fixed bug causing `ConnectHandle::is_connected()` to sometimes panic ([#1212](https://github.com/godot-rust/gdext/pull/1212))
 
 
 ## [v0.3.1](https://docs.rs/godot/0.3.1)
