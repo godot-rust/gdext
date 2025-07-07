@@ -492,7 +492,17 @@ fn check_async_test_task(
     use godot::obj::EngineBitfield;
     use godot::task::has_godot_task_panicked;
 
-    if !task_handle.is_pending() {
+    // Handle the Result returned by is_pending()
+    let is_pending = match task_handle.is_pending() {
+        Ok(pending) => pending,
+        Err(_) => {
+            // If we can't determine the task state, assume it's failed
+            on_test_finished(TestOutcome::Failed);
+            return;
+        }
+    };
+
+    if !is_pending {
         on_test_finished(TestOutcome::from_bool(!has_godot_task_panicked(
             task_handle,
         )));

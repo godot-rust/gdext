@@ -51,6 +51,7 @@ glam = { workspace = true }
 serde = { workspace = true, optional = true }
 godot-cell = { path = "../godot-cell", version = "=0.3.1" }
 tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "time"], optional = true }
+pin-project-lite = { workspace = true }
 
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings", version = "=0.3.1" }

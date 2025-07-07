@@ -37,7 +37,7 @@ fn start_async_task() -> TaskHandle {
 
     object.add_user_signal("custom_signal");
 
-    let task_handle = task::spawn(async move {
+    let task_handle = task::spawn_local(async move {
         let signal_future: SignalFuture<(u8, Gd<RefCounted>)> = signal.to_future();
         let (result, object) = signal_future.await;
 
@@ -61,7 +61,7 @@ fn async_task_array() -> TaskHandle {
 
     object.add_user_signal("custom_signal_array");
 
-    let task_handle = task::spawn(async move {
+    let task_handle = task::spawn_local(async move {
         let signal_future: SignalFuture<(Array<i64>, Gd<RefCounted>)> = signal.to_future();
         let (result, object) = signal_future.await;
 
@@ -84,13 +84,13 @@ fn cancel_async_task(ctx: &TestContext) {
     let tree = ctx.scene_tree.get_tree().unwrap();
     let signal = Signal::from_object_signal(&tree, "process_frame");
 
-    let handle = task::spawn(async move {
+    let handle = task::spawn_local(async move {
         let _: () = signal.to_future().await;
 
         unreachable!();
     });
 
-    handle.cancel();
+    let _ = handle.cancel();
 }
 
 #[itest(async)]
@@ -99,7 +99,7 @@ fn async_task_fallible_signal_future() -> TaskHandle {
 
     let signal = Signal::from_object_signal(&obj, "script_changed");
 
-    let handle = task::spawn(async move {
+    let handle = task::spawn_local(async move {
         let result = signal.to_fallible_future::<()>().await;
 
         assert!(result.is_err());
@@ -116,7 +116,7 @@ fn async_task_signal_future_panic() -> TaskHandle {
 
     let signal = Signal::from_object_signal(&obj, "script_changed");
 
-    let handle = task::spawn(expect_async_panic(
+    let handle = task::spawn_local(expect_async_panic(
         "future should panic when the signal object is dropped",
         async move {
             signal.to_future::<()>().await;
@@ -138,7 +138,7 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
 
     object.add_user_signal("custom_signal");
 
-    let handle = task::spawn(expect_async_panic(
+    let handle = task::spawn_local(expect_async_panic(
         "future should panic when the Gd<RefCounted> is sent between threads",
         async move {
             signal.to_future::<(Gd<RefCounted>,)>().await;
@@ -166,7 +166,7 @@ fn signal_future_send_arg_no_panic() -> TaskHandle {
 
     object.add_user_signal("custom_signal");
 
-    let handle = task::spawn(async move {
+    let handle = task::spawn_local(async move {
         let (value,) = signal.to_future::<(u8,)>().await;
 
         assert_eq!(value, 1);
@@ -203,7 +203,7 @@ fn async_typed_signal() -> TaskHandle {
     let object = AsyncRefCounted::new_gd();
     let copy = object.clone();
 
-    let task_handle = task::spawn(async move {
+    let task_handle = task::spawn_local(async move {
         // Could also use to_future() instead of deref().
         let (result,) = copy.signals().custom_signal().deref().await;
 
@@ -220,7 +220,7 @@ fn async_typed_signal_with_array() -> TaskHandle {
     let object = AsyncRefCounted::new_gd();
     let copy = object.clone();
 
-    let task_handle = task::spawn(async move {
+    let task_handle = task::spawn_local(async move {
         let (result,) = copy.signals().custom_signal_array().to_future().await;
 
         assert_eq!(result, array![1, 2, 3]);
