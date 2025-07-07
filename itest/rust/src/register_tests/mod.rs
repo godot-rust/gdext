@@ -7,6 +7,7 @@
 
 mod constant_test;
 mod conversion_test;
+mod default_parameters_test;
 mod derive_godotconvert_test;
 mod func_test;
 mod gdscript_ffi_test;
