@@ -389,11 +389,7 @@ impl Declarer for DeclEngine {
     where
         T: GodotDefault + Bounds<Declarer = Self>,
     {
-        unsafe {
-            let object_ptr =
-                sys::interface_fn!(classdb_construct_object)(T::class_name().string_sys());
-            Gd::from_obj_sys(object_ptr)
-        }
+        Gd::new_alloc_postinited()
     }
 }
 
