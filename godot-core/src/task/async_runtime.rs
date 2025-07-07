@@ -26,14 +26,6 @@ use crate::classes::RefCounted;
 use crate::meta::ToGodot;
 use crate::obj::{Gd, NewGd};
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Scoped Runtime Context - Zero Static Storage!
-
-// Removed RuntimeContext - not needed with the simplified API
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Runtime Abstraction Trait
-
 /// Trait for integrating external async runtimes with gdext's async system.
 ///
 /// This trait provides the minimal interface for pluggable async runtime support.
@@ -418,7 +410,14 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
     );
 
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
-        let task_handle = rt.add_task(Box::pin(future));
+        let task_handle = rt.add_task(Box::pin(future))
+            .unwrap_or_else(|spawn_error| {
+                panic!(
+                    "Failed to spawn async task: {spawn_error}\n\
+                     This indicates the task queue is full or the runtime is overloaded.\n\
+                     Consider reducing concurrent task load or increasing task limits."
+                );
+            });
         let godot_waker = Arc::new(GodotWaker::new(
             task_handle.index,
             task_handle.id,
@@ -475,7 +474,14 @@ pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
     );
 
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
-        let task_handle = rt.add_task_non_send(Box::pin(future));
+        let task_handle = rt.add_task_non_send(Box::pin(future))
+            .unwrap_or_else(|spawn_error| {
+                panic!(
+                    "Failed to spawn async task: {spawn_error}\n\
+                     This indicates the task queue is full or the runtime is overloaded.\n\
+                     Consider reducing concurrent task load or increasing task limits."
+                );
+            });
         let godot_waker = Arc::new(GodotWaker::new(
             task_handle.index,
             task_handle.id,
@@ -618,7 +624,14 @@ where
         };
 
         // Spawn the signal-emitting future using standard spawn mechanism
-        let task_handle = rt.add_task_non_send(Box::pin(result_future));
+        let task_handle = rt.add_task_non_send(Box::pin(result_future))
+            .unwrap_or_else(|spawn_error| {
+                panic!(
+                    "Failed to spawn async task with result: {spawn_error}\n\
+                     This indicates the task queue is full or the runtime is overloaded.\n\
+                     Consider reducing concurrent task load or increasing task limits."
+                );
+            });
 
         // Create waker to trigger initial poll
         Arc::new(GodotWaker::new(
@@ -806,16 +819,6 @@ pub fn has_godot_task_panicked(task_handle: TaskHandle) -> bool {
     ASYNC_RUNTIME.with_runtime(|rt| rt._task_scheduler.has_task_panicked(task_handle.id))
 }
 
-// Note: The following public API functions were removed because they were designed
-// for external runtime inspection but are not actually used:
-// - has_tokio_runtime_context(): Was designed to check if tokio is available
-// - try_enter_runtime_context(): Was designed for explicit context management
-// - get_runtime_context_info(): Was designed for runtime monitoring
-// - RuntimeContextInfo struct: Supporting type for runtime monitoring
-//
-// These were part of a more complex public API that isn't needed by the current
-// simple spawn() function interface.
-
 /// The current state of a future inside the async runtime.
 enum FutureSlotState<T> {
     /// Slot is currently empty.
@@ -855,43 +858,6 @@ impl<T> FutureSlot<T> {
     /// This transitions the slot into the [`FutureSlotState::Gone`] state.
     fn clear(&mut self) {
         self.value = FutureSlotState::Gone;
-    }
-
-    /// Attempts to extract the future with the given ID from the slot.
-    ///
-    /// Puts the slot into [`FutureSlotState::Polling`] state after taking the future out. It is expected that the future is either parked
-    /// again or the slot is cleared.
-    /// In cases were the slot state is not [`FutureSlotState::Pending`], a copy of the state is returned but the slot remains untouched.
-    fn take_for_polling(&mut self, id: u64) -> FutureSlotState<T> {
-        match self.value {
-            FutureSlotState::Empty => FutureSlotState::Empty,
-            FutureSlotState::Polling => FutureSlotState::Polling,
-            FutureSlotState::Gone => FutureSlotState::Gone,
-            FutureSlotState::Pending(_) if self.id != id => FutureSlotState::Gone,
-            FutureSlotState::Pending(_) => {
-                std::mem::replace(&mut self.value, FutureSlotState::Polling)
-            }
-        }
-    }
-
-    /// Parks the future in this slot again.
-    ///
-    /// # Panics
-    /// - If the slot is not in state [`FutureSlotState::Polling`].
-    fn park(&mut self, value: T) {
-        match self.value {
-            FutureSlotState::Empty | FutureSlotState::Gone => {
-                panic!("cannot park future in slot which is unoccupied")
-            }
-            FutureSlotState::Pending(_) => {
-                panic!(
-                    "cannot park future in slot, which is already occupied by a different future"
-                )
-            }
-            FutureSlotState::Polling => {
-                self.value = FutureSlotState::Pending(value);
-            }
-        }
     }
 }
 
@@ -953,37 +919,33 @@ impl std::fmt::Debug for QueuedTask {
     }
 }
 
-/// Trait for type-erased future storage with minimal boxing overhead
-trait ErasedFuture: Send + 'static {
-    /// Poll the future in a type-erased way
-    fn poll_erased(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<()>;
-
-    // Note: debug_type_name() method was removed because it was designed for
-    // debugging and diagnostics, but current implementation doesn't use runtime
-    // type introspection for debugging purposes.
+/// Trait for type-erased pinned future storage with safe pin handling
+trait ErasedPinnedFuture: Send + 'static {
+    /// Poll the pinned future in a type-erased way
+    /// 
+    /// # Safety
+    /// This method must only be called on a properly pinned future that has never been moved
+    /// since being pinned. The caller must ensure proper pin projection.
+    fn poll_erased(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<()>;
 }
 
-impl<F> ErasedFuture for F
+impl<F> ErasedPinnedFuture for F
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    fn poll_erased(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<()> {
-        // SAFETY: We maintain the pin invariant by only calling this through proper Pin projection
-        let pinned = unsafe { Pin::new_unchecked(self) };
-        pinned.poll(cx)
+    fn poll_erased(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<()> {
+        // Safe: we're already pinned, so we can directly poll
+        self.poll(cx)
     }
 }
 
 /// More efficient future storage that avoids unnecessary boxing
 /// Only boxes when absolutely necessary (for type erasure)
 enum FutureStorage {
-    /// Direct storage for common small futures (avoids boxing)
-    Inline(Box<dyn ErasedFuture>),
+    /// Direct storage for Send futures with safe pin handling
+    Inline(Pin<Box<dyn ErasedPinnedFuture>>),
     /// For non-Send futures (like Godot integration)
     NonSend(Pin<Box<dyn Future<Output = ()> + 'static>>),
-    // Note: Boxed variant was removed because it was designed as an alternative
-    // storage method for cases requiring full Pin<Box<...>> type, but the current
-    // implementation standardized on the ErasedFuture approach for all Send futures.
 }
 
 impl FutureStorage {
@@ -992,8 +954,8 @@ impl FutureStorage {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        // Always use the more efficient ErasedFuture approach
-        Self::Inline(Box::new(future))
+        // Pin the future immediately for safe handling
+        Self::Inline(Box::pin(future))
     }
 
     /// Create storage for a non-Send future
@@ -1001,21 +963,9 @@ impl FutureStorage {
     where
         F: Future<Output = ()> + 'static,
     {
-        // Non-Send futures must use the boxed approach
+        // Non-Send futures use the same pinned approach
         Self::NonSend(Box::pin(future))
     }
-
-    /// Poll the stored future
-    fn poll(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<()> {
-        match self {
-            Self::Inline(erased) => erased.poll_erased(cx),
-            Self::NonSend(pinned) => pinned.as_mut().poll(cx),
-        }
-    }
-
-    // Note: debug_type_name() method was removed because it was designed for
-    // debugging and diagnostics, but current implementation doesn't use runtime
-    // type introspection for debugging purposes.
 }
 
 /// Task storage component - manages the storage and lifecycle of futures
@@ -1261,21 +1211,9 @@ impl TaskStorage {
         Ok(TaskHandle::new(index, id))
     }
 
-    // Note: try_promote_queued_tasks() method was removed because it was designed
-    // for automatic queue processing when capacity becomes available, but the
-    // current implementation uses simple queue overflow handling without automatic
-    // promotion of queued tasks.
-
     /// Get the count of active (non-empty) tasks
     fn get_active_task_count(&self) -> usize {
         self.tasks.iter().filter(|slot| !slot.is_empty()).count()
-    }
-
-    /// Extract a pending task from storage
-    fn take_task_for_polling(&mut self, index: usize, id: u64) -> FutureSlotState<FutureStorage> {
-        let slot = self.tasks.get_mut(index);
-        slot.map(|inner| inner.take_for_polling(id))
-            .unwrap_or(FutureSlotState::Empty)
     }
 
     /// Remove a future from storage
@@ -1285,21 +1223,11 @@ impl TaskStorage {
         }
     }
 
-    /// Move a future back into storage
-    fn park_task(&mut self, index: usize, future: FutureStorage) {
-        if let Some(slot) = self.tasks.get_mut(index) {
-            slot.park(future);
-        }
-    }
-
     /// Get statistics about task storage
     fn get_stats(&self) -> TaskStorageStats {
         let active_tasks = self.tasks.iter().filter(|slot| !slot.is_empty()).count();
         TaskStorageStats {
             active_tasks,
-            // Note: total_slots and next_task_id fields were removed from stats
-            // because they were designed for monitoring, but current implementation
-            // only needs active task count for lifecycle management.
         }
     }
 
@@ -1313,9 +1241,6 @@ impl TaskStorage {
 #[derive(Debug, Clone)]
 pub struct TaskStorageStats {
     pub active_tasks: usize,
-    // Note: total_slots and next_task_id fields were removed because they were
-    // designed for monitoring and diagnostics, but the current implementation
-    // only needs active task count for lifecycle management.
 }
 
 /// Task scheduler component - handles task scheduling, polling, and execution
@@ -1346,13 +1271,6 @@ impl TaskScheduler {
         self.panicked_tasks.contains(&task_id)
     }
 
-    // Note: The following methods were removed because they were designed for
-    // internal diagnostics and monitoring, but are not used by the current
-    // simplified implementation:
-    // - has_tokio_context(): Was for checking tokio availability
-    // - context(): Was for accessing runtime context
-    // - get_stats(): Was for scheduler monitoring
-
     /// Clear panic tracking
     #[cfg(feature = "trace")]
     fn clear_panic_tracking(&mut self) {
@@ -1360,28 +1278,10 @@ impl TaskScheduler {
     }
 }
 
-// Note: TaskSchedulerStats struct was removed because it was designed for
-// scheduler monitoring and diagnostics, but the current implementation doesn't
-// use scheduler statistics for external monitoring.
-
-// Note: SignalBridge component was removed because it was designed as a
-// placeholder for future signal management features like:
-// - Signal routing logic and caching
-// - Batched signal processing
-// - Advanced signal integration
-//
-// The current implementation handles signals directly in SignalEmittingFuture
-// without needing a separate bridge component.
-
 /// The main async runtime that coordinates between all components
 struct AsyncRuntime {
     task_storage: TaskStorage,
     _task_scheduler: TaskScheduler,
-    // Note: signal_bridge field was removed because SignalBridge component
-    // was designed as a placeholder for future signal management features,
-    // but the current implementation handles signals directly without a bridge.
-    // Note: _runtime_manager field was removed because tokio integration
-    // was removed in favor of pluggable runtime system.
 }
 
 impl Default for AsyncRuntime {
@@ -1418,14 +1318,21 @@ where
         // Safe pin projection using pin-project-lite
         let this = self.project();
 
-        // Enhanced thread safety validation
+        // CRITICAL: Thread safety validation - must be fatal
         let current_thread = thread::current().id();
         if *this.creation_thread != current_thread {
-            eprintln!(
-                "Warning: SignalEmittingFuture polled on different thread than created. \
-                Created on {:?}, polling on {:?}. This may cause issues with Gd<RefCounted> access.",
-                this.creation_thread, current_thread
-            );
+            let error = AsyncRuntimeError::ThreadSafetyViolation {
+                expected_thread: *this.creation_thread,
+                actual_thread: current_thread,
+            };
+            
+            eprintln!("FATAL: {error}");
+            eprintln!("SignalEmittingFuture with Gd<RefCounted> cannot be accessed from different threads!");
+            eprintln!("This would cause memory corruption. Future created on {:?}, polled on {:?}.", 
+                this.creation_thread, current_thread);
+            
+            // MUST panic to prevent memory corruption - Godot objects are not thread-safe
+            panic!("Thread safety violation in SignalEmittingFuture: {error}");
         }
 
         match this.inner.poll(cx) {
@@ -1439,13 +1346,20 @@ where
                 let creation_thread_id = *this.creation_thread;
 
                 let callable = Callable::from_local_fn("emit_finished_signal", move |_args| {
-                    // Additional thread safety check at emission time
+                    // CRITICAL: Thread safety validation - signal emission must be on correct thread
                     let emission_thread = thread::current().id();
                     if creation_thread_id != emission_thread {
-                        eprintln!(
-                            "Warning: Signal emission happening on different thread than future creation. \
-                            Created on {creation_thread_id:?}, emitting on {emission_thread:?}"
-                        );
+                        let error = AsyncRuntimeError::ThreadSafetyViolation {
+                            expected_thread: creation_thread_id,
+                            actual_thread: emission_thread,
+                        };
+                        
+                        eprintln!("FATAL: {error}");
+                        eprintln!("Signal emission must happen on the same thread as future creation!");
+                        eprintln!("This would cause memory corruption with Gd<RefCounted>. Created on {creation_thread_id:?}, emitting on {emission_thread:?}");
+                        
+                        // MUST panic to prevent memory corruption - signal_emitter is not thread-safe
+                        panic!("Thread safety violation in signal emission: {error}");
                     }
 
                     // Enhanced error handling for signal emission
@@ -1476,11 +1390,6 @@ where
     }
 }
 
-// SignalEmittingFuture is automatically Send if all its components are Send
-// We ensure this through proper bounds rather than unsafe impl
-
-// RuntimeManager removed - runtime management is now handled by user-provided integrations
-
 impl AsyncRuntime {
     fn new() -> Self {
         // No runtime initialization needed - runtime is provided by user registration
@@ -1492,59 +1401,28 @@ impl AsyncRuntime {
 
     /// Store a new async task in the runtime
     /// Delegates to task storage component
-    fn add_task<F>(&mut self, future: F) -> TaskHandle
+    fn add_task<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        match self.task_storage.store_task(future) {
-            Ok(handle) => handle,
-            Err(spawn_error) => {
-                // For backward compatibility, we log the error but don't panic
-                // In the future, we might want to return a Result from spawn()
-                eprintln!("Warning: Task spawn failed: {spawn_error}");
-                eprintln!("  This task will be dropped. Consider reducing concurrent task load.");
-
-                // Return a dummy handle that represents a failed task
-                TaskHandle::new_queued(0) // Task ID 0 represents a failed task
-            }
-        }
+        // Properly propagate errors instead of masking them
+        self.task_storage.store_task(future)
     }
 
     /// Store a new async task in the runtime (for futures that are not Send)
     /// This is used for Godot integration where Gd<T> objects are not Send
-    fn add_task_non_send<F>(&mut self, future: F) -> TaskHandle
+    fn add_task_non_send<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
     where
         F: Future<Output = ()> + 'static,
     {
-        match self.task_storage.store_task_non_send(future) {
-            Ok(handle) => handle,
-            Err(spawn_error) => {
-                // For backward compatibility, we log the error but don't panic
-                eprintln!("Warning: Task spawn failed: {spawn_error}");
-                eprintln!("  This task will be dropped. Consider reducing concurrent task load.");
-
-                // Return a dummy handle that represents a failed task
-                TaskHandle::new_queued(0) // Task ID 0 represents a failed task
-            }
-        }
-    }
-
-    /// Extract a pending task from the storage
-    /// Delegates to task storage component
-    fn take_task_for_polling(&mut self, index: usize, id: u64) -> FutureSlotState<FutureStorage> {
-        self.task_storage.take_task_for_polling(index, id)
+        // Properly propagate errors instead of masking them
+        self.task_storage.store_task_non_send(future)
     }
 
     /// Remove a future from the storage
     /// Delegates to task storage component
     fn clear_task(&mut self, index: usize) {
         self.task_storage.clear_task(index);
-    }
-
-    /// Move a future back into storage
-    /// Delegates to task storage component
-    fn park_task(&mut self, index: usize, future: FutureStorage) {
-        self.task_storage.park_task(index, future);
     }
 
     /// Track that a future caused a panic
@@ -1554,33 +1432,90 @@ impl AsyncRuntime {
         self._task_scheduler.track_panic(task_id);
     }
 
-    // Note: The following methods were removed because they were designed for
-    // internal diagnostics and frame-based processing, but are not used by the
-    // current simplified implementation:
-    // - has_tokio_context(): Was for checking tokio availability
-    // - context(): Was for accessing runtime context
-    // - get_combined_stats(): Was for aggregating statistics from all components
-    // - process_frame_update(): Was for frame-based signal processing
-
     /// Clear all data from all components
     fn clear_all(&mut self) {
         self.task_storage.clear_all();
         #[cfg(feature = "trace")]
         self._task_scheduler.clear_panic_tracking();
     }
-}
 
-// Note: CombinedRuntimeStats struct was removed because it was designed for
-// aggregating statistics from all runtime components, but the current
-// implementation doesn't use combined statistics for monitoring.
+    /// Poll a future in place without breaking the pin invariant
+    /// This safely polls the future while it remains in storage
+    fn poll_task_in_place(
+        &mut self,
+        index: usize,
+        id: u64,
+        cx: &mut Context<'_>,
+    ) -> Result<Poll<()>, AsyncRuntimeError> {
+        let slot = self.task_storage.tasks.get_mut(index)
+            .ok_or(AsyncRuntimeError::RuntimeDeinitialized)?;
+
+        // Check if the task ID matches and is in the right state
+        if slot.id != id {
+            return Err(AsyncRuntimeError::InvalidTaskState {
+                task_id: id,
+                expected_state: "matching task ID".to_string(),
+            });
+        }
+
+        match &mut slot.value {
+            FutureSlotState::Empty => {
+                Err(AsyncRuntimeError::InvalidTaskState {
+                    task_id: id,
+                    expected_state: "non-empty".to_string(),
+                })
+            }
+            FutureSlotState::Gone => {
+                Err(AsyncRuntimeError::TaskCanceled { task_id: id })
+            }
+            FutureSlotState::Polling => {
+                Err(AsyncRuntimeError::InvalidTaskState {
+                    task_id: id,
+                    expected_state: "not currently polling".to_string(),
+                })
+            }
+            FutureSlotState::Pending(_future_storage) => {
+                // Temporarily mark as polling to prevent reentrant polling
+                let old_state = std::mem::replace(&mut slot.value, FutureSlotState::Polling);
+                
+                // Extract the future storage for polling
+                let mut future_storage = if let FutureSlotState::Pending(fs) = old_state {
+                    fs
+                } else {
+                    unreachable!("We just matched on Pending")
+                };
+                
+                // Poll the future in place using safe pin projection
+                let poll_result = match &mut future_storage {
+                    FutureStorage::Inline(pinned_future) => {
+                        pinned_future.as_mut().poll_erased(cx)
+                    }
+                    FutureStorage::NonSend(pinned_future) => {
+                        pinned_future.as_mut().poll(cx)
+                    }
+                };
+                
+                // Handle the result and restore appropriate state
+                match poll_result {
+                    Poll::Pending => {
+                        // Put the future back in pending state
+                        slot.value = FutureSlotState::Pending(future_storage);
+                        Ok(Poll::Pending)
+                    }
+                    Poll::Ready(()) => {
+                        // Task completed, mark as gone
+                        slot.value = FutureSlotState::Gone;
+                        Ok(Poll::Ready(()))
+                    }
+                }
+            }
+        }
+    }
+}
 
 trait WithRuntime {
     fn with_runtime<R>(&'static self, f: impl FnOnce(&AsyncRuntime) -> R) -> R;
     fn with_runtime_mut<R>(&'static self, f: impl FnOnce(&mut AsyncRuntime) -> R) -> R;
-    // Note: try_with_runtime and try_with_runtime_mut methods were removed because
-    // they were designed as error-returning variants of the main methods, but the
-    // current implementation uses panicking behavior for consistency with the
-    // rest of the runtime error handling.
 }
 
 impl WithRuntime for LocalKey<RefCell<Option<AsyncRuntime>>> {
@@ -1599,10 +1534,6 @@ impl WithRuntime for LocalKey<RefCell<Option<AsyncRuntime>>> {
             f(rt_ref)
         })
     }
-
-    // Note: try_with_runtime and try_with_runtime_mut implementations were removed
-    // because they were designed as error-returning variants, but the current
-    // implementation only uses the panicking variants for consistency.
 }
 
 /// Use a godot waker to poll it's associated future.
@@ -1629,106 +1560,84 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     let waker = Waker::from(godot_waker.clone());
     let mut ctx = Context::from_waker(&waker);
 
-    // Move future out of the runtime while we are polling it to avoid holding a mutable reference for the entire runtime.
-    let future_storage = ASYNC_RUNTIME.with_runtime_mut(|rt| {
-        match rt.take_task_for_polling(godot_waker.runtime_index, godot_waker.task_id) {
-            FutureSlotState::Empty => {
-                // Enhanced error handling - log and return None instead of panicking
-                let task_id = godot_waker.task_id;
-                eprintln!("Warning: Future slot is empty when waking task {task_id}. This may indicate a race condition.");
-                None
-            }
-
-            FutureSlotState::Gone => None,
-
-            FutureSlotState::Polling => {
-                // Enhanced error handling - log the issue but don't panic
-                let task_id = godot_waker.task_id;
-                eprintln!("Warning: Task {task_id} is already being polled. This may indicate recursive waking.");
-                None
-            }
-
-            FutureSlotState::Pending(future) => Some(future),
-        }
-    });
-
-    let Some(mut future_storage) = future_storage else {
-        // Future has been canceled while the waker was already triggered.
-        return;
-    };
-
     let task_id = godot_waker.task_id;
     let error_context = || format!("Godot async task failed (task_id: {task_id})");
 
-    // Execute the poll operation within the runtime context
-    let panic_result = if let Some(storage) = RUNTIME_STORAGE.get() {
+    // Poll the future safely in place within the runtime context
+    let poll_result = if let Some(storage) = RUNTIME_STORAGE.get() {
         // Poll within the runtime context for proper tokio/async-std support
-        use std::cell::RefCell;
-        let future_cell = RefCell::new(Some(future_storage));
-        let ctx_cell = RefCell::new(Some(ctx));
-        let result_cell = RefCell::new(None);
-
+        let result = std::cell::RefCell::new(None);
+        let ctx_ref = std::cell::RefCell::new(Some(ctx));
+        
         (storage.with_context)(&|| {
-            let mut future_storage = future_cell
-                .borrow_mut()
-                .take()
-                .expect("Future should be available");
-            let mut ctx = ctx_cell
-                .borrow_mut()
-                .take()
-                .expect("Context should be available");
-
-            let result = handle_panic(
-                error_context,
-                AssertUnwindSafe(move || {
-                    let poll_result = future_storage.poll(&mut ctx);
-                    (poll_result, future_storage)
-                }),
-            );
-
-            *result_cell.borrow_mut() = Some(result);
+            let mut ctx = ctx_ref.borrow_mut().take().expect("Context should be available");
+            
+            let poll_result = ASYNC_RUNTIME.with_runtime_mut(|rt| {
+                handle_panic(
+                    error_context,
+                    AssertUnwindSafe(|| {
+                        rt.poll_task_in_place(
+                            godot_waker.runtime_index,
+                            godot_waker.task_id,
+                            &mut ctx,
+                        )
+                    }),
+                )
+            });
+            
+            *result.borrow_mut() = Some(poll_result);
         });
-
-        result_cell
-            .into_inner()
-            .expect("Result should have been set")
+        
+        result.into_inner().expect("Result should have been set")
     } else {
-        // Fallback: direct polling without context (for simple runtimes)
-        handle_panic(
-            error_context,
-            AssertUnwindSafe(move || {
-                let poll_result = future_storage.poll(&mut ctx);
-                (poll_result, future_storage)
-            }),
-        )
-    };
-
-    let Ok((poll_result, future_storage)) = panic_result else {
-        // Polling the future caused a panic. The task state has to be cleaned up and we want track the panic if the trace feature is enabled.
-        let error = AsyncRuntimeError::TaskPanicked {
-            task_id: godot_waker.task_id,
-            message: "Task panicked during polling".to_string(),
-        };
-
-        eprintln!("Error: {error}");
-
+        // Fallback: direct polling without runtime context
         ASYNC_RUNTIME.with_runtime_mut(|rt| {
-            #[cfg(feature = "trace")]
-            rt.track_panic(godot_waker.task_id);
-            rt.clear_task(godot_waker.runtime_index);
-        });
-
-        return;
+            handle_panic(
+                error_context,
+                AssertUnwindSafe(|| {
+                    rt.poll_task_in_place(
+                        godot_waker.runtime_index,
+                        godot_waker.task_id,
+                        &mut ctx,
+                    )
+                }),
+            )
+        })
     };
 
-    // Update the state of the Future in the runtime.
-    ASYNC_RUNTIME.with_runtime_mut(|rt| match poll_result {
-        // Future is still pending, so we park it again.
-        Poll::Pending => rt.park_task(godot_waker.runtime_index, future_storage),
+    // Handle the result
+    match poll_result {
+        Ok(Ok(Poll::Ready(()))) => {
+            // Task completed successfully - cleanup is handled by poll_task_in_place
+        }
+        Ok(Ok(Poll::Pending)) => {
+            // Task is still pending - continue waiting
+        }
+        Ok(Err(async_error)) => {
+            // Task had an error (canceled, invalid state, etc.)
+            eprintln!("Async task error: {async_error}");
+            
+            // Clear the task slot for cleanup
+            ASYNC_RUNTIME.with_runtime_mut(|rt| {
+                rt.clear_task(godot_waker.runtime_index);
+            });
+        }
+        Err(_panic_payload) => {
+            // Task panicked during polling
+            let error = AsyncRuntimeError::TaskPanicked {
+                task_id: godot_waker.task_id,
+                message: "Task panicked during polling".to_string(),
+            };
 
-        // Future has resolved, so we remove it from the runtime.
-        Poll::Ready(()) => rt.clear_task(godot_waker.runtime_index),
-    });
+            eprintln!("Error: {error}");
+
+            ASYNC_RUNTIME.with_runtime_mut(|rt| {
+                #[cfg(feature = "trace")]
+                rt.track_panic(godot_waker.task_id);
+                rt.clear_task(godot_waker.runtime_index);
+            });
+        }
+    }
 }
 
 /// Implementation of a [`Waker`] to poll futures with the engine.
