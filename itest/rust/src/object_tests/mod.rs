@@ -8,6 +8,9 @@
 mod base_test;
 mod class_name_test;
 mod class_rename_test;
+// Test code depends on task API, Godot 4.2+.
+#[cfg(since_api = "4.2")]
+mod call_deferred_test;
 mod dyn_gd_test;
 mod dynamic_call_test;
 mod enum_test;
