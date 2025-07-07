@@ -809,36 +809,47 @@ impl Default for TaskLimits {
     }
 }
 
-/// Simplified future storage that avoids unnecessary boxing
-/// Only boxes when absolutely necessary (for type erasure)
-enum FutureStorage {
-    /// Direct storage for Send futures
-    Send(Pin<Box<dyn Future<Output = ()> + Send + 'static>>),
-    /// For non-Send futures (like Godot integration)
-    Local(Pin<Box<dyn Future<Output = ()> + 'static>>),
+/// Optimized future storage that minimizes boxing overhead
+/// Uses a unified approach to avoid enum discrimination
+struct FutureStorage {
+    /// Unified storage for both Send and non-Send futures
+    /// The Send bound is erased at the type level since all futures
+    /// will be polled on the main thread anyway
+    inner: Pin<Box<dyn Future<Output = ()> + 'static>>,
 }
 
 impl FutureStorage {
-    /// Create optimized storage for a Send future
+    /// Create storage for a Send future - avoids double boxing
     fn new_send<F>(future: F) -> Self
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        Self::Send(Box::pin(future))
+        Self {
+            inner: Box::pin(future),
+        }
     }
 
-    /// Create storage for a non-Send future
+    /// Create storage for a non-Send future - avoids double boxing  
     fn new_local<F>(future: F) -> Self
     where
         F: Future<Output = ()> + 'static,
     {
-        Self::Local(Box::pin(future))
+        Self {
+            inner: Box::pin(future),
+        }
+    }
+
+    /// Poll the stored future - no enum matching overhead
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        self.inner.as_mut().poll(cx)
     }
 }
 
 /// Simplified task storage component
 struct TaskStorage {
     tasks: Vec<FutureSlot<FutureStorage>>,
+    /// O(1) free slot tracking - indices of available slots
+    free_slots: Vec<usize>,
     next_task_id: u64,
     limits: TaskLimits,
 }
@@ -857,6 +868,7 @@ impl TaskStorage {
     fn with_limits(limits: TaskLimits) -> Self {
         Self {
             tasks: Vec::new(),
+            free_slots: Vec::new(),
             next_task_id: 0,
             limits,
         }
@@ -885,7 +897,7 @@ impl TaskStorage {
 
         let id = self.next_id();
         let storage = FutureStorage::new_send(future);
-        self.schedule_task_immediately(id, storage)
+        self.schedule_task_optimized(id, storage)
     }
 
     /// Store a new non-Send async task
@@ -904,32 +916,24 @@ impl TaskStorage {
 
         let id = self.next_id();
         let storage = FutureStorage::new_local(future);
-        self.schedule_task_immediately(id, storage)
+        self.schedule_task_optimized(id, storage)
     }
 
-    /// Schedule a task immediately in an available slot
-    fn schedule_task_immediately(
+    /// O(1) slot allocation using free list
+    fn schedule_task_optimized(
         &mut self,
         id: u64,
         storage: FutureStorage,
     ) -> Result<TaskHandle, TaskSpawnError> {
-        let index_slot = self.tasks.iter_mut().enumerate().find_map(|(index, slot)| {
-            if slot.is_empty() {
-                Some((index, slot))
-            } else {
-                None
-            }
-        });
-
-        let index = match index_slot {
-            Some((index, slot)) => {
-                *slot = FutureSlot::pending(id, storage);
-                index
-            }
-            None => {
-                self.tasks.push(FutureSlot::pending(id, storage));
-                self.tasks.len() - 1
-            }
+        let index = if let Some(free_index) = self.free_slots.pop() {
+            // Reuse a free slot - O(1)
+            self.tasks[free_index] = FutureSlot::pending(id, storage);
+            free_index
+        } else {
+            // Allocate new slot - amortized O(1)
+            let new_index = self.tasks.len();
+            self.tasks.push(FutureSlot::pending(id, storage));
+            new_index
         };
 
         Ok(TaskHandle::new(index, id))
@@ -937,19 +941,23 @@ impl TaskStorage {
 
     /// Get the count of active (non-empty) tasks
     fn get_active_task_count(&self) -> usize {
-        self.tasks.iter().filter(|slot| !slot.is_empty()).count()
+        self.tasks.len() - self.free_slots.len()
     }
 
-    /// Remove a future from storage
+    /// Remove a future from storage - O(1)
     fn clear_task(&mut self, index: usize) {
         if let Some(slot) = self.tasks.get_mut(index) {
-            slot.clear();
+            if !slot.is_empty() {
+                slot.clear();
+                self.free_slots.push(index);
+            }
         }
     }
 
     /// Clear all tasks
     fn clear_all(&mut self) {
         self.tasks.clear();
+        self.free_slots.clear();
     }
 }
 
@@ -1149,14 +1157,8 @@ impl AsyncRuntime {
                 let old_id = slot.id;
                 slot.id = u64::MAX; // Special marker for "currently polling"
 
-                // Poll the future in place without moving it - this is safe because:
-                // 1. The future remains at the same memory location
-                // 2. We're only taking a mutable reference, not moving it
-                // 3. Pin guarantees are preserved
-                let poll_result = match future_storage {
-                    FutureStorage::Send(pinned_future) => pinned_future.as_mut().poll(cx),
-                    FutureStorage::Local(pinned_future) => pinned_future.as_mut().poll(cx),
-                };
+                // Poll the future directly using the unified storage - no enum matching!
+                let poll_result = future_storage.poll(cx);
 
                 // Handle the result and restore appropriate state
                 match poll_result {
