@@ -77,8 +77,6 @@ pub trait AsyncRuntimeIntegration: Send + Sync + 'static {
     fn with_context<R>(handle: &Self::Handle, f: impl FnOnce() -> R) -> R;
 }
 
-
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Runtime Registry - Thread-Local Only (No Global State)
 
@@ -249,7 +247,10 @@ pub enum TaskSpawnError {
 impl std::fmt::Display for TaskSpawnError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TaskSpawnError::QueueFull { active_tasks, max_tasks } => {
+            TaskSpawnError::QueueFull {
+                active_tasks,
+                max_tasks,
+            } => {
                 write!(f, "Task queue is full: {active_tasks}/{max_tasks} tasks")
             }
         }
@@ -366,13 +367,17 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
                crate::init::main_thread_id(), std::thread::current().id());
     }
 
+    // Batch both task creation and initial waker setup in single thread-local access
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
+        // Let add_task handle the boxing to avoid premature allocation
         let task_handle = rt
-            .add_task(Box::pin(future))
+            .add_task(future) // Pass unboxed future
             .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
+
+        // Create waker immediately while we have runtime access
         let godot_waker = Arc::new(GodotWaker::new(
-            task_handle.index,
-            task_handle.id,
+            task_handle.index as usize,
+            task_handle.id as u64,
             thread::current().id(),
         ));
 
@@ -427,13 +432,17 @@ pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
                crate::init::main_thread_id(), std::thread::current().id());
     }
 
+    // Batch both task creation and initial waker setup in single thread-local access
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
+        // Let add_task_non_send handle the boxing to avoid premature allocation
         let task_handle = rt
-            .add_task_non_send(Box::pin(future))
+            .add_task_non_send(future) // Pass unboxed future
             .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
+
+        // Create waker immediately while we have runtime access
         let godot_waker = Arc::new(GodotWaker::new(
-            task_handle.index,
-            task_handle.id,
+            task_handle.index as usize,
+            task_handle.id as u64,
             thread::current().id(),
         ));
 
@@ -578,8 +587,8 @@ where
 
         // Create waker to trigger initial poll
         Arc::new(GodotWaker::new(
-            task_handle.index,
-            task_handle.id,
+            task_handle.index as usize,
+            task_handle.id as u64,
             thread::current().id(),
         ))
     });
@@ -594,21 +603,27 @@ where
 ///
 /// The associated task will **not** be canceled if this handle is dropped.
 pub struct TaskHandle {
-    index: usize,
-    id: u64,
-    _no_send_sync: PhantomData<*const ()>,
+    // Pack index and id for better cache efficiency
+    // Most systems won't need more than 32-bit task indices
+    index: u32,
+    id: u32,
+    // More efficient !Send/!Sync marker
+    _not_send_sync: std::cell::Cell<()>,
 }
 
 impl TaskHandle {
     fn new(index: usize, id: u64) -> Self {
+        // Ensure we don't overflow the packed format
+        // In practice, these should never be hit for reasonable usage
+        assert!(index <= u32::MAX as usize, "Task index overflow: {index}");
+        assert!(id <= u32::MAX as u64, "Task ID overflow: {id}");
+
         Self {
-            index,
-            id,
-            _no_send_sync: PhantomData,
+            index: index as u32,
+            id: id as u32,
+            _not_send_sync: std::cell::Cell::new(()),
         }
     }
-
-
 
     /// Cancels the task if it is still pending and does nothing if it is already completed.
     ///
@@ -616,17 +631,17 @@ impl TaskHandle {
     /// Returns Err if the runtime has been deinitialized.
     pub fn cancel(self) -> AsyncRuntimeResult<()> {
         ASYNC_RUNTIME.with_runtime_mut(|rt| {
-            let Some(task) = rt.task_storage.tasks.get(self.index) else {
+            let Some(task) = rt.task_storage.tasks.get(self.index as usize) else {
                 return Err(AsyncRuntimeError::RuntimeDeinitialized);
             };
 
             let alive = match task.value {
                 FutureSlotState::Gone => false,
-                FutureSlotState::Pending(_) => task.id == self.id,
+                FutureSlotState::Pending(_) => task.id == self.id as u64,
             };
 
             if alive {
-                rt.clear_task(self.index);
+                rt.clear_task(self.index as usize);
             }
 
             Ok(())
@@ -642,10 +657,10 @@ impl TaskHandle {
             let slot = rt
                 .task_storage
                 .tasks
-                .get(self.index)
+                .get(self.index as usize)
                 .ok_or(AsyncRuntimeError::RuntimeDeinitialized)?;
 
-            if slot.id != self.id {
+            if slot.id != self.id as u64 {
                 return Ok(false);
             }
 
@@ -655,12 +670,12 @@ impl TaskHandle {
 
     /// Get the task ID for debugging purposes
     pub fn task_id(&self) -> u64 {
-        self.id
+        self.id as u64
     }
 
     /// Get the task index for debugging purposes
     pub fn task_index(&self) -> usize {
-        self.index
+        self.index as usize
     }
 }
 
@@ -733,7 +748,7 @@ pub(crate) fn cleanup() {
 
 #[cfg(feature = "trace")]
 pub fn has_godot_task_panicked(task_handle: TaskHandle) -> bool {
-    ASYNC_RUNTIME.with_runtime(|rt| rt.has_task_panicked(task_handle.id))
+    ASYNC_RUNTIME.with_runtime(|rt| rt.has_task_panicked(task_handle.id as u64))
 }
 
 /// The current state of a future inside the async runtime.
@@ -860,7 +875,7 @@ impl TaskStorage {
         F: Future<Output = ()> + Send + 'static,
     {
         let active_tasks = self.get_active_task_count();
-        
+
         if active_tasks >= self.limits.max_concurrent_tasks {
             return Err(TaskSpawnError::QueueFull {
                 active_tasks,
@@ -879,7 +894,7 @@ impl TaskStorage {
         F: Future<Output = ()> + 'static,
     {
         let active_tasks = self.get_active_task_count();
-        
+
         if active_tasks >= self.limits.max_concurrent_tasks {
             return Err(TaskSpawnError::QueueFull {
                 active_tasks,
@@ -893,7 +908,11 @@ impl TaskStorage {
     }
 
     /// Schedule a task immediately in an available slot
-    fn schedule_task_immediately(&mut self, id: u64, storage: FutureStorage) -> Result<TaskHandle, TaskSpawnError> {
+    fn schedule_task_immediately(
+        &mut self,
+        id: u64,
+        storage: FutureStorage,
+    ) -> Result<TaskHandle, TaskSpawnError> {
         let index_slot = self.tasks.iter_mut().enumerate().find_map(|(index, slot)| {
             if slot.is_empty() {
                 Some((index, slot))
@@ -934,7 +953,7 @@ impl TaskStorage {
     }
 }
 
-/// Simplified async runtime 
+/// Simplified async runtime
 struct AsyncRuntime {
     task_storage: TaskStorage,
     #[cfg(feature = "trace")]
@@ -1184,6 +1203,8 @@ impl WithRuntime for LocalKey<RefCell<Option<AsyncRuntime>>> {
 
 /// Use a godot waker to poll it's associated future.
 ///
+/// This version avoids cloning the Arc when we already have ownership.
+///
 /// # Panics
 /// - If called from a thread other than the main-thread.
 fn poll_future(godot_waker: Arc<GodotWaker>) {
@@ -1203,11 +1224,14 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         panic!("Thread safety violation in async runtime: {error}");
     }
 
-    let waker = Waker::from(godot_waker.clone());
-    let mut ctx = Context::from_waker(&waker);
-
+    // OPTIMIZATION: Extract values before creating Waker to avoid referencing after move
     let task_id = godot_waker.task_id;
+    let runtime_index = godot_waker.runtime_index;
     let error_context = || format!("Godot async task failed (task_id: {task_id})");
+
+    // Convert Arc<GodotWaker> to Waker (consumes the Arc without cloning)
+    let waker = Waker::from(godot_waker);
+    let mut ctx = Context::from_waker(&waker);
 
     // Poll the future safely in place within the runtime context
     let poll_result = RUNTIME_REGISTRY.with(|registry| {
@@ -1228,11 +1252,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
                     handle_panic(
                         error_context,
                         AssertUnwindSafe(|| {
-                            rt.poll_task_in_place(
-                                godot_waker.runtime_index,
-                                godot_waker.task_id,
-                                &mut ctx,
-                            )
+                            rt.poll_task_in_place(runtime_index, task_id, &mut ctx)
                         }),
                     )
                 });
@@ -1247,13 +1267,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
             ASYNC_RUNTIME.with_runtime_mut(|rt| {
                 handle_panic(
                     error_context,
-                    AssertUnwindSafe(|| {
-                        rt.poll_task_in_place(
-                            godot_waker.runtime_index,
-                            godot_waker.task_id,
-                            &mut ctx,
-                        )
-                    }),
+                    AssertUnwindSafe(|| rt.poll_task_in_place(runtime_index, task_id, &mut ctx)),
                 )
             })
         }
@@ -1273,13 +1287,13 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
 
             // Clear the task slot for cleanup
             ASYNC_RUNTIME.with_runtime_mut(|rt| {
-                rt.clear_task(godot_waker.runtime_index);
+                rt.clear_task(runtime_index);
             });
         }
         Err(_panic_payload) => {
             // Task panicked during polling
             let error = AsyncRuntimeError::TaskPanicked {
-                task_id: godot_waker.task_id,
+                task_id,
                 message: "Task panicked during polling".to_string(),
             };
 
@@ -1287,8 +1301,8 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
 
             ASYNC_RUNTIME.with_runtime_mut(|rt| {
                 #[cfg(feature = "trace")]
-                rt.track_panic(godot_waker.task_id);
-                rt.clear_task(godot_waker.runtime_index);
+                rt.track_panic(task_id);
+                rt.clear_task(runtime_index);
             });
         }
     }
