@@ -41,7 +41,7 @@ pub trait WithDeferredCall<T: GodotClass> {
     /// If called outside the main thread.
     fn apply_deferred<F>(&mut self, rust_function: F)
     where
-        F: FnMut(&mut T) + 'static;
+        F: FnOnce(&mut T) + 'static;
 }
 
 #[cfg(since_api = "4.2")]
@@ -51,17 +51,22 @@ where
     S: ToSignalObj<T>,
     D: Declarer,
 {
-    fn apply_deferred<'a, F>(&mut self, mut rust_function: F)
+    fn apply_deferred<'a, F>(&mut self, rust_function: F)
     where
-        F: FnMut(&mut T) + 'static,
+        F: FnOnce(&mut T) + 'static,
     {
         assert!(
             is_main_thread(),
             "`apply_deferred` must be called on the main thread"
         );
+        let mut rust_fn_once = Some(rust_function);
         let mut this = self.to_signal_obj().clone();
         let callable = Callable::from_local_fn("apply_deferred", move |_| {
-            rust_function(T::object_as_mut(&mut this).deref_mut());
+            let rust_fn_once = rust_fn_once
+                .take()
+                .expect("rust_fn_once was already consumed");
+            let mut this_mut = T::object_as_mut(&mut this);
+            rust_fn_once(this_mut.deref_mut());
             Ok(Variant::nil())
         });
         callable.call_deferred(&[]);
