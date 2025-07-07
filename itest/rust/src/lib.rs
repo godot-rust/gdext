@@ -32,7 +32,7 @@ unsafe impl ExtensionLibrary for framework::IntegrationTests {
         // Register the async runtime early in the initialization process
         // This is the proper way to integrate async runtimes with gdext
         if level == InitLevel::Scene {
-            register_runtime::<TokioIntegration>();
+            register_runtime::<TokioIntegration>().expect("Failed to register tokio runtime");
         }
 
         // Testing that we can initialize and use `Object`-derived classes during `Servers` init level. See `object_tests::init_level_test`.

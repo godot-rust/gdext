@@ -123,14 +123,12 @@ impl<T: AsyncRuntimeIntegration> AsyncRuntimeConfig<T> {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Runtime Registry
-
-use std::sync::OnceLock;
+// Runtime Registry - Thread-Local Only (No Global State)
 
 /// Type alias for the context function to avoid clippy complexity warnings
 type ContextFunction = Box<dyn Fn(&dyn Fn()) + Send + Sync>;
 
-/// Runtime storage with context management
+/// Runtime storage with context management - now part of thread-local storage
 struct RuntimeStorage {
     /// The actual runtime instance (kept alive via RAII)
     _runtime_instance: Box<dyn std::any::Any + Send + Sync>,
@@ -138,17 +136,30 @@ struct RuntimeStorage {
     with_context: ContextFunction,
 }
 
-/// Single consolidated storage - no scattered statics
-static RUNTIME_STORAGE: OnceLock<RuntimeStorage> = OnceLock::new();
+/// Per-thread runtime registry - avoids global state
+struct ThreadLocalRuntimeRegistry {
+    /// Optional runtime storage for this thread
+    runtime_storage: Option<RuntimeStorage>,
+    /// Whether this thread has attempted runtime registration
+    registration_attempted: bool,
+}
 
-/// Register an async runtime integration with gdext
+thread_local! {
+    /// Thread-local runtime registry - no global state needed
+    static RUNTIME_REGISTRY: RefCell<ThreadLocalRuntimeRegistry> = const { RefCell::new(ThreadLocalRuntimeRegistry {
+        runtime_storage: None,
+        registration_attempted: false,
+    }) };
+}
+
+/// Register an async runtime integration with gdext for the current thread
 ///
-/// This must be called before using any async functions like `#[async_func]`.
-/// Only one runtime can be registered per application.
+/// This must be called before using any async functions like `#[async_func]` on this thread.
+/// Each thread can have its own runtime registration.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if a runtime has already been registered.
+/// Returns an error if a runtime has already been registered for this thread.
 ///
 /// # Example
 ///
@@ -156,34 +167,40 @@ static RUNTIME_STORAGE: OnceLock<RuntimeStorage> = OnceLock::new();
 /// use your_runtime_integration::YourRuntimeIntegration;
 ///
 /// // Register your runtime at application startup
-/// gdext::task::register_runtime::<YourRuntimeIntegration>();
+/// gdext::task::register_runtime::<YourRuntimeIntegration>()?;
 ///
-/// // Now async functions will work
+/// // Now async functions will work on this thread
 /// ```
-pub fn register_runtime<T: AsyncRuntimeIntegration>() {
-    // Create the runtime immediately during registration
-    let (runtime_instance, handle) = T::create_runtime().expect("Failed to create async runtime");
+pub fn register_runtime<T: AsyncRuntimeIntegration>() -> Result<(), String> {
+    RUNTIME_REGISTRY.with(|registry| {
+        let mut registry = registry.borrow_mut();
 
-    // Clone the handle for the closure
-    let handle_clone = handle.clone();
+        if registry.registration_attempted {
+            return Err("Async runtime has already been registered for this thread".to_string());
+        }
 
-    // Create the storage structure with context management
-    let storage = RuntimeStorage {
-        _runtime_instance: runtime_instance,
-        with_context: Box::new(move |f| T::with_context(&handle_clone, f)),
-    };
+        registry.registration_attempted = true;
 
-    if RUNTIME_STORAGE.set(storage).is_err() {
-        panic!(
-            "Async runtime has already been registered. Only one runtime can be registered per application.\n\
-             If you need to change runtimes, restart the application."
-        );
-    }
+        // Create the runtime immediately during registration
+        let (runtime_instance, handle) = T::create_runtime()?;
+
+        // Clone the handle for the closure
+        let handle_clone = handle.clone();
+
+        // Create the storage structure with context management
+        let storage = RuntimeStorage {
+            _runtime_instance: runtime_instance,
+            with_context: Box::new(move |f| T::with_context(&handle_clone, f)),
+        };
+
+        registry.runtime_storage = Some(storage);
+        Ok(())
+    })
 }
 
-/// Check if a runtime is registered
+/// Check if a runtime is registered for the current thread
 pub fn is_runtime_registered() -> bool {
-    RUNTIME_STORAGE.get().is_some()
+    RUNTIME_REGISTRY.with(|registry| registry.borrow().runtime_storage.is_some())
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -332,8 +349,10 @@ impl std::error::Error for TaskSpawnError {}
 ///
 /// # Panics
 ///
-/// - If called from a non-main thread in single-threaded mode
-/// - If the async runtime has been deinitialized (should only happen during engine shutdown)
+/// Panics if:
+/// - No async runtime has been registered
+/// - The task queue is full and cannot accept more tasks
+/// - Called from a non-main thread in single-threaded mode
 ///
 /// # Examples
 /// With typed signals:
@@ -353,7 +372,7 @@ impl std::error::Error for TaskSpawnError {}
 /// }
 ///
 /// let house = Building::new_gd();
-/// godot::task::spawn(async move {
+/// let task = godot::task::spawn(async move {
 ///     println!("Wait for construction...");
 ///
 ///     // Emitted arguments can be fetched in tuple form.
@@ -372,7 +391,7 @@ impl std::error::Error for TaskSpawnError {}
 /// let node = Node::new_alloc();
 /// let signal = Signal::from_object_signal(&node, "signal");
 ///
-/// godot::task::spawn(async move {
+/// let task = godot::task::spawn(async move {
 ///     println!("Starting task...");
 ///
 ///     // Explicit generic arguments needed, here `()`:
@@ -385,11 +404,7 @@ impl std::error::Error for TaskSpawnError {}
 pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
     // Check if runtime is registered
     if !is_runtime_registered() {
-        panic!(
-            "No async runtime has been registered!\n\
-             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
-             See the documentation for examples of runtime integrations."
-        );
+        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
     }
 
     // In single-threaded mode, spawning is only allowed on the main thread.
@@ -400,23 +415,15 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
     //
     // In multi-threaded mode with experimental-threads, the restriction is lifted.
     #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
-    assert!(
-        crate::init::is_main_thread(),
-        "spawn() can only be used on the main thread in single-threaded mode.\n\
-         Current thread: {:?}, Main thread: {:?}\n\
-         Consider using the 'experimental-threads' feature if you need multi-threaded async support.",
-        std::thread::current().id(),
-        crate::init::main_thread_id()
-    );
+    if !crate::init::is_main_thread() {
+        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
+               crate::init::main_thread_id(), std::thread::current().id());
+    }
 
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
-        let task_handle = rt.add_task(Box::pin(future)).unwrap_or_else(|spawn_error| {
-            panic!(
-                "Failed to spawn async task: {spawn_error}\n\
-                     This indicates the task queue is full or the runtime is overloaded.\n\
-                     Consider reducing concurrent task load or increasing task limits."
-            );
-        });
+        let task_handle = rt
+            .add_task(Box::pin(future))
+            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
         let godot_waker = Arc::new(GodotWaker::new(
             task_handle.index,
             task_handle.id,
@@ -444,13 +451,20 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
 /// This function must be called from the main thread in both single-threaded and multi-threaded modes.
 /// The future will always be polled on the main thread to ensure compatibility with Godot's threading model.
 ///
+/// # Panics
+///
+/// Panics if:
+/// - No async runtime has been registered
+/// - The task queue is full and cannot accept more tasks
+/// - Called from a non-main thread
+///
 /// # Examples
 /// ```rust
 /// use godot::prelude::*;
 /// use godot::task;
 ///
 /// let signal = Signal::from_object_signal(&some_object, "some_signal");
-/// task::spawn_local(async move {
+/// let task = task::spawn_local(async move {
 ///     signal.to_future::<()>().await;
 ///     println!("Signal received!");
 /// });
@@ -458,30 +472,19 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
 pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
     // Check if runtime is registered
     if !is_runtime_registered() {
-        panic!(
-            "No async runtime has been registered!\n\
-             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
-             See the documentation for examples of runtime integrations."
-        );
+        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
     }
 
     // Must be called from the main thread since Godot objects are not thread-safe
-    assert!(
-        crate::init::is_main_thread(),
-        "spawn_local() must be called from the main thread.\n\
-         Non-Send futures containing Godot objects can only be used on the main thread."
-    );
+    if !crate::init::is_main_thread() {
+        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
+               crate::init::main_thread_id(), std::thread::current().id());
+    }
 
     let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
         let task_handle = rt
             .add_task_non_send(Box::pin(future))
-            .unwrap_or_else(|spawn_error| {
-                panic!(
-                    "Failed to spawn async task: {spawn_error}\n\
-                     This indicates the task queue is full or the runtime is overloaded.\n\
-                     Consider reducing concurrent task load or increasing task limits."
-                );
-            });
+            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
         let godot_waker = Arc::new(GodotWaker::new(
             task_handle.index,
             task_handle.id,
@@ -513,7 +516,7 @@ pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
 /// let async_task = spawn_with_result(async {
 ///     // Some async computation that returns a value
 ///     42
-/// });
+/// }).expect("Failed to spawn task");
 ///
 /// // In GDScript:
 /// // var result = await Signal(async_task, "finished")
@@ -527,7 +530,7 @@ pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
 /// let async_task = spawn_with_result(async {
 ///     sleep(Duration::from_millis(100)).await;
 ///     "Task completed".to_string()
-/// });
+/// }).expect("Failed to spawn task");
 /// ```
 ///
 /// # Thread Safety
@@ -537,7 +540,10 @@ pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
 ///
 /// # Panics
 ///
-/// Panics if called from a non-main thread in single-threaded mode.
+/// Panics if:
+/// - No async runtime has been registered
+/// - The task queue is full and cannot accept more tasks
+/// - Called from a non-main thread in single-threaded mode
 pub fn spawn_with_result<F, R>(future: F) -> Gd<RefCounted>
 where
     F: Future<Output = R> + Send + 'static,
@@ -545,20 +551,17 @@ where
 {
     // Check if runtime is registered
     if !is_runtime_registered() {
-        panic!(
-            "No async runtime has been registered!\n\
-             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
-             See the documentation for examples of runtime integrations."
-        );
+        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
     }
 
     // In single-threaded mode, spawning is only allowed on the main thread
     // In multi-threaded mode, we allow spawning from any thread
     #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
-    assert!(
-        crate::init::is_main_thread(),
-        "spawn_with_result() can only be used on the main thread in single-threaded mode"
-    );
+    if !crate::init::is_main_thread() {
+        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
+               crate::init::main_thread_id(), std::thread::current().id());
+    }
+
     // Create a RefCounted object that will emit the completion signal
     let mut signal_emitter = RefCounted::new_gd();
 
@@ -580,7 +583,7 @@ where
 /// signal_holder.add_user_signal("finished");
 /// let signal = Signal::from_object_signal(&signal_holder, "finished");
 ///
-/// spawn_with_result_signal(signal_holder, async { 42 });
+/// spawn_with_result_signal(signal_holder, async { 42 }).expect("Failed to spawn task");
 /// // Now you can: await signal
 /// ```
 ///
@@ -591,7 +594,10 @@ where
 ///
 /// # Panics
 ///
-/// Panics if called from a non-main thread in single-threaded mode.
+/// Panics if:
+/// - No async runtime has been registered
+/// - The task queue is full and cannot accept more tasks
+/// - Called from a non-main thread in single-threaded mode
 pub fn spawn_with_result_signal<F, R>(signal_emitter: Gd<RefCounted>, future: F)
 where
     F: Future<Output = R> + Send + 'static,
@@ -599,20 +605,16 @@ where
 {
     // Check if runtime is registered
     if !is_runtime_registered() {
-        panic!(
-            "No async runtime has been registered!\n\
-             Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using async functions.\n\
-             See the documentation for examples of runtime integrations."
-        );
+        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
     }
 
     // In single-threaded mode, spawning is only allowed on the main thread
     // In multi-threaded mode, we allow spawning from any thread
     #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
-    assert!(
-        crate::init::is_main_thread(),
-        "spawn_with_result_signal() can only be used on the main thread in single-threaded mode"
-    );
+    if !crate::init::is_main_thread() {
+        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
+               crate::init::main_thread_id(), std::thread::current().id());
+    }
 
     let godot_waker = ASYNC_RUNTIME.with_runtime_mut(|rt| {
         // Create a wrapper that will emit the signal when complete
@@ -626,13 +628,7 @@ where
         // Spawn the signal-emitting future using standard spawn mechanism
         let task_handle = rt
             .add_task_non_send(Box::pin(result_future))
-            .unwrap_or_else(|spawn_error| {
-                panic!(
-                    "Failed to spawn async task with result: {spawn_error}\n\
-                     This indicates the task queue is full or the runtime is overloaded.\n\
-                     Consider reducing concurrent task load or increasing task limits."
-                );
-            });
+            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
 
         // Create waker to trigger initial poll
         Arc::new(GodotWaker::new(
@@ -696,12 +692,6 @@ impl TaskHandle {
                 }
                 FutureSlotState::Gone => false,
                 FutureSlotState::Pending(_) => task.id == self.id,
-                FutureSlotState::Polling => {
-                    return Err(AsyncRuntimeError::InvalidTaskState {
-                        task_id: self.id,
-                        expected_state: "not currently polling".to_string(),
-                    });
-                }
             };
 
             if alive {
@@ -728,10 +718,7 @@ impl TaskHandle {
                 return Ok(false);
             }
 
-            Ok(matches!(
-                slot.value,
-                FutureSlotState::Pending(_) | FutureSlotState::Polling
-            ))
+            Ok(matches!(slot.value, FutureSlotState::Pending(_)))
         })
     }
 
@@ -839,8 +826,6 @@ enum FutureSlotState<T> {
     Gone,
     /// Slot contains a pending future.
     Pending(T),
-    /// Slot contains a future which is currently being polled.
-    Polling,
 }
 
 /// Wrapper around a future that is being stored in the async runtime.
@@ -1256,8 +1241,8 @@ impl TaskStorage {
     /// This method moves tasks from the queue to active storage when there's capacity.
     /// It respects priority ordering if enabled and handles task creation properly.
     fn process_queued_tasks(&mut self) {
-        // Cleanup completed tasks periodically to prevent memory leaks
-        self.cleanup_completed_tasks();
+        // Incremental cleanup to prevent memory leaks
+        self.incremental_cleanup();
 
         while !self.task_queue.is_empty()
             && self.get_active_task_count() < self.limits.max_concurrent_tasks
@@ -1346,55 +1331,77 @@ impl TaskStorage {
         self.task_queue.clear();
     }
 
-    /// Cleanup completed tasks to prevent memory leaks
+    /// Incremental cleanup to prevent memory leaks
     ///
-    /// This method removes slots marked as `Gone` when the task vector becomes too large.
-    /// It's called periodically to prevent unbounded memory growth from completed tasks.
-    fn cleanup_completed_tasks(&mut self) {
+    /// This method performs light cleanup on every call to prevent unbounded memory growth.
+    /// It's designed to be called frequently without causing performance issues.
+    fn incremental_cleanup(&mut self) {
+        // Quick cleanup: convert Gone slots to Empty slots for reuse
+        for slot in &mut self.tasks {
+            if matches!(slot.value, FutureSlotState::Gone) {
+                slot.value = FutureSlotState::Empty;
+                slot.id = 0; // Reset ID
+            }
+        }
+
+        // Heavy cleanup: only when we have too many total slots
         let current_size = self.tasks.len();
-        let max_size_before_cleanup = self.limits.max_concurrent_tasks * 2;
+        let max_size_before_heavy_cleanup = self.limits.max_concurrent_tasks * 3;
 
-        // Only cleanup when we have significantly more slots than our limit
-        if current_size > max_size_before_cleanup {
-            let mut active_tasks = Vec::new();
-            let mut empty_slots_to_keep = 0;
-            let max_empty_slots = self.limits.max_concurrent_tasks / 4; // Keep some empty slots for efficiency
+        if current_size > max_size_before_heavy_cleanup {
+            self.heavy_cleanup(current_size);
+        }
+    }
 
-            // Separate active tasks from completed ones
+    /// Heavy cleanup when memory pressure is high
+    ///
+    /// This method does expensive cleanup operations less frequently.
+    fn heavy_cleanup(&mut self, current_size: usize) {
+        // Count active tasks
+        let active_count = self
+            .tasks
+            .iter()
+            .filter(|slot| matches!(slot.value, FutureSlotState::Pending(_)))
+            .count();
+
+        // If we have too many empty slots, compact the vector
+        let max_empty_slots = self.limits.max_concurrent_tasks / 2;
+        let empty_slots = current_size - active_count;
+
+        if empty_slots > max_empty_slots {
+            // Compact by keeping only active tasks and a small number of empty slots
+            let mut compacted_tasks = Vec::with_capacity(active_count + max_empty_slots);
+            let mut empty_slots_kept = 0;
+
             for slot in std::mem::take(&mut self.tasks) {
                 match slot.value {
+                    FutureSlotState::Pending(_) => {
+                        // Keep all active tasks
+                        compacted_tasks.push(slot);
+                    }
                     FutureSlotState::Empty | FutureSlotState::Gone => {
-                        // Keep a small number of empty slots for reuse efficiency
-                        if empty_slots_to_keep < max_empty_slots {
+                        // Keep a limited number of empty slots for efficiency
+                        if empty_slots_kept < max_empty_slots {
                             let mut empty_slot = slot;
                             empty_slot.value = FutureSlotState::Empty;
-                            active_tasks.push(empty_slot);
-                            empty_slots_to_keep += 1;
+                            empty_slot.id = 0;
+                            compacted_tasks.push(empty_slot);
+                            empty_slots_kept += 1;
                         }
-                        // Otherwise drop the slot to free memory
-                    }
-                    FutureSlotState::Pending(_) | FutureSlotState::Polling => {
-                        // Keep all active tasks
-                        active_tasks.push(slot);
+                        // Drop excess empty slots
                     }
                 }
             }
 
-            // Update the tasks vector with cleaned up slots
-            self.tasks = active_tasks;
+            self.tasks = compacted_tasks;
 
             let new_size = self.tasks.len();
             if new_size < current_size {
-                let stats = self.get_stats();
-                println!(
-                    "Async runtime cleanup: Freed {} task slots (was {}, now {})",
-                    current_size - new_size,
+                eprintln!(
+                    "Async runtime heavy cleanup: Compacted {} -> {} slots ({} freed)",
                     current_size,
-                    new_size
-                );
-                println!(
-                    "  -> Current state: {} active tasks, {} queued, memory pressure: {}",
-                    stats.active_tasks, stats.queued_tasks, stats.memory_pressure
+                    new_size,
+                    current_size - new_size
                 );
             }
         }
@@ -1638,23 +1645,16 @@ impl AsyncRuntime {
                 expected_state: "non-empty".to_string(),
             }),
             FutureSlotState::Gone => Err(AsyncRuntimeError::TaskCanceled { task_id: id }),
-            FutureSlotState::Polling => Err(AsyncRuntimeError::InvalidTaskState {
-                task_id: id,
-                expected_state: "not currently polling".to_string(),
-            }),
-            FutureSlotState::Pending(_future_storage) => {
-                // Temporarily mark as polling to prevent reentrant polling
-                let old_state = std::mem::replace(&mut slot.value, FutureSlotState::Polling);
+            FutureSlotState::Pending(future_storage) => {
+                // Mark as polling to prevent reentrant polling, but don't move the future
+                let old_id = slot.id;
+                slot.id = u64::MAX; // Special marker for "currently polling"
 
-                // Extract the future storage for polling
-                let mut future_storage = if let FutureSlotState::Pending(fs) = old_state {
-                    fs
-                } else {
-                    unreachable!("We just matched on Pending")
-                };
-
-                // Poll the future in place using safe pin projection
-                let poll_result = match &mut future_storage {
+                // Poll the future in place without moving it - this is safe because:
+                // 1. The future remains at the same memory location
+                // 2. We're only taking a mutable reference, not moving it
+                // 3. Pin guarantees are preserved
+                let poll_result = match future_storage {
                     FutureStorage::Inline(pinned_future) => pinned_future.as_mut().poll_erased(cx),
                     FutureStorage::NonSend(pinned_future) => pinned_future.as_mut().poll(cx),
                 };
@@ -1662,13 +1662,14 @@ impl AsyncRuntime {
                 // Handle the result and restore appropriate state
                 match poll_result {
                     Poll::Pending => {
-                        // Put the future back in pending state
-                        slot.value = FutureSlotState::Pending(future_storage);
+                        // Restore the original ID - future is still pending
+                        slot.id = old_id;
                         Ok(Poll::Pending)
                     }
                     Poll::Ready(()) => {
                         // Task completed, mark as gone
                         slot.value = FutureSlotState::Gone;
+                        slot.id = old_id; // Restore ID for consistency
 
                         // Process any queued tasks now that we have capacity
                         self.task_storage.process_queued_tasks();
@@ -1732,18 +1733,41 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     let error_context = || format!("Godot async task failed (task_id: {task_id})");
 
     // Poll the future safely in place within the runtime context
-    let poll_result = if let Some(storage) = RUNTIME_STORAGE.get() {
-        // Poll within the runtime context for proper tokio/async-std support
-        let result = std::cell::RefCell::new(None);
-        let ctx_ref = std::cell::RefCell::new(Some(ctx));
+    let poll_result = RUNTIME_REGISTRY.with(|registry| {
+        let registry = registry.borrow();
 
-        (storage.with_context)(&|| {
-            let mut ctx = ctx_ref
-                .borrow_mut()
-                .take()
-                .expect("Context should be available");
+        if let Some(storage) = &registry.runtime_storage {
+            // Poll within the runtime context for proper tokio/async-std support
+            let result = std::cell::RefCell::new(None);
+            let ctx_ref = std::cell::RefCell::new(Some(ctx));
 
-            let poll_result = ASYNC_RUNTIME.with_runtime_mut(|rt| {
+            (storage.with_context)(&|| {
+                let mut ctx = ctx_ref
+                    .borrow_mut()
+                    .take()
+                    .expect("Context should be available");
+
+                let poll_result = ASYNC_RUNTIME.with_runtime_mut(|rt| {
+                    handle_panic(
+                        error_context,
+                        AssertUnwindSafe(|| {
+                            rt.poll_task_in_place(
+                                godot_waker.runtime_index,
+                                godot_waker.task_id,
+                                &mut ctx,
+                            )
+                        }),
+                    )
+                });
+
+                *result.borrow_mut() = Some(poll_result);
+            });
+
+            result.into_inner().expect("Result should have been set")
+        } else {
+            // Fallback: direct polling without runtime context
+            drop(registry); // Release the borrow before calling ASYNC_RUNTIME
+            ASYNC_RUNTIME.with_runtime_mut(|rt| {
                 handle_panic(
                     error_context,
                     AssertUnwindSafe(|| {
@@ -1754,23 +1778,9 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
                         )
                     }),
                 )
-            });
-
-            *result.borrow_mut() = Some(poll_result);
-        });
-
-        result.into_inner().expect("Result should have been set")
-    } else {
-        // Fallback: direct polling without runtime context
-        ASYNC_RUNTIME.with_runtime_mut(|rt| {
-            handle_panic(
-                error_context,
-                AssertUnwindSafe(|| {
-                    rt.poll_task_in_place(godot_waker.runtime_index, godot_waker.task_id, &mut ctx)
-                }),
-            )
-        })
-    };
+            })
+        }
+    });
 
     // Handle the result
     match poll_result {
