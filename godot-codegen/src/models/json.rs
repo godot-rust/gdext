@@ -79,7 +79,7 @@ pub struct JsonClass {
     pub constants: Option<Vec<JsonClassConstant>>,
     pub enums: Option<Vec<JsonEnum>>,
     pub methods: Option<Vec<JsonClassMethod>>,
-    // pub properties: Option<Vec<Property>>,
+    pub properties: Option<Vec<JsonProperty>>,
     pub signals: Option<Vec<JsonSignal>>,
 }
 
@@ -173,12 +173,12 @@ pub struct JsonMember {
 #[derive(DeJson)]
 #[allow(dead_code)]
 pub struct JsonProperty {
-    #[nserde(rename = "type")]
-    type_: String,
-    name: String,
-    setter: String,
-    getter: String,
-    index: i32, // can be -1
+    // #[nserde(rename = "type")]
+    // type_: String,
+    pub name: String,
+    pub setter: Option<String>,
+    pub getter: Option<String>,
+    // index: Option<i32>,
 }
 
 #[derive(DeJson)]
