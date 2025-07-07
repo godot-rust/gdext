@@ -77,50 +77,7 @@ pub trait AsyncRuntimeIntegration: Send + Sync + 'static {
     fn with_context<R>(handle: &Self::Handle, f: impl FnOnce() -> R) -> R;
 }
 
-/// Configuration for the async runtime
-///
-/// This allows users to specify which runtime integration to use and configure
-/// its behavior. By default, gdext will try to auto-detect an existing runtime
-/// or use a built-in minimal implementation.
-pub struct AsyncRuntimeConfig<T: AsyncRuntimeIntegration> {
-    /// The runtime integration implementation
-    _integration: PhantomData<T>,
 
-    /// Whether to try auto-detecting existing runtime context
-    pub auto_detect: bool,
-
-    /// Whether to create a new runtime if none is detected
-    pub create_if_missing: bool,
-}
-
-impl<T: AsyncRuntimeIntegration> Default for AsyncRuntimeConfig<T> {
-    fn default() -> Self {
-        Self {
-            _integration: PhantomData,
-            auto_detect: true,
-            create_if_missing: true,
-        }
-    }
-}
-
-impl<T: AsyncRuntimeIntegration> AsyncRuntimeConfig<T> {
-    /// Create a new runtime configuration
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Set whether to auto-detect existing runtime context
-    pub fn with_auto_detect(mut self, auto_detect: bool) -> Self {
-        self.auto_detect = auto_detect;
-        self
-    }
-
-    /// Set whether to create a new runtime if none is detected
-    pub fn with_create_if_missing(mut self, create_if_missing: bool) -> Self {
-        self.create_if_missing = create_if_missing;
-        self
-    }
-}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Runtime Registry - Thread-Local Only (No Global State)
@@ -285,26 +242,15 @@ pub enum TaskSpawnError {
     /// Task queue is full and cannot accept more tasks
     QueueFull {
         active_tasks: usize,
-        queued_tasks: usize,
+        max_tasks: usize,
     },
-    // Note: LimitsExceeded and RuntimeShuttingDown variants were removed because:
-    // - LimitsExceeded: Was designed for more sophisticated task limit enforcement,
-    //   but current implementation only uses queue-based backpressure
-    // - RuntimeShuttingDown: Was designed for graceful shutdown coordination,
-    //   but current implementation uses simpler immediate cleanup approach
 }
 
 impl std::fmt::Display for TaskSpawnError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TaskSpawnError::QueueFull {
-                active_tasks,
-                queued_tasks,
-            } => {
-                write!(
-                    f,
-                    "Task queue is full: {active_tasks} active tasks, {queued_tasks} queued tasks"
-                )
+            TaskSpawnError::QueueFull { active_tasks, max_tasks } => {
+                write!(f, "Task queue is full: {active_tasks}/{max_tasks} tasks")
             }
         }
     }
@@ -662,16 +608,7 @@ impl TaskHandle {
         }
     }
 
-    /// Create a new handle for a queued task
-    ///
-    /// Queued tasks don't have a slot index yet, so we use a special marker
-    fn new_queued(id: u64) -> Self {
-        Self {
-            index: usize::MAX, // Special marker for queued tasks
-            id,
-            _no_send_sync: PhantomData,
-        }
-    }
+
 
     /// Cancels the task if it is still pending and does nothing if it is already completed.
     ///
@@ -684,12 +621,6 @@ impl TaskHandle {
             };
 
             let alive = match task.value {
-                FutureSlotState::Empty => {
-                    return Err(AsyncRuntimeError::InvalidTaskState {
-                        task_id: self.id,
-                        expected_state: "non-empty".to_string(),
-                    });
-                }
                 FutureSlotState::Gone => false,
                 FutureSlotState::Pending(_) => task.id == self.id,
             };
@@ -768,23 +699,10 @@ pub mod lifecycle {
     pub fn begin_shutdown() -> usize {
         ASYNC_RUNTIME.with(|runtime| {
             if let Some(mut rt) = runtime.borrow_mut().take() {
-                let storage_stats = rt.task_storage.get_stats();
-                let task_count = storage_stats.active_tasks;
+                let task_count = rt.task_storage.get_active_task_count();
 
-                // Log comprehensive shutdown information using all monitoring fields
-                if task_count > 0 || storage_stats.queued_tasks > 0 {
-                    eprintln!("Async runtime shutdown:");
-                    eprintln!("  - Active tasks: {}", storage_stats.active_tasks);
-                    eprintln!("  - Queued tasks: {}", storage_stats.queued_tasks);
-                    eprintln!("  - Total slots: {}", storage_stats.total_slots);
-                    eprintln!("  - Memory pressure: {}", storage_stats.memory_pressure);
-
-                    if task_count > 0 {
-                        eprintln!("  -> Canceling {task_count} pending tasks");
-                    }
-                    if storage_stats.queued_tasks > 0 {
-                        eprintln!("  -> Dropping {} queued tasks", storage_stats.queued_tasks);
-                    }
+                if task_count > 0 {
+                    eprintln!("Async runtime shutdown: canceling {task_count} pending tasks");
                 }
 
                 // Clear all components
@@ -815,13 +733,11 @@ pub(crate) fn cleanup() {
 
 #[cfg(feature = "trace")]
 pub fn has_godot_task_panicked(task_handle: TaskHandle) -> bool {
-    ASYNC_RUNTIME.with_runtime(|rt| rt._task_scheduler.has_task_panicked(task_handle.id))
+    ASYNC_RUNTIME.with_runtime(|rt| rt.has_task_panicked(task_handle.id))
 }
 
 /// The current state of a future inside the async runtime.
 enum FutureSlotState<T> {
-    /// Slot is currently empty.
-    Empty,
     /// Slot was previously occupied but the future has been canceled or the slot reused.
     Gone,
     /// Slot contains a pending future.
@@ -845,9 +761,9 @@ impl<T> FutureSlot<T> {
         }
     }
 
-    /// Checks if the future slot is either still empty or has become unoccupied due to a future completing.
+    /// Checks if the future slot has become unoccupied due to a future completing.
     fn is_empty(&self) -> bool {
-        matches!(self.value, FutureSlotState::Empty | FutureSlotState::Gone)
+        matches!(self.value, FutureSlotState::Gone)
     }
 
     /// Drop the future from this slot.
@@ -858,6 +774,9 @@ impl<T> FutureSlot<T> {
     }
 }
 
+/// Simplified task storage with basic backpressure
+const MAX_CONCURRENT_TASKS: usize = 1000;
+
 /// Separated concerns for better architecture
 ///
 /// Task limits and backpressure configuration
@@ -865,117 +784,48 @@ impl<T> FutureSlot<T> {
 pub struct TaskLimits {
     /// Maximum number of concurrent tasks allowed
     pub max_concurrent_tasks: usize,
-    /// Maximum size of the task queue when at capacity
-    pub max_queued_tasks: usize,
-    /// Enable task prioritization
-    pub enable_priority_scheduling: bool,
-    /// Memory limit warning threshold (in active tasks)
-    pub memory_warning_threshold: usize,
 }
 
 impl Default for TaskLimits {
     fn default() -> Self {
         Self {
-            max_concurrent_tasks: 1000,        // Reasonable default
-            max_queued_tasks: 500,             // Queue up to 500 tasks when at capacity
-            enable_priority_scheduling: false, // Simple FIFO by default
-            memory_warning_threshold: 800,     // Warn at 80% of max capacity
+            max_concurrent_tasks: MAX_CONCURRENT_TASKS,
         }
     }
 }
 
-/// Task priority levels for prioritized scheduling
-/// Note: Only Normal priority is currently used. Low, High, and Critical variants
-/// were designed for priority-based task scheduling, but the current implementation
-/// uses simple FIFO scheduling without prioritization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub enum TaskPriority {
-    #[default]
-    Normal = 1,
-}
-
-/// Queued task waiting to be scheduled
-struct QueuedTask {
-    future: Pin<Box<dyn ErasedPinnedFuture>>,
-    priority: TaskPriority,
-    queued_at: std::time::Instant,
-    task_id: u64,
-}
-
-impl std::fmt::Debug for QueuedTask {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("QueuedTask")
-            .field("priority", &self.priority)
-            .field("queued_at", &self.queued_at)
-            .field("task_id", &self.task_id)
-            .field("future", &"<future>")
-            .finish()
-    }
-}
-
-/// Trait for type-erased pinned future storage with safe pin handling
-trait ErasedPinnedFuture: Send + 'static {
-    /// Poll the pinned future in a type-erased way
-    ///
-    /// # Safety
-    /// This method must only be called on a properly pinned future that has never been moved
-    /// since being pinned. The caller must ensure proper pin projection.
-    fn poll_erased(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<()>;
-}
-
-impl<F> ErasedPinnedFuture for F
-where
-    F: Future<Output = ()> + Send + 'static,
-{
-    fn poll_erased(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<()> {
-        // Safe: we're already pinned, so we can directly poll
-        self.poll(cx)
-    }
-}
-
-/// More efficient future storage that avoids unnecessary boxing
+/// Simplified future storage that avoids unnecessary boxing
 /// Only boxes when absolutely necessary (for type erasure)
 enum FutureStorage {
-    /// Direct storage for Send futures with safe pin handling
-    Inline(Pin<Box<dyn ErasedPinnedFuture>>),
+    /// Direct storage for Send futures
+    Send(Pin<Box<dyn Future<Output = ()> + Send + 'static>>),
     /// For non-Send futures (like Godot integration)
-    NonSend(Pin<Box<dyn Future<Output = ()> + 'static>>),
+    Local(Pin<Box<dyn Future<Output = ()> + 'static>>),
 }
 
 impl FutureStorage {
-    /// Create optimized storage for a future
-    fn new<F>(future: F) -> Self
+    /// Create optimized storage for a Send future
+    fn new_send<F>(future: F) -> Self
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        // Pin the future immediately for safe handling
-        Self::Inline(Box::pin(future))
+        Self::Send(Box::pin(future))
     }
 
     /// Create storage for a non-Send future
-    fn new_non_send<F>(future: F) -> Self
+    fn new_local<F>(future: F) -> Self
     where
         F: Future<Output = ()> + 'static,
     {
-        // Non-Send futures use the same pinned approach
-        Self::NonSend(Box::pin(future))
+        Self::Local(Box::pin(future))
     }
 }
 
-/// Task storage component - manages the storage and lifecycle of futures
+/// Simplified task storage component
 struct TaskStorage {
     tasks: Vec<FutureSlot<FutureStorage>>,
     next_task_id: u64,
-    /// Configuration for task limits and backpressure
     limits: TaskLimits,
-    /// Queue for tasks waiting to be scheduled when at capacity
-    task_queue: Vec<QueuedTask>,
-    /// Statistics for monitoring
-    total_tasks_spawned: u64,
-    // Note: total_tasks_completed field was removed because it was designed for
-    // statistics tracking, but the current implementation doesn't track completed
-    // tasks for monitoring purposes (only spawned and rejected for queue management).
-    total_tasks_rejected: u64,
 }
 
 impl Default for TaskStorage {
@@ -994,9 +844,6 @@ impl TaskStorage {
             tasks: Vec::new(),
             next_task_id: 0,
             limits,
-            task_queue: Vec::new(),
-            total_tasks_spawned: 0,
-            total_tasks_rejected: 0,
         }
     }
 
@@ -1007,198 +854,46 @@ impl TaskStorage {
         id
     }
 
-    /// Store a new async task with priority and backpressure support
-    fn store_task_with_priority<F>(
-        &mut self,
-        future: F,
-        priority: TaskPriority,
-    ) -> Result<TaskHandle, TaskSpawnError>
+    /// Store a new Send async task
+    fn store_send_task<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let id = self.next_id();
-        self.total_tasks_spawned += 1;
-
         let active_tasks = self.get_active_task_count();
-
-        // Check if we're at capacity
+        
         if active_tasks >= self.limits.max_concurrent_tasks {
-            return self.handle_capacity_overflow(future, priority, id);
-        }
-
-        // Check for memory pressure warning
-        if active_tasks >= self.limits.memory_warning_threshold {
-            let stats = self.get_stats();
-            eprintln!(
-                "Warning: High task load detected - {} active tasks (threshold: {})",
-                active_tasks, self.limits.memory_warning_threshold
-            );
-            eprintln!(
-                "  -> Runtime state: {} total slots, {} queued, memory pressure: {}",
-                stats.total_slots, stats.queued_tasks, stats.memory_pressure
-            );
-        }
-
-        self.schedule_task_immediately(future, id)
-    }
-
-    /// Store a new async task with priority and backpressure support (for non-Send futures)
-    fn store_task_with_priority_non_send<F>(
-        &mut self,
-        future: F,
-        priority: TaskPriority,
-    ) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + 'static,
-    {
-        let id = self.next_id();
-        self.total_tasks_spawned += 1;
-
-        let active_tasks = self.get_active_task_count();
-
-        // Check if we're at capacity
-        if active_tasks >= self.limits.max_concurrent_tasks {
-            return self.handle_capacity_overflow_non_send(future, priority, id);
-        }
-
-        // Check for memory pressure warning
-        if active_tasks >= self.limits.memory_warning_threshold {
-            let stats = self.get_stats();
-            eprintln!(
-                "Warning: High task load detected - {} active tasks (threshold: {})",
-                active_tasks, self.limits.memory_warning_threshold
-            );
-            eprintln!(
-                "  -> Runtime state: {} total slots, {} queued, memory pressure: {}",
-                stats.total_slots, stats.queued_tasks, stats.memory_pressure
-            );
-        }
-
-        self.schedule_task_immediately_non_send(future, id)
-    }
-
-    /// Store a new async task with default priority
-    fn store_task<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        self.store_task_with_priority(future, TaskPriority::default())
-    }
-
-    /// Store a new async task with default priority (for non-Send futures)
-    fn store_task_non_send<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + 'static,
-    {
-        self.store_task_with_priority_non_send(future, TaskPriority::default())
-    }
-
-    /// Handle task spawning when at capacity
-    fn handle_capacity_overflow<F>(
-        &mut self,
-        future: F,
-        priority: TaskPriority,
-        id: u64,
-    ) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        // Check if queue is full
-        if self.task_queue.len() >= self.limits.max_queued_tasks {
-            self.total_tasks_rejected += 1;
             return Err(TaskSpawnError::QueueFull {
-                active_tasks: self.get_active_task_count(),
-                queued_tasks: self.task_queue.len(),
+                active_tasks,
+                max_tasks: self.limits.max_concurrent_tasks,
             });
         }
 
-        // Queue the task
-        let queued_task = QueuedTask {
-            future: Box::pin(future), // Box::pin automatically creates the right trait object
-            priority,
-            queued_at: std::time::Instant::now(),
-            task_id: id,
-        };
+        let id = self.next_id();
+        let storage = FutureStorage::new_send(future);
+        self.schedule_task_immediately(id, storage)
+    }
 
-        // Insert based on priority if enabled
-        if self.limits.enable_priority_scheduling {
-            let insert_pos = self
-                .task_queue
-                .iter()
-                .position(|task| task.priority < priority)
-                .unwrap_or(self.task_queue.len());
-            self.task_queue.insert(insert_pos, queued_task);
-        } else {
-            self.task_queue.push(queued_task);
+    /// Store a new non-Send async task
+    fn store_local_task<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
+    where
+        F: Future<Output = ()> + 'static,
+    {
+        let active_tasks = self.get_active_task_count();
+        
+        if active_tasks >= self.limits.max_concurrent_tasks {
+            return Err(TaskSpawnError::QueueFull {
+                active_tasks,
+                max_tasks: self.limits.max_concurrent_tasks,
+            });
         }
 
-        // Return a special handle for queued tasks
-        Ok(TaskHandle::new_queued(id))
+        let id = self.next_id();
+        let storage = FutureStorage::new_local(future);
+        self.schedule_task_immediately(id, storage)
     }
 
-    /// Handle task spawning when at capacity (for non-Send futures)
-    fn handle_capacity_overflow_non_send<F>(
-        &mut self,
-        _future: F,
-        _priority: TaskPriority,
-        _id: u64,
-    ) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + 'static,
-    {
-        // For non-Send futures, we can't queue them because the queue stores Send futures
-        // We reject them immediately
-        self.total_tasks_rejected += 1;
-        Err(TaskSpawnError::QueueFull {
-            active_tasks: self.get_active_task_count(),
-            queued_tasks: self.task_queue.len(),
-        })
-    }
-
-    /// Schedule a task immediately
-    fn schedule_task_immediately<F>(
-        &mut self,
-        future: F,
-        id: u64,
-    ) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        let storage = FutureStorage::new(future);
-
-        let index_slot = self.tasks.iter_mut().enumerate().find_map(|(index, slot)| {
-            if slot.is_empty() {
-                Some((index, slot))
-            } else {
-                None
-            }
-        });
-
-        let index = match index_slot {
-            Some((index, slot)) => {
-                *slot = FutureSlot::pending(id, storage);
-                index
-            }
-            None => {
-                self.tasks.push(FutureSlot::pending(id, storage));
-                self.tasks.len() - 1
-            }
-        };
-
-        Ok(TaskHandle::new(index, id))
-    }
-
-    /// Schedule a non-Send task immediately
-    fn schedule_task_immediately_non_send<F>(
-        &mut self,
-        future: F,
-        id: u64,
-    ) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + 'static,
-    {
-        let storage = FutureStorage::new_non_send(future);
-
+    /// Schedule a task immediately in an available slot
+    fn schedule_task_immediately(&mut self, id: u64, storage: FutureStorage) -> Result<TaskHandle, TaskSpawnError> {
         let index_slot = self.tasks.iter_mut().enumerate().find_map(|(index, slot)| {
             if slot.is_empty() {
                 Some((index, slot))
@@ -1231,231 +926,19 @@ impl TaskStorage {
         if let Some(slot) = self.tasks.get_mut(index) {
             slot.clear();
         }
-
-        // Process queued tasks when capacity becomes available
-        self.process_queued_tasks();
-    }
-
-    /// Process queued tasks when capacity becomes available
-    ///
-    /// This method moves tasks from the queue to active storage when there's capacity.
-    /// It respects priority ordering if enabled and handles task creation properly.
-    fn process_queued_tasks(&mut self) {
-        // Incremental cleanup to prevent memory leaks
-        self.incremental_cleanup();
-
-        while !self.task_queue.is_empty()
-            && self.get_active_task_count() < self.limits.max_concurrent_tasks
-        {
-            let queued_task = self.task_queue.remove(0);
-
-            // Try to schedule the queued task immediately
-            match self.schedule_task_immediately_from_queue(queued_task.future, queued_task.task_id)
-            {
-                Ok(_handle) => {
-                    // Task successfully scheduled from queue
-                    // Note: We don't return the handle since this is internal processing
-                }
-                Err(err) => {
-                    // This shouldn't happen since we checked capacity, but log it
-                    eprintln!(
-                        "Warning: Failed to schedule queued task {}: {}",
-                        queued_task.task_id, err
-                    );
-                    self.total_tasks_rejected += 1;
-                    break;
-                }
-            }
-        }
-    }
-
-    /// Internal method to schedule a task from the queue
-    ///
-    /// This is similar to `schedule_task_immediately` but takes a boxed future
-    /// from the queue instead of a generic future parameter.
-    fn schedule_task_immediately_from_queue(
-        &mut self,
-        future: Pin<Box<dyn ErasedPinnedFuture>>,
-        id: u64,
-    ) -> Result<TaskHandle, TaskSpawnError> {
-        let storage = FutureStorage::Inline(future);
-
-        let index_slot = self.tasks.iter_mut().enumerate().find_map(|(index, slot)| {
-            if slot.is_empty() {
-                Some((index, slot))
-            } else {
-                None
-            }
-        });
-
-        let index = match index_slot {
-            Some((index, slot)) => {
-                *slot = FutureSlot::pending(id, storage);
-                index
-            }
-            None => {
-                self.tasks.push(FutureSlot::pending(id, storage));
-                self.tasks.len() - 1
-            }
-        };
-
-        Ok(TaskHandle::new(index, id))
-    }
-
-    /// Get statistics about task storage
-    fn get_stats(&self) -> TaskStorageStats {
-        let active_tasks = self.tasks.iter().filter(|slot| !slot.is_empty()).count();
-        let total_slots = self.tasks.len();
-        let queued_tasks = self.task_queue.len();
-
-        // Check for memory pressure
-        let memory_pressure = if total_slots > self.limits.max_concurrent_tasks * 3 {
-            "High - cleanup recommended"
-        } else if total_slots > self.limits.max_concurrent_tasks * 2 {
-            "Medium - monitoring"
-        } else {
-            "Normal"
-        };
-
-        TaskStorageStats {
-            active_tasks,
-            total_slots,
-            queued_tasks,
-            memory_pressure: memory_pressure.to_string(),
-        }
     }
 
     /// Clear all tasks
     fn clear_all(&mut self) {
         self.tasks.clear();
-        self.task_queue.clear();
-    }
-
-    /// Incremental cleanup to prevent memory leaks
-    ///
-    /// This method performs light cleanup on every call to prevent unbounded memory growth.
-    /// It's designed to be called frequently without causing performance issues.
-    fn incremental_cleanup(&mut self) {
-        // Quick cleanup: convert Gone slots to Empty slots for reuse
-        for slot in &mut self.tasks {
-            if matches!(slot.value, FutureSlotState::Gone) {
-                slot.value = FutureSlotState::Empty;
-                slot.id = 0; // Reset ID
-            }
-        }
-
-        // Heavy cleanup: only when we have too many total slots
-        let current_size = self.tasks.len();
-        let max_size_before_heavy_cleanup = self.limits.max_concurrent_tasks * 3;
-
-        if current_size > max_size_before_heavy_cleanup {
-            self.heavy_cleanup(current_size);
-        }
-    }
-
-    /// Heavy cleanup when memory pressure is high
-    ///
-    /// This method does expensive cleanup operations less frequently.
-    fn heavy_cleanup(&mut self, current_size: usize) {
-        // Count active tasks
-        let active_count = self
-            .tasks
-            .iter()
-            .filter(|slot| matches!(slot.value, FutureSlotState::Pending(_)))
-            .count();
-
-        // If we have too many empty slots, compact the vector
-        let max_empty_slots = self.limits.max_concurrent_tasks / 2;
-        let empty_slots = current_size - active_count;
-
-        if empty_slots > max_empty_slots {
-            // Compact by keeping only active tasks and a small number of empty slots
-            let mut compacted_tasks = Vec::with_capacity(active_count + max_empty_slots);
-            let mut empty_slots_kept = 0;
-
-            for slot in std::mem::take(&mut self.tasks) {
-                match slot.value {
-                    FutureSlotState::Pending(_) => {
-                        // Keep all active tasks
-                        compacted_tasks.push(slot);
-                    }
-                    FutureSlotState::Empty | FutureSlotState::Gone => {
-                        // Keep a limited number of empty slots for efficiency
-                        if empty_slots_kept < max_empty_slots {
-                            let mut empty_slot = slot;
-                            empty_slot.value = FutureSlotState::Empty;
-                            empty_slot.id = 0;
-                            compacted_tasks.push(empty_slot);
-                            empty_slots_kept += 1;
-                        }
-                        // Drop excess empty slots
-                    }
-                }
-            }
-
-            self.tasks = compacted_tasks;
-
-            let new_size = self.tasks.len();
-            if new_size < current_size {
-                eprintln!(
-                    "Async runtime heavy cleanup: Compacted {} -> {} slots ({} freed)",
-                    current_size,
-                    new_size,
-                    current_size - new_size
-                );
-            }
-        }
     }
 }
 
-/// Statistics about task storage
-#[derive(Debug, Clone)]
-pub struct TaskStorageStats {
-    pub active_tasks: usize,
-    pub total_slots: usize,
-    pub queued_tasks: usize,
-    pub memory_pressure: String,
-}
-
-/// Task scheduler component - handles task scheduling, polling, and execution
-#[derive(Default)]
-struct TaskScheduler {
-    #[cfg(feature = "trace")]
-    panicked_tasks: std::collections::HashSet<u64>,
-    // Runtime context is now managed by the registered runtime
-}
-
-impl TaskScheduler {
-    fn new() -> Self {
-        Self {
-            #[cfg(feature = "trace")]
-            panicked_tasks: std::collections::HashSet::new(),
-        }
-    }
-
-    /// Track that a future caused a panic
-    #[cfg(feature = "trace")]
-    fn track_panic(&mut self, task_id: u64) {
-        self.panicked_tasks.insert(task_id);
-    }
-
-    /// Check if a task has panicked
-    #[cfg(feature = "trace")]
-    fn has_task_panicked(&self, task_id: u64) -> bool {
-        self.panicked_tasks.contains(&task_id)
-    }
-
-    /// Clear panic tracking
-    #[cfg(feature = "trace")]
-    fn clear_panic_tracking(&mut self) {
-        self.panicked_tasks.clear();
-    }
-}
-
-/// The main async runtime that coordinates between all components
+/// Simplified async runtime 
 struct AsyncRuntime {
     task_storage: TaskStorage,
-    _task_scheduler: TaskScheduler,
+    #[cfg(feature = "trace")]
+    panicked_tasks: std::collections::HashSet<u64>,
 }
 
 impl Default for AsyncRuntime {
@@ -1570,21 +1053,19 @@ where
 
 impl AsyncRuntime {
     fn new() -> Self {
-        // No runtime initialization needed - runtime is provided by user registration
         Self {
             task_storage: TaskStorage::new(),
-            _task_scheduler: TaskScheduler::new(),
+            #[cfg(feature = "trace")]
+            panicked_tasks: std::collections::HashSet::new(),
         }
     }
 
     /// Store a new async task in the runtime
-    /// Delegates to task storage component
     fn add_task<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        // Properly propagate errors instead of masking them
-        self.task_storage.store_task(future)
+        self.task_storage.store_send_task(future)
     }
 
     /// Store a new async task in the runtime (for futures that are not Send)
@@ -1593,28 +1074,31 @@ impl AsyncRuntime {
     where
         F: Future<Output = ()> + 'static,
     {
-        // Properly propagate errors instead of masking them
-        self.task_storage.store_task_non_send(future)
+        self.task_storage.store_local_task(future)
     }
 
     /// Remove a future from the storage
-    /// Delegates to task storage component
     fn clear_task(&mut self, index: usize) {
         self.task_storage.clear_task(index);
     }
 
     /// Track that a future caused a panic
-    /// Delegates to task scheduler component
     #[cfg(feature = "trace")]
     fn track_panic(&mut self, task_id: u64) {
-        self._task_scheduler.track_panic(task_id);
+        self.panicked_tasks.insert(task_id);
     }
 
-    /// Clear all data from all components
+    /// Check if a task has panicked
+    #[cfg(feature = "trace")]
+    fn has_task_panicked(&self, task_id: u64) -> bool {
+        self.panicked_tasks.contains(&task_id)
+    }
+
+    /// Clear all data
     fn clear_all(&mut self) {
         self.task_storage.clear_all();
         #[cfg(feature = "trace")]
-        self._task_scheduler.clear_panic_tracking();
+        self.panicked_tasks.clear();
     }
 
     /// Poll a future in place without breaking the pin invariant
@@ -1640,10 +1124,6 @@ impl AsyncRuntime {
         }
 
         match &mut slot.value {
-            FutureSlotState::Empty => Err(AsyncRuntimeError::InvalidTaskState {
-                task_id: id,
-                expected_state: "non-empty".to_string(),
-            }),
             FutureSlotState::Gone => Err(AsyncRuntimeError::TaskCanceled { task_id: id }),
             FutureSlotState::Pending(future_storage) => {
                 // Mark as polling to prevent reentrant polling, but don't move the future
@@ -1655,8 +1135,8 @@ impl AsyncRuntime {
                 // 2. We're only taking a mutable reference, not moving it
                 // 3. Pin guarantees are preserved
                 let poll_result = match future_storage {
-                    FutureStorage::Inline(pinned_future) => pinned_future.as_mut().poll_erased(cx),
-                    FutureStorage::NonSend(pinned_future) => pinned_future.as_mut().poll(cx),
+                    FutureStorage::Send(pinned_future) => pinned_future.as_mut().poll(cx),
+                    FutureStorage::Local(pinned_future) => pinned_future.as_mut().poll(cx),
                 };
 
                 // Handle the result and restore appropriate state
@@ -1670,9 +1150,6 @@ impl AsyncRuntime {
                         // Task completed, mark as gone
                         slot.value = FutureSlotState::Gone;
                         slot.id = old_id; // Restore ID for consistency
-
-                        // Process any queued tasks now that we have capacity
-                        self.task_storage.process_queued_tasks();
 
                         Ok(Poll::Ready(()))
                     }
