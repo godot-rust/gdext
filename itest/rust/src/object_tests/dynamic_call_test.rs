@@ -163,7 +163,7 @@ fn dynamic_call_with_panic() {
 
     let expected_error_message = "godot-rust function call failed: Object::call(&\"do_panic\")\
         \n  Source: ObjPayload::do_panic()\
-        \n    Reason: function panicked: do_panic exploded"
+        \n    Reason: function panicked: do_panic exploded 💥"
         .to_string();
 
     assert_eq!(call_error.to_string(), expected_error_message);
@@ -188,9 +188,9 @@ fn dynamic_call_with_panic() {
     // In Debug, there is a context -> message is multi-line -> '\n' is inserted after [panic ...].
     // In Release, simpler message -> single line -> no '\n'.
     let expected_panic_message = if cfg!(debug_assertions) {
-        format!("[panic {path}:{line}]\n  do_panic exploded{context}")
+        format!("[panic {path}:{line}]\n  do_panic exploded 💥{context}")
     } else {
-        format!("[panic {path}:{line}]  do_panic exploded")
+        format!("[panic {path}:{line}]  do_panic exploded 💥")
     };
 
     assert_eq!(panic_message, expected_panic_message);
