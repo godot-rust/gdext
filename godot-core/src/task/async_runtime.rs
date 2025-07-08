@@ -597,6 +597,123 @@ where
     poll_future(godot_waker);
 }
 
+/// Spawn an async task that emits to an existing signal holder (local/non-Send version).
+///
+/// This is the non-Send variant of `spawn_with_result_signal`, designed for use with
+/// async functions that access Godot objects or other non-Send types. The future will
+/// always be polled on the main thread.
+///
+/// This is used internally by the #[async_func] macro to enable async instance methods.
+///
+/// # Thread Safety
+///
+/// This function must be called from the main thread and the future will be polled
+/// on the main thread, ensuring compatibility with Godot's threading model.
+///
+/// # Panics
+///
+/// Panics if:
+/// - No async runtime has been registered
+/// - The task queue is full and cannot accept more tasks
+/// - Called from a non-main thread
+pub fn spawn_with_result_signal_local<F, R>(signal_emitter: Gd<RefCounted>, future: F)
+where
+    F: Future<Output = R> + 'static,
+    R: ToGodot + 'static,
+{
+    // Check if runtime is registered
+    if !is_runtime_registered() {
+        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
+    }
+
+    // Must be called from the main thread since Godot objects are not thread-safe
+    if !crate::init::is_main_thread() {
+        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
+               crate::init::main_thread_id(), std::thread::current().id());
+    }
+
+    let godot_waker = ASYNC_RUNTIME.with_runtime_mut(|rt| {
+        // Create a wrapper that will emit the signal when complete
+        let result_future = SignalEmittingFuture {
+            inner: future,
+            signal_emitter,
+            _phantom: PhantomData,
+            creation_thread: std::thread::current().id(),
+        };
+
+        // Spawn the signal-emitting future using non-Send mechanism
+        let task_handle = rt
+            .add_task_non_send(Box::pin(result_future))
+            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
+
+        // Create waker to trigger initial poll
+        Arc::new(GodotWaker::new(
+            task_handle.index as usize,
+            task_handle.id as u64,
+            std::thread::current().id(),
+        ))
+    });
+
+    // Trigger initial poll
+    poll_future(godot_waker);
+}
+
+/// Spawn an async task that emits completion signal only (for void methods).
+///
+/// This is designed for async methods that return `()` and only need to signal completion.
+/// The signal holder should already have a "finished" signal defined.
+///
+/// # Thread Safety
+///
+/// This function must be called from the main thread and the future will be polled
+/// on the main thread, ensuring compatibility with Godot's threading model.
+///
+/// # Panics
+///
+/// Panics if:
+/// - No async runtime has been registered
+/// - The task queue is full and cannot accept more tasks
+/// - Called from a non-main thread
+pub fn spawn_with_completion_signal_local<F>(signal_emitter: Gd<RefCounted>, future: F)
+where
+    F: Future<Output = ()> + 'static,
+{
+    // Check if runtime is registered
+    if !is_runtime_registered() {
+        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
+    }
+
+    // Must be called from the main thread since Godot objects are not thread-safe
+    if !crate::init::is_main_thread() {
+        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
+               crate::init::main_thread_id(), std::thread::current().id());
+    }
+
+    let godot_waker = ASYNC_RUNTIME.with_runtime_mut(|rt| {
+        // Create a wrapper that will emit completion signal when done
+        let completion_future = CompletionSignalFuture {
+            inner: future,
+            signal_emitter,
+            creation_thread: std::thread::current().id(),
+        };
+
+        // Spawn the completion-signaling future using non-Send mechanism
+        let task_handle = rt
+            .add_task_non_send(Box::pin(completion_future))
+            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
+
+        // Create waker to trigger initial poll
+        Arc::new(GodotWaker::new(
+            task_handle.index as usize,
+            task_handle.id as u64,
+            std::thread::current().id(),
+        ))
+    });
+
+    // Trigger initial poll
+    poll_future(godot_waker);
+}
+
 /// Handle for an active background task.
 ///
 /// This handle provides introspection into the current state of the task, as well as providing a way to cancel it.
@@ -991,10 +1108,28 @@ pin_project! {
     }
 }
 
+pin_project! {
+    /// Wrapper for futures that emits a completion signal (for void methods)
+    ///
+    /// Similar to `SignalEmittingFuture` but designed for futures that return `()`.
+    /// Only emits completion signal without any result parameter.
+    ///
+    /// # Thread Safety
+    ///
+    /// This future ensures that signal emission always happens on the main thread
+    /// via call_deferred, maintaining Godot's threading model.
+    struct CompletionSignalFuture<F> {
+        #[pin]
+        inner: F,
+        signal_emitter: Gd<RefCounted>,
+        creation_thread: ThreadId,
+    }
+}
+
 impl<F, R> Future for SignalEmittingFuture<F, R>
 where
     F: Future<Output = R>,
-    R: ToGodot + Send + Sync + 'static,
+    R: ToGodot + 'static,
 {
     type Output = ();
 
@@ -1176,6 +1311,88 @@ impl AsyncRuntime {
                     }
                 }
             }
+        }
+    }
+}
+
+impl<F> Future for CompletionSignalFuture<F>
+where
+    F: Future<Output = ()>,
+{
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // Safe pin projection using pin-project-lite
+        let this = self.project();
+
+        // CRITICAL: Thread safety validation - must be fatal
+        let current_thread = thread::current().id();
+        if *this.creation_thread != current_thread {
+            let error = AsyncRuntimeError::ThreadSafetyViolation {
+                expected_thread: *this.creation_thread,
+                actual_thread: current_thread,
+            };
+
+            eprintln!("FATAL: {error}");
+            eprintln!("CompletionSignalFuture with Gd<RefCounted> cannot be accessed from different threads!");
+            eprintln!(
+                "This would cause memory corruption. Future created on {:?}, polled on {:?}.",
+                this.creation_thread, current_thread
+            );
+
+            // MUST panic to prevent memory corruption - Godot objects are not thread-safe
+            panic!("Thread safety violation in CompletionSignalFuture: {error}");
+        }
+
+        match this.inner.poll(cx) {
+            Poll::Ready(()) => {
+                // For void methods, just emit completion signal without parameters
+                let mut signal_emitter = this.signal_emitter.clone();
+                let creation_thread_id = *this.creation_thread;
+
+                let callable = Callable::from_local_fn("emit_completion_signal", move |_args| {
+                    // CRITICAL: Thread safety validation - signal emission must be on correct thread
+                    let emission_thread = thread::current().id();
+                    if creation_thread_id != emission_thread {
+                        let error = AsyncRuntimeError::ThreadSafetyViolation {
+                            expected_thread: creation_thread_id,
+                            actual_thread: emission_thread,
+                        };
+
+                        eprintln!("FATAL: {error}");
+                        eprintln!(
+                            "Completion signal emission must happen on the same thread as future creation!"
+                        );
+                        eprintln!("This would cause memory corruption with Gd<RefCounted>. Created on {creation_thread_id:?}, emitting on {emission_thread:?}");
+
+                        // MUST panic to prevent memory corruption - signal_emitter is not thread-safe
+                        panic!("Thread safety violation in completion signal emission: {error}");
+                    }
+
+                    // Enhanced error handling for signal emission
+                    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        signal_emitter.emit_signal("finished", &[]);
+                    })) {
+                        Ok(()) => Ok(Variant::nil()),
+                        Err(panic_err) => {
+                            let error_msg = if let Some(s) = panic_err.downcast_ref::<String>() {
+                                s.clone()
+                            } else if let Some(s) = panic_err.downcast_ref::<&str>() {
+                                s.to_string()
+                            } else {
+                                "Unknown panic during completion signal emission".to_string()
+                            };
+
+                            eprintln!("Warning: Completion signal emission failed: {error_msg}");
+                            Ok(Variant::nil())
+                        }
+                    }
+                });
+
+                callable.call_deferred(&[]);
+                Poll::Ready(())
+            }
+            Poll::Pending => Poll::Pending,
         }
     }
 }

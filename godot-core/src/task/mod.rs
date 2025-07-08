@@ -19,7 +19,8 @@ pub(crate) use futures::{impl_dynamic_send, ThreadConfined};
 
 pub use async_runtime::{is_runtime_registered, register_runtime, AsyncRuntimeIntegration};
 pub use async_runtime::{
-    spawn, spawn_local, spawn_with_result, spawn_with_result_signal, TaskHandle,
+    spawn, spawn_local, spawn_with_completion_signal_local, spawn_with_result,
+    spawn_with_result_signal, spawn_with_result_signal_local, TaskHandle,
 };
 pub use futures::{
     DynamicSend, FallibleSignalFuture, FallibleSignalFutureError, IntoDynamicSend, SignalFuture,
