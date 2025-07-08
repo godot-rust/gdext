@@ -88,30 +88,6 @@ impl GdSelfObj {
         self.internal_value = new_value;
     }
 
-    // *** Added: Test async function support ***
-    // Current stage: Only supports static async functions, verify infrastructure works correctly
-    // Future improvement: Need special design to support instance method async functions
-
-    #[async_func]
-    async fn test_static_async_with_vector(input: Vector2) -> Vector2 {
-        // Test zero-cost transfer of Send types (Vector2)
-        // Static functions avoid complexity of instance state
-        Vector2::new(input.x * 2.0, input.y * 2.0)
-    }
-
-    #[async_func]
-    async fn test_static_async_with_string(input: StringName) -> StringName {
-        // Test transfer of StringName (also a Send type)
-        StringName::from(format!("Processed: {input}"))
-    }
-
-    #[func]
-    fn test_async_infrastructure() -> bool {
-        // Test if async infrastructure works properly
-        // This won't actually await, just test if function can be called
-        true
-    }
-
     #[func]
     fn funcs_shouldnt_panic_with_segmented_path_attribute() -> bool {
         true

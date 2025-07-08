@@ -58,7 +58,7 @@ struct FuncAttr {
     pub rename: Option<String>,
     pub is_virtual: bool,
     pub has_gd_self: bool,
-    pub is_async: bool, // *** Added: Support async functions ***
+    pub is_async: bool, // Support for async functions
 }
 
 #[derive(Default)]
@@ -352,7 +352,7 @@ fn process_godot_fns(
                     external_attributes,
                     registered_name,
                     is_script_virtual: func.is_virtual,
-                    is_async: func.is_async, // *** Added: Pass async flag ***
+                    is_async: func.is_async, // Pass async flag
                     rpc_info,
                 });
             }
@@ -565,7 +565,7 @@ fn parse_attributes_inner(
 
         let parsed_attr = match attr_name {
             name if name == "func" => parse_func_attr(attributes)?,
-            name if name == "async_func" => parse_async_func_attr(attributes)?, // *** Added: Async function support ***
+            name if name == "async_func" => parse_async_func_attr(attributes)?, // Async function support
             name if name == "rpc" => parse_rpc_attr(attributes)?,
             name if name == "signal" => parse_signal_attr(attributes, attr)?,
             name if name == "constant" => parse_constant_attr(attributes, attr)?,

@@ -26,9 +26,6 @@ use godot::task::register_runtime;
 #[gdextension(entry_symbol = itest_init)]
 unsafe impl ExtensionLibrary for framework::IntegrationTests {
     fn on_level_init(level: InitLevel) {
-        // Show which initialization level is being processed
-        println!("📍 gdext initialization: level = {level:?}");
-
         // Register the async runtime early in the initialization process
         // This is the proper way to integrate async runtimes with gdext
         if level == InitLevel::Scene {

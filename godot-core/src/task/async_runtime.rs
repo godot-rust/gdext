@@ -20,7 +20,7 @@ use pin_project_lite::pin_project;
 use crate::builtin::{Callable, Variant};
 use crate::private::handle_panic;
 
-// *** Added: Support async Future with return values ***
+// Support for async Future with return values
 
 use crate::classes::RefCounted;
 use crate::meta::ToGodot;
@@ -160,7 +160,7 @@ pub fn is_runtime_registered() -> bool {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// *** Added: Enhanced Error Handling ***
+// Enhanced Error Handling
 
 /// Errors that can occur during async runtime operations
 #[derive(Debug, Clone)]
@@ -529,7 +529,7 @@ where
 
 /// Spawn an async task that emits to an existing signal holder.
 ///
-/// This is used internally by the #[async_func] macro to enable direct Signal returns.
+/// This is used internally by the `#[async_func]` macro to enable direct Signal returns.
 /// The signal holder should already have a "finished" signal defined.
 ///
 /// # Example
@@ -603,7 +603,7 @@ where
 /// async functions that access Godot objects or other non-Send types. The future will
 /// always be polled on the main thread.
 ///
-/// This is used internally by the #[async_func] macro to enable async instance methods.
+/// This is used internally by the `#[async_func]` macro to enable async instance methods.
 ///
 /// # Thread Safety
 ///
@@ -833,9 +833,7 @@ pub mod lifecycle {
             if let Some(mut rt) = runtime.borrow_mut().take() {
                 let task_count = rt.task_storage.get_active_task_count();
 
-                if task_count > 0 {
-                    eprintln!("Async runtime shutdown: canceling {task_count} pending tasks");
-                }
+                // Note: task_count tasks were canceled during shutdown
 
                 // Clear all components
                 rt.clear_all();
@@ -856,11 +854,8 @@ pub mod lifecycle {
 /// We have to drop all the remaining Futures during engine shutdown. This avoids them being dropped at process termination where they would
 /// try to access engine resources, which leads to SEGFAULTs.
 pub(crate) fn cleanup() {
-    let canceled_tasks = lifecycle::begin_shutdown();
-
-    if canceled_tasks > 0 {
-        eprintln!("Godot async runtime cleanup: {canceled_tasks} tasks were canceled during engine shutdown");
-    }
+    let _canceled_tasks = lifecycle::begin_shutdown();
+    // Note: _canceled_tasks tasks were canceled during engine shutdown
 }
 
 #[cfg(feature = "trace")]
