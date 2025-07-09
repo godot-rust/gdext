@@ -27,6 +27,9 @@ pub struct FuncDefinition {
     /// True for script-virtual functions.
     pub is_script_virtual: bool,
 
+    /// True for async functions marked with #[async_func].
+    pub is_async: bool,
+
     /// Information about the RPC configuration, if provided.
     pub rpc_info: Option<RpcAttr>,
 }
@@ -97,20 +100,32 @@ pub fn make_method_registration(
 ) -> ParseResult<TokenStream> {
     let signature_info = &func_definition.signature_info;
     let sig_params = signature_info.params_type();
-    let sig_ret = &signature_info.return_type;
+
+    let sig_ret = if func_definition.is_async {
+        let _original_ret = &signature_info.return_type;
+        quote! { ::godot::builtin::Signal }
+    } else {
+        signature_info.return_type.clone()
+    };
 
     let is_script_virtual = func_definition.is_script_virtual;
+    let is_async = func_definition.is_async;
+
     let method_flags = match make_method_flags(signature_info.receiver_type, is_script_virtual) {
         Ok(mf) => mf,
         Err(msg) => return bail_fn(msg, &signature_info.method_name),
     };
 
-    let forwarding_closure = make_forwarding_closure(
-        class_name,
-        signature_info,
-        BeforeKind::Without,
-        interface_trait,
-    );
+    let forwarding_closure = if is_async {
+        make_async_forwarding_closure(class_name, signature_info, interface_trait)?
+    } else {
+        make_forwarding_closure(
+            class_name,
+            signature_info,
+            BeforeKind::Without,
+            interface_trait,
+        )
+    };
 
     // String literals
     let class_name_str = class_name.to_string();
@@ -162,9 +177,10 @@ pub fn make_method_registration(
             };
 
             ::godot::private::out!(
-                "   Register fn:   {}::{}",
+                "   Register fn:   {}::{}{}",
                 #class_name_str,
-                #method_name_str
+                #method_name_str,
+                if #is_async { " (async)" } else { "" }
             );
 
             // Note: information whether the method is virtual is stored in method method_info's flags.
@@ -575,4 +591,226 @@ fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream
     quote! {
         ::godot::meta::CallContext::func(#class_name_str, #method_name_str)
     }
+}
+
+/// Creates a forwarding closure for async functions that directly returns a Signal.
+///
+/// This function generates code that:
+/// 1. Captures all parameters and instance ID (for instance methods)
+/// 2. Creates a Signal that can be directly awaited in GDScript
+/// 3. Spawns the async function in the background
+/// 4. Emits the signal with the result when the task completes
+///
+/// Usage in GDScript becomes extremely simple:
+/// ```gdscript
+/// var result = await obj.async_method(args)  # No wrapper needed!
+/// ```
+fn make_async_forwarding_closure(
+    class_name: &Ident,
+    signature_info: &SignatureInfo,
+    _interface_trait: Option<&venial::TypeExpr>,
+) -> ParseResult<TokenStream> {
+    let method_name = &signature_info.method_name;
+    let params = &signature_info.param_idents;
+
+    // Check if this is a void method (returns ())
+    let is_void_method = {
+        let return_type_str = signature_info.return_type.to_string();
+        return_type_str.trim() == "()" || return_type_str.trim() == "( )"
+    };
+
+    // Generate the actual async call based on receiver type
+    let async_call = match signature_info.receiver_type {
+        ReceiverType::Ref | ReceiverType::Mut => {
+            let (binding_code, method_call, error_handling) = match signature_info.receiver_type {
+                ReceiverType::Ref => {
+                    if is_void_method {
+                        (
+                            quote! { let instance_binding = instance_gd.bind(); },
+                            quote! { instance_binding.#method_name(#(#params),*).await; },
+                            quote! { /* void method - nothing to return */ },
+                        )
+                    } else {
+                        (
+                            quote! { let instance_binding = instance_gd.bind(); },
+                            quote! {
+                                let result = instance_binding.#method_name(#(#params),*).await;
+                                result.to_variant()
+                            },
+                            quote! { ::godot::builtin::Variant::nil() },
+                        )
+                    }
+                }
+                ReceiverType::Mut => {
+                    if is_void_method {
+                        (
+                            quote! { let mut instance_binding = instance_gd.bind_mut(); },
+                            quote! { instance_binding.#method_name(#(#params),*).await; },
+                            quote! { /* void method - nothing to return */ },
+                        )
+                    } else {
+                        (
+                            quote! { let mut instance_binding = instance_gd.bind_mut(); },
+                            quote! {
+                                let result = instance_binding.#method_name(#(#params),*).await;
+                                result.to_variant()
+                            },
+                            quote! { ::godot::builtin::Variant::nil() },
+                        )
+                    }
+                }
+                _ => unreachable!(),
+            };
+
+            quote! {
+                // Check if async runtime is registered
+                if !::godot::task::is_runtime_registered() {
+                    panic!(
+                        "No async runtime has been registered!\n\
+                         Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using #[async_func].\n\
+                         This function ({}) requires an async runtime to work.",
+                        stringify!(#method_name)
+                    );
+                }
+
+                // Create a RefCounted object to hold the signal
+                let mut signal_holder = ::godot::classes::RefCounted::new_gd();
+                signal_holder.add_user_signal("finished");
+                let signal = ::godot::builtin::Signal::from_object_signal(&signal_holder, "finished");
+
+                // Capture instance ID for safe weak reference - use fully qualified syntax
+                let instance_id = ::godot::private::Storage::get_gd(storage).instance_id();
+
+                // Create the async task with captured parameters and instance ID
+                let async_future = async move {
+                    // Try to retrieve the instance - it might have been freed
+                    match ::godot::obj::Gd::<#class_name>::try_from_instance_id(instance_id) {
+                        Ok(instance_gd) => {
+                            // Instance is still alive, call the method
+                            #binding_code
+                            #method_call
+                        }
+                        Err(_) => {
+                            // Instance was freed during async execution
+                            #error_handling
+                        }
+                    }
+                };
+
+                // Spawn the async task using unified function
+                ::godot::task::spawn_async_func(signal_holder, async_future);
+
+                // Return the signal directly - can be awaited in GDScript!
+                signal
+            }
+        }
+        ReceiverType::GdSelf => {
+            // GdSelf methods: similar to instance methods but with different access pattern
+            quote! {
+                // Check if async runtime is registered
+                if !::godot::task::is_runtime_registered() {
+                    panic!(
+                        "No async runtime has been registered!\n\
+                         Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using #[async_func].\n\
+                         This function ({}) requires an async runtime to work.",
+                        stringify!(#method_name)
+                    );
+                }
+
+                // Create a RefCounted object to hold the signal
+                let mut signal_holder = ::godot::classes::RefCounted::new_gd();
+                signal_holder.add_user_signal("finished");
+                let signal = ::godot::builtin::Signal::from_object_signal(&signal_holder, "finished");
+
+                // Capture instance ID for safe weak reference - use fully qualified syntax
+                let instance_id = ::godot::private::Storage::get_gd(storage).instance_id();
+
+                // Create the async task with captured parameters and instance ID
+                let async_future = async move {
+                    // Try to retrieve the instance - it might have been freed
+                    match ::godot::obj::Gd::<#class_name>::try_from_instance_id(instance_id) {
+                        Ok(instance_gd) => {
+                            // Instance is still alive, call the method
+                            if #is_void_method {
+                                #class_name::#method_name(instance_gd, #(#params),*).await;
+                            } else {
+                                let result = #class_name::#method_name(instance_gd, #(#params),*).await;
+                                result.to_variant()
+                            }
+                        }
+                        Err(_) => {
+                            // Instance was freed during async execution
+                            if #is_void_method {
+                                /* void method - nothing to return */
+                            } else {
+                                ::godot::builtin::Variant::nil()
+                            }
+                        }
+                    }
+                };
+
+                // Spawn the async task using unified function
+                ::godot::task::spawn_async_func(signal_holder, async_future);
+
+                // Return the signal directly - can be awaited in GDScript!
+                signal
+            }
+        }
+        ReceiverType::Static => {
+            // Static async methods work perfectly - no instance state to worry about
+            quote! {
+                // Check if async runtime is registered
+                if !::godot::task::is_runtime_registered() {
+                    panic!(
+                        "No async runtime has been registered!\n\
+                         Call gdext::task::register_runtime::<YourRuntimeIntegration>() before using #[async_func].\n\
+                         This function ({}) requires an async runtime to work.",
+                        stringify!(#method_name)
+                    );
+                }
+
+                // Create a RefCounted object to hold the signal
+                let mut signal_holder = ::godot::classes::RefCounted::new_gd();
+                signal_holder.add_user_signal("finished");
+                let signal = ::godot::builtin::Signal::from_object_signal(&signal_holder, "finished");
+
+                // Create the async task with captured parameters
+                let async_future = async move {
+                    let result = #class_name::#method_name(#(#params),*).await;
+                    result
+                };
+
+                // Spawn the async task using unified function
+                ::godot::task::spawn_async_func(signal_holder, async_future);
+
+                // Return the signal directly - can be awaited in GDScript!
+                signal
+            }
+        }
+    };
+
+    // Generate the appropriate closure based on method type
+    let closure = match signature_info.receiver_type {
+        ReceiverType::Static => {
+            // Static methods don't need instance_ptr
+            quote! {
+                |_instance_ptr, params| {
+                    let ( #(#params,)* ) = params;
+                    #async_call
+                }
+            }
+        }
+        _ => {
+            // Instance methods need storage access
+            quote! {
+                |instance_ptr, params| {
+                    let ( #(#params,)* ) = params;
+                    let storage = unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
+                    #async_call
+                }
+            }
+        }
+    };
+
+    Ok(closure)
 }
