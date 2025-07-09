@@ -622,14 +622,6 @@ fn make_async_forwarding_closure(
     // Generate the actual async call based on receiver type
     let async_call = match signature_info.receiver_type {
         ReceiverType::Ref | ReceiverType::Mut => {
-            // Now supported! Instance methods use weak references for safety
-            let spawn_function = if is_void_method {
-                quote! { ::godot::task::spawn_with_completion_signal_local }
-            } else {
-                // For non-void methods, we'll return Variant to handle both success and None cases
-                quote! { ::godot::task::spawn_with_result_signal_local }
-            };
-
             let (binding_code, method_call, error_handling) = match signature_info.receiver_type {
                 ReceiverType::Ref => {
                     if is_void_method {
@@ -705,8 +697,8 @@ fn make_async_forwarding_closure(
                     }
                 };
 
-                // Spawn the async task using appropriate function
-                #spawn_function(signal_holder, async_future);
+                // Spawn the async task using unified function
+                ::godot::task::spawn_async_func(signal_holder, async_future);
 
                 // Return the signal directly - can be awaited in GDScript!
                 signal
@@ -714,12 +706,6 @@ fn make_async_forwarding_closure(
         }
         ReceiverType::GdSelf => {
             // GdSelf methods: similar to instance methods but with different access pattern
-            let spawn_function = if is_void_method {
-                quote! { ::godot::task::spawn_with_completion_signal_local }
-            } else {
-                quote! { ::godot::task::spawn_with_result_signal_local }
-            };
-
             quote! {
                 // Check if async runtime is registered
                 if !::godot::task::is_runtime_registered() {
@@ -763,8 +749,8 @@ fn make_async_forwarding_closure(
                     }
                 };
 
-                // Spawn the async task using appropriate function
-                #spawn_function(signal_holder, async_future);
+                // Spawn the async task using unified function
+                ::godot::task::spawn_async_func(signal_holder, async_future);
 
                 // Return the signal directly - can be awaited in GDScript!
                 signal
@@ -772,12 +758,6 @@ fn make_async_forwarding_closure(
         }
         ReceiverType::Static => {
             // Static async methods work perfectly - no instance state to worry about
-            let spawn_function = if is_void_method {
-                quote! { ::godot::task::spawn_with_completion_signal_local }
-            } else {
-                quote! { ::godot::task::spawn_with_result_signal_local }
-            };
-
             quote! {
                 // Check if async runtime is registered
                 if !::godot::task::is_runtime_registered() {
@@ -800,8 +780,8 @@ fn make_async_forwarding_closure(
                     result
                 };
 
-                // Spawn the async task using appropriate function
-                #spawn_function(signal_holder, async_future);
+                // Spawn the async task using unified function
+                ::godot::task::spawn_async_func(signal_holder, async_future);
 
                 // Return the signal directly - can be awaited in GDScript!
                 signal

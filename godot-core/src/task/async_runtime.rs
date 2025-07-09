@@ -24,7 +24,9 @@ use crate::private::handle_panic;
 
 use crate::classes::RefCounted;
 use crate::meta::ToGodot;
-use crate::obj::{Gd, NewGd};
+use crate::obj::Gd;
+#[cfg(feature = "trace")]
+use crate::obj::NewGd;
 
 /// Trait for integrating external async runtimes with gdext's async system.
 ///
@@ -34,20 +36,18 @@ use crate::obj::{Gd, NewGd};
 /// # Simple Example Implementation
 ///
 /// ```rust
-/// struct TokioIntegration;
+/// use godot_core::task::AsyncRuntimeIntegration;
 ///
-/// impl AsyncRuntimeIntegration for TokioIntegration {
-///     type Handle = tokio::runtime::Handle;
+/// struct SimpleIntegration;
+///
+/// impl AsyncRuntimeIntegration for SimpleIntegration {
+///     type Handle = ();
 ///     
 ///     fn create_runtime() -> Result<(Box<dyn std::any::Any + Send + Sync>, Self::Handle), String> {
-///         let runtime = tokio::runtime::Runtime::new()
-///             .map_err(|e| format!("Failed to create tokio runtime: {}", e))?;
-///         let handle = runtime.handle().clone();
-///         Ok((Box::new(runtime), handle))
+///         Ok((Box::new(()), ()))
 ///     }
 ///     
 ///     fn with_context<R>(handle: &Self::Handle, f: impl FnOnce() -> R) -> R {
-///         let _guard = handle.enter();
 ///         f()
 ///     }
 /// }
@@ -118,13 +118,26 @@ thread_local! {
 ///
 /// # Example
 ///
-/// ```rust
-/// use your_runtime_integration::YourRuntimeIntegration;
+/// ```rust,no_run
+/// use godot_core::task::{AsyncRuntimeIntegration, register_runtime};
+///
+/// struct MyRuntimeIntegration;
+///
+/// impl AsyncRuntimeIntegration for MyRuntimeIntegration {
+///     type Handle = ();
+///     
+///     fn create_runtime() -> Result<(Box<dyn std::any::Any + Send + Sync>, Self::Handle), String> {
+///         Ok((Box::new(()), ()))
+///     }
+///     
+///     fn with_context<R>(handle: &Self::Handle, f: impl FnOnce() -> R) -> R {
+///         f()
+///     }
+/// }
 ///
 /// // Register your runtime at application startup
-/// gdext::task::register_runtime::<YourRuntimeIntegration>()?;
-///
-/// // Now async functions will work on this thread
+/// register_runtime::<MyRuntimeIntegration>()?;
+/// # Ok::<(), String>(())
 /// ```
 pub fn register_runtime<T: AsyncRuntimeIntegration>() -> Result<(), String> {
     RUNTIME_REGISTRY.with(|registry| {
@@ -165,24 +178,14 @@ pub fn is_runtime_registered() -> bool {
 /// Errors that can occur during async runtime operations
 #[derive(Debug, Clone)]
 pub enum AsyncRuntimeError {
-    /// Runtime has been deinitialized (during engine shutdown)
-    RuntimeDeinitialized,
-    /// Task was canceled while being polled
-    TaskCanceled { task_id: u64 },
-    /// Task panicked during polling
-    TaskPanicked { task_id: u64, message: String },
-    /// Task slot is in an invalid state
-    InvalidTaskState {
-        task_id: u64,
-        expected_state: String,
+    /// Runtime is unavailable (deinitialized or not registered)
+    RuntimeUnavailable { reason: String },
+    /// Task-related error (canceled, panicked, spawn failed, etc.)
+    TaskError {
+        task_id: Option<u64>,
+        message: String,
     },
-    /// No async runtime has been registered
-    NoRuntimeRegistered,
-    /// Task spawning failed
-    TaskSpawningFailed { reason: String },
-    /// Signal emission failed
-    SignalEmissionFailed { task_id: u64, reason: String },
-    /// Thread safety violation
+    /// Thread safety violation (MUST keep separate - critical for memory safety)
     ThreadSafetyViolation {
         expected_thread: ThreadId,
         actual_thread: ThreadId,
@@ -192,32 +195,15 @@ pub enum AsyncRuntimeError {
 impl std::fmt::Display for AsyncRuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AsyncRuntimeError::RuntimeDeinitialized => {
-                write!(f, "Async runtime has been deinitialized")
+            AsyncRuntimeError::RuntimeUnavailable { reason } => {
+                write!(f, "Async runtime is unavailable: {reason}")
             }
-            AsyncRuntimeError::TaskCanceled { task_id } => {
-                write!(f, "Task {task_id} was canceled")
-            }
-            AsyncRuntimeError::TaskPanicked { task_id, message } => {
-                write!(f, "Task {task_id} panicked: {message}")
-            }
-            AsyncRuntimeError::InvalidTaskState {
-                task_id,
-                expected_state,
-            } => {
-                write!(
-                    f,
-                    "Task {task_id} is in invalid state, expected: {expected_state}"
-                )
-            }
-            AsyncRuntimeError::NoRuntimeRegistered => {
-                write!(f, "No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.")
-            }
-            AsyncRuntimeError::TaskSpawningFailed { reason } => {
-                write!(f, "Failed to spawn task: {reason}")
-            }
-            AsyncRuntimeError::SignalEmissionFailed { task_id, reason } => {
-                write!(f, "Failed to emit signal for task {task_id}: {reason}")
+            AsyncRuntimeError::TaskError { task_id, message } => {
+                if let Some(id) = task_id {
+                    write!(f, "Task {id} error: {message}")
+                } else {
+                    write!(f, "Task error: {message}")
+                }
             }
             AsyncRuntimeError::ThreadSafetyViolation {
                 expected_thread,
@@ -262,132 +248,6 @@ impl std::error::Error for TaskSpawnError {}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public interface
 
-/// Create a new async background task.
-///
-/// This function allows creating a new async task in which Godot signals can be awaited, like it is possible in GDScript. The
-/// [`TaskHandle`] that is returned provides synchronous introspection into the current state of the task.
-///
-/// Signals can be converted to futures in the following ways:
-///
-/// | Signal type | Simple future                | Fallible future (handles freed object) |
-/// |-------------|------------------------------|----------------------------------------|
-/// | Untyped     | [`Signal::to_future()`]      | [`Signal::to_fallible_future()`]       |
-/// | Typed       | [`TypedSignal::to_future()`] | [`TypedSignal::to_fallible_future()`]  |
-///
-/// [`Signal::to_future()`]: crate::builtin::Signal::to_future
-/// [`Signal::to_fallible_future()`]: crate::builtin::Signal::to_fallible_future
-/// [`TypedSignal::to_future()`]: crate::registry::signal::TypedSignal::to_future
-/// [`TypedSignal::to_fallible_future()`]: crate::registry::signal::TypedSignal::to_fallible_future
-///
-/// # Thread Safety
-///
-/// In single-threaded mode (default), this function must be called from the main thread and the
-/// future will be polled on the main thread. This ensures compatibility with Godot's threading model
-/// where most objects are not thread-safe.
-///
-/// In multi-threaded mode (with `experimental-threads` feature), the function can be called from
-/// any thread, but the future will still be polled on the main thread for consistency.
-///
-/// # Memory Safety
-///
-/// The future must be `'static` and not require `Send` since it will only run on a single thread.
-/// If the future panics during polling, it will be safely dropped and cleaned up without affecting
-/// other tasks.
-///
-/// # Panics
-///
-/// Panics if:
-/// - No async runtime has been registered
-/// - The task queue is full and cannot accept more tasks
-/// - Called from a non-main thread in single-threaded mode
-///
-/// # Examples
-/// With typed signals:
-///
-/// ```no_run
-/// # use godot::prelude::*;
-/// #[derive(GodotClass)]
-/// #[class(init)]
-/// struct Building {
-///    base: Base<RefCounted>,
-/// }
-///
-/// #[godot_api]
-/// impl Building {
-///    #[signal]
-///    fn constructed(seconds: u32);
-/// }
-///
-/// let house = Building::new_gd();
-/// let task = godot::task::spawn(async move {
-///     println!("Wait for construction...");
-///
-///     // Emitted arguments can be fetched in tuple form.
-///     // If the signal has no parameters, you can skip `let` and just await the future.
-///     let (seconds,) = house.signals().constructed().to_future().await;
-///
-///     println!("Construction complete after {seconds}s.");
-/// });
-/// ```
-///
-/// With untyped signals:
-/// ```no_run
-/// # use godot::builtin::Signal;
-/// # use godot::classes::Node;
-/// # use godot::obj::NewAlloc;
-/// let node = Node::new_alloc();
-/// let signal = Signal::from_object_signal(&node, "signal");
-///
-/// let task = godot::task::spawn(async move {
-///     println!("Starting task...");
-///
-///     // Explicit generic arguments needed, here `()`:
-///     signal.to_future::<()>().await;
-///
-///     println!("Node has changed: {}", node.get_name());
-/// });
-/// ```
-#[doc(alias = "async")]
-pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
-    // Check if runtime is registered
-    if !is_runtime_registered() {
-        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
-    }
-
-    // In single-threaded mode, spawning is only allowed on the main thread.
-    // We can not accept Sync + Send futures since all object references (i.e. Gd<T>) are not thread-safe. So a future has to remain on the
-    // same thread it was created on. Godots signals on the other hand can be emitted on any thread, so it can't be guaranteed on which thread
-    // a future will be polled.
-    // By limiting async tasks to the main thread we can redirect all signal callbacks back to the main thread via `call_deferred`.
-    //
-    // In multi-threaded mode with experimental-threads, the restriction is lifted.
-    #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
-    if !crate::init::is_main_thread() {
-        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
-               crate::init::main_thread_id(), std::thread::current().id());
-    }
-
-    // Batch both task creation and initial waker setup in single thread-local access
-    let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
-        // Let add_task handle the boxing to avoid premature allocation
-        let task_handle = rt
-            .add_task(future) // Pass unboxed future
-            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
-
-        // Create waker immediately while we have runtime access
-        let godot_waker = Arc::new(GodotWaker::new(
-            task_handle.index as usize,
-            task_handle.id as u64,
-            thread::current().id(),
-        ));
-
-        (task_handle, godot_waker)
-    });
-
-    poll_future(godot_waker);
-    task_handle
-}
-
 /// Create a new async background task that doesn't require Send.
 ///
 /// This function is similar to [`spawn`] but allows futures that contain non-Send types
@@ -410,200 +270,34 @@ pub fn spawn(future: impl Future<Output = ()> + Send + 'static) -> TaskHandle {
 /// - Called from a non-main thread
 ///
 /// # Examples
-/// ```rust
+/// ```rust,no_run
 /// use godot::prelude::*;
-/// use godot::task;
+/// use godot::classes::RefCounted;
+/// use godot_core::task::spawn_async_func;
+/// use godot_core::obj::NewGd;
 ///
-/// let signal = Signal::from_object_signal(&some_object, "some_signal");
-/// let task = task::spawn_local(async move {
+/// let object = RefCounted::new_gd();
+/// let signal = Signal::from_object_signal(&object, "some_signal");
+///
+/// // Create a signal holder for the async function
+/// let mut signal_holder = RefCounted::new_gd();
+/// signal_holder.add_user_signal("finished");
+///
+/// spawn_async_func(signal_holder, async move {
 ///     signal.to_future::<()>().await;
 ///     println!("Signal received!");
 /// });
 /// ```
-pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
-    // Check if runtime is registered
-    if !is_runtime_registered() {
-        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
-    }
-
-    // Must be called from the main thread since Godot objects are not thread-safe
-    if !crate::init::is_main_thread() {
-        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
-               crate::init::main_thread_id(), std::thread::current().id());
-    }
-
-    // Batch both task creation and initial waker setup in single thread-local access
-    let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
-        // Let add_task_non_send handle the boxing to avoid premature allocation
-        let task_handle = rt
-            .add_task_non_send(future) // Pass unboxed future
-            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
-
-        // Create waker immediately while we have runtime access
-        let godot_waker = Arc::new(GodotWaker::new(
-            task_handle.index as usize,
-            task_handle.id as u64,
-            thread::current().id(),
-        ));
-
-        (task_handle, godot_waker)
-    });
-
-    poll_future(godot_waker);
-    task_handle
-}
-
-/// Spawn an async task that returns a value.
+/// Unified function for spawning async functions (main public API).
 ///
-/// Unlike [`spawn`], this function returns a [`Gd<RefCounted>`] that can be
-/// directly awaited in GDScript. When the async task completes, the object emits
-/// a `finished` signal with the result.
+/// This is the primary function used by the `#[async_func]` macro. It handles both void
+/// and non-void async functions by automatically detecting the return type and using
+/// the appropriate signal emission strategy.
 ///
-/// The returned object automatically has a `finished` signal added to it. When the
-/// async task completes, this signal is emitted with the result as its argument.
+/// # Arguments
 ///
-/// # Examples
-///
-/// Basic usage:
-/// ```rust
-/// use godot_core::task::spawn_with_result;
-///
-/// let async_task = spawn_with_result(async {
-///     // Some async computation that returns a value
-///     42
-/// }).expect("Failed to spawn task");
-///
-/// // In GDScript:
-/// // var result = await Signal(async_task, "finished")
-/// ```
-///
-/// With tokio operations:
-/// ```rust
-/// use godot_core::task::spawn_with_result;
-/// use tokio::time::{sleep, Duration};
-///
-/// let async_task = spawn_with_result(async {
-///     sleep(Duration::from_millis(100)).await;
-///     "Task completed".to_string()
-/// }).expect("Failed to spawn task");
-/// ```
-///
-/// # Thread Safety
-///
-/// In single-threaded mode (default), this function must be called from the main thread.
-/// In multi-threaded mode (with `experimental-threads` feature), it can be called from any thread.
-///
-/// # Panics
-///
-/// Panics if:
-/// - No async runtime has been registered
-/// - The task queue is full and cannot accept more tasks
-/// - Called from a non-main thread in single-threaded mode
-pub fn spawn_with_result<F, R>(future: F) -> Gd<RefCounted>
-where
-    F: Future<Output = R> + Send + 'static,
-    R: ToGodot + Send + Sync + 'static,
-{
-    // Check if runtime is registered
-    if !is_runtime_registered() {
-        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
-    }
-
-    // In single-threaded mode, spawning is only allowed on the main thread
-    // In multi-threaded mode, we allow spawning from any thread
-    #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
-    if !crate::init::is_main_thread() {
-        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
-               crate::init::main_thread_id(), std::thread::current().id());
-    }
-
-    // Create a RefCounted object that will emit the completion signal
-    let mut signal_emitter = RefCounted::new_gd();
-
-    // Add a user-defined signal that takes a Variant parameter
-    signal_emitter.add_user_signal("finished");
-
-    spawn_with_result_signal(signal_emitter.clone(), future);
-    signal_emitter
-}
-
-/// Spawn an async task that emits to an existing signal holder.
-///
-/// This is used internally by the `#[async_func]` macro to enable direct Signal returns.
-/// The signal holder should already have a "finished" signal defined.
-///
-/// # Example
-/// ```rust
-/// let signal_holder = RefCounted::new_gd();
-/// signal_holder.add_user_signal("finished");
-/// let signal = Signal::from_object_signal(&signal_holder, "finished");
-///
-/// spawn_with_result_signal(signal_holder, async { 42 }).expect("Failed to spawn task");
-/// // Now you can: await signal
-/// ```
-///
-/// # Thread Safety
-///
-/// In single-threaded mode (default), this function must be called from the main thread.
-/// In multi-threaded mode (with `experimental-threads` feature), it can be called from any thread.
-///
-/// # Panics
-///
-/// Panics if:
-/// - No async runtime has been registered
-/// - The task queue is full and cannot accept more tasks
-/// - Called from a non-main thread in single-threaded mode
-pub fn spawn_with_result_signal<F, R>(signal_emitter: Gd<RefCounted>, future: F)
-where
-    F: Future<Output = R> + Send + 'static,
-    R: ToGodot + Send + Sync + 'static,
-{
-    // Check if runtime is registered
-    if !is_runtime_registered() {
-        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
-    }
-
-    // In single-threaded mode, spawning is only allowed on the main thread
-    // In multi-threaded mode, we allow spawning from any thread
-    #[cfg(all(not(wasm_nothreads), not(feature = "experimental-threads")))]
-    if !crate::init::is_main_thread() {
-        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
-               crate::init::main_thread_id(), std::thread::current().id());
-    }
-
-    let godot_waker = ASYNC_RUNTIME.with_runtime_mut(|rt| {
-        // Create a wrapper that will emit the signal when complete
-        let result_future = SignalEmittingFuture {
-            inner: future,
-            signal_emitter,
-            _phantom: PhantomData,
-            creation_thread: thread::current().id(),
-        };
-
-        // Spawn the signal-emitting future using standard spawn mechanism
-        let task_handle = rt
-            .add_task_non_send(Box::pin(result_future))
-            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
-
-        // Create waker to trigger initial poll
-        Arc::new(GodotWaker::new(
-            task_handle.index as usize,
-            task_handle.id as u64,
-            thread::current().id(),
-        ))
-    });
-
-    // Trigger initial poll
-    poll_future(godot_waker);
-}
-
-/// Spawn an async task that emits to an existing signal holder (local/non-Send version).
-///
-/// This is the non-Send variant of `spawn_with_result_signal`, designed for use with
-/// async functions that access Godot objects or other non-Send types. The future will
-/// always be polled on the main thread.
-///
-/// This is used internally by the `#[async_func]` macro to enable async instance methods.
+/// * `signal_emitter` - The RefCounted object that will emit the "finished" signal
+/// * `future` - The async function to execute
 ///
 /// # Thread Safety
 ///
@@ -616,7 +310,39 @@ where
 /// - No async runtime has been registered
 /// - The task queue is full and cannot accept more tasks
 /// - Called from a non-main thread
-pub fn spawn_with_result_signal_local<F, R>(signal_emitter: Gd<RefCounted>, future: F)
+///
+/// # Examples
+///
+/// For non-void functions:
+/// ```rust,no_run
+/// use godot::classes::RefCounted;
+/// use godot_core::task::spawn_async_func;
+/// use godot_core::obj::NewGd;
+///
+/// let mut signal_holder = RefCounted::new_gd();
+/// signal_holder.add_user_signal("finished");
+///
+/// spawn_async_func(signal_holder, async {
+///     // Some async computation
+///     42
+/// });
+/// ```
+///
+/// For void functions:
+/// ```rust,no_run
+/// use godot::classes::RefCounted;
+/// use godot_core::task::spawn_async_func;
+/// use godot_core::obj::NewGd;
+///
+/// let mut signal_holder = RefCounted::new_gd();
+/// signal_holder.add_user_signal("finished");
+///
+/// spawn_async_func(signal_holder, async {
+///     // Some async computation with no return value
+///     println!("Task completed");
+/// });
+/// ```
+pub fn spawn_async_func<F, R>(signal_emitter: Gd<RefCounted>, future: F)
 where
     F: Future<Output = R> + 'static,
     R: ToGodot + 'static,
@@ -658,10 +384,15 @@ where
     poll_future(godot_waker);
 }
 
-/// Spawn an async task that emits completion signal only (for void methods).
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Testing-only functions (only available with trace feature)
+
+#[cfg(feature = "trace")]
+/// Create a new async background task that doesn't require Send (for testing).
 ///
-/// This is designed for async methods that return `()` and only need to signal completion.
-/// The signal holder should already have a "finished" signal defined.
+/// This function is only available when the `trace` feature is enabled and is used
+/// for testing purposes. It allows futures that contain non-Send types like Godot
+/// objects (`Gd<T>`, `Signal`, etc.). The future will be polled on the main thread.
 ///
 /// # Thread Safety
 ///
@@ -674,9 +405,62 @@ where
 /// - No async runtime has been registered
 /// - The task queue is full and cannot accept more tasks
 /// - Called from a non-main thread
-pub fn spawn_with_completion_signal_local<F>(signal_emitter: Gd<RefCounted>, future: F)
+pub fn spawn_local(future: impl Future<Output = ()> + 'static) -> TaskHandle {
+    // Check if runtime is registered
+    if !is_runtime_registered() {
+        panic!("No async runtime has been registered. Call gdext::task::register_runtime() before using async functions.");
+    }
+
+    // Must be called from the main thread since Godot objects are not thread-safe
+    if !crate::init::is_main_thread() {
+        panic!("Async tasks can only be spawned on the main thread. Expected thread: {:?}, current thread: {:?}", 
+               crate::init::main_thread_id(), std::thread::current().id());
+    }
+
+    // Batch both task creation and initial waker setup in single thread-local access
+    let (task_handle, godot_waker) = ASYNC_RUNTIME.with_runtime_mut(move |rt| {
+        // Let add_task_non_send handle the boxing to avoid premature allocation
+        let task_handle = rt
+            .add_task_non_send(future) // Pass unboxed future
+            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
+
+        // Create waker immediately while we have runtime access
+        let godot_waker = Arc::new(GodotWaker::new(
+            task_handle.index as usize,
+            task_handle.id as u64,
+            thread::current().id(),
+        ));
+
+        (task_handle, godot_waker)
+    });
+
+    poll_future(godot_waker);
+    task_handle
+}
+
+#[cfg(feature = "trace")]
+/// Spawn an async task that returns a value (for testing).
+///
+/// This function is only available when the `trace` feature is enabled and is used
+/// for testing purposes. It returns a [`Gd<RefCounted>`] that can be directly
+/// awaited in GDScript. When the async task completes, the object emits a
+/// `finished` signal with the result.
+///
+/// # Thread Safety
+///
+/// This function must be called from the main thread and the future will be polled
+/// on the main thread, ensuring compatibility with Godot's threading model.
+///
+/// # Panics
+///
+/// Panics if:
+/// - No async runtime has been registered
+/// - The task queue is full and cannot accept more tasks
+/// - Called from a non-main thread
+pub fn spawn_with_result<F, R>(future: F) -> Gd<RefCounted>
 where
-    F: Future<Output = ()> + 'static,
+    F: Future<Output = R> + 'static,
+    R: ToGodot + 'static,
 {
     // Check if runtime is registered
     if !is_runtime_registered() {
@@ -689,29 +473,15 @@ where
                crate::init::main_thread_id(), std::thread::current().id());
     }
 
-    let godot_waker = ASYNC_RUNTIME.with_runtime_mut(|rt| {
-        // Create a wrapper that will emit completion signal when done
-        let completion_future = CompletionSignalFuture {
-            inner: future,
-            signal_emitter,
-            creation_thread: std::thread::current().id(),
-        };
+    // Create a RefCounted object that will emit the completion signal
+    let mut signal_emitter = RefCounted::new_gd();
 
-        // Spawn the completion-signaling future using non-Send mechanism
-        let task_handle = rt
-            .add_task_non_send(Box::pin(completion_future))
-            .unwrap_or_else(|spawn_error| panic!("Failed to spawn task: {spawn_error}"));
+    // Add a user-defined signal that takes a Variant parameter
+    signal_emitter.add_user_signal("finished");
 
-        // Create waker to trigger initial poll
-        Arc::new(GodotWaker::new(
-            task_handle.index as usize,
-            task_handle.id as u64,
-            std::thread::current().id(),
-        ))
-    });
-
-    // Trigger initial poll
-    poll_future(godot_waker);
+    // Use the unified API internally
+    spawn_async_func(signal_emitter.clone(), future);
+    signal_emitter
 }
 
 /// Handle for an active background task.
@@ -749,7 +519,9 @@ impl TaskHandle {
     pub fn cancel(self) -> AsyncRuntimeResult<()> {
         ASYNC_RUNTIME.with_runtime_mut(|rt| {
             let Some(task) = rt.task_storage.tasks.get(self.index as usize) else {
-                return Err(AsyncRuntimeError::RuntimeDeinitialized);
+                return Err(AsyncRuntimeError::RuntimeUnavailable {
+                    reason: "Runtime deinitialized".to_string(),
+                });
             };
 
             let alive = match task.value {
@@ -771,11 +543,11 @@ impl TaskHandle {
     /// Returns Err if the runtime has been deinitialized.
     pub fn is_pending(&self) -> AsyncRuntimeResult<bool> {
         ASYNC_RUNTIME.with_runtime(|rt| {
-            let slot = rt
-                .task_storage
-                .tasks
-                .get(self.index as usize)
-                .ok_or(AsyncRuntimeError::RuntimeDeinitialized)?;
+            let slot = rt.task_storage.tasks.get(self.index as usize).ok_or(
+                AsyncRuntimeError::RuntimeUnavailable {
+                    reason: "Runtime deinitialized".to_string(),
+                },
+            )?;
 
             if slot.id != self.id as u64 {
                 return Ok(false);
@@ -931,16 +703,6 @@ struct FutureStorage {
 }
 
 impl FutureStorage {
-    /// Create storage for a Send future - avoids double boxing
-    fn new_send<F>(future: F) -> Self
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        Self {
-            inner: Box::pin(future),
-        }
-    }
-
     /// Create storage for a non-Send future - avoids double boxing  
     fn new_local<F>(future: F) -> Self
     where
@@ -991,25 +753,6 @@ impl TaskStorage {
         let id = self.next_task_id;
         self.next_task_id += 1;
         id
-    }
-
-    /// Store a new Send async task
-    fn store_send_task<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        let active_tasks = self.get_active_task_count();
-
-        if active_tasks >= self.limits.max_concurrent_tasks {
-            return Err(TaskSpawnError::QueueFull {
-                active_tasks,
-                max_tasks: self.limits.max_concurrent_tasks,
-            });
-        }
-
-        let id = self.next_id();
-        let storage = FutureStorage::new_send(future);
-        self.schedule_task_optimized(id, storage)
     }
 
     /// Store a new non-Send async task
@@ -1217,14 +960,6 @@ impl AsyncRuntime {
         }
     }
 
-    /// Store a new async task in the runtime
-    fn add_task<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
-    where
-        F: Future<Output = ()> + Send + 'static,
-    {
-        self.task_storage.store_send_task(future)
-    }
-
     /// Store a new async task in the runtime (for futures that are not Send)
     /// This is used for Godot integration where Gd<T> objects are not Send
     fn add_task_non_send<F>(&mut self, future: F) -> Result<TaskHandle, TaskSpawnError>
@@ -1266,22 +1001,25 @@ impl AsyncRuntime {
         id: u64,
         cx: &mut Context<'_>,
     ) -> Result<Poll<()>, AsyncRuntimeError> {
-        let slot = self
-            .task_storage
-            .tasks
-            .get_mut(index)
-            .ok_or(AsyncRuntimeError::RuntimeDeinitialized)?;
+        let slot = self.task_storage.tasks.get_mut(index).ok_or(
+            AsyncRuntimeError::RuntimeUnavailable {
+                reason: "Runtime deinitialized".to_string(),
+            },
+        )?;
 
         // Check if the task ID matches and is in the right state
         if slot.id != id {
-            return Err(AsyncRuntimeError::InvalidTaskState {
-                task_id: id,
-                expected_state: "matching task ID".to_string(),
+            return Err(AsyncRuntimeError::TaskError {
+                task_id: Some(id),
+                message: "Task ID mismatch".to_string(),
             });
         }
 
         match &mut slot.value {
-            FutureSlotState::Gone => Err(AsyncRuntimeError::TaskCanceled { task_id: id }),
+            FutureSlotState::Gone => Err(AsyncRuntimeError::TaskError {
+                task_id: Some(id),
+                message: "Task already completed".to_string(),
+            }),
             FutureSlotState::Pending(future_storage) => {
                 // Mark as polling to prevent reentrant polling, but don't move the future
                 let old_id = slot.id;
@@ -1506,8 +1244,8 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         }
         Err(_panic_payload) => {
             // Task panicked during polling
-            let error = AsyncRuntimeError::TaskPanicked {
-                task_id,
+            let error = AsyncRuntimeError::TaskError {
+                task_id: Some(task_id),
                 message: "Task panicked during polling".to_string(),
             };
 

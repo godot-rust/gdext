@@ -18,10 +18,7 @@ pub(crate) use async_runtime::cleanup;
 pub(crate) use futures::{impl_dynamic_send, ThreadConfined};
 
 pub use async_runtime::{is_runtime_registered, register_runtime, AsyncRuntimeIntegration};
-pub use async_runtime::{
-    spawn, spawn_local, spawn_with_completion_signal_local, spawn_with_result,
-    spawn_with_result_signal, spawn_with_result_signal_local, TaskHandle,
-};
+pub use async_runtime::{spawn_async_func, TaskHandle};
 pub use futures::{
     DynamicSend, FallibleSignalFuture, FallibleSignalFutureError, IntoDynamicSend, SignalFuture,
 };
@@ -29,5 +26,7 @@ pub use futures::{
 // Only exported for itest.
 #[cfg(feature = "trace")]
 pub use async_runtime::has_godot_task_panicked;
+#[cfg(feature = "trace")]
+pub use async_runtime::{spawn_local, spawn_with_result};
 #[cfg(feature = "trace")]
 pub use futures::{create_test_signal_future_resolver, SignalFutureResolver};

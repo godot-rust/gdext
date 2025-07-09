@@ -94,7 +94,7 @@ function run() {
 # exit status if not found.
 function findGodot() {
     # $godotBin previously detected.
-    if [[ -v godotBin ]]; then
+    if [[ -n "${godotBin+x}" ]]; then
         return
     fi
 
@@ -297,13 +297,13 @@ log
 
 function compute_elapsed() {
     local total=$SECONDS
-    local min=$(("$total" / 60))
+    local min=$((total / 60))
     if [[ "$min" -gt 0 ]]; then
         min="${min}min "
     else
         min=""
     fi
-    local sec=$(("$total" % 60))
+    local sec=$((total % 60))
 
     # Don't use echo and call it with $(compute_elapsed), it messes with stdout
     elapsed="${min}${sec}s"
