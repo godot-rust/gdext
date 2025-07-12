@@ -18,7 +18,10 @@ pub struct EnumConstant<T: Copy + 'static> {
     value: T,
 }
 
-impl<T: Copy + 'static> EnumConstant<T> {
+impl<T> EnumConstant<T>
+where
+    T: Copy + Eq + PartialEq + 'static,
+{
     /// Creates a new enum constant metadata entry.
     pub(crate) const fn new(rust_name: &'static str, godot_name: &'static str, value: T) -> Self {
         Self {
