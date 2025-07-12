@@ -9,6 +9,7 @@ use crate::framework::itest;
 use godot::builtin::varray;
 use godot::classes::input::CursorShape;
 use godot::classes::mesh::PrimitiveType;
+use godot::classes::window::LayoutDirection;
 use godot::classes::{time, ArrayMesh};
 use godot::global::{Key, Orientation};
 use godot::obj::NewGd;
@@ -84,6 +85,9 @@ fn enum_as_str() {
     assert_eq!(Key::ESCAPE.as_str(), "ESCAPE");
     assert_eq!(Key::TAB.as_str(), "TAB");
     assert_eq!(Key::A.as_str(), "A");
+
+    #[cfg(since_api = "4.4")] // Deprecated in Godot, LOCALE is now alias for APPLICATION_LOCALE.
+    assert_eq!(LayoutDirection::LOCALE.as_str(), "APPLICATION_LOCALE");
 }
 
 #[itest]

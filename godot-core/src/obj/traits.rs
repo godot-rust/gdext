@@ -190,10 +190,10 @@ pub trait EngineEnum: Copy {
 
     /// The name of the enumerator, as it appears in Rust.
     ///
-    /// Note that **this may not match the Rust constant name!** In case of multiple constants with the same ordinal value, this method returns
-    /// the first one in the order of definition. For example, `LayoutDirection::LOCALE.as_str()` (ord 1) returns `"APPLICATION_LOCALE"`, because
-    /// that happens to be the first constant with ordinal `1`. See [`all_constants()`][Self::all_constants] for a more robust and general
-    /// approach to introspection of enum constants.
+    /// Note that **this may not match the Rust constant name.** In case of multiple constants with the same ordinal value, this method returns
+    /// the first one in the order of definition. For example, [`LayoutDirection::LOCALE.as_str()`][crate::classes::window::LayoutDirection::LOCALE]
+    /// (ord 1) returns `"APPLICATION_LOCALE"`, because that happens to be the first constant with ordinal `1`.
+    /// See [`all_constants()`][Self::all_constants] for a more robust and general approach to introspection of enum constants.
     ///
     /// If the value does not match one of the known enumerators, the empty string is returned.
     fn as_str(&self) -> &'static str;
@@ -205,9 +205,10 @@ pub trait EngineEnum: Copy {
 
     /// Returns a slice of distinct enum values.
     ///
-    /// This excludes MAX constants and deduplicates aliases, providing only meaningful enum values.
+    /// This excludes `MAX` constants at the end (existing only to express the number of enumerators) and deduplicates aliases,
+    /// providing only meaningful enum values. See [`all_constants()`][Self::all_constants] for a complete list of all constants.
     ///
-    /// This enables iteration over distinct enum variants:
+    /// Enables iteration over distinct enum variants:
     /// ```no_run
     /// use godot::classes::window;
     /// use godot::obj::EngineEnum;
@@ -220,18 +221,19 @@ pub trait EngineEnum: Copy {
 
     /// Returns metadata for all enum constants.
     ///
-    /// This includes all constants as they appear in the enum definition, including duplicates and MAX constants.
+    /// This includes all constants as they appear in the enum definition, including duplicates and `MAX` constants.
+    /// For a list of useful, distinct values, use [`values()`][Self::values].
     ///
-    /// This enables complete introspection and debugging:
+    /// Enables introspection of available constants:
     /// ```no_run
     /// use godot::classes::window;
     /// use godot::obj::EngineEnum;
     ///
     /// for constant in window::Mode::all_constants() {
-    ///     println!("* {}: {} (ord: {})",
+    ///     println!("* window::Mode.{} (original {}) has ordinal value {}.",
     ///         constant.rust_name(),
     ///         constant.godot_name(),
-    ///         constant.ord()
+    ///         constant.value().ord()
     ///     );
     /// }
     /// ```
@@ -254,6 +256,25 @@ pub trait EngineBitfield: Copy {
     fn is_set(self, flag: Self) -> bool {
         self.ord() & flag.ord() != 0
     }
+
+    /// Returns metadata for all bitfield constants.
+    ///
+    /// This includes all constants as they appear in the bitfield definition.
+    ///
+    /// Enables introspection of available constants:
+    /// ```no_run
+    /// use godot::global::KeyModifierMask;
+    /// use godot::obj::EngineBitfield;
+    ///
+    /// for constant in KeyModifierMask::all_constants() {
+    ///     println!("* KeyModifierMask.{} (original {}) has ordinal value {}.",
+    ///         constant.rust_name(),
+    ///         constant.godot_name(),
+    ///         constant.value().ord()
+    ///     );
+    /// }
+    /// ```
+    fn all_constants() -> &'static [EnumConstant<Self>];
 }
 
 /// Trait for enums that can be used as indices in arrays.

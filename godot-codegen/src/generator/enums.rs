@@ -227,6 +227,8 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
     if enum_.is_bitfield {
         // Bitfields: u64, assume any combination is valid.
 
+        let constants_function = make_all_constants_function(enum_);
+
         quote! {
             // We may want to add this in the future.
             //
@@ -242,6 +244,8 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
                 fn ord(self) -> u64 {
                     self.ord
                 }
+
+                #constants_function
             }
         }
     } else if enum_.is_exhaustive {
@@ -332,19 +336,11 @@ fn make_enum_values_and_constants_functions(enum_: &Enum) -> TokenStream {
     let name = &enum_.name;
 
     let mut distinct_values = Vec::new();
-    let mut all_constants = Vec::new();
     let mut seen_ordinals = HashSet::new();
 
     for (index, enumerator) in enum_.enumerators.iter().enumerate() {
         let constant = &enumerator.name;
-        let rust_name = enumerator.name.to_string();
-        let godot_name = enumerator.godot_name.to_string();
         let ordinal = &enumerator.value;
-
-        // all_constants() includes every constant unconditionally.
-        all_constants.push(quote! {
-            crate::meta::inspect::EnumConstant::new(#rust_name, #godot_name, #ordinal, #name::#constant)
-        });
 
         // values() contains value only if distinct (first time seen) and not MAX.
         if enum_.max_index != Some(index) && seen_ordinals.insert(ordinal.clone()) {
@@ -352,13 +348,37 @@ fn make_enum_values_and_constants_functions(enum_: &Enum) -> TokenStream {
         }
     }
 
-    quote! {
+    let values_function = quote! {
         fn values() -> &'static [Self] {
             &[
                 #( #distinct_values ),*
             ]
         }
+    };
 
+    let all_constants_function = make_all_constants_function(enum_);
+
+    quote! {
+        #values_function
+        #all_constants_function
+    }
+}
+
+/// Creates a shared `all_constants()` implementation for enums and bitfields.
+fn make_all_constants_function(enum_: &Enum) -> TokenStream {
+    let name = &enum_.name;
+
+    let all_constants = enum_.enumerators.iter().map(|enumerator| {
+        let ident = &enumerator.name;
+        let rust_name = enumerator.name.to_string();
+        let godot_name = enumerator.godot_name.to_string();
+
+        quote! {
+            crate::meta::inspect::EnumConstant::new(#rust_name, #godot_name, #name::#ident)
+        }
+    });
+
+    quote! {
         fn all_constants() -> &'static [crate::meta::inspect::EnumConstant<#name>] {
             const {
                 &[

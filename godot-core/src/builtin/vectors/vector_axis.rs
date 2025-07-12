@@ -69,7 +69,6 @@ macro_rules! impl_vector_axis_enum {
                         EnumConstant::new(
                             stringify!($axis),
                             concat!("AXIS_", stringify!($axis)),
-                            $AxisEnum::$axis as i32,
                             $AxisEnum::$axis
                         ),
                     )+
