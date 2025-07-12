@@ -7,34 +7,32 @@
 
 //! Introspection metadata for Godot engine types.
 
-/// Metadata for a single enum constant.
+/// Metadata for a single enum or bitfield constant.
+///
+/// Returned by [`EngineEnum::all_constants()`][crate::obj::EngineEnum::all_constants] and
+/// [`EngineBitfield::all_constants()`][crate::obj::EngineBitfield::all_constants].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EnumConstant<T: Copy + 'static> {
     rust_name: &'static str,
     godot_name: &'static str,
-    ord: i32,
     value: T,
 }
 
 impl<T: Copy + 'static> EnumConstant<T> {
     /// Creates a new enum constant metadata entry.
-    pub(crate) const fn new(
-        rust_name: &'static str,
-        godot_name: &'static str,
-        ord: i32,
-        value: T,
-    ) -> Self {
+    pub(crate) const fn new(rust_name: &'static str, godot_name: &'static str, value: T) -> Self {
         Self {
             rust_name,
             godot_name,
-            ord,
             value,
         }
     }
 
-    /// Rust name of the enum variant, usually without Prefix (e.g. `"ESCAPE"` for `Key::ESCAPE`).
+    /// Rust name of the constant, usually without prefix (e.g. `"ESCAPE"` for `Key::ESCAPE`).
     ///
-    /// This is returned by [`EngineEnum::as_str()`](crate::obj::EngineEnum::as_str()).
+    /// For enums, this is the value returned by [`EngineEnum::as_str()`](crate::obj::EngineEnum::as_str()) **if the value is unique.**
+    /// If multiple enum values share the same ordinal, then this function will return each one separately, while `as_str()` will return the
+    /// first one.
     pub const fn rust_name(&self) -> &'static str {
         self.rust_name
     }
@@ -44,12 +42,9 @@ impl<T: Copy + 'static> EnumConstant<T> {
         self.godot_name
     }
 
-    /// Ordinal value of this enum variant.
-    pub const fn ord(&self) -> i32 {
-        self.ord
-    }
-
-    /// The enum value itself.
+    /// The Rust value itself.
+    ///
+    /// Use `value().ord()` to get the ordinal value.
     pub const fn value(&self) -> T {
         self.value
     }

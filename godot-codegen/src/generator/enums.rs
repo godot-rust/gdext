@@ -227,6 +227,8 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
     if enum_.is_bitfield {
         // Bitfields: u64, assume any combination is valid.
 
+        let constants_function = make_bitfield_constants_function(enum_);
+
         quote! {
             // We may want to add this in the future.
             //
@@ -242,6 +244,8 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
                 fn ord(self) -> u64 {
                     self.ord
                 }
+
+                #constants_function
             }
         }
     } else if enum_.is_exhaustive {
@@ -347,7 +351,7 @@ fn make_enum_values_and_constants_functions(enum_: &Enum) -> TokenStream {
 
         // all_constants() includes every constant unconditionally.
         all_constants.push(quote! {
-            crate::meta::inspect::EnumConstant::new(#rust_name, #godot_name, #ordinal, #name::#constant)
+            crate::meta::inspect::EnumConstant::new(#rust_name, #godot_name, #name::#constant)
         });
 
         // values() contains value only if distinct (first time seen) and not MAX.
@@ -429,6 +433,40 @@ fn make_enum_str_functions(enum_: &Enum) -> TokenStream {
 
         fn godot_name(&self) -> &'static str {
             #godot_name_match
+        }
+    }
+}
+
+/// Creates the `all_constants()` implementation for the bitfield.
+fn make_bitfield_constants_function(enum_: &Enum) -> TokenStream {
+    let name = &enum_.name;
+
+    let all_constants = enum_.enumerators.iter().map(|enumerator| {
+        let Enumerator {
+            name: constant,
+            godot_name,
+            value: EnumeratorValue::Bitfield(_ord),
+            ..
+        } = enumerator
+        else {
+            panic!("bitfield enum contains non-bitfield enumerators")
+        };
+
+        let rust_name = constant.to_string();
+        let godot_name_str = godot_name.to_string();
+
+        quote! {
+            crate::meta::inspect::EnumConstant::new(#rust_name, #godot_name_str, #name::#constant)
+        }
+    });
+
+    quote! {
+        fn all_constants() -> &'static [crate::meta::inspect::EnumConstant<#name>] {
+            const {
+                &[
+                    #( #all_constants ),*
+                ]
+            }
         }
     }
 }

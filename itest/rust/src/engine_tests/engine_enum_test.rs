@@ -97,7 +97,7 @@ fn enum_values_duplicates() {
         }
 
         assert_eq!(c.value(), value);
-        assert_eq!(c.ord(), ord);
+        assert_eq!(c.value().ord(), ord);
     }
 
     assert_eq!(InlineAlignment::values(), &expected_distinct_values);
@@ -156,26 +156,38 @@ fn enum_all_constants() {
     let first = constants[0];
     assert_eq!(first.rust_name(), "TOP_TO");
     assert_eq!(first.godot_name(), "INLINE_ALIGNMENT_TOP_TO");
-    assert_eq!(first.ord(), 0);
     assert_eq!(first.value(), InlineAlignment::TOP_TO);
+    assert_eq!(first.value().ord(), 0);
 
     // Check specific constants at known indices, with equal ordinals.
     let known_a = constants[2];
     let known_b = constants[11];
 
-    assert_eq!(known_a.ord(), 3);
     assert_eq!(known_a.rust_name(), "BASELINE_TO");
     assert_eq!(known_a.godot_name(), "INLINE_ALIGNMENT_BASELINE_TO");
     assert_eq!(known_a.value(), InlineAlignment::BASELINE_TO);
+    assert_eq!(known_a.value().ord(), 3);
 
-    assert_eq!(known_b.ord(), 3);
     assert_eq!(known_b.rust_name(), "IMAGE_MASK");
     assert_eq!(known_b.godot_name(), "INLINE_ALIGNMENT_IMAGE_MASK");
     assert_eq!(known_b.value(), InlineAlignment::IMAGE_MASK);
+    assert_eq!(known_b.value().ord(), 3);
 
     // "Front-end" values are equal, too.
     assert_eq!(
         InlineAlignment::IMAGE_MASK.ord(),
         InlineAlignment::BASELINE_TO.ord()
     );
+}
+
+#[itest]
+fn bitfield_all_constants() {
+    let shift_constant = KeyModifierMask::all_constants()
+        .iter()
+        .find(|c| c.rust_name() == "SHIFT")
+        .expect("SHIFT constant should exist");
+
+    assert_eq!(shift_constant.godot_name(), "KEY_MASK_SHIFT");
+    assert_eq!(shift_constant.value(), KeyModifierMask::SHIFT);
+    assert_eq!(shift_constant.value().ord(), 1 << 25);
 }
