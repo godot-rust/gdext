@@ -8,7 +8,9 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::util::{bail, extract_typename, ident, path_ends_with, KvParser};
+use crate::util::{
+    bail, extract_typename, ident, path_ends_with, retain_attributes_except, KvParser,
+};
 use crate::ParseResult;
 
 pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
@@ -85,7 +87,11 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
         plugin_name = ident("__GODOT_ITEST");
     };
 
+    // Filter out #[itest] itself, but preserve other attributes like #[allow], #[expect], etc.
+    let other_attributes = retain_attributes_except(&func.attributes, "itest");
+
     Ok(quote! {
+        #(#other_attributes)*
         pub fn #test_name(#param) #return_tokens {
             #body
         }

@@ -176,7 +176,7 @@ runs:
       #             since it's not available on Windows, use taskkill in that case.
       # * exit:     the terminated process would return 143, but this is more explicit and future-proof
       #
-      # --disallow-focus: fail if #[itest(focus)] is encountered, to prevent running only a few tests for full CI
+      # --disallow-focus: fail if #[itest (focus)] is encountered, to prevent running only a few tests for full CI
       run: |
         cd itest/godot
         echo "OUTCOME=itest" >> $GITHUB_ENV

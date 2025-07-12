@@ -190,3 +190,11 @@ trait TraitA {
 impl TraitA for CodegenTest3 {
     fn exit_tree(&mut self) {}
 }
+
+// Verifies that attributes (here #[expect]) are preserved by #[itest] macro.
+// See retain_attributes_except() function.
+#[itest]
+#[expect(unused_variables)]
+fn test_itest_macro_attribute_retention() {
+    let unused_var = 42; // Should not generate warning.
+}

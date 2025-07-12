@@ -662,7 +662,7 @@ impl Enum {
             conv::make_enumerator_names(godot_class_name, &rust_enum_name, godot_enumerator_names)
         };
 
-        let enumerators = json_enum
+        let enumerators: Vec<Enumerator> = json_enum
             .values
             .iter()
             .zip(rust_enumerator_names)
@@ -670,6 +670,8 @@ impl Enum {
                 Enumerator::from_json(json_constant, rust_name, is_bitfield)
             })
             .collect();
+
+        let max_index = Enum::find_index_enum_max_impl(is_bitfield, &enumerators);
 
         Self {
             name: ident(&rust_enum_name),
@@ -679,6 +681,7 @@ impl Enum {
             is_private,
             is_exhaustive,
             enumerators,
+            max_index,
         }
     }
 }

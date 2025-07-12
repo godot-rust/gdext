@@ -54,6 +54,26 @@ macro_rules! impl_vector_axis_enum {
                     )+
                 }
             }
+
+            fn values() -> &'static [Self] {
+                // For vector axis enums, all values are distinct, so both are the same
+                &[
+                    $( $AxisEnum::$axis, )+
+                ]
+            }
+
+            fn all_constants() -> &'static [crate::meta::inspect::EnumConstant<$AxisEnum>] {
+                use crate::meta::inspect::EnumConstant;
+                const { &[
+                    $(
+                        EnumConstant::new(
+                            stringify!($axis),
+                            concat!("AXIS_", stringify!($axis)),
+                            $AxisEnum::$axis
+                        ),
+                    )+
+                ] }
+            }
         }
 
         impl GodotConvert for $AxisEnum {

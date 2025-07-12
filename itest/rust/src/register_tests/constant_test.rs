@@ -180,7 +180,7 @@ godot::sys::plugin_add!(
 macro_rules! test_enum_export {
     (
         $class:ty, $enum_name:ident, [$($enumerators:ident),* $(,)?];
-        // Include the `attr` here to, so we can easily do things like `#[itest(focus)]`.
+        // Include the `attr` here too, so we can easily do things like `#[itest (focus)]`.
         #$attr:tt
         fn $test_name:ident() { .. }
     ) => {

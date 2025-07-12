@@ -8,7 +8,7 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::util::{bail, KvParser};
+use crate::util::{bail, retain_attributes_except, KvParser};
 use crate::ParseResult;
 
 const DEFAULT_REPETITIONS: usize = 100;
@@ -42,7 +42,11 @@ pub fn attribute_bench(input_decl: venial::Item) -> ParseResult<TokenStream> {
 
     let body = &func.body;
 
+    // Filter out #[bench] itself, but preserve other attributes like #[allow], #[expect], etc.
+    let other_attributes = retain_attributes_except(&func.attributes, "bench");
+
     Ok(quote! {
+        #(#other_attributes)*
         pub fn #bench_name() {
             for _ in 0..#repetitions {
                 let __ret: #ret = #body;

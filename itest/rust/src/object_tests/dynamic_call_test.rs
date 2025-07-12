@@ -140,7 +140,7 @@ fn dynamic_call_parameter_mismatch() {
     obj.free();
 }
 
-// There seems to be a weird bug where running *only* this test with #[itest(focus)] causes panic, which then causes a
+// There seems to be a weird bug where running *only* this test with #[itest (focus)] causes panic, which then causes a
 // follow-up failure of Gd::bind_mut(), preventing benchmarks from being run. Doesn't happen with #[itest], when running all.
 #[itest]
 fn dynamic_call_with_panic() {
