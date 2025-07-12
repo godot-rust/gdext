@@ -201,6 +201,25 @@ pub trait EngineEnum: Copy {
     /// The equivalent name of the enumerator, as specified in Godot.
     ///
     /// If the value does not match one of the known enumerators, the empty string is returned.
+    ///
+    /// # Deprecation
+    /// Design change is due to the fact that Godot enums may have multiple constants with the same ordinal value, and `godot_name()` cannot
+    /// always return a unique name for it. So there are cases where this method returns unexpected results.
+    ///
+    /// To keep the old -- possibly incorrect -- behavior, you can write the following function. However, it runs in linear rather than constant
+    /// time (which is often OK, given that there are very few constants per enum).
+    /// ```
+    /// use godot::obj::EngineEnum;
+    ///
+    /// fn godot_name<T: EngineEnum + Eq + PartialEq + 'static>(value: T) -> &'static str {
+    ///     T::all_constants()
+    ///         .iter()
+    ///         .find(|c| c.value() == value)
+    ///         .map(|c| c.godot_name())
+    ///         .unwrap_or("") // Previous behavior.
+    /// }
+    /// ```
+    #[deprecated = "Moved to introspection API, see `EngineEnum::all_constants()` and `EnumConstant::godot_name()`"]
     fn godot_name(&self) -> &'static str;
 
     /// Returns a slice of distinct enum values.
