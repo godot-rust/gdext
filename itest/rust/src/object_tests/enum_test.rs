@@ -62,7 +62,7 @@ fn enum_hash() {
     months.insert(time::Month::NOVEMBER);
     months.insert(time::Month::DECEMBER);
 
-    assert_eq!(months.len(), 12);
+    assert_eq!(months.len(), 12, "hash collisions in constants");
 }
 
 // Testing https://github.com/godot-rust/gdext/issues/335
