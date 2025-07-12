@@ -57,6 +57,7 @@ mod uniform_object_deref;
 pub(crate) mod sealed;
 
 pub mod error;
+pub mod inspect;
 
 pub use args::*;
 pub use class_name::ClassName;

@@ -129,7 +129,7 @@ pub struct Enumerator {
     pub value: EnumeratorValue,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub enum EnumeratorValue {
     Enum(i32),
     Bitfield(u64),
