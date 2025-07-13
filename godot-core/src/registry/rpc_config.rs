@@ -10,7 +10,7 @@ use crate::classes::multiplayer_api::RpcMode;
 use crate::classes::multiplayer_peer::TransferMode;
 use crate::classes::Node;
 use crate::meta::{AsArg, ToGodot};
-use crate::{arg_into_ref, dict};
+use crate::{arg_into_ref, vdict};
 
 /// Configuration for a remote procedure call, used with `#[rpc(config = ...)]`.
 ///
@@ -45,7 +45,7 @@ impl RpcConfig {
 
     /// Returns a [`Dictionary`] populated with the values required for a call to [`Node::rpc_config()`].
     pub fn to_dictionary(&self) -> Dictionary {
-        dict! {
+        vdict! {
             "rpc_mode": self.rpc_mode,
             "transfer_mode": self.transfer_mode,
             "call_local": self.call_local,

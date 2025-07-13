@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{dict, vslice, Color, Dictionary, GString, Variant, VariantType};
+use godot::builtin::{vdict, vslice, Color, Dictionary, GString, Variant, VariantType};
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
@@ -194,7 +194,7 @@ impl GodotConvert for NotExportable {
 
 impl Var for NotExportable {
     fn get_property(&self) -> Self::Via {
-        dict! {
+        vdict! {
             "a": self.a,
             "b": self.b
         }
