@@ -7,7 +7,7 @@
 
 use crate::framework::{expect_panic, itest};
 use godot::builtin::{
-    dict, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
+    vdict, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
     PackedStringArray, Variant,
 };
 use godot::prelude::ToGodot;
@@ -371,7 +371,7 @@ fn packed_byte_array_encode_decode() {
 
 #[itest]
 fn packed_byte_array_encode_decode_variant() {
-    let variant = dict! {
+    let variant = vdict! {
         "s": "some string",
         "i": -12345,
     }

@@ -10,7 +10,7 @@ use std::fmt;
 use std::fmt::Display;
 
 use godot::builtin::{
-    array, dict, varray, vslice, Array, Color, GString, NodePath, PackedInt32Array,
+    array, varray, vdict, vslice, Array, Color, GString, NodePath, PackedInt32Array,
     PackedStringArray, Projection, Quaternion, Signal, StringName, Transform2D, Transform3D,
     Variant, Vector2, Vector2i, Vector3, Vector3i,
 };
@@ -618,7 +618,7 @@ fn variant_stringify() {
         gstr("[1, \"hello\", false]")
     );
     assert_eq!(
-        dict! { "KEY": 50 }.to_variant().stringify(),
+        vdict! { "KEY": 50 }.to_variant().stringify(),
         gstr("{ \"KEY\": 50 }")
     );
 }
@@ -628,7 +628,7 @@ fn variant_booleanize() {
     assert!(gstr("string").to_variant().booleanize());
     assert!(10.to_variant().booleanize());
     assert!(varray![""].to_variant().booleanize());
-    assert!(dict! { "Key": 50 }.to_variant().booleanize());
+    assert!(vdict! { "Key": 50 }.to_variant().booleanize());
 
     assert!(!Dictionary::new().to_variant().booleanize());
     assert!(!varray![].to_variant().booleanize());
@@ -640,7 +640,7 @@ fn variant_booleanize() {
 #[itest]
 fn variant_hash() {
     let hash_is_not_0 = [
-        dict! {}.to_variant(),
+        vdict! {}.to_variant(),
         gstr("").to_variant(),
         varray![].to_variant(),
     ];
@@ -648,7 +648,7 @@ fn variant_hash() {
         gstr("string").to_variant(),
         varray![false, true, 4, "7"].to_variant(),
         0.to_variant(),
-        dict! { 0 : dict!{ 0: 1 } }.to_variant(),
+        vdict! { 0 : vdict!{ 0: 1 } }.to_variant(),
     ];
 
     for variant in hash_is_not_0 {
@@ -662,7 +662,7 @@ fn variant_hash() {
 
     // It's not guaranteed that different object will have different hash, but it is
     // extremely unlikely for a collision to happen.
-    assert_ne!(dict! { 0: dict! { 0: 0 } }, dict! { 0: dict! { 0: 1 } });
+    assert_ne!(vdict! { 0: vdict! { 0: 0 } }, vdict! { 0: vdict! { 0: 1 } });
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
