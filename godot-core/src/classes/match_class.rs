@@ -13,7 +13,7 @@
 ///
 /// Requires a fallback branch, even if all direct known classes are handled. The reason for this is that there may be other subclasses which
 /// are not statically known by godot-rust (e.g. from a script or GDExtension). The fallback branch can either be `_` (discard object), or
-/// `_(variable)` to access the original object inside the fallback arm.
+/// `variable @ _` to access the original object inside the fallback arm.
 ///
 /// # Example
 /// ```no_run
@@ -27,28 +27,28 @@
 /// let event: Gd<InputEvent> = some_input();
 ///
 /// let simple_dispatch: i32 = match_class!(event, {
-///    InputEventMouseButton(btn) => 1,
-///    InputEventMouseMotion(motion) => 2,
-///    InputEventAction(action) => 3,
+///    button @ InputEventMouseButton => 1,
+///    motion @ InputEventMouseMotion => 2,
+///    action @ InputEventAction => 3,
 ///    _ => 0, // Fallback.
 /// });
 ///
 /// // More diverse dispatch patterns are also supported.
 /// let fancy_dispatch: i32 = match_class!(some_input(), {
-///     InputEventMouseButton(btn) => 1,
+///     button @ InputEventMouseButton => 1,
 ///
 ///     // Block syntax for multiple statements:
-///     InputEventMouseMotion(motion) => {
+///     motion @ InputEventMouseMotion => {
 ///         godot_print!("motion");
 ///         2
 ///     },
 ///
 ///     // Qualified types supported:
-///     godot::classes::InputEventAction(action) => 3,
+///     action @ godot::classes::InputEventAction => 3,
 ///
 ///     // Fallback with variable -- retrieves original Gd<InputEvent>.
-///     // Equivalent to pattern `InputEvent(original)`.
-///     _(original) => 0,
+///     // Equivalent to pattern `original @ InputEvent`.
+///     original @ _ => 0,
 /// });
 ///
 /// // event_type is now 0, 1, 2, or 3
@@ -60,42 +60,45 @@
 // Note: annoyingly shows full implementation in docs. For workarounds, either move impl to a helper macro, or use something like
 // https://crates.io/crates/clean-macro-docs.
 macro_rules! match_class {
-    ($subject:expr, {
-        $(
-            $($class:ident)::+($var:ident) => $body:expr
-        ),+,
-        _($fallback_var:ident) => $fallback:expr
-        $(,)?
-    }) => {
+    // TT muncher approach: consume one arm at a time and recurse with the remaining tokens.
+
+    // Entry point: grab subject + ENTIRE list of arms as token-trees.
+    ($subject:expr, { $($arms:tt)* }) => {
         (|| {
-            let mut __evt = $subject;
-            $(
-                __evt = match __evt.try_cast::<$($class)::*>() {
-                    Ok($var) => return $body,
-                    Err(e)    => e,
-                };
-            )+
-            let $fallback_var = __evt;
-            $fallback
+            let mut __match_subject = $subject;
+            match_class!(@munch __match_subject; $($arms)*);
+            // unreachable!("match_class hit end with no `_` fallback");
         })()
     };
 
-    ($subject:expr, {
-        $(
-            $($class:ident)::+($var:ident) => $body:expr
-        ),+,
+    // ident @ Some::Path => expr, rest...
+    (@munch $evt:ident;
+        $var:ident @ $($class:ident)::+ => $body:expr,
+        $($rest:tt)*
+    ) => {
+        // try the down‐cast
+        $evt = match $evt.try_cast::< $($class)::* >() {
+            Ok($var) => return $body,
+            Err(e) => e,
+        };
+        match_class!(@munch $evt; $($rest)*);
+    };
+
+    // foo @ _ => expr
+    (@munch $evt:ident;
+        $fallback_var:ident @ $pat:tt => $fallback:expr
+        $(,)?
+    ) => {
+        // `$pat` here will only ever be `_` if no typed‐arm matched first, because `Some::Path` would hit the more specific rule above.
+        let $fallback_var = $evt;
+        return $fallback;
+    };
+
+    // _ => expr
+    (@munch $evt:ident;
         _ => $fallback:expr
         $(,)?
-    }) => {
-        (|| {
-            let mut __evt = $subject;
-            $(
-                __evt = match __evt.try_cast::<$($class)::*>() {
-                    Ok($var) => return $body,
-                    Err(e)    => e,
-                };
-            )+
-            $fallback
-        })()
-    };
+    ) => {{
+        return $fallback;
+    }};
 }

@@ -20,11 +20,11 @@ fn match_class_basic_dispatch() {
     let to_free = obj.clone();
 
     let result = match_class!(obj, {
-        Node2D(node) => {
+        node @ Node2D => {
             require_node2d(&node);
             1
         },
-        Node(node) => {
+        node @ Node => {
             require_node(&node);
             2
         },
@@ -42,8 +42,8 @@ fn match_class_shadowed_by_more_general() {
     let to_free = obj.clone();
 
     let result = match_class!(obj, {
-        Node(_node) => 1,
-        Node2D(_node) => 2,
+        _node @ Node => 1,
+        _node @ Node2D => 2,
         _ => 3, // Comma.
     });
 
@@ -59,8 +59,8 @@ fn match_class_ignored_fallback() {
     let obj: Gd<Object> = RefCounted::new_gd().upcast();
 
     let result = match_class!(obj, {
-        godot::classes::Node(_node) => 1, // Test qualified types.
-        Resource(_res) => 2,
+        _node @ godot::classes::Node => 1, // Test qualified types.
+        _res @ Resource => 2,
         _ => 3,
     });
 
@@ -72,11 +72,11 @@ fn match_class_named_fallback_matched() {
     let obj: Gd<Object> = Resource::new_gd().upcast();
 
     let result = match_class!(obj, {
-        Node(_node) => 1,
-        Node2D(_node) => 2,
+        _node @ Node => 1,
+        _node @ Node2D => 2,
 
         // Named fallback with access to original object.
-        _(other) => {
+        other @ _ => {
             require_object(&other);
             assert_eq!(other.get_class(), "Resource".into());
             3
@@ -90,9 +90,9 @@ fn match_class_named_fallback_matched() {
 fn match_class_named_fallback_unmatched() {
     // Test complex inline expression.
     let result = match_class!(Resource::new_gd().upcast::<Object>(), {
-        Node(_node) => 1,
-        Resource(_res) => 2,
-        _(_ignored) => 3,
+        _node @ Node => 1,
+        _res @ Resource => 2,
+        _ignored @ _ => 3,
     });
 
     assert_eq!(result, 2);
