@@ -8,6 +8,7 @@
 use crate::builder::ClassBuilder;
 use crate::builtin::GString;
 use crate::init::InitLevel;
+use crate::meta::inspect::EnumConstant;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
 #[cfg(since_api = "4.2")]
@@ -187,15 +188,75 @@ pub trait EngineEnum: Copy {
             .unwrap_or_else(|| panic!("ordinal {ord} does not map to any enumerator"))
     }
 
-    // The name of the enumerator, as it appears in Rust.
-    //
-    // If the value does not match one of the known enumerators, the empty string is returned.
+    /// The name of the enumerator, as it appears in Rust.
+    ///
+    /// Note that **this may not match the Rust constant name.** In case of multiple constants with the same ordinal value, this method returns
+    /// the first one in the order of definition. For example, [`LayoutDirection::LOCALE.as_str()`][crate::classes::window::LayoutDirection::LOCALE]
+    /// (ord 1) returns `"APPLICATION_LOCALE"`, because that happens to be the first constant with ordinal `1`.
+    /// See [`all_constants()`][Self::all_constants] for a more robust and general approach to introspection of enum constants.
+    ///
+    /// If the value does not match one of the known enumerators, the empty string is returned.
     fn as_str(&self) -> &'static str;
 
-    // The equivalent name of the enumerator, as specified in Godot.
-    //
-    // If the value does not match one of the known enumerators, the empty string is returned.
+    /// The equivalent name of the enumerator, as specified in Godot.
+    ///
+    /// If the value does not match one of the known enumerators, the empty string is returned.
+    ///
+    /// # Deprecation
+    /// Design change is due to the fact that Godot enums may have multiple constants with the same ordinal value, and `godot_name()` cannot
+    /// always return a unique name for it. So there are cases where this method returns unexpected results.
+    ///
+    /// To keep the old -- possibly incorrect -- behavior, you can write the following function. However, it runs in linear rather than constant
+    /// time (which is often OK, given that there are very few constants per enum).
+    /// ```
+    /// use godot::obj::EngineEnum;
+    ///
+    /// fn godot_name<T: EngineEnum + Eq + PartialEq + 'static>(value: T) -> &'static str {
+    ///     T::all_constants()
+    ///         .iter()
+    ///         .find(|c| c.value() == value)
+    ///         .map(|c| c.godot_name())
+    ///         .unwrap_or("") // Previous behavior.
+    /// }
+    /// ```
+    #[deprecated = "Moved to introspection API, see `EngineEnum::all_constants()` and `EnumConstant::godot_name()`"]
     fn godot_name(&self) -> &'static str;
+
+    /// Returns a slice of distinct enum values.
+    ///
+    /// This excludes `MAX` constants at the end (existing only to express the number of enumerators) and deduplicates aliases,
+    /// providing only meaningful enum values. See [`all_constants()`][Self::all_constants] for a complete list of all constants.
+    ///
+    /// Enables iteration over distinct enum variants:
+    /// ```no_run
+    /// use godot::classes::window;
+    /// use godot::obj::EngineEnum;
+    ///
+    /// for mode in window::Mode::values() {
+    ///     println!("* {}: {}", mode.as_str(), mode.ord());
+    /// }
+    /// ```
+    fn values() -> &'static [Self];
+
+    /// Returns metadata for all enum constants.
+    ///
+    /// This includes all constants as they appear in the enum definition, including duplicates and `MAX` constants.
+    /// For a list of useful, distinct values, use [`values()`][Self::values].
+    ///
+    /// Enables introspection of available constants:
+    /// ```no_run
+    /// use godot::classes::window;
+    /// use godot::obj::EngineEnum;
+    ///
+    /// for constant in window::Mode::all_constants() {
+    ///     println!("* window::Mode.{} (original {}) has ordinal value {}.",
+    ///         constant.rust_name(),
+    ///         constant.godot_name(),
+    ///         constant.value().ord()
+    ///     );
+    /// }
+    /// ```
+    fn all_constants() -> &'static [EnumConstant<Self>];
 }
 
 /// Auto-implemented for all engine-provided bitfields.
@@ -214,6 +275,25 @@ pub trait EngineBitfield: Copy {
     fn is_set(self, flag: Self) -> bool {
         self.ord() & flag.ord() != 0
     }
+
+    /// Returns metadata for all bitfield constants.
+    ///
+    /// This includes all constants as they appear in the bitfield definition.
+    ///
+    /// Enables introspection of available constants:
+    /// ```no_run
+    /// use godot::global::KeyModifierMask;
+    /// use godot::obj::EngineBitfield;
+    ///
+    /// for constant in KeyModifierMask::all_constants() {
+    ///     println!("* KeyModifierMask.{} (original {}) has ordinal value {}.",
+    ///         constant.rust_name(),
+    ///         constant.godot_name(),
+    ///         constant.value().ord()
+    ///     );
+    /// }
+    /// ```
+    fn all_constants() -> &'static [EnumConstant<Self>];
 }
 
 /// Trait for enums that can be used as indices in arrays.

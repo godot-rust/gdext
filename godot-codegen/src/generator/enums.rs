@@ -13,6 +13,7 @@ use crate::models::domain::{Enum, Enumerator, EnumeratorValue, RustTy};
 use crate::special_cases;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+use std::collections::HashSet;
 
 pub fn make_enums(enums: &[Enum], cfg_attributes: &TokenStream) -> TokenStream {
     let definitions = enums.iter().map(make_enum_definition);
@@ -141,7 +142,7 @@ pub fn make_enum_definition_with(
 ///
 /// Returns `None` if `enum_` isn't an indexable enum.
 fn make_enum_index_impl(enum_: &Enum) -> Option<TokenStream> {
-    let enum_max = enum_.find_index_enum_max()?;
+    let enum_max = enum_.max_index?; // Do nothing if enum isn't sequential with a MAX constant.
     let name = &enum_.name;
 
     Some(quote! {
@@ -226,6 +227,8 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
     if enum_.is_bitfield {
         // Bitfields: u64, assume any combination is valid.
 
+        let constants_function = make_all_constants_function(enum_);
+
         quote! {
             // We may want to add this in the future.
             //
@@ -241,6 +244,8 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
                 fn ord(self) -> u64 {
                     self.ord
                 }
+
+                #constants_function
             }
         }
     } else if enum_.is_exhaustive {
@@ -262,6 +267,7 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
         });
 
         let str_functions = make_enum_str_functions(enum_);
+        let values_and_constants_functions = make_enum_values_and_constants_functions(enum_);
 
         quote! {
             impl #engine_trait for #name {
@@ -277,6 +283,7 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
                 }
 
                 #str_functions
+                #values_and_constants_functions
             }
         }
     } else {
@@ -288,6 +295,7 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
 
         let unique_ords = enum_.unique_ords().expect("self is an enum");
         let str_functions = make_enum_str_functions(enum_);
+        let values_and_constants_functions = make_enum_values_and_constants_functions(enum_);
 
         // We can technically check against all possible mask values, remove each mask, and then verify it's a valid base-enum value.
         // However, this is not forward compatible: if a new mask is added in a future API version, it wouldn't be removed, and the
@@ -317,6 +325,65 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
                 }
 
                 #str_functions
+                #values_and_constants_functions
+            }
+        }
+    }
+}
+
+/// Creates both the `values()` and `all_constants()` implementations for the enum.
+fn make_enum_values_and_constants_functions(enum_: &Enum) -> TokenStream {
+    let name = &enum_.name;
+
+    let mut distinct_values = Vec::new();
+    let mut seen_ordinals = HashSet::new();
+
+    for (index, enumerator) in enum_.enumerators.iter().enumerate() {
+        let constant = &enumerator.name;
+        let ordinal = &enumerator.value;
+
+        // values() contains value only if distinct (first time seen) and not MAX.
+        if enum_.max_index != Some(index) && seen_ordinals.insert(ordinal.clone()) {
+            distinct_values.push(quote! { #name::#constant });
+        }
+    }
+
+    let values_function = quote! {
+        fn values() -> &'static [Self] {
+            &[
+                #( #distinct_values ),*
+            ]
+        }
+    };
+
+    let all_constants_function = make_all_constants_function(enum_);
+
+    quote! {
+        #values_function
+        #all_constants_function
+    }
+}
+
+/// Creates a shared `all_constants()` implementation for enums and bitfields.
+fn make_all_constants_function(enum_: &Enum) -> TokenStream {
+    let name = &enum_.name;
+
+    let all_constants = enum_.enumerators.iter().map(|enumerator| {
+        let ident = &enumerator.name;
+        let rust_name = enumerator.name.to_string();
+        let godot_name = enumerator.godot_name.to_string();
+
+        quote! {
+            crate::meta::inspect::EnumConstant::new(#rust_name, #godot_name, #name::#ident)
+        }
+    });
+
+    quote! {
+        fn all_constants() -> &'static [crate::meta::inspect::EnumConstant<#name>] {
+            const {
+                &[
+                    #( #all_constants ),*
+                ]
             }
         }
     }
