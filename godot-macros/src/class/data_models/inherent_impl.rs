@@ -207,6 +207,34 @@ pub fn transform_inherent_impl(
     }
 }
 
+pub fn transform_dyn_trait_impl(
+    decl: venial::Impl,
+    prv: TokenStream,
+    class_path: venial::TypeExpr,
+    trait_path: venial::TypeExpr,
+    assoc_type_constraints: TokenStream,
+) -> ParseResult<TokenStream> {
+    let new_code = quote! {
+        #decl
+
+        impl ::godot::obj::AsDyn<dyn #trait_path #assoc_type_constraints> for #class_path {
+            fn dyn_upcast(&self) -> &(dyn #trait_path #assoc_type_constraints + 'static) {
+                self
+            }
+
+            fn dyn_upcast_mut(&mut self) -> &mut (dyn #trait_path #assoc_type_constraints + 'static) {
+                self
+            }
+        }
+
+        ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_path>(
+            #prv::PluginItem::DynTraitImpl(#prv::DynTraitImpl::new::<#class_path, dyn #trait_path #assoc_type_constraints>()))
+        );
+
+    };
+    Ok(new_code)
+}
+
 /* Re-enable if we allow controlling declarative macros for signals (base_field_macro, visibility_macros).
 fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotApiHints> {
     // #[hint(has_base_field = BOOL)]

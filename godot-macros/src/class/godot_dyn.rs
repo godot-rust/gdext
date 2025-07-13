@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::class::transform_dyn_trait_impl;
 use crate::util::bail;
 use crate::ParseResult;
 use proc_macro2::TokenStream;
@@ -53,24 +54,14 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
     let class_path = &decl.self_ty;
     let prv = quote! { ::godot::private };
 
-    let new_code = quote! {
-        #decl
+    // TODO: Remove this println! when the code is stable.
+    eprintln!("Adding dyn trait impl for {class_path:?}: {trait_path:?} {assoc_type_constraints}");
 
-        impl ::godot::obj::AsDyn<dyn #trait_path #assoc_type_constraints> for #class_path {
-            fn dyn_upcast(&self) -> &(dyn #trait_path #assoc_type_constraints + 'static) {
-                self
-            }
-
-            fn dyn_upcast_mut(&mut self) -> &mut (dyn #trait_path #assoc_type_constraints + 'static) {
-                self
-            }
-        }
-
-        ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_path>(
-            #prv::PluginItem::DynTraitImpl(#prv::DynTraitImpl::new::<#class_path, dyn #trait_path #assoc_type_constraints>()))
-        );
-
-    };
-
-    Ok(new_code)
+    transform_dyn_trait_impl(
+        decl.clone(),
+        prv.clone(),
+        class_path.clone(),
+        trait_path.clone(),
+        assoc_type_constraints,
+    )
 }

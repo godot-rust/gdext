@@ -37,7 +37,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             // This will need refactoring if VariantType is changed to a real enum.
             #[doc(hidden)]
             pub fn from_sys(enumerator: crate::GDExtensionVariantType) -> Self {
-                Self { ord: enumerator as i32 }
+                Self { ord: enumerator }
             }
 
             #[doc(hidden)]
