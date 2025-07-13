@@ -11,6 +11,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
 // #[cfg(debug_assertions)]
+// use crate::classes::RefCounted;
 use std::cell::RefCell;
 use std::{cell::Cell, rc::Rc};
 
@@ -216,7 +217,7 @@ impl<T: GodotClass> Base<T> {
                 .obj
                 .raw
                 .with_ref_counted(|refc| refc.get_reference_count());
-            eprintln!("Ref count before first handout: {}", ref_count);
+            eprintln!("Ref count before first handout: {ref_count}");
 
             // Convert the weak reference to a strong reference and store it
             let strong_ref = unsafe { Gd::from_obj_sys(self.obj.obj_sys()) };
@@ -226,7 +227,7 @@ impl<T: GodotClass> Base<T> {
                 .obj
                 .raw
                 .with_ref_counted(|refc| refc.get_reference_count());
-            eprintln!("Ref count after first handout: {}", ref_count);
+            eprintln!("Ref count after first handout: {ref_count}");
         }
 
         // keeper
@@ -237,7 +238,7 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
-    pub(crate) fn mark_initialized(&mut self) {
+    pub(crate) fn mark_initialized(&mut self) -> bool {
         #[cfg(debug_assertions)]
         {
             assert_eq!(
@@ -259,8 +260,8 @@ impl<T: GodotClass> Base<T> {
             //
             //*self.extra_strong_ref.borrow_mut() = None;
 
-            let extract = self.extra_strong_ref.borrow_mut().take();
-            std::mem::forget(extract);
+            // let extract = self.extra_strong_ref.borrow_mut().take();
+            // std::mem::forget(extract);
             // drop(extract);
 
             // The drop(extract) above already decrements the reference count
@@ -270,7 +271,15 @@ impl<T: GodotClass> Base<T> {
                 .raw
                 .with_ref_counted(|refc| refc.get_reference_count());
             eprintln!(">   Ref count after unref: {ref_count}");
+
+            // let mut last =
+            //     Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001572288729));
+            // last.call("unreference", &[]);
+
+            return true; // No need to increment reference count when constructing user object.
         }
+
+        false
 
         //*self.extra_strong_ref.borrow_mut() = None;
     }
@@ -344,6 +353,21 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 }
+
+// impl<T: GodotClass> Drop for Base<T> {
+//     fn drop(&mut self) {
+//         eprintln!("Base::drop: {:?}", self.obj.instance_id());
+//
+//         if self.extra_strong_ref.borrow().is_none() {
+//             return;
+//         }
+//
+//         eprintln!("MANUAL LAST DROP");
+//         let mut last =
+//             Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001572288729));
+//         last.call("unreference", &[]);
+//     }
+// }
 
 impl<T: GodotClass> Debug for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {

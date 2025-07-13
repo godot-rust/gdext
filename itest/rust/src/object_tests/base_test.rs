@@ -26,7 +26,7 @@ fn base_instance_id() {
 #[itest]
 fn base_instance_id2() {
     {
-        let mut obj = RefBase::new_gd();
+        let obj = RefBase::new_gd();
         let _obj_id = dbg!(obj.instance_id());
         // obj.call("unreference", &[]);
 
@@ -183,11 +183,11 @@ fn base_during_init_refcounted_simple() {
             RefcBased { base }
         });
 
-        let mut last =
-            Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001572288729));
-        last.call("unreference", &[]);
+        // let mut last =
+        //     Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001572288729));
+        // last.call("unreference", &[]);
 
-        println!("After construction: refc={}", obj.get_reference_count());
+        eprintln!("After construction: refc={}", obj.get_reference_count());
         // obj.call("unreference", &[]);
         //
         // println!("After dec-ref: refc={}", obj.get_reference_count());

@@ -33,7 +33,9 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
 ) -> sys::GDExtensionObjectPtr {
-    create_custom(T::__godot_user_init).unwrap_or(std::ptr::null_mut())
+    create_custom(T::__godot_user_init)
+        .map(|(ptr, _skip_inc_ref)| ptr)
+        .unwrap_or(std::ptr::null_mut())
 }
 
 #[cfg(before_api = "4.4")]
@@ -70,6 +72,7 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
     object: sys::GDExtensionObjectPtr,
 ) -> sys::GDExtensionClassInstancePtr {
     create_rust_part_for_existing_godot_part(T::__godot_user_init, object)
+        .map(|(ptr, _skip_inc_ref)| ptr)
         .unwrap_or(std::ptr::null_mut())
 }
 
@@ -86,7 +89,7 @@ pub unsafe extern "C" fn recreate_null<T>(
 
 pub(crate) fn create_custom<T, F>(
     make_user_instance: F,
-) -> Result<sys::GDExtensionObjectPtr, PanicPayload>
+) -> Result<(sys::GDExtensionObjectPtr, bool), PanicPayload>
 where
     T: GodotClass,
     F: FnOnce(Base<T::Base>) -> T,
@@ -95,7 +98,7 @@ where
     let base_ptr = unsafe { interface_fn!(classdb_construct_object)(base_class_name.string_sys()) };
 
     match create_rust_part_for_existing_godot_part(make_user_instance, base_ptr) {
-        Ok(_extension_ptr) => Ok(base_ptr),
+        Ok((_extension_ptr, skip_inc_ref)) => Ok((base_ptr, skip_inc_ref)),
         Err(payload) => {
             // Creation of extension object failed; we must now also destroy the base object to avoid leak.
             // SAFETY: `base_ptr` was just created above.
@@ -113,10 +116,13 @@ where
 /// With godot-rust, custom objects consist of two parts: the Godot object and the Rust object. This method takes the Godot part by pointer,
 /// creates the Rust part with the supplied state, and links them together. This is used for both brand-new object creation and hot reload.
 /// During hot reload, Rust objects are disposed of and then created again with updated code, so it's necessary to re-link them to Godot objects.
+///
+/// The returned `bool` (element 1 of tuple) is `skip_inc_ref`, indicating whether regular increment-ref operation should be skipped.
+/// This is the case if a `RefCounted` object hands out smart pointers during construction, effectively upgrading itself to a strong pointer.
 fn create_rust_part_for_existing_godot_part<T, F>(
     make_user_instance: F,
     base_ptr: sys::GDExtensionObjectPtr,
-) -> Result<sys::GDExtensionClassInstancePtr, PanicPayload>
+) -> Result<(sys::GDExtensionClassInstancePtr, bool), PanicPayload>
 where
     T: GodotClass,
     F: FnOnce(Base<T::Base>) -> T,
@@ -126,7 +132,7 @@ where
     //out!("create callback: {}", class_name.backing);
 
     let base = unsafe { Base::from_sys(base_ptr) };
-    dbg!(&base);
+    // dbg!(&base);
 
     // User constructor init() can panic, which crashes the engine if unhandled.
     let context = || format!("panic during {class_name}::init() constructor");
@@ -157,12 +163,18 @@ where
 
     // Mark initialization as complete, now that user constructor has finished.
     eprintln!("Mark inited... {base_copy:?}");
-    base_copy.mark_initialized();
+    let skip_inc_ref = base_copy.mark_initialized();
     eprintln!("Marked inited: {base_copy:?}");
     std::mem::forget(base_copy);
+    eprintln!("Forgot base copy.");
+
+    // let mut last = Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001572288729));
+    // last.call("unreference", &[]);
+
+    eprintln!("Unreferenced last.");
 
     // std::mem::forget(class_name);
-    Ok(instance_ptr)
+    Ok((instance_ptr, skip_inc_ref))
 }
 
 pub unsafe extern "C" fn free<T: GodotClass>(

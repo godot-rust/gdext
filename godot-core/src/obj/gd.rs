@@ -154,10 +154,11 @@ where
     where
         F: FnOnce(crate::obj::Base<T::Base>) -> T,
     {
-        let object_ptr = callbacks::create_custom(init) // or propagate panic.
-            .unwrap_or_else(|payload| PanicPayload::repanic(payload));
+        let (object_ptr, skip_inc_ref) =
+            callbacks::create_custom(init) // or propagate panic.
+                .unwrap_or_else(|payload| PanicPayload::repanic(payload));
 
-        unsafe { Gd::from_obj_sys(object_ptr) }
+        unsafe { Gd::from_obj_sys_with(object_ptr, skip_inc_ref) }
     }
 
     /// Moves a user-created object into this smart pointer, submitting ownership to the Godot engine.
@@ -214,7 +215,7 @@ impl<T: GodotClass> Gd<T> {
         let ptr = classes::object_ptr_from_id(instance_id);
 
         // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
-        let untyped = unsafe { Gd::<classes::Object>::from_obj_sys_or_none(ptr)? };
+        let untyped = unsafe { Gd::<classes::Object>::from_obj_sys_or_none(ptr, false)? };
         untyped
             .owned_cast::<T>()
             .map_err(|obj| FromFfiError::WrongObjectType.into_error(obj))
@@ -537,8 +538,15 @@ impl<T: GodotClass> Gd<T> {
 
     pub(crate) unsafe fn from_obj_sys_or_none(
         ptr: sys::GDExtensionObjectPtr,
+        skip_inc_ref: bool,
     ) -> Result<Self, ConvertError> {
-        Self::try_from_ffi(RawGd::from_obj_sys(ptr))
+        let obj = if skip_inc_ref {
+            RawGd::from_obj_sys_weak(ptr)
+        } else {
+            RawGd::from_obj_sys(ptr)
+        };
+
+        Self::try_from_ffi(obj)
     }
 
     /// Initializes this `Gd<T>` from the object pointer as a **strong ref**, meaning
@@ -552,7 +560,19 @@ impl<T: GodotClass> Gd<T> {
             "Gd::from_obj_sys() called with null pointer"
         );
 
-        Self::from_obj_sys_or_none(ptr).unwrap()
+        Self::from_obj_sys_or_none(ptr, false).unwrap()
+    }
+
+    pub(crate) unsafe fn from_obj_sys_with(
+        ptr: sys::GDExtensionObjectPtr,
+        skip_inc_ref: bool,
+    ) -> Self {
+        debug_assert!(
+            !ptr.is_null(),
+            "Gd::from_obj_sys() called with null pointer"
+        );
+
+        Self::from_obj_sys_or_none(ptr, skip_inc_ref).unwrap()
     }
 
     pub(crate) unsafe fn from_obj_sys_weak_or_none(
