@@ -31,7 +31,7 @@
 //! | `instance_from_id`     | [`Gd::from_instance_id()`][crate::obj::Gd::from_instance_id]<br>[`Gd::try_from_instance_id()`][crate::obj::Gd::try_from_instance_id()] |
 //! | `is_instance_valid`    | [`Gd::is_instance_valid()`][crate::obj::Gd::is_instance_valid()]                                                                     |
 //! | `is_instance_id_valid` | [`InstanceId::lookup_validity()`][crate::obj::InstanceId::lookup_validity()]                                                         |
-//!
+//! | `weakref`              | [`WeakRef::from_strong()`][crate::classes::WeakRef::from_strong()]                                                                   |
 
 // Doc aliases are also available in dedicated APIs, but directing people here may give them a bit more context.
 #![doc(
@@ -51,8 +51,14 @@ pub use crate::gen::central::global_enums::*;
 pub use crate::gen::utilities::*;
 
 // This is needed for generated classes to find symbols, even those that have been moved to crate::builtin.
+use crate::builtin::Variant;
 #[allow(unused_imports)] // micromanaging imports for generated code is not fun
 pub(crate) use crate::builtin::{Corner, EulerOrder, Side};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Deprecations
+
+#[deprecated = "Use WeakRef::from_strong() instead."]
+pub fn weakref(obj: &Variant) -> Variant {
+    crate::gen::utilities::weakref(obj)
+}

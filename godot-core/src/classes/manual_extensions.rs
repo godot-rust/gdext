@@ -71,3 +71,47 @@ impl PackedScene {
         self.instantiate().and_then(|gd| gd.try_cast::<T>().ok())
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[cfg(feature = "codegen-full")]
+mod weakref {
+    use super::*;
+    use crate::classes::{RefCounted, WeakRef};
+    use crate::meta::error::ConvertError;
+    use crate::meta::ToGodot;
+    use crate::obj::GodotClass;
+
+    /// Manual extensions for the `WeakRef` class.
+    impl WeakRef {
+        /// Create weak reference.
+        pub fn from_strong<T>(strong_ref: &Gd<T>) -> Gd<Self>
+        where
+            T: Inherits<RefCounted>,
+        {
+            let inner_variant = strong_ref.to_variant();
+            let wr_variant = crate::gen::utilities::weakref(&inner_variant);
+            wr_variant.to::<Gd<WeakRef>>()
+        }
+
+        /// Extract weak reference.
+        ///
+        /// Returns `Err` if weak reference is dead or has wrong type.
+        /// To check *only* whether the weak ref is still alive, convert to `Object`.
+        pub fn try_to_strong<T>(&self) -> Result<Gd<T>, ConvertError>
+        where
+            T: GodotClass,
+        {
+            let inner_variant = self.get_ref();
+
+            // Special case for better error message.
+            if inner_variant.is_nil() {
+                Err(ConvertError::new(
+                    "object behind weak reference has been freed",
+                ))
+            } else {
+                inner_variant.try_to()
+            }
+        }
+    }
+}
