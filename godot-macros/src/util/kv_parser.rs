@@ -203,12 +203,6 @@ impl KvParser {
         Ok(Some(lit))
     }
 
-    /// Handles a string literal (`att = "str"`).
-    pub fn handle_string(&mut self, key: &str) -> ParseResult<Option<String>> {
-        self.handle_literal(key, "String")
-            .map(|possible_literal| possible_literal.map(|lit| lit.to_string()))
-    }
-
     pub fn handle_usize(&mut self, key: &str) -> ParseResult<Option<usize>> {
         let Some(lit) = self.handle_literal(key, "unsigned integer")? else {
             return Ok(None);

@@ -9,15 +9,8 @@ use crate::class::Field;
 use crate::util::bail;
 use crate::ParseResult;
 use proc_macro2::{Punct, TokenStream};
-use std::fmt::Display;
 
 pub struct Fields {
-    /// Names of all the declared groups and subgroups for this struct.
-    // In the future might be split in two (for groups and subgroups) & used to define the priority (order) of said groups.
-    // Currently order of declaration declares the group priority (i.e. – groups declared first are shown as the first in the editor).
-    // This order is not guaranteed but so far proved to work reliably.
-    pub groups: Vec<String>,
-
     /// All fields except `base_field`.
     pub all_fields: Vec<Field>,
 
@@ -36,7 +29,7 @@ pub struct Fields {
 /// Errors if `class` is a tuple struct.
 pub fn named_fields(
     class: &venial::Struct,
-    derive_macro_name: impl Display,
+    derive_macro_name: &str,
 ) -> ParseResult<Vec<(venial::NamedField, Punct)>> {
     // This is separate from parse_fields to improve compile errors. The errors from here demand larger and more non-local changes from the API
     // user than those from parse_struct_attributes, so this must be run first.

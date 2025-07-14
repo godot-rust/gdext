@@ -44,8 +44,6 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let mut func_name_consts = Vec::new();
     let mut export_tokens = Vec::new();
 
-    let (mut current_group, mut current_subgroup) = (None, None);
-
     for field in &fields.all_fields {
         let Field {
             name: field_ident,
@@ -53,6 +51,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             var,
             export,
             group,
+            subgroup,
             ..
         } = field;
 
@@ -74,14 +73,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             _ => continue,
         };
 
-        register_group_or_subgroup(
-            group,
-            &mut current_group,
-            &mut current_subgroup,
-            &fields.groups,
-            &mut export_tokens,
-            class_name,
-        );
+        make_groups_registrations(group, subgroup, &mut export_tokens, class_name);
 
         let field_name = field_ident.to_string();
 
@@ -232,61 +224,40 @@ fn make_getter_setter(
     quote! { #funcs_collection::#constant }
 }
 
-/// Pushes registration of group or subgroup in case if they differ from previously registered ones.
+/// Generates registrations for declared group and subgroup and pushes them to export tokens.
 ///
-/// Group membership of properties is based on the order of their registration.
-/// All the properties belong to group or subgroup registered beforehand.
-fn register_group_or_subgroup(
-    field_group: &Option<FieldGroup>,
-    current_group: &mut Option<usize>,
-    current_subgroup: &mut Option<usize>,
-    groups: &[String],
+/// Groups must be registered before subgroups (otherwise the ordering is broken).
+fn make_groups_registrations(
+    group: &Option<FieldGroup>,
+    subgroup: &Option<FieldGroup>,
     export_tokens: &mut Vec<TokenStream>,
     class_name: &Ident,
 ) {
-    let Some(group) = field_group else {
-        return;
-    };
-
-    if let Some(group_registration) = make_group_registration(
-        current_group,
-        group.group_name_index,
-        groups,
+    export_tokens.push(make_group_registration(
+        group,
         ident("register_group"),
         class_name,
-    ) {
-        export_tokens.push(group_registration);
-    }
-
-    if let Some(subgroup_registration) = make_group_registration(
-        current_subgroup,
-        group.subgroup_name_index,
-        groups,
+    ));
+    export_tokens.push(make_group_registration(
+        subgroup,
         ident("register_subgroup"),
         class_name,
-    ) {
-        export_tokens.push(subgroup_registration);
-    }
+    ));
 }
 
 fn make_group_registration(
-    current: &mut Option<usize>,
-    new: Option<usize>,
-    groups: &[String],
+    group: &Option<FieldGroup>,
     register_fn: Ident,
     class_name: &Ident,
-) -> Option<TokenStream> {
-    let new_group = new?;
+) -> TokenStream {
+    let Some(FieldGroup { name, prefix }) = group else {
+        return TokenStream::new();
+    };
 
-    if current.is_none_or(|cur| cur != new_group) {
-        *current = Some(new_group);
-        let group = groups.get(new_group)?;
-        Some(quote! {
-        ::godot::register::private::#register_fn::<#class_name>(
-                        #group,
-                    );
-        })
-    } else {
-        None
+    quote! {
+    ::godot::register::private::#register_fn::<#class_name>(
+            #name,
+            #prefix
+    );
     }
 }

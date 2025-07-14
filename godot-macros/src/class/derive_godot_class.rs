@@ -6,7 +6,7 @@
  */
 
 use crate::class::data_models::fields::{named_fields, Fields};
-use crate::class::data_models::group_export::{format_groups, sort_fields_by_group, FieldGroup};
+use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{
     make_property_impl, make_virtual_callback, BeforeKind, Field, FieldCond, FieldDefault,
     FieldExport, FieldVar, SignatureInfo,
@@ -38,7 +38,6 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let named_fields = named_fields(class, "#[derive(GodotClass)]")?;
     let mut struct_cfg = parse_struct_attributes(class)?;
     let mut fields = parse_fields(named_fields, struct_cfg.init_strategy)?;
-    sort_fields_by_group(&mut fields);
 
     if struct_cfg.is_editor_plugin() {
         modifiers.push(quote! { with_editor_plugin })
@@ -572,7 +571,6 @@ fn parse_fields(
     let mut base_field = Option::<Field>::None;
     let mut deprecations = vec![];
     let mut errors = vec![];
-    let mut groups = vec![];
 
     // Attributes on struct fields
     for (named_field, _punct) in named_fields {
@@ -666,8 +664,20 @@ fn parse_fields(
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export")? {
             let export = FieldExport::new_from_kv(&mut parser)?;
             field.export = Some(export);
-            let group = FieldGroup::new_from_kv(&mut parser, &mut groups)?;
+            parser.finish()?;
+        }
+
+        // #[export_group(name = ..., prefix = ...)]
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_group")? {
+            let group = FieldGroup::new_from_kv(&mut parser)?;
             field.group = Some(group);
+            parser.finish()?;
+        }
+
+        // #[export_subgroup(name = ..., prefix = ...)]
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_subgroup")? {
+            let subgroup = FieldGroup::new_from_kv(&mut parser)?;
+            field.subgroup = Some(subgroup);
             parser.finish()?;
         }
 
@@ -737,7 +747,6 @@ fn parse_fields(
     }
 
     Ok(Fields {
-        groups: format_groups(groups),
         all_fields,
         base_field,
         deprecations,

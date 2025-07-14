@@ -80,9 +80,9 @@ fn register_var_or_export_inner(
     }
 }
 
-pub fn register_group<C: GodotClass>(group_name: &str) {
+pub fn register_group<C: GodotClass>(group_name: &str, prefix: &str) {
     let group_name = GString::from(group_name);
-    let prefix = GString::default();
+    let prefix = GString::from(prefix);
     let class_name = C::class_name();
 
     unsafe {
@@ -95,9 +95,9 @@ pub fn register_group<C: GodotClass>(group_name: &str) {
     }
 }
 
-pub fn register_subgroup<C: GodotClass>(subgroup_name: &str) {
+pub fn register_subgroup<C: GodotClass>(subgroup_name: &str, prefix: &str) {
     let subgroup_name = GString::from(subgroup_name);
-    let prefix = GString::default();
+    let prefix = GString::from(prefix);
     let class_name = C::class_name();
 
     unsafe {
