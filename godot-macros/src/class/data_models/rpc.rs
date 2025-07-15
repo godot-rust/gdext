@@ -10,6 +10,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
 /// Possible ways the user can specify RPC configuration.
+#[derive(Debug)]
 pub enum RpcAttr {
     // Individual keys in the `rpc` attribute.
     // Example: `#[rpc(any_peer, reliable, call_remote, channel = 3)]`
@@ -27,7 +28,7 @@ pub enum RpcAttr {
     Expression(TokenStream),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum RpcMode {
     AnyPeer,
     Authority,
@@ -43,7 +44,7 @@ impl RpcMode {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum TransferMode {
     Reliable,
     Unreliable,

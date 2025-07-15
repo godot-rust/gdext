@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::class::transform_dyn_trait_impl;
+use crate::class::data_models::godot_dyn_impl::transform_dyn_trait_impl;
 use crate::util::bail;
 use crate::ParseResult;
 use proc_macro2::TokenStream;

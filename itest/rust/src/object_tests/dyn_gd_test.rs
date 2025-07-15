@@ -472,6 +472,10 @@ trait Health: 'static {
 
     fn deal_damage(&mut self, damage: u8);
 
+    fn cool_method(&self) -> GString {
+        "This is a cool method!".into()
+    }
+
     fn kill(&mut self) {
         self.deal_damage(self.get_hitpoints());
     }
@@ -510,6 +514,11 @@ impl Health for RefcHealth {
 
     fn deal_damage(&mut self, damage: u8) {
         self.hp -= damage;
+    }
+
+    #[func]
+    fn cool_method(&self) -> GString {
+        format!("RefcHealth is cool! Current HP: {}", self.hp).into()
     }
 }
 

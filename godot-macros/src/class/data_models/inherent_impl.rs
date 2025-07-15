@@ -21,18 +21,20 @@ use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens};
 
 /// Attribute for user-declared function.
-enum ItemAttrType {
+#[derive(Debug)]
+pub(crate) enum ItemAttrType {
     Func(FuncAttr, Option<RpcAttr>),
     Signal(SignalAttr, venial::AttributeValue),
     Const(#[allow(dead_code)] venial::AttributeValue),
 }
 
-struct ItemAttr {
-    attr_name: Ident,
-    ty: ItemAttrType,
+#[derive(Debug)]
+pub(crate) struct ItemAttr {
+    pub(crate) attr_name: Ident,
+    pub(crate) ty: ItemAttrType,
 }
 
-enum AttrParseResult {
+pub(crate) enum AttrParseResult {
     Func(FuncAttr),
     Rpc(RpcAttr),
     FuncRpc(FuncAttr, RpcAttr),
@@ -53,15 +55,15 @@ impl AttrParseResult {
     }
 }
 
-#[derive(Default)]
-struct FuncAttr {
+#[derive(Default, Debug)]
+pub(crate) struct FuncAttr {
     pub rename: Option<String>,
     pub is_virtual: bool,
     pub has_gd_self: bool,
 }
 
-#[derive(Default)]
-struct SignalAttr {
+#[derive(Default, Debug)]
+pub(crate) struct SignalAttr {
     pub no_builder: bool,
 }
 
@@ -207,34 +209,6 @@ pub fn transform_inherent_impl(
     }
 }
 
-pub fn transform_dyn_trait_impl(
-    decl: venial::Impl,
-    prv: TokenStream,
-    class_path: venial::TypeExpr,
-    trait_path: venial::TypeExpr,
-    assoc_type_constraints: TokenStream,
-) -> ParseResult<TokenStream> {
-    let new_code = quote! {
-        #decl
-
-        impl ::godot::obj::AsDyn<dyn #trait_path #assoc_type_constraints> for #class_path {
-            fn dyn_upcast(&self) -> &(dyn #trait_path #assoc_type_constraints + 'static) {
-                self
-            }
-
-            fn dyn_upcast_mut(&mut self) -> &mut (dyn #trait_path #assoc_type_constraints + 'static) {
-                self
-            }
-        }
-
-        ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_path>(
-            #prv::PluginItem::DynTraitImpl(#prv::DynTraitImpl::new::<#class_path, dyn #trait_path #assoc_type_constraints>()))
-        );
-
-    };
-    Ok(new_code)
-}
-
 /* Re-enable if we allow controlling declarative macros for signals (base_field_macro, visibility_macros).
 fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotApiHints> {
     // #[hint(has_base_field = BOOL)]
@@ -252,7 +226,7 @@ fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotAp
 }
 */
 
-fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
+pub fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
     if signature.params.is_empty() {
         return bail_attr(
             attr_name,
@@ -458,7 +432,7 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
 /// Appends the virtual function to `virtual_functions`.
 ///
 /// Returns the Godot-registered name of the virtual function, usually `_<name>` (but overridable with `#[func(rename = ...)]`).
-fn add_virtual_script_call(
+pub(crate) fn add_virtual_script_call(
     virtual_functions: &mut Vec<venial::Function>,
     function: &mut venial::Function,
     signature_info: &SignatureInfo,
@@ -542,7 +516,7 @@ fn add_virtual_script_call(
 /// Parses an entire item (`fn`, `const`) inside an `impl` block and returns a domain representation.
 ///
 /// See also [`parse_attributes_inner`].
-fn parse_attributes<T: ImplItem>(item: &mut T) -> ParseResult<Option<ItemAttr>> {
+pub(crate) fn parse_attributes<T: ImplItem>(item: &mut T) -> ParseResult<Option<ItemAttr>> {
     let span = util::span_of(item);
     parse_attributes_inner(item.attributes_mut(), span)
 }
@@ -722,7 +696,7 @@ fn bail_attr<R>(attr_name: &Ident, msg: &str, method_name: &Ident) -> ParseResul
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-trait ImplItem
+pub(crate) trait ImplItem
 where
     Self: ToTokens,
     for<'a> &'a Self: Spanned,

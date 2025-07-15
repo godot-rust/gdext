@@ -13,6 +13,7 @@ use proc_macro2::{Delimiter, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
 
 /// Holds information known from a signal's definition
+#[derive(Debug)]
 pub struct SignalDefinition {
     /// The signal's function signature (simplified, not original declaration).
     pub fn_signature: venial::Function,

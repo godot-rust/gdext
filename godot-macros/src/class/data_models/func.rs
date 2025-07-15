@@ -12,6 +12,7 @@ use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 
 /// Information used for registering a Rust function with Godot.
+#[derive(Debug)]
 pub struct FuncDefinition {
     /// Refined signature, with higher level info and renamed parameters.
     pub signature_info: SignatureInfo,
