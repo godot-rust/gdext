@@ -1531,7 +1531,7 @@ impl<T: ArrayElement> PartialOrd for Array<T> {
 /// # See also
 /// To create an `Array` of variants, see the [`varray!`] macro.
 ///
-/// For dictionaries, a similar macro [`dict!`] exists.
+/// For dictionaries, a similar macro [`vdict!`] exists.
 #[macro_export]
 macro_rules! array {
     ($($elements:expr),* $(,)?) => {
@@ -1558,7 +1558,7 @@ macro_rules! array {
 /// # See also
 /// To create a typed `Array` with a single element type, see the [`array!`] macro.
 ///
-/// For dictionaries, a similar macro [`dict!`] exists.
+/// For dictionaries, a similar macro [`vdict!`] exists.
 ///
 /// To construct slices of variants, use [`vslice!`].
 #[macro_export]
@@ -1604,7 +1604,7 @@ macro_rules! varray {
 /// # See also
 /// To create typed and untyped `Array`s, use the [`array!`] and [`varray!`] macros respectively.
 ///
-/// For dictionaries, a similar macro [`dict!`] exists.
+/// For dictionaries, a similar macro [`vdict!`] exists.
 #[macro_export]
 macro_rules! vslice {
     // Note: use to_variant() and not Variant::from(), as that works with both references and values

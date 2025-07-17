@@ -9,9 +9,10 @@ use crate::framework::itest;
 use godot::builtin::varray;
 use godot::classes::input::CursorShape;
 use godot::classes::mesh::PrimitiveType;
+use godot::classes::window::LayoutDirection;
 use godot::classes::{time, ArrayMesh};
 use godot::global::{Key, Orientation};
-use godot::obj::NewGd;
+use godot::obj::{EngineEnum, NewGd};
 use std::collections::HashSet;
 
 #[itest]
@@ -62,7 +63,7 @@ fn enum_hash() {
     months.insert(time::Month::NOVEMBER);
     months.insert(time::Month::DECEMBER);
 
-    assert_eq!(months.len(), 12);
+    assert_eq!(months.len(), 12, "hash collisions in constants");
 }
 
 // Testing https://github.com/godot-rust/gdext/issues/335
@@ -84,10 +85,36 @@ fn enum_as_str() {
     assert_eq!(Key::ESCAPE.as_str(), "ESCAPE");
     assert_eq!(Key::TAB.as_str(), "TAB");
     assert_eq!(Key::A.as_str(), "A");
+
+    #[cfg(since_api = "4.4")] // Deprecated in Godot, LOCALE is now alias for APPLICATION_LOCALE.
+    assert_eq!(LayoutDirection::LOCALE.as_str(), "APPLICATION_LOCALE");
 }
 
 #[itest]
 fn enum_godot_name() {
+    use godot::obj::EngineEnum;
+    assert_eq!(
+        godot_name(Orientation::VERTICAL),
+        Orientation::VERTICAL.as_str()
+    );
+    assert_eq!(
+        godot_name(Orientation::HORIZONTAL),
+        Orientation::HORIZONTAL.as_str()
+    );
+
+    assert_eq!(godot_name(Key::NONE), "KEY_NONE");
+    assert_eq!(godot_name(Key::SPECIAL), "KEY_SPECIAL");
+    assert_eq!(godot_name(Key::ESCAPE), "KEY_ESCAPE");
+    assert_eq!(godot_name(Key::TAB), "KEY_TAB");
+    assert_eq!(godot_name(Key::A), "KEY_A");
+
+    // Unknown enumerators (might come from the future).
+    assert_eq!(godot_name(Key::from_ord(1234)), "");
+}
+
+#[itest]
+#[expect(deprecated)]
+fn enum_godot_name_deprecated() {
     use godot::obj::EngineEnum;
     assert_eq!(
         Orientation::VERTICAL.godot_name(),
@@ -103,4 +130,15 @@ fn enum_godot_name() {
     assert_eq!(Key::ESCAPE.godot_name(), "KEY_ESCAPE");
     assert_eq!(Key::TAB.godot_name(), "KEY_TAB");
     assert_eq!(Key::A.godot_name(), "KEY_A");
+
+    // Unknown enumerators (might come from the future).
+    assert_eq!(Key::from_ord(1234).godot_name(), "");
+}
+
+fn godot_name<T: EngineEnum + Eq + PartialEq + 'static>(value: T) -> &'static str {
+    T::all_constants()
+        .iter()
+        .find(|c| c.value() == value)
+        .map(|c| c.godot_name())
+        .unwrap_or("") // Previous behavior.
 }

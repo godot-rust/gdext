@@ -344,17 +344,27 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// ## Editor plugins
 ///
-/// If you annotate a class with `#[class(editor_plugin)]`, it will be turned into an editor plugin. The
-/// class must then inherit from `EditorPlugin`, and an instance of that class will be automatically added
+/// Classes inheriting `EditorPlugin` will be automatically instantiated and added
 /// to the editor when launched.
 ///
 /// See [Godot's documentation of editor plugins](https://docs.godotengine.org/en/stable/tutorials/plugins/editor/index.html)
 /// for more information about editor plugins. But note that you do not need to create and enable the plugin
-/// through Godot's `Create New Plugin` menu for it to work, simply annotating the class with `editor_plugin`
+/// through Godot's `Create New Plugin` menu for it to work, simply creating the class which inherits `EditorPlugin`
 /// automatically enables it when the library is loaded.
 ///
 /// This should usually be combined with `#[class(tool)]` so that the code you write will actually run in the
 /// editor.
+///
+/// ### Editor plugins -- hot reload interaction
+///
+/// During hot reload, Godot firstly unloads `EditorPlugin`s, then changes all alive GDExtension classes instances into their base objects
+/// (classes inheriting `Resource` become `Resource`, classes inheriting `Node` become `Node` and so on), then reloads all the classes,
+/// and finally changes said instances back into their proper classes.
+///
+/// `EditorPlugin` will be re-added to the editor before the last step (changing instances from base classes to extension classes) is finished,
+/// which might cause issues with loading already cached resources and instantiated nodes.
+///
+/// In such a case, await one frame until extension is properly hot-reloaded (See: [`godot::task::spawn()`](../task/fn.spawn.html)).
 ///
 /// ## Class renaming
 ///

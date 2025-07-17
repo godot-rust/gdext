@@ -7,7 +7,7 @@
 
 use crate::framework::itest;
 use godot::builtin::{
-    array, dict, varray, vslice, Array, Callable, Color, GString, NodePath, StringName, Variant,
+    array, varray, vdict, vslice, Array, Callable, Color, GString, NodePath, StringName, Variant,
     VariantArray, Vector2,
 };
 use godot::classes::{Node2D, Object, RefCounted};
@@ -102,7 +102,7 @@ fn callable_object_method() {
 #[cfg(since_api = "4.3")]
 fn callable_variant_method() {
     // Dictionary
-    let dict = dict! { "one": 1, "value": 2 };
+    let dict = vdict! { "one": 1, "value": 2 };
     let dict_get = Callable::from_variant_method(&dict.to_variant(), "get");
     assert_eq!(dict_get.call(vslice!["one"]), 1.to_variant());
 

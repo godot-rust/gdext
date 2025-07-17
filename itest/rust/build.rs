@@ -193,7 +193,7 @@ fn collect_inputs() -> Vec<Input> {
 
     pushs!(inputs; Dictionary, Dictionary,
         r#"{"key": 83, -3: Vector2(1, 2), 0.03: true}"#,
-        dict! { "key": 83, (-3): Vector2::new(1.0, 2.0), 0.03: true },
+        vdict! { "key": 83, (-3): Vector2::new(1.0, 2.0), 0.03: true },
         true, true, None
     );
 

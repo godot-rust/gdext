@@ -6,7 +6,7 @@
  */
 
 use godot::builtin::{
-    array, dict, Array, Dictionary, GString, NodePath, StringName, Variant, VariantArray, Vector2,
+    array, vdict, Array, Dictionary, GString, NodePath, StringName, Variant, VariantArray, Vector2,
     Vector2Axis,
 };
 use godot::classes::{Node, Resource};
@@ -110,7 +110,7 @@ impl ToGodot for ConvertedStruct {
     type ToVia<'v> = Dictionary;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
-        dict! {
+        vdict! {
             "a": self.a,
             "b": self.b,
         }
@@ -159,7 +159,7 @@ fn custom_convert_roundtrip() {
 // method of `Variant` as they should be.
 #[itest]
 fn custom_convert_error_from_variant() {
-    let missing_a = dict! {
+    let missing_a = vdict! {
         "b": -0.001
     };
     let err = missing_a
@@ -172,7 +172,7 @@ fn custom_convert_error_from_variant() {
         ConvertedStruct::MISSING_KEY_A
     );
 
-    let missing_b = dict! {
+    let missing_b = vdict! {
         "a": 58,
     };
     let err = missing_b
@@ -185,7 +185,7 @@ fn custom_convert_error_from_variant() {
         ConvertedStruct::MISSING_KEY_B
     );
 
-    let too_many_keys = dict! {
+    let too_many_keys = vdict! {
         "a": 12,
         "b": 777.777,
         "c": "bar"
@@ -200,7 +200,7 @@ fn custom_convert_error_from_variant() {
         ConvertedStruct::TOO_MANY_KEYS
     );
 
-    let wrong_type_a = dict! {
+    let wrong_type_a = vdict! {
         "a": "hello",
         "b": 28.41,
     };
@@ -215,7 +215,7 @@ fn custom_convert_error_from_variant() {
         format!("{:?}", "hello".to_variant())
     );
 
-    let wrong_type_b = dict! {
+    let wrong_type_b = vdict! {
         "a": 29,
         "b": Vector2::new(1.0, 23.4),
     };
@@ -230,7 +230,7 @@ fn custom_convert_error_from_variant() {
         format!("{:?}", Vector2::new(1.0, 23.4).to_variant())
     );
 
-    let too_big_value = dict! {
+    let too_big_value = vdict! {
         "a": i64::MAX,
         "b": f32::NAN
     };

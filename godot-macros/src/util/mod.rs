@@ -85,6 +85,17 @@ pub(crate) use bail;
 pub(crate) use error;
 pub(crate) use require_api_version;
 
+/// Keeps all attributes except the one specified (e.g. `"itest"`).
+pub fn retain_attributes_except<'a>(
+    attributes: &'a [venial::Attribute],
+    macro_name: &'a str,
+) -> impl Iterator<Item = &'a venial::Attribute> {
+    attributes.iter().filter(move |attr| {
+        attr.get_single_path_segment()
+            .is_none_or(|segment| segment != macro_name)
+    })
+}
+
 pub fn reduce_to_signature(function: &venial::Function) -> venial::Function {
     let mut reduced = function.clone();
     reduced.vis_marker = None; // retained outside in the case of #[signal].
