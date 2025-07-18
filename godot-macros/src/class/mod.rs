@@ -14,6 +14,7 @@ mod data_models {
     pub mod field_export;
     pub mod field_var;
     pub mod func;
+    pub mod godot_dyn_impl;
     pub mod inherent_impl;
     pub mod interface_trait_impl;
     pub mod property;
