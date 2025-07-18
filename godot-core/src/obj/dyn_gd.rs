@@ -256,7 +256,7 @@ where
     /// The resulting guard implements `Deref<Target = D>`, allowing shared access to the trait's methods.
     ///
     /// See [`Gd::bind()`][Gd::bind] for borrow checking semantics and panics.
-    pub fn dyn_bind(&self) -> DynGdRef<D> {
+    pub fn dyn_bind(&self) -> DynGdRef<'_, D> {
         self.erased_obj.dyn_bind()
     }
 
@@ -265,7 +265,7 @@ where
     /// The resulting guard implements `DerefMut<Target = D>`, allowing exclusive mutable access to the trait's methods.
     ///
     /// See [`Gd::bind_mut()`][Gd::bind_mut] for borrow checking semantics and panics.
-    pub fn dyn_bind_mut(&mut self) -> DynGdMut<D> {
+    pub fn dyn_bind_mut(&mut self) -> DynGdMut<'_, D> {
         self.erased_obj.dyn_bind_mut()
     }
 
@@ -466,8 +466,8 @@ trait ErasedGd<D>
 where
     D: ?Sized + 'static,
 {
-    fn dyn_bind(&self) -> DynGdRef<D>;
-    fn dyn_bind_mut(&mut self) -> DynGdMut<D>;
+    fn dyn_bind(&self) -> DynGdRef<'_, D>;
+    fn dyn_bind_mut(&mut self) -> DynGdMut<'_, D>;
 
     fn clone_box(&self) -> Box<dyn ErasedGd<D>>;
 }
@@ -477,11 +477,11 @@ where
     T: AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
     D: ?Sized + 'static,
 {
-    fn dyn_bind(&self) -> DynGdRef<D> {
+    fn dyn_bind(&self) -> DynGdRef<'_, D> {
         DynGdRef::from_guard::<T>(Gd::bind(self))
     }
 
-    fn dyn_bind_mut(&mut self) -> DynGdMut<D> {
+    fn dyn_bind_mut(&mut self) -> DynGdMut<'_, D> {
         DynGdMut::from_guard::<T>(Gd::bind_mut(self))
     }
 

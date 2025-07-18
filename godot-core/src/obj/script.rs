@@ -450,7 +450,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///     # fn get_method_argument_count(&self, _: StringName) -> Option<u32> { todo!() }
     /// }
     /// ```
-    pub fn base(&self) -> ScriptBaseRef<T> {
+    pub fn base(&self) -> ScriptBaseRef<'_, T> {
         ScriptBaseRef::new(self.base_ref.to_gd(), self.mut_ref)
     }
 
@@ -512,7 +512,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///     # fn get_method_argument_count(&self, _: StringName) -> Option<u32> { todo!() }
     /// }
     /// ```
-    pub fn base_mut(&mut self) -> ScriptBaseMut<T> {
+    pub fn base_mut(&mut self) -> ScriptBaseMut<'_, T> {
         let guard = self.cell.make_inaccessible(self.mut_ref).unwrap();
 
         ScriptBaseMut::new(self.base_ref.to_gd(), guard)

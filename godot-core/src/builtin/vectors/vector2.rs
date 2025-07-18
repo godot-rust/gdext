@@ -160,7 +160,7 @@ impl Vector2 {
 
     #[doc(hidden)]
     #[inline]
-    pub fn as_inner(&self) -> inner::InnerVector2 {
+    pub fn as_inner(&self) -> inner::InnerVector2<'_> {
         inner::InnerVector2::from_outer(self)
     }
 }

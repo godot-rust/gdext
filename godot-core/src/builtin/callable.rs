@@ -448,7 +448,7 @@ impl Callable {
     }
 
     #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerCallable {
+    pub fn as_inner(&self) -> inner::InnerCallable<'_> {
         inner::InnerCallable::from_outer(self)
     }
 }

@@ -158,7 +158,7 @@ impl Signal {
     }
 
     #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerSignal {
+    pub fn as_inner(&self) -> inner::InnerSignal<'_> {
         inner::InnerSignal::from_outer(self)
     }
 }

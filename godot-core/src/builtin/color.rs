@@ -350,7 +350,7 @@ impl Color {
             && self.a <= 1.0
     }
 
-    fn as_inner(&self) -> InnerColor {
+    fn as_inner(&self) -> InnerColor<'_> {
         InnerColor::from_outer(self)
     }
 }

@@ -172,7 +172,7 @@ where
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
-    pub fn bind(&self) -> GdRef<T> {
+    pub fn bind(&self) -> GdRef<'_, T> {
         self.raw.bind()
     }
 
@@ -189,7 +189,7 @@ where
     /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdRef` or `GdMut` guard bound.
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&T` or `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
-    pub fn bind_mut(&mut self) -> GdMut<T> {
+    pub fn bind_mut(&mut self) -> GdMut<'_, T> {
         self.raw.bind_mut()
     }
 }
