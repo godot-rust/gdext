@@ -435,9 +435,16 @@ pub fn main_thread_id() -> std::thread::ThreadId {
 ///
 /// # Panics
 /// - If it is called before the engine bindings have been initialized.
-#[cfg(not(wasm_nothreads))]
 pub fn is_main_thread() -> bool {
-    std::thread::current().id() == main_thread_id()
+    #[cfg(not(wasm_nothreads))]
+    {
+        std::thread::current().id() == main_thread_id()
+    }
+
+    #[cfg(wasm_nothreads)]
+    {
+        true
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
