@@ -95,7 +95,7 @@ impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
 impl Vector3 {
     #[doc(hidden)]
     #[inline]
-    pub fn as_inner(&self) -> inner::InnerVector3 {
+    pub fn as_inner(&self) -> inner::InnerVector3<'_> {
         inner::InnerVector3::from_outer(self)
     }
 

@@ -74,7 +74,7 @@ impl_vector_fns!(Vector4, RVec4, real, (x, y, z, w));
 impl Vector4 {
     #[doc(hidden)]
     #[inline]
-    pub fn as_inner(&self) -> inner::InnerVector4 {
+    pub fn as_inner(&self) -> inner::InnerVector4<'_> {
         inner::InnerVector4::from_outer(self)
     }
 }

@@ -910,12 +910,12 @@ impl<T: ArrayElement> Array<T> {
     /// In particular this means that all reads are fine, since all values can be converted to `Variant`. However, writes are only OK
     /// if they match the type `T`.
     #[doc(hidden)]
-    pub unsafe fn as_inner_mut(&self) -> inner::InnerArray {
+    pub unsafe fn as_inner_mut(&self) -> inner::InnerArray<'_> {
         // The memory layout of `Array<T>` does not depend on `T`.
         inner::InnerArray::from_outer_typed(self)
     }
 
-    fn as_inner(&self) -> ImmutableInnerArray {
+    fn as_inner(&self) -> ImmutableInnerArray<'_> {
         ImmutableInnerArray {
             // SAFETY: We can only read from the array.
             inner: unsafe { self.as_inner_mut() },
