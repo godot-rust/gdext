@@ -19,7 +19,7 @@ fn match_class_basic_dispatch() {
     let obj: Gd<Object> = node2d.upcast();
     let to_free = obj.clone();
 
-    let result = match_class!(obj, {
+    let result = match_class! { obj,
         node @ Node2D => {
             require_node2d(&node);
             1
@@ -29,7 +29,7 @@ fn match_class_basic_dispatch() {
             2
         },
         _ => 3 // No comma.
-    });
+    };
 
     assert_eq!(result, 1);
     to_free.free();
@@ -41,11 +41,11 @@ fn match_class_shadowed_by_more_general() {
     let obj: Gd<Object> = node2d.upcast();
     let to_free = obj.clone();
 
-    let result = match_class!(obj, {
+    let result = match_class! { obj,
         _node @ Node => 1,
         _node @ Node2D => 2,
         _ => 3, // Comma.
-    });
+    };
 
     assert_eq!(
         result, 1,
@@ -58,11 +58,11 @@ fn match_class_shadowed_by_more_general() {
 fn match_class_ignored_fallback() {
     let obj: Gd<Object> = RefCounted::new_gd().upcast();
 
-    let result = match_class!(obj, {
+    let result = match_class! { obj,
         _node @ godot::classes::Node => 1, // Test qualified types.
         _res @ Resource => 2,
         _ => 3,
-    });
+    };
 
     assert_eq!(result, 3);
 }
@@ -71,17 +71,17 @@ fn match_class_ignored_fallback() {
 fn match_class_named_fallback_matched() {
     let obj: Gd<Object> = Resource::new_gd().upcast();
 
-    let result = match_class!(obj, {
+    let result = match_class! { obj,
         _node @ Node => 1,
         _node @ Node2D => 2,
 
         // Named fallback with access to original object.
-        other @ _ => {
+        other => {
             require_object(&other);
             assert_eq!(other.get_class(), "Resource".into());
             3
         }
-    });
+    };
 
     assert_eq!(result, 3);
 }
@@ -89,11 +89,35 @@ fn match_class_named_fallback_matched() {
 #[itest]
 fn match_class_named_fallback_unmatched() {
     // Test complex inline expression.
-    let result = match_class!(Resource::new_gd().upcast::<Object>(), {
+    let result = match_class! {
+        Resource::new_gd().upcast::<Object>(),
         _node @ Node => 1,
         _res @ Resource => 2,
-        _ignored @ _ => 3,
-    });
+        _ignored => 3,
+    };
 
     assert_eq!(result, 2);
+}
+
+#[itest]
+fn match_class_control_flow() {
+    let obj: Gd<Object> = Resource::new_gd().upcast();
+
+    let mut broken = false;
+
+    #[allow(clippy::never_loop)]
+    for _i in 0..1 {
+        match_class! { obj.clone(),
+            _node @ Node => 1,
+            _res @ Resource => {
+                broken = true;
+                break;
+            },
+            _ => 2
+        };
+
+        panic!("break didn't work");
+    }
+
+    assert!(broken, "break statement should have been executed");
 }
