@@ -67,8 +67,6 @@ impl HasConstants {
     #[cfg(any())]
     const CFG_REMOVES_CONSTANT: bool = compile_error!("Removed by #[cfg]");
 
-    // FIXME not thread-safe, OnceLock/LazyLock only implement Sync if T: Send+Sync
-    // See https://doc.rust-lang.org/std/sync/struct.LazyLock.html#impl-Sync-for-LazyLock%3CT,+F%3E
     #[func(constant)]
     fn array() -> Array<i64> {
         FUNC_ARRAY_INIT_COUNT.fetch_add(1, Ordering::Relaxed);
@@ -135,7 +133,7 @@ fn constant_func() {
         "#[func(constant)] always makes arrays read-only"
     );
 
-    // Direct Rust call.
+    // Call directly through Rust.
     let c = HasConstants::array();
     assert_eq!(FUNC_ARRAY_INIT_COUNT.load(Ordering::Relaxed), 1);
     assert_eq!(a, c);

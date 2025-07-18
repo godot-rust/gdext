@@ -572,22 +572,17 @@ fn substitute_func_as_constant(function: &mut venial::Function) {
     let span = return_type.span();
 
     let new_code = quote_spanned! { span=>
-        use ::godot::private::AssertSync;
+        use ::godot::private::SharedConstant;
         type Ret = #return_type;
 
-        static LOCK: std::sync::OnceLock<AssertSync<Ret>> = std::sync::OnceLock::new();
-        let constant: &'static AssertSync<Ret> = LOCK.get_or_init(|| {
-            let original_value = #original_body;
+        static LOCK: std::sync::OnceLock<SharedConstant<Ret>> = std::sync::OnceLock::new();
+        let constant: &'static SharedConstant<Ret> = LOCK.get_or_init(|| {
+            let original_value: Ret = #original_body;
 
-            // Use explicit trait syntax to cause immediate error if type doesn't fulfill the trait, rather than inference on the value.
-            // This also avoids weird errors in case the function body's type doesn't match the declared return type.
-            let constant_value = <Ret as ::godot::meta::GodotFuncConstant>::into_runtime_constant(original_value);
-            AssertSync::new(constant_value)
+            SharedConstant::new(original_value)
         });
 
-        // SAFETY: Sync is OK as constant is immutable, which is asserted by GodotFuncConstant trait.
-        let sync_ref = unsafe { constant.assume_sync() };
-        sync_ref.clone()
+        constant.get_instance()
     };
 
     let mut new_body = Group::new(Delimiter::Brace, new_code);

@@ -24,7 +24,7 @@ use std::cell::RefCell;
 
 use crate::global::godot_error;
 use crate::meta::error::CallError;
-use crate::meta::CallContext;
+use crate::meta::{CallContext, GodotFuncConstant};
 use crate::obj::Gd;
 use crate::{classes, sys};
 use std::io::Write;
@@ -497,27 +497,35 @@ pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Utility to assert that something can be shared between threads.
+/// Utility to share an "effectively immutable" constant between threads.
+///
+/// This is safe because the legwork happens in the unsafe [`GodotFuncConstant`] trait, which is unsafe. By using its method
+/// [`GodotFuncConstant::into_runtime_constant()`], we can store an "effectively immutable" value satisfying the conditions.
 ///
 /// See also `ThreadCrosser` in itest.
-pub struct AssertSync<T> {
+pub struct SharedConstant<T> {
     value: T,
 }
 
-impl<T> AssertSync<T> {
+impl<T> SharedConstant<T>
+where
+    T: Clone + GodotFuncConstant,
+{
     pub fn new(value: T) -> Self {
-        Self { value }
+        Self {
+            value: value.into_runtime_constant(),
+        }
     }
 
-    /// # Safety
-    /// Bypasses `Sync` checks, user's responsibility.
-    pub unsafe fn assume_sync(&self) -> &T {
-        &self.value
+    pub fn get_instance(&self) -> T {
+        self.value.clone()
     }
 }
 
-unsafe impl<T> Sync for AssertSync<T> {}
-unsafe impl<T> Send for AssertSync<T> {}
+// SAFETY: GodotFuncConstant guarantees that a value can be made "effectively immutable" and moved between threads.
+unsafe impl<T> Send for SharedConstant<T> {}
+// SAFETY: GodotFuncConstant guarantees that a value can be made "effectively immutable" and referenced between threads.
+unsafe impl<T> Sync for SharedConstant<T> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
