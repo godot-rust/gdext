@@ -239,6 +239,21 @@ struct CheckAllExports {
     #[export]
     normal: GString,
 
+    #[export_group(name = "test_group", prefix = "a_")]
+    #[export]
+    a_grouped: i64,
+
+    #[export]
+    ungrouped_field_after_a: i64,
+
+    #[export_subgroup(name = "some group")]
+    #[export]
+    subgrouped: i64,
+
+    #[export_subgroup(name = "")]
+    #[export]
+    ungrouped: i64,
+
     // `suffix = "px"` should be in the third slot to test that key-value pairs in that position no longer error.
     #[export(range = (0.0, 10.0, suffix = "px", or_greater, or_less, exp, degrees, hide_slider))]
     range_exported: f64,
@@ -453,6 +468,18 @@ fn export_resource() {
 #[derive(GodotClass)]
 #[class(init)]
 struct ExportOverride {
+    #[export_group(name = "some group")]
+    #[export]
+    first: i32,
+
+    #[export_group(name = "")]
+    #[export]
+    broke_out_of_some_group: i32,
+
+    #[export_subgroup(name = "some subgroup", prefix = "b_")]
+    #[export]
+    b_second: i32,
+
     // This is really a nonsensical set of values, but they're different from what `#[export]` here would generate.
     // So we should be able to ensure that we can override the values `#[export]` generates.
     #[export]
@@ -462,6 +489,9 @@ struct ExportOverride {
         usage_flags = [GROUP],
     )]
     resource: Option<Gd<Resource>>,
+
+    #[export]
+    last: i32,
 }
 
 #[itest]
@@ -481,6 +511,66 @@ fn override_export() {
 
 fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
     assert_eq!(property.get_or_nil(key), expected.to_variant());
+}
+
+// Checks if properties of a given class are arranged in the same order as ones declared in the Rust struct.
+// Guaranteed order is necessary to make groups and subgroups work properly.
+#[itest]
+fn guaranteed_ordering() {
+    let expected_order = [
+        // Note: Category, displayed at the very top of the inspector.
+        ("ExportOverride", PropertyUsageFlags::CATEGORY),
+        ("some group", PropertyUsageFlags::GROUP),
+        (
+            "first",
+            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
+        ),
+        // Breaks out of some group.
+        ("", PropertyUsageFlags::GROUP),
+        (
+            "broke_out_of_some_group",
+            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
+        ),
+        ("some subgroup", PropertyUsageFlags::SUBGROUP),
+        (
+            "b_second",
+            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
+        ),
+        ("resource", PropertyUsageFlags::GROUP),
+        (
+            "last",
+            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
+        ),
+        // Inherited from RefCounted – category and script.
+        ("RefCounted", PropertyUsageFlags::CATEGORY),
+        (
+            "script",
+            PropertyUsageFlags::NEVER_DUPLICATE
+                | PropertyUsageFlags::EDITOR
+                | PropertyUsageFlags::STORAGE,
+        ),
+    ];
+
+    let class = ExportOverride::new_gd();
+    let property_list = class.get_property_list();
+    assert_eq!(property_list.len(), expected_order.len());
+
+    for (idx, property) in property_list.iter_shared().enumerate() {
+        let (Some(name), Some(usage)) = (
+            property
+                .get("name")
+                .as_ref()
+                .map(<String as godot::prelude::FromGodot>::from_variant),
+            property
+                .get("usage")
+                .as_ref()
+                .map(<PropertyUsageFlags as godot::prelude::FromGodot>::from_variant),
+        ) else {
+            panic!("Property dict should contain Property name and its usage.");
+        };
+        assert_eq!(name, expected_order[idx].0);
+        assert_eq!(usage, expected_order[idx].1);
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

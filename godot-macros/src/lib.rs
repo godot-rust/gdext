@@ -300,6 +300,63 @@ use crate::util::{bail, ident, KvParser};
 /// }
 /// ```
 ///
+/// It is possible to group your exported properties inside the Inspector with the `#[export_group(name = "...", prefix =  "...")]` attribute.
+/// Every exported property after this attribute will be added to the group. Start a new group or use `#[export_group(name = "")]` (with an empty name) to break out.
+///
+/// Groups cannot be nested but subgroups can be declared with an `#[export_subgroup]` attribute.
+///
+/// GDExtension groups and subgroups follow the same rules as the gdscript ones.
+///
+/// <div class="warning">
+/// Nesting subgroups with the slash separator `/` <strong>outside</strong> the group is not supported and might crash the editor.
+/// </div>
+///
+/// See also in Godot docs:
+/// [Grouping Exports](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html#grouping-exports)
+///
+///```
+/// # use godot::prelude::*;
+/// const MAX_HEALTH: f64 = 100.0;
+///
+/// #[derive(GodotClass)]
+/// # #[class(init)]
+/// struct MyStruct {
+///     // @export_group("Group 1")
+///     // @export var group_1_field: int
+///     #[export]
+///     #[export_group(name = "Group 1")]
+///     group_1_field: i32,
+///
+///     // @export var group_1_field2: int
+///     #[export]
+///     group_1_field2: i32,
+///
+///     // @export_group("my group", "grouped_")
+///     // @export var grouped_field: int
+///     #[export_group(name = "my group", prefix = "grouped_")]
+///     #[export]
+///     grouped_field: u32,
+///
+///     // @export_subgroup("my subgroup")
+///     // @export var sub_field: int
+///     #[export_subgroup(name = "my subgroup")]
+///     #[export]
+///     sub_field: u32,
+///
+///     // Breaks out of subgroup `"my subgroup"`.
+///     // @export_subgroup("")
+///     // @export var grouped_field2: int
+///     #[export_subgroup(name = "")]
+///     #[export]
+///     grouped_field2: u32,
+///
+///     // @export var ungrouped_field: int
+///     #[export]
+///     ungrouped_field: i64,
+/// }
+///```
+///
+///
 /// ## Low-level property hints and usage
 ///
 /// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the `hint`, `hint_string`
@@ -482,7 +539,10 @@ use crate::util::{bail, ident, KvParser};
     alias = "tool",
     alias = "rename"
 )]
-#[proc_macro_derive(GodotClass, attributes(class, base, hint, var, export, init))]
+#[proc_macro_derive(
+    GodotClass,
+    attributes(class, base, hint, var, export, export_group, export_subgroup, init)
+)]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
 }
