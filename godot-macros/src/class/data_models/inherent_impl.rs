@@ -304,9 +304,10 @@ fn process_godot_fns(
                 };
 
                 // Clone might not strictly be necessary, but the 2 other callers of into_signature_info() are better off with pass-by-value.
-                let signature_info =
+                let mut signature_info =
                     into_signature_info(signature.clone(), class_name, gd_self_parameter.is_some());
 
+                signature_info.default_parameters = parse_default_parameters(&mut function.params)?;
                 // For virtual methods, rename/mangle existing user method and create a new method with the original name,
                 // which performs a dynamic dispatch.
                 let registered_name = if func.is_virtual {
@@ -686,6 +687,24 @@ fn parse_constant_attr(
     parser.finish()?;
 
     Ok(AttrParseResult::Constant(attr.value.clone()))
+}
+
+fn parse_default_parameters(
+    params: &mut venial::Punctuated<venial::FnParam>,
+) -> ParseResult<Vec<Option<TokenStream>>> {
+    let mut res = vec![];
+    for param in params.iter_mut() {
+        let typed_param = match &mut param.0 {
+            venial::FnParam::Receiver(_) => continue,
+            venial::FnParam::Typed(fn_typed_param) => fn_typed_param,
+        };
+        let default = match KvParser::parse_remove(&mut typed_param.attributes, "opt")? {
+            None => None,
+            Some(mut parser) => Some(parser.handle_expr_required("default")?),
+        };
+        res.push(default);
+    }
+    Ok(res)
 }
 
 fn bail_attr<R>(attr_name: &Ident, msg: &str, method_name: &Ident) -> ParseResult<R> {
