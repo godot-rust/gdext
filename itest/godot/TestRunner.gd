@@ -56,6 +56,7 @@ func _ready():
 
 	var special_case_test_suites: Array = [
 		load("res://SpecialTests.gd").new(),
+		load("res://AsyncFuncTests.gd").new(),
 	]
 
 	for suite in special_case_test_suites:

@@ -89,8 +89,7 @@ impl GdSelfObj {
     }
 
     #[func]
-    #[rustfmt::skip]
-    fn func_shouldnt_panic_with_segmented_path_attribute() -> bool {
+    fn funcs_shouldnt_panic_with_segmented_path_attribute() -> bool {
         true
     }
 
