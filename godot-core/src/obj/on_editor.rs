@@ -169,6 +169,59 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// }
 /// ```
 ///
+///
+/// # Custom getters and setters for `OnEditor`
+///
+/// Custom setters and/or getters for `OnEditor` are declared as for any other `#[var]`.
+/// Use the default `OnEditor<T>` implementation to set/retrieve the value.
+///
+/// ```
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyStruct {
+///     #[var(get = get_my_node, set = set_my_node)]
+///     my_node: OnEditor<Gd<Node>>,
+///     #[var(get = get_my_value, set = set_my_value)]
+///     #[init(sentinel = -1)]
+///     my_value: OnEditor<i32>,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     pub fn get_my_node(&self) -> Option<Gd<Node>> {
+///         // Write your logic in between here...
+///         let ret = self.my_node.get_property();
+///         // ...and there.
+///         ret
+///     }
+///
+///     #[func]
+///     pub fn set_my_node(&mut self, value: Option<Gd<Node>>) {
+///         self.my_node.set_property(value);
+///     }
+///
+///     #[func]
+///     pub fn get_my_value(&self) -> i32 {
+///         self.my_value.get_property()
+///     }
+///
+///     #[func]
+///     pub fn set_my_value(&mut self, value: i32) {
+///         if value == 13 {
+///             godot_warn!("13 is unlucky number.");
+///             return
+///         }
+///
+///         self.my_value.set_property(value);
+///     }
+/// }
+/// ```
+///
+/// See also: [Register properties -- `#[var]`](../register/derive.GodotClass.html#register-properties--var)
+///
+///
 /// # Using `OnEditor` with `#[class(tool)]`
 ///
 /// When used with `#[class(tool)]`, the before-ready checks are omitted.
