@@ -12,7 +12,7 @@ use std::fmt;
 #[derive(Debug)]
 pub struct StringError {
     message: String,
-    source: Option<Box<(dyn Error + 'static)>>,
+    source: Option<Box<dyn Error + 'static>>,
 }
 
 impl fmt::Display for StringError {
@@ -41,7 +41,7 @@ impl StringError {
 
     pub(crate) fn with_source(
         message: impl Into<String>,
-        source: impl Into<Box<(dyn Error + 'static)>>,
+        source: impl Into<Box<dyn Error + 'static>>,
     ) -> Self {
         Self {
             message: message.into(),

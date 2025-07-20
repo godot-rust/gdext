@@ -257,7 +257,7 @@ impl GString {
     }
 
     #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerString {
+    pub fn as_inner(&self) -> inner::InnerString<'_> {
         inner::InnerString::from_outer(self)
     }
 }

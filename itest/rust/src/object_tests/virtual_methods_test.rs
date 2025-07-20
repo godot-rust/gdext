@@ -280,7 +280,10 @@ impl IRefCounted for RevertTest {
             // No UB or anything else like a crash or panic should happen when `property_can_revert` and `property_get_revert` return
             // inconsistent values, but in case something like that happens we should be able to detect it through this function.
             "property_changes" => {
-                if INC.fetch_add(1, std::sync::atomic::Ordering::AcqRel) % 2 == 0 {
+                if INC
+                    .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+                    .is_multiple_of(2)
+                {
                     None
                 } else {
                     Some(true.to_variant())
