@@ -440,8 +440,12 @@ fn maybe_change_parameter_type(
         && param_ty.tokens.len() == 1
         && param_ty.tokens[0].to_string() == "f32"
     {
+        // Retain span of input parameter -> for error messages, IDE support, etc.
+        let mut f64_ident = ident("f64");
+        f64_ident.set_span(param_ty.span());
+
         Ok(venial::TypeExpr {
-            tokens: vec![TokenTree::Ident(ident("f64"))],
+            tokens: vec![TokenTree::Ident(f64_ident)],
         })
     } else {
         Err(param_ty)
