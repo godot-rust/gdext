@@ -16,6 +16,7 @@ use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 
+// TODO(v0.4): find more general name for trait.
 /// Object part of the signal receiver (handler).
 ///
 /// Functionality overlaps partly with [`meta::AsObjectArg`] and [`meta::AsArg<ObjectArg>`]. Can however not directly be replaced
