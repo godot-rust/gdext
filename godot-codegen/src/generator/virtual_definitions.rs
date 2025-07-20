@@ -9,9 +9,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::context::Context;
-use crate::models::domain::{Class, ClassLike, ExtensionApi, FnDirection, Function};
+use crate::models::domain::{Class, ExtensionApi, FnDirection};
 
-pub fn make_virtual_consts_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
+pub fn make_virtual_definitions_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
     make_virtual_hashes_for_all_classes(&api.classes, ctx)
 }
 

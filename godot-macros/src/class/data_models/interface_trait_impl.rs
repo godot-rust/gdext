@@ -139,7 +139,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             cfg_attrs: vec![],
             rust_method_name: "_ready".to_string(),
             // Can't use `virtuals::ready` here, as the base class might not be `Node` (see above why such a branch is still added).
-            godot_name_hash_constant: quote! { ::godot::sys::godot_virtual_consts::Node::ready },
+            godot_name_hash_constant: quote! { ::godot::private::virtuals::Node::ready },
             signature_info: SignatureInfo::fn_ready(),
             before_kind: BeforeKind::OnlyBefore,
             interface_trait: None,
@@ -190,7 +190,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             fn __virtual_call(name: &str, #hash_param) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
                 use ::godot::obj::UserClass as _;
-                use ::godot::sys::godot_virtual_consts::#trait_base_class as virtuals;
+                use ::godot::private::virtuals::#trait_base_class as virtuals;
                 #tool_check
 
                 match #match_expr {
@@ -610,7 +610,7 @@ fn handle_regular_virtual_fn<'a>(
         cfg_attrs,
         rust_method_name: virtual_method_name,
         // If ever the `I*` verbatim validation is relaxed (it won't work with use-renames or other weird edge cases), the approach
-        // with godot_virtual_consts module could be changed to something like the following (GodotBase = nearest Godot base class):
+        // with godot::private::virtuals module could be changed to something like the following (GodotBase = nearest Godot base class):
         // __get_virtual_hash::<Self::GodotBase>("method")
         godot_name_hash_constant: quote! { virtuals::#method_name_ident },
         signature_info,

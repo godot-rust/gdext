@@ -444,7 +444,7 @@ fn make_user_class_impl(
         if cfg!(since_api = "4.4") {
             hash_param = quote! { hash: u32, };
             matches_ready_hash = quote! {
-                (name, hash) == ::godot::sys::godot_virtual_consts::Node::ready
+                (name, hash) == ::godot::private::virtuals::Node::ready
             };
         } else {
             hash_param = TokenStream::new();
