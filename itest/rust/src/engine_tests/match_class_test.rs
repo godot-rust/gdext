@@ -10,8 +10,10 @@ use godot::prelude::*; // Expect match_class! to be in prelude.
 
 // Ensure static types are as expected.
 fn require_object(_: &Object) {}
+fn require_mut_object(_: &mut Object) {}
 fn require_node(_: &Node) {}
 fn require_node2d(_: &Node2D) {}
+fn require_mut_node2d(_: &mut Node2D) {}
 
 #[itest]
 fn match_class_basic_dispatch() {
@@ -22,6 +24,28 @@ fn match_class_basic_dispatch() {
     let result = match_class! { obj,
         node @ Node2D => {
             require_node2d(&node);
+            1
+        },
+        node @ Node => {
+            require_node(&node);
+            2
+        },
+        _ => 3 // No comma.
+    };
+
+    assert_eq!(result, 1);
+    to_free.free();
+}
+
+#[itest]
+fn match_class_basic_mut_dispatch() {
+    let node2d = Node2D::new_alloc();
+    let obj: Gd<Object> = node2d.upcast();
+    let to_free = obj.clone();
+
+    let result = match_class! { obj,
+        mut node @ Node2D => {
+            require_mut_node2d(&mut node);
             1
         },
         node @ Node => {
@@ -78,6 +102,25 @@ fn match_class_named_fallback_matched() {
         // Named fallback with access to original object.
         other => {
             require_object(&other);
+            assert_eq!(other.get_class(), "Resource".into());
+            3
+        }
+    };
+
+    assert_eq!(result, 3);
+}
+
+#[itest]
+fn match_class_named_mut_fallback_matched() {
+    let obj: Gd<Object> = Resource::new_gd().upcast();
+
+    let result = match_class! { obj,
+        _node @ Node => 1,
+        _node @ Node2D => 2,
+
+        // Named fallback with access to original object.
+        mut other => {
+            require_mut_object(&mut other);
             assert_eq!(other.get_class(), "Resource".into());
             3
         }
