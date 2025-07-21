@@ -54,8 +54,7 @@ pub trait Var: GodotConvert {
 // Note: HTML link for #[export] works if this symbol is inside prelude, but not in register::property.
 /// Trait implemented for types that can be used as [`#[export]`](../register/derive.GodotClass.html#properties-and-exports) fields.
 ///
-/// `Export` is only implemented for objects `Gd<T>` if either `T: Inherits<Node>` or `T: Inherits<Resource>`, just like GDScript.
-/// This means you cannot use `#[export]` with `Gd<RefCounted>`, for example.
+/// To export objects, see the [_Exporting_ section of `Gd<T>`](../obj/struct.Gd.html#exporting).
 ///
 /// For enums, this trait can be derived using the [`#[derive(Export)]`](../derive.Export.html) macro.
 #[doc(alias = "property")]

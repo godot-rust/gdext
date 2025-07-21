@@ -90,6 +90,16 @@ use crate::{classes, out};
 ///
 /// For type conversions, please read the [`godot::meta` module docs][crate::meta].
 ///
+/// # Exporting
+///
+/// The [`Export`][crate::registry::property::Export] trait is not directly implemented for `Gd<T>`, because the editor expects object-based
+/// properties to be nullable, while `Gd<T>` can't be null. Instead, `Export` is implemented for [`OnEditor<Gd<T>>`][crate::obj::OnEditor],
+/// which validates that objects have been set by the editor. For the most flexible but least ergonomic option, you can also export
+/// `Option<Gd<T>>` fields.
+///
+/// Objects can only be exported if `T: Inherits<Node>` or `T: Inherits<Resource>`, just like GDScript.
+/// This means you cannot use `#[export]` with `OnEditor<Gd<RefCounted>>`, for example.
+///
 /// [book]: https://godot-rust.github.io/book/godot-api/objects.html
 /// [`Object`]: classes::Object
 /// [`RefCounted`]: classes::RefCounted
@@ -949,6 +959,7 @@ impl<T: GodotClass> Var for Gd<T> {
     }
 }
 
+/// See [`Gd` Exporting](struct.Gd.html#exporting) section.
 impl<T> Export for Option<Gd<T>>
 where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
@@ -991,6 +1002,7 @@ where
     }
 }
 
+/// See [`Gd` Exporting](struct.Gd.html#exporting) section.
 impl<T> Export for OnEditor<Gd<T>>
 where
     Self: Var,
