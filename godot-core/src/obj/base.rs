@@ -284,6 +284,12 @@ impl<T: GodotClass> Base<T> {
         //*self.extra_strong_ref.borrow_mut() = None;
     }
 
+    pub(crate) fn surplus_dec_ref(&self) {
+        self.obj.raw.with_ref_counted(|refc| {
+            refc.unreference();
+        })
+    }
+
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     #[doc(hidden)]
     pub fn __fully_constructed_gd(&self) -> Gd<T> {

@@ -166,7 +166,7 @@ where
     if _skip_inc_ref {
         eprintln!("!!!! MARK SURPLUS REF - base {base_copy:?}");
 
-        let instance_ref = unsafe { instance_rust_ptr as &InstanceStorage<T> };
+        let instance_ref = unsafe { &*instance_rust_ptr };
         instance_ref.mark_surplus_ref();
     } else {
         eprintln!("No skip inc ref for {base_copy:?}");
