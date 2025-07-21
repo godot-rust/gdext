@@ -8,12 +8,15 @@
 mod derive_godot_class;
 mod godot_api;
 mod godot_dyn;
+
 mod data_models {
     pub mod constant;
     pub mod field;
     pub mod field_export;
     pub mod field_var;
+    pub mod fields;
     pub mod func;
+    pub mod group_export;
     pub mod inherent_impl;
     pub mod interface_trait_impl;
     pub mod property;
