@@ -163,7 +163,7 @@ where
 
     // Mark initialization as complete, now that user constructor has finished.
     eprintln!("Mark inited... {base_copy:?}");
-    let skip_inc_ref = base_copy.mark_initialized();
+    let _skip_inc_ref = base_copy.mark_initialized();
     eprintln!("Marked inited: {base_copy:?}");
     std::mem::forget(base_copy);
     eprintln!("Forgot base copy.");
@@ -172,6 +172,8 @@ where
     // last.call("unreference", &[]);
 
     eprintln!("Unreferenced last.");
+
+    let skip_inc_ref = false; // disabled.
 
     // std::mem::forget(class_name);
     Ok((instance_ptr, skip_inc_ref))
