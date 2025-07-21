@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+#[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
 use crate::docs::*;
 use crate::init::InitLevel;
 use crate::meta::ClassName;
@@ -192,13 +192,13 @@ pub struct Struct {
     pub(crate) is_instantiable: bool,
 
     /// Documentation extracted from the struct's RustDoc.
-    #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+    #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
     pub(crate) docs: StructDocs,
 }
 
 impl Struct {
     pub fn new<T: GodotClass + cap::ImplementsGodotExports>(
-        #[cfg(all(since_api = "4.3", feature = "register-docs"))] docs: StructDocs,
+        #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))] docs: StructDocs,
     ) -> Self {
         Self {
             base_class_name: T::Base::class_name(),
@@ -213,7 +213,7 @@ impl Struct {
             is_editor_plugin: false,
             is_internal: false,
             is_instantiable: false,
-            #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+            #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
             docs,
         }
     }
@@ -221,17 +221,17 @@ impl Struct {
     pub fn with_generated<T: GodotClass + cap::GodotDefault>(mut self) -> Self {
         set(&mut self.generated_create_fn, callbacks::create::<T>);
 
-        #[cfg(since_api = "4.2")]
+        #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
         set(&mut self.generated_recreate_fn, callbacks::recreate::<T>);
         self
     }
 
     // Workaround for https://github.com/godot-rust/gdext/issues/874, before https://github.com/godotengine/godot/pull/99133 is merged in 4.5.
-    #[cfg(before_api = "4.5")]
+    #[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
     pub fn with_generated_no_default<T: GodotClass>(mut self) -> Self {
         set(&mut self.generated_create_fn, callbacks::create_null::<T>);
 
-        #[cfg(since_api = "4.2")]
+        #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
         set(
             &mut self.generated_recreate_fn,
             callbacks::recreate_null::<T>,
@@ -285,13 +285,13 @@ pub struct InherentImpl {
     #[cfg_attr(not(feature = "codegen-full"), expect(dead_code))]
     pub(crate) register_rpcs_fn: Option<ErasedRegisterRpcsFn>,
 
-    #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+    #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
     pub docs: InherentImplDocs,
 }
 
 impl InherentImpl {
     pub fn new<T: cap::ImplementsGodotApi>(
-        #[cfg(all(since_api = "4.3", feature = "register-docs"))] docs: InherentImplDocs,
+        #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))] docs: InherentImplDocs,
     ) -> Self {
         Self {
             register_methods_constants_fn: ErasedRegisterFn {
@@ -300,7 +300,7 @@ impl InherentImpl {
             register_rpcs_fn: Some(ErasedRegisterRpcsFn {
                 raw: callbacks::register_user_rpcs::<T>,
             }),
-            #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+            #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
             docs,
         }
     }
@@ -340,10 +340,10 @@ pub struct ITraitImpl {
     >,
 
     /// User-defined `on_notification` function.
-    #[cfg(before_api = "4.2")]
+    #[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
     pub(crate) user_on_notification_fn:
         Option<unsafe extern "C" fn(p_instance: sys::GDExtensionClassInstancePtr, p_what: i32)>,
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub(crate) user_on_notification_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -383,7 +383,7 @@ pub struct ITraitImpl {
 
     // We do not support using this in Godot < 4.3, however it's easier to leave this in and fail elsewhere when attempting to use
     // this in Godot < 4.3.
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     pub(crate) user_free_property_list_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -391,7 +391,7 @@ pub struct ITraitImpl {
         ),
     >,
     /// Frees the property list created in the user-defined `get_property_list` function.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub(crate) user_free_property_list_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -421,7 +421,7 @@ pub struct ITraitImpl {
             r_ret: sys::GDExtensionVariantPtr,
         ) -> sys::GDExtensionBool,
     >,
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub(crate) validate_property_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -432,10 +432,10 @@ pub struct ITraitImpl {
 
 impl ITraitImpl {
     pub fn new<T: GodotClass + cap::ImplementsGodotVirtual>(
-        #[cfg(all(since_api = "4.3", feature = "register-docs"))] virtual_method_docs: &'static str,
+        #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))] virtual_method_docs: &'static str,
     ) -> Self {
         Self {
-            #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+            #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
             virtual_method_docs,
             get_virtual_fn: Some(callbacks::get_virtual::<T>),
             ..Default::default()
@@ -456,7 +456,7 @@ impl ITraitImpl {
     pub fn with_create<T: GodotClass + cap::GodotDefault>(mut self) -> Self {
         set(&mut self.user_create_fn, callbacks::create::<T>);
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         set(&mut self.user_recreate_fn, callbacks::recreate::<T>);
         self
     }
@@ -490,7 +490,7 @@ impl ITraitImpl {
             callbacks::get_property_list::<T>,
         );
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         set(
             &mut self.user_free_property_list_fn,
             callbacks::free_property_list::<T>,
@@ -510,7 +510,7 @@ impl ITraitImpl {
         self
     }
 
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub fn with_validate_property<T: GodotClass + cap::GodotValidateProperty>(mut self) -> Self {
         set(
             &mut self.validate_property_fn,

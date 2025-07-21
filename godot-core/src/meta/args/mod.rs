@@ -21,10 +21,10 @@ pub use ref_arg::RefArg;
 // Internal APIs
 
 // Solely public for itest/convert_test.rs.
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 #[doc(hidden)]
 pub use cow_arg::CowArg;
-#[cfg(not(feature = "trace"))]
+#[cfg(not(feature = "trace"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "trace"))))]
 pub(crate) use cow_arg::CowArg;
 
 #[allow(unused_imports)] // ObjectCow is used in generated code.
