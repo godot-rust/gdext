@@ -300,6 +300,7 @@ use crate::util::{bail, ident, KvParser};
 /// }
 /// ```
 ///
+/*
 /// It is possible to group your exported properties inside the Inspector with the `#[export_group(name = "...", prefix =  "...")]` attribute.
 /// Every exported property after this attribute will be added to the group. Start a new group or use `#[export_group(name = "")]` (with an empty name) to break out.
 ///
@@ -357,6 +358,7 @@ use crate::util::{bail, ident, KvParser};
 ///```
 ///
 ///
+ */
 /// ## Low-level property hints and usage
 ///
 /// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the `hint`, `hint_string`
@@ -539,9 +541,16 @@ use crate::util::{bail, ident, KvParser};
     alias = "tool",
     alias = "rename"
 )]
-#[proc_macro_derive(
-    GodotClass,
-    attributes(class, base, hint, var, export, export_group, export_subgroup, init)
+#[cfg_attr(
+    feature = "trace",
+    proc_macro_derive(
+        GodotClass,
+        attributes(class, init, base, hint, var, export, export_group, export_subgroup)
+    )
+)]
+#[cfg_attr(
+    not(feature = "trace"),
+    proc_macro_derive(GodotClass, attributes(class, init, base, hint, var, export))
 )]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
