@@ -64,7 +64,8 @@ pub trait Var: GodotConvert {
 #[diagnostic::on_unimplemented(
     message = "`#[var]` properties require `Var` trait; #[export] ones require `Export` trait",
     label = "type cannot be used as a property",
-    note = "see also: https://godot-rust.github.io/book/register/properties.html"
+    note = "see also: https://godot-rust.github.io/book/register/properties.html",
+    note = "`Gd` and `DynGd` cannot be exported directly; wrap them in `Option<...>` or `OnEditor<...>`."
 )]
 pub trait Export: Var {
     /// The export info to use for an exported field of this type, if no other export info is specified.
