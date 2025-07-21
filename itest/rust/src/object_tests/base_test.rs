@@ -182,17 +182,11 @@ fn base_during_init_refcounted_simple() {
 
             RefcBased { base }
         });
-
-        // let mut last =
-        //     Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001572288729));
-        // last.call("unreference", &[]);
-
         eprintln!("After construction: refc={}", obj.get_reference_count());
-        // obj.call("unreference", &[]);
-        //
-        // println!("After dec-ref: refc={}", obj.get_reference_count());
     }
-    // let last = Gd::from_instance_id(InstanceId::from_i64(9223372072137262887 as i64));
+
+    let mut last = Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001555511512));
+    last.call("unreference", &[]);
 }
 
 // #[itest(focus)]
