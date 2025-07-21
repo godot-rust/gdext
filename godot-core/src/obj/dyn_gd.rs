@@ -46,7 +46,7 @@ use std::{fmt, ops};
 /// #[derive(GodotClass)]
 /// #[class(init)]
 /// struct Monster {
-///    #[init(val = 100)]
+///     #[init(val = 100)]
 ///     hitpoints: u16,
 /// }
 ///
@@ -137,24 +137,39 @@ use std::{fmt, ops};
 /// and it can query the dynamic type of the object. Based on that type, it can find the `impl Health` implementation matching the correct class.
 /// Behind the scenes, everything is wired up correctly so that you can restore the original `DynGd` even after it has passed through Godot.
 ///
-/// # `#[export]` for `DynGd<T, D>`
+/// # Exporting
 ///
-/// Exporting `DynGd<T, D>` is possible only via [`OnEditor`] or [`Option`].
+/// [Like `Gd<T>`](struct.Gd.html#exporting), using `#[export]` with `DynGd<T, D>` is possible only via [`OnEditor`] or [`Option`].
 /// `DynGd<T, D>` can also be exported directly as an element of an array such as `Array<DynGd<T, D>>`.
 ///
-/// Since `DynGd<T, D>` represents shared functionality `D` across classes inheriting from `T`,
-/// consider using `#[export] Gd<T>` instead of `#[export] DynGd<T, D>`
-/// in cases when `T` is a concrete Rust `GodotClass`.
+/// When talking about "exporting", the following paragraphs assume that you wrap `DynGd` in one of those types.
 ///
-/// ## Node based classes
+/// In cases where `T: AsDyn<D>` (the trait is directly implemented on the user class, i.e. no upcasting), exporting `DynGd<T, D>` is
+/// equivalent to exporting `Gd<T>` regarding Inspector UI.
 ///
-/// `#[export]` for a `DynGd<T, D>` works identically to `#[export]` `Gd<T>` for `T` inheriting Node classes.
-/// Godot will report an error if the conversion fails, but it will only do so when accessing the given value.
+/// ## Node-based classes
 ///
-/// ## Resource based classes
+/// If `T` inherits `Node`, exporting `DynGd<T, D>` works identically to `Gd<T>`.
 ///
-/// `#[export]` for a `DynGd<T, D>` allows you to limit the available choices to implementors of a given trait `D` whose base inherits the specified `T`
-/// (for example, `#[export] Option<DynGd<Resource, dyn MyTrait>>` won't include Rust classes with an Object base, even if they implement `MyTrait`).
+/// If you try to assign a class from the editor that does not implement trait `D`, Godot will report a conversion-failed error,
+/// but it will only do so when accessing the given value.
+///
+/// ## Resource-based classes
+///
+/// If `T` inherits `Resource`, exporting `DynGd<T, D>>` will limit the available choices to known implementors of the trait `D`.
+///
+/// For example, let's say you have four Rust classes:
+///
+/// | Class        | Inherits   | Implements trait |
+/// |--------------|------------|------------------|
+/// | `Bullet`     | `Resource` | `Projectile`     |
+/// | `Rocket`     | `Resource` | `Projectile`     |
+/// | `BulletNode` | `Node`     | `Projectile`     |
+/// | `Tower`      | `Resource` | (none)           |
+///
+/// Then, an exported `DynGd<Resource, dyn Projectile>` would be visible in Godot's Inspector UI with a drop-down field, i.e. users can assign
+/// only objects of certain classes. **The available options for the drop-down are `Bullet` and `Rocket`.** The class `BulletNode` is not
+/// available because it's not a `Resource`, and `Tower` is not because it doesn't implement the `Projectile` trait.
 ///
 /// # Type inference
 ///
@@ -581,9 +596,7 @@ where
     }
 }
 
-/// `#[export]` for `Option<DynGd<T, D>>` is available only for `T` being Engine class (such as Node or Resource).
-///
-/// Consider exporting `Option<Gd<T>>` instead of `Option<DynGd<T, D>>` for user-declared GDExtension classes.
+/// See [`DynGd` Exporting](struct.DynGd.html#exporting) section.
 impl<T, D> Export for Option<DynGd<T, D>>
 where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
@@ -632,9 +645,7 @@ where
     }
 }
 
-/// `#[export]` for `OnEditor<DynGd<T, D>>` is available only for `T` being Engine class (such as Node or Resource).
-///
-/// Consider exporting `OnEditor<Gd<T>>` instead of `OnEditor<DynGd<T, D>>` for user-declared GDExtension classes.
+/// See [`DynGd` Exporting](struct.DynGd.html#exporting) section.
 impl<T, D> Export for OnEditor<DynGd<T, D>>
 where
     Self: Var,
