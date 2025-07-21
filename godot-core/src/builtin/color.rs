@@ -373,7 +373,7 @@ impl ApproxEq for Color {
 }
 
 /// Defines how individual color channels are laid out in memory.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
 pub enum ColorChannelOrder {
     /// RGBA channel order. Godot's default.
     RGBA,
