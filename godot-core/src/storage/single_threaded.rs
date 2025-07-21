@@ -20,9 +20,11 @@ pub struct InstanceStorage<T: GodotClass> {
     user_instance: GdCell<T>,
     pub(super) base: Base<T::Base>,
 
-    // Declared after `user_instance`, is dropped last
+    // Declared after `user_instance`, is dropped last.
     pub(super) lifecycle: cell::Cell<Lifecycle>,
     godot_ref_count: cell::Cell<u32>,
+
+    has_surplus_ref: cell::Cell<bool>,
 
     // No-op in Release mode.
     borrow_tracker: DebugBorrowTracker,
@@ -50,12 +52,17 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             base,
             lifecycle: cell::Cell::new(Lifecycle::Alive),
             godot_ref_count: cell::Cell::new(1),
+            has_surplus_ref: cell::Cell::new(false),
             borrow_tracker: DebugBorrowTracker::new(),
         }
     }
 
     fn is_bound(&self) -> bool {
         self.user_instance.is_currently_bound()
+    }
+
+    fn mark_surplus_ref(&self) {
+        self.has_surplus_ref.set(true);
     }
 
     fn base(&self) -> &Base<<Self::Instance as GodotClass>::Base> {

@@ -146,9 +146,8 @@ where
     let mut base_copy = unsafe { Base::from_base(&base) };
 
     let instance = InstanceStorage::<T>::construct(user_instance, base);
-
-    let instance_ptr = instance.into_raw();
-    let instance_ptr = instance_ptr as sys::GDExtensionClassInstancePtr;
+    let instance_rust_ptr = instance.into_raw();
+    let instance_ptr = instance_rust_ptr as sys::GDExtensionClassInstancePtr;
 
     let binding_data_callbacks = crate::storage::nop_instance_callbacks();
     unsafe {
@@ -164,6 +163,15 @@ where
     // Mark initialization as complete, now that user constructor has finished.
     eprintln!("Mark inited... {base_copy:?}");
     let _skip_inc_ref = base_copy.mark_initialized();
+    if _skip_inc_ref {
+        eprintln!("!!!! MARK SURPLUS REF - base {base_copy:?}");
+
+        let instance_ref = unsafe { instance_rust_ptr as &InstanceStorage<T> };
+        instance_ref.mark_surplus_ref();
+    } else {
+        eprintln!("No skip inc ref for {base_copy:?}");
+    }
+
     eprintln!("Marked inited: {base_copy:?}");
     std::mem::forget(base_copy);
     eprintln!("Forgot base copy.");
