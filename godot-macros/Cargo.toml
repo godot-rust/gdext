@@ -16,7 +16,6 @@ api-custom-json = ["godot-bindings/api-custom-json"]
 codegen-full = ["godot/__codegen-full"]
 experimental-wasm = []
 register-docs = ["dep:markdown", "dep:litrs"]
-trace = []
 
 [lib]
 proc-macro = true

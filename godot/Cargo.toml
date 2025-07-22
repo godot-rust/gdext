@@ -48,7 +48,7 @@ default = ["__codegen-full"]
 # Private features, they are under no stability guarantee
 __codegen-full = ["godot-core/codegen-full", "godot-macros/codegen-full"]
 __debug-log = ["godot-core/debug-log"]
-__trace = ["godot-core/trace", "godot-macros/trace"]
+__trace = ["godot-core/trace"]
 
 [dependencies]
 godot-core = { path = "../godot-core", version = "=0.3.4" }

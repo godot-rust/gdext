@@ -667,10 +667,7 @@ fn parse_fields(
             parser.finish()?;
         }
 
-        // TODO(v0.3.5): re-enable groups. Currently enabled in tests.
-
         // #[export_group(name = ..., prefix = ...)]
-        #[cfg(feature = "trace")]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_group")? {
             let group = FieldGroup::new_from_kv(&mut parser)?;
             field.group = Some(group);
@@ -678,7 +675,6 @@ fn parse_fields(
         }
 
         // #[export_subgroup(name = ..., prefix = ...)]
-        #[cfg(feature = "trace")]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_subgroup")? {
             let subgroup = FieldGroup::new_from_kv(&mut parser)?;
             field.subgroup = Some(subgroup);
