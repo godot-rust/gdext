@@ -10,9 +10,23 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033)
+- [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.3.4](https://docs.rs/godot/0.3.4)
+
+_22 July 2025_
+
+### 🧹 Quality of life
+
+- Derive `Hash` for `Rect2i` and a few enums ([#1241](https://github.com/godot-rust/gdext/pull/1241))
+- Emit proper compile error while trying to `#[export]` `Gd<T>` or `DynGd<T, D>` ([#1243](https://github.com/godot-rust/gdext/pull/1243))
+
+### 🛠️ Bugfixes
+
+- Re-export deprecated `dict!` macro ([#1247](https://github.com/godot-rust/gdext/pull/1247))
 
 
 ## [v0.3.3](https://docs.rs/godot/0.3.3)
