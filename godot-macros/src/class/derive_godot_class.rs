@@ -66,10 +66,10 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         modifiers.push(quote! { with_internal })
     }
     let base_ty = &struct_cfg.base_ty;
-    #[cfg(all(feature = "register-docs", since_api = "4.3"))]
+    #[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
     let docs =
         crate::docs::document_struct(base_ty.to_string(), &class.attributes, &fields.all_fields);
-    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
+    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))] #[cfg_attr(published_docs, doc(cfg(not(all(feature = "register-docs", since_api = "4.3")))))]
     let docs = quote! {};
     let base_class = quote! { ::godot::classes::#base_ty };
 
@@ -127,7 +127,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             is_instantiable = false;
 
             // Workaround for https://github.com/godot-rust/gdext/issues/874 before Godot 4.5.
-            #[cfg(before_api = "4.5")]
+            #[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
             modifiers.push(quote! { with_generated_no_default::<#class_name> });
         }
     };
@@ -416,10 +416,10 @@ fn make_user_class_impl(
     is_tool: bool,
     all_fields: &[Field],
 ) -> (TokenStream, bool) {
-    #[cfg(feature = "codegen-full")]
+    #[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
     let rpc_registrations =
         quote! { ::godot::register::private::auto_register_rpcs::<#class_name>(self); };
-    #[cfg(not(feature = "codegen-full"))]
+    #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
     let rpc_registrations = TokenStream::new();
 
     let onready_inits = make_onready_init(all_fields);
@@ -670,7 +670,7 @@ fn parse_fields(
         // TODO(v0.3.5): re-enable groups. Currently enabled in tests.
 
         // #[export_group(name = ..., prefix = ...)]
-        #[cfg(feature = "trace")]
+        #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_group")? {
             let group = FieldGroup::new_from_kv(&mut parser)?;
             field.group = Some(group);
@@ -678,7 +678,7 @@ fn parse_fields(
         }
 
         // #[export_subgroup(name = ..., prefix = ...)]
-        #[cfg(feature = "trace")]
+        #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_subgroup")? {
             let subgroup = FieldGroup::new_from_kv(&mut parser)?;
             field.subgroup = Some(subgroup);

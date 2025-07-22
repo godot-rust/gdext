@@ -11,7 +11,7 @@ use crate::init::InitLevel;
 use crate::meta::inspect::EnumConstant;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 use godot_ffi as sys;
@@ -515,9 +515,9 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
 }
 
 // Dummy traits to still allow bounds and imports.
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 pub trait WithSignals: GodotClass {}
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 pub trait WithUserSignals: WithSignals + WithBaseField {}
 
 /// Implemented for all classes with registered signals, both engine- and user-declared.
@@ -559,7 +559,7 @@ pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
 /// Implemented for user-defined classes with at least one `#[signal]` declaration.
 ///
 /// Allows to access signals from within the class, as `self.signals()`. This requires a `Base<T>` field.
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub trait WithUserSignals: WithSignals + WithBaseField {
     /// Access user-defined signals of the current object `self`.
     ///
@@ -748,7 +748,7 @@ pub mod cap {
     }
 
     #[doc(hidden)]
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub trait GodotValidateProperty: GodotClass {
         #[doc(hidden)]
         fn __godot_validate_property(&self, property: &mut PropertyInfo);
@@ -771,14 +771,14 @@ pub mod cap {
 
     /// Auto-implemented for `#[godot_api] impl XyVirtual for MyClass` blocks
     pub trait ImplementsGodotVirtual: GodotClass {
-        // Cannot use #[cfg(since_api = "4.4")] on the `hash` parameter, because the doc-postprocessing generates #[doc(cfg)],
+        // Cannot use #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))] on the `hash` parameter, because the doc-postprocessing generates #[doc(cfg)],
         // which isn't valid in parameter position.
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         #[doc(hidden)]
         fn __virtual_call(name: &str) -> sys::GDExtensionClassCallVirtual;
 
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         #[doc(hidden)]
         fn __virtual_call(name: &str, hash: u32) -> sys::GDExtensionClassCallVirtual;
     }

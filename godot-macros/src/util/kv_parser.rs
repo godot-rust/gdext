@@ -480,7 +480,7 @@ impl<'a> ParserState<'a> {
     }
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::*;
     use proc_macro2::TokenStream;

@@ -44,7 +44,7 @@ impl<'a> StringCache<'a> {
         let sname_ptr = sname.as_mut_ptr();
 
         // For Godot 4.1, construct StringName via String + conversion.
-        #[cfg(before_api = "4.2")]
+        #[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
         unsafe {
             let string_new_with_latin1_chars_and_len = self
                 .interface
@@ -74,7 +74,7 @@ impl<'a> StringCache<'a> {
         }
 
         // For Godot 4.2+, construct StringName directly from C string.
-        #[cfg(since_api = "4.2")]
+        #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
         unsafe {
             let string_name_new_with_utf8_chars_and_len = self
                 .interface
@@ -127,19 +127,19 @@ fn box_to_sname_ptr(
     opaque_ptr as sys::GDExtensionStringNamePtr
 }
 
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 unsafe fn string_type_ptr(opaque_ptr: *mut sys::types::OpaqueString) -> sys::GDExtensionTypePtr {
     opaque_ptr as sys::GDExtensionTypePtr
 }
 
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 unsafe fn string_uninit_ptr(
     opaque_ptr: *mut sys::types::OpaqueString,
 ) -> sys::GDExtensionUninitializedStringPtr {
     opaque_ptr as sys::GDExtensionUninitializedStringPtr
 }
 
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 unsafe fn sname_uninit_ptr(
     opaque_ptr: *mut sys::types::OpaqueStringName,
 ) -> sys::GDExtensionUninitializedStringNamePtr {
@@ -150,7 +150,7 @@ unsafe fn sname_type_ptr(opaque_ptr: *mut sys::types::OpaqueStringName) -> sys::
     opaque_ptr as sys::GDExtensionTypePtr
 }
 
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 unsafe fn sname_uninit_type_ptr(
     opaque_ptr: *mut sys::types::OpaqueStringName,
 ) -> sys::GDExtensionUninitializedTypePtr {

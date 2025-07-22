@@ -104,7 +104,7 @@ impl<T: GodotClass> Base<T> {
     }
 
     // Internal use only, do not make public.
-    #[cfg(feature = "debug-log")]
+    #[cfg(feature = "debug-log")] #[cfg_attr(published_docs, doc(cfg(feature = "debug-log")))]
     pub(crate) fn debug_instance_id(&self) -> crate::obj::InstanceId {
         self.obj.instance_id()
     }
