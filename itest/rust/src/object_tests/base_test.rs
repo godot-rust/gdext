@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot::classes::ClassDb;
 use crate::framework::{expect_panic, itest};
 use godot::prelude::*;
 
@@ -172,7 +173,7 @@ fn base_during_init_freed_gd() {
     );
 }
 
-#[itest(focus)]
+#[itest]
 fn base_during_init_refcounted_simple() {
     {
         let obj = Gd::from_init_fn(|base| {
@@ -184,6 +185,16 @@ fn base_during_init_refcounted_simple() {
         });
         eprintln!("After construction: refc={}", obj.get_reference_count());
     }
+
+    // let mut last = Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001555511512));
+    // last.call("unreference", &[]);
+}
+
+// Tests that the auto-decrement of surplus references also works when instantiated through the engine.
+#[itest(focus)]
+fn base_during_init_refcounted_from_engine() {
+    let db = ClassDb::singleton();
+    let obj = db.instantiate("RefcBased");
 
     // let mut last = Gd::<RefCounted>::from_instance_id(InstanceId::from_i64(-9223372001555511512));
     // last.call("unreference", &[]);
@@ -448,7 +459,9 @@ impl IRefCounted for RefcBased {
     fn init(base: Base<RefCounted>) -> Self {
         // let gd = base.to_init_gd();
 
+        eprintln!("---- before to_init_gd() ----");
         base.to_init_gd(); // Immediately dropped.
+        eprintln!("---- after to_init_gd() ----");
 
         // let _local_copy = base.to_init_gd(); // At end of scope.
         // let moved_out = Some(base.to_init_gd()); // Moved out.
