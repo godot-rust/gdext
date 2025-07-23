@@ -148,9 +148,9 @@ fn match_class_control_flow() {
 
     let mut broken = false;
 
-    #[allow(clippy::never_loop)]
+    #[expect(clippy::never_loop)]
     for _i in 0..1 {
-        match_class! { obj.clone(),
+        let _: i32 = match_class! { obj.clone(),
             _node @ Node => 1,
             _res @ Resource => {
                 broken = true;
@@ -163,4 +163,31 @@ fn match_class_control_flow() {
     }
 
     assert!(broken, "break statement should have been executed");
+}
+
+#[itest]
+fn match_class_unit_type() {
+    let obj: Gd<Object> = Object::new_alloc();
+    let to_free = obj.clone();
+    let mut val = 0;
+
+    match_class! { obj,
+        mut node @ Node2D => {
+            require_mut_node2d(&mut node);
+            val = 1;
+        },
+        node @ Node => {
+            require_node(&node);
+            val = 2;
+        },
+        // No need for _ branch since all branches return ().
+    }
+
+    assert_eq!(val, 0);
+    to_free.free();
+
+    // Special case: no branches at all. Also test unit type.
+    let _: () = match_class! { RefCounted::new_gd(),
+        // Nothing.
+    };
 }

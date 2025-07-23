@@ -11,9 +11,12 @@
 /// The current implementation checks [`Gd::try_cast()`][crate::obj::Gd::try_cast] linearly with the number of branches.
 /// This may change in the future.
 ///
-/// Requires a fallback branch, even if all direct known classes are handled. The reason for this is that there may be other subclasses which
-/// are not statically known by godot-rust (e.g. from a script or GDExtension). The fallback branch can either be `_` (discard object), or
-/// `variable` to access the original object inside the fallback arm.
+/// When none of the listed classes match, a _fallback branch_ acts as a catch-all and allows to retrieve the original `Gd` pointer.
+/// If the type of the `match_class!` expression is `()`, you can omit the fallback branch. For all other types, it is required, even if all
+/// direct subclasses are handled. The reason for this is that there may be other subclasses which are not statically known by godot-rust
+/// (e.g. from a script or GDExtension).
+///
+/// The fallback branch can either be `_` (discard object), or `variable` to access the original object inside the fallback arm.
 ///
 /// # Example
 /// ```no_run
@@ -51,6 +54,7 @@
 ///     original => 0,
 ///     // Can also be used with mut:
 ///     // mut original => 0,
+///     // If the match arms have type (), we can also omit the fallback branch.
 /// };
 ///
 /// // event_type is now 0, 1, 2, or 3
@@ -75,14 +79,6 @@ macro_rules! match_class {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! match_class_muncher {
-    /*
-    // If we want to support `variable @ _ => { ... }` syntax, use this branch first (to not match `_` as type).
-    ($subject:ident, $var:ident @ _ => $block:expr $(,)?) => {{
-        let $var = $subject;
-        $block
-    }};
-     */
-
     // mut variable @ Class => { ... }.
     ($subject:ident, mut $var:ident @ $Ty:ty => $block:expr, $($rest:tt)*) => {{
         match $subject.try_cast::<$Ty>() {
@@ -115,8 +111,9 @@ macro_rules! match_class_muncher {
         $block
     }};
 
-    // _ => { ... }.
-    ($subject:ident, _ => $block:expr $(,)?) => {{
-        $block
+    // _ => { ... }
+    // or nothing, if fallback is absent and overall expression being ().
+    ($subject:ident, $(_ => $block:expr $(,)?)?) => {{
+        $($block)?
     }};
 }
