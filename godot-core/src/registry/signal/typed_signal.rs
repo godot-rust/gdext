@@ -85,7 +85,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         let obj = obj.take().unwrap_or_else(|| {
             panic!(
                 "signals().{signal_name}() call failed; signals() allows only one signal configuration at a time \n\
-                see https://godot-rust.github.io/book/register/signals.html#one-signal-at-a-time"
+                see https://godot-rust.github.io/book/register/signals.html#admonition-one-signal-at-a-time"
             )
         });
 
