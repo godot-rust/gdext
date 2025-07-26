@@ -65,15 +65,14 @@ mod log_active {
 
     pub fn log_construct<T: GodotClass>(base: &Base<T::Base>) {
         out!(
-            "    Storage::construct:             {base:?}  (T={ty})",
+            "    Storage::construct:   {base:?}  (T={ty})",
             ty = type_name::<T>()
         );
     }
 
     pub fn log_inc_ref<T: StorageRefCounted>(storage: &T) {
         out!(
-            "    Storage::on_inc_ref (rc={rc}):  {base:?}  (T={ty})",
-            rc = T::godot_ref_count(storage),
+            "    Storage::on_inc_ref:  {base:?}  (T={ty})",
             base = storage.base(),
             ty = type_name::<T>(),
         );
@@ -81,8 +80,7 @@ mod log_active {
 
     pub fn log_dec_ref<T: StorageRefCounted>(storage: &T) {
         out!(
-            "  | Storage::on_dec_ref (rc={rc}):  {base:?}  (T={ty})",
-            rc = T::godot_ref_count(storage),
+            "  | Storage::on_dec_ref:  {base:?}  (T={ty})",
             base = storage.base(),
             ty = type_name::<T>(),
         );
@@ -103,8 +101,7 @@ mod log_active {
         // Do not Debug-fmt `self.base()` object here, see above.
 
         out!(
-            "    Storage::drop (rc={rc}):        {base_id}",
-            rc = storage.godot_ref_count(),
+            "    Storage::drop:        {base_id}",
             base_id = storage.base().debug_instance_id(),
         );
     }
