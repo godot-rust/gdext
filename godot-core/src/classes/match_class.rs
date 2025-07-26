@@ -26,6 +26,7 @@
 /// # // Hack to keep amount of SELECTED_CLASSES limited:
 /// # type InputEventMouseButton = InputEventAction;
 /// # type InputEventMouseMotion = InputEventAction;
+/// # type InputEventKey = InputEventAction;
 /// // Basic syntax.
 /// let event: Gd<InputEvent> = some_input();
 ///
@@ -33,6 +34,7 @@
 ///    button @ InputEventMouseButton => 1,
 ///    motion @ InputEventMouseMotion => 2,
 ///    action @ InputEventAction => 3,
+///    key @ InputEventKey => 4,
 ///    _ => 0, // Fallback.
 /// };
 ///
@@ -50,6 +52,10 @@
 ///     // Qualified types supported:
 ///     action @ godot::classes::InputEventAction => 3,
 ///
+///     // If you're only interested in the class and not the object,
+///     // discard it with either `_` or `_variable`:
+///     _ @ InputEventKey => 4,
+///
 ///     // Fallback with variable -- retrieves original Gd<InputEvent>.
 ///     original => 0,
 ///     // Can also be used with mut:
@@ -57,7 +63,7 @@
 ///     // If the match arms have type (), we can also omit the fallback branch.
 /// };
 ///
-/// // event_type is now 0, 1, 2, or 3
+/// // event_type is now 0, 1, 2, 3 or 4
 /// ```
 ///
 /// # Expression and control flow
@@ -93,6 +99,16 @@ macro_rules! match_class_muncher {
     ($subject:ident, $var:ident @ $Ty:ty => $block:expr, $($rest:tt)*) => {{
         match $subject.try_cast::<$Ty>() {
             Ok($var) => $block,
+            Err(__obj) => {
+                $crate::match_class_muncher!(__obj, $($rest)*)
+            }
+        }
+    }};
+
+    // _ @ Class => { ... }.
+    ($subject:ident, _ @ $Ty:ty => $block:expr, $($rest:tt)*) => {{
+        match $subject.try_cast::<$Ty>() {
+            Ok(_) => $block,
             Err(__obj) => {
                 $crate::match_class_muncher!(__obj, $($rest)*)
             }
