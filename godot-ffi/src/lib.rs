@@ -447,6 +447,24 @@ pub fn is_main_thread() -> bool {
     }
 }
 
+/// # Safety
+/// `class_name` is assumed to be valid.
+#[cfg(before_api = "4.4")]
+pub unsafe fn classdb_construct_object(
+    class_name: GDExtensionConstStringNamePtr,
+) -> GDExtensionObjectPtr {
+    interface_fn!(classdb_construct_object)(class_name)
+}
+
+/// # Safety
+/// `class_name` is assumed to be valid.
+#[cfg(since_api = "4.4")]
+pub unsafe fn classdb_construct_object_no_postinit(
+    class_name: GDExtensionConstStringNamePtr,
+) -> GDExtensionObjectPtr {
+    interface_fn!(classdb_construct_object2)(class_name)
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros to access low-level function bindings
 
