@@ -16,8 +16,9 @@ use crate::out;
 
 pub use sys::GdextBuild;
 
+pub use sys::is_main_thread;
 #[cfg(not(wasm_nothreads))]
-pub use sys::{is_main_thread, main_thread_id};
+pub use sys::main_thread_id;
 
 #[doc(hidden)]
 #[deny(unsafe_op_in_unsafe_fn)]
