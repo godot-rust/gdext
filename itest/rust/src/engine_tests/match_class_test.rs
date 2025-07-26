@@ -60,6 +60,29 @@ fn match_class_basic_mut_dispatch() {
 }
 
 #[itest]
+fn match_class_basic_unnamed_dispatch() {
+    let node3d = Node3D::new_alloc();
+    let obj: Gd<Object> = node3d.upcast();
+    let to_free = obj.clone();
+
+    let result = match_class! { obj,
+        node @ Node2D => {
+            require_node2d(&node);
+            1
+        },
+        _ @ Node3D => 2,
+        node @ Node => {
+            require_node(&node);
+            3
+        },
+        _ => 4 // No comma.
+    };
+
+    assert_eq!(result, 2);
+    to_free.free();
+}
+
+#[itest]
 fn match_class_shadowed_by_more_general() {
     let node2d = Node2D::new_alloc();
     let obj: Gd<Object> = node2d.upcast();
@@ -172,13 +195,16 @@ fn match_class_unit_type() {
     let mut val = 0;
 
     match_class! { obj,
+        _ @ Node3D => {
+            val = 1;
+        },
         mut node @ Node2D => {
             require_mut_node2d(&mut node);
-            val = 1;
+            val = 2;
         },
         node @ Node => {
             require_node(&node);
-            val = 2;
+            val = 3;
         },
         // No need for _ branch since all branches return ().
     }
