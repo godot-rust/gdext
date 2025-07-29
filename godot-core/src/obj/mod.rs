@@ -42,4 +42,9 @@ pub use bounds::private::Bounds;
 
 // Do not re-export rtti here.
 
+/// Resolves the type to which a `Gd<T>` dereferences.
+///
+/// This type alias abstracts over the two `Declarer` options for Godot objects:
+/// - [`bounds::DeclEngine`]: for all engine-provided classes, `DerefTarget<T>` is `T`.
+/// - [`bounds::DeclUser`]: for Rust-defined user classes, `DerefTarget<T>` is `T::Base`.
 type GdDerefTarget<T> = <<T as Bounds>::Declarer as bounds::Declarer>::DerefTarget<T>;
