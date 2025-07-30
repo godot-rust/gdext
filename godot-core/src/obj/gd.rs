@@ -780,7 +780,14 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait impls
 
-impl<T: GodotClass> Deref for Gd<T> {
+/// Dereferences to the nearest engine class, enabling direct calls to its `&self` methods.
+///
+/// For engine classes, returns `T` itself. For user classes, returns `T::Base` (the direct engine base class).
+/// The bound ensures that the target is always an engine-provided class.
+impl<T: GodotClass> Deref for Gd<T>
+where
+    GdDerefTarget<T>: Bounds<Declarer = bounds::DeclEngine>,
+{
     // Target is always an engine class:
     // * if T is an engine class => T
     // * if T is a user class => T::Base
@@ -791,7 +798,14 @@ impl<T: GodotClass> Deref for Gd<T> {
     }
 }
 
-impl<T: GodotClass> DerefMut for Gd<T> {
+/// Mutably dereferences to the nearest engine class, enabling direct calls to its `&mut self` methods.
+///
+/// For engine classes, returns `T` itself. For user classes, returns `T::Base` (the direct engine base class).
+/// The bound ensures that the target is always an engine-provided class.
+impl<T: GodotClass> DerefMut for Gd<T>
+where
+    GdDerefTarget<T>: Bounds<Declarer = bounds::DeclEngine>,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.raw.as_target_mut()
     }

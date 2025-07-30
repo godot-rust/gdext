@@ -261,7 +261,8 @@ impl<T: GodotClass> RawGd<T> {
     /// Bounds should be added on user-facing safe APIs.
     pub(super) unsafe fn as_upcast_ref<Base>(&self) -> &Base
     where
-        Base: GodotClass,
+        // DeclEngine needed for sound transmute; in case we add Rust-defined base classes.
+        Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
     {
         self.ensure_valid_upcast::<Base>();
 
@@ -299,7 +300,8 @@ impl<T: GodotClass> RawGd<T> {
     /// Bounds should be added on user-facing safe APIs.
     pub(super) unsafe fn as_upcast_mut<Base>(&mut self) -> &mut Base
     where
-        Base: GodotClass,
+        // DeclEngine needed for sound transmute; in case we add Rust-defined base classes.
+        Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
     {
         self.ensure_valid_upcast::<Base>();
 
@@ -315,7 +317,10 @@ impl<T: GodotClass> RawGd<T> {
 
     /// # Panics
     /// If this `RawGd` is null.
-    pub(super) fn as_target(&self) -> &GdDerefTarget<T> {
+    pub(super) fn as_target(&self) -> &GdDerefTarget<T>
+    where
+        GdDerefTarget<T>: Bounds<Declarer = bounds::DeclEngine>,
+    {
         // SAFETY: There are two possible Declarer::DerefTarget types:
         // - T, if T is an engine class
         // - T::Base, if T is a user class
@@ -325,7 +330,10 @@ impl<T: GodotClass> RawGd<T> {
 
     /// # Panics
     /// If this `RawGd` is null.
-    pub(super) fn as_target_mut(&mut self) -> &mut GdDerefTarget<T> {
+    pub(super) fn as_target_mut(&mut self) -> &mut GdDerefTarget<T>
+    where
+        GdDerefTarget<T>: Bounds<Declarer = bounds::DeclEngine>,
+    {
         // SAFETY: See as_target().
         unsafe { self.as_upcast_mut::<GdDerefTarget<T>>() }
     }
