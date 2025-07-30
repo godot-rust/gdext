@@ -158,6 +158,10 @@ unsafe fn gdext_on_level_init(level: InitLevel) {
     unsafe { sys::load_class_method_table(level) };
 
     match level {
+        InitLevel::Servers => {
+            // SAFETY: called from the main thread, sys::initialized has already been called.
+            unsafe { sys::discover_main_thread() };
+        }
         InitLevel::Scene => {
             // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
             unsafe { ensure_godot_features_compatible() };

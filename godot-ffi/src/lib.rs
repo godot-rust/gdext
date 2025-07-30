@@ -447,6 +447,32 @@ pub fn is_main_thread() -> bool {
     }
 }
 
+/// Assign the current thread id to be the main thread.
+///
+/// This is required for platforms on which Godot runs the main loop on a different thread than the thread the library was loaded on.
+/// Android is one such platform.
+///
+/// # Safety
+///
+/// - must only be called after [`initialize`] has been called.
+pub unsafe fn discover_main_thread() {
+    #[cfg(not(wasm_nothreads))]
+    {
+        if is_main_thread() {
+            // we don't have to do anything if the current thread is already the main thread.
+            return;
+        }
+
+        let thread_id = std::thread::current().id();
+
+        // SAFETY: initialize must have already been called before this function is called. By clearing and setting the cell again we can reinitialize it.
+        unsafe {
+            MAIN_THREAD_ID.clear();
+            MAIN_THREAD_ID.set(thread_id);
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros to access low-level function bindings
 
