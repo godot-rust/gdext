@@ -11,7 +11,7 @@ use std::{any, ptr};
 
 use crate::classes::ClassDb;
 use crate::init::InitLevel;
-use crate::meta::error::{ConvertError, FromGodotError};
+use crate::meta::error::FromGodotError;
 use crate::meta::ClassName;
 use crate::obj::{cap, DynGd, Gd, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
@@ -324,14 +324,14 @@ pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
 /// lifted, but would need quite a bit of extra machinery to work.
 pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
     mut object: Gd<T>,
-) -> Result<DynGd<T, D>, ConvertError> {
+) -> Result<DynGd<T, D>, (FromGodotError, Gd<T>)> {
     let typeid = any::TypeId::of::<D>();
     let trait_name = sys::short_type_name::<D>();
 
     // Iterate all classes that implement the trait.
     let dyn_traits_by_typeid = global_dyn_traits_by_typeid();
     let Some(relations) = dyn_traits_by_typeid.get(&typeid) else {
-        return Err(FromGodotError::UnregisteredDynTrait { trait_name }.into_error(object));
+        return Err((FromGodotError::UnregisteredDynTrait { trait_name }, object));
     };
 
     // TODO maybe use 2nd hashmap instead of linear search.
@@ -348,7 +348,7 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
         class_name: object.dynamic_class_string().to_string(),
     };
 
-    Err(error.into_error(object))
+    Err((error, object))
 }
 
 /// Responsible for creating hint_string for [`DynGd<T, D>`][crate::obj::DynGd] properties which works with [`PropertyHint::NODE_TYPE`][crate::global::PropertyHint::NODE_TYPE] or [`PropertyHint::RESOURCE_TYPE`][crate::global::PropertyHint::RESOURCE_TYPE].

@@ -131,6 +131,37 @@ use std::{fmt, ops};
 /// // Now work with the abstract object as usual.
 /// ```
 ///
+/// Any `Gd<T>` where `T` is an engine class can attempt conversion to `DynGd<T, D>` with [`Gd::try_dynify()`] as well.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// # use godot::classes::Node2D;
+/// # // ShapeCast2D is marked as experimental and thus not included in the doctests.
+/// # // We use this mock to showcase some real-world usage.
+/// # struct FakeShapeCastCollider2D {}
+///
+/// # impl FakeShapeCastCollider2D {
+/// #     fn get_collider(&self, _idx: i32) -> Option<Gd<Node2D>> { Some(Node2D::new_alloc()) }
+/// # }
+///
+/// trait Pushable { /* ... */ }
+///
+/// # let my_shapecast = FakeShapeCastCollider2D {};
+/// # let idx = 1;
+/// // We can try to convert `Gd<T>` into `DynGd<T, D>`.
+/// let node: Option<DynGd<Node2D, dyn Pushable>> =
+///     my_shapecast.get_collider(idx).and_then(
+///         |obj| obj.try_dynify().ok()
+///     );
+///
+/// // An object is returned after failed conversion, similarly to `Gd::try_cast()`.
+/// # let some_node = Node::new_alloc();
+/// match some_node.try_dynify::<dyn Pushable>() {
+///     Ok(dyn_gd) => (),
+///     Err(some_node) => godot_warn!("Failed to convert {some_node} into dyn Pushable!"),
+/// }
+/// ```
+///
 /// When converting from Godot back into `DynGd`, we say that the `dyn Health` trait object is _re-enriched_.
 ///
 /// godot-rust achieves this thanks to the registration done by `#[godot_dyn]`: the library knows for which classes `Health` is implemented,
@@ -541,7 +572,10 @@ where
     D: ?Sized + 'static,
 {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        try_dynify_object(via)
+        match try_dynify_object(via) {
+            Ok(dyn_gd) => Ok(dyn_gd),
+            Err((from_godot_err, obj)) => Err(from_godot_err.into_error(obj)),
+        }
     }
 }
 

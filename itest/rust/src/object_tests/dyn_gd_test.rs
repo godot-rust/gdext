@@ -343,6 +343,71 @@ fn dyn_gd_variant_conversions() {
 }
 
 #[itest]
+fn dyn_gd_object_conversions() {
+    let node = foreign::NodeHealth::new_alloc().upcast::<Node>();
+    let original_id = node.instance_id();
+
+    // Convert to different levels of DynGd:
+    let back: DynGd<Node, dyn Health> = node
+        .try_dynify()
+        .expect("Gd::try_dynify() should succeed.")
+        .cast();
+    assert_eq!(back.dyn_bind().get_hitpoints(), 100);
+    assert_eq!(back.instance_id(), original_id);
+
+    let obj = back.into_gd().upcast::<Object>();
+    let back: DynGd<Object, dyn Health> =
+        obj.try_dynify().expect("Gd::try_dynify() should succeed.");
+    assert_eq!(back.dyn_bind().get_hitpoints(), 100);
+    assert_eq!(back.instance_id(), original_id);
+
+    // Back to NodeHealth.
+    let node = back.cast::<foreign::NodeHealth>();
+    assert_eq!(node.bind().get_hitpoints(), 100);
+    assert_eq!(node.instance_id(), original_id);
+
+    // Convert to different DynGd.
+    let obj = node.into_gd().upcast::<Node>();
+    let back: DynGd<Node, dyn InstanceIdProvider<Id = InstanceId>> =
+        obj.try_dynify().expect("Gd::try_dynify() should succeed.");
+    assert_eq!(back.dyn_bind().get_id_dynamic(), original_id);
+
+    let obj = back.into_gd().upcast::<Object>();
+    let back: DynGd<Object, dyn InstanceIdProvider<Id = InstanceId>> =
+        obj.try_dynify().expect("Gd::try_dynify() should succeed.");
+    assert_eq!(back.dyn_bind().get_id_dynamic(), original_id);
+
+    back.free()
+}
+
+#[itest]
+fn dyn_gd_object_conversion_failures() {
+    // Unregistered trait conversion failure.
+    trait UnrelatedTrait {}
+
+    let node = foreign::NodeHealth::new_alloc().upcast::<Node>();
+    let original_id = node.instance_id();
+    let back = node.try_dynify::<dyn UnrelatedTrait>();
+    let node = back.expect_err("Gd::try_dynify() should have failed");
+
+    // `Gd::try_dynify()` should return the original instance on failure, similarly to `Gd::try_cast()`.
+    assert_eq!(original_id, node.instance_id());
+
+    // Unimplemented trait conversion failures.
+    let back = node.try_dynify::<dyn InstanceIdProvider<Id = i32>>();
+    let node = back.expect_err("Gd::try_dynify() should have failed");
+    assert_eq!(original_id, node.instance_id());
+
+    let obj = RefCounted::new_gd();
+    let original_id = obj.instance_id();
+    let back = obj.try_dynify::<dyn Health>();
+    let obj = back.expect_err("Gd::try_dynify() should have failed");
+    assert_eq!(original_id, obj.instance_id());
+
+    node.free();
+}
+
+#[itest]
 fn dyn_gd_store_in_godot_array() {
     let a = Gd::from_object(RefcHealth { hp: 33 }).into_dyn();
     let b = foreign::NodeHealth::new_alloc().into_dyn();
