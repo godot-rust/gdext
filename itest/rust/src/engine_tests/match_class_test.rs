@@ -217,3 +217,88 @@ fn match_class_unit_type() {
         // Nothing.
     };
 }
+
+#[itest]
+fn match_class_dyn_dispatch() {
+    // Test complex inline expression.
+    let result = match_class! {
+        ExampleRefCounted2::new_gd().upcast::<RefCounted>(),
+        ref_counted_1 @ dyn ExampleTraitFetch1 => ref_counted_1.dyn_bind().fetch(),
+        ref_counted_2 @ dyn ExampleTraitFetch2 => ref_counted_2.dyn_bind().fetch(),
+        _ignored => 3,
+    };
+
+    assert_eq!(result, 2);
+}
+
+#[itest]
+fn match_class_mut_dyn_dispatch() {
+    // Test complex inline expression.
+    let mut result = 0;
+    match_class! {
+        ExampleRefCounted1::new_gd().upcast::<RefCounted>(),
+        mut ref_counted_1 @ dyn ExampleTraitMut1 => ref_counted_1.dyn_bind_mut().mutate(&mut result),
+        mut ref_counted_2 @ dyn ExampleTraitMut2 => ref_counted_2.dyn_bind_mut().mutate(&mut result),
+    };
+
+    assert_eq!(result, 1);
+}
+
+#[itest]
+fn match_class_unnamed_dyn_dispatch() {
+    // Test complex inline expression.
+    let result = match_class! {
+        ExampleRefCounted1::new_gd().upcast::<RefCounted>(),
+        _ @ dyn ExampleTraitFetch1 => 1,
+        ref_counted_2 @ dyn ExampleTraitFetch2 => ref_counted_2.dyn_bind().fetch(),
+        _ignored => 3,
+    };
+
+    assert_eq!(result, 1);
+}
+
+// Example traits and nodes to use in the match class dynify testing.
+
+trait ExampleTraitFetch1: 'static {
+    fn fetch(&self) -> i32 {
+        1
+    }
+}
+
+trait ExampleTraitFetch2: 'static {
+    fn fetch(&self) -> i32 {
+        2
+    }
+}
+
+trait ExampleTraitMut1: 'static {
+    fn mutate(&mut self, value: &mut i32) {
+        *value = 1;
+    }
+}
+
+trait ExampleTraitMut2: 'static {
+    fn mutate(&mut self, value: &mut i32) {
+        *value = 2;
+    }
+}
+
+#[derive(GodotClass)]
+#[class(init)]
+struct ExampleRefCounted1 {}
+
+#[godot_dyn]
+impl ExampleTraitFetch1 for ExampleRefCounted1 {}
+
+#[godot_dyn]
+impl ExampleTraitMut1 for ExampleRefCounted1 {}
+
+#[derive(GodotClass)]
+#[class(init)]
+struct ExampleRefCounted2 {}
+
+#[godot_dyn]
+impl ExampleTraitFetch2 for ExampleRefCounted2 {}
+
+#[godot_dyn]
+impl ExampleTraitMut2 for ExampleRefCounted2 {}
