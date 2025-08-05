@@ -324,6 +324,27 @@ func test_custom_property_wrong_values_2():
 
 	assert_fail("HasCustomProperty.not_exportable should only accept dictionaries with float values")
 
+func test_phantom_var():
+	var obj := HasPhantomVar.new()
+
+	assert_eq(obj.read_only, 0)
+	assert_eq(obj.read_write, 0)
+
+	obj.read_write = 1
+
+	assert_eq(obj.read_only, 1)
+	assert_eq(obj.read_write, 1)
+
+func test_phantom_var_writing_read_only():
+	if runs_release():
+		return
+
+	# This must be untyped, otherwise the parser complains about our invalid write.
+	var obj = HasPhantomVar.new()
+	expect_fail()
+	obj.read_only = 1
+	assert_fail("HasPhantomVar.read_only should not be writable")
+
 func test_option_export():
 	var obj := OptionExportFfiTest.new()
 

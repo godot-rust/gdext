@@ -21,6 +21,7 @@ pub struct Field {
     pub subgroup: Option<FieldGroup>,
     pub is_onready: bool,
     pub is_oneditor: bool,
+    pub is_phantomvar: bool,
     #[cfg(feature = "register-docs")]
     pub attributes: Vec<venial::Attribute>,
     pub span: Span,
@@ -38,6 +39,7 @@ impl Field {
             subgroup: None,
             is_onready: false,
             is_oneditor: false,
+            is_phantomvar: false,
             #[cfg(feature = "register-docs")]
             attributes: field.attributes.clone(),
             span: field.span(),

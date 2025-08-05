@@ -23,6 +23,7 @@ mod object_swap_test;
 mod object_test;
 mod oneditor_test;
 mod onready_test;
+mod phantom_var_test;
 mod property_template_test;
 mod property_test;
 mod reentrant_test;
