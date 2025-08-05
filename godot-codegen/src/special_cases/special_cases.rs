@@ -773,7 +773,11 @@ pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
         "ScriptExtension" => {
             Some("Use this in combination with the [`obj::script` module][crate::obj::script].")
         }
-
+        "ResourceFormatLoader" => {
+            Some("Enable the `experimental-threads` feature when using custom `ResourceFormatLoader`s. \
+            Otherwise the application will panic when the custom `ResourceFormatLoader` is used by Godot \
+            in a thread other than the main thread.")
+        }
         _ => None,
     }
 }
