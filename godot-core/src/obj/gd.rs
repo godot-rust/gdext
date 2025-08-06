@@ -22,6 +22,7 @@ use crate::obj::{
     OnEditor, RawGd, WithSignals,
 };
 use crate::private::{callbacks, PanicPayload};
+use crate::registry::class::try_dynify_object;
 use crate::registry::property::{object_export_element_type_string, Export, Var};
 use crate::{classes, out};
 
@@ -510,6 +511,21 @@ impl<T: GodotClass> Gd<T> {
         D: ?Sized + 'static,
     {
         DynGd::<T, D>::from_gd(self)
+    }
+
+    /// Tries to upgrade to a `DynGd<T, D>` pointer, enabling the `D` abstraction.
+    ///
+    /// If `T`'s dynamic class doesn't implement `AsDyn<D>`, `Err(self)` is returned, meaning you can reuse the original
+    /// object for further casts.
+    pub fn try_dynify<D>(self) -> Result<DynGd<T, D>, Self>
+    where
+        T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+        D: ?Sized + 'static,
+    {
+        match try_dynify_object(self) {
+            Ok(dyn_gd) => Ok(dyn_gd),
+            Err((_convert_err, obj)) => Err(obj),
+        }
     }
 
     /// Returns a callable referencing a method from this object named `method_name`.
