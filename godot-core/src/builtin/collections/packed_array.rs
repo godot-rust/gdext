@@ -68,11 +68,11 @@ macro_rules! impl_packed_array {
         ///
         /// # Registering properties
         ///
-        /// You can use both `#[var]` and `#[export]` with packed arrays. However, since they use copy-on-write, GDScript (for `#[var]`) and the
-        /// editor (for `#[export]`) will effectively keep an independent copy of the array. Writes to the packed array from Rust are thus not
-        /// reflected on the other side -- you may need to replace the entire array.
+        /// You can use both `#[var]` and `#[export]` with packed arrays. In godot-rust, modifications to packed array properties are
+        /// properly synchronized between Rust and GDScript/reflection access.
         ///
-        /// See also [godot/#76150](https://github.com/godotengine/godot/issues/76150) for details.
+        /// In GDScript, mutating methods like `append_array()` may not work on `Packed*Array` properties of engine classes.
+        /// See [godot/#76150](https://github.com/godotengine/godot/issues/76150) for details.
         ///
         /// # Thread safety
         ///

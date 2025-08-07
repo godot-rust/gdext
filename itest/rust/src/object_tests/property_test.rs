@@ -5,7 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{vdict, vslice, Color, Dictionary, GString, Variant, VariantType};
+use godot::builtin::{
+    vdict, vslice, Color, Dictionary, GString, PackedInt32Array, Variant, VariantType,
+};
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
@@ -48,6 +50,9 @@ struct HasProperty {
 
     #[var(get = get_texture_val, set = set_texture_val, hint = RESOURCE_TYPE, hint_string = "Texture")]
     texture_val_rw: Option<Gd<Texture>>,
+
+    #[var]
+    packed_int_array: PackedInt32Array,
 }
 
 #[godot_api]
@@ -141,6 +146,7 @@ impl INode for HasProperty {
             string_val: GString::new(),
             texture_val: OnEditor::default(),
             texture_val_rw: None,
+            packed_int_array: PackedInt32Array::new(),
         }
     }
 }
@@ -624,6 +630,33 @@ fn test_var_with_renamed_funcs() {
     assert_eq!(obj.bind().get_int_val(), 128);
     assert_eq!(obj.call("f1", &[]).to::<i32>(), 128);
     assert_eq!(obj.get("int_val").to::<i32>(), 128);
+
+    obj.free();
+}
+
+// Tests that CoW packed-arrays' changes are reflected from Rust. See:
+// * Rust (sync does work): https://github.com/godot-rust/gdext/pull/576
+// * GDScript (not synced): https://github.com/godotengine/godot/issues/76150
+#[itest]
+fn test_copy_on_write_var() {
+    let mut obj = HasProperty::new_alloc();
+
+    // Mutate property via reflection -> verify change is reflected in Rust.
+    obj.set(
+        "packed_int_array",
+        &PackedInt32Array::from([1, 2, 3]).to_variant(),
+    );
+    assert_eq!(
+        obj.bind().packed_int_array,
+        PackedInt32Array::from(&[1, 2, 3])
+    );
+
+    // Mutate property in Rust -> verify change is reflected in Godot.
+    obj.bind_mut().packed_int_array.push(4);
+    assert_eq!(
+        obj.get("packed_int_array").to::<PackedInt32Array>(),
+        PackedInt32Array::from(&[1, 2, 3, 4])
+    );
 
     obj.free();
 }
