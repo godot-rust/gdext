@@ -9,7 +9,7 @@ use crate::class::data_models::fields::{named_fields, Fields};
 use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{
     make_property_impl, make_virtual_callback, BeforeKind, Field, FieldCond, FieldDefault,
-    FieldExport, FieldVar, SignatureInfo,
+    FieldExport, FieldVar, GetterSetter, SignatureInfo,
 };
 use crate::util::{
     bail, error, format_funcs_collection_struct, ident, path_ends_with_complex,
@@ -18,6 +18,7 @@ use crate::util::{
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
+use venial::Error;
 
 pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class = item.as_struct().ok_or_else(|| {
@@ -592,6 +593,11 @@ fn parse_fields(
             field.is_oneditor = true;
         }
 
+        // PhantomVar<T> type inference
+        if path_ends_with_complex(&field.ty, "PhantomVar") {
+            field.is_phantomvar = true;
+        }
+
         // #[init]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "init")? {
             // #[init] on fields is useless if there is no generated constructor.
@@ -683,7 +689,10 @@ fn parse_fields(
 
         // #[var]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "var")? {
-            let var = FieldVar::new_from_kv(&mut parser)?;
+            let mut var = FieldVar::new_from_kv(&mut parser)?;
+            if !field.is_phantomvar {
+                var.default_to_generated_getter_setter();
+            }
             field.var = Some(var);
             parser.finish()?;
         }
@@ -705,33 +714,7 @@ fn parse_fields(
 
         // Extra validation; eventually assign to base_fields or all_fields.
         if is_base {
-            if field.is_onready {
-                errors.push(error!(
-                    field.ty.clone(),
-                    "base field cannot have type `OnReady<T>`"
-                ));
-            }
-
-            if let Some(var) = field.var.as_ref() {
-                errors.push(error!(
-                    var.span,
-                    "base field cannot have the attribute #[var]"
-                ));
-            }
-
-            if let Some(export) = field.export.as_ref() {
-                errors.push(error!(
-                    export.span,
-                    "base field cannot have the attribute #[export]"
-                ));
-            }
-
-            if let Some(default_val) = field.default_val.as_ref() {
-                errors.push(error!(
-                    default_val.span,
-                    "base field cannot have the attribute #[init]"
-                ));
-            }
+            validate_base_field(&field, &mut errors);
 
             if let Some(prev_base) = base_field.replace(field) {
                 // Ensure at most one Base<T>.
@@ -742,6 +725,10 @@ fn parse_fields(
                 ));
             }
         } else {
+            if field.is_phantomvar {
+                validate_phantomvar_field(&field, &mut errors);
+            }
+
             all_fields.push(field);
         }
     }
@@ -752,6 +739,79 @@ fn parse_fields(
         deprecations,
         errors,
     })
+}
+
+fn validate_base_field(field: &Field, errors: &mut Vec<Error>) {
+    if field.is_onready {
+        errors.push(error!(
+            field.ty.clone(),
+            "base field cannot have type `OnReady<T>`"
+        ));
+    }
+
+    if let Some(var) = field.var.as_ref() {
+        errors.push(error!(
+            var.span,
+            "base field cannot have the attribute #[var]"
+        ));
+    }
+
+    if let Some(export) = field.export.as_ref() {
+        errors.push(error!(
+            export.span,
+            "base field cannot have the attribute #[export]"
+        ));
+    }
+
+    if let Some(default_val) = field.default_val.as_ref() {
+        errors.push(error!(
+            default_val.span,
+            "base field cannot have the attribute #[init]"
+        ));
+    }
+}
+
+fn validate_phantomvar_field(field: &Field, errors: &mut Vec<Error>) {
+    let Some(field_var) = &field.var else {
+        errors.push(error!(
+            field.span,
+            "PhantomVar<T> field is useless without attribute #[var]"
+        ));
+        return;
+    };
+
+    // For now, we do not support write-only properties. Godot does not fully support them either; it silently returns null
+    // when the property is being read. This is probably because the editor needs to be able to read exported properties,
+    // to show them in the inspector and serialize them to disk.
+    // See also this discussion:
+    // https://github.com/godot-rust/gdext/pull/1261#discussion_r2255335223
+    match field_var.getter {
+        GetterSetter::Omitted => {
+            errors.push(error!(
+                field_var.span,
+                "PhantomVar<T> requires a custom getter"
+            ));
+        }
+        GetterSetter::Generated => {
+            errors.push(error!(
+                field_var.span,
+                "PhantomVar<T> stores no data, so it cannot use an autogenerated getter"
+            ));
+        }
+        GetterSetter::Custom(_) => {}
+    }
+
+    // The setter may either be custom or omitted.
+    match field_var.setter {
+        GetterSetter::Omitted => {}
+        GetterSetter::Generated => {
+            errors.push(error!(
+                field_var.span,
+                "PhantomVar<T> stores no data, so it cannot use an autogenerated setter"
+            ));
+        }
+        GetterSetter::Custom(_) => {}
+    }
 }
 
 fn handle_opposite_keys(

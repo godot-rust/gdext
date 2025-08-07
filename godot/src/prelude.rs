@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-pub use super::register::property::{Export, Var};
+pub use super::register::property::{Export, PhantomVar, Var};
 
 // Re-export macros.
 pub use super::register::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};

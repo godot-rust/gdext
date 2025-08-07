@@ -16,6 +16,10 @@ use std::fmt::Display;
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 use crate::obj::{EngineEnum, GodotClass};
 
+mod phantom_var;
+
+pub use phantom_var::PhantomVar;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
 

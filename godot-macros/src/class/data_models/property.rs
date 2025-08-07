@@ -41,6 +41,7 @@ impl FieldHint {
 
 pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let mut getter_setter_impls = Vec::new();
+    let mut phantom_var_dummy_uses = Vec::new();
     let mut func_name_consts = Vec::new();
     let mut export_tokens = Vec::new();
 
@@ -163,6 +164,13 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             class_name,
         );
 
+        if field.is_phantomvar {
+            let field_name = field.name.clone();
+            phantom_var_dummy_uses.push(quote! {
+                let _ = &self.#field_name;
+            });
+        }
+
         export_tokens.push(quote! {
             // This type may be reused in #hint, in case of generic functions.
             type FieldType = #field_type;
@@ -176,6 +184,21 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         });
     }
 
+    let phantom_var_dummy_use_fn = if phantom_var_dummy_uses.is_empty() {
+        quote! {}
+    } else {
+        // `PhantomVar` fields are not normally accessed, resulting in undesired dead-code warnings.
+        // We are in a derive macro, so we cannot alter the original struct definition to add `#[allow(dead_code)]` to the field.
+        // Instead, we generate an unused, hidden function that mentions the field.
+        quote! {
+            #[expect(dead_code)]
+            #[doc(hidden)]
+            fn __phantom_var_dummy_uses(&self) {
+                #(#phantom_var_dummy_uses)*
+            }
+        }
+    };
+
     // For each generated #[func], add a const declaration.
     // This is the name of the container struct, which is declared by #[derive(GodotClass)].
     let class_functions_name = format_funcs_collection_struct(class_name);
@@ -183,6 +206,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     quote! {
         impl #class_name {
             #(#getter_setter_impls)*
+            #phantom_var_dummy_use_fn
         }
 
         impl #class_functions_name {
