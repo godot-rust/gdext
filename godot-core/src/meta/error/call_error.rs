@@ -117,10 +117,11 @@ impl CallError {
     pub(crate) fn check_arg_count(
         call_ctx: &CallContext,
         arg_count: usize,
+        default_args_count: usize,
         param_count: usize,
     ) -> Result<(), Self> {
         // This will need to be adjusted once optional parameters are supported in #[func].
-        if arg_count == param_count {
+        if arg_count + default_args_count >= param_count {
             return Ok(());
         }
 
@@ -221,6 +222,7 @@ impl CallError {
         )
     }
 
+    // should this be adjusted with default param counts?
     fn failed_param_count(
         call_ctx: &CallContext,
         arg_count: usize,
