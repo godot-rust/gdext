@@ -14,13 +14,16 @@
 // Moving said types to `godot-bindings` would increase the cognitive overhead (since domain mapping is responsibility of `godot-codegen`, while godot-bindings is responsible for providing required resources & emitting the version).
 // In the future we might experiment with splitting said types into separate crates.
 
-use crate::depend_on_custom_json::header_gen::generate_rust_binding;
-use crate::godot_version::validate_godot_version;
-use crate::{GodotVersion, StopWatch};
-use nanoserde::DeJson;
 use std::fs;
 use std::path::Path;
 
+use nanoserde::DeJson;
+
+use crate::depend_on_custom_json::header_gen::generate_rust_binding;
+use crate::godot_version::validate_godot_version;
+use crate::{GodotVersion, StopWatch};
+
+#[rustfmt::skip] // Do not reorder.
 // GDExtension headers are backward compatible (new incremental changes in general are exposed as additions to the existing API) while godot-rust simply ignores extra declarations in header file.
 // Therefore, latest headers should work fine for all the past and future Godot versions – as long as the engine remains unchanged.
 // [version-sync] [[

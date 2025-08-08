@@ -17,10 +17,8 @@ use crate::meta::{
 use crate::registry::method::MethodParamOrReturnInfo;
 use crate::registry::property::builtin_type_string;
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Public re-exports
-
 // Re-export sys traits in this module, so all are in one place.
+#[rustfmt::skip] // Do not reorder.
 pub use sys::{ExtVariantType, GodotFfi, GodotNullableFfi};
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].

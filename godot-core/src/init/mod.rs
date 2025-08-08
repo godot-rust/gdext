@@ -5,20 +5,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use godot_ffi as sys;
-
 use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
 use crate::out;
 
-pub use sys::GdextBuild;
-
-pub use sys::is_main_thread;
-#[cfg(not(wasm_nothreads))]
-pub use sys::main_thread_id;
+mod reexport_pub {
+    #[cfg(not(wasm_nothreads))]
+    pub use super::sys::main_thread_id;
+    pub use super::sys::{is_main_thread, GdextBuild};
+}
+pub use reexport_pub::*;
 
 #[doc(hidden)]
 #[deny(unsafe_op_in_unsafe_fn)]
@@ -101,13 +101,13 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
 
         // TODO: Remove this workaround once after the upstream issue is resolved.
         if level == InitLevel::Scene {
-            if !LEVEL_SERVERS_CORE_LOADED.load(Relaxed) {
+            if !LEVEL_SERVERS_CORE_LOADED.load(Ordering::Relaxed) {
                 try_load::<E>(InitLevel::Core);
                 try_load::<E>(InitLevel::Servers);
             }
         } else if level == InitLevel::Core {
             // When it's normal initialization, the `Servers` level is normally initialized.
-            LEVEL_SERVERS_CORE_LOADED.store(true, Relaxed);
+            LEVEL_SERVERS_CORE_LOADED.store(true, Ordering::Relaxed);
         }
 
         // SAFETY: Godot will call this from the main thread, after `__gdext_load_library` where the library is initialized,
@@ -133,7 +133,7 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
     let _ = crate::private::handle_panic(ctx, || {
         if level == InitLevel::Core {
             // Once the CORE api is unloaded, reset the flag to initial state.
-            LEVEL_SERVERS_CORE_LOADED.store(false, Relaxed);
+            LEVEL_SERVERS_CORE_LOADED.store(false, Ordering::Relaxed);
         }
 
         E::on_level_deinit(level);
