@@ -15,7 +15,7 @@ use std::ops::Deref;
 
 /// Owned or borrowed value, used when passing arguments through `impl AsArg` to Godot APIs.
 #[doc(hidden)]
-#[derive(PartialEq)] // only for tests.
+#[derive(PartialEq)]
 pub enum CowArg<'r, T> {
     Owned(T),
     Borrowed(&'r T),

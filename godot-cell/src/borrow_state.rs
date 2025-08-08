@@ -18,7 +18,7 @@
 /// If a catastrophic error occurs, then the state will be poisoned. If the state is poisoned then that's
 /// almost certainly an implementation bug, and should never happen. But in an abundance of caution it is
 /// included to be safe.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct BorrowState {
     /// The number of `&T` references that are tracked.
     shared_count: usize,
@@ -267,7 +267,7 @@ impl Default for BorrowState {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum BorrowStateErr {
     Poisoned(String),
     IsPoisoned,
@@ -309,7 +309,7 @@ mod proptests {
         }
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Copy, Clone, Eq, PartialEq, Debug)]
     enum Operation {
         IncShared,
         DecShared,
@@ -362,7 +362,7 @@ mod proptests {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[derive(Clone, Eq, PartialEq, Debug)]
     struct OperationExecutor {
         vec: Vec<Operation>,
     }

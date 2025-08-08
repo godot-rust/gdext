@@ -468,7 +468,7 @@ pub enum FnDirection {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum FnQualifier {
     Mut,    // &mut self
     Const,  // &self
@@ -715,7 +715,7 @@ impl fmt::Display for RustTy {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ArgPassing {
     ByValue,
     ByRef,

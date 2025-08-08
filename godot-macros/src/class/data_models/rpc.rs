@@ -27,7 +27,7 @@ pub enum RpcAttr {
     Expression(TokenStream),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub enum RpcMode {
     AnyPeer,
     Authority,
@@ -43,7 +43,7 @@ impl RpcMode {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub enum TransferMode {
     Reliable,
     Unreliable,
