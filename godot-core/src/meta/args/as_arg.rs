@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ffi::CStr;
+
 use crate::builtin::{GString, NodePath, StringName};
 use crate::meta::sealed::Sealed;
 use crate::meta::{CowArg, ToGodot};
-use std::ffi::CStr;
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///

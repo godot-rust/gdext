@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::path::Path;
+
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
+
 use crate::context::Context;
 use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
@@ -14,9 +19,6 @@ use crate::models::domain::{
     TyName,
 };
 use crate::{conv, util, SubmitFn};
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
-use std::path::Path;
 
 // Shared with native_structures.rs.
 pub struct GeneratedBuiltin {

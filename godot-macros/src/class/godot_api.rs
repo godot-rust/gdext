@@ -6,12 +6,11 @@
  */
 
 use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
 
 use crate::class::{transform_inherent_impl, transform_trait_impl};
 use crate::util::{bail, venial_parse_meta, KvParser};
 use crate::ParseResult;
-
-use quote::{format_ident, quote};
 
 fn parse_inherent_impl_attr(meta: TokenStream) -> Result<super::InherentImplAttr, venial::Error> {
     let item = venial_parse_meta(&meta, format_ident!("godot_api"), &quote! { fn func(); })?;

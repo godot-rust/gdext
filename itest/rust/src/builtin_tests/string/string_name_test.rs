@@ -7,8 +7,9 @@
 
 use std::collections::HashSet;
 
-use crate::framework::{assert_eq_self, itest};
 use godot::builtin::{Encoding, GString, NodePath, StringName};
+
+use crate::framework::{assert_eq_self, itest};
 
 #[itest]
 fn string_name_default() {

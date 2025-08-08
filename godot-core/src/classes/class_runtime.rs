@@ -230,7 +230,9 @@ where
 #[cfg(debug_assertions)]
 fn is_derived_base_cached(derived: ClassName, base: ClassName) -> bool {
     use std::collections::HashSet;
+
     use sys::Global;
+
     static CACHE: Global<HashSet<(ClassName, ClassName)>> = Global::default();
 
     let mut cache = CACHE.lock();

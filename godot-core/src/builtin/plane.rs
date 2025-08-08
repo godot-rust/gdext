@@ -5,13 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ops::Neg;
+
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, FloatExt};
 use crate::builtin::{real, Vector3};
-
-use std::ops::Neg;
 
 /// 3D plane in [Hessian normal form](https://mathworld.wolfram.com/HessianNormalForm.html).
 ///
@@ -317,10 +317,8 @@ impl std::fmt::Display for Plane {
 
 #[cfg(test)]
 mod test {
-    use crate::assert_eq_approx;
-    use crate::assert_ne_approx;
-
     use super::*;
+    use crate::{assert_eq_approx, assert_ne_approx};
 
     /// Tests that none of the constructors panic for some simple planes.
     #[test]

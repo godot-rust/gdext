@@ -5,6 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::collections::HashMap;
+
+use proc_macro2::Ident;
+
 use crate::context::Context;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
@@ -21,8 +25,6 @@ use crate::models::json::{
 };
 use crate::util::{get_api_level, ident, option_as_slice};
 use crate::{conv, special_cases};
-use proc_macro2::Ident;
-use std::collections::HashMap;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Top-level

@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
+
 use crate::derive::data_models::{CStyleEnum, ConvertType, GodotConvert, NewtypeStruct, ViaType};
 use crate::derive::derive_godot_convert::EnumeratorExprCache;
 use crate::util;
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
 
 /// Creates a `FromGodot` impl for the given `GodotConvert`.
 ///

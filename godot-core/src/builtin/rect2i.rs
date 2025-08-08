@@ -7,10 +7,10 @@
 
 use std::cmp;
 
-use crate::builtin::{Rect2, Side, Vector2i};
-
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
+
+use crate::builtin::{Rect2, Side, Vector2i};
 
 /// 2D axis-aligned integer bounding box.
 ///

@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::bail;
-use crate::ParseResult;
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use crate::util::bail;
+use crate::ParseResult;
 
 pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let venial::Item::Impl(decl) = input_decl else {

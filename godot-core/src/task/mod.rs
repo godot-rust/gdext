@@ -15,14 +15,15 @@ mod async_runtime;
 mod futures;
 
 pub(crate) use async_runtime::cleanup;
-pub(crate) use futures::{impl_dynamic_send, ThreadConfined};
-
 pub use async_runtime::{spawn, TaskHandle};
+pub(crate) use futures::{impl_dynamic_send, ThreadConfined};
 pub use futures::{
     DynamicSend, FallibleSignalFuture, FallibleSignalFutureError, IntoDynamicSend, SignalFuture,
 };
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Only exported for itest.
+
 #[cfg(feature = "trace")]
 pub use async_runtime::has_godot_task_panicked;
 #[cfg(feature = "trace")]

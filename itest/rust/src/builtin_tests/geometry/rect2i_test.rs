@@ -7,10 +7,11 @@
 
 use std::fmt::Debug;
 
-use crate::framework::itest;
 use godot::builtin::inner::InnerRect2i;
 use godot::builtin::{Rect2i, Side, Vector2i};
 use godot::obj::EngineEnum;
+
+use crate::framework::itest;
 
 #[itest]
 fn rect2i_equiv_unary() {

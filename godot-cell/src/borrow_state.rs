@@ -300,8 +300,11 @@ impl From<String> for BorrowStateErr {
 
 #[cfg(all(test, feature = "proptest"))]
 mod proptests {
+    use proptest::arbitrary::Arbitrary;
+    use proptest::collection::vec;
+    use proptest::prelude::*;
+
     use super::*;
-    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
     impl BorrowState {
         fn has_shared_reference(&self) -> bool {

@@ -5,6 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::borrow::Cow;
+use std::marker::PhantomData;
+use std::ops::DerefMut;
+
 use super::{make_callable_name, make_godot_fn, ConnectBuilder, ConnectHandle, SignalObject};
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
@@ -12,9 +16,6 @@ use crate::meta;
 use crate::meta::{InParamTuple, UniformObjectDeref};
 use crate::obj::{Gd, GodotClass, WithBaseField, WithSignals};
 use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
-use std::borrow::Cow;
-use std::marker::PhantomData;
-use std::ops::DerefMut;
 
 // TODO(v0.4): find more general name for trait.
 /// Object part of the signal receiver (handler).

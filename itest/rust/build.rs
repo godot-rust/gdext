@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
 use std::io::Write;
 use std::path::Path;
+
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
 
 type IoResult = std::io::Result<()>;
 

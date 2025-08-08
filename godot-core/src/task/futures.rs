@@ -20,6 +20,8 @@ use crate::meta::InParamTuple;
 use crate::obj::{EngineBitfield, Gd, GodotClass, WithSignals};
 use crate::registry::signal::TypedSignal;
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Internal re-exports
 pub(crate) use crate::impl_dynamic_send;
 
 /// The panicking counter part to the [`FallibleSignalFuture`].
@@ -497,11 +499,10 @@ macro_rules! impl_dynamic_send {
 mod tests {
     use std::sync::Arc;
 
+    use super::SignalFutureResolver;
     use crate::classes::Object;
     use crate::obj::Gd;
     use crate::sys;
-
-    use super::SignalFutureResolver;
 
     /// Test that the hash of a cloned future resolver is equal to its original version. With this equality in place, we can create new
     /// Callables that are equal to their original version but have separate reference counting.

@@ -452,10 +452,12 @@ impl From<NodePath> for GString {
 
 #[cfg(feature = "serde")]
 mod serialize {
-    use super::*;
+    use std::fmt::Formatter;
+
     use serde::de::{Error, Visitor};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::fmt::Formatter;
+
+    use super::*;
 
     // For "Available on crate feature `serde`" in docs. Cannot be inherited from module. Also does not support #[derive] (e.g. in Vector2).
     #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]

@@ -5,20 +5,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::collections::HashSet;
+use std::panic;
+
 use godot::classes::{Engine, Node, Os, SceneTree};
 use godot::obj::Gd;
 use godot::sys;
-use std::collections::HashSet;
-use std::panic;
 
 mod bencher;
 mod runner;
 
 pub use bencher::*;
-pub use runner::*;
-
 /// Allow re-import as `crate::framework::itest`.
 pub use godot::test::{bench, itest};
+pub use runner::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Plugin registration

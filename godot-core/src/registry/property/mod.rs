@@ -7,12 +7,13 @@
 
 //! Registration support for property types.
 
-use crate::classes;
-use crate::global::PropertyHint;
-use godot_ffi as sys;
-use godot_ffi::{GodotNullableFfi, VariantType};
 use std::fmt::Display;
 
+use godot_ffi as sys;
+use godot_ffi::{GodotNullableFfi, VariantType};
+
+use crate::classes;
+use crate::global::PropertyHint;
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 use crate::obj::{EngineEnum, GodotClass};
 
@@ -228,12 +229,13 @@ where
 /// Each function is named the same as the equivalent Godot annotation.  
 /// For instance, `@export_range` in Godot is `fn export_range` here.
 pub mod export_info_functions {
+    use godot_ffi::VariantType;
+
     use crate::builtin::GString;
     use crate::global::PropertyHint;
     use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
     use crate::obj::EngineEnum;
     use crate::registry::property::Export;
-    use godot_ffi::VariantType;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.

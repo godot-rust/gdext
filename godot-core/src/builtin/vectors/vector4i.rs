@@ -5,14 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use core::cmp::Ordering;
+use std::cmp::Ordering;
+use std::fmt;
+
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{GlamConv, GlamType};
 use crate::builtin::{inner, real, RVec4, Vector4, Vector4Axis};
-
-use std::fmt;
 
 /// Vector used for 4D math using integer coordinates.
 ///

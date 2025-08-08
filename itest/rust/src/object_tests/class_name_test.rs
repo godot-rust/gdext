@@ -4,13 +4,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use crate::framework::itest;
+
+use std::borrow::Cow;
+
 use godot::builtin::{GString, StringName};
 use godot::meta::ClassName;
 use godot::obj::bounds::implement_godot_bounds;
 use godot::obj::GodotClass;
 use godot::sys;
-use std::borrow::Cow;
+
+use crate::framework::itest;
 
 struct A;
 struct U;

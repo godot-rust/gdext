@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::{fmt, ops};
+
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassName, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
@@ -13,7 +15,6 @@ use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEd
 use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
 use crate::registry::property::{object_export_element_type_string, Export, Var};
 use crate::{meta, sys};
-use std::{fmt, ops};
 
 /// Smart pointer integrating Rust traits via `dyn` dispatch.
 ///

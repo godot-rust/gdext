@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::collections::{HashMap, HashSet};
+
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use std::collections::{HashMap, HashSet};
 
 use crate::util::{ident, KvParser, ListParser};
 use crate::ParseResult;

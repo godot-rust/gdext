@@ -8,15 +8,17 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(unused_attributes)]
 
+use std::fmt;
+
+use godot_ffi as sys;
+use sys::GodotFfi;
+
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, ConvertError};
 use crate::meta::{
     signature, CallContext, FromGodot, GodotConvert, GodotFfiVariant, GodotType, InParamTuple,
     OutParamTuple, ParamTuple, ToGodot,
 };
-use godot_ffi as sys;
-use std::fmt;
-use sys::GodotFfi;
 
 macro_rules! count_idents {
     () => { 0 };

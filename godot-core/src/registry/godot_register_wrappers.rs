@@ -7,13 +7,14 @@
 
 //! Internal registration machinery used by proc-macro APIs.
 
+use sys::GodotFfi;
+
 use crate::builtin::{GString, StringName};
 use crate::global::PropertyUsageFlags;
 use crate::meta::{ClassName, GodotConvert, GodotType, PropertyHintInfo, PropertyInfo};
 use crate::obj::GodotClass;
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
-use godot_ffi::GodotFfi;
 
 /// Same as [`register_var()`], but statically verifies the `Export` trait (again) and the fact that nodes can only be exported from nodes.
 pub fn register_export<C: GodotClass, T: Export>(

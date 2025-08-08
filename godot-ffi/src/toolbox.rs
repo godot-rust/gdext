@@ -7,8 +7,9 @@
 
 //! Functions and macros that are not very specific to gdext, but come in handy.
 
-use crate as sys;
 use std::fmt::{Display, Write};
+
+use crate as sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros

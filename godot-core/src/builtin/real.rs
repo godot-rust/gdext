@@ -166,6 +166,8 @@ mod real_mod {
 // Public symbols (note that macro `real!` is re-exported in `lib.rs`)
 pub use real_mod::{real, real_consts};
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 // Internal re-exports
 pub(crate) use real_mod::*;
 

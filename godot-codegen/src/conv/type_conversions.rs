@@ -7,9 +7,10 @@
 
 //! Type and expression conversions (Godot -> Rust)
 
+use std::fmt;
+
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{quote, ToTokens};
-use std::fmt;
 
 use crate::context::Context;
 use crate::conv;

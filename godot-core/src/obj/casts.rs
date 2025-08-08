@@ -5,10 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::obj::{GodotClass, RawGd};
-use godot_ffi::GodotNullableFfi;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
+
+use godot_ffi::GodotNullableFfi;
+
+use crate::obj::{GodotClass, RawGd};
 
 /// Represents a successful low-level cast from `T` to `U`.
 ///

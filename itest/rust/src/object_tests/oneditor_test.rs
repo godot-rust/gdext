@@ -5,12 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{expect_panic, itest};
 use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node, RefCounted};
+use godot::obj::{Gd, NewAlloc, OnEditor};
 use godot::register::{godot_api, GodotClass};
 
-use godot::obj::{Gd, NewAlloc, OnEditor};
+use crate::framework::{expect_panic, itest};
 
 #[itest]
 fn oneditor_deref() {

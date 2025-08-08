@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::{fmt, ptr};
+
+use godot_ffi as sys;
+use sys::{ffi_methods, interface_fn, GodotFfi};
+
 use crate::builtin::{
     GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
 };
@@ -14,9 +19,6 @@ use crate::meta::{
     arg_into_ref, ffi_variant_type, ArrayElement, AsArg, ExtVariantType, FromGodot, GodotType,
     ToGodot,
 };
-use godot_ffi as sys;
-use std::{fmt, ptr};
-use sys::{ffi_methods, interface_fn, GodotFfi};
 
 mod impls;
 

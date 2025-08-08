@@ -50,6 +50,9 @@ pub use crate::{
 pub use crate::gen::central::global_enums::*;
 pub use crate::gen::utilities::*;
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Internal re-exports
+
 // This is needed for generated classes to find symbols, even those that have been moved to crate::builtin.
 #[allow(unused_imports)] // micromanaging imports for generated code is not fun
 pub(crate) use crate::builtin::{Corner, EulerOrder, Side};

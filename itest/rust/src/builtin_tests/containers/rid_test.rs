@@ -39,8 +39,9 @@ fn canvas_set_parent() {
 #[itest]
 #[cfg(feature = "experimental-threads")]
 fn multi_thread_test() {
-    use godot::builtin::{Color, Vector2};
     use std::collections::HashSet;
+
+    use godot::builtin::{Color, Vector2};
 
     let threads = (0..10)
         .map(|_| {

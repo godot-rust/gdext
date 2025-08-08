@@ -7,8 +7,9 @@
 
 use std::collections::HashSet;
 
-use crate::framework::{expect_debug_panic_or_release_ok, itest};
 use godot::builtin::{GString, NodePath};
+
+use crate::framework::{expect_debug_panic_or_release_ok, itest};
 
 #[itest]
 fn node_path_default() {

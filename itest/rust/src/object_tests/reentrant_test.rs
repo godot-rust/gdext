@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
 use godot::prelude::*;
+
+use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(init, base = Object)]

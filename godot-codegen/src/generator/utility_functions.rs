@@ -5,13 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::path::Path;
+
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
+
 use crate::generator::functions_common;
 use crate::generator::functions_common::{FnCode, FnReceiver};
 use crate::models::domain::{ExtensionApi, Function, UtilityFunction};
 use crate::{util, SubmitFn};
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
-use std::path::Path;
 
 pub(crate) fn generate_utilities_file(
     api: &ExtensionApi,

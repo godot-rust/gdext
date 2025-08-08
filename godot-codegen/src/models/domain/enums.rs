@@ -9,10 +9,11 @@
 //!
 //! See also generator/enums.rs for functions related to turning enums into `TokenStream`s.
 
-use crate::models::domain::TyName;
-use crate::util::ident;
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{quote, ToTokens};
+
+use crate::models::domain::TyName;
+use crate::util::ident;
 
 pub struct Enum {
     pub name: Ident,

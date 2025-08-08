@@ -5,16 +5,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{expect_panic, itest, runs_release};
-use crate::object_tests::object_test::ObjPayload;
+use std::error::Error;
+use std::sync::{Arc, Mutex};
+
 use godot::builtin::{vslice, Variant, Vector3};
 use godot::classes::{Node, Node3D, Object};
 use godot::init::GdextBuild;
 use godot::meta::error::CallError;
 use godot::meta::{FromGodot, ToGodot};
 use godot::obj::{InstanceId, NewAlloc};
-use std::error::Error;
-use std::sync::{Arc, Mutex};
+
+use crate::framework::{expect_panic, itest, runs_release};
+use crate::object_tests::object_test::ObjPayload;
 
 #[itest]
 fn dynamic_call_no_args() {

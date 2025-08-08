@@ -8,10 +8,11 @@
 // Needed for Clippy to accept #[cfg(all())]
 #![allow(clippy::non_minimal_cfg)]
 
-use crate::framework::{expect_panic, itest};
 use godot::builtin::vslice;
 use godot::classes::ClassDb;
 use godot::prelude::*;
+
+use crate::framework::{expect_panic, itest};
 
 #[derive(GodotClass)]
 #[class(init, base=RefCounted)]

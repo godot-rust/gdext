@@ -13,21 +13,21 @@
 //! API design behind the builtin types (and some wider parts of the library) is elaborated in the
 //! [extended documentation page](../__docs/index.html#builtin-api-design).
 
-// Re-export macros.
-#[allow(deprecated)] // dict
-pub use crate::{array, dict, real, reals, varray, vdict};
-
 // Re-export generated enums.
 pub use crate::gen::central::global_reexported_enums::{Corner, EulerOrder, Side, VariantOperator};
 // Not yet public.
 pub(crate) use crate::gen::central::VariantDispatch;
 pub use crate::sys::VariantType;
+// Re-export macros.
+#[allow(deprecated)] // dict
+pub use crate::{array, dict, real, reals, varray, vdict};
 
 #[doc(hidden)]
 pub mod __prelude_reexport {
     use super::*;
-
-    pub use super::math::XformInv;
+    
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    
     pub use aabb::*;
     pub use basis::*;
     pub use callable::*;
@@ -48,9 +48,12 @@ pub mod __prelude_reexport {
     pub use variant::*;
     pub use vectors::*;
 
+    pub use super::math::XformInv;
     pub use super::{EulerOrder, Side, VariantOperator, VariantType};
     pub use crate::{array, real, reals, varray, vdict, vslice};
-
+    
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    
     #[allow(deprecated)]
     pub use crate::dict;
 }

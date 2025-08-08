@@ -11,9 +11,10 @@
 // & groups/subgroups declared for each field (`#[export(group = ..., subgroup = ...)]`
 // can be found at: https://github.com/godot-rust/gdext/pull/1214.
 
+use proc_macro2::Literal;
+
 use crate::util::{bail, KvParser};
 use crate::ParseResult;
-use proc_macro2::Literal;
 
 /// Specifies group or subgroup which starts with a given field.
 /// Group membership for properties in Godot is based on the order of their registration –

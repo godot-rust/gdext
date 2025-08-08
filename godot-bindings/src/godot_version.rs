@@ -9,10 +9,12 @@
 // while all the functions included are used only with `custom-api` and `custom-api-json` features.
 #![cfg_attr(not(feature = "api-custom"), allow(unused_variables, dead_code))]
 
-use crate::GodotVersion;
-use regex::{Captures, Regex};
 use std::error::Error;
 use std::str::FromStr;
+
+use regex::{Captures, Regex};
+
+use crate::GodotVersion;
 
 pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Error>> {
     // Format of the string emitted by `godot --version`:

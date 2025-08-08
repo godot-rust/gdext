@@ -7,13 +7,12 @@
 
 #![cfg(since_api = "4.2")]
 
+use godot::builtin::{Callable, Signal};
+use godot::classes::Object;
+use godot::obj::{Base, Gd, NewAlloc};
+use godot::register::{godot_api, ConnectHandle, GodotClass};
+
 use crate::framework::{expect_debug_panic_or_release_ok, expect_panic, itest};
-use godot::{
-    builtin::{Callable, Signal},
-    classes::Object,
-    obj::{Base, Gd, NewAlloc},
-    register::{godot_api, ConnectHandle, GodotClass},
-};
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]

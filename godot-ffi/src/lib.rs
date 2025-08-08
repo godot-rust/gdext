@@ -73,10 +73,11 @@ macro_rules! wasm_declare_init_fn {
     () => {};
 }
 
-pub use crate::godot_ffi::{
-    ExtVariantType, GodotFfi, GodotNullableFfi, PrimitiveConversionError, PtrcallType,
-};
-
+// Other
+pub use extras::*;
+pub use gen::central::*;
+pub use gen::gdextension_interface::*;
+pub use gen::interface::*;
 // Method tables
 pub use gen::table_builtins::*;
 pub use gen::table_builtins_lifecycle::*;
@@ -85,15 +86,13 @@ pub use gen::table_scene_classes::*;
 pub use gen::table_servers_classes::*;
 pub use gen::table_utilities::*;
 pub use gen::virtual_consts as godot_virtual_consts;
-
-// Other
-pub use extras::*;
-pub use gen::central::*;
-pub use gen::gdextension_interface::*;
-pub use gen::interface::*;
 pub use global::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;
+
+pub use crate::godot_ffi::{
+    ExtVariantType, GodotFfi, GodotNullableFfi, PrimitiveConversionError, PtrcallType,
+};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
@@ -101,7 +100,6 @@ pub use toolbox::*;
 mod binding;
 
 pub use binding::*;
-
 use binding::{
     initialize_binding, initialize_builtin_method_table, initialize_class_editor_method_table,
     initialize_class_scene_method_table, initialize_class_server_method_table, runtime_metadata,

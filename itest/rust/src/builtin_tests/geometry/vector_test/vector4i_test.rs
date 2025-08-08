@@ -5,9 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
-
 use godot::builtin::{real, Vector4Axis, Vector4i};
+
+use crate::framework::itest;
 
 #[itest]
 fn abs() {

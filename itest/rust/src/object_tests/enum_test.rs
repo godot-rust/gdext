@@ -5,7 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
+use std::collections::HashSet;
+
 use godot::builtin::varray;
 use godot::classes::input::CursorShape;
 use godot::classes::mesh::PrimitiveType;
@@ -13,7 +14,8 @@ use godot::classes::window::LayoutDirection;
 use godot::classes::{time, ArrayMesh};
 use godot::global::{Key, Orientation};
 use godot::obj::{EngineEnum, NewGd};
-use std::collections::HashSet;
+
+use crate::framework::itest;
 
 #[itest]
 fn enum_ords() {

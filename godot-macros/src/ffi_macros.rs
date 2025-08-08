@@ -9,12 +9,14 @@
 
 #![cfg(feature = "experimental-wasm")]
 
-use crate::util::bail;
-use crate::ParseResult;
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
 use std::env;
 use std::sync::atomic::{AtomicU32, Ordering};
+
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
+
+use crate::util::bail;
+use crate::ParseResult;
 
 // Note: global state in proc-macros may become problematic in the future, see:
 // https://users.rust-lang.org/t/simple-state-in-procedural-macro/68204/2

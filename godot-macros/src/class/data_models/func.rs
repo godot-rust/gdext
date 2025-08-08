@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Group, Ident, TokenStream, TokenTree};
+use quote::{format_ident, quote};
+
 use crate::class::RpcAttr;
 use crate::util::{bail_fn, ident, safe_ident};
 use crate::{util, ParseResult};
-use proc_macro2::{Group, Ident, TokenStream, TokenTree};
-use quote::{format_ident, quote};
 
 /// Information used for registering a Rust function with Godot.
 pub struct FuncDefinition {
