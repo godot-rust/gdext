@@ -595,7 +595,7 @@ impl ProjectionPlane {
 }
 
 /// The eye to create a projection for, when creating a projection adjusted for head-mounted displays.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionEye {
     LEFT = 1,

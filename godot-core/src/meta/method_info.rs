@@ -15,7 +15,7 @@ use godot_ffi::conv::u32_to_usize;
 /// Abstraction of the low-level `sys::GDExtensionMethodInfo`.
 // Currently used for ScriptInstance.
 // TODO check overlap with (private) ClassMethodInfo.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct MethodInfo {
     pub id: i32,
     pub method_name: StringName,

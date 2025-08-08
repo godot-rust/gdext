@@ -21,7 +21,7 @@ use godot_ffi::VariantType;
 /// Abstraction of the low-level `sys::GDExtensionPropertyInfo`.
 ///
 /// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 // Note: There was an idea of a high-level representation of the following, but it's likely easier and more efficient to use introspection
 // APIs like `is_array_of_elem()`, unless there's a real user-facing need.

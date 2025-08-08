@@ -16,7 +16,7 @@ macro_rules! impl_vector_axis_enum {
         ///
         #[doc = concat!("`", stringify!($Vector), "` implements `Index<", stringify!($AxisEnum), ">` and `IndexMut<", stringify!($AxisEnum), ">`")]
         #[doc = ", so you can use this type to access a vector component as `vec[axis]`."]
-        #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
+        #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
         pub enum $AxisEnum {
             $(
