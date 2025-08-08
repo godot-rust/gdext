@@ -5,16 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::{fmt, ptr};
+
 use godot_ffi as sys;
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::{inner, GString, StringName, Variant, VariantArray};
 use crate::classes;
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
-use crate::obj::Bounds;
-use crate::obj::{Gd, GodotClass, InstanceId};
-use std::{fmt, ptr};
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
 
 #[cfg(all(since_api = "4.2", before_api = "4.3"))]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo;
@@ -514,19 +514,21 @@ impl fmt::Display for Callable {
 // Callbacks for custom implementations
 
 #[cfg(since_api = "4.2")]
+pub use custom_callable::RustCallable;
+#[cfg(since_api = "4.2")]
 use custom_callable::*;
 
 use crate::meta;
-#[cfg(since_api = "4.2")]
-pub use custom_callable::RustCallable;
 
 #[cfg(since_api = "4.2")]
 mod custom_callable {
-    use super::*;
-    use crate::builtin::GString;
-    use godot_ffi::GDObjectInstanceID;
     use std::hash::Hash;
     use std::thread::ThreadId;
+
+    use godot_ffi::GDObjectInstanceID;
+
+    use super::*;
+    use crate::builtin::GString;
 
     pub struct CallableUserdata<T> {
         pub inner: T,

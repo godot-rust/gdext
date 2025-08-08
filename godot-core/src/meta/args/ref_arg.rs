@@ -5,12 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt;
+
+use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
+
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, ToGodot};
 use crate::sys;
-use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
-use std::fmt;
 
 /// Simple reference wrapper, used when passing arguments by-ref to Godot APIs.
 ///

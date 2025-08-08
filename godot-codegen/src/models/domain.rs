@@ -10,15 +10,16 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Domain models
 
+use std::collections::HashMap;
+use std::fmt;
+
+use proc_macro2::{Ident, Literal, TokenStream};
+use quote::{format_ident, quote, ToTokens};
+
 use crate::context::Context;
 use crate::conv;
 use crate::models::json::{JsonMethodArg, JsonMethodReturn};
 use crate::util::{ident, option_as_slice, safe_ident};
-
-use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote, ToTokens};
-use std::collections::HashMap;
-use std::fmt;
 
 mod enums;
 

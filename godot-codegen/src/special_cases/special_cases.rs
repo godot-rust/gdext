@@ -27,13 +27,14 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
+use proc_macro2::Ident;
+
 use crate::conv::to_enum_type_uncached;
 use crate::models::domain::{Enum, RustTy, TyName, VirtualMethodPresence};
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::util::option_as_slice;
 use crate::Context;
-use proc_macro2::Ident;
 
 #[rustfmt::skip]
 pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ctx: &mut Context) -> bool {

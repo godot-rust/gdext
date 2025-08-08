@@ -7,13 +7,13 @@
 
 // Integration of OnReady with #[init(load = "PATH")] is tested in save_load_test.rs.
 
-use crate::framework::{expect_panic, itest};
 use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node};
-use godot::register::{godot_api, GodotClass};
-
 use godot::obj::{Gd, NewAlloc, OnReady};
 use godot::prelude::{Base, ToGodot};
+use godot::register::{godot_api, GodotClass};
+
+use crate::framework::{expect_panic, itest};
 
 #[itest]
 fn onready_deref() {

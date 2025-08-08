@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt;
+
 use crate::builtin::{StringName, VariantType};
 use crate::meta::traits::element_variant_type;
 use crate::meta::{ArrayElement, GodotType};
-use std::fmt;
 
 /// Represents the type information of a Godot array. See
 /// [`set_typed`](https://docs.godotengine.org/en/latest/classes/class_array.html#class-array-method-set-typed).

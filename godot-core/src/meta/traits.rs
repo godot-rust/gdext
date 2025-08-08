@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi as sys;
+
+use crate::builtin;
 use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
@@ -12,11 +15,12 @@ use crate::meta::{
     sealed, ClassName, FromGodot, GodotConvert, ParamType, PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
-use godot_ffi as sys;
+use crate::registry::property::builtin_type_string;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Public re-exports
 
 // Re-export sys traits in this module, so all are in one place.
-use crate::builtin;
-use crate::registry::property::builtin_type_string;
 pub use sys::{ExtVariantType, GodotFfi, GodotNullableFfi};
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].

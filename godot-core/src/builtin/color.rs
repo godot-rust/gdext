@@ -5,15 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ops;
+
+use godot_ffi as sys;
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
+
 use crate::builtin::color_hsv::rgba_to_hsva;
 use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
 use crate::builtin::{ColorHsv, GString};
-
 use crate::meta::{arg_into_ref, AsArg};
-use godot_ffi as sys;
-use std::ops;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 /// Color built-in type, in floating-point RGBA format.
 ///

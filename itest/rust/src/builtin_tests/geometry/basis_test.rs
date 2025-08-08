@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin_tests::common::assert_evaluate_approx_eq;
 use godot::builtin::inner::InnerBasis;
 use godot::builtin::math::assert_eq_approx;
 use godot::builtin::{real, Basis, EulerOrder, RealConv, VariantOperator, Vector3, XformInv};
 
+use crate::builtin_tests::common::assert_evaluate_approx_eq;
 use crate::framework::itest;
 
 const TEST_BASIS: Basis = Basis::from_rows(

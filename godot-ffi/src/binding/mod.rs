@@ -21,6 +21,9 @@ use multi_threaded::BindingStorage;
 #[cfg(not(feature = "experimental-threads"))]
 use single_threaded::BindingStorage;
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Public re-exports
+
 #[cfg(feature = "experimental-threads")]
 pub use multi_threaded::GdextConfig;
 #[cfg(not(feature = "experimental-threads"))]

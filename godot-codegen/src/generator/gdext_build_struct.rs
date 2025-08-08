@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::models::domain::GodotApiVersion;
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use crate::models::domain::GodotApiVersion;
 
 pub fn make_gdext_build_struct(header: &GodotApiVersion) -> TokenStream {
     let GodotApiVersion {

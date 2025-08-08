@@ -10,6 +10,12 @@
 //! Re-exported to `crate::private`.
 #![allow(clippy::missing_safety_doc)]
 
+use std::any::Any;
+
+use godot_ffi as sys;
+use sys::conv::u32_to_usize;
+use sys::interface_fn;
+
 use crate::builder::ClassBuilder;
 use crate::builtin::{StringName, Variant};
 use crate::classes::Object;
@@ -18,10 +24,6 @@ use crate::obj::{bounds, cap, AsDyn, Base, Bounds, Gd, GodotClass, Inherits, Use
 use crate::private::{handle_panic, PanicPayload};
 use crate::registry::plugin::ErasedDynGd;
 use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
-use godot_ffi as sys;
-use std::any::Any;
-use sys::conv::u32_to_usize;
-use sys::interface_fn;
 
 /// Godot FFI default constructor.
 ///

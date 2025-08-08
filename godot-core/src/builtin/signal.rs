@@ -5,10 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt;
-use std::ptr;
+use std::{fmt, ptr};
 
 use godot_ffi as sys;
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::{inner, Array, Callable, Dictionary, StringName, Variant};
 use crate::classes::Object;
@@ -17,7 +17,6 @@ use crate::meta;
 use crate::meta::{FromGodot, GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 /// Untyped Godot signal.
 ///

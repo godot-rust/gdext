@@ -10,9 +10,8 @@ use std::fmt;
 use godot_ffi as sys;
 use godot_ffi::{ffi_methods, ExtVariantType, GdextBuild, GodotFfi};
 
-use crate::builtin::inner;
-
 use super::{GString, StringName};
+use crate::builtin::inner;
 
 /// A pre-parsed scene tree path.
 ///
@@ -289,10 +288,12 @@ impl From<StringName> for NodePath {
 
 #[cfg(feature = "serde")]
 mod serialize {
-    use super::*;
+    use std::fmt::Formatter;
+
     use serde::de::{Error, Visitor};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::fmt::Formatter;
+
+    use super::*;
 
     // For "Available on crate feature `serde`" in docs. Cannot be inherited from module. Also does not support #[derive] (e.g. in Vector2).
     #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]

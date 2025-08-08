@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
 use godot::builtin::GString;
 use godot::classes::{Input, Os};
 use godot::obj::Gd;
+
+use crate::framework::itest;
 
 #[itest]
 fn singleton_is_unique() {

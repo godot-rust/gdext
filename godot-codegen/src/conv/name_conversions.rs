@@ -7,8 +7,9 @@
 
 //! Identifier renamings (Godot -> Rust)
 
-use crate::util::ident;
 use proc_macro2::Ident;
+
+use crate::util::ident;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Case conversions

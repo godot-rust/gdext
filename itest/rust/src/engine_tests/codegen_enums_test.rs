@@ -10,8 +10,6 @@
 
 #![cfg(feature = "codegen-full-experimental")]
 
-use crate::framework::itest;
-
 use godot::classes::audio_effect_spectrum_analyzer::FftSize;
 use godot::classes::base_material_3d::Flags;
 use godot::classes::camera_2d::Camera2DProcessCallback;
@@ -58,6 +56,8 @@ use godot::classes::voxel_gi::Subdiv;
 use godot::classes::xr_interface::{EnvironmentBlendMode, TrackingStatus};
 use godot::classes::xr_pose::TrackingConfidence;
 use godot::classes::zip_packer::ZipAppend;
+
+use crate::framework::itest;
 
 #[itest]
 fn codegen_enums_exist() {

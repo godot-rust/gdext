@@ -7,9 +7,10 @@
 
 mod markdown_converter;
 
-use crate::class::{ConstDefinition, Field, FuncDefinition, SignalDefinition};
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
+
+use crate::class::{ConstDefinition, Field, FuncDefinition, SignalDefinition};
 
 #[derive(Default)]
 struct XmlParagraphs {

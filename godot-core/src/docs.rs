@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::collections::HashMap;
+
 use crate::meta::ClassName;
 use crate::registry::plugin::{ITraitImpl, InherentImpl, PluginItem, Struct};
-use std::collections::HashMap;
 
 /// Created for documentation on
 /// ```ignore

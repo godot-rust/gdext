@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{expect_panic, itest};
 use godot::builtin::math::assert_eq_approx;
 use godot::builtin::{Quaternion, Vector3};
+
+use crate::framework::{expect_panic, itest};
 
 #[itest]
 fn quaternion_default() {
@@ -181,8 +182,9 @@ fn quaternion_spherical_cubic_interpolate_in_time() {
 
 #[itest]
 fn quaternion_mul1() {
-    use godot::builtin::real;
     use std::f32::consts::PI;
+
+    use godot::builtin::real;
 
     let q = Quaternion::from_axis_angle(Vector3::UP, (PI / 2.0) as real);
     let rotated = q * Vector3::new(1.0, 4.2, 0.0);
@@ -193,8 +195,9 @@ fn quaternion_mul1() {
 
 #[itest]
 fn quaternion_mul2() {
-    use godot::builtin::real;
     use std::f32::consts::PI;
+
+    use godot::builtin::real;
 
     let q = Quaternion::from_axis_angle(-Vector3::UP, (PI / 2.0) as real);
     let rotated = q * Vector3::new(1.0, 4.2, 2.0);
@@ -205,8 +208,9 @@ fn quaternion_mul2() {
 
 #[itest]
 fn quaternion_mul3() {
-    use godot::builtin::real;
     use std::f32::consts::PI;
+
+    use godot::builtin::real;
 
     let q = Quaternion::from_axis_angle(Vector3::UP, (-PI * 3.0 / 4.0) as real);
     let rotated = q * Vector3::new(1.0, 3.0, 5.0);

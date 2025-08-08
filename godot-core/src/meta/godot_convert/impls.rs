@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi as sys;
+
 use crate::builtin::{Array, Variant};
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError, FromVariantError};
 use crate::meta::{
@@ -12,7 +14,6 @@ use crate::meta::{
     PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
-use godot_ffi as sys;
 
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
 // - enum

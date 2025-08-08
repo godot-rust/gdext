@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi as sys;
+
 use crate::builder::ClassBuilder;
 use crate::builtin::GString;
 use crate::init::InitLevel;
@@ -14,7 +16,6 @@ use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
 #[cfg(since_api = "4.2")]
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
-use godot_ffi as sys;
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
@@ -645,11 +646,12 @@ where
 
 /// Capability traits, providing dedicated functionalities for Godot classes
 pub mod cap {
+    use std::any::Any;
+
     use super::*;
     use crate::builtin::{StringName, Variant};
     use crate::meta::PropertyInfo;
     use crate::obj::{Base, Bounds, Gd};
-    use std::any::Any;
 
     /// Trait for all classes that are default-constructible from the Godot engine.
     ///

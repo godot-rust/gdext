@@ -5,13 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::{self, Debug, Formatter};
+use std::mem;
+
 use crate::builtin::{GString, NodePath};
 use crate::classes::{Node, Resource};
 use crate::meta::{arg_into_owned, AsArg, GodotConvert};
 use crate::obj::{Gd, Inherits};
 use crate::registry::property::Var;
-use std::fmt::{self, Debug, Formatter};
-use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.
 ///

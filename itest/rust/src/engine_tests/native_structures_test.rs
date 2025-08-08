@@ -7,10 +7,10 @@
 
 // More tests on native structures are in native_structure_full_codegen_tests.rs.
 
-use crate::framework::itest;
-
 use godot::builtin::Rid;
 use godot::classes::native::{AudioFrame, Glyph, ObjectId};
+
+use crate::framework::itest;
 
 // Simple function to make these up with one field differing.
 pub fn sample_glyph(start: i32) -> Glyph {

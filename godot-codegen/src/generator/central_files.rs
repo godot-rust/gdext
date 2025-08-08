@@ -5,13 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote, ToTokens};
+
 use crate::context::Context;
 use crate::conv;
 use crate::generator::{enums, gdext_build_struct};
 use crate::models::domain::ExtensionApi;
 use crate::util::ident;
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote, ToTokens};
 
 pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let build_config_struct = gdext_build_struct::make_gdext_build_struct(&api.godot_version);

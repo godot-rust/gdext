@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Punct, TokenStream};
+
 use crate::class::Field;
 use crate::util::bail;
 use crate::ParseResult;
-use proc_macro2::{Punct, TokenStream};
 
 pub struct Fields {
     /// All fields except `base_field`.

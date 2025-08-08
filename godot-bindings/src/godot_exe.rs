@@ -7,15 +7,17 @@
 
 //! Commands related to Godot executable
 
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
+
+use regex::Regex;
+
 use crate::godot_version::{parse_godot_version, validate_godot_version};
 use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
 use crate::GodotVersion;
 
-use regex::Regex;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
 // Note: CARGO_BUILD_TARGET_DIR and CARGO_TARGET_DIR are not set.
 // OUT_DIR would be standing to reason, but it's an unspecified path that cannot be referenced by CI.
 // const GODOT_VERSION_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/godot_version.txt");

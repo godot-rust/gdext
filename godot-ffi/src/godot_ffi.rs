@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::marker::PhantomData;
+
 use crate as sys;
 use crate::VariantType;
-use std::marker::PhantomData;
 
 /// Types that can directly and fully represent some Godot type.
 ///

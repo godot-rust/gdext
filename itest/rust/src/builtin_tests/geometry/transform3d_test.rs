@@ -5,12 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
-
-use crate::builtin_tests::common::assert_evaluate_approx_eq;
 use godot::builtin::inner::InnerTransform3D;
 use godot::builtin::{Aabb, Basis, Plane, Transform3D, VariantOperator, Vector3, XformInv};
 use godot::private::class_macros::assert_eq_approx;
+
+use crate::builtin_tests::common::assert_evaluate_approx_eq;
+use crate::framework::itest;
 
 const TEST_TRANSFORM: Transform3D = Transform3D::new(
     Basis::from_cols(

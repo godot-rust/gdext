@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
 use godot::builtin::{array, Array, Color, ColorHsv, GString, NodePath, StringName, Vector2i};
 use serde::{Deserialize, Serialize};
+
+use crate::framework::itest;
 
 fn serde_roundtrip<T>(value: &T, expected_json: &str)
 where

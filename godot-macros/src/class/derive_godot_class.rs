@@ -5,6 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Ident, Punct, TokenStream};
+use quote::{format_ident, quote, quote_spanned};
+use venial::Error;
+
 use crate::class::data_models::fields::{named_fields, Fields};
 use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{
@@ -16,9 +20,6 @@ use crate::util::{
     require_api_version, KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
-use proc_macro2::{Ident, Punct, TokenStream};
-use quote::{format_ident, quote, quote_spanned};
-use venial::Error;
 
 pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class = item.as_struct().ok_or_else(|| {

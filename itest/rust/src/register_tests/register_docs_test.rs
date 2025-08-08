@@ -7,8 +7,9 @@
 
 #![cfg(feature = "register-docs")]
 
-use crate::framework::itest;
 use godot::prelude::*;
+
+use crate::framework::itest;
 
 /// *documented* ~ **documented** ~ [AABB] < [pr](https://github.com/godot-rust/gdext/pull/748)
 ///

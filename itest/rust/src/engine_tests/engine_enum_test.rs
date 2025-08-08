@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
-
 use godot::classes::{mesh, window};
 use godot::global::{InlineAlignment, Key, KeyModifierMask, Orientation};
 use godot::obj::{EngineBitfield, EngineEnum};
+
+use crate::framework::itest;
 
 #[itest]
 fn enum_with_masked_bitfield_ord() {

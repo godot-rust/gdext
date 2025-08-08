@@ -5,6 +5,21 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#[cfg(debug_assertions)]
+use std::cell::RefCell;
+
+use crate::global::godot_error;
+use crate::meta::error::CallError;
+use crate::meta::CallContext;
+use crate::obj::Gd;
+use crate::{classes, sys};
+use std::io::Write;
+use std::sync::atomic;
+use sys::Global;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Public re-exports
+
 pub use crate::gen::classes::class_macros;
 pub use crate::obj::rtti::ObjectRtti;
 pub use crate::registry::callbacks;
@@ -19,17 +34,6 @@ pub use sys::out;
 
 #[cfg(feature = "trace")]
 pub use crate::meta::trace;
-#[cfg(debug_assertions)]
-use std::cell::RefCell;
-
-use crate::global::godot_error;
-use crate::meta::error::CallError;
-use crate::meta::CallContext;
-use crate::obj::Gd;
-use crate::{classes, sys};
-use std::io::Write;
-use std::sync::atomic;
-use sys::Global;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables

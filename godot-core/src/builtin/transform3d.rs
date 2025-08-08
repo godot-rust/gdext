@@ -5,14 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::Display;
+use std::ops::Mul;
+
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, GlamConv, GlamType, XformInv};
 use crate::builtin::{real, Aabb, Basis, Plane, Projection, RAffine3, Vector3};
-
-use std::fmt::Display;
-use std::ops::Mul;
 
 /// Affine 3D transform (3x4 matrix).
 ///

@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
-use godot::prelude::*; // Expect match_class! to be in prelude.
+use godot::prelude::*;
+
+use crate::framework::itest; // Expect match_class! to be in prelude.
 
 // Ensure static types are as expected.
 fn require_object(_: &Object) {}

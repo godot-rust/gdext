@@ -24,6 +24,10 @@ mod util;
 #[cfg(test)]
 mod tests;
 
+use std::path::{Path, PathBuf};
+
+use proc_macro2::TokenStream;
+
 use crate::context::Context;
 use crate::generator::builtins::generate_builtin_class_files;
 use crate::generator::classes::generate_class_files;
@@ -37,9 +41,6 @@ use crate::generator::{
 };
 use crate::models::domain::{ApiView, ExtensionApi};
 use crate::models::json::{load_extension_api, JsonExtensionApi};
-
-use proc_macro2::TokenStream;
-use std::path::{Path, PathBuf};
 
 pub type SubmitFn = dyn FnMut(PathBuf, TokenStream);
 
@@ -65,9 +66,10 @@ fn submit_fn(path: PathBuf, tokens: TokenStream) {
 
 #[cfg(feature = "codegen-rustfmt")]
 mod rustfmt {
-    use super::*;
     use std::process::Command;
     use std::sync::Mutex;
+
+    use super::*;
 
     pub fn submit_fn(path: PathBuf, tokens: TokenStream) {
         write_file(&path, tokens.to_string());

@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
-
 use godot::builtin::inner::InnerRect2;
 use godot::builtin::math::assert_eq_approx;
 use godot::builtin::{real, reals, RealConv, Rect2, Side, Vector2};
+
+use crate::framework::itest;
 
 #[itest]
 fn rect2_inner_equivalence() {

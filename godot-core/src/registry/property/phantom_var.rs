@@ -5,17 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::{
-    cmp::Ordering,
-    fmt,
-    hash::{Hash, Hasher},
-    marker::PhantomData,
-};
+use std::cmp::Ordering;
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::marker::PhantomData;
 
-use crate::{
-    meta::{ClassName, GodotConvert, GodotType, PropertyHintInfo},
-    registry::property::{Export, Var},
-};
+use crate::meta::{ClassName, GodotConvert, GodotType, PropertyHintInfo};
+use crate::registry::property::{Export, Var};
 
 /// A zero-sized type for creating a property without a backing field, accessible only through custom getter/setter functions.
 ///

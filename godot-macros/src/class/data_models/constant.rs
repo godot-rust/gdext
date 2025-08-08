@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::bail;
-use crate::{util, ParseResult};
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+
+use crate::util::bail;
+use crate::{util, ParseResult};
 
 pub struct ConstDefinition {
     pub raw_constant: venial::Constant,
