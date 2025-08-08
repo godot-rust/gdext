@@ -7,33 +7,36 @@
 
 #[cfg(debug_assertions)]
 use std::cell::RefCell;
+use std::io::Write;
+use std::sync::atomic;
+
+use sys::Global;
 
 use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
 use crate::obj::Gd;
 use crate::{classes, sys};
-use std::io::Write;
-use std::sync::atomic;
-use sys::Global;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public re-exports
 
-pub use crate::gen::classes::class_macros;
-pub use crate::obj::rtti::ObjectRtti;
-pub use crate::registry::callbacks;
-pub use crate::registry::plugin::{
-    ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl, PluginItem,
-    Struct,
-};
-#[cfg(since_api = "4.2")]
-pub use crate::registry::signal::priv_re_export::*;
-pub use crate::storage::{as_storage, Storage};
-pub use sys::out;
-
-#[cfg(feature = "trace")]
-pub use crate::meta::trace;
+mod reexport_pub {
+    pub use crate::gen::classes::class_macros;
+    #[cfg(feature = "trace")]
+    pub use crate::meta::trace;
+    pub use crate::obj::rtti::ObjectRtti;
+    pub use crate::registry::callbacks;
+    pub use crate::registry::plugin::{
+        ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
+        PluginItem, Struct,
+    };
+    #[cfg(since_api = "4.2")]
+    pub use crate::registry::signal::priv_re_export::*;
+    pub use crate::storage::{as_storage, Storage};
+    pub use crate::sys::out;
+}
+pub use reexport_pub::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables

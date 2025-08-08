@@ -24,10 +24,9 @@ pub use crate::{array, dict, real, reals, varray, vdict};
 
 #[doc(hidden)]
 pub mod __prelude_reexport {
+    #[rustfmt::skip] // Do not reorder.
     use super::*;
-    
-    // ------------------------------------------------------------------------------------------------------------------------------------------
-    
+
     pub use aabb::*;
     pub use basis::*;
     pub use callable::*;
@@ -51,10 +50,9 @@ pub mod __prelude_reexport {
     pub use super::math::XformInv;
     pub use super::{EulerOrder, Side, VariantOperator, VariantType};
     pub use crate::{array, real, reals, varray, vdict, vslice};
-    
-    // ------------------------------------------------------------------------------------------------------------------------------------------
-    
+
     #[allow(deprecated)]
+    #[rustfmt::skip] // Do not reorder.
     pub use crate::dict;
 }
 

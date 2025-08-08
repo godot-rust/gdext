@@ -42,19 +42,19 @@
 
 mod print;
 
-pub use crate::{
-    godot_error, godot_print, godot_print_rich, godot_script_error, godot_str, godot_warn,
-};
-
 // Some enums are directly re-exported from crate::builtin.
 pub use crate::gen::central::global_enums::*;
 pub use crate::gen::utilities::*;
+pub use crate::{
+    godot_error, godot_print, godot_print_rich, godot_script_error, godot_str, godot_warn,
+};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Internal re-exports
 
 // This is needed for generated classes to find symbols, even those that have been moved to crate::builtin.
 #[allow(unused_imports)] // micromanaging imports for generated code is not fun
+#[rustfmt::skip] // Do not reorder.
 pub(crate) use crate::builtin::{Corner, EulerOrder, Side};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

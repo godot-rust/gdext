@@ -22,6 +22,7 @@ use crate::registry::signal::TypedSignal;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Internal re-exports
+#[rustfmt::skip] // Do not reorder.
 pub(crate) use crate::impl_dynamic_send;
 
 /// The panicking counter part to the [`FallibleSignalFuture`].

@@ -30,37 +30,27 @@ pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
 ];
 
 // [version-sync] [[
-//  [line] #[cfg(feature = "api-$kebabVersion")]\npub use gdextension_api::version_$snakeVersion as prebuilt;\n
+//  [line] #[cfg(feature = "api-$kebabVersion")]\npub use gdextension_api::version_$snakeVersion as prebuilt;
 #[cfg(feature = "api-4-1")]
 pub use gdextension_api::version_4_1 as prebuilt;
-
 #[cfg(feature = "api-4-1-1")]
 pub use gdextension_api::version_4_1_1 as prebuilt;
-
 #[cfg(feature = "api-4-1-2")]
 pub use gdextension_api::version_4_1_2 as prebuilt;
-
 #[cfg(feature = "api-4-1-3")]
 pub use gdextension_api::version_4_1_3 as prebuilt;
-
 #[cfg(feature = "api-4-1-4")]
 pub use gdextension_api::version_4_1_4 as prebuilt;
-
 #[cfg(feature = "api-4-2")]
 pub use gdextension_api::version_4_2 as prebuilt;
-
 #[cfg(feature = "api-4-2-1")]
 pub use gdextension_api::version_4_2_1 as prebuilt;
-
 #[cfg(feature = "api-4-2-2")]
 pub use gdextension_api::version_4_2_2 as prebuilt;
-
 #[cfg(feature = "api-4-3")]
 pub use gdextension_api::version_4_3 as prebuilt;
-
 #[cfg(feature = "api-4-4")]
 pub use gdextension_api::version_4_4 as prebuilt;
-
 // ]]
 
 // If none of the api-* features are provided, use default prebuilt version (typically latest Godot stable release).

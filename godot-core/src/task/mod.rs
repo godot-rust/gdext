@@ -14,17 +14,26 @@
 mod async_runtime;
 mod futures;
 
-pub(crate) use async_runtime::cleanup;
+// Public re-exports
 pub use async_runtime::{spawn, TaskHandle};
-pub(crate) use futures::{impl_dynamic_send, ThreadConfined};
 pub use futures::{
     DynamicSend, FallibleSignalFuture, FallibleSignalFutureError, IntoDynamicSend, SignalFuture,
 };
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Only exported for itest.
+// For use in integration tests.
+#[cfg(feature = "trace")]
+mod reexport_test {
+    pub use super::async_runtime::has_godot_task_panicked;
+    pub use super::futures::{create_test_signal_future_resolver, SignalFutureResolver};
+}
 
 #[cfg(feature = "trace")]
-pub use async_runtime::has_godot_task_panicked;
-#[cfg(feature = "trace")]
-pub use futures::{create_test_signal_future_resolver, SignalFutureResolver};
+pub use reexport_test::*;
+
+// Crate-local re-exports.
+mod reexport_crate {
+    pub(crate) use super::async_runtime::cleanup;
+    pub(crate) use super::futures::{impl_dynamic_send, ThreadConfined};
+}
+
+pub(crate) use reexport_crate::*;
