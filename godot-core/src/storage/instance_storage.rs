@@ -154,9 +154,6 @@ pub unsafe trait Storage {
 
 /// An internal trait for keeping track of reference counts for a storage.
 pub(crate) trait StorageRefCounted: Storage {
-    #[allow(dead_code)] // used in `debug-log` feature. Don't micromanage.
-    fn godot_ref_count(&self) -> u32;
-
     fn on_inc_ref(&self);
 
     fn on_dec_ref(&self);

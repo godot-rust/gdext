@@ -152,7 +152,11 @@ pub use crate::implement_godot_bounds;
 // Memory bounds
 
 /// Specifies the memory strategy of the static type.
-pub trait Memory: Sealed {}
+pub trait Memory: Sealed {
+    /// True for everything inheriting `RefCounted`, false for `Object` and all other classes.
+    #[doc(hidden)]
+    const IS_REF_COUNTED: bool;
+}
 
 /// Specifies the memory strategy of the dynamic type.
 ///
@@ -205,7 +209,9 @@ pub trait DynMemory: Sealed {
 /// This is used for `RefCounted` classes and derived.
 pub struct MemRefCounted {}
 impl Sealed for MemRefCounted {}
-impl Memory for MemRefCounted {}
+impl Memory for MemRefCounted {
+    const IS_REF_COUNTED: bool = true;
+}
 impl DynMemory for MemRefCounted {
     fn maybe_init_ref<T: GodotClass>(obj: &mut RawGd<T>) {
         out!("  MemRefc::init:  {obj:?}");
@@ -327,7 +333,9 @@ impl DynMemory for MemDynamic {
 /// This is used for all `Object` derivates, which are not `RefCounted`. `Object` itself is also excluded.
 pub struct MemManual {}
 impl Sealed for MemManual {}
-impl Memory for MemManual {}
+impl Memory for MemManual {
+    const IS_REF_COUNTED: bool = false;
+}
 impl DynMemory for MemManual {
     fn maybe_init_ref<T: GodotClass>(_obj: &mut RawGd<T>) {}
     fn maybe_inc_ref<T: GodotClass>(_obj: &mut RawGd<T>) {}

@@ -167,6 +167,12 @@ pub struct Struct {
     /// Callback to library-generated function which registers properties in the `struct` definition.
     pub(crate) register_properties_fn: ErasedRegisterFn,
 
+    /// Callback on refc-increment. Only for `RefCounted` classes.
+    pub(crate) reference_fn: sys::GDExtensionClassReference,
+
+    /// Callback on refc-decrement. Only for `RefCounted` classes.
+    pub(crate) unreference_fn: sys::GDExtensionClassUnreference,
+
     /// Function called by Godot when an object of this class is freed.
     ///
     /// Always implemented as [`callbacks::free`].
@@ -200,6 +206,8 @@ impl Struct {
     pub fn new<T: GodotClass + cap::ImplementsGodotExports>(
         #[cfg(all(since_api = "4.3", feature = "register-docs"))] docs: StructDocs,
     ) -> Self {
+        let refcounted = <T::Memory as bounds::Memory>::IS_REF_COUNTED;
+
         Self {
             base_class_name: T::Base::class_name(),
             generated_create_fn: None,
@@ -215,6 +223,9 @@ impl Struct {
             is_instantiable: false,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
             docs,
+            // While Godot doesn't do anything with these callbacks for non-RefCounted classes, we can avoid instantiating them in Rust.
+            reference_fn: refcounted.then_some(callbacks::reference::<T>),
+            unreference_fn: refcounted.then_some(callbacks::unreference::<T>),
         }
     }
 

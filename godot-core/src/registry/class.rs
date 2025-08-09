@@ -136,8 +136,8 @@ impl ClassRegistrationInfo {
 }
 
 /// Registers a class with static type information.
-// Currently dead code, but will be needed for builder API. Don't remove.
-pub fn register_class<
+#[expect(dead_code)] // Will be needed for builder API. Don't remove.
+pub(crate) fn register_class<
     T: cap::GodotDefault
         + cap::ImplementsGodotVirtual
         + cap::GodotToString
@@ -427,6 +427,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             is_instantiable,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
                 docs: _,
+            reference_fn,
+            unreference_fn,
         }) => {
             c.parent_class_name = Some(base_class_name);
             c.default_virtual_fn = default_get_virtual_fn;
@@ -443,6 +445,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             // See also: https://github.com/godotengine/godot/pull/58972
             c.godot_params.is_abstract = sys::conv::bool_to_sys(!is_instantiable);
             c.godot_params.free_instance_func = Some(free_fn);
+            c.godot_params.reference_func = reference_fn;
+            c.godot_params.unreference_func = unreference_fn;
 
             fill_into(
                 &mut c.godot_params.create_instance_func,

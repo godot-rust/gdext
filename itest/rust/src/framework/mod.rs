@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::classes::{Engine, Node, Os};
+use godot::classes::{Engine, Node, Os, SceneTree};
 use godot::obj::Gd;
 use godot::sys;
 use std::collections::HashSet;
@@ -254,6 +254,27 @@ pub fn expect_debug_panic_or_release_ok(_context: &str, code: impl FnOnce()) {
     code()
 }
 
+/// Run code asynchronously, immediately before the next _process_ frame.
+///
+/// Useful for assertions that run expect a `call_deferred()` or similar operation, and still want to check the result.
+#[cfg(since_api = "4.2")]
+#[must_use]
+#[allow(dead_code)] // not yet used.
+pub fn next_frame<F>(code: F) -> godot::task::TaskHandle
+where
+    F: FnOnce() + 'static,
+{
+    let tree = Engine::singleton()
+        .get_main_loop()
+        .unwrap()
+        .cast::<SceneTree>();
+
+    godot::task::spawn(async move {
+        let _: () = tree.signals().process_frame().to_future().await;
+        code();
+    })
+}
+
 /// Synchronously run a thread and return result. Panics are propagated to caller thread.
 #[track_caller]
 pub fn quick_thread<R, F>(f: F) -> R
@@ -262,7 +283,6 @@ where
     R: Send + 'static,
 {
     let handle = std::thread::spawn(f);
-
     match handle.join() {
         Ok(result) => result,
         Err(panic_payload) => {

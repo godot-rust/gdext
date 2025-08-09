@@ -83,17 +83,12 @@ impl Rect2i {
     }
 
     /// The end of the `Rect2i` calculated as `position + size`.
-    ///
-    /// _Godot equivalent: `Rect2i.size` property_
-    #[doc(alias = "size")]
     #[inline]
     pub const fn end(self) -> Vector2i {
         Vector2i::new(self.position.x + self.size.x, self.position.y + self.size.y)
     }
 
-    /// Set size based on desired end-point.
-    ///
-    /// _Godot equivalent: `Rect2i.size` property_
+    /// Set end of the `Rect2i`, updating `size = end - position`.
     #[inline]
     pub fn set_end(&mut self, end: Vector2i) {
         self.size = end - self.position
@@ -110,8 +105,7 @@ impl Rect2i {
 
     /// Returns `true` if this `Rect2i` completely encloses another one.
     ///
-    /// Any `Rect2i` encloses itself, i.e. an enclosed `Rect2i` does is not required to be a
-    /// proper sub-rect.
+    /// Any `Rect2i` encloses itself, i.e. an enclosed `Rect2i` does is not required to be a proper sub-rect.
     #[inline]
     pub const fn encloses(self, other: Self) -> bool {
         self.assert_nonnegative();
