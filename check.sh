@@ -28,6 +28,7 @@ Commands:
     fmt           format code, fail if bad
     test          run unit tests (no Godot needed)
     itest         run integration tests (from within Godot)
+    testweb       run unit tests on web environment (requires node.js and emcc)
     clippy        validate clippy lints
     klippy        validate + fix clippy
     doc           generate docs for 'godot' crate
@@ -179,6 +180,21 @@ function cmd_itest() {
         run "$godotBin" $GODOT_ARGS --path itest/godot --headless -- "[${extraArgs[@]}]"
 }
 
+function cmd_testweb() {
+    # For the flag: https://github.com/rust-lang/cargo/issues/7471
+    CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node RUSTFLAGS="-C link-args=-pthread \
+    -C link-args=-g \
+    -C link-args=-sPTHREAD_POOL_SIZE=4 \
+    -C link-args=-sASSERTIONS=2 \
+    -C link-args=-sINITIAL_MEMORY=268435456 \
+    -C panic=unwind \
+    -C target-feature=+atomics \
+    -Zlink-native-libraries=no \
+    -Cllvm-args=-enable-emscripten-cxx-exceptions=0" EM_CACHE=$(mktemp -d) run cargo +nightly test \
+      --features godot/experimental-wasm,godot/lazy-function-tables \
+      -Zbuild-std --target wasm32-unknown-emscripten -- --nocapture
+}
+
 function cmd_doc() {
     run cargo doc --lib -p godot --no-deps "${extraCargoArgs[@]}"
 }
@@ -211,7 +227,7 @@ while [[ $# -gt 0 ]]; do
         --double)
             extraCargoArgs+=("--features" "godot/double-precision,godot/api-custom")
             ;;
-        fmt | test | itest | clippy | klippy | doc | dok)
+        fmt | test | itest | testweb | clippy | klippy | doc | dok)
             cmds+=("$arg")
             ;;
         -f | --filter)
