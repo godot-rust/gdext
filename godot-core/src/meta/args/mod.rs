@@ -14,9 +14,6 @@ mod ref_arg;
 // Public APIs
 
 pub use as_arg::{val_into_arg, ArgPassing, AsArg, ByRef, ByValue, ParamType};
-pub use object_arg::AsObjectArg;
-pub use ref_arg::RefArg;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Internal APIs
 
@@ -26,9 +23,10 @@ pub use ref_arg::RefArg;
 pub use cow_arg::CowArg;
 #[cfg(not(feature = "trace"))]
 pub(crate) use cow_arg::CowArg;
-
+pub use object_arg::AsObjectArg;
 #[allow(unused_imports)] // ObjectCow is used in generated code.
 pub(crate) use object_arg::{ObjectArg, ObjectCow, ObjectNullArg};
+pub use ref_arg::RefArg;
 
 // #[doc(hidden)]
 // pub use cow_arg::*;

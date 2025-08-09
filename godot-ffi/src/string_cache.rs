@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate as sys;
-
 use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::ptr;
+
+use crate as sys;
 
 /// Caches `StringName` instances at initialization.
 pub struct StringCache<'a> {

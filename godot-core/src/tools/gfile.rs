@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cmp;
+use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
+
 use crate::builtin::{real, GString, PackedByteArray, PackedStringArray, Variant};
 use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::classes::FileAccess;
@@ -12,9 +15,6 @@ use crate::global::Error;
 use crate::meta::error::IoError;
 use crate::meta::{arg_into_ref, AsArg};
 use crate::obj::Gd;
-
-use std::cmp;
-use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
 
 /// Open a file for reading or writing.
 ///

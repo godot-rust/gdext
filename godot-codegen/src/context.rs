@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::collections::{HashMap, HashSet};
+
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, ToTokens};
+
 use crate::generator::method_tables::MethodTableKey;
 use crate::generator::notifications;
 use crate::models::domain::{ArgPassing, GodotTy, RustTy, TyName};
@@ -13,9 +18,6 @@ use crate::models::json::{
 };
 use crate::util::option_as_slice;
 use crate::{special_cases, util, JsonExtensionApi};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, ToTokens};
-use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub struct Context<'a> {

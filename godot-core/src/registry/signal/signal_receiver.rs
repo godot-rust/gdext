@@ -10,10 +10,10 @@
 //
 // Could be generalized with R return type, and not special-casing `self`. But keep simple until actually needed.
 
-use crate::meta::FromGodot;
-use crate::meta::InParamTuple;
-use crate::obj::{Gd, GodotClass};
 use std::marker::PhantomData;
+
+use crate::meta::{FromGodot, InParamTuple};
+use crate::obj::{Gd, GodotClass};
 
 /// Trait that is implemented for functions that can be connected to signals.
 ///

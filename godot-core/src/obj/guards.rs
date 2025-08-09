@@ -5,16 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(not(feature = "experimental-threads"))]
-use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
+use std::fmt::Debug;
+use std::ops::{Deref, DerefMut};
 
 #[cfg(feature = "experimental-threads")]
 use godot_cell::blocking::{InaccessibleGuard, MutGuard, RefGuard};
-
+#[cfg(not(feature = "experimental-threads"))]
+use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 use godot_ffi::out;
-
-use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
 
 use crate::obj::script::ScriptInstance;
 use crate::obj::{AsDyn, Gd, GodotClass};

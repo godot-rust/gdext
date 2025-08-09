@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::prelude::*;
 use std::sync::atomic::{AtomicI32, Ordering};
+
+use godot::prelude::*;
 
 static SUCCESSFUL_CALLS: AtomicI32 = AtomicI32::new(0);
 

@@ -5,7 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
+use std::hash::Hasher;
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use godot::builtin::{
     array, varray, vdict, vslice, Array, Callable, Color, GString, NodePath, StringName, Variant,
     VariantArray, Vector2,
@@ -15,8 +17,8 @@ use godot::init::GdextBuild;
 use godot::meta::ToGodot;
 use godot::obj::{Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
-use std::hash::Hasher;
-use std::sync::atomic::{AtomicU32, Ordering};
+
+use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(init, base=RefCounted)]
@@ -371,15 +373,17 @@ impl CallableRefcountTest {
 
 #[cfg(since_api = "4.2")]
 pub mod custom_callable {
-    use super::*;
-    use crate::framework::{assert_eq_self, quick_thread, suppress_panic_log, ThreadCrosser};
+    use std::fmt;
+    use std::hash::Hash;
+    use std::sync::{Arc, Mutex};
+
     use godot::builtin::{Dictionary, RustCallable};
     use godot::prelude::Signal;
     use godot::sys;
     use godot::sys::GdextBuild;
-    use std::fmt;
-    use std::hash::Hash;
-    use std::sync::{Arc, Mutex};
+
+    use super::*;
+    use crate::framework::{assert_eq_self, quick_thread, suppress_panic_log, ThreadCrosser};
 
     #[itest]
     fn callable_from_local_fn() {

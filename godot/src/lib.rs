@@ -175,19 +175,16 @@ See: https://github.com/godotengine/godot/issues/86346");
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Modules
 
-#[doc(inline)]
-pub use godot_core::{builtin, classes, global, meta, obj, task, tools};
-
 #[doc(hidden)]
 pub use godot_core::possibly_docs as docs;
-
 #[doc(hidden)]
 pub use godot_core::sys;
+#[doc(inline)]
+pub use godot_core::{builtin, classes, global, meta, obj, task, tools};
 
 /// Entry point and global init/shutdown of the library.
 pub mod init {
     pub use godot_core::init::*;
-
     // Re-exports
     pub use godot_macros::gdextension;
 }
@@ -196,17 +193,15 @@ pub mod init {
 pub mod register {
     pub use godot_core::registry::property;
     pub use godot_core::registry::signal::re_export::*;
-    pub use godot_macros::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
-
     #[cfg(feature = "__codegen-full")]
     pub use godot_core::registry::RpcConfig;
+    pub use godot_macros::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
 
     /// Re-exports used by proc-macro API.
     #[doc(hidden)]
     pub mod private {
         #[cfg(feature = "__codegen-full")]
         pub use godot_core::registry::class::auto_register_rpcs;
-
         pub use godot_core::registry::godot_register_wrappers::*;
         pub use godot_core::registry::{constant, method};
     }

@@ -9,11 +9,13 @@
 //!
 //! See also models/domain/enums.rs for other enum-related methods.
 
-use crate::models::domain::{Enum, Enumerator, EnumeratorValue, RustTy};
-use crate::special_cases;
+use std::collections::HashSet;
+
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use std::collections::HashSet;
+
+use crate::models::domain::{Enum, Enumerator, EnumeratorValue, RustTy};
+use crate::special_cases;
 
 pub fn make_enums(enums: &[Enum], cfg_attributes: &TokenStream) -> TokenStream {
     let definitions = enums.iter().map(make_enum_definition);

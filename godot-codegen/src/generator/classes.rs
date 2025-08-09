@@ -4,6 +4,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+use std::path::Path;
+
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote};
+
 use crate::context::{Context, NotificationEnum};
 use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
@@ -16,9 +22,6 @@ use crate::models::domain::{
 };
 use crate::util::{ident, make_string_name};
 use crate::{util, SubmitFn};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
-use std::path::Path;
 
 pub fn generate_class_files(
     api: &ExtensionApi,

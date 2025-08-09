@@ -12,8 +12,7 @@ use crate::class::{
     into_signature_info, make_existence_check, make_method_registration, Field, FieldHint,
     FuncDefinition,
 };
-use crate::util::make_funcs_collection_constant;
-use crate::util::KvParser;
+use crate::util::{make_funcs_collection_constant, KvParser};
 use crate::{util, ParseResult};
 
 /// Store info from `#[var]` attribute.

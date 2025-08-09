@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi::VariantType;
 use std::error::Error;
 use std::fmt;
+
+use godot_ffi::VariantType;
 
 use crate::builtin::Variant;
 use crate::meta::{ArrayTypeInfo, ClassName, ToGodot};

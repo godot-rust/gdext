@@ -12,17 +12,13 @@
 //!
 //! See [`ScriptInstance`](trait.ScriptInstance.html) for usage.
 
-// Re-export guards.
-pub use crate::obj::guards::{ScriptBaseMut, ScriptBaseRef};
-
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
 
-#[cfg(not(feature = "experimental-threads"))]
-use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
-
 #[cfg(feature = "experimental-threads")]
 use godot_cell::blocking::{GdCell, MutGuard, RefGuard};
+#[cfg(not(feature = "experimental-threads"))]
+use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{Object, Script, ScriptLanguage};
@@ -30,13 +26,20 @@ use crate::meta::{MethodInfo, PropertyInfo};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
 
-#[cfg(before_api = "4.3")]
-use self::bounded_ptr_list::BoundedPtrList;
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Public re-exports.
 
+// Godot 4.2+.
 #[cfg(since_api = "4.2")]
-use crate::classes::IScriptExtension;
+mod reexport_4_2 {
+    pub use crate::classes::IScriptExtension;
+    pub use crate::obj::Inherits;
+}
 #[cfg(since_api = "4.2")]
-use crate::obj::Inherits;
+pub use reexport_4_2::*;
+
+// Re-export guards.
+pub use crate::obj::guards::{ScriptBaseMut, ScriptBaseRef};
 
 /// Implement custom scripts that can be attached to objects in Godot.
 ///
@@ -602,20 +605,23 @@ mod bounded_ptr_list {
     }
 }
 
+#[cfg(before_api = "4.3")]
+use self::bounded_ptr_list::BoundedPtrList;
+
 #[deny(unsafe_op_in_unsafe_fn)]
 mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
 
-    use crate::builtin::{StringName, Variant};
-    use crate::private::handle_panic;
-    use crate::sys;
-
-    use super::{ScriptInstance, ScriptInstanceData, SiMut};
-    use crate::meta::{MethodInfo, PropertyInfo};
     use sys::conv::{bool_to_sys, SYS_FALSE, SYS_TRUE};
     #[cfg(since_api = "4.3")]
     use sys::conv::{ptr_list_from_sys, ptr_list_into_sys};
+
+    use super::{ScriptInstance, ScriptInstanceData, SiMut};
+    use crate::builtin::{StringName, Variant};
+    use crate::meta::{MethodInfo, PropertyInfo};
+    use crate::private::handle_panic;
+    use crate::sys;
 
     /// # Safety
     ///

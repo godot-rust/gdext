@@ -48,8 +48,9 @@ mod godot_version;
 #[cfg(feature = "api-custom")]
 #[path = ""]
 mod depend_on_custom {
-    use super::*;
     use std::borrow::Cow;
+
+    use super::*;
 
     pub(crate) mod godot_exe;
     pub(crate) mod godot_version;
@@ -82,9 +83,9 @@ pub use depend_on_custom::*;
 #[cfg(feature = "api-custom-json")]
 #[path = ""]
 mod depend_on_custom_json {
-    use super::*;
-
     use std::borrow::Cow;
+
+    use super::*;
 
     pub(crate) mod godot_json;
     pub(crate) mod godot_version;

@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{quote, ToTokens};
+
 use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{FieldExport, FieldVar};
 use crate::util::{error, KvParser};
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
 
 pub struct Field {
     pub name: Ident,

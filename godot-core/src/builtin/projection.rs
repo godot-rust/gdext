@@ -5,17 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ops::Mul;
+
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
+use super::{Aabb, Rect2, Vector3};
 use crate::builtin::math::{ApproxEq, GlamConv, GlamType};
 use crate::builtin::{
     inner, real, Plane, RMat4, RealConv, Transform3D, Vector2, Vector4, Vector4Axis,
 };
-
-use std::ops::Mul;
-
-use super::{Aabb, Rect2, Vector3};
 
 /// A 4x4 matrix used for 3D projective transformations.
 ///
@@ -595,7 +594,7 @@ impl ProjectionPlane {
 }
 
 /// The eye to create a projection for, when creating a projection adjusted for head-mounted displays.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionEye {
     LEFT = 1,
@@ -669,9 +668,8 @@ mod test {
 
     #![allow(clippy::type_complexity, clippy::excessive_precision)]
 
-    use crate::assert_eq_approx;
-
     use super::*;
+    use crate::assert_eq_approx;
 
     const EPSILON: real = 1e-6;
 

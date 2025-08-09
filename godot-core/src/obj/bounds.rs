@@ -47,11 +47,12 @@
 //!
 // Note that depending on if you want to exclude `Object`, you should use `DynMemory` instead of `Memory`.
 
+use private::Sealed;
+
 use crate::obj::cap::GodotDefault;
 use crate::obj::{Bounds, Gd, GodotClass, RawGd};
 use crate::storage::{InstanceCache, Storage};
 use crate::{out, sys};
-use private::Sealed;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Sealed trait

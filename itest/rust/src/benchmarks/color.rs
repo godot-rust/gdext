@@ -7,9 +7,9 @@
 
 use std::hint::black_box;
 
-use crate::framework::bench;
-
 use godot::builtin::{Color, ColorHsv};
+
+use crate::framework::bench;
 
 #[bench]
 fn godot_from_hsv() -> Color {

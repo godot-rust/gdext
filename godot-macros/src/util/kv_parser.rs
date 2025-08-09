@@ -5,11 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::{bail, error, ident, is_punct, path_is_single, ListParser};
-use crate::ParseResult;
+use std::collections::HashMap;
+
 use proc_macro2::{Delimiter, Ident, Literal, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
-use std::collections::HashMap;
+
+use super::{bail, error, ident, is_punct, path_is_single, ListParser};
+use crate::ParseResult;
 
 pub(crate) type KvMap = HashMap<Ident, Option<KvValue>>;
 
@@ -482,9 +484,10 @@ impl<'a> ParserState<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use proc_macro2::TokenStream;
     use quote::quote;
+
+    use super::*;
 
     /// A quick and dirty way to compare two expressions for equality. Only for unit tests; not
     /// very suitable for production code.

@@ -5,14 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::path::Path;
+
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
+
 use crate::context::Context;
 use crate::generator::builtins;
 use crate::models::domain::{ExtensionApi, ModName, NativeStructure, TyName};
 use crate::util::ident;
 use crate::{conv, special_cases, util, SubmitFn};
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
-use std::path::Path;
 
 pub fn generate_native_structures_files(
     api: &ExtensionApi,

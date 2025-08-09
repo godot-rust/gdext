@@ -5,12 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{expect_panic, itest};
 use godot::builtin::{
     vdict, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
     PackedStringArray, Variant,
 };
 use godot::prelude::ToGodot;
+
+use crate::framework::{expect_panic, itest};
 
 #[itest]
 fn packed_array_default() {

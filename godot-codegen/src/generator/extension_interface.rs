@@ -5,13 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::ident;
-use crate::SubmitFn;
+use std::fs;
+use std::path::Path;
+
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::quote;
 use regex::Regex;
-use std::fs;
-use std::path::Path;
+
+use crate::util::ident;
+use crate::SubmitFn;
 
 pub fn generate_sys_interface_file(
     h_path: &Path,

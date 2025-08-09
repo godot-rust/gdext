@@ -5,9 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi::join_with;
 use std::collections::HashMap;
 use std::{any, ptr};
+
+use godot_ffi::join_with;
+use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
 use crate::classes::ClassDb;
 use crate::init::InitLevel;
@@ -18,7 +20,6 @@ use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
 use crate::{classes, godot_error, godot_warn, sys};
-use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
 /// Returns a lock to a global map of loaded classes, by initialization level.
 ///

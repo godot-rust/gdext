@@ -5,6 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
+use quote::spanned::Spanned;
+use quote::{format_ident, quote, ToTokens};
+
 use crate::class::{
     into_signature_info, make_constant_registration, make_method_registration,
     make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
@@ -15,10 +19,6 @@ use crate::util::{
     replace_class_in_path, require_api_version, KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
-
-use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
-use quote::spanned::Spanned;
-use quote::{format_ident, quote, ToTokens};
 
 /// Attribute for user-declared function.
 enum ItemAttrType {

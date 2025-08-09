@@ -7,11 +7,10 @@
 
 use std::cell;
 
-#[cfg(not(feature = "experimental-threads"))]
-use godot_cell::panicking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
-
 #[cfg(feature = "experimental-threads")]
 use godot_cell::blocking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
+#[cfg(not(feature = "experimental-threads"))]
+use godot_cell::panicking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 
 use crate::obj::{Base, GodotClass};
 use crate::storage::{DebugBorrowTracker, Lifecycle, Storage, StorageRefCounted};

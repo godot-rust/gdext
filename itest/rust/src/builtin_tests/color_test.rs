@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
 use godot::builtin::math::assert_eq_approx;
 use godot::builtin::{Color, ColorChannelOrder, ColorHsv};
+
+use crate::framework::itest;
 
 #[itest]
 fn color_from_rgba8() {

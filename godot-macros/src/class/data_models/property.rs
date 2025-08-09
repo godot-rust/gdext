@@ -7,12 +7,13 @@
 
 //! Parses the `#[var]` and `#[export]` attributes on fields.
 
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
+
 use crate::class::data_models::fields::Fields;
 use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{Field, FieldVar, GetSet, GetterSetterImpl, UsageFlags};
 use crate::util::{format_funcs_collection_constant, format_funcs_collection_struct, ident};
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
 
 #[derive(Default, Clone, Debug)]
 pub enum FieldHint {

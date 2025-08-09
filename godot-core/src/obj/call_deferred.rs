@@ -4,14 +4,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+use std::ops::DerefMut;
+
+use godot_ffi::is_main_thread;
+
 use crate::builtin::{Callable, Variant};
 use crate::meta::UniformObjectDeref;
 use crate::obj::bounds::Declarer;
 use crate::obj::GodotClass;
 #[cfg(since_api = "4.2")]
 use crate::registry::signal::ToSignalObj;
-use godot_ffi::is_main_thread;
-use std::ops::DerefMut;
 
 // Dummy traits to still allow bounds and imports.
 #[cfg(before_api = "4.2")]

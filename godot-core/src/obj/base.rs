@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::obj::{Gd, GodotClass};
-use crate::{classes, sys};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
+
+use crate::obj::{Gd, GodotClass};
+use crate::{classes, sys};
 
 /// Restricted version of `Gd`, to hold the base instance inside a user's `GodotClass`.
 ///

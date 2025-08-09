@@ -11,7 +11,7 @@
 ///
 /// Returned by [`EngineEnum::all_constants()`][crate::obj::EngineEnum::all_constants] and
 /// [`EngineBitfield::all_constants()`][crate::obj::EngineBitfield::all_constants].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct EnumConstant<T: Copy + 'static> {
     rust_name: &'static str,
     godot_name: &'static str,

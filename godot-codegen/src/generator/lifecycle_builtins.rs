@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::models::domain::{BuiltinVariant, Constructor, ExtensionApi, Operator};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+
+use crate::models::domain::{BuiltinVariant, Constructor, ExtensionApi, Operator};
 
 pub fn make_variant_fns(
     api: &ExtensionApi,

@@ -164,7 +164,10 @@ mod real_mod {
 }
 
 // Public symbols (note that macro `real!` is re-exported in `lib.rs`)
+#[rustfmt::skip] // Do not reorder.
 pub use real_mod::{real, real_consts};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // Internal re-exports
 pub(crate) use real_mod::*;

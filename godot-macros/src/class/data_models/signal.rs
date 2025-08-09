@@ -7,10 +7,11 @@
 
 // Some duplication with godot-codegen/signals.rs; see comments there.
 
-use crate::util::bail;
-use crate::{util, ParseResult};
 use proc_macro2::{Delimiter, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
+
+use crate::util::bail;
+use crate::{util, ParseResult};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {
@@ -32,7 +33,7 @@ pub struct SignalDefinition {
 /// that a total order must exist. `in` paths cannot be semantically analyzed by proc-macros.
 ///
 /// Documented in <https://godot-rust.github.io/book/register/signals.html#signal-visibility>.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub enum SignalVisibility {
     Priv,
     PubSuper,

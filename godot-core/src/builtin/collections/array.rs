@@ -8,6 +8,9 @@
 use std::marker::PhantomData;
 use std::{cmp, fmt};
 
+use godot_ffi as sys;
+use sys::{ffi_methods, interface_fn, GodotFfi};
+
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
@@ -18,8 +21,6 @@ use crate::meta::{
 };
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
 use crate::registry::property::{BuiltinExport, Export, Var};
-use godot_ffi as sys;
-use sys::{ffi_methods, interface_fn, GodotFfi};
 
 /// Godot's `Array` type.
 ///
@@ -1623,11 +1624,13 @@ macro_rules! vslice {
 
 #[cfg(feature = "serde")]
 mod serialize {
-    use super::*;
+    use std::marker::PhantomData;
+
     use serde::de::{SeqAccess, Visitor};
     use serde::ser::SerializeSeq;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::marker::PhantomData;
+
+    use super::*;
 
     impl<T> Serialize for Array<T>
     where

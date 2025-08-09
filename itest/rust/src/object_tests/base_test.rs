@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{expect_panic, itest};
 use godot::prelude::*;
+
+use crate::framework::{expect_panic, itest};
 
 #[itest(skip)]
 fn base_test_is_weak() {

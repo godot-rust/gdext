@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
 use godot::builtin::Vector2;
 use godot::tools::{tr, tr_n};
+
+use crate::framework::itest;
 
 #[itest]
 fn tr_macro_format() {

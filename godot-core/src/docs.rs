@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::collections::HashMap;
+
 use crate::meta::ClassName;
 use crate::registry::plugin::{ITraitImpl, InherentImpl, PluginItem, Struct};
-use std::collections::HashMap;
 
 /// Created for documentation on
 /// ```ignore
@@ -19,7 +20,7 @@ use std::collections::HashMap;
 /// }
 /// ```
 /// All fields are XML parts, escaped where necessary.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct StructDocs {
     pub base: &'static str,
     pub description: &'static str,
@@ -45,7 +46,7 @@ pub struct StructDocs {
 /// }
 /// ```
 /// All fields are XML parts, escaped where necessary.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct InherentImplDocs {
     pub methods: &'static str,
     pub signals_block: &'static str,

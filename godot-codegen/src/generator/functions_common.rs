@@ -5,12 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote};
+
 use crate::generator::default_parameters;
 use crate::models::domain::{ArgPassing, FnParam, FnQualifier, Function, RustTy};
 use crate::special_cases;
 use crate::util::lifetime;
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
 
 pub struct FnReceiver {
     /// `&self`, `&mut self`, (none)

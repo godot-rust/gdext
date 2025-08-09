@@ -5,15 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ops;
+
+use godot_ffi as sys;
+use sys::{ffi_methods, ExtVariantType, GodotFfi};
+
 use crate::builtin::color_hsv::rgba_to_hsva;
 use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
 use crate::builtin::{ColorHsv, GString};
-
 use crate::meta::{arg_into_ref, AsArg};
-use godot_ffi as sys;
-use std::ops;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 /// Color built-in type, in floating-point RGBA format.
 ///
@@ -373,7 +374,7 @@ impl ApproxEq for Color {
 }
 
 /// Defines how individual color channels are laid out in memory.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum ColorChannelOrder {
     /// RGBA channel order. Godot's default.
     RGBA,

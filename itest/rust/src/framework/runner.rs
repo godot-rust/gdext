@@ -13,12 +13,11 @@ use godot::global::godot_error;
 use godot::obj::Gd;
 use godot::register::{godot_api, GodotClass};
 
+#[cfg(since_api = "4.2")]
+use super::AsyncRustTestCase;
 use crate::framework::{
     bencher, passes_filter, BenchResult, RustBenchmark, RustTestCase, TestContext,
 };
-
-#[cfg(since_api = "4.2")]
-use super::AsyncRustTestCase;
 
 #[derive(Debug, Clone, Default)]
 struct TestStats {

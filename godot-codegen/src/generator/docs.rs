@@ -9,10 +9,11 @@
 //!
 //! Single module for documentation, rather than having it in each symbol-specific file, so it's easier to keep docs consistent.
 
+use proc_macro2::Ident;
+
 use crate::generator::signals;
 use crate::models::domain::{ModName, TyName};
 use crate::special_cases;
-use proc_macro2::Ident;
 
 pub fn make_class_doc(
     class_name: &TyName,
