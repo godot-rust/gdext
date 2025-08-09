@@ -28,6 +28,7 @@ Commands:
     fmt           format code, fail if bad
     test          run unit tests (no Godot needed)
     itest         run integration tests (from within Godot)
+    testweb       run unit tests on web environment (requires node.js and emcc)
     clippy        validate clippy lints
     klippy        validate + fix clippy
     doc           generate docs for 'godot' crate
@@ -225,6 +226,39 @@ function cmd_itest() {
     return $exitCode
 }
 
+function cmd_testweb() {
+    # Add more debug symbols to build
+    commonFlags="-C link-args=-g"
+
+    # Avoid problems with emcc potentially writing to read-only dir
+    cacheDir="$(realpath ./target)/emscripten_cache"
+    mkdir -p "${cacheDir}"
+
+    echo "==============================="
+    echo "Initiating threaded Wasm tests."
+    echo "==============================="
+
+    # About the runner env var: See https://github.com/rust-lang/cargo/issues/7471
+    # About memory: More memory (256 MiB) is needed for the parallel godot-cell tests which spawn 70 threads each.
+    CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node \
+    RUSTFLAGS="-C link-args=-pthread \
+    -C target-feature=+atomics \
+    -C link-args=-sINITIAL_MEMORY=268435456 \
+    ${commonFlags}" EM_CACHE="${cacheDir}" run cargo +nightly test "${extraCargoArgs[@]}" \
+      --features godot/experimental-wasm,godot/lazy-function-tables \
+      -Zbuild-std --target wasm32-unknown-emscripten
+
+    echo "==================================="
+    echo "Initiating non-threaded Wasm tests."
+    echo "==================================="
+
+    CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node \
+    RUSTFLAGS="${commonFlags}" \
+    EM_CACHE="${cacheDir}" run cargo +nightly test "${extraCargoArgs[@]}" \
+        --features godot/experimental-wasm-nothreads,godot/experimental-wasm,godot/lazy-function-tables \
+        -Zbuild-std --target wasm32-unknown-emscripten
+}
+
 function cmd_doc() {
     run cargo doc --lib -p godot --no-deps "${extraCargoArgs[@]}"
 }
@@ -257,7 +291,7 @@ while [[ $# -gt 0 ]]; do
         --double)
             extraCargoArgs+=("--features" "godot/double-precision,godot/api-custom")
             ;;
-        fmt | test | itest | clippy | klippy | doc | dok)
+        fmt | test | itest | testweb | clippy | klippy | doc | dok)
             cmds+=("$arg")
             ;;
         -f | --filter)
