@@ -124,7 +124,6 @@ where
     F: FnOnce(Base<T::Base>) -> T,
 {
     let class_name = T::class_name();
-
     //out!("create callback: {}", class_name.backing);
 
     let base = unsafe { Base::from_sys(base_ptr) };
@@ -133,12 +132,15 @@ where
     let context = || format!("panic during {class_name}::init() constructor");
     let code = || make_user_instance(unsafe { Base::from_base(&base) });
     let user_instance = handle_panic(context, std::panic::AssertUnwindSafe(code))?;
+
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
     // godot_error!("failed to create instance of {class_name}; Rust init() panicked");
 
+    let mut base_copy = unsafe { Base::from_base(&base) };
+
     let instance = InstanceStorage::<T>::construct(user_instance, base);
-    let instance_ptr = instance.into_raw();
-    let instance_ptr = instance_ptr as sys::GDExtensionClassInstancePtr;
+    let instance_rust_ptr = instance.into_raw();
+    let instance_ptr = instance_rust_ptr as sys::GDExtensionClassInstancePtr;
 
     let binding_data_callbacks = crate::storage::nop_instance_callbacks();
     unsafe {
@@ -151,7 +153,14 @@ where
         );
     }
 
-    // std::mem::forget(class_name);
+    // Mark initialization as complete, now that user constructor has finished.
+    if base_copy.mark_initialized() {
+        // If an extra RefCounted reference was handed out, notify storage about it, so it can unreference later.
+        let instance_ref = unsafe { &*instance_rust_ptr };
+        instance_ref.mark_surplus_ref();
+    }
+
+    // No std::mem::forget(base_copy) here, since Base may stores other fields that need deallocation.
     Ok(instance_ptr)
 }
 

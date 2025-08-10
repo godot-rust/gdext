@@ -119,7 +119,7 @@ pub unsafe trait Storage {
     where
         Self::Instance: Inherits<<Self::Instance as GodotClass>::Base>,
     {
-        self.base().to_gd().cast()
+        self.base().__constructed_gd().cast()
     }
 
     /// Puts self onto the heap and returns a pointer to this new heap-allocation.
@@ -138,6 +138,13 @@ pub unsafe trait Storage {
 
         log_pre_drop(self);
     }
+
+    /// For ref-counted objects, marks as owning a surplus reference.
+    ///
+    /// Needed when a `Base<T>` hands out extra `Gd<T>` pointers during `init()`, which then requires upgrading the `Base`
+    /// weak pointer to a strong one. To compensate, this bool flag will skip the first `inc_ref()` call, which is typically
+    /// object construction.
+    fn mark_surplus_ref(&self);
 
     /*#[inline(always)]
     fn destroyed_by_godot(&self) -> bool {
