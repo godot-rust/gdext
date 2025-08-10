@@ -49,7 +49,7 @@ func test_collision_object_2d_input_event():
 	# Needed push_unhandled_input() in Godot 4.0; no longer supported.
 	window.push_input(event)
 
-	# Ensure we run a full physics frame
+	# Ensure we run a full physics frame.
 	await root.get_tree().physics_frame
 
 	assert_that(collision_object.input_event_called(), "Input event should be propagated")

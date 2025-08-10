@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 #[cfg(feature = "experimental-threads")]
 use godot_cell::blocking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 #[cfg(not(feature = "experimental-threads"))]
@@ -19,6 +21,7 @@ pub struct InstanceStorage<T: GodotClass> {
 
     // Declared after `user_instance`, is dropped last
     pub(super) lifecycle: AtomicLifecycle,
+    has_surplus_ref: AtomicBool,
 
     // No-op in Release mode.
     borrow_tracker: DebugBorrowTracker,
@@ -45,12 +48,17 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             user_instance: GdCell::new(user_instance),
             base,
             lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
+            has_surplus_ref: AtomicBool::new(false),
             borrow_tracker: DebugBorrowTracker::new(),
         }
     }
 
     fn is_bound(&self) -> bool {
         self.user_instance.is_currently_bound()
+    }
+
+    fn mark_surplus_ref(&self) {
+        self.has_surplus_ref.store(true, Ordering::Relaxed);
     }
 
     fn base(&self) -> &Base<<Self::Instance as GodotClass>::Base> {

@@ -20,6 +20,8 @@ use crate::registry::signal::ToSignalObj;
 #[cfg(before_api = "4.2")]
 pub trait WithDeferredCall<T: GodotClass> {}
 
+// TODO(v0.4): seal this and similar traits.
+
 /// Enables `Gd::apply_deferred()` for type-safe deferred calls.
 ///
 /// The trait is automatically available for all engine-defined Godot classes and user classes containing a `Base<T>` field.

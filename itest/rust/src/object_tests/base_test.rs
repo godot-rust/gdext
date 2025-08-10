@@ -16,16 +16,6 @@ fn base_test_is_weak() {
 }
 
 #[itest]
-fn base_instance_id() {
-    let obj = Based::new_alloc();
-    let obj_id = obj.instance_id();
-    let base_id = obj.bind().base().instance_id();
-
-    assert_eq!(obj_id, base_id);
-    obj.free();
-}
-
-#[itest]
 fn base_access_unbound() {
     let mut obj = Based::new_alloc();
 
@@ -80,9 +70,11 @@ fn base_debug() {
     obj.free();
 }
 
+// Compatibility check until v0.4 Base::to_gd() is removed.
 #[itest]
 fn base_with_init() {
     let obj = Gd::<Based>::from_init_fn(|base| {
+        #[allow(deprecated)]
         base.to_gd().set_rotation(11.0);
         Based { base, i: 732 }
     });
@@ -112,17 +104,15 @@ fn base_smuggling() {
     let (mut obj, extracted_base) = create_object_with_extracted_base();
 
     // This works because Gd<T> additionally stores the instance ID (through cached_rtti).
-    assert_eq!(extracted_base.to_gd().instance_id(), obj.instance_id());
+    let extracted_base_obj = extracted_base.__constructed_gd();
+    assert_eq!(extracted_base_obj.instance_id(), obj.instance_id());
 
     // This _also_ works because Gd<T> has the direct object pointer to the Godot object.
     obj.set_position(Vector2::new(1.0, 2.0));
-    assert_eq!(
-        extracted_base.to_gd().get_position(),
-        Vector2::new(1.0, 2.0)
-    );
+    assert_eq!(extracted_base_obj.get_position(), Vector2::new(1.0, 2.0));
 
     // Destroy base externally.
-    extracted_base.to_gd().free();
+    extracted_base_obj.free();
 
     // Access to object should now fail.
     expect_panic("object with dead base: calling base methods", || {
@@ -146,7 +136,7 @@ fn base_smuggling() {
     obj.free();
 
     expect_panic("accessing extracted base of dead object", || {
-        extracted_base.to_gd().get_position();
+        extracted_base.__constructed_gd().get_position();
     });
 }
 
@@ -172,7 +162,10 @@ fn base_swapping() {
     // Base<T> side, since that only has direct access to the object pointer, while Gd<T> has access to the object pointer _and_ the base field).
     // Not sure if this is worth the effort + complexity though, given that it almost requires malice to get into such a situation.
     assert_eq!(one.instance_id(), two.bind().base().instance_id());
-    assert_eq!(two.instance_id(), one_ext_base.to_gd().instance_id());
+    assert_eq!(
+        two.instance_id(),
+        one_ext_base.__constructed_gd().instance_id()
+    );
 
     one.free();
     two.free();
@@ -188,8 +181,25 @@ fn create_object_with_extracted_base() -> (Gd<Baseless>, Base<Node2D>) {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-use renamed_bases::Based;
+#[derive(GodotClass)]
+pub struct RefBase {
+    pub base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for RefBase {
+    fn init(base: Base<RefCounted>) -> Self {
+        Self { base }
+    }
+}
+
+// Also used in base_init_test.rs.
+pub(super) use renamed_bases::Based;
+
 mod renamed_bases {
+    use godot::classes::INode2D;
+    use godot::prelude::godot_api;
+
     use super::{GodotClass, Node2D};
 
     // Test #[hint].
@@ -197,7 +207,7 @@ mod renamed_bases {
     type Base<T> = T;
 
     #[derive(GodotClass)]
-    #[class(init, base = Node2D)]
+    #[class(base = Node2D)]
     pub struct Based {
         #[hint(base)]
         pub base: Super<Node2D>, // de-facto: Base<Node2D>.
@@ -205,6 +215,13 @@ mod renamed_bases {
         // This can coexist because it's not really a base.
         #[hint(no_base)]
         pub i: Base<i32>, // de-facto: i32
+    }
+
+    #[godot_api]
+    impl INode2D for Based {
+        fn init(base: godot::obj::Base<Self::Base>) -> Self {
+            Based { base, i: 0 }
+        }
     }
 }
 
@@ -228,5 +245,59 @@ impl Baseless {
             *other_base = Some(base);
             Self {}
         })
+    }
+}
+
+#[derive(GodotClass)]
+#[class] // <- also test this syntax.
+pub(super) struct RefcBased {
+    // pub(super): also used in base_init_test.rs.
+    pub base: Base<RefCounted>,
+}
+
+// Only needed in base_init_test.rs.
+#[godot_api]
+impl IRefCounted for RefcBased {
+    fn init(base: Base<RefCounted>) -> Self {
+        #[cfg(since_api = "4.2")]
+        base.to_init_gd(); // Immediately dropped.
+        Self { base }
+    }
+}
+
+// Only needed in base_init_test.rs.
+#[cfg(since_api = "4.2")]
+#[godot_api(no_typed_signals)]
+impl RefcBased {
+    /// Used in `base_init_test.rs` to test that a base pointer can be extracted during initialization.
+    pub fn split_simple() -> (Gd<Self>, Gd<RefCounted>) {
+        let mut moved_out = None;
+
+        let self_gd = Gd::from_init_fn(|base| {
+            moved_out = Some(base.to_init_gd()); // Moved out.
+            Self { base }
+        });
+
+        (self_gd, moved_out.unwrap())
+    }
+
+    /// Used in `base_init_test.rs`, testing extraction + several drops happening at different times.
+    pub fn split_intermixed() -> (Gd<Self>, Gd<RefCounted>) {
+        let mut moved_out = None;
+
+        let self_gd = Gd::from_init_fn(|base| {
+            let gd = base.to_init_gd(); // Explicitly dropped below.
+
+            drop(base.to_init_gd()); // Immediately dropped.
+
+            let _local_copy = base.to_init_gd(); // Dropped at end of scope.
+            moved_out = Some(base.to_init_gd()); // Moved out.
+
+            drop(gd);
+
+            Self { base }
+        });
+
+        (self_gd, moved_out.unwrap())
     }
 }

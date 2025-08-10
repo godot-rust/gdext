@@ -254,7 +254,9 @@ pub fn expect_debug_panic_or_release_ok(_context: &str, code: impl FnOnce()) {
     code()
 }
 
-/// Run code asynchronously, immediately before the next _process_ frame.
+/// Run code asynchronously, at the very start of the next _process_ frame (before `INode::process()`).
+///
+/// If there is a custom `MainLoop` present, it will be run _before_ this.
 ///
 /// Useful for assertions that run expect a `call_deferred()` or similar operation, and still want to check the result.
 #[cfg(since_api = "4.2")]
