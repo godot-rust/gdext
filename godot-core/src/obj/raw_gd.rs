@@ -195,7 +195,7 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// # Panics
     /// If `self` does not inherit `RefCounted` or is null.
-    pub(crate) fn with_ref_counted<R>(&self, apply: impl Fn(&mut classes::RefCounted) -> R) -> R {
+    pub fn with_ref_counted<R>(&self, apply: impl Fn(&mut classes::RefCounted) -> R) -> R {
         // Note: this previously called Declarer::scoped_mut() - however, no need to go through bind() for changes in base RefCounted.
         // Any accesses to user objects (e.g. destruction if refc=0) would bind anyway.
         //
@@ -204,8 +204,8 @@ impl<T: GodotClass> RawGd<T> {
         //     self.as_target_mut()
         // }
 
-        let mut ref_counted = match self.ffi_cast::<classes::RefCounted>() {
-            Ok(cast_success) => cast_success,
+        match self.try_with_ref_counted(apply) {
+            Ok(result) => result,
             Err(()) if self.is_null() => {
                 panic!("RawGd::with_ref_counted(): expected to inherit RefCounted, encountered null pointer");
             }
@@ -216,14 +216,25 @@ impl<T: GodotClass> RawGd<T> {
 
                 // One way how this may panic is when invoked during destruction of a RefCounted object. The C++ `Object::object_cast_to()`
                 // function is virtual but cannot be dynamically dispatched in a C++ destructor.
-                panic!("RawGd::with_ref_counted(): expected to inherit RefCounted, but encountered {class}");
+                panic!(
+                    "Operation not permitted for object of class {class}:\n\
+                    class is either not RefCounted, or currently in construction/destruction phase"
+                );
             }
-        };
+        }
+    }
 
+    /// Fallible version of [`with_ref_counted()`](Self::with_ref_counted), for situations during init/drop when downcast no longer works.
+    #[expect(clippy::result_unit_err)]
+    pub fn try_with_ref_counted<R>(
+        &self,
+        apply: impl Fn(&mut classes::RefCounted) -> R,
+    ) -> Result<R, ()> {
+        let mut ref_counted = self.ffi_cast::<classes::RefCounted>()?;
         let return_val = apply(ref_counted.as_dest_mut().as_target_mut());
 
         // CastSuccess is forgotten when dropped, so no ownership transfer.
-        return_val
+        Ok(return_val)
     }
 
     /// Enables outer `Gd` APIs or bypasses additional null checks, in cases where `RawGd` is guaranteed non-null.
@@ -716,7 +727,7 @@ impl<T: GodotClass> Clone for RawGd<T> {
     fn clone(&self) -> Self {
         out!("RawGd::clone:     {self:?}  (before clone)");
 
-        if self.is_null() {
+        let cloned = if self.is_null() {
             Self::null()
         } else {
             self.check_rtti("clone");
@@ -728,7 +739,10 @@ impl<T: GodotClass> Clone for RawGd<T> {
                 cached_storage_ptr: self.cached_storage_ptr.clone(),
             };
             copy.with_inc_refcount()
-        }
+        };
+
+        out!("                  {self:?}  (after clone)");
+        cloned
     }
 }
 
