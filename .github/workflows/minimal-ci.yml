@@ -47,6 +47,7 @@ jobs:
       - name: "Install Rust"
         uses: ./.github/composite/rust
         with:
+          rust: nightly
           components: rustfmt
 
       - name: "Check rustfmt"

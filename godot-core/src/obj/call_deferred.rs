@@ -61,14 +61,11 @@ where
             is_main_thread(),
             "`apply_deferred` must be called on the main thread"
         );
-        let mut rust_fn_once = Some(rust_function);
+
         let mut this = self.to_signal_obj().clone();
-        let callable = Callable::from_local_fn("apply_deferred", move |_| {
-            let rust_fn_once = rust_fn_once
-                .take()
-                .expect("rust_fn_once was already consumed");
+        let callable = Callable::from_once_fn("apply_deferred", move |_| {
             let mut this_mut = T::object_as_mut(&mut this);
-            rust_fn_once(this_mut.deref_mut());
+            rust_function(this_mut.deref_mut());
             Ok(Variant::nil())
         });
         callable.call_deferred(&[]);

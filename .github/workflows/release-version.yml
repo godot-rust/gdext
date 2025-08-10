@@ -120,7 +120,7 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: "Install Rust (uncached)"
-        run: rustup update stable
+        run: rustup update nightly && rustup default nightly
 
       - name: "Check rustfmt"
         run: cargo fmt --all -- --check

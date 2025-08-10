@@ -315,18 +315,32 @@ impl<T: GodotClass> Gd<T> {
     }
 
     /// Returns the reference count, if the dynamic object inherits `RefCounted`; and `None` otherwise.
-    pub(crate) fn maybe_refcount(&self) -> Option<usize> {
+    ///
+    /// Returns `Err(())` if obtaining reference count failed, due to being called during init/drop.
+    pub(crate) fn maybe_refcount(&self) -> Option<Result<usize, ()>> {
+        // May become infallible if implemented via call() on Object, if ref-count bit of instance ID is set.
+        // This would likely be more efficient, too.
+
         // Fast check if ref-counted without downcast.
-        self.instance_id().is_ref_counted().then(|| {
-            let rc = self.raw.with_ref_counted(|refc| refc.get_reference_count());
-            rc as usize
-        })
+        if !self.instance_id().is_ref_counted() {
+            return None;
+        }
+
+        // Optimization: call `get_reference_count()` directly. Might also increase reliability and obviate the need for Result.
+
+        let rc = self
+            .raw
+            .try_with_ref_counted(|refc| refc.get_reference_count());
+
+        Some(rc.map(|i| i as usize))
     }
 
     #[cfg(feature = "trace")] // itest only.
     #[doc(hidden)]
     pub fn test_refcount(&self) -> Option<usize> {
         self.maybe_refcount()
+            .transpose()
+            .expect("failed to obtain refcount")
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
@@ -359,10 +373,19 @@ impl<T: GodotClass> Gd<T> {
             .expect("Upcast to Object failed. This is a bug; please report it.")
     }
 
+    // /// Equivalent to [`upcast_mut::<Object>()`][Self::upcast_mut], but without bounds.
+    // pub(crate) fn upcast_object_ref(&self) -> &classes::Object {
+    //     self.raw.as_object_ref()
+    // }
+
     /// Equivalent to [`upcast_mut::<Object>()`][Self::upcast_mut], but without bounds.
     pub(crate) fn upcast_object_mut(&mut self) -> &mut classes::Object {
         self.raw.as_object_mut()
     }
+
+    // pub(crate) fn upcast_object_mut_from_ref(&self) -> &mut classes::Object {
+    //     self.raw.as_object_mut()
+    // }
 
     /// **Upcast shared-ref:** access this object as a shared reference to a base class.
     ///
@@ -554,7 +577,10 @@ impl<T: GodotClass> Gd<T> {
     pub(crate) unsafe fn from_obj_sys_or_none(
         ptr: sys::GDExtensionObjectPtr,
     ) -> Result<Self, ConvertError> {
-        Self::try_from_ffi(RawGd::from_obj_sys(ptr))
+        // Used to have a flag to select RawGd::from_obj_sys_weak(ptr) for Base::to_init_gd(), but solved differently in the end.
+        let obj = RawGd::from_obj_sys(ptr);
+
+        Self::try_from_ffi(obj)
     }
 
     /// Initializes this `Gd<T>` from the object pointer as a **strong ref**, meaning
