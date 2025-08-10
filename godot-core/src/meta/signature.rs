@@ -66,17 +66,19 @@ impl<Params: InParamTuple, Ret: ToGodot> Signature<Params, Ret> {
         call_ctx: &CallContext,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         arg_count: i64,
+        default_arg_count: usize,
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
         func: unsafe fn(sys::GDExtensionClassInstancePtr, Params) -> Ret,
     ) -> CallResult<()> {
         //$crate::out!("in_varcall: {call_ctx}");
-        CallError::check_arg_count(call_ctx, arg_count as usize, Params::LEN)?;
+        CallError::check_arg_count(call_ctx, arg_count as usize, default_arg_count, Params::LEN)?;
 
         #[cfg(feature = "trace")]
         trace::push(true, false, call_ctx);
 
         // SAFETY: TODO.
+        // no-commit: problem with default args here!
         let args = unsafe { Params::from_varcall_args(args_ptr, call_ctx)? };
 
         let rust_result = unsafe { func(instance_ptr, args) };

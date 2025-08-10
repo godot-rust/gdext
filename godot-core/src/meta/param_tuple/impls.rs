@@ -60,6 +60,7 @@ macro_rules! unsafe_impl_param_tuple {
                     $(
                         // SAFETY: `args_ptr` is an array with length `Self::LEN` and each element is a valid pointer, since they
                         // are all reborrowable as references.
+                        // no-commit: False with default parameters, should we change this?
                         unsafe { *args_ptr.offset($n) },
                     )*
                 );
@@ -67,6 +68,7 @@ macro_rules! unsafe_impl_param_tuple {
                 let param_tuple = (
                     $(
                         // SAFETY: Each pointer in `args_ptr` is reborrowable as a `&Variant` for the duration of this call.
+                        // no-commit: False with default parameters, should we change this?
                         unsafe { varcall_arg::<$P>(args.$n, call_ctx, $n)? },
                     )*
                 );
