@@ -11,10 +11,10 @@ use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::{inner, GString, StringName, Variant, VariantArray};
-use crate::classes;
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
+use crate::{classes, meta};
 
 #[cfg(all(since_api = "4.2", before_api = "4.3"))]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo;
@@ -179,6 +179,40 @@ impl Callable {
             thread_id: Some(std::thread::current().id()),
             linked_obj_id: Some(linked_object.instance_id()),
         })
+    }
+
+    /// Create callable from **single-threaded** Rust function or closure that can only be called once.
+    ///
+    /// `name` is used for the string representation of the closure, which helps debugging.
+    ///
+    /// After the first invocation, subsequent calls will panic with a message indicating the callable has already been consumed. This is
+    /// useful for deferred operations that should only execute once. For repeated execution, use [`from_local_fn()][Self::from_local_fn].
+    #[cfg(since_api = "4.2")]
+    pub(crate) fn from_once_fn<F, S>(name: S, rust_function: F) -> Self
+    where
+        F: 'static + FnOnce(&[&Variant]) -> Result<Variant, ()>,
+        S: meta::AsArg<GString>,
+    {
+        meta::arg_into_owned!(name);
+
+        let mut rust_fn_once = Some(rust_function);
+        Self::from_local_fn(&name, move |args| {
+            let rust_fn_once = rust_fn_once
+                .take()
+                .expect("callable created with from_once_fn() has already been consumed");
+            rust_fn_once(args)
+        })
+    }
+
+    #[cfg(feature = "trace")] // Test only.
+    #[cfg(since_api = "4.2")]
+    #[doc(hidden)]
+    pub fn __once_fn<F, S>(name: S, rust_function: F) -> Self
+    where
+        F: 'static + FnOnce(&[&Variant]) -> Result<Variant, ()>,
+        S: meta::AsArg<GString>,
+    {
+        Self::from_once_fn(name, rust_function)
     }
 
     #[cfg(since_api = "4.2")]
@@ -517,8 +551,6 @@ impl fmt::Display for Callable {
 pub use custom_callable::RustCallable;
 #[cfg(since_api = "4.2")]
 use custom_callable::*;
-
-use crate::meta;
 
 #[cfg(since_api = "4.2")]
 mod custom_callable {

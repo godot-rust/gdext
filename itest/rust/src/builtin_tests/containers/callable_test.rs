@@ -648,6 +648,20 @@ pub mod custom_callable {
         assert!(signal.is_connected(&identical_callable));
     }
 
+    #[cfg(since_api = "4.2")]
+    #[itest]
+    fn callable_from_once_fn() {
+        let callable = Callable::__once_fn("once_test", move |_| Ok(42.to_variant()));
+
+        // First call should succeed.
+        let result = callable.call(&[]);
+        assert_eq!(result.to::<i32>(), 42);
+
+        // Second call should fail (panic currently isn't propagated, see other tests).
+        let result = callable.call(&[]);
+        assert!(result.is_nil());
+    }
+
     // ------------------------------------------------------------------------------------------------------------------------------------------
     // Helper structs and functions for custom callables
 
