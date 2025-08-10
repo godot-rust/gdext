@@ -5,9 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{real, RealConv, Vector2};
-
 use super::ApproxEq;
+use crate::builtin::{real, RealConv, Vector2};
 
 mod private {
     pub trait Sealed {}
@@ -253,9 +252,8 @@ impl_float_ext!(f64, std::f64::consts, from_f64);
 
 #[cfg(test)]
 mod test {
-    use crate::assert_eq_approx;
-
     use super::*;
+    use crate::assert_eq_approx;
 
     // Create functions that take references for use in `assert_eq/ne_approx`.
     fn is_angle_equal_approx_f32(a: &f32, b: &f32) -> bool {

@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{expect_panic, itest};
 // Test that all important dyn-related symbols are in the prelude.
 use godot::prelude::*;
+
+use crate::framework::{expect_panic, itest};
 
 #[itest]
 fn dyn_gd_creation_bind() {

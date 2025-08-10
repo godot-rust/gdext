@@ -8,10 +8,11 @@
 // Needed for Clippy to accept #[cfg(all())]
 #![allow(clippy::non_minimal_cfg)]
 
-use crate::framework::itest;
 use godot::classes::ClassDb;
 use godot::prelude::*;
 use godot::sys::static_assert;
+
+use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(no_init)]

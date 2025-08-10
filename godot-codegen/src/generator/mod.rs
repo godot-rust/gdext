@@ -5,11 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::path::Path;
+
+use quote::quote;
+
 use crate::context::Context;
 use crate::models::domain::{ClassCodegenLevel, ExtensionApi};
 use crate::SubmitFn;
-use quote::quote;
-use std::path::Path;
 
 pub mod builtins;
 pub mod central_files;

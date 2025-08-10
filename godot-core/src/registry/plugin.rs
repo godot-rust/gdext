@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::any::Any;
+use std::{any, fmt};
+
 #[cfg(all(since_api = "4.3", feature = "register-docs"))]
 use crate::docs::*;
 use crate::init::InitLevel;
@@ -13,8 +16,6 @@ use crate::obj::{bounds, cap, Bounds, DynGd, Gd, GodotClass, Inherits, UserClass
 use crate::registry::callbacks;
 use crate::registry::class::GodotGetVirtual;
 use crate::{classes, sys};
-use std::any::Any;
-use std::{any, fmt};
 
 // TODO(bromeon): some information coming from the proc-macro API is deferred through PluginItem, while others is directly
 // translated to code. Consider moving more code to the PluginItem, which allows for more dynamic registration and will

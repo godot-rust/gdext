@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::context::Context;
-use crate::models::domain::{Class, ClassLike, ExtensionApi, FnDirection, Function};
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use crate::context::Context;
+use crate::models::domain::{Class, ClassLike, ExtensionApi, FnDirection, Function};
 
 pub fn make_virtual_consts_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
     make_virtual_hashes_for_all_classes(&api.classes, ctx)

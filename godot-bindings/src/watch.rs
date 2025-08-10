@@ -6,11 +6,9 @@
  */
 
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::time::{Duration, Instant};
-
-use std::io::Write;
 
 pub struct StopWatch {
     last_instant: Instant,

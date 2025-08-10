@@ -5,14 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
+use std::fmt::Debug;
 
 use godot::builtin::inner::InnerPlane;
 use godot::builtin::math::{assert_eq_approx, ApproxEq};
 use godot::builtin::{real, Plane, RealConv, Vector3};
 use godot::meta::ToGodot;
 
-use std::fmt::Debug;
+use crate::framework::itest;
 
 fn check_mapping_eq<T>(context: &str, outer: T, inner: T)
 where

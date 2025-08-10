@@ -42,17 +42,16 @@ pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
 ///
 /// For newtype structs we just defer to the wrapped type. For enums we use `PropertyHint::ENUM` with an appropriate hint string.
 fn create_property_hint_impl(convert: &GodotConvert) -> TokenStream {
-    use super::data_models::ConvertType as Data;
-    use super::data_models::ViaType;
+    use super::data_models::{ConvertType, ViaType};
 
     match &convert.convert_type {
-        Data::NewType { field } => {
+        ConvertType::NewType { field } => {
             let ty = &field.ty;
             quote! {
                 <#ty as ::godot::register::property::Var>::var_hint()
             }
         }
-        Data::Enum { variants, via } => {
+        ConvertType::Enum { variants, via } => {
             let hint_string = match via {
                 ViaType::GString { .. } => variants.to_string_hint(),
                 ViaType::Int { .. } => variants.to_int_hint(),

@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi as sys;
+
 use super::*;
 use crate::builtin::*;
 use crate::global;
@@ -12,7 +14,7 @@ use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
     ArrayElement, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo, RefArg,
 };
-use godot_ffi as sys;
+
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

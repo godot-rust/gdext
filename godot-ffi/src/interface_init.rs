@@ -15,7 +15,6 @@
 //! Relevant upstream PR: <https://github.com/godotengine/godot/pull/76406>.
 
 use crate as sys;
-
 #[cfg(not(target_family = "wasm"))]
 use crate::toolbox::read_version_string;
 

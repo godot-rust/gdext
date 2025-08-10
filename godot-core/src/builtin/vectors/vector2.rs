@@ -5,15 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use core::cmp::Ordering;
+use std::cmp::Ordering;
+use std::fmt;
+
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
 use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i};
-
-use std::fmt;
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -206,9 +206,8 @@ impl GlamType for RVec2 {
 
 #[cfg(test)]
 mod test {
-    use crate::assert_eq_approx;
-
     use super::*;
+    use crate::assert_eq_approx;
 
     #[test]
     fn coord_min_max() {

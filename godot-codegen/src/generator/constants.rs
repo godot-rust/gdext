@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::models::domain::{ClassConstant, ClassConstantValue};
-use crate::util;
 use proc_macro2::TokenStream;
 use quote::quote;
+
+use crate::models::domain::{ClassConstant, ClassConstantValue};
+use crate::util;
 
 pub fn make_constants(constants: &[ClassConstant]) -> TokenStream {
     let definitions = constants.iter().map(make_constant_definition);

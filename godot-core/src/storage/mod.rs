@@ -11,8 +11,9 @@ mod multi_threaded;
 #[cfg_attr(feature = "experimental-threads", allow(dead_code))]
 mod single_threaded;
 
-pub use instance_storage::*;
 use std::any::type_name;
+
+pub use instance_storage::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared code for submodules
@@ -54,14 +55,14 @@ fn bug_inaccessible<T>(err: Box<dyn std::error::Error>) -> ! {
 
 #[cfg(feature = "debug-log")]
 use log_active::*;
-
 #[cfg(not(feature = "debug-log"))]
 use log_inactive::*;
 
 #[cfg(feature = "debug-log")]
 mod log_active {
-    use super::*;
     use godot_ffi::out;
+
+    use super::*;
 
     pub fn log_construct<T: GodotClass>(base: &Base<T::Base>) {
         out!(
@@ -124,10 +125,10 @@ mod log_inactive {
 
 #[cfg(debug_assertions)]
 use borrow_info::DebugBorrowTracker;
-
-use crate::obj::{Base, GodotClass};
 #[cfg(not(debug_assertions))]
 use borrow_info_noop::DebugBorrowTracker;
+
+use crate::obj::{Base, GodotClass};
 
 #[cfg(debug_assertions)]
 mod borrow_info {

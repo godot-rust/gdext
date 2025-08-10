@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi::VariantType;
+
 use crate::builtin::{GString, StringName};
 use crate::global::{PropertyHint, PropertyUsageFlags};
 use crate::meta::{
@@ -14,14 +16,13 @@ use crate::obj::{bounds, Bounds, EngineBitfield, EngineEnum, GodotClass};
 use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
-use godot_ffi::VariantType;
 
 /// Describes a property in Godot.
 ///
 /// Abstraction of the low-level `sys::GDExtensionPropertyInfo`.
 ///
 /// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 // Note: There was an idea of a high-level representation of the following, but it's likely easier and more efficient to use introspection
 // APIs like `is_array_of_elem()`, unless there's a real user-facing need.
@@ -158,8 +159,7 @@ impl PropertyInfo {
 
     /// Converts to the FFI type. Keep this object allocated while using that!
     pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {
-        use crate::obj::EngineBitfield as _;
-        use crate::obj::EngineEnum as _;
+        use crate::obj::{EngineBitfield as _, EngineEnum as _};
 
         sys::GDExtensionPropertyInfo {
             type_: self.variant_type.sys(),
@@ -172,8 +172,7 @@ impl PropertyInfo {
     }
 
     pub fn empty_sys() -> sys::GDExtensionPropertyInfo {
-        use crate::obj::EngineBitfield as _;
-        use crate::obj::EngineEnum as _;
+        use crate::obj::{EngineBitfield as _, EngineEnum as _};
 
         sys::GDExtensionPropertyInfo {
             type_: VariantType::NIL.sys(),
@@ -190,8 +189,7 @@ impl PropertyInfo {
     ///
     /// This will leak memory unless used together with `free_owned_property_sys`.
     pub(crate) fn into_owned_property_sys(self) -> sys::GDExtensionPropertyInfo {
-        use crate::obj::EngineBitfield as _;
-        use crate::obj::EngineEnum as _;
+        use crate::obj::{EngineBitfield as _, EngineEnum as _};
 
         sys::GDExtensionPropertyInfo {
             type_: self.variant_type.sys(),

@@ -5,15 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi as sys;
+use std::marker::PhantomData;
+use std::{fmt, ptr};
 
-use crate::builtin::{inner, Variant, VariantArray};
-use crate::meta::{ExtVariantType, FromGodot, ToGodot};
+use godot_ffi as sys;
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use std::marker::PhantomData;
-use std::{fmt, ptr};
+use crate::builtin::{inner, Variant, VariantArray};
+use crate::meta::{ExtVariantType, FromGodot, ToGodot};
 
 /// Godot's `Dictionary` type.
 ///

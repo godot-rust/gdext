@@ -7,11 +7,11 @@
 
 #![allow(clippy::type_complexity, clippy::excessive_precision)]
 
-use crate::framework::itest;
-
 use godot::builtin::inner::InnerProjection;
 use godot::builtin::math::assert_eq_approx;
 use godot::builtin::{real, Aabb, Projection, RealConv, Rect2, Vector2, Vector3};
+
+use crate::framework::itest;
 
 #[itest]
 fn test_create_orthogonal() {

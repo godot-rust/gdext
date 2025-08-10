@@ -6,7 +6,6 @@
  */
 
 use godot_ffi as sys;
-
 use sys::interface_fn;
 
 use crate::builtin::StringName;

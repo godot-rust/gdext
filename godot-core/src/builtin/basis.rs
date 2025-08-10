@@ -5,15 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cmp::Ordering;
+use std::fmt::Display;
+use std::ops::{Mul, MulAssign};
+
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType, XformInv};
 use crate::builtin::real_consts::FRAC_PI_2;
 use crate::builtin::{real, EulerOrder, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
-use std::cmp::Ordering;
-use std::fmt::Display;
-use std::ops::{Mul, MulAssign};
 
 /// A 3x3 matrix, typically used as an orthogonal basis for [`Transform3D`](crate::builtin::Transform3D).
 ///
@@ -640,11 +641,9 @@ crate::meta::impl_godot_as_self!(Basis);
 
 #[cfg(test)]
 mod test {
-    use crate::builtin::real_consts::{FRAC_PI_2, PI};
-
-    use crate::assert_eq_approx;
-
     use super::*;
+    use crate::assert_eq_approx;
+    use crate::builtin::real_consts::{FRAC_PI_2, PI};
 
     fn deg_to_rad(rotation: Vector3) -> Vector3 {
         Vector3::new(

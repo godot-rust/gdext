@@ -5,12 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
-
-use crate::builtin_tests::common::assert_evaluate_approx_eq;
 use godot::builtin::inner::InnerTransform2D;
 use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2, XformInv};
 use godot::private::class_macros::assert_eq_approx;
+
+use crate::builtin_tests::common::assert_evaluate_approx_eq;
+use crate::framework::itest;
 
 const TEST_TRANSFORM: Transform2D = Transform2D::from_cols(
     Vector2::new(1.0, 2.0),

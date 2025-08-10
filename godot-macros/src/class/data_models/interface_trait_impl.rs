@@ -5,12 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Delimiter, Group, Ident, TokenStream};
+use quote::{quote, ToTokens};
+
 use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, SignatureInfo};
 use crate::util::ident;
 use crate::{util, ParseResult};
-
-use proc_macro2::{Delimiter, Group, Ident, TokenStream};
-use quote::{quote, ToTokens};
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`.
 pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<TokenStream> {

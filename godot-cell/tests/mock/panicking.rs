@@ -12,7 +12,8 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
-use std::sync::{atomic::AtomicUsize, Mutex, OnceLock};
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Mutex, OnceLock};
 
 use godot_cell::panicking::{GdCell, InaccessibleGuard};
 

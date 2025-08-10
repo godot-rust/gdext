@@ -5,15 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::Display;
+use std::ops::{Mul, MulAssign};
+
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::math::{assert_ne_approx, ApproxEq, FloatExt, GlamConv, GlamType, XformInv};
 use crate::builtin::real_consts::PI;
 use crate::builtin::{real, RAffine2, RMat2, Rect2, Vector2};
-
-use std::fmt::Display;
-use std::ops::{Mul, MulAssign};
 
 /// Affine 2D transform (2x3 matrix).
 ///
@@ -653,9 +653,8 @@ impl GlamConv for Basis2D {
 
 #[cfg(test)]
 mod test {
-    use crate::assert_eq_approx;
-
     use super::*;
+    use crate::assert_eq_approx;
 
     #[test]
     fn transform2d_constructors_correct() {

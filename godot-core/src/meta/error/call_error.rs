@@ -5,14 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::error::Error;
+use std::fmt;
+
+use godot_ffi::join_debug;
+
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::{ConvertError, ErasedConvertError};
 use crate::meta::{CallContext, ToGodot};
 use crate::private::PanicPayload;
 use crate::sys;
-use godot_ffi::join_debug;
-use std::error::Error;
-use std::fmt;
 
 /// Error capable of representing failed function calls.
 ///

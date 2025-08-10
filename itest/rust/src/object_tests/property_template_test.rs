@@ -12,13 +12,11 @@
 
 use std::collections::HashMap;
 
-use crate::framework::itest;
 use godot::global::PropertyUsageFlags;
 use godot::prelude::*;
 use godot::sys::GdextBuild;
 
-use crate::framework::TestContext;
-
+use crate::framework::{itest, TestContext};
 use crate::register_tests::gen_ffi::PropertyTestsRust;
 
 #[itest]

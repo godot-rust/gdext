@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt;
+
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+
 use crate::context::Context;
 use crate::generator::lifecycle_builtins;
 use crate::models::domain::{
@@ -13,9 +18,6 @@ use crate::models::domain::{
 };
 use crate::util::ident;
 use crate::{conv, generator, special_cases, util};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use std::fmt;
 
 pub fn make_builtin_lifecycle_table(api: &ExtensionApi) -> TokenStream {
     let builtins = &api.builtins;

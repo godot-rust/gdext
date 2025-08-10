@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{itest, TestContext};
-
 use godot::builtin::{
     real, varray, vslice, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
     PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv, StringName, Variant,
@@ -23,6 +21,8 @@ use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::private::class_macros::assert_eq_approx;
 use godot::register::{godot_api, GodotClass};
+
+use crate::framework::{itest, TestContext};
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]

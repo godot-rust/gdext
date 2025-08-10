@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::Write;
+
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
+
 use crate::context::Context;
 use crate::generator::functions_common::FnCode;
 use crate::generator::{docs, functions_common};
@@ -13,9 +18,6 @@ use crate::models::domain::{
 };
 use crate::special_cases;
 use crate::util::ident;
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
-use std::fmt::Write;
 
 pub fn make_virtual_methods_trait(
     class: &Class,

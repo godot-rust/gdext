@@ -1,0 +1,12 @@
+# https://github.com/rust-lang/rustfmt/blob/master/Configurations.md
+
+# Orders imports by std:: -> third_party:: -> crate:: paths.
+#
+# Downside: it can mix pub/pub(crate)/private imports. To manage this, use two approaches:
+# 1. If many symbols appear, local inline modules `reexport_pub` and `reexport_crate`.
+# 2. For individual symbols, #[rustfmt::skip] attribute attached to the `use` statement.
+# We may change this appraoch in the future.
+group_imports = "StdExternalCrate"
+
+# Normalizes a::{b, c::d}, a::e -> a::{b, e}, a::c::d.
+imports_granularity = "Module"

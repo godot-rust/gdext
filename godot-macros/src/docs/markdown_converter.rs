@@ -7,9 +7,9 @@
 
 //! Converts [Markdown](https://en.wikipedia.org/wiki/Markdown) to Godot-compatible [BBCode](https://en.wikipedia.org/wiki/BBCode).
 
-use markdown::mdast as md;
-use markdown::{to_mdast, ParseOptions};
 use std::collections::{BTreeMap, HashMap};
+
+use markdown::{mdast as md, to_mdast, ParseOptions};
 
 /// Converts the provided Markdown string to BBCode suitable for Godot's docs renderer.
 /// Simulates any missing features (e.g. tables) with a best-effort approach.

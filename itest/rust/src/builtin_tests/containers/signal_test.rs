@@ -5,7 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
 use godot::builtin::{vslice, GString, Signal, StringName};
 use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
@@ -15,8 +17,8 @@ use godot::prelude::ConvertError;
 use godot::register::{godot_api, GodotClass};
 use godot::sys::Global;
 use godot::{meta, sys};
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
+
+use crate::framework::itest;
 
 #[itest]
 fn signal_basic_connect_emit() {
@@ -562,8 +564,9 @@ static LAST_STATIC_FUNCTION_ARG: Global<i64> = Global::default();
 use emitter::Emitter;
 
 mod emitter {
-    use super::*;
     use godot::obj::WithUserSignals;
+
+    use super::*;
 
     #[derive(GodotClass)]
     #[class(init, base=Node3D)] // Node instead of Object to test some signals defined in superclasses.
@@ -716,11 +719,12 @@ impl PubClassPrivSignal {
 
 #[cfg(since_api = "4.2")]
 mod custom_callable {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+
     use godot::builtin::{vslice, Callable, Signal};
     use godot::classes::Node;
     use godot::obj::{Gd, NewAlloc};
-    use std::sync::atomic::{AtomicU32, Ordering};
-    use std::sync::Arc;
 
     use crate::builtin_tests::containers::callable_test::custom_callable::PanicCallable;
     use crate::framework::{itest, TestContext};

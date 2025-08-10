@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::class::FuncDefinition;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+
+use crate::class::FuncDefinition;
 
 /// Possible ways the user can specify RPC configuration.
 pub enum RpcAttr {
@@ -27,7 +28,7 @@ pub enum RpcAttr {
     Expression(TokenStream),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub enum RpcMode {
     AnyPeer,
     Authority,
@@ -43,7 +44,7 @@ impl RpcMode {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub enum TransferMode {
     Reliable,
     Unreliable,

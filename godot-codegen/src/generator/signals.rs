@@ -10,12 +10,13 @@
 // for these signals, and integration is slightly different due to lack of WithBaseField trait. Nonetheless, some parts could potentially
 // be extracted into a future crate shared by godot-codegen and godot-macros.
 
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote};
+
 use crate::context::Context;
 use crate::conv;
 use crate::models::domain::{Class, ClassLike, ClassSignal, FnParam, ModName, RustTy, TyName};
 use crate::util::{ident, safe_ident};
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
 
 pub struct SignalCodegen {
     pub signal_code: TokenStream,

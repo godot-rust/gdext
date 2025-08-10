@@ -5,12 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
+
 use crate::context::Context;
 use crate::models::domain::TyName;
 use crate::models::json::JsonClassConstant;
 use crate::util;
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
 
 pub fn make_notify_methods(class_name: &TyName, ctx: &mut Context) -> TokenStream {
     // Note: there are two more methods, but only from Node downwards, not from Object:

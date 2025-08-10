@@ -4,18 +4,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+use godot_ffi::conv::u32_to_usize;
+
 use crate::builtin::{StringName, Variant};
 use crate::global::MethodFlags;
 use crate::meta::{ClassName, PropertyInfo};
 use crate::sys;
-use godot_ffi::conv::u32_to_usize;
 
 /// Describes a method in Godot.
 ///
 /// Abstraction of the low-level `sys::GDExtensionMethodInfo`.
 // Currently used for ScriptInstance.
 // TODO check overlap with (private) ClassMethodInfo.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct MethodInfo {
     pub id: i32,
     pub method_name: StringName,

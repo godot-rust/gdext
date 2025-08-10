@@ -9,6 +9,8 @@ use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 
+use godot_ffi::{self as sys, GodotFfi};
+
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, ConvertError};
 use crate::meta::{
@@ -16,8 +18,6 @@ use crate::meta::{
     ParamTuple, ToGodot,
 };
 use crate::obj::{GodotClass, InstanceId};
-
-use godot_ffi::{self as sys, GodotFfi};
 
 pub(super) type CallResult<R> = Result<R, CallError>;
 

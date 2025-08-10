@@ -7,11 +7,12 @@
 
 // Note: some code duplication with godot-codegen crate.
 
-use crate::class::FuncDefinition;
-use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+
+use crate::class::FuncDefinition;
+use crate::ParseResult;
 
 mod kv_parser;
 mod list_parser;
@@ -81,9 +82,7 @@ macro_rules! error {
     }
 }
 
-pub(crate) use bail;
-pub(crate) use error;
-pub(crate) use require_api_version;
+pub(crate) use {bail, error, require_api_version};
 
 /// Keeps all attributes except the one specified (e.g. `"itest"`).
 pub fn retain_attributes_except<'a>(

@@ -7,8 +7,9 @@
 
 use std::collections::HashSet;
 
-use crate::framework::{expect_debug_panic_or_release_ok, itest};
 use godot::builtin::{Encoding, GString, PackedStringArray};
+
+use crate::framework::{expect_debug_panic_or_release_ok, itest};
 
 // TODO use tests from godot-rust/gdnative
 

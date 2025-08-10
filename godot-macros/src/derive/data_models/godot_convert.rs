@@ -8,12 +8,11 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 
-use crate::util::bail;
-use crate::ParseResult;
-
 use super::c_style_enum::CStyleEnum;
 use super::godot_attribute::{GodotAttribute, ViaType};
 use super::newtype::NewtypeStruct;
+use crate::util::bail;
+use crate::ParseResult;
 
 /// Stores all relevant data to derive `GodotConvert` and other related traits.
 pub struct GodotConvert {

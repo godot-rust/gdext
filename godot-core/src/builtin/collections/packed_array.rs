@@ -9,22 +9,21 @@
 // We may want to change () to something like godot::meta::IoError, or a domain-specific one, in the future.
 #![allow(clippy::result_unit_err)]
 
+use std::mem::size_of;
+use std::{fmt, ops, ptr};
+
 use godot_ffi as sys;
+use sys::types::*;
+// FIXME remove dependency on these types.
+use sys::{__GdextString, __GdextType};
+use sys::{ffi_methods, interface_fn, ExtVariantType, GodotFfi};
 
 use crate::builtin::collections::extend_buffer::ExtendBuffer;
 use crate::builtin::*;
-use crate::meta::{AsArg, ToGodot};
-use std::mem::size_of;
-use std::{fmt, ops, ptr};
-use sys::types::*;
-use sys::{ffi_methods, interface_fn, ExtVariantType, GodotFfi};
-
 use crate::classes::file_access::CompressionMode;
 use crate::meta;
+use crate::meta::{AsArg, ToGodot};
 use crate::obj::EngineEnum;
-
-// FIXME remove dependency on these types.
-use sys::{__GdextString, __GdextType};
 // TODO(bromeon): ensure and test that all element types can be packed.
 // Many builtin types don't have a #[repr] themselves, but they are used in packed arrays, which assumes certain size and alignment.
 // This is mostly a problem for as_slice(), which reinterprets the FFI representation into the "frontend" type like GString.

@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
 use godot::prelude::*;
+
+use crate::framework::itest;
 
 pub mod dont_rename {
     use super::*;

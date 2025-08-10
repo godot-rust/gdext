@@ -5,11 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::itest;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use godot::init::InitLevel;
 use godot::obj::NewAlloc;
 use godot::register::{godot_api, GodotClass};
-use std::sync::atomic::{AtomicBool, Ordering};
+
+use crate::framework::itest;
 
 static HAS_RUN: AtomicBool = AtomicBool::new(false);
 

@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ops::{Deref, DerefMut};
+
 use crate::obj::bounds::{DeclEngine, DeclUser};
 use crate::obj::{Gd, GdMut, GdRef, GodotClass, WithBaseField};
-use std::ops::{Deref, DerefMut};
 
 /// Unifies dereferencing of user and engine classes, as `&T`/`&mut T` and `Gd<T>`.
 ///

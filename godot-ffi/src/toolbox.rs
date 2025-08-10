@@ -7,8 +7,9 @@
 
 //! Functions and macros that are not very specific to gdext, but come in handy.
 
-use crate as sys;
 use std::fmt::{Display, Write};
+
+use crate as sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros
@@ -285,7 +286,7 @@ pub(crate) type GetClassMethod = unsafe extern "C" fn(
 ) -> sys::GDExtensionMethodBindPtr;
 
 /// Newtype around `GDExtensionMethodBindPtr` so we can implement `Sync` and `Send` for it manually.    
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub struct ClassMethodBind(pub sys::GDExtensionMethodBindPtr);
 
 // SAFETY: `sys::GDExtensionMethodBindPtr` is effectively the same as a `unsafe extern "C" fn`. So sharing it between
