@@ -452,7 +452,9 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// ## Class hiding
 ///
-/// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(internal)]`.
+/// If you want to register a class with Godot, but not display in the editor (e.g. when creating a new node), you can use `#[class(internal)]`.
+///
+/// Classes starting with "Editor" are auto-hidden by Godot. They *must* be marked as internal in godot-rust.
 ///
 /// ```
 /// # use godot::prelude::*;
@@ -540,7 +542,8 @@ use crate::util::{bail, ident, KvParser};
     alias = "var",
     alias = "export",
     alias = "tool",
-    alias = "rename"
+    alias = "rename",
+    alias = "internal"
 )]
 #[proc_macro_derive(
     GodotClass,
