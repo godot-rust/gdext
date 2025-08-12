@@ -228,7 +228,7 @@ impl<T: GodotClass> Base<T> {
     }
 
     /// Finalizes the initialization of this `Base<T>` and returns whether
-    pub(crate) fn mark_initialized(&mut self) -> bool {
+    pub(crate) fn mark_initialized(&mut self) {
         #[cfg(debug_assertions)]
         {
             assert_eq!(
@@ -240,7 +240,7 @@ impl<T: GodotClass> Base<T> {
             self.init_state.set(InitState::ObjectInitialized);
         }
 
-        self.extra_strong_ref.borrow().is_some()
+        // May return whether there is a "surplus" strong ref in the future, as self.extra_strong_ref.borrow().is_some().
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.

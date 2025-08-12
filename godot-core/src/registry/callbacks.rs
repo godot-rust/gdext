@@ -154,11 +154,7 @@ where
     }
 
     // Mark initialization as complete, now that user constructor has finished.
-    if base_copy.mark_initialized() {
-        // If an extra RefCounted reference was handed out, notify storage about it, so it can unreference later.
-        let instance_ref = unsafe { &*instance_rust_ptr };
-        instance_ref.mark_surplus_ref();
-    }
+    base_copy.mark_initialized();
 
     // No std::mem::forget(base_copy) here, since Base may stores other fields that need deallocation.
     Ok(instance_ptr)

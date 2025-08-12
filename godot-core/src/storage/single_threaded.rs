@@ -21,7 +21,6 @@ pub struct InstanceStorage<T: GodotClass> {
 
     // Declared after `user_instance`, is dropped last.
     pub(super) lifecycle: cell::Cell<Lifecycle>,
-    has_surplus_ref: cell::Cell<bool>,
 
     // No-op in Release mode.
     borrow_tracker: DebugBorrowTracker,
@@ -48,17 +47,12 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             user_instance: GdCell::new(user_instance),
             base,
             lifecycle: cell::Cell::new(Lifecycle::Alive),
-            has_surplus_ref: cell::Cell::new(false),
             borrow_tracker: DebugBorrowTracker::new(),
         }
     }
 
     fn is_bound(&self) -> bool {
         self.user_instance.is_currently_bound()
-    }
-
-    fn mark_surplus_ref(&self) {
-        self.has_surplus_ref.set(true);
     }
 
     fn base(&self) -> &Base<<Self::Instance as GodotClass>::Base> {
@@ -105,24 +99,17 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
 impl<T: GodotClass> StorageRefCounted for InstanceStorage<T> {
     fn on_inc_ref(&self) {
-        if self.has_surplus_ref.get() {
-            self.has_surplus_ref.set(false);
-
-            return; // If we have surplus references, we don't increment the ref count.
-        }
+        // Note: on_inc_ref() and on_dec_ref() do not track extra strong references from Base::to_init_gd().
+        // See https://github.com/godot-rust/gdext/pull/1273 for code that had it.
 
         super::log_inc_ref(self);
     }
 
     fn on_dec_ref(&self) {
-        // IMPORTANT: it is too late here to perform dec-ref operations on the Base (for "surplus" references).
+        // IMPORTANT: it is too late here to perform dec-ref operations on the Base (for "surplus" strong references).
         // This callback is only invoked in the C++ condition `if (rc_val <= 1 /* higher is not relevant */)` -- see Godot ref_counted.cpp.
         // The T <-> RefCounted hierarchical relation is usually already broken up at this point, and further dec-ref may bring the count
         // down to 0.
-
-        if self.has_surplus_ref.get() {
-            self.has_surplus_ref.set(false);
-        }
 
         super::log_dec_ref(self);
     }
