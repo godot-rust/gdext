@@ -767,20 +767,27 @@ pub fn maybe_rename_virtual_method<'m>(
 //   or #[export(storage)] which is #[export] without editor UI.
 
 pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
-    match class_name.godot_ty.as_str() {
+    let docs = match class_name.godot_ty.as_str() {
         "FileAccess" => {
-            Some("The gdext library provides a higher-level abstraction, which should be preferred: [`GFile`][crate::tools::GFile].")
+            "The gdext library provides a higher-level abstraction, which should be preferred: [`GFile`][crate::tools::GFile]."
         }
         "ScriptExtension" => {
-            Some("Use this in combination with the [`obj::script` module][crate::obj::script].")
+            "Use this in combination with the [`obj::script` module][crate::obj::script]."
         }
         "ResourceFormatLoader" => {
-            Some("Enable the `experimental-threads` feature when using custom `ResourceFormatLoader`s. \
+            "Enable the `experimental-threads` feature when using custom `ResourceFormatLoader`s. \
             Otherwise the application will panic when the custom `ResourceFormatLoader` is used by Godot \
-            in a thread other than the main thread.")
+            in a thread other than the main thread."
         }
-        _ => None,
-    }
+        "WeakRef" => {
+            "In Rust, this class is not really needed. You can use instance IDs as \"weak references\", and upgrade to strong references through\n\
+            [`Gd::try_from_instance_id()`](crate::obj::Gd::try_from_instance_id). This works for both manually-managed and ref-counted classes."
+        }
+
+        _ => return None,
+    };
+
+    Some(docs)
 }
 
 pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
