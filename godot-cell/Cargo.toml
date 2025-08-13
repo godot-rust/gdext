@@ -12,6 +12,7 @@ homepage = "https://godot-rust.github.io"
 
 [features]
 proptest = ["dep:proptest"]
+experimental-wasm-nothreads = []
 
 [dependencies]
 proptest = { workspace = true, optional = true }
