@@ -183,9 +183,9 @@ function cmd_itest() {
 function cmd_testweb() {
     # For the flag: https://github.com/rust-lang/cargo/issues/7471
     CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node RUSTFLAGS="-C link-args=-pthread \
+    -C target-feature=+atomics \
     -C link-args=-g \
-    -C link-args=-sINITIAL_MEMORY=268435456 \
-    -C target-feature=+atomics" EM_CACHE=$(mktemp -d) run cargo +nightly test \
+    -C link-args=-sINITIAL_MEMORY=268435456" EM_CACHE=$(mktemp -d) run cargo +nightly test \
       --features godot/experimental-wasm,godot/lazy-function-tables \
       -Zbuild-std --target wasm32-unknown-emscripten -- --nocapture
 }
