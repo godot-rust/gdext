@@ -611,6 +611,13 @@ pub fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod
     match (class_name.godot_ty.as_str(), godot_method.name.as_str()) {
         // Changed to const.
         | ("Object", "to_string")
+        | ("MultiplayerApi", "has_multiplayer_peer")
+        | ("MultiplayerApi", "get_multiplayer_peer")
+        | ("MultiplayerApi", "get_unique_id")
+        | ("MultiplayerApi", "is_server")
+        | ("MultiplayerApi", "get_remote_sender_id")
+        | ("MultiplayerApi", "get_peers")
+        | ("MultiplayerApi", "get_default_interface")
         => Some(true),
 
         // Changed to mut.
