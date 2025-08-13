@@ -185,7 +185,7 @@ function cmd_testweb() {
     common_flags="-C link-args=-g"
 
     # Avoid problems with emcc potentially writing to read-only dir
-    cache_dir="target/emscripten_cache"
+    cache_dir="$(realpath ./target)/emscripten_cache"
     mkdir -p "${cache_dir}"
 
     echo "==============================="
