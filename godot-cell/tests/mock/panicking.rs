@@ -58,10 +58,6 @@ fn all_calls_work() {
 
 /// Run each method both from the main thread and a newly created thread.
 #[test]
-#[cfg_attr(
-    feature = "experimental-wasm-nothreads",
-    ignore = "Threading not available"
-)]
 fn calls_different_thread() {
     use std::thread;
 
@@ -91,10 +87,6 @@ fn calls_different_thread() {
 /// if the first call failed, so then we know the integer was incremented by 0. Otherwise, we at least know
 /// the range of values that it can be incremented by.
 #[test]
-#[cfg_attr(
-    feature = "experimental-wasm-nothreads",
-    ignore = "Threading not available"
-)]
 fn calls_parallel() {
     use std::thread;
 
@@ -129,10 +121,6 @@ fn calls_parallel() {
 /// Runs each method several times in a row. This should reduce the non-determinism that comes from
 /// scheduling of threads.
 #[test]
-#[cfg_attr(
-    feature = "experimental-wasm-nothreads",
-    ignore = "Threading not available"
-)]
 fn calls_parallel_many_serial() {
     use std::thread;
 
@@ -169,10 +157,6 @@ fn calls_parallel_many_serial() {
 /// Runs all the tests several times. This is different from [`calls_parallel_many_serial`] as that calls the
 /// methods like AAA...BBB...CCC..., whereas this interleaves the methods like ABC...ABC...ABC...
 #[test]
-#[cfg_attr(
-    feature = "experimental-wasm-nothreads",
-    ignore = "Threading not available"
-)]
 fn calls_parallel_many_parallel() {
     use std::thread;
 
