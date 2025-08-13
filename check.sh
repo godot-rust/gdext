@@ -181,13 +181,35 @@ function cmd_itest() {
 }
 
 function cmd_testweb() {
-    # For the flag: https://github.com/rust-lang/cargo/issues/7471
+    # Add more debug symbols to build
+    common_flags="-C link-args=-g"
+
+    # Avoid problems with emcc potentially writing to read-only dir
+    cache_dir="target/emscripten_cache"
+    mkdir -p "${cache_dir}"
+
+    echo "==============================="
+    echo "Initiating threaded Wasm tests."
+    echo "==============================="
+
+    # For the runner env var: https://github.com/rust-lang/cargo/issues/7471
+    # More memory (256 MiB) is needed for the parallel godot-cell tests which
+    # spawn 70 threads each.
     CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node RUSTFLAGS="-C link-args=-pthread \
     -C target-feature=+atomics \
-    -C link-args=-g \
-    -C link-args=-sINITIAL_MEMORY=268435456" EM_CACHE=$(mktemp -d) run cargo +nightly test \
+    -C link-args=-sINITIAL_MEMORY=268435456 \
+    ${common_flags}" EM_CACHE="${cache_dir}" run cargo +nightly test \
       --features godot/experimental-wasm,godot/lazy-function-tables \
-      -Zbuild-std --target wasm32-unknown-emscripten -- --nocapture
+      -Zbuild-std --target wasm32-unknown-emscripten
+
+    echo "==================================="
+    echo "Initiating non-threaded Wasm tests."
+    echo "==================================="
+
+    CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node RUSTFLAGS="${common_flags}" \
+    EM_CACHE="${cache_dir}" run cargo +nightly test \
+        --features godot/experimental-wasm-nothreads,godot/experimental-wasm,godot/lazy-function-tables \
+        -Zbuild-std --target wasm32-unknown-emscripten
 }
 
 function cmd_doc() {
