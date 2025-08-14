@@ -8,13 +8,23 @@
 #[cfg(debug_assertions)]
 use std::cell::Cell;
 use std::cell::RefCell;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 use std::rc::Rc;
 
 use crate::builtin::{Callable, Variant};
-use crate::obj::{bounds, Gd, GodotClass};
+use crate::obj::{bounds, Gd, GodotClass, InstanceId};
 use crate::{classes, sys};
+
+thread_local! {
+    /// Extra strong references for each instance ID, needed for [`Base::to_init_gd()`].
+    ///
+    /// At the moment, all Godot objects must be accessed from the main thread, because their deferred destruction (`Drop`) runs on the
+    /// main thread, too. This may be relaxed in the future, and a `sys::Global` could be used instead of a `thread_local!`.
+    static PENDING_STRONG_REFS: RefCell<HashMap<InstanceId, Gd<classes::RefCounted>>> = RefCell::new(HashMap::new());
+}
 
 /// Represents the initialization state of a `Base<T>` object.
 #[cfg(debug_assertions)]
@@ -69,9 +79,6 @@ pub struct Base<T: GodotClass> {
     // 2.
     obj: ManuallyDrop<Gd<T>>,
 
-    /// Additional strong ref, needed to prevent destruction if [`Self::to_init_gd()`] is called on ref-counted objects.
-    extra_strong_ref: Rc<RefCell<Option<Gd<T>>>>,
-
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
@@ -94,7 +101,6 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
-            extra_strong_ref: Rc::clone(&base.extra_strong_ref), // Before user init(), no handing out of Gd pointers occurs.
             #[cfg(debug_assertions)]
             init_state: Rc::clone(&base.init_state),
         }
@@ -139,7 +145,6 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
-            extra_strong_ref: Rc::new(RefCell::new(None)),
             init_state: Rc::new(Cell::new(init_state)),
         }
     }
@@ -148,7 +153,6 @@ impl<T: GodotClass> Base<T> {
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
-            extra_strong_ref: Rc::new(RefCell::new(None)),
         }
     }
 
@@ -202,29 +206,49 @@ impl<T: GodotClass> Base<T> {
 
         // First time handing out a Gd<T>, we need to take measures to temporarily upgrade the Base's weak pointer to a strong one.
         // During the initialization phase (derived object being constructed), increment refcount by 1.
-        if self.extra_strong_ref.borrow().is_none() {
-            let strong_ref = unsafe { Gd::from_obj_sys(self.obj.obj_sys()) };
-            *self.extra_strong_ref.borrow_mut() = Some(strong_ref);
-        }
+        let instance_id = self.obj.instance_id();
+        PENDING_STRONG_REFS.with(|refs| {
+            let mut pending_refs = refs.borrow_mut();
+            if let Entry::Vacant(e) = pending_refs.entry(instance_id) {
+                let strong_ref: Gd<T> = unsafe { Gd::from_obj_sys(self.obj.obj_sys()) };
 
-        // Can't use Gd::apply_deferred(), as that implicitly borrows &mut self, causing a "destroyed while bind was active" panic.
+                // We know that T: Inherits<RefCounted> due to check above, but don't it as a static bound for Gd::upcast().
+                // Thus fall back to low-level FFI cast on RawGd.
+                let strong_ref_raw = strong_ref.raw;
+                let raw = strong_ref_raw
+                    .ffi_cast::<classes::RefCounted>()
+                    .expect("Base must be RefCounted")
+                    .into_dest(strong_ref_raw);
+
+                e.insert(Gd { raw });
+            }
+        });
+
         let name = format!("Base<{}> deferred unref", T::class_name());
-        let rc = Rc::clone(&self.extra_strong_ref);
         let callable = Callable::from_once_fn(&name, move |_args| {
-            Self::drop_strong_ref(rc);
+            Self::drop_strong_ref(instance_id);
             Ok(Variant::nil())
         });
+
+        // Use Callable::call_deferred() instead of Gd::apply_deferred(). The latter implicitly borrows &mut self,
+        // causing a "destroyed while bind was active" panic.
         callable.call_deferred(&[]);
 
         (*self.obj).clone()
     }
 
     /// Drops any extra strong references, possibly causing object destruction.
-    fn drop_strong_ref(extra_strong_ref: Rc<RefCell<Option<Gd<T>>>>) {
-        let mut r = extra_strong_ref.borrow_mut();
-        assert!(r.is_some());
+    fn drop_strong_ref(instance_id: InstanceId) {
+        PENDING_STRONG_REFS.with(|refs| {
+            let mut pending_refs = refs.borrow_mut();
+            let strong_ref = pending_refs.remove(&instance_id);
+            assert!(
+                strong_ref.is_some(),
+                "Base unexpectedly had its strong ref rug-pulled"
+            );
 
-        *r = None; // Triggers RawGd::drop() -> dec-ref -> possibly object destruction.
+            // Triggers RawGd::drop() -> dec-ref -> possibly object destruction.
+        });
     }
 
     /// Finalizes the initialization of this `Base<T>` and returns whether
