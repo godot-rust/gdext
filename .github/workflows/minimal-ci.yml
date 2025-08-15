@@ -128,6 +128,33 @@ jobs:
         run: cargo test $TEST_FEATURES
 
 
+  unit-test-web:
+    name: unit-test-web
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Patch Cargo.toml to use nightly extension API"
+        run: .github/other/patch-prebuilt.sh nightly
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+        with:
+          rust: nightly
+
+      - name: "Install emscripten"
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          pushd emsdk
+          ./emsdk install 3.1.74
+          ./emsdk activate 3.1.74
+          source ./emsdk.sh
+          popd
+
+      - name: "Test (Wasm)"
+        run: ./check.sh testweb 
+
+
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
     name: godot-itest (${{ matrix.name }})
