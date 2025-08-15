@@ -141,6 +141,7 @@ jobs:
         uses: ./.github/composite/rust
         with:
           rust: nightly
+          components: rust-src
 
       - name: "Install emscripten"
         env:
