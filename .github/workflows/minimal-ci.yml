@@ -148,7 +148,7 @@ jobs:
           pushd emsdk
           ./emsdk install 3.1.74
           ./emsdk activate 3.1.74
-          source ./emsdk.sh
+          source ./emsdk_env.sh
           popd
 
       - name: "Test (Wasm)"
