@@ -328,7 +328,11 @@ impl From<&str> for GString {
 
         unsafe {
             Self::new_with_string_uninit(|string_ptr| {
+                #[cfg(before_api = "4.3")]
                 let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
+                #[cfg(since_api = "4.3")]
+                let ctor = interface_fn!(string_new_with_utf8_chars_and_len2);
+
                 ctor(
                     string_ptr,
                     bytes.as_ptr() as *const std::ffi::c_char,

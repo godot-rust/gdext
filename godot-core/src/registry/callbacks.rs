@@ -35,7 +35,14 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
 ) -> sys::GDExtensionObjectPtr {
-    create_custom(T::__godot_user_init).unwrap_or(std::ptr::null_mut())
+    if let Ok(object_ptr) = create_custom(T::__godot_user_init) {
+        let mut obj = Gd::<T>::from_obj_sys_weak(object_ptr).upcast_object();
+        obj.notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
+        std::mem::forget(obj);
+        object_ptr
+    } else {
+        std::ptr::null_mut()
+    }
 }
 
 #[cfg(before_api = "4.4")]
@@ -94,7 +101,11 @@ where
     F: FnOnce(Base<T::Base>) -> T,
 {
     let base_class_name = T::Base::class_name();
-    let base_ptr = unsafe { interface_fn!(classdb_construct_object)(base_class_name.string_sys()) };
+    #[cfg(before_api = "4.4")]
+    let base_ptr = unsafe { sys::classdb_construct_object(base_class_name.string_sys()) };
+    #[cfg(since_api = "4.4")]
+    let base_ptr =
+        unsafe { sys::classdb_construct_object_no_postinit(base_class_name.string_sys()) };
 
     match create_rust_part_for_existing_godot_part(make_user_instance, base_ptr) {
         Ok(_extension_ptr) => Ok(base_ptr),
