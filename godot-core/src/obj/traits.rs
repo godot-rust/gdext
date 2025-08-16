@@ -355,9 +355,13 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// This is intended to be stored or passed to engine methods. You cannot call `bind()` or `bind_mut()` on it, while the method
     /// calling `to_gd()` is still running; that would lead to a double borrow panic.
+    ///
+    /// # Panics
+    /// If called during initialization (the `init()` function or `Gd::from_init_fn()`). Use [`Base::to_init_gd()`] instead.
     fn to_gd(&self) -> Gd<Self>;
 
     /// Returns a reference to the `Base` stored by this object.
+    #[doc(hidden)]
     fn base_field(&self) -> &Base<Self::Base>;
 
     /// Returns a shared reference suitable for calling engine methods on this object.
@@ -419,7 +423,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
     fn base(&self) -> BaseRef<'_, Self> {
-        let gd = self.base_field().to_gd();
+        let gd = self.base_field().__constructed_gd();
 
         BaseRef::new(gd, self)
     }
@@ -490,7 +494,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// ```
     #[allow(clippy::let_unit_value)]
     fn base_mut(&mut self) -> BaseMut<'_, Self> {
-        let base_gd = self.base_field().to_gd();
+        let base_gd = self.base_field().__constructed_gd();
 
         let gd = self.to_gd();
         // SAFETY:
