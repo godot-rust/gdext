@@ -8,9 +8,8 @@
 use std::str::FromStr;
 
 use godot::builtin::{vslice, NodePath};
-use godot::classes::{Node, Node3D, PackedScene, SceneTree};
-use godot::global;
-use godot::obj::{NewAlloc, NewGd};
+use godot::classes::{Node, Node3D};
+use godot::obj::NewAlloc;
 
 use crate::framework::{itest, TestContext};
 
@@ -60,35 +59,18 @@ fn node_path_from_str(ctx: &TestContext) {
     );
 }
 
-#[itest(skip)]
-fn node_scene_tree() {
-    let mut child = Node::new_alloc();
-    child.set_name("kid");
-
-    let mut parent = Node::new_alloc();
-    parent.set_name("parent");
-    parent.add_child(&child);
-
-    let mut scene = PackedScene::new_gd();
-    let err = scene.pack(&parent);
-    assert_eq!(err, global::Error::OK);
-
-    let mut tree = SceneTree::new_alloc();
-    let err = tree.change_scene_to_packed(&scene);
-    assert_eq!(err, global::Error::OK);
-
-    // Note: parent + child are not owned by PackedScene, thus need to be freed
-    // (verified by porting this very test to GDScript)
-    tree.free();
-    parent.free();
-    child.free();
-}
-
+// Regression test against call_group() crashing, see https://github.com/godot-rust/gdext/pull/167.
+// https://github.com/godot-rust/gdext/commit/207c4e72ac0c24cfb83bab16f856dd09ebc8671c
 #[itest]
 fn node_call_group(ctx: &TestContext) {
     let mut node = ctx.scene_tree.clone();
     let mut tree = node.get_tree().unwrap();
 
     node.add_to_group("group");
-    tree.call_group("group", "set_name", vslice!["name"]);
+
+    tree.call_group("group", "set_meta", vslice!["something", true]);
+    assert!(node.has_meta("something"));
+
+    tree.call_group("group", "remove_meta", vslice!["something"]);
+    assert!(!node.has_meta("something"));
 }
