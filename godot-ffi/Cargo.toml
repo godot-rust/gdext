@@ -1,6 +1,6 @@
 [package]
 name = "godot-ffi"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 rust-version = "1.87"
 license = "MPL-2.0"
@@ -41,11 +41,11 @@ libc = { workspace = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 # Only needed for WASM identifier generation.
-godot-macros = { path = "../godot-macros", version = "=0.3.4", features = ["experimental-wasm"] }
+godot-macros = { path = "../godot-macros", version = "=0.3.5", features = ["experimental-wasm"] }
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings", version = "=0.3.4" }
-godot-codegen = { path = "../godot-codegen", version = "=0.3.4" }
+godot-bindings = { path = "../godot-bindings", version = "=0.3.5" }
+godot-codegen = { path = "../godot-codegen", version = "=0.3.5" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
