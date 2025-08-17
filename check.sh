@@ -35,7 +35,7 @@ Commands:
 
 Options:
     -h, --help               print this help text
-    --double                 run check with double-precision
+    --double                 run check with double-precision (implies `api-custom` feature)
     -f, --filter <arg>       only run integration tests which contain any of the
                              args (comma-separated). requires itest.
     -a, --api-version <ver>  specify the Godot API version to use (e.g. 4.3, 4.3.1).
@@ -209,7 +209,7 @@ while [[ $# -gt 0 ]]; do
             extraCargoArgs+=("--features" "serde")
             ;;
         --double)
-            extraCargoArgs+=("--features" "godot/double-precision")
+            extraCargoArgs+=("--features" "godot/double-precision,godot/api-custom")
             ;;
         fmt | test | itest | clippy | klippy | doc | dok)
             cmds+=("$arg")
