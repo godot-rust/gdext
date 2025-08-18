@@ -538,6 +538,15 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         if let Some(span) = parser.handle_alone_with_span("internal")? {
             require_api_version!("4.2", span, "#[class(internal)]")?;
             is_internal = true;
+        } else {
+            // Godot has an edge case where classes starting with "Editor" are implicitly hidden:
+            // https://github.com/godotengine/godot/blob/ca452113d430cb96de409a297ff5b52389f1c9d9/editor/gui/create_dialog.cpp#L171-L173
+            if class.name.to_string().starts_with("Editor") {
+                return bail!(
+                    class.name.span(),
+                    "Classes starting with `Editor` are implicitly hidden by Godot; use #[class(internal)] to make this explicit",
+                );
+            }
         }
 
         // Deprecated #[class(hidden)]
