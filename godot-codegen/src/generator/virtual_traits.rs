@@ -138,7 +138,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// See also in Godot docs:
         /// * [`Object::_get_property_list`](https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-get-property-list)
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         fn get_property_list(&mut self) -> Vec<crate::meta::PropertyInfo> {
             unimplemented!()
         }
@@ -150,7 +150,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// See also in the Godot docs:
         /// * [`Object::_validate_property`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-validate-property)
-        #[cfg(since_api = "4.2")]
+        #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
         fn validate_property(&self, property: &mut crate::meta::PropertyInfo) {
             unimplemented!()
         }

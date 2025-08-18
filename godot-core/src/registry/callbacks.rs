@@ -30,7 +30,7 @@ use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
 /// If the `init()` constructor panics, null is returned.
 ///
 /// Creation callback has `p_notify_postinitialize` parameter since 4.4: <https://github.com/godotengine/godot/pull/91018>.
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
@@ -38,7 +38,7 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     create_custom(T::__godot_user_init).unwrap_or(std::ptr::null_mut())
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
 ///
 /// Godot expects a creator function, but doesn't require an actual object to be instantiated.
-#[cfg(all(since_api = "4.4", before_api = "4.5"))]
+#[cfg(all(since_api = "4.4", before_api = "4.5"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.4", before_api = "4.5"))))]
 pub unsafe extern "C" fn create_null<T>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
@@ -56,7 +56,7 @@ pub unsafe extern "C" fn create_null<T>(
     std::ptr::null_mut()
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn create_null<T>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
@@ -66,7 +66,7 @@ pub unsafe extern "C" fn create_null<T>(
 /// Godot FFI function for recreating a GDExtension instance, e.g. after a hot reload.
 ///
 /// If the `init()` constructor panics, null is returned.
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     object: sys::GDExtensionObjectPtr,
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
 ///
 /// Godot expects a creator function, but doesn't require an actual object to be instantiated.
-#[cfg(all(since_api = "4.2", before_api = "4.5"))]
+#[cfg(all(since_api = "4.2", before_api = "4.5"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.2", before_api = "4.5"))))]
 pub unsafe extern "C" fn recreate_null<T>(
     _class_userdata: *mut std::ffi::c_void,
     _object: sys::GDExtensionObjectPtr,
@@ -172,7 +172,7 @@ pub unsafe extern "C" fn free<T: GodotClass>(
     crate::storage::destroy_storage::<T>(instance);
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -185,7 +185,7 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     T::__virtual_call(method_name.as_str(), hash)
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -197,7 +197,7 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     T::__virtual_call(method_name.as_str())
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -210,7 +210,7 @@ pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     T::__default_virtual_call(method_name.as_str(), hash)
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -240,7 +240,7 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     *is_valid = sys::conv::SYS_TRUE;
 }
 
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
     instance: sys::GDExtensionClassInstancePtr,
     what: i32,
@@ -251,7 +251,7 @@ pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
     T::__godot_notification(&mut *instance, what);
 }
 
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
     instance: sys::GDExtensionClassInstancePtr,
     what: i32,
@@ -431,7 +431,7 @@ pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
 /// - `property_info_ptr` must be valid for the whole duration of this function call (i.e. - can't be freed nor consumed).
 ///
 #[deny(unsafe_op_in_unsafe_fn)]
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub unsafe extern "C" fn validate_property<T: cap::GodotValidateProperty>(
     instance: sys::GDExtensionClassInstancePtr,
     property_info_ptr: *mut sys::GDExtensionPropertyInfo,

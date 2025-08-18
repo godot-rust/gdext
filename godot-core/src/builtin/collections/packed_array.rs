@@ -843,7 +843,7 @@ impl_packed_array!(
     },
 );
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl_packed_array!(
     type_name: PackedVector4Array,
     variant_type: PACKED_VECTOR4_ARRAY,
@@ -915,7 +915,7 @@ impl_packed_trait_as_into!(f32, f64);
 impl_packed_trait_as_into!(f64);
 impl_packed_trait_as_into!(Vector2);
 impl_packed_trait_as_into!(Vector3);
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl_packed_trait_as_into!(Vector4);
 impl_packed_trait_as_into!(Color);
 

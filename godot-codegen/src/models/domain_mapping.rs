@@ -447,7 +447,7 @@ impl ClassMethod {
 
         // Hash for virtual methods is available from Godot 4.4, see https://github.com/godotengine/godot/pull/100674.
         let direction = FnDirection::Virtual {
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             hash: {
                 let hash_i64 = method.hash.unwrap_or_else(|| {
                     panic!(
@@ -497,11 +497,11 @@ impl ClassMethod {
         };
 
         // Since Godot 4.4, GDExtension advertises whether virtual methods have a default implementation or are required to be overridden.
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         let is_virtual_required =
             special_cases::is_virtual_method_required(&class_name, &method.name);
 
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         #[allow(clippy::let_and_return)]
         let is_virtual_required = method.is_virtual && {
             // Evaluate this always first (before potential manual overrides), to detect mistakes in spec.

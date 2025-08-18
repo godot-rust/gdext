@@ -107,7 +107,7 @@ struct SignalDetails<'a> {
     signal_name: &'a Ident,
     /// `"MySignal"`
     signal_name_str: String,
-    /// `#[cfg(..)] #[cfg(..)]`
+    /// `#[cfg(..)] #[cfg_attr(published_docs, doc(cfg(..)))] #[cfg(..)]`
     signal_cfg_attrs: Vec<&'a venial::Attribute>,
     /// `MyClass_MySignal`
     individual_struct_name: Ident,
@@ -187,7 +187,7 @@ pub fn make_signal_registrations(
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
 
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     let mut collection_api = SignalCollection::default();
     // #[cfg(since_api = "4.2")]
     // let mut max_visibility = SignalVisibility::Priv;
@@ -202,7 +202,7 @@ pub fn make_signal_registrations(
         let details = SignalDetails::extract(fn_signature, class_name, external_attributes)?;
 
         // Callable custom functions are only supported in 4.2+, upon which custom signals rely.
-        #[cfg(since_api = "4.2")]
+        #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
         if *has_builder {
             collection_api.extend_with(&details);
             // max_visibility = max_visibility.max(details.vis_classified);
@@ -213,11 +213,11 @@ pub fn make_signal_registrations(
     }
 
     // Rewrite the above using #[cfg].
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     let signal_symbols =
         (!no_typed_signals).then(|| make_signal_symbols(class_name, collection_api));
 
-    #[cfg(before_api = "4.2")]
+    #[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
     let signal_symbols = None;
 
     Ok((signal_registrations, signal_symbols))
@@ -468,7 +468,7 @@ fn make_signal_symbols(
     //
     // Benefit of encapsulating would be:
     // * No need for `#[doc(hidden)]` on internal symbols like fields.
-    // * #[cfg(since_api = "4.2")] would not need to be repeated. This is less of a problem if the #[cfg] is used inside the macro
+    // * #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))] would not need to be repeated. This is less of a problem if the #[cfg] is used inside the macro
     //   instead of generated code.
     // * Less scope pollution (even though names are mangled).
     //
@@ -570,7 +570,7 @@ fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) ->
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::*;
 

@@ -165,7 +165,7 @@ impl_builtin_froms!(VariantArray;
     PackedVector3Array => array_from_packed_vector3_array,
 );
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl_builtin_froms!(VariantArray;
     PackedVector4Array => array_from_packed_vector4_array,
 );
@@ -663,7 +663,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Calling `bsearch_by` on an unsorted array results in unspecified behavior. Consider using [`sort_by()`] to ensure
     /// the sorting order is compatible with your callable's ordering.
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub fn bsearch_by<F>(&self, mut func: F) -> Result<usize, usize>
     where
         F: FnMut(&T) -> cmp::Ordering + 'static,
@@ -748,7 +748,7 @@ impl<T: ArrayElement> Array<T> {
     /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
     /// This means that values considered equal may have their order changed when using `sort_unstable_by`. For most variant types,
     /// this distinction should not matter though.
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     pub fn sort_unstable_by<F>(&mut self, mut func: F)
     where
         F: FnMut(&T, &T) -> cmp::Ordering,
@@ -951,7 +951,7 @@ impl<T: ArrayElement> Array<T> {
         std::mem::transmute::<&Array<T>, &Array<U>>(self)
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
         // SAFETY: every element is internally represented as Variant.
         let canonical_array = unsafe { self.assume_type_ref::<Variant>() };
@@ -973,7 +973,7 @@ impl<T: ArrayElement> Array<T> {
     }
 
     // No-op in Release. Avoids O(n) conversion checks, but still panics on access.
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
     pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
         Ok(())
     }
@@ -1324,7 +1324,7 @@ impl<T: ArrayElement> GodotType for Array<T> {
         "Array".to_string()
     }
 
-    #[cfg(since_api = "4.2")]
+    #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
     fn property_hint_info() -> PropertyHintInfo {
         // Array<Variant>, aka untyped array, has no hints.
         if Self::has_variant_t() {
@@ -1622,7 +1622,7 @@ macro_rules! vslice {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use std::marker::PhantomData;
 

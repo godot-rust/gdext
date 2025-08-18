@@ -509,7 +509,7 @@ where
 
         let ptr: sys::GDExtensionClassInstancePtr = binding.cast();
 
-        #[cfg(debug_assertions)]
+        #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
         crate::classes::ensure_binding_not_null::<T>(ptr);
 
         self.cached_storage_ptr.set(ptr);

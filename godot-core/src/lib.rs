@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -15,11 +16,11 @@
 pub mod builder;
 pub mod builtin;
 pub mod classes;
-#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+#[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
 pub mod docs;
 #[doc(hidden)]
 pub mod possibly_docs {
-    #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+    #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
     pub use crate::docs::*;
 }
 pub mod global;
@@ -27,9 +28,9 @@ pub mod init;
 pub mod meta;
 pub mod obj;
 pub mod registry;
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub mod task;
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 pub mod task {}
 pub mod tools;
 
@@ -41,7 +42,7 @@ pub use crate::private::{get_gdext_panic_context, set_gdext_hook};
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Validations (see also godot/lib.rs)
 
-#[cfg(all(feature = "register-docs", before_api = "4.3"))]
+#[cfg(all(feature = "register-docs", before_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", before_api = "4.3"))))]
 compile_error!("Generating editor docs for Rust symbols requires at least Godot 4.3.");
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

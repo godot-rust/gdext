@@ -14,7 +14,7 @@ use crate::builtin::{GString, StringName};
 use crate::out;
 
 mod reexport_pub {
-    #[cfg(not(wasm_nothreads))]
+    #[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
     pub use super::sys::main_thread_id;
     pub use super::sys::{is_main_thread, GdextBuild};
 }
@@ -31,7 +31,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         // Make sure the first thing we do is check whether hot reloading should be enabled or not. This is to ensure that if we do anything to
         // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise, this could cause the default
         // behavior to kick in and disable hot reloading.
-        #[cfg(target_os = "linux")]
+        #[cfg(target_os = "linux")] #[cfg_attr(published_docs, doc(cfg(target_os = "linux")))]
         sys::linux_reload_workaround::default_set_hot_reload();
 
         let tool_only_in_editor = match E::editor_run_behavior() {
@@ -47,7 +47,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         }
 
         // With experimental-features enabled, we can always print panics to godot_print!
-        #[cfg(feature = "experimental-threads")]
+        #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
         crate::private::set_gdext_hook(|| true);
 
         // Without experimental-features enabled, we can only print panics with godot_print! if the panic occurs on the main (Godot) thread.
@@ -187,7 +187,7 @@ fn gdext_on_level_deinit(level: InitLevel) {
         // If lowest level is unloaded, call global deinitialization.
         // No business logic by itself, but ensures consistency if re-initialization (hot-reload on Linux) occurs.
 
-        #[cfg(since_api = "4.2")]
+        #[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
         crate::task::cleanup();
 
         // Garbage-collect various statics.

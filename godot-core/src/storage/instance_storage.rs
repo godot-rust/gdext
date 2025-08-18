@@ -8,9 +8,9 @@
 use std::cell::Cell;
 use std::ptr;
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 use godot_cell::blocking::{InaccessibleGuard, MutGuard, RefGuard};
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 use godot_ffi as sys;
 
@@ -158,10 +158,10 @@ pub(crate) trait StorageRefCounted: Storage {
     fn on_dec_ref(&self);
 }
 
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 pub type InstanceStorage<T> = crate::storage::single_threaded::InstanceStorage<T>;
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 pub type InstanceStorage<T> = crate::storage::multi_threaded::InstanceStorage<T>;
 
 const fn _assert_implements_storage<T: Storage + StorageRefCounted>() {}

@@ -66,7 +66,7 @@ pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use method_info::MethodInfo;
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple};
 pub use property_info::{PropertyHintInfo, PropertyInfo};
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub use signature::trace;
 #[doc(hidden)]
 pub use signature::*;

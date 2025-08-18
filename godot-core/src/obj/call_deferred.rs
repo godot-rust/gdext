@@ -13,11 +13,11 @@ use crate::builtin::{Callable, Variant};
 use crate::meta::UniformObjectDeref;
 use crate::obj::bounds::Declarer;
 use crate::obj::GodotClass;
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 use crate::registry::signal::ToSignalObj;
 
 // Dummy traits to still allow bounds and imports.
-#[cfg(before_api = "4.2")]
+#[cfg(before_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.2")))]
 pub trait WithDeferredCall<T: GodotClass> {}
 
 // TODO(v0.4): seal this and similar traits.
@@ -35,7 +35,7 @@ pub trait WithDeferredCall<T: GodotClass> {}
 ///     node.apply_deferred(|n: &mut Node2D| n.rotate(PI))
 /// }
 /// ```
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 pub trait WithDeferredCall<T: GodotClass> {
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
     ///
@@ -48,7 +48,7 @@ pub trait WithDeferredCall<T: GodotClass> {
         F: FnOnce(&mut T) + 'static;
 }
 
-#[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.2")))]
 impl<T, S, D> WithDeferredCall<T> for S
 where
     T: UniformObjectDeref<D, Declarer = D>,
