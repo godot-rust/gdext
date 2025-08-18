@@ -10,9 +10,41 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034)
+- [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.3.5](https://docs.rs/godot/0.3.5)
+
+_18 August 2025_
+
+### 🌻 Features
+
+- Implement `Gd::try_dynify` ([#1255](https://github.com/godot-rust/gdext/pull/1255))
+- Add `PhantomVar<T>` to support properties without a backing field ([#1261](https://github.com/godot-rust/gdext/pull/1261))
+- Access to base pointer during initialization ([#1273](https://github.com/godot-rust/gdext/pull/1273))
+
+### 🧹 Quality of life
+
+- `match_class!` fallback branch is now optional for `()` ([#1246](https://github.com/godot-rust/gdext/pull/1246))
+- `match_class!` now supports `_ @ Class` discard pattern ([#1252](https://github.com/godot-rust/gdext/pull/1252))
+- Add bounds for future-proof `Gd` deref ([#1254](https://github.com/godot-rust/gdext/pull/1254))
+- Mark `GString` as `Send` ([#1260](https://github.com/godot-rust/gdext/pull/1260))
+- Properly register GDExtension `reference`/`unreference` callbacks ([#1270](https://github.com/godot-rust/gdext/pull/1270))
+- Code style: stricter imports ([#1269](https://github.com/godot-rust/gdext/pull/1269))
+- Nightly rustfmt + internals (once-calls, robust refcounts) ([#1271](https://github.com/godot-rust/gdext/pull/1271))
+
+### 🛠️ Bugfixes
+
+- Fix `is_main_thread` being gated behind `#[cfg(not(wasm_nothreads))]` despite being necessary to build wasm nothread ([#1251](https://github.com/godot-rust/gdext/pull/1251))
+- Godot can use a different "main thread" for the main loop ([#1253](https://github.com/godot-rust/gdext/pull/1253))
+- Fix `node_call_group` test accidentally renaming root tree ([#1277](https://github.com/godot-rust/gdext/pull/1277))
+
+### 📚 Documentation
+
+- Add extra class docs for `ResourceFormatLoader` to mention that the `experimental-threads` feature is required ([#1258](https://github.com/godot-rust/gdext/pull/1258))
+- Clarify + test `Packed*Array` behavior w.r.t. copy-and-write + `#[var]` ([#1268](https://github.com/godot-rust/gdext/pull/1268))
 
 
 ## [v0.3.4](https://docs.rs/godot/0.3.4)
