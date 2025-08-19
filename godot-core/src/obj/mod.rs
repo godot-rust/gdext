@@ -22,6 +22,7 @@ mod on_editor;
 mod on_ready;
 mod raw_gd;
 mod traits;
+mod weak_gd;
 
 pub(crate) mod rtti;
 
@@ -35,6 +36,7 @@ pub use on_editor::*;
 pub use on_ready::*;
 pub use raw_gd::*;
 pub use traits::*;
+pub use weak_gd::*;
 
 pub mod bounds;
 pub mod script;

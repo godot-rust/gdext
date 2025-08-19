@@ -12,7 +12,7 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::inspect::EnumConstant;
 use crate::meta::ClassName;
-use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
+use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd, WeakGd};
 #[cfg(since_api = "4.2")]
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
@@ -363,6 +363,8 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// Returns a reference to the `Base` stored by this object.
     #[doc(hidden)]
     fn base_field(&self) -> &Base<Self::Base>;
+
+    fn to_weak_gd(&self) -> WeakGd<Self>;
 
     /// Returns a shared reference suitable for calling engine methods on this object.
     ///
