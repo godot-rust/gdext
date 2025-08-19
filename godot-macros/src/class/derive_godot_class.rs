@@ -97,6 +97,14 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                 fn base_field(&self) -> &::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base> {
                     &self.#name
                 }
+
+                fn to_weak_gd(&self) -> ::godot::obj::WeakGd<#class_name> {
+                    let base = <#class_name as ::godot::obj::WithBaseField>::base_field(self);
+                    unsafe {
+                        // Force casting `Base` to `T`.
+                        ::godot::obj::WeakGd::<#class_name>::from_obj_sys_weak(base.obj_sys())
+                    }
+                }
             }
         }
     } else {

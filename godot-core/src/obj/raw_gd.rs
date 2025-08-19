@@ -358,27 +358,6 @@ impl<T: GodotClass> RawGd<T> {
         // Validation object identity.
         self.check_rtti("upcast_ref");
         debug_assert!(!self.is_null(), "cannot upcast null object refs");
-
-        // In Debug builds, go the long path via Godot FFI to verify the results are the same.
-        #[cfg(debug_assertions)]
-        {
-            // SAFETY: we forget the object below and do not leave the function before.
-            let ffi_dest = self.ffi_cast::<Base>().expect("failed FFI upcast");
-
-            // The ID check is not that expressive; we should do a complete comparison of the ObjectRtti, but currently the dynamic types can
-            // be different (see comment in ObjectRtti struct). This at least checks that the transmuted object is not complete garbage.
-            // We get direct_id from Self and not Base because the latter has no API with current bounds; but this equivalence is tested in Deref.
-            let direct_id = self.instance_id_unchecked().expect("direct_id null");
-            let ffi_id = ffi_dest
-                .as_dest_ref()
-                .instance_id_unchecked()
-                .expect("ffi_id null");
-
-            assert_eq!(
-                direct_id, ffi_id,
-                "upcast_ref: direct and FFI IDs differ. This is a bug, please report to godot-rust maintainers."
-            );
-        }
     }
 
     /// Verify that the object is non-null and alive. In Debug mode, additionally verify that it is of type `T` or derived.

@@ -15,6 +15,7 @@ use std::mem::ManuallyDrop;
 use std::rc::Rc;
 
 use crate::builtin::{Callable, Variant};
+use crate::obj::weak_gd::WeakGd;
 use crate::obj::{bounds, Gd, GodotClass, InstanceId};
 use crate::{classes, sys};
 
@@ -164,6 +165,10 @@ impl<T: GodotClass> Base<T> {
     #[deprecated = "Private API. Use `Base::to_init_gd()` or `WithBaseField::to_gd()` instead."] // TODO(v0.4): remove.
     pub fn to_gd(&self) -> Gd<T> {
         (*self.obj).clone()
+    }
+
+    pub fn to_weak_gd(&self) -> WeakGd<T> {
+        WeakGd::from_base(self)
     }
 
     /// Returns a [`Gd`] referencing the base object, for exclusive use during object initialization.
@@ -327,6 +332,10 @@ impl<T: GodotClass> Base<T> {
         );
 
         (*self.obj).clone()
+    }
+
+    pub(crate) fn is_instance_valid(&self) -> bool {
+        self.obj.is_instance_valid()
     }
 }
 
