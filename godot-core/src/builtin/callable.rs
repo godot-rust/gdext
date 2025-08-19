@@ -111,7 +111,7 @@ impl Callable {
                 &function_name,
                 args.as_slice(),
             );
-            Ok(result)
+            result
         })
     }
 
@@ -141,9 +141,10 @@ impl Callable {
     /// This constructor only allows the callable to be invoked from the same thread as creating it. If you need to invoke it from any thread,
     /// use [`from_sync_fn`][Self::from_sync_fn] instead (requires crate feature `experimental-threads`; only enable if really needed).
     #[cfg(since_api = "4.2")]
-    pub fn from_local_fn<F, S>(name: S, rust_function: F) -> Self
+    pub fn from_local_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        R: ToGodot,
+        F: 'static + FnMut(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
@@ -168,7 +169,7 @@ impl Callable {
     pub fn from_linked_fn<F, T, S>(name: S, linked_object: &Gd<T>, rust_function: F) -> Self
     where
         T: GodotClass,
-        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnMut(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
@@ -190,7 +191,7 @@ impl Callable {
     #[cfg(since_api = "4.2")]
     pub(crate) fn from_once_fn<F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + FnOnce(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnOnce(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
@@ -209,7 +210,7 @@ impl Callable {
     #[doc(hidden)]
     pub fn __once_fn<F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + FnOnce(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnOnce(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         Self::from_once_fn(name, rust_function)
@@ -219,7 +220,7 @@ impl Callable {
     pub(crate) fn with_scoped_fn<S, F, Fc, R>(name: S, rust_function: F, callable_usage: Fc) -> R
     where
         S: meta::AsArg<GString>,
-        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: FnMut(&[&Variant]) -> Variant,
         Fc: FnOnce(&Callable) -> R,
     {
         meta::arg_into_owned!(name);
@@ -257,7 +258,7 @@ impl Callable {
     #[cfg(feature = "experimental-threads")]
     pub fn from_sync_fn<F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + Send + Sync + FnMut(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
@@ -298,7 +299,7 @@ impl Callable {
     #[cfg(since_api = "4.2")]
     fn from_fn_wrapper<F>(inner: FnWrapper<F>) -> Self
     where
-        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: FnMut(&[&Variant]) -> Variant,
     {
         let object_id = inner.linked_object_id();
 
@@ -606,7 +607,7 @@ mod custom_callable {
         /// Return `Ok(...)` if the call succeeded, and `Err(())` otherwise.
         /// Error handling is mostly needed in case argument number or types mismatch.
         #[allow(clippy::result_unit_err)] // TODO remove once there's a clear error type here.
-        fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()>;
+        fn invoke(&mut self, args: &[&Variant]) -> Variant;
 
         // TODO(v0.3): add object_id().
 
@@ -651,7 +652,7 @@ mod custom_callable {
         r_return: sys::GDExtensionVariantPtr,
         r_error: *mut sys::GDExtensionCallError,
     ) where
-        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: FnMut(&[&Variant]) -> Variant,
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
@@ -677,7 +678,7 @@ mod custom_callable {
                 );
             }
 
-            let result = (w.rust_function)(arg_refs);
+            let result = (w.rust_function)(arg_refs).to_variant();
             meta::varcall_return_checked(result, r_return, r_error);
             Ok(())
         });

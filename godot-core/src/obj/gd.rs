@@ -569,7 +569,7 @@ impl<T: GodotClass> Gd<T> {
     #[cfg(since_api = "4.2")]
     pub fn linked_callable<F>(&self, method_name: impl AsArg<GString>, rust_function: F) -> Callable
     where
-        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnMut(&[&Variant]) -> Variant,
     {
         Callable::from_linked_fn(method_name, self, rust_function)
     }

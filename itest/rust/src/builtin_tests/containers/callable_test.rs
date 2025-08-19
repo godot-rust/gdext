@@ -491,7 +491,7 @@ pub mod custom_callable {
         assert_ne!(a, c, "same function, different instance -> not equal");
     }
 
-    fn sum(args: &[&Variant]) -> Result<Variant, ()> {
+    fn sum(args: &[&Variant]) -> Variant {
         let sum: i32 = args.iter().map(|arg| arg.to::<i32>()).sum();
         Ok(sum.to_variant())
     }
@@ -713,7 +713,7 @@ pub mod custom_callable {
     }
 
     impl RustCallable for Adder {
-        fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
+        fn invoke(&mut self, args: &[&Variant]) -> Variant {
             for arg in args {
                 self.sum += arg.to::<i32>();
             }
@@ -766,7 +766,7 @@ pub mod custom_callable {
     }
 
     impl RustCallable for PanicCallable {
-        fn invoke(&mut self, _args: &[&Variant]) -> Result<Variant, ()> {
+        fn invoke(&mut self, _args: &[&Variant]) -> Variant {
             panic!("TEST: {}", self.0.fetch_add(1, Ordering::SeqCst))
         }
     }

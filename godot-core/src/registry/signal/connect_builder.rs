@@ -126,7 +126,7 @@ where
     /// type state builder for simple + common connections, thus hopefully being a tiny bit lighter on compile times.
     fn inner_connect_godot_fn<F>(
         self,
-        godot_fn: impl FnMut(&[&Variant]) -> Result<Variant, ()> + 'static,
+        godot_fn: impl FnMut(&[&Variant]) -> Variant + 'static,
         bound: &Gd<impl GodotClass>,
     ) -> ConnectHandle {
         let callable_name = match &self.data.callable_name {
