@@ -30,4 +30,16 @@ fn main() {
     // ]]
 
     assert!(count <= 1, "ERROR: at most one `api-*` feature can be enabled");
+
+    let mut debug_checks_count=0;
+    if cfg!(feature="debug-checks-fast-unsafe") {debug_checks_count+=1;}
+    if cfg!(feature="debug-checks-balanced") {debug_checks_count+=1;}
+    if cfg!(feature="debug-checks-paranoid") {debug_checks_count+=1;}
+    assert!(debug_checks_count<=1,"ERROR: at most one `debug-checks-*` feature can be enabled");
+
+    let mut release_checks_count=0;
+    if cfg!(feature="release-checks-fast-unsafe") {release_checks_count+=1;}
+    if cfg!(feature="release-checks-balanced") {release_checks_count+=1;}
+    if cfg!(feature="release-checks-paranoid") {release_checks_count+=1;}
+    assert!(release_checks_count<=1,"ERROR: at most one `release-checks-*` feature can be enabled");
 }
