@@ -7,8 +7,11 @@
 
 use godot::builtin::real_consts::FRAC_PI_3;
 use godot::builtin::Vector2;
-use godot::classes::{ClassDb, RefCounted};
-use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, WithBaseField};
+use godot::classes::notify::ObjectNotification;
+use godot::classes::{ClassDb, IRefCounted, RefCounted};
+use godot::meta::ToGodot;
+use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithBaseField};
+use godot::register::{godot_api, GodotClass};
 use godot::task::TaskHandle;
 
 use crate::framework::{expect_panic, itest, next_frame};
@@ -167,4 +170,30 @@ fn base_init_to_gd() {
             temp_obj
         });
     });
+}
+
+#[derive(GodotClass)]
+#[class(init)]
+struct RefcPostinit {
+    pub base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for RefcPostinit {
+    fn on_notification(&mut self, what: ObjectNotification) {
+        if what == ObjectNotification::POSTINITIALIZE {
+            self.base
+                .to_init_gd()
+                .set_meta("meta", &"postinited".to_variant());
+        }
+    }
+}
+
+#[cfg(since_api = "4.4")]
+#[itest(async)]
+fn base_postinit_refcounted() -> TaskHandle {
+    let obj = RefcPostinit::new_gd();
+    assert_eq!(obj.get_meta("meta"), "postinited".to_variant());
+    assert_eq!(obj.get_reference_count(), 2);
+    next_frame(move || assert_eq!(obj.get_reference_count(), 1, "eventual dec-ref happens"))
 }
