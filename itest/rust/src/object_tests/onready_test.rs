@@ -93,6 +93,24 @@ fn onready_lifecycle() {
 }
 
 #[itest]
+fn onready_lifecycle_gd_self() {
+    let mut obj = OnReadyWithImplGdSelf::create(true);
+
+    obj.notify(NodeNotification::READY);
+
+    {
+        let mut obj = obj.bind_mut();
+        assert_eq!(*obj.auto, 77);
+        assert_eq!(*obj.manual, 55);
+
+        *obj.auto = 44;
+        assert_eq!(*obj.auto, 44);
+    }
+
+    obj.free();
+}
+
+#[itest]
 fn onready_lifecycle_without_impl() {
     let mut obj = OnReadyWithoutImpl::create();
 
@@ -263,6 +281,45 @@ impl OnReadyWithImplWithoutReady {
 impl INode for OnReadyWithImplWithoutReady {
     // Declare another function to ensure virtual getter must be provided.
     fn process(&mut self, _delta: f64) {}
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Class that has overriden ready with Gd<Self> receiver. Used to test whether variables are still initialized.
+#[derive(GodotClass)]
+#[class(no_init, base=Node)]
+struct OnReadyWithImplGdSelf {
+    base: Base<Node>,
+    #[hint(onready)]
+    auto: OnReady<i32>,
+    #[hint(no_onready)]
+    manual: OnReady<i32>,
+    runs_manual_init: bool,
+}
+
+impl OnReadyWithImplGdSelf {
+    fn create(runs_manual_init: bool) -> Gd<OnReadyWithImplGdSelf> {
+        Gd::from_init_fn(|base| Self {
+            base,
+            auto: OnReady::new(|| 77),
+            manual: OnReady::manual(),
+            runs_manual_init,
+        })
+    }
+}
+
+#[godot_api]
+impl INode for OnReadyWithImplGdSelf {
+    #[func(gd_self)]
+    fn ready(mut this: Gd<Self>) {
+        let mut this_bind = this.bind_mut();
+        assert_eq!(*this_bind.auto, 77);
+
+        if this_bind.runs_manual_init {
+            this_bind.manual.init(55);
+            assert_eq!(*this_bind.manual, 55);
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

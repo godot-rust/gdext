@@ -251,26 +251,28 @@ pub(crate) fn path_ends_with_complex(path: &venial::TypeExpr, expected: &str) ->
     })
 }
 
+pub fn is_cfg_or_cfg_attr(attr: &venial::Attribute) -> bool {
+    let Some(attr_name) = attr.get_single_path_segment() else {
+        return false;
+    };
+
+    // #[cfg(condition)]
+    if attr_name == "cfg" {
+        return true;
+    }
+
+    // #[cfg_attr(condition, attributes...)]. Multiple attributes can be seperated by comma.
+    if attr_name == "cfg_attr" && attr.value.to_token_stream().to_string().contains("cfg(") {
+        return true;
+    }
+
+    false
+}
+
 pub(crate) fn extract_cfg_attrs(
     attrs: &[venial::Attribute],
 ) -> impl IntoIterator<Item = &venial::Attribute> {
-    attrs.iter().filter(|attr| {
-        let Some(attr_name) = attr.get_single_path_segment() else {
-            return false;
-        };
-
-        // #[cfg(condition)]
-        if attr_name == "cfg" {
-            return true;
-        }
-
-        // #[cfg_attr(condition, attributes...)]. Multiple attributes can be seperated by comma.
-        if attr_name == "cfg_attr" && attr.value.to_token_stream().to_string().contains("cfg(") {
-            return true;
-        }
-
-        false
-    })
+    attrs.iter().filter(|attr| is_cfg_or_cfg_attr(attr))
 }
 
 #[cfg(before_api = "4.3")]

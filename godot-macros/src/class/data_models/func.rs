@@ -9,7 +9,7 @@ use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 
 use crate::class::RpcAttr;
-use crate::util::{bail_fn, ident, safe_ident};
+use crate::util::{bail, bail_fn, ident, safe_ident};
 use crate::{util, ParseResult};
 
 /// Information used for registering a Rust function with Godot.
@@ -255,7 +255,12 @@ fn make_forwarding_closure(
     let before_method_call = match before_kind {
         BeforeKind::WithBefore | BeforeKind::OnlyBefore => {
             let before_method = format_ident!("__before_{}", method_name);
-            quote! { instance.#before_method(); }
+            if let ReceiverType::GdSelf = signature_info.receiver_type {
+                // In case of GdSelf receiver use instance only to call the before_method.
+                quote! { ::godot::private::Storage::get_mut(storage).#before_method(); }
+            } else {
+                quote! { instance.#before_method(); }
+            }
         }
         BeforeKind::Without => TokenStream::new(),
     };
@@ -386,6 +391,12 @@ pub(crate) fn into_signature_info(
                 };
             }
             venial::FnParam::Typed(arg) => {
+                // The first parameter - Receiver - should be removed.
+                let index = if receiver_type == ReceiverType::GdSelf {
+                    index + 1
+                } else {
+                    index
+                };
                 let ident = maybe_rename_parameter(arg.name, &mut next_unnamed_index);
                 let ty = match maybe_change_parameter_type(arg.ty, &method_name, index) {
                     // Parameter type was modified.
@@ -576,4 +587,32 @@ fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream
     quote! {
         ::godot::meta::CallContext::func(#class_name_str, #method_name_str)
     }
+}
+
+pub fn bail_attr<R>(attr_name: &Ident, msg: &str, method_name: &Ident) -> ParseResult<R> {
+    bail!(method_name, "#[{attr_name}]: {msg}")
+}
+
+pub fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
+    if signature.params.is_empty() {
+        return bail_attr(
+            attr_name,
+            "with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>",
+            &signature.name,
+        );
+    }
+
+    // Remove Gd<Self> receiver from signature for further processing.
+    let param = signature.params.inner.remove(0);
+
+    let venial::FnParam::Typed(param) = param.0 else {
+        return bail_attr(
+            attr_name,
+            "with attribute key `gd_self`, the first parameter must be Gd<Self> (not a `self` receiver)",
+             &signature.name
+        );
+    };
+
+    // Note: parameter is explicitly NOT renamed (maybe_rename_parameter).
+    Ok(param.name)
 }
