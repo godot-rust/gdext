@@ -9,6 +9,7 @@ use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens};
 
+use crate::class::data_models::func;
 use crate::class::{
     into_signature_info, make_constant_registration, make_method_registration,
     make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
@@ -224,30 +225,6 @@ fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotAp
 }
 */
 
-fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
-    if signature.params.is_empty() {
-        return bail_attr(
-            attr_name,
-            "with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>",
-            &signature.name,
-        );
-    }
-
-    // Remove Gd<Self> receiver from signature for further processing.
-    let param = signature.params.inner.remove(0);
-
-    let venial::FnParam::Typed(param) = param.0 else {
-        return bail_attr(
-            attr_name,
-            "with attribute key `gd_self`, the first parameter must be Gd<Self> (not a `self` receiver)",
-             &signature.name
-        );
-    };
-
-    // Note: parameter is explicitly NOT renamed (maybe_rename_parameter).
-    Ok(param.name)
-}
-
 fn process_godot_fns(
     class_name: &Ident,
     impl_block: &mut venial::Impl,
@@ -297,7 +274,7 @@ fn process_godot_fns(
                 let mut signature = util::reduce_to_signature(function);
                 let gd_self_parameter = if func.has_gd_self {
                     // Removes Gd<Self> receiver from signature for further processing.
-                    let param_name = extract_gd_self(&mut signature, &attr.attr_name)?;
+                    let param_name = func::extract_gd_self(&mut signature, &attr.attr_name)?;
                     Some(param_name)
                 } else {
                     None
@@ -686,10 +663,6 @@ fn parse_constant_attr(
     parser.finish()?;
 
     Ok(AttrParseResult::Constant(attr.value.clone()))
-}
-
-fn bail_attr<R>(attr_name: &Ident, msg: &str, method_name: &Ident) -> ParseResult<R> {
-    bail!(method_name, "#[{attr_name}]: {msg}")
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
