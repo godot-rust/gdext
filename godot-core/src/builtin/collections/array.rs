@@ -951,7 +951,7 @@ impl<T: ArrayElement> Array<T> {
         std::mem::transmute::<&Array<T>, &Array<U>>(self)
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(checks_at_least = "paranoid")]
     pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
         // SAFETY: every element is internally represented as Variant.
         let canonical_array = unsafe { self.assume_type_ref::<Variant>() };
@@ -973,7 +973,7 @@ impl<T: ArrayElement> Array<T> {
     }
 
     // No-op in Release. Avoids O(n) conversion checks, but still panics on access.
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(checks_at_least = "paranoid"))]
     pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
         Ok(())
     }
@@ -1192,7 +1192,7 @@ impl<T: ArrayElement> Clone for Array<T> {
         let copy = unsafe { self.clone_unchecked() };
 
         // Double-check copy's runtime type in Debug mode.
-        if cfg!(debug_assertions) {
+        if cfg!(checks_at_least = "paranoid") {
             copy.with_checked_type()
                 .expect("copied array should have same type as original array")
         } else {

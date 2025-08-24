@@ -43,6 +43,15 @@ api-4-3 = ["godot-core/api-4-3"]
 api-4-4 = ["godot-core/api-4-4"]
 # ]]
 
+
+debug-checks-fast-unsafe = ["godot-core/debug-checks-fast-unsafe"]
+debug-checks-balanced = ["godot-core/debug-checks-balanced"]
+debug-checks-paranoid = ["godot-core/debug-checks-paranoid"]
+
+release-checks-fast-unsafe = ["godot-core/release-checks-fast-unsafe"]
+release-checks-balanced = ["godot-core/release-checks-balanced"]
+release-checks-paranoid = ["godot-core/release-checks-paranoid"]
+
 default = ["__codegen-full"]
 
 # Private features, they are under no stability guarantee
