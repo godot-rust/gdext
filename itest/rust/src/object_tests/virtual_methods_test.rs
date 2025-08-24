@@ -520,6 +520,8 @@ fn test_notifications() {
     assert_eq!(
         obj.bind().sequence,
         vec![
+            #[cfg(since_api = "4.4")]
+            ReceivedEvent::Notification(NodeNotification::POSTINITIALIZE),
             ReceivedEvent::Notification(NodeNotification::UNPAUSED),
             ReceivedEvent::Notification(NodeNotification::EDITOR_POST_SAVE),
             ReceivedEvent::Ready,

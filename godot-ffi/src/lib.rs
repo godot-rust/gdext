@@ -471,6 +471,21 @@ pub unsafe fn discover_main_thread() {
     }
 }
 
+/// Construct Godot object.
+///
+/// "NOTIFICATION_POSTINITIALIZE" must be sent after construction since 4.4.
+///
+/// # Safety
+/// `class_name` is assumed to be valid.
+pub unsafe fn classdb_construct_object(
+    class_name: GDExtensionConstStringNamePtr,
+) -> GDExtensionObjectPtr {
+    #[cfg(before_api = "4.4")]
+    return interface_fn!(classdb_construct_object)(class_name);
+    #[cfg(since_api = "4.4")]
+    return interface_fn!(classdb_construct_object2)(class_name);
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros to access low-level function bindings
 

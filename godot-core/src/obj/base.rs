@@ -166,15 +166,15 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
-    /// Returns a [`Gd`] referencing the base object, for exclusive use during object initialization.
+    /// Returns a [`Gd`] referencing the base object, for exclusive use during object initialization and `NOTIFICATION_POSTINITIALIZE`.
     ///
-    /// Can be used during an initialization function [`I*::init()`][crate::classes::IObject::init] or [`Gd::from_init_fn()`].
+    /// Can be used during an initialization function [`I*::init()`][crate::classes::IObject::init] or [`Gd::from_init_fn()`], or [`POSTINITIALIZE`][crate::classes::notify::ObjectNotification::POSTINITIALIZE].
     ///
     /// The base pointer is only pointing to a base object; you cannot yet downcast it to the object being constructed.
     /// The instance ID is the same as the one the in-construction object will have.
     ///
     /// # Lifecycle for ref-counted classes
-    /// If `T: Inherits<RefCounted>`, then the ref-counted object is not yet fully-initialized at the time of the `init` function running.
+    /// If `T: Inherits<RefCounted>`, then the ref-counted object is not yet fully-initialized at the time of the `init` function and [`POSTINITIALIZE`][crate::classes::notify::ObjectNotification::POSTINITIALIZE] running.
     /// Accessing the base object without further measures would be dangerous. Here, godot-rust employs a workaround: the `Base` object (which
     /// holds a weak pointer to the actual instance) is temporarily upgraded to a strong pointer, preventing use-after-free.
     ///
