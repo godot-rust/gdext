@@ -86,17 +86,28 @@ impl<T> ToGodot for RefArg<'_, T>
 where
     T: ToGodot,
 {
-    type ToVia<'v>
-        = T::ToVia<'v>
-    where
-        Self: 'v;
+    type Pass = T::Pass;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
         let shared_ref = self
             .shared_ref
             .expect("Objects are currently mapped through ObjectArg; RefArg shouldn't be null");
 
         shared_ref.to_godot()
+    }
+
+    fn to_godot_owned(&self) -> Self::Via
+    where
+        Self::Via: Clone,
+    {
+        // Default implementation calls underlying T::to_godot().clone(), which is wrong.
+        // Some to_godot_owned() calls are specialized/overridden, we need to honor that.
+
+        let shared_ref = self
+            .shared_ref
+            .expect("Objects are currently mapped through ObjectArg; RefArg shouldn't be null");
+
+        shared_ref.to_godot_owned()
     }
 }
 

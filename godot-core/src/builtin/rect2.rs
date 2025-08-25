@@ -274,7 +274,7 @@ unsafe impl GodotFfi for Rect2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Rect2);
+crate::meta::impl_godot_as_self!(Rect2: ByValue);
 
 impl ApproxEq for Rect2 {
     /// Returns if the two `Rect2`s are approximately equal, by comparing `position` and `size` separately.

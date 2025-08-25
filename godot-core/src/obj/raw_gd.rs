@@ -20,7 +20,7 @@ use crate::obj::casts::CastSuccess;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceCache, InstanceStorage, Storage};
-use crate::{classes, out};
+use crate::{classes, meta, out};
 
 /// Low-level bindings for object pointers in Godot.
 ///
@@ -600,10 +600,10 @@ impl<T: GodotClass> GodotConvert for RawGd<T> {
 }
 
 impl<T: GodotClass> ToGodot for RawGd<T> {
-    type ToVia<'v> = Self;
+    type Pass = meta::ByRef;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
-        self.clone()
+    fn to_godot(&self) -> &Self::Via {
+        self
     }
 }
 

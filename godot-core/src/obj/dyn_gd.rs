@@ -553,12 +553,9 @@ where
     T: GodotClass,
     D: ?Sized,
 {
-    type ToVia<'v>
-        = <Gd<T> as ToGodot>::ToVia<'v>
-    where
-        D: 'v;
+    type Pass = <Gd<T> as ToGodot>::Pass;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> &Self::Via {
         self.obj.to_godot()
     }
 
@@ -596,14 +593,6 @@ where
     }
 }
 */
-
-impl<T, D> meta::ParamType for DynGd<T, D>
-where
-    T: GodotClass,
-    D: ?Sized + 'static,
-{
-    type ArgPassing = meta::ByRef;
-}
 
 impl<T, D> meta::ArrayElement for DynGd<T, D>
 where

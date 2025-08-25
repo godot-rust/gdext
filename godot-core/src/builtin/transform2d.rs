@@ -467,7 +467,7 @@ unsafe impl GodotFfi for Transform2D {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Transform2D);
+crate::meta::impl_godot_as_self!(Transform2D: ByValue);
 
 /// A 2x2 matrix, typically used as an orthogonal basis for [`Transform2D`].
 ///

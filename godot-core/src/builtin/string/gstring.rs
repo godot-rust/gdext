@@ -280,7 +280,7 @@ unsafe impl GodotFfi for GString {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-meta::impl_godot_as_self!(GString);
+meta::impl_godot_as_self!(GString: ByRef);
 
 impl_builtin_traits! {
     for GString {

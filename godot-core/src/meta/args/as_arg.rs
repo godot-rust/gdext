@@ -7,9 +7,10 @@
 
 use std::ffi::CStr;
 
-use crate::builtin::{GString, NodePath, StringName};
+use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
-use crate::meta::{CowArg, ToGodot};
+use crate::meta::traits::GodotFfiVariant;
+use crate::meta::{CowArg, GodotType, ToGodot};
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///
@@ -25,8 +26,8 @@ use crate::meta::{CowArg, ToGodot};
 /// in the future.
 ///
 /// # Pass by value
-/// Implicitly converting from `T` for by-ref built-ins is explicitly not supported. This emphasizes that there is no need to consume the object,
-/// thus discourages unnecessary cloning.
+/// Implicitly converting from `T` for by-ref built-ins is explicitly not supported, i.e. you need to pass `&variant` instead of `variant`.
+/// This emphasizes that there is no need to consume the object, thus discourages unnecessary cloning.
 ///
 /// # Performance for strings
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
@@ -45,7 +46,8 @@ use crate::meta::{CowArg, ToGodot};
 /// `AsArg` is meant to be used from the function call site, not the declaration site. If you declare a parameter as `impl AsArg<...>` yourself,
 /// you can only forward it as-is to a Godot API -- there are no stable APIs to access the inner object yet.
 ///
-/// If you want to pass your own types to a Godot API i.e. to emit a signal, you should implement the [`ParamType`] trait.
+/// The blanket implementations of `AsArg` for `T` (in case of `Pass = ByValue`) and `&T` (`Pass = ByRef`) should readily enable most use
+/// cases, as long as your type already supports `ToGodot`. In the majority of cases, you'll simply use by-value passing, e.g. for enums.
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "if you pass by value, consider borrowing instead.",
@@ -76,7 +78,7 @@ where
 
 impl<T> AsArg<T> for &T
 where
-    T: ToGodot + ParamType<ArgPassing = ByRef>,
+    T: ToGodot<Pass = ByRef>,
 {
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
@@ -88,7 +90,7 @@ where
 
 impl<T> AsArg<T> for T
 where
-    T: ToGodot + ParamType<ArgPassing = ByValue>,
+    T: ToGodot<Pass = ByValue>,
 {
     fn into_arg<'r>(self) -> CowArg<'r, T>
     where
@@ -99,7 +101,7 @@ where
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Blanket impls
+// Internal helper macros
 
 /// Converts `impl AsArg<T>` into a locally valid `&T`.
 ///
@@ -131,31 +133,9 @@ macro_rules! arg_into_owned {
         let $arg_variable = $arg_variable.into_arg();
         let $arg_variable = $arg_variable.cow_into_owned();
     };
-    ($arg_variable:ident: $T:ty) => {
-        let $arg_variable = $arg_variable.into_arg();
-        let $arg_variable: $T = $crate::meta::ParamType::arg_into_owned($arg_variable);
-    };
     (infer $arg_variable:ident) => {
         let $arg_variable = $arg_variable.into_arg();
         let $arg_variable = $arg_variable.cow_into_owned();
-    };
-}
-
-#[macro_export]
-macro_rules! impl_asarg_by_value {
-    ($T:ty) => {
-        impl $crate::meta::ParamType for $T {
-            type ArgPassing = $crate::meta::ByValue;
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! impl_asarg_by_ref {
-    ($T:ty) => {
-        impl $crate::meta::ParamType for $T {
-            type ArgPassing = $crate::meta::ByRef;
-        }
     };
 }
 
@@ -166,7 +146,7 @@ macro_rules! declare_arg_method {
         ///
         /// # Generic bounds
         /// The bounds are implementation-defined and may change at any time. Do not use this function in a generic context requiring `T`
-        /// -- use the `From` trait or [`ParamType`][crate::meta::ParamType] in that case.
+        /// -- use the `From` trait or [`AsArg`][crate::meta::AsArg] in that case.
         pub fn arg<T>(&self) -> impl $crate::meta::AsArg<T>
         where
             for<'a> T: From<&'a Self>
@@ -179,7 +159,7 @@ macro_rules! declare_arg_method {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Blanket impls
+// CowArg
 
 /// `CowArg` can itself be passed as an argument (internal only).
 ///
@@ -196,11 +176,6 @@ where
         self
     }
 }
-
-// impl<'a, T> ParamType for CowArg<'a, T> {
-//     type Type<'v> = CowArg<'v, T>
-//         where Self: 'v;
-// }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GString
@@ -257,39 +232,108 @@ impl AsArg<NodePath> for &String {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Argument passing (mutually exclusive by-val or by-ref).
 
-/// Implemented for all parameter types `T` that are allowed to receive [impl `AsArg<T>`][AsArg].
+/// Determines whether arguments are passed by value or by reference to Godot.
 ///
-/// **Deprecated**: This trait is considered deprecated and will be removed in 0.4. It is still required to be implemented by types that should
-/// be passed `AsArg` in the current version, though.
-//
-// ParamType used to be a subtrait of GodotType, but this can be too restrictive. For example, DynGd is not a "Godot canonical type"
-// (GodotType), however it's still useful to store it in arrays -- which requires AsArg and subsequently ParamType.
-//
-// TODO(v0.4): merge ParamType::ArgPassing into ToGodot::ToVia, reducing redundancy on user side.
-pub trait ParamType: ToGodot + Sized + 'static
-// GodotType bound not required right now, but conceptually should always be the case.
-{
-    type ArgPassing: ArgPassing;
+/// See [`ToGodot::Pass`].
+pub trait ArgPassing: Sealed {
+    /// Return type: `T` or `&'r T`.
+    type Output<'r, T: 'r>;
 
-    #[deprecated(
-        since = "0.3.2",
-        note = "This method is no longer needed and will be removed in 0.4"
-    )]
-    fn owned_to_arg(self) -> impl AsArg<Self> {
-        val_into_arg(self)
+    /// FFI argument type: `T::Ffi` or `T::ToFfi<'f>`.
+    #[doc(hidden)]
+    type FfiOutput<'f, T>: GodotFfiVariant
+    where
+        T: GodotType + 'f;
+
+    /// Convert to owned `T::Via` (cloning if necessary).
+    #[doc(hidden)]
+    fn ref_to_owned_via<T>(value: &T) -> T::Via
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: Clone;
+
+    /// Convert to FFI repr in the most efficient way (move or borrow).
+    #[doc(hidden)]
+    fn ref_to_ffi<T>(value: &T) -> Self::FfiOutput<'_, T::Via>
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: GodotType;
+
+    /// Convert to `Variant` in the most efficient way (move or borrow).
+    #[doc(hidden)]
+    fn ref_to_variant<T>(value: &T) -> Variant
+    where
+        T: ToGodot<Pass = Self>,
+    {
+        let ffi_result = Self::ref_to_ffi(value);
+        GodotFfiVariant::ffi_to_variant(&ffi_result)
     }
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Argument passing (mutually exclusive by-val or by-ref).
-
-pub trait ArgPassing: Sealed {}
-
+/// Pass arguments to Godot by value.
+///
+/// See [`ToGodot::Pass`].
 pub enum ByValue {}
-impl ArgPassing for ByValue {}
 impl Sealed for ByValue {}
+impl ArgPassing for ByValue {
+    type Output<'r, T: 'r> = T;
 
+    type FfiOutput<'a, T>
+        = T::Ffi
+    where
+        T: GodotType + 'a;
+
+    fn ref_to_owned_via<T>(value: &T) -> T::Via
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: Clone,
+    {
+        value.to_godot()
+    }
+
+    fn ref_to_ffi<T>(value: &T) -> Self::FfiOutput<'_, T::Via>
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: GodotType,
+    {
+        // For ByValue: to_godot() returns owned T::Via, move directly to FFI.
+        GodotType::into_ffi(value.to_godot())
+    }
+}
+
+/// Pass arguments to Godot by reference.
+///
+/// See [`ToGodot::Pass`].
 pub enum ByRef {}
-impl ArgPassing for ByRef {}
 impl Sealed for ByRef {}
+impl ArgPassing for ByRef {
+    type Output<'r, T: 'r> = &'r T;
+
+    type FfiOutput<'f, T>
+        = T::ToFfi<'f>
+    where
+        T: GodotType + 'f;
+
+    fn ref_to_owned_via<T>(value: &T) -> T::Via
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: Clone,
+    {
+        // For ByRef types, clone the reference to get owned value.
+        value.to_godot().clone()
+    }
+
+    fn ref_to_ffi<T>(value: &T) -> <T::Via as GodotType>::ToFfi<'_>
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: GodotType,
+    {
+        // Use by-ref conversion if possible, avoiding unnecessary clones when passing to FFI.
+        value.to_godot().to_ffi()
+    }
+}
+
+#[doc(hidden)] // Easier for internal use.
+pub type ToArg<'r, Via, Pass> = <Pass as ArgPassing>::Output<'r, Via>;

@@ -19,6 +19,7 @@ pub use gstring::*;
 pub use node_path::NodePath;
 pub use string_name::*;
 
+use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
 
@@ -27,12 +28,9 @@ impl GodotConvert for &str {
 }
 
 impl ToGodot for &str {
-    type ToVia<'v>
-        = GString
-    where
-        Self: 'v;
+    type Pass = meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         GString::from(*self)
     }
 }
@@ -42,9 +40,9 @@ impl GodotConvert for String {
 }
 
 impl ToGodot for String {
-    type ToVia<'v> = Self::Via;
+    type Pass = meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         GString::from(self)
     }
 }

@@ -637,7 +637,7 @@ unsafe impl GodotFfi for Basis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Basis);
+crate::meta::impl_godot_as_self!(Basis: ByValue);
 
 #[cfg(test)]
 mod test {
