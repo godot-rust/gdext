@@ -26,11 +26,6 @@ fn node_path_conversion() {
     let back = GString::from(&name);
 
     assert_eq!(string, back);
-
-    let second = NodePath::from(string.clone());
-    let back = GString::from(second);
-
-    assert_eq!(string, back);
 }
 
 #[itest]

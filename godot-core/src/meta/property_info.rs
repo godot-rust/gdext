@@ -151,7 +151,7 @@ impl PropertyInfo {
     {
         self.variant_type == VariantType::ARRAY
             && self.hint_info.hint == PropertyHint::ARRAY_TYPE
-            && self.hint_info.hint_string == T::Via::godot_type_name().into()
+            && self.hint_info.hint_string == GString::from(&T::Via::godot_type_name())
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------------------
@@ -291,7 +291,7 @@ impl PropertyHintInfo {
         let hint_string = if sys::GdextBuild::since_api("4.3") {
             GString::new()
         } else {
-            GString::from(type_name)
+            GString::from(&type_name)
         };
 
         Self {
@@ -304,7 +304,7 @@ impl PropertyHintInfo {
     pub fn var_array_element<T: ArrayElement>() -> Self {
         Self {
             hint: PropertyHint::ARRAY_TYPE,
-            hint_string: GString::from(element_godot_type_name::<T>()),
+            hint_string: GString::from(&element_godot_type_name::<T>()),
         }
     }
 
@@ -312,7 +312,7 @@ impl PropertyHintInfo {
     pub fn export_array_element<T: ArrayElement>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(T::element_type_string()),
+            hint_string: GString::from(&T::element_type_string()),
         }
     }
 
@@ -320,7 +320,7 @@ impl PropertyHintInfo {
     pub fn export_packed_array_element<T: PackedArrayElement>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(T::element_type_string()),
+            hint_string: GString::from(&T::element_type_string()),
         }
     }
 
@@ -349,7 +349,7 @@ impl PropertyHintInfo {
         D: ?Sized + 'static,
     {
         PropertyHintInfo {
-            hint_string: GString::from(get_dyn_property_hint_string::<T, D>()),
+            hint_string: GString::from(&get_dyn_property_hint_string::<T, D>()),
             ..PropertyHintInfo::export_gd::<T>()
         }
     }
