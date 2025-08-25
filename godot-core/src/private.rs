@@ -33,7 +33,10 @@ mod reexport_pub {
     };
     #[cfg(since_api = "4.2")]
     pub use crate::registry::signal::priv_re_export::*;
-    pub use crate::storage::{as_storage, Storage};
+    pub use crate::storage::{
+        as_storage, IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage,
+        VirtualMethodReceiver,
+    };
     pub use crate::sys::out;
 }
 pub use reexport_pub::*;

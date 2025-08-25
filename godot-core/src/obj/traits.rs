@@ -656,6 +656,7 @@ pub mod cap {
     use crate::builtin::{StringName, Variant};
     use crate::meta::PropertyInfo;
     use crate::obj::{Base, Bounds, Gd};
+    use crate::storage::{IntoVirtualMethodReceiver, VirtualMethodReceiver};
 
     /// Trait for all classes that are default-constructible from the Godot engine.
     ///
@@ -712,7 +713,10 @@ pub mod cap {
     #[doc(hidden)]
     pub trait GodotToString: GodotClass {
         #[doc(hidden)]
-        fn __godot_to_string(&self) -> GString;
+        type Recv: IntoVirtualMethodReceiver<Self>;
+
+        #[doc(hidden)]
+        fn __godot_to_string(this: VirtualMethodReceiver<Self>) -> GString;
     }
 
     // TODO Evaluate whether we want this public or not
@@ -732,32 +736,62 @@ pub mod cap {
     #[doc(hidden)]
     pub trait GodotGet: GodotClass {
         #[doc(hidden)]
-        fn __godot_get_property(&self, property: StringName) -> Option<Variant>;
+        type Recv: IntoVirtualMethodReceiver<Self>;
+
+        #[doc(hidden)]
+        fn __godot_get_property(
+            this: VirtualMethodReceiver<Self>,
+            property: StringName,
+        ) -> Option<Variant>;
     }
 
     #[doc(hidden)]
     pub trait GodotSet: GodotClass {
         #[doc(hidden)]
-        fn __godot_set_property(&mut self, property: StringName, value: Variant) -> bool;
+        type Recv: IntoVirtualMethodReceiver<Self>;
+
+        #[doc(hidden)]
+        fn __godot_set_property(
+            this: VirtualMethodReceiver<Self>,
+            property: StringName,
+            value: Variant,
+        ) -> bool;
     }
 
     #[doc(hidden)]
     pub trait GodotGetPropertyList: GodotClass {
         #[doc(hidden)]
-        fn __godot_get_property_list(&mut self) -> Vec<crate::meta::PropertyInfo>;
+        type Recv: IntoVirtualMethodReceiver<Self>;
+
+        #[doc(hidden)]
+        fn __godot_get_property_list(
+            this: VirtualMethodReceiver<Self>,
+        ) -> Vec<crate::meta::PropertyInfo>;
     }
 
     #[doc(hidden)]
     pub trait GodotPropertyGetRevert: GodotClass {
         #[doc(hidden)]
-        fn __godot_property_get_revert(&self, property: StringName) -> Option<Variant>;
+        type Recv: IntoVirtualMethodReceiver<Self>;
+
+        #[doc(hidden)]
+        fn __godot_property_get_revert(
+            this: VirtualMethodReceiver<Self>,
+            property: StringName,
+        ) -> Option<Variant>;
     }
 
     #[doc(hidden)]
     #[cfg(since_api = "4.2")]
     pub trait GodotValidateProperty: GodotClass {
         #[doc(hidden)]
-        fn __godot_validate_property(&self, property: &mut PropertyInfo);
+        type Recv: IntoVirtualMethodReceiver<Self>;
+
+        #[doc(hidden)]
+        fn __godot_validate_property(
+            this: VirtualMethodReceiver<Self>,
+            property: &mut PropertyInfo,
+        );
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
