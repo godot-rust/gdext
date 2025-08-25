@@ -564,3 +564,21 @@ _15 July 2024_
 _24 June 2024_
 
 Initial release on crates.io. See [devlog article](https://godot-rust.github.io/dev/june-2024-update).
+
+###ZV9 ADDITIONS
+- **Binding for `TileMap::set_cell` now exposes full five-argument signature**  
+  Previously, the Rust bindings for `TileMap::set_cell` only surfaced a truncated two-argument version (`layer`, `coords`). This limited tile placement functionality and diverged from the full GDScript API.
+
+**Patch Location**
+
+- `godot-codegen/domain_mapping.rs`  
+  Specifically in `impl ClassMethod::from_json`, we modified the overload selection logic to:
+  - Skip shorter variants of `set_cell`
+  - Prefer the full overload with all five parameters:  
+    `layer`, `coords`, `source_id`, `atlas_coords`, `alternative_tile`
+
+**Why We Patched**
+
+- The generator was defaulting to shorter overloads, likely for simplicity or symbol count reduction.
+- This prevented access to critical tile placement features such as atlas selection and alternative tile variants.
+- By explicitly preferring the longest overload, we restored parity with the GDScript API and enabled full control from Rust.

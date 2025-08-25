@@ -405,6 +405,15 @@ impl ClassMethod {
         ctx: &mut Context,
     ) -> Option<ClassMethod> {
         assert!(!special_cases::is_class_deleted(class_name));
+		
+		// ✅ Patch: Allow full overload of TileMap::set_cell
+        if class_name.godot_ty == "TileMap" && method.name == "set_cell" {
+            let arg_len = method.arguments.as_ref().map_or(0, |args| args.len());
+            if arg_len < 5 {
+                // Skip shorter overloads
+                return None;
+            }
+        }
 
         if special_cases::is_class_method_deleted(class_name, method, ctx) {
             return None;
