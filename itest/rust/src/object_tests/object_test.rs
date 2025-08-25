@@ -15,6 +15,7 @@ use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::classes::{
     file_access, Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted,
 };
+use godot::global::godot_str;
 #[allow(deprecated)]
 use godot::meta::{FromGodot, GodotType, ToGodot};
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
@@ -939,7 +940,7 @@ impl IRefCounted for RefcPayload {
     }
 
     fn to_string(&self) -> GString {
-        format!("value={}", self.value).into()
+        godot_str!("value={}", self.value)
     }
 }
 

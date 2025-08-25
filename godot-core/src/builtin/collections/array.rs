@@ -1334,7 +1334,7 @@ impl<T: ArrayElement> GodotType for Array<T> {
         // Typed arrays use type hint.
         PropertyHintInfo {
             hint: crate::global::PropertyHint::ARRAY_TYPE,
-            hint_string: GString::from(element_godot_type_name::<T>()),
+            hint_string: GString::from(&element_godot_type_name::<T>()),
         }
     }
 }
