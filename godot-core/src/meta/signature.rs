@@ -54,7 +54,11 @@ impl<Params: ParamTuple, Ret: GodotConvert> Signature<Params, Ret> {
 ///
 /// Calls going from the Godot engine to Rust code.
 #[deny(unsafe_op_in_unsafe_fn)]
-impl<Params: InParamTuple, Ret: ToGodot> Signature<Params, Ret> {
+impl<Params, Ret> Signature<Params, Ret>
+where
+    Params: InParamTuple,
+    Ret: ToGodot<Via: Clone>,
+{
     /// Receive a varcall from Godot, and return the value in `ret` as a variant pointer.
     ///
     /// # Safety
@@ -431,13 +435,14 @@ pub(crate) unsafe fn varcall_return_checked<R: ToGodot>(
 /// # Safety
 /// `ret_val`, `ret`, and `call_type` must follow the safety requirements as laid out in
 /// [`GodotFuncMarshal::try_return`](sys::GodotFuncMarshal::try_return).
-unsafe fn ptrcall_return<R: ToGodot>(
+unsafe fn ptrcall_return<R: ToGodot<Via: Clone>>(
     ret_val: R,
     ret: sys::GDExtensionTypePtr,
     _call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) {
-    let val = ret_val.to_godot();
+    // Needs a value (no ref) to be moved; can't use to_godot() + to_ffi().
+    let val = ret_val.to_godot_owned();
     let ffi = val.into_ffi();
 
     ffi.move_return_ptr(ret, call_type);

@@ -474,7 +474,7 @@ unsafe impl GodotFfi for Transform3D {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Transform3D);
+crate::meta::impl_godot_as_self!(Transform3D: ByValue);
 
 #[cfg(test)]
 mod test {

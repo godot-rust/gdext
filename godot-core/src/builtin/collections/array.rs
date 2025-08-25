@@ -15,9 +15,9 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ByRef,
-    ClassName, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ParamType,
-    PropertyHintInfo, RefArg, ToGodot,
+    element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ClassName,
+    ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, PropertyHintInfo, RefArg,
+    ToGodot,
 };
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
 use crate::registry::property::{BuiltinExport, Export, Var};
@@ -1119,28 +1119,24 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
 impl ArrayElement for VariantArray {}
 
-impl<T: ArrayElement> ParamType for Array<T> {
-    type ArgPassing = ByRef;
-}
-
 impl<T: ArrayElement> GodotConvert for Array<T> {
     type Via = Self;
 }
 
 impl<T: ArrayElement> ToGodot for Array<T> {
-    type ToVia<'v> = Self::Via;
+    type Pass = meta::ByRef;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
-        // SAFETY: only safe when passing to FFI in a context where Rust-side type doesn't matter.
-        // TODO: avoid unsafety with either of the following:
-        // * OutArray -- https://github.com/godot-rust/gdext/pull/806.
-        // * Instead of cloning, use ArgRef<Array<T>>.
-        unsafe { self.clone_unchecked() }
-        //self.clone()
+    fn to_godot(&self) -> &Self::Via {
+        self
     }
 
-    fn to_variant(&self) -> Variant {
-        self.ffi_to_variant()
+    fn to_godot_owned(&self) -> Self::Via
+    where
+        Self::Via: Clone,
+    {
+        // Overridden, because default clone() validates that before/after element types are equal, which doesn't matter when we pass to FFI.
+        // This may however be an issue if to_godot_owned() is used by the user directly.
+        unsafe { self.clone_unchecked() }
     }
 }
 
@@ -1203,7 +1199,7 @@ impl<T: ArrayElement> Clone for Array<T> {
 
 impl<T: ArrayElement> Var for Array<T> {
     fn get_property(&self) -> Self::Via {
-        self.to_godot()
+        self.to_godot_owned()
     }
 
     fn set_property(&mut self, value: Self::Via) {
@@ -1521,12 +1517,24 @@ impl<T: ArrayElement> PartialOrd for Array<T> {
 
 /// Constructs [`Array`] literals, similar to Rust's standard `vec!` macro.
 ///
-/// The type of the array is inferred from the arguments.
 ///
-/// # Example
+/// # Type inference
+/// To create an `Array<E>`, the types of the provided values `T` must implement [`AsArg<E>`].
+///
+/// For values that can directly be represented in Godot (implementing [`GodotType`]), types can usually be inferred.
+/// You need to respect by-value vs. by-reference semantics as per [`ToGodot::Pass`].
+///
+/// # Examples
 /// ```no_run
 /// # use godot::prelude::*;
-/// let arr = array![3, 1, 4];  // Array<i32>
+/// // Inferred type - i32: AsArg<i32>
+/// let ints = array![3, 1, 4];
+///
+/// // Inferred type - &GString: AsArg<GString>
+/// let strs = array![&GString::from("godot-rust")];
+///
+/// // Explicitly specified type - &str: AsArg<GString>
+/// let strs: Array<GString> = array!["Godot", "Rust"];
 /// ```
 ///
 /// # See also

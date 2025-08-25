@@ -199,7 +199,7 @@ unsafe impl GodotFfi for NodePath {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-crate::meta::impl_godot_as_self!(NodePath);
+crate::meta::impl_godot_as_self!(NodePath: ByRef);
 
 impl_builtin_traits! {
     for NodePath {

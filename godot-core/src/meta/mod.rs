@@ -85,10 +85,7 @@ mod reexport_crate {
     };
     // Private imports for this module only.
     pub(super) use crate::registry::method::MethodParamOrReturnInfo;
-    pub(crate) use crate::{
-        arg_into_ref, declare_arg_method, impl_asarg_by_ref, impl_asarg_by_value,
-        impl_godot_as_self,
-    };
+    pub(crate) use crate::{arg_into_ref, declare_arg_method, impl_godot_as_self};
 }
 pub(crate) use reexport_crate::*;
 
