@@ -155,7 +155,7 @@ where
     where
         F: FnOnce(crate::obj::Base<T::Base>) -> T,
     {
-        let object_ptr = callbacks::create_custom(init) // or propagate panic.
+        let object_ptr = callbacks::create_custom(init, true) // or propagate panic.
             .unwrap_or_else(|payload| PanicPayload::repanic(payload));
 
         unsafe { Gd::from_obj_sys(object_ptr) }
@@ -333,6 +333,14 @@ impl<T: GodotClass> Gd<T> {
             .try_with_ref_counted(|refc| refc.get_reference_count());
 
         Some(rc.map(|i| i as usize))
+    }
+
+    /// Drop without decrementing ref-counter.
+    ///
+    /// Needed in situations where the instance should effectively be forgotten, but without leaking other associated data.
+    pub(crate) fn drop_weak(self) {
+        // As soon as fields need custom Drop, this won't be enough anymore.
+        std::mem::forget(self);
     }
 
     #[cfg(feature = "trace")] // itest only.

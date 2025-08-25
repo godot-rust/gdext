@@ -170,11 +170,15 @@ pub(crate) fn construct_engine_object<T>() -> Gd<T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
 {
-    // SAFETY: adhere to Godot API; valid class name and returned pointer is an object.
-    unsafe {
-        let object_ptr = sys::interface_fn!(classdb_construct_object)(T::class_name().string_sys());
-        Gd::from_obj_sys(object_ptr)
-    }
+    let mut obj = unsafe {
+        let object_ptr = sys::classdb_construct_object(T::class_name().string_sys());
+        Gd::<T>::from_obj_sys(object_ptr)
+    };
+    #[cfg(since_api = "4.4")]
+    obj.upcast_object_mut()
+        .notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
+
+    obj
 }
 
 pub(crate) fn ensure_object_alive(
