@@ -343,7 +343,7 @@ unsafe impl GodotFfi for Quaternion {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Quaternion);
+crate::meta::impl_godot_as_self!(Quaternion: ByValue);
 
 impl std::fmt::Display for Quaternion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

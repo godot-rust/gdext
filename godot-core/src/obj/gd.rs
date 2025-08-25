@@ -14,8 +14,8 @@ use sys::{static_assert_eq_size_align, SysPtr as _};
 use crate::builtin::{Callable, GString, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, AsArg, ByRef, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
-    ParamType, PropertyHintInfo, RefArg, ToGodot,
+    ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
+    PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
     bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -24,7 +24,7 @@ use crate::obj::{
 use crate::private::{callbacks, PanicPayload};
 use crate::registry::class::try_dynify_object;
 use crate::registry::property::{object_export_element_type_string, Export, Var};
-use crate::{classes, out};
+use crate::{classes, meta, out};
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -801,8 +801,8 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> impl crate::meta::AsObjectArg<T> {
-        crate::meta::ObjectNullArg(std::marker::PhantomData)
+    pub fn null_arg() -> impl meta::AsObjectArg<T> {
+        meta::ObjectNullArg(std::marker::PhantomData)
     }
 }
 
@@ -867,12 +867,11 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 }
 
 impl<T: GodotClass> ToGodot for Gd<T> {
-    // TODO return RefArg here?
-    type ToVia<'v> = Gd<T>;
+    type Pass = meta::ByRef;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> &Self::Via {
         self.raw.check_rtti("to_godot");
-        self.clone()
+        self
     }
 }
 
@@ -971,10 +970,6 @@ where
 }
 */
 
-impl<T: GodotClass> ParamType for Gd<T> {
-    type ArgPassing = ByRef;
-}
-
 impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
     fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
         // TODO avoid cloning.
@@ -983,10 +978,6 @@ impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
             None => CowArg::Owned(None),
         }
     }
-}
-
-impl<T: GodotClass> ParamType for Option<Gd<T>> {
-    type ArgPassing = ByRef;
 }
 
 impl<T> Default for Gd<T>
@@ -1016,7 +1007,7 @@ impl<T: GodotClass> Clone for Gd<T> {
 
 impl<T: GodotClass> Var for Gd<T> {
     fn get_property(&self) -> Self::Via {
-        self.to_godot()
+        self.to_godot_owned()
     }
 
     fn set_property(&mut self, value: Self::Via) {

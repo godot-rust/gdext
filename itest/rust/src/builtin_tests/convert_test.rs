@@ -107,9 +107,9 @@ impl GodotConvert for ConvertedStruct {
 }
 
 impl ToGodot for ConvertedStruct {
-    type ToVia<'v> = Dictionary;
+    type Pass = godot::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         vdict! {
             "a": self.a,
             "b": self.b,

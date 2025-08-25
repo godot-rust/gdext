@@ -16,7 +16,7 @@ use sys::GodotFfi;
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, ConvertError};
 use crate::meta::{
-    signature, CallContext, FromGodot, GodotConvert, GodotFfiVariant, GodotType, InParamTuple,
+    signature, ArgPassing, CallContext, FromGodot, GodotConvert, GodotType, InParamTuple,
     OutParamTuple, ParamTuple, ToGodot,
 };
 
@@ -107,20 +107,14 @@ macro_rules! unsafe_impl_param_tuple {
             }
         }
 
-        impl<$($P),*> OutParamTuple for ($($P,)*) where $($P: ToGodot + fmt::Debug),* {
+        impl<$($P),*> OutParamTuple for ($($P,)*) where $($P: ToGodot<Via: Clone> + fmt::Debug,)* {
             fn with_variants<F, R>(self, f: F) -> R
             where
                 F: FnOnce(&[Variant]) -> R,
             {
-                let ffi_args = (
-                    $(
-                        GodotType::into_ffi(ToGodot::to_godot(&self.$n)),
-                    )*
-                );
-
                 let variant_args = [
                     $(
-                        GodotFfiVariant::ffi_to_variant(&ffi_args.$n),
+                        <$P::Pass as ArgPassing>::ref_to_variant(&self.$n),
                     )*
                 ];
 
@@ -145,9 +139,10 @@ macro_rules! unsafe_impl_param_tuple {
             where
                 F: FnOnce(&[godot_ffi::GDExtensionConstTypePtr]) -> R,
             {
+                // Must be separate declarations, as pointers become invalid otherwise (UAF).
                 let ffi_args = (
                     $(
-                        GodotType::into_ffi(ToGodot::to_godot(&self.$n)),
+                        <$P::Pass as ArgPassing>::ref_to_ffi(&self.$n),
                     )*
                 );
 
@@ -247,6 +242,8 @@ fn assert_array_length<P: ParamTuple>(array: &[&Variant]) {
         array.len()
     );
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[cfg(test)]
 mod test {

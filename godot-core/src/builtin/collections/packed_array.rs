@@ -629,7 +629,7 @@ macro_rules! impl_packed_array {
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }
 
-        $crate::meta::impl_godot_as_self!($PackedArray);
+        $crate::meta::impl_godot_as_self!($PackedArray: ByRef);
 
         impl $crate::registry::property::Export for $PackedArray {
             fn export_hint() -> $crate::meta::PropertyHintInfo {

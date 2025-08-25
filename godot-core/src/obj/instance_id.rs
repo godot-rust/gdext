@@ -95,9 +95,9 @@ impl GodotConvert for InstanceId {
 }
 
 impl ToGodot for InstanceId {
-    type ToVia<'v> = i64;
+    type Pass = crate::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         self.to_i64()
     }
 }

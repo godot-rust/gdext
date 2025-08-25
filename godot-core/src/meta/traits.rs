@@ -12,7 +12,7 @@ use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{
-    sealed, ClassName, FromGodot, GodotConvert, ParamType, PropertyHintInfo, PropertyInfo, ToGodot,
+    sealed, ClassName, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
 use crate::registry::property::builtin_type_string;
@@ -166,12 +166,11 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 /// Also, keep in mind that Godot uses `Variant` for each element. If performance matters and you have small element types such as `u8`,
 /// consider using packed arrays (e.g. `PackedByteArray`) instead.
 //
-// TODO: The `ParamType` super trait is no longer needed and can be removed in 0.4. We are only keeping it for backwards compatibility.
 #[diagnostic::on_unimplemented(
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
     label = "has invalid element type"
 )]
-pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + ParamType + 'static {
+pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + 'static {
     // Note: several indirections in `ArrayElement` and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).
 

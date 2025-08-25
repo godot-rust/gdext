@@ -84,8 +84,6 @@ macro_rules! impl_ffi_variant {
         }
 
         impl ArrayElement for $T {}
-
-        impl_ffi_variant!(@as_arg $by_ref_or_val $T);
     };
 
     (@godot_type_name $T:ty) => {
@@ -114,14 +112,6 @@ macro_rules! impl_ffi_variant {
         fn to_ffi(&self) -> Self::ToFfi<'_> {
             self.clone()
         }
-    };
-
-    (@as_arg by_ref $T:ty) => {
-        $crate::meta::impl_asarg_by_ref!($T);
-    };
-
-    (@as_arg by_val $T:ty) => {
-        $crate::meta::impl_asarg_by_value!($T);
     };
 }
 
