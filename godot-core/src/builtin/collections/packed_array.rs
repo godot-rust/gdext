@@ -231,7 +231,7 @@ impl<T: PackedArrayElement> PackedArray<T> {
     /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
     ///
     /// # Usage
-    /// For negative indices, use [`wrapped()`](crate::meta::wrapped).
+    /// For negative indices, use [`wrapped()`][meta::wrapped].
     ///
     /// ```no_run
     /// # use godot::builtin::PackedArray;
@@ -341,7 +341,28 @@ impl<T: PackedArrayElement> PackedArray<T> {
         T::op_sort(self.as_inner());
     }
 
-    // Note: Conversion functions are type-specific and will be implemented for concrete types
+    // Must remain internal. godot-rust convention is to use to_*, into_*, cast* for conversions between types of the library.
+    pub(crate) fn from_typed_array(array: &Array<T>) -> Self
+    where
+        T: meta::ArrayElement,
+    {
+        unsafe {
+            Self::new_with_uninit(|self_ptr| {
+                T::ffi_from_array(array.sys(), self_ptr);
+            })
+        }
+    }
+
+    /// Converts this packed array to a `VarArray`.
+    #[inline]
+    pub fn to_var_array(&self) -> VarArray {
+        // SAFETY: Godot FFI converter expects uninitialized dest + initialized source.
+        unsafe {
+            VarArray::new_with_uninit(|ptr| {
+                T::ffi_to_array(self.sys(), ptr);
+            })
+        }
+    }
 
     /// # Panics
     /// Always.
@@ -561,11 +582,11 @@ impl<T: PackedArrayElement> ops::IndexMut<usize> for PackedArray<T> {
 
 impl<T: PackedArrayElement> Var for PackedArray<T> {
     fn get_property(&self) -> Self::Via {
-        meta::ToGodot::to_godot_owned(self)
+        ToGodot::to_godot_owned(self)
     }
 
     fn set_property(&mut self, value: Self::Via) {
-        *self = meta::FromGodot::from_godot(value);
+        *self = FromGodot::from_godot(value);
     }
 }
 

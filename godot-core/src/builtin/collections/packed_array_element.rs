@@ -67,6 +67,18 @@ pub trait PackedArrayElement: GodotType + Clone + ToGodot + FromGodot {
     );
 
     #[doc(hidden)]
+    unsafe fn ffi_to_array(
+        from_packed: sys::GDExtensionConstTypePtr,
+        to_uninit_array: sys::GDExtensionUninitializedTypePtr,
+    );
+
+    #[doc(hidden)]
+    unsafe fn ffi_from_array(
+        from_array: sys::GDExtensionConstTypePtr,
+        to_uninit_packed: sys::GDExtensionUninitializedTypePtr,
+    );
+
+    #[doc(hidden)]
     unsafe fn ffi_default(type_ptr: sys::GDExtensionTypePtr);
 
     #[doc(hidden)]
@@ -182,6 +194,8 @@ macro_rules! impl_packed_array_element {
         destroy_fn: $destroy_fn:ident,
         to_variant_fn: $to_variant_fn:ident,
         from_variant_fn: $from_variant_fn:ident,
+        to_array_fn: $to_array_fn:ident,
+        from_array_fn: $from_array_fn:ident,
         equals_fn: $equals_fn:ident,
         index_mut_fn: $index_mut_fn:ident,
         index_const_fn: $index_const_fn:ident,
@@ -220,6 +234,18 @@ macro_rules! impl_packed_array_element {
             unsafe fn ffi_from_variant(variant_ptr: sys::GDExtensionConstVariantPtr, type_ptr: sys::GDExtensionTypePtr) {
                 let converter = sys::builtin_fn!($from_variant_fn);
                 converter(SysPtr::as_uninit(type_ptr), SysPtr::force_mut(variant_ptr));
+            }
+
+            unsafe fn ffi_to_array(from_packed: sys::GDExtensionConstTypePtr, to_uninit_array: sys::GDExtensionUninitializedTypePtr) {
+                let converter = sys::builtin_fn!($to_array_fn);
+                let args = [from_packed];
+                converter(to_uninit_array, args.as_ptr())
+            }
+
+            unsafe fn ffi_from_array(from_array: sys::GDExtensionConstTypePtr, to_uninit_packed: sys::GDExtensionUninitializedTypePtr) {
+                let converter = sys::builtin_fn!($from_array_fn);
+                let args = [from_array];
+                converter(to_uninit_packed, args.as_ptr())
             }
 
             unsafe fn ffi_equals(left_ptr: sys::GDExtensionConstTypePtr, right_ptr: sys::GDExtensionConstTypePtr) -> bool {
@@ -356,6 +382,8 @@ impl_packed_array_element!(
     destroy_fn: packed_byte_array_destroy,
     to_variant_fn: packed_byte_array_to_variant,
     from_variant_fn: packed_byte_array_from_variant,
+    to_array_fn: array_from_packed_byte_array,
+    from_array_fn: packed_byte_array_from_array,
     equals_fn: packed_byte_array_operator_equal,
     index_mut_fn: packed_byte_array_operator_index,
     index_const_fn: packed_byte_array_operator_index_const,
@@ -373,6 +401,8 @@ impl_packed_array_element!(
     destroy_fn: packed_int32_array_destroy,
     to_variant_fn: packed_int32_array_to_variant,
     from_variant_fn: packed_int32_array_from_variant,
+    to_array_fn: array_from_packed_int32_array,
+    from_array_fn: packed_int32_array_from_array,
     equals_fn: packed_int32_array_operator_equal,
     index_mut_fn: packed_int32_array_operator_index,
     index_const_fn: packed_int32_array_operator_index_const,
@@ -390,6 +420,8 @@ impl_packed_array_element!(
     destroy_fn: packed_int64_array_destroy,
     to_variant_fn: packed_int64_array_to_variant,
     from_variant_fn: packed_int64_array_from_variant,
+    to_array_fn: array_from_packed_int64_array,
+    from_array_fn: packed_int64_array_from_array,
     equals_fn: packed_int64_array_operator_equal,
     index_mut_fn: packed_int64_array_operator_index,
     index_const_fn: packed_int64_array_operator_index_const,
@@ -407,6 +439,8 @@ impl_packed_array_element!(
     destroy_fn: packed_float32_array_destroy,
     to_variant_fn: packed_float32_array_to_variant,
     from_variant_fn: packed_float32_array_from_variant,
+    to_array_fn: array_from_packed_float32_array,
+    from_array_fn: packed_float32_array_from_array,
     equals_fn: packed_float32_array_operator_equal,
     index_mut_fn: packed_float32_array_operator_index,
     index_const_fn: packed_float32_array_operator_index_const,
@@ -424,6 +458,8 @@ impl_packed_array_element!(
     destroy_fn: packed_float64_array_destroy,
     to_variant_fn: packed_float64_array_to_variant,
     from_variant_fn: packed_float64_array_from_variant,
+    to_array_fn: array_from_packed_float64_array,
+    from_array_fn: packed_float64_array_from_array,
     equals_fn: packed_float64_array_operator_equal,
     index_mut_fn: packed_float64_array_operator_index,
     index_const_fn: packed_float64_array_operator_index_const,
@@ -441,6 +477,8 @@ impl_packed_array_element!(
     destroy_fn: packed_vector2_array_destroy,
     to_variant_fn: packed_vector2_array_to_variant,
     from_variant_fn: packed_vector2_array_from_variant,
+    to_array_fn: array_from_packed_vector2_array,
+    from_array_fn: packed_vector2_array_from_array,
     equals_fn: packed_vector2_array_operator_equal,
     index_mut_fn: packed_vector2_array_operator_index,
     index_const_fn: packed_vector2_array_operator_index_const,
@@ -458,6 +496,8 @@ impl_packed_array_element!(
     destroy_fn: packed_vector3_array_destroy,
     to_variant_fn: packed_vector3_array_to_variant,
     from_variant_fn: packed_vector3_array_from_variant,
+    to_array_fn: array_from_packed_vector3_array,
+    from_array_fn: packed_vector3_array_from_array,
     equals_fn: packed_vector3_array_operator_equal,
     index_mut_fn: packed_vector3_array_operator_index,
     index_const_fn: packed_vector3_array_operator_index_const,
@@ -476,6 +516,8 @@ impl_packed_array_element!(
     destroy_fn: packed_vector4_array_destroy,
     to_variant_fn: packed_vector4_array_to_variant,
     from_variant_fn: packed_vector4_array_from_variant,
+    to_array_fn: array_from_packed_vector4_array,
+    from_array_fn: packed_vector4_array_from_array,
     equals_fn: packed_vector4_array_operator_equal,
     index_mut_fn: packed_vector4_array_operator_index,
     index_const_fn: packed_vector4_array_operator_index_const,
@@ -493,6 +535,8 @@ impl_packed_array_element!(
     destroy_fn: packed_color_array_destroy,
     to_variant_fn: packed_color_array_to_variant,
     from_variant_fn: packed_color_array_from_variant,
+    to_array_fn: array_from_packed_color_array,
+    from_array_fn: packed_color_array_from_array,
     equals_fn: packed_color_array_operator_equal,
     index_mut_fn: packed_color_array_operator_index,
     index_const_fn: packed_color_array_operator_index_const,
@@ -510,6 +554,8 @@ impl_packed_array_element!(
     destroy_fn: packed_string_array_destroy,
     to_variant_fn: packed_string_array_to_variant,
     from_variant_fn: packed_string_array_from_variant,
+    to_array_fn: array_from_packed_string_array,
+    from_array_fn: packed_string_array_from_array,
     equals_fn: packed_string_array_operator_equal,
     index_mut_fn: packed_string_array_operator_index,
     index_const_fn: packed_string_array_operator_index_const,

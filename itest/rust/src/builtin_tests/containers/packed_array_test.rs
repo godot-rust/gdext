@@ -4,11 +4,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use std::fmt;
 
 use godot::builtin::{
-    vdict, Color, GString, PackedArray, PackedByteArray, PackedInt32Array, PackedStringArray,
-    Variant, Vector2, Vector3, Vector4,
+    array, varray, vdict, Array, Color, GString, PackedArray, PackedByteArray, PackedFloat32Array,
+    PackedInt32Array, PackedStringArray, VarArray, Variant, Vector2, Vector3, Vector4,
 };
 use godot::global::godot_str;
 use godot::meta::{owned_into_arg, ref_to_arg, wrapped, PackedArrayElement, ToGodot};
@@ -762,6 +763,32 @@ fn packed_array_all_types() {
 
     #[cfg(since_api = "4.3")]
     test!(Vector4);
+}
+
+#[itest]
+fn packed_array_array_conversions_f32() {
+    let array: Array<f32> = array![1.0, -2.5, 3.75];
+
+    let packed: PackedFloat32Array = array.to_packed_array();
+    assert_eq!(packed.as_slice(), &[1.0, -2.5, 3.75]);
+
+    let untyped: VarArray = packed.to_var_array();
+    assert_eq!(untyped, varray![1.0, -2.5, 3.75]);
+    // It should not even be possible to construct a VarArray from a typed array, but since the implementation is very low-level FFI
+    // and Godot isn't strict about typed/untyped arrays, we verify that the VarArray is indeed untyped.
+    assert!(!untyped.element_type().is_typed());
+}
+
+#[itest]
+fn packed_array_array_conversions_gstring() {
+    let array: Array<GString> = array!["first", "second"];
+
+    let packed: PackedStringArray = array.to_packed_array();
+    assert_eq!(packed.as_slice(), &["first", "second"]);
+
+    let untyped: VarArray = packed.to_var_array();
+    assert_eq!(untyped, varray!["first", "second"]);
+    assert!(!untyped.element_type().is_typed());
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

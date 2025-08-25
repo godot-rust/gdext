@@ -124,21 +124,3 @@ macro_rules! impl_builtin_traits {
         )*
     )
 }
-
-macro_rules! impl_builtin_froms {
-    ($To:ty; $($From:ty => $from_fn:ident),* $(,)?) => {
-        $(impl From<&$From> for $To {
-            fn from(other: &$From) -> Self {
-                unsafe {
-                    // TODO should this be from_sys_init_default()?
-                    Self::new_with_uninit(|ptr| {
-                        let args = [other.sys()];
-                        ::godot_ffi::builtin_call! {
-                            $from_fn(ptr, args.as_ptr())
-                        }
-                    })
-                }
-            }
-        })*
-    };
-}
