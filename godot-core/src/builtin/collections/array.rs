@@ -676,7 +676,7 @@ impl<T: ArrayElement> Array<T> {
         // We need one dummy element of type T, because Godot's bsearch_custom() checks types (so Variant::nil() can't be passed).
         // Optimization: roundtrip Variant -> T -> Variant could be avoided, but anyone needing speed would use Rust binary search...
         let ignored_value = self.at(0);
-        let ignored_value = meta::val_into_arg(ignored_value); //AsArg::into_arg(&ignored_value);
+        let ignored_value = meta::owned_into_arg(ignored_value);
 
         let godot_comparator = |args: &[&Variant]| {
             let value = T::from_variant(args[0]);
@@ -1421,7 +1421,7 @@ impl<T: ArrayElement> Extend<T> for Array<T> {
         // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
         for item in iter.into_iter() {
             // self.push(AsArg::into_arg(&item));
-            self.push(meta::val_into_arg(item));
+            self.push(meta::owned_into_arg(item));
         }
     }
 }

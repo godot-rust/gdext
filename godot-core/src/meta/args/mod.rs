@@ -13,7 +13,7 @@ mod ref_arg;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public APIs
 
-pub use as_arg::{val_into_arg, ArgPassing, AsArg, ByRef, ByValue, ToArg};
+pub use as_arg::{owned_into_arg, ref_to_arg, ArgPassing, AsArg, ByRef, ByValue, ToArg};
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Internal APIs
 

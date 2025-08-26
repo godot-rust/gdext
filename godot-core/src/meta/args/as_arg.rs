@@ -18,16 +18,22 @@ use crate::meta::{CowArg, GodotType, ToGodot};
 /// this trait is implemented more conservatively.
 ///
 /// As a result, `AsArg<T>` is currently only implemented for certain argument types:
-/// - `T` for by-value built-ins (typically `Copy`): `i32`, `bool`, `Vector3`, `Transform2D`, ...
-/// - `&T` for by-ref built-ins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
+/// - `T` for **by-value** built-ins: `i32`, `bool`, `Vector3`, `Transform2D`...
+///   - These all implement `ToGodot<Pass = ByValue>` and typically also `Copy`.
+/// - `&T` for **by-ref** built-ins: `GString`, `Array`, `Dictionary`, `Packed*Array`, `Variant`...
+///   - These all implement `ToGodot<Pass = ByRef>`.
 /// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`.
 ///
 /// See also the [`AsObjectArg`][crate::meta::AsObjectArg] trait which is specialized for object arguments. It may be merged with `AsArg`
 /// in the future.
 ///
-/// # Pass by value
-/// Implicitly converting from `T` for by-ref built-ins is explicitly not supported, i.e. you need to pass `&variant` instead of `variant`.
-/// This emphasizes that there is no need to consume the object, thus discourages unnecessary cloning.
+/// # Owned values vs. references
+/// Implicitly converting from `T` for **by-ref** built-ins is explicitly not supported, i.e. you need to pass `&variant` instead of `variant`.
+/// This emphasizes that there is no need to consume the object, thus discourages unnecessary cloning. Similarly, you cannot pass by-value
+/// types like `i32` by reference.
+///
+/// Sometimes, you need exactly that for generic programming though: consistently pass `T` or `&T`. For this purpose, the global functions
+/// [`owned_into_arg()`] and [`ref_to_arg()`] are provided.
 ///
 /// # Performance for strings
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
@@ -67,15 +73,6 @@ where
         Self: 'r;
 }
 
-/// Generic abstraction over `T` and `&T` that should be passed as `AsArg<T>`.
-#[doc(hidden)]
-pub fn val_into_arg<'r, T>(arg: T) -> impl AsArg<T> + 'r
-where
-    T: ToGodot + 'r,
-{
-    CowArg::Owned(arg)
-}
-
 impl<T> AsArg<T> for &T
 where
     T: ToGodot<Pass = ByRef>,
@@ -101,7 +98,72 @@ where
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Internal helper macros
+// Public helper functions (T|&T -> AsArg)
+
+/// Generic abstraction over `T` owned values that should be passed as `AsArg<T>`.
+///
+/// Useful for generic programming: you have owned values, and want the argument conversion to benefit from moving whenever possible.
+/// You don't care if the value can truly be moved efficiently, since you don't need the value at the call site anymore.
+///
+/// Note that the pattern `owned_into_arg(value.clone())` is inefficient -- instead, use [`ref_to_arg(&value)`][ref_to_arg].
+///
+/// # Example
+/// ```
+/// use godot::prelude::*;
+/// use godot::meta::{ArrayElement, owned_into_arg};
+///
+/// // Creates random values, e.g. for fuzzing, property-based testing, etc.
+/// // Assume global state for simplicity.
+/// trait Generator {
+///    fn next() -> Self;
+/// }
+///
+/// fn fill_randomly<T>(arr: &mut Array<T>, count: usize)
+/// where
+///     T: ArrayElement + ToGodot + Generator,
+/// {
+///     for _ in 0..count {
+///         let value = T::next();
+///         arr.push(owned_into_arg(value));
+///     }
+/// }
+/// ```
+pub fn owned_into_arg<'r, T>(owned_val: T) -> impl AsArg<T> + 'r
+where
+    T: ToGodot + 'r,
+{
+    CowArg::Owned(owned_val)
+}
+
+/// Generic abstraction over `&T` references that should be passed as `AsArg<T>`.
+///
+/// Useful for generic programming: you have references, and want the argument conversion to benefit from borrowing whenever possible.
+///
+/// If you no longer need the value at the call site, consider using [`owned_into_arg(value)`][owned_into_arg] instead.
+///
+/// # Example
+/// ```
+/// use godot::prelude::*;
+/// use godot::meta::{ArrayElement, ref_to_arg};
+///
+/// // Could use `impl AsArg<T>` and forward it, but let's demonstrate `&T` here.
+/// fn log_and_push<T>(arr: &mut Array<T>, value: &T)
+/// where
+///     T: ArrayElement + ToGodot + std::fmt::Debug,
+/// {
+///     println!("Add value: {value:?}");
+///     arr.push(ref_to_arg(value));
+/// }
+/// ```
+pub fn ref_to_arg<'r, T>(ref_val: &'r T) -> impl AsArg<T> + 'r
+where
+    T: ToGodot + 'r,
+{
+    CowArg::Borrowed(ref_val)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Internal helper macros (AsArg -> &T|T)
 
 /// Converts `impl AsArg<T>` into a locally valid `&T`.
 ///
