@@ -281,7 +281,7 @@ unsafe impl GodotFfi for Rect2i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Rect2i);
+crate::meta::impl_godot_as_self!(Rect2i: ByValue);
 
 impl std::fmt::Display for Rect2i {
     /// Formats `Rect2i` to match Godot's string representation.

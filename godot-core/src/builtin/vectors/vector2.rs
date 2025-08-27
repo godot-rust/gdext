@@ -186,7 +186,7 @@ unsafe impl GodotFfi for Vector2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Vector2);
+crate::meta::impl_godot_as_self!(Vector2: ByValue);
 
 impl GlamConv for Vector2 {
     type Glam = RVec2;

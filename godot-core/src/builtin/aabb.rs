@@ -453,7 +453,7 @@ unsafe impl GodotFfi for Aabb {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Aabb);
+crate::meta::impl_godot_as_self!(Aabb: ByValue);
 
 impl ApproxEq for Aabb {
     /// Returns `true` if the two `Aabb`s are approximately equal, by calling `is_equal_approx` on

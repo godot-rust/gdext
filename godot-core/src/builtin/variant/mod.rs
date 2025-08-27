@@ -517,8 +517,6 @@ impl Variant {
 
 impl ArrayElement for Variant {}
 
-crate::meta::impl_asarg_by_ref!(Variant);
-
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
 // `std::mem::swap` is sufficient for returning a value.
@@ -528,7 +526,7 @@ unsafe impl GodotFfi for Variant {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Variant);
+crate::meta::impl_godot_as_self!(Variant: ByRef);
 
 impl Default for Variant {
     fn default() -> Self {

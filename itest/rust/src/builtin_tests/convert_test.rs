@@ -10,6 +10,7 @@ use godot::builtin::{
     Vector2Axis,
 };
 use godot::classes::{Node, Resource};
+use godot::meta;
 use godot::meta::error::ConvertError;
 use godot::meta::{AsArg, CowArg, FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Gd, NewAlloc};
@@ -107,9 +108,9 @@ impl GodotConvert for ConvertedStruct {
 }
 
 impl ToGodot for ConvertedStruct {
-    type ToVia<'v> = Dictionary;
+    type Pass = godot::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         vdict! {
             "a": self.a,
             "b": self.b,
@@ -364,4 +365,21 @@ fn strings_as_arg() {
     assert_eq!(as_npath_arg(&npath), CowArg::Borrowed(&npath));
     assert_eq!(as_npath_arg(gstring.arg()), CowArg::Owned(npath.clone()));
     assert_eq!(as_npath_arg(sname.arg()), CowArg::Owned(npath.clone()));
+}
+
+#[itest]
+fn to_arg_helpers() {
+    let i: i8 = 3;
+    let mut ints = array![1, 2];
+    ints.push(meta::ref_to_arg(&i));
+    ints.push(meta::owned_into_arg(i));
+
+    assert_eq!(ints, array![1, 2, 3, 3]);
+
+    let s = StringName::from("Godot");
+    let mut names = array![&StringName::from("Hello")];
+    names.push(meta::ref_to_arg(&s));
+    names.push(meta::owned_into_arg(s));
+
+    assert_eq!(names, array!["Hello", "Godot", "Godot"]);
 }

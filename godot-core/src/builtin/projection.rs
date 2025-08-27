@@ -562,7 +562,7 @@ unsafe impl GodotFfi for Projection {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Projection);
+crate::meta::impl_godot_as_self!(Projection: ByValue);
 
 /// A projection's clipping plane.
 ///

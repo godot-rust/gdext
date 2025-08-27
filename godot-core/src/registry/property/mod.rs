@@ -553,7 +553,7 @@ mod export_impls {
         (@property $Ty:ty) => {
             impl Var for $Ty {
                 fn get_property(&self) -> Self::Via {
-                    self.to_godot()
+                    self.to_godot_owned()
                 }
 
                 fn set_property(&mut self, value: Self::Via) {

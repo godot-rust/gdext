@@ -319,10 +319,10 @@ impl<T: GodotClass> GodotConvert for ObjectArg<T> {
 }
 
 impl<T: GodotClass> ToGodot for ObjectArg<T> {
-    type ToVia<'v> = Self;
+    type Pass = crate::meta::ByRef;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
-        (*self).clone()
+    fn to_godot(&self) -> &Self::Via {
+        self
     }
 }
 

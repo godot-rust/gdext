@@ -283,7 +283,7 @@ unsafe impl GodotFfi for Plane {
     }
 }
 
-crate::meta::impl_godot_as_self!(Plane);
+crate::meta::impl_godot_as_self!(Plane: ByValue);
 
 impl ApproxEq for Plane {
     /// Finds whether the two planes are approximately equal.

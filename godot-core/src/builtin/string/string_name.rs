@@ -273,7 +273,7 @@ unsafe impl GodotFfi for StringName {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-meta::impl_godot_as_self!(StringName);
+meta::impl_godot_as_self!(StringName: ByRef);
 
 impl_builtin_traits! {
     for StringName {

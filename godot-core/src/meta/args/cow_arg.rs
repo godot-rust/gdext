@@ -50,21 +50,6 @@ impl<T> CowArg<'_, T> {
     }
 }
 
-/// Exists for polymorphism in [`crate::meta::ParamType`].
-///
-/// Necessary for generics in e.g. `Array<T>`, when accepting `impl AsArg<T>` parameters.
-///
-/// `Borrow` may not be the most idiomatic trait for this, but it has the convenient feature that it's implemented for both `T` and `&T`.
-/// Since this is a hidden API, it doesn't matter.
-impl<T> std::borrow::Borrow<T> for CowArg<'_, T> {
-    fn borrow(&self) -> &T {
-        match self {
-            CowArg::Owned(v) => v,
-            CowArg::Borrowed(r) => r,
-        }
-    }
-}
-
 macro_rules! wrong_direction {
     ($fn:ident) => {
         unreachable!(concat!(
@@ -85,13 +70,21 @@ impl<T> ToGodot for CowArg<'_, T>
 where
     T: ToGodot,
 {
-    type ToVia<'v>
-        = T::ToVia<'v>
-    where
-        Self: 'v;
+    type Pass = T::Pass;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
+        // Forward to the wrapped type's to_godot implementation
         self.cow_as_ref().to_godot()
+    }
+
+    fn to_godot_owned(&self) -> Self::Via
+    where
+        Self::Via: Clone,
+    {
+        // Default implementation calls underlying T::to_godot().clone(), which is wrong.
+        // Some to_godot_owned() calls are specialized/overridden, we need to honor that.
+
+        self.cow_as_ref().to_godot_owned()
     }
 }
 

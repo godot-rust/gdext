@@ -399,7 +399,7 @@ unsafe impl GodotFfi for Dictionary {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-crate::meta::impl_godot_as_self!(Dictionary);
+crate::meta::impl_godot_as_self!(Dictionary: ByRef);
 
 impl_builtin_traits! {
     for Dictionary {

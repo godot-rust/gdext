@@ -95,20 +95,30 @@ where
 impl<T: ToGodot> ToGodot for Option<T>
 where
     Option<T::Via>: GodotType,
-    for<'v, 'f> T::ToVia<'v>: GodotType<
+    for<'f> T::Via: GodotType<
         // Associated types need to be nullable.
         Ffi: GodotNullableFfi,
         ToFfi<'f>: GodotNullableFfi,
     >,
+    T::Via: Clone,
 {
-    type ToVia<'v>
-        = Option<T::ToVia<'v>>
-    // type ToVia<'v> = Self::Via
-    where
-        Self: 'v;
+    // Potential optimization: use underlying T::Pass instead of ByValue.
+    // Problem is that ByRef requires to_godot() -> &Self::Via, which is &Option<T::Via>. We would however need Option<&T::Via>.
+    // Might need a third ArgPassing impl, or different design.
+    type Pass = crate::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
-        self.as_ref().map(ToGodot::to_godot)
+    fn to_godot(&self) -> Option<T::Via> {
+        self.as_ref().map(T::to_godot_owned)
+    }
+
+    fn to_godot_owned(&self) -> Self::Via
+    where
+        Self::Via: Clone,
+    {
+        // Default implementation calls underlying T::to_godot().clone(), which may be wrong.
+        // Some to_godot_owned() calls are specialized/overridden, we need to honor that.
+
+        self.as_ref().map(T::to_godot_owned)
     }
 
     fn to_variant(&self) -> Variant {
@@ -238,9 +248,9 @@ macro_rules! impl_godot_scalar {
         }
 
         impl ToGodot for $T {
-            type ToVia<'v> = Self::Via;
+            type Pass = crate::meta::ByValue;
 
-            fn to_godot(&self) -> Self::ToVia<'_> {
+            fn to_godot(&self) -> Self::Via {
                *self
             }
         }
@@ -250,16 +260,14 @@ macro_rules! impl_godot_scalar {
                 Ok(via)
             }
         }
-
-        $crate::impl_asarg_by_value!($T);
     };
 }
 
 // `GodotType` for these three is implemented in `godot-core/src/builtin/variant/impls.rs`.
-crate::meta::impl_godot_as_self!(bool);
-crate::meta::impl_godot_as_self!(i64);
-crate::meta::impl_godot_as_self!(f64);
-crate::meta::impl_godot_as_self!(());
+crate::meta::impl_godot_as_self!(bool: ByValue);
+crate::meta::impl_godot_as_self!(i64: ByValue);
+crate::meta::impl_godot_as_self!(f64: ByValue);
+crate::meta::impl_godot_as_self!((): ByValue);
 
 // Also implements ArrayElement.
 impl_godot_scalar!(
@@ -326,9 +334,9 @@ impl GodotConvert for u64 {
 }
 
 impl ToGodot for u64 {
-    type ToVia<'v> = u64;
+    type Pass = crate::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         *self
     }
 
@@ -366,9 +374,9 @@ impl<T: ArrayElement> GodotConvert for Vec<T> {
 }
 
 impl<T: ArrayElement> ToGodot for Vec<T> {
-    type ToVia<'v> = Array<T>;
+    type Pass = crate::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         Array::from(self.as_slice())
     }
 }
@@ -384,9 +392,9 @@ impl<T: ArrayElement, const LEN: usize> GodotConvert for [T; LEN] {
 }
 
 impl<T: ArrayElement, const LEN: usize> ToGodot for [T; LEN] {
-    type ToVia<'v> = Array<T>;
+    type Pass = crate::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         Array::from(self)
     }
 }
@@ -424,12 +432,9 @@ impl<T: ArrayElement> GodotConvert for &[T] {
 }
 
 impl<T: ArrayElement> ToGodot for &[T] {
-    type ToVia<'v>
-        = Array<T>
-    where
-        Self: 'v;
+    type Pass = crate::meta::ByValue;
 
-    fn to_godot(&self) -> Self::ToVia<'_> {
+    fn to_godot(&self) -> Self::Via {
         Array::from(*self)
     }
 }
@@ -448,9 +453,9 @@ macro_rules! impl_pointer_convert {
         }
 
         impl ToGodot for $Ptr {
-            type ToVia<'v> = i64;
+            type Pass = crate::meta::ByValue;
 
-            fn to_godot(&self) -> Self::ToVia<'_> {
+            fn to_godot(&self) -> Self::Via {
                 *self as i64
             }
         }

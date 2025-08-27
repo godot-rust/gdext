@@ -983,7 +983,8 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// let obj = MyNewtype {
 ///     string: "hello!".into(),
 /// };
-/// assert_eq!(obj.to_godot(), GString::from("hello!"));
+///
+/// assert_eq!(obj.to_godot(), &GString::from("hello!"));
 /// ```
 ///
 /// However, it will not work for structs with more than one field, even if that field is zero sized:
