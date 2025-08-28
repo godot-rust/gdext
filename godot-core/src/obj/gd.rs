@@ -215,7 +215,9 @@ impl<T: GodotClass> Gd<T> {
         let ptr = classes::object_ptr_from_id(instance_id);
 
         // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
-        let untyped = unsafe { Gd::<classes::Object>::from_obj_sys_or_none(ptr)? };
+        let untyped = unsafe {
+            let obj = RawGd::from_obj_sys_weak(ptr);
+            Self::try_from_ffi(obj)? };
         untyped
             .owned_cast::<T>()
             .map_err(|obj| FromFfiError::WrongObjectType.into_error(obj))
@@ -588,7 +590,7 @@ impl<T: GodotClass> Gd<T> {
     ///
     /// This is the default for most initializations from FFI. In cases where reference counter
     /// should explicitly **not** be updated, [`Self::from_obj_sys_weak`] is available.
-    pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
+    pub unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
         debug_assert!(
             !ptr.is_null(),
             "Gd::from_obj_sys() called with null pointer"
@@ -603,7 +605,7 @@ impl<T: GodotClass> Gd<T> {
         Self::try_from_ffi(RawGd::from_obj_sys_weak(ptr))
     }
 
-    pub(crate) unsafe fn from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
+    pub unsafe fn from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
         Self::from_obj_sys_weak_or_none(ptr).unwrap()
     }
 

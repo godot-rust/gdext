@@ -129,7 +129,7 @@ fn async_task_signal_future_panic() -> TaskHandle {
 }
 
 #[cfg(feature = "experimental-threads")]
-#[itest(async)]
+#[itest(async,focus)]
 fn signal_future_non_send_arg_panic() -> TaskHandle {
     use crate::framework::ThreadCrosser;
 
@@ -145,15 +145,33 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
         },
     ));
 
+    let _kpy: Gd<RefCounted> = unsafe { std::mem::transmute_copy(&object) };
+
+    // let bkup = object.clone();
     let object = ThreadCrosser::new(object);
 
-    std::thread::spawn(move || {
+    let thread = std::thread::spawn(move || {
         let mut object = unsafe { object.extract() };
 
         object.emit_signal("custom_signal", vslice![RefCounted::new_gd()])
     });
 
+    thread.join().expect("join thread");
+    //let _other = unsafe { Gd::<RefCounted>::from_obj_sys_weak(bkup.obj_sys()) };
+    // drop(bkup);
+    drop(_kpy);
+
+    // let kpy = Gd::<RefCounted>::from_instance_id(bkup.instance_id());
+
     handle
+}
+
+#[itest(focus)]
+fn test_transmuted() {
+    let object = RefCounted::new_gd();
+    let copy: Gd<RefCounted> = unsafe { std::mem::transmute_copy(&object) };
+    std::mem::forget(object);
+    drop(copy);
 }
 
 #[cfg(feature = "experimental-threads")]
