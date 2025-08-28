@@ -30,7 +30,7 @@
 use proc_macro2::Ident;
 
 use crate::conv::to_enum_type_uncached;
-use crate::models::domain::{Enum, RustTy, TyName, VirtualMethodPresence};
+use crate::models::domain::{ClassCodegenLevel, Enum, RustTy, TyName, VirtualMethodPresence};
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::util::option_as_slice;
@@ -985,34 +985,85 @@ pub fn get_derived_virtual_method_presence(class_name: &TyName, godot_method_nam
     }
 }
 
+/// Initialization order for Godot (see https://github.com/godotengine/godot/blob/master/main/main.cpp)
+/// - Main::setup()
+///   - register_core_types()
+///   - register_early_core_singletons()
+///   - initialize_extensions(GDExtension::INITIALIZATION_LEVEL_CORE)
+/// - Main::setup2()
+///   - register_server_types()
+///   - initialize_extensions(GDExtension::INITIALIZATION_LEVEL_SERVERS)
+///   - register_core_singletons() ...possibly a bug. Should this be before LEVEL_SERVERS?
+///   - register_scene_types()
+///   - register_scene_singletons()
+///   - initialize_extensions(GDExtension::INITIALIZATION_LEVEL_SCENE)
+///   - IF EDITOR
+///     - register_editor_types()
+///     - initialize_extensions(GDExtension::INITIALIZATION_LEVEL_EDITOR)
+///   - register_server_singletons() ...another weird one.
+///   - Autoloads, etc.
 #[rustfmt::skip]
-pub fn is_class_level_server(class_name: &str) -> bool {
-    // Unclear on if some of these classes should be registered earlier than `Scene`:
-    // - `RenderData` + `RenderDataExtension`
-    // - `RenderSceneData` + `RenderSceneDataExtension`
+pub fn classify_codegen_level(class_name: &str, godot_classification: &str) -> Option<ClassCodegenLevel> {
+    let level = match class_name {
+        // See register_core_types() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
+        // which is called before Core level is initialized.
+        // Currently only promoting super basic classes to Core level since this is a brittle hardcoded list (feel free expand as 
+        // necessary based on careful evaluation of register_core_types).
+        | "Object" | "RefCounted" | "Resource" | "MainLoop" | "GDExtension"
+        => ClassCodegenLevel::Core,
 
-    match class_name {
-        // TODO: These should actually be at level `Core`
-        | "Object" | "OpenXRExtensionWrapperExtension" 
+        // See register_early_core_singletons() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
+        // which is called before Core level is initialized.
+        | "ProjectSettings" | "Engine" | "OS" | "Time"
+        => ClassCodegenLevel::Core,
 
-        // Declared final (un-inheritable) in Rust, but those are still servers.
-        | "AudioServer" | "CameraServer" | "NavigationServer2D" | "NavigationServer3D" | "RenderingServer" | "TranslationServer" | "XRServer" 
+        // Anything that comes from another extension could be available in Core but since there would be load order dependencies,
+        // instead don't allow calls until Server level.
+        | "OpenXRExtensionWrapperExtension" 
+        => ClassCodegenLevel::Servers,
 
-        // PhysicsServer2D
+        // See register_server_types() in https://github.com/godotengine/godot/blob/master/servers/register_server_types.cpp
         | "PhysicsDirectBodyState2D" | "PhysicsDirectBodyState2DExtension" 
         | "PhysicsDirectSpaceState2D" | "PhysicsDirectSpaceState2DExtension" 
         | "PhysicsServer2D" | "PhysicsServer2DExtension" 
         | "PhysicsServer2DManager" 
-
-        // PhysicsServer3D
         | "PhysicsDirectBodyState3D" | "PhysicsDirectBodyState3DExtension" 
         | "PhysicsDirectSpaceState3D" | "PhysicsDirectSpaceState3DExtension" 
         | "PhysicsServer3D" | "PhysicsServer3DExtension" 
         | "PhysicsServer3DManager" 
         | "PhysicsServer3DRenderingServerHandler"
+        | "RenderData" | "RenderDataExtension"
+        | "RenderSceneData" | "RenderSceneDataExtension"
+        => ClassCodegenLevel::Servers,
+        // Declared final (un-inheritable) in Rust, but those are still servers.
+        // NOTE: while these _types_ are available at Server level, the singletons themselves are actually not available until _even after_ Editor level.
+        | "AudioServer" | "CameraServer" | "NavigationServer2D" | "NavigationServer3D" | "RenderingServer" | "TranslationServer" | "XRServer" | "DisplayServer"
+        => ClassCodegenLevel::Servers,
 
-        => true, _ => false
-    }
+        // Work around wrong classification in https://github.com/godotengine/godot/issues/86206.
+        // https://github.com/godotengine/godot/issues/103867
+        "OpenXRInteractionProfileEditorBase"
+        | "OpenXRInteractionProfileEditor"
+        | "OpenXRBindingModifierEditor" if cfg!(before_api = "4.5") 
+        => ClassCodegenLevel::Editor,
+        // https://github.com/godotengine/godot/issues/86206
+        "ResourceImporterOggVorbis" | "ResourceImporterMP3" if cfg!(before_api = "4.3") 
+        => ClassCodegenLevel::Editor,
+
+        _ => {
+            // NOTE: Right now, Godot reports everything that's not "editor" as "core" in `extension_api.json`. 
+            // If it wasn't picked up by the whitelist, and Godot reports it as "core" we will treat it as a scene class.
+            match godot_classification {
+                "editor" => ClassCodegenLevel::Editor,
+                "core" => ClassCodegenLevel::Scene,
+                _ => {
+                    // we don't know this classification
+                    return None;
+                }
+            }
+        }
+    };
+    Some(level)
 }
 
 /// Whether a generated enum is `pub(crate)`; useful for manual re-exports.

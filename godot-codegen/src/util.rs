@@ -51,33 +51,24 @@ pub fn make_sname_ptr(identifier: &str) -> TokenStream {
 }
 
 pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
-    // Work around wrong classification in https://github.com/godotengine/godot/issues/86206.
-    fn override_editor(class_name: &str) -> bool {
-        match class_name {
-            // https://github.com/godotengine/godot/issues/103867
-            "OpenXRInteractionProfileEditorBase"
-            | "OpenXRInteractionProfileEditor"
-            | "OpenXRBindingModifierEditor" => cfg!(before_api = "4.5"),
+    // NOTE: We have to use a whitelist of known classes because Godot doesn't separate these out
+    // beyond "editor" and "core" and some classes are also  mis-classified in the JSON depending on the Godot version.
+    if let Some(forced_classification) =
+        special_cases::classify_codegen_level(&class.name, &class.api_type)
+    {
+        return forced_classification;
+    }
 
-            // https://github.com/godotengine/godot/issues/86206
-            "ResourceImporterOggVorbis" | "ResourceImporterMP3" => cfg!(before_api = "4.3"),
-
-            _ => false,
+    // Fall back to just trusting the categorization. Presently, Godot only reports "core" and "editor".
+    for level in ClassCodegenLevel::with_tables() {
+        if level.lower() == class.api_type {
+            return level;
         }
     }
-
-    if special_cases::is_class_level_server(&class.name) {
-        ClassCodegenLevel::Servers
-    } else if class.api_type == "editor" || override_editor(&class.name) {
-        ClassCodegenLevel::Editor
-    } else if class.api_type == "core" {
-        ClassCodegenLevel::Scene
-    } else {
-        panic!(
-            "class {} has unknown API type {}",
-            class.name, class.api_type
-        )
-    }
+    panic!(
+        "class {} has unknown API type {}",
+        class.name, class.api_type
+    );
 }
 
 pub fn ident(s: &str) -> Ident {

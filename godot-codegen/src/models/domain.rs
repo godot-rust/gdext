@@ -805,14 +805,15 @@ impl ToTokens for ModName {
 /// At which stage a class function pointer is loaded.
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ClassCodegenLevel {
+    Core,
     Servers,
     Scene,
     Editor,
 }
 
 impl ClassCodegenLevel {
-    pub fn with_tables() -> [Self; 3] {
-        [Self::Servers, Self::Scene, Self::Editor]
+    pub fn with_tables() -> [Self; 4] {
+        [Self::Core, Self::Servers, Self::Scene, Self::Editor]
     }
 
     pub fn table_global_getter(self) -> Ident {
@@ -829,6 +830,7 @@ impl ClassCodegenLevel {
 
     pub fn lower(self) -> &'static str {
         match self {
+            Self::Core => "core",
             Self::Servers => "servers",
             Self::Scene => "scene",
             Self::Editor => "editor",
@@ -837,6 +839,7 @@ impl ClassCodegenLevel {
 
     fn upper(self) -> &'static str {
         match self {
+            Self::Core => "Core",
             Self::Servers => "Servers",
             Self::Scene => "Scene",
             Self::Editor => "Editor",
@@ -845,6 +848,7 @@ impl ClassCodegenLevel {
 
     pub fn to_init_level(self) -> TokenStream {
         match self {
+            Self::Core => quote! { crate::init::InitLevel::Core },
             Self::Servers => quote! { crate::init::InitLevel::Servers },
             Self::Scene => quote! { crate::init::InitLevel::Scene },
             Self::Editor => quote! { crate::init::InitLevel::Editor },
