@@ -134,6 +134,13 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         });
     }
 
+    /// Returns an untyped version of this signal, suitable for Godot FFI.
+    ///
+    /// This can be passed to GDScript, for instance if you want your function to be awaitable by GDScript code.
+    pub fn to_untyped(&self) -> crate::builtin::Signal {
+        crate::builtin::Signal::from_object_signal(&self.receiver_object(), &*self.name)
+    }
+
     /// Directly connect a Rust callable `godot_fn`, with a name based on `F` bound to given object.
     ///
     /// Signal will be automatically disconnected by Godot after bound object will be freed.
@@ -172,10 +179,6 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         });
 
         ConnectHandle::new(owned_object, self.name.clone(), callable)
-    }
-
-    pub(crate) fn to_untyped(&self) -> crate::builtin::Signal {
-        crate::builtin::Signal::from_object_signal(&self.receiver_object(), &*self.name)
     }
 }
 
