@@ -234,19 +234,13 @@ impl_rust_string_conv!(NodePath);
 
 impl From<&str> for NodePath {
     fn from(s: &str) -> Self {
-        GString::from(s).into()
-    }
-}
-
-impl From<String> for NodePath {
-    fn from(s: String) -> Self {
-        GString::from(s).into()
+        Self::from(&GString::from(s))
     }
 }
 
 impl From<&String> for NodePath {
     fn from(s: &String) -> Self {
-        GString::from(s).into()
+        Self::from(&GString::from(s))
     }
 }
 
@@ -262,27 +256,9 @@ impl From<&GString> for NodePath {
     }
 }
 
-impl From<GString> for NodePath {
-    /// Converts this `GString` to a `NodePath`.
-    ///
-    /// This is identical to `NodePath::from(&string)`, and as such there is no performance benefit.
-    fn from(string: GString) -> Self {
-        Self::from(&string)
-    }
-}
-
 impl From<&StringName> for NodePath {
-    fn from(string_name: &StringName) -> Self {
-        Self::from(GString::from(string_name))
-    }
-}
-
-impl From<StringName> for NodePath {
-    /// Converts this `StringName` to a `NodePath`.
-    ///
-    /// This is identical to `NodePath::from(&string_name)`, and as such there is no performance benefit.
-    fn from(string_name: StringName) -> Self {
-        Self::from(GString::from(string_name))
+    fn from(s: &StringName) -> Self {
+        Self::from(&GString::from(s))
     }
 }
 

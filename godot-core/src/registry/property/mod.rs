@@ -315,7 +315,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::RANGE,
-            hint_string: hint_string.into(),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -381,7 +381,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::ENUM,
-            hint_string: hint_string.into(),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -390,7 +390,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::EXP_EASING,
-            hint_string: hint_string.into(),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -414,7 +414,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::FLAGS,
-            hint_string: hint_string.into(),
+            hint_string: GString::from(&hint_string),
         }
     }
 
@@ -493,7 +493,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: format!("{hint_string}:{filter}").into(),
+            hint_string: GString::from(&format!("{hint_string}:{filter}")),
         }
     }
 
