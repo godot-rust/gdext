@@ -34,6 +34,15 @@ api-4-3 = ["godot-bindings/api-4-3"]
 api-4-4 = ["godot-bindings/api-4-4"]
 # ]]
 
+
+debug-checks-fast-unsafe = ["godot-bindings/debug-checks-fast-unsafe"]
+debug-checks-balanced = ["godot-bindings/debug-checks-balanced"]
+debug-checks-paranoid = ["godot-bindings/debug-checks-paranoid"]
+
+release-checks-fast-unsafe = ["godot-bindings/release-checks-fast-unsafe"]
+release-checks-balanced = ["godot-bindings/release-checks-balanced"]
+release-checks-paranoid = ["godot-bindings/release-checks-paranoid"]
+
 [dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
