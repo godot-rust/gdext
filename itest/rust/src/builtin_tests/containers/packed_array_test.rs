@@ -6,9 +6,11 @@
  */
 
 use godot::builtin::{
-    vdict, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
-    PackedStringArray, Variant,
+    vdict, Color, GString, PackedArray, PackedByteArray, PackedColorArray, PackedFloat32Array,
+    PackedInt32Array, PackedStringArray, Variant, Vector3,
 };
+use godot::global::godot_str;
+use godot::meta::{owned_into_arg, ref_to_arg};
 use godot::prelude::ToGodot;
 
 use crate::framework::{expect_panic, itest};
@@ -419,4 +421,334 @@ fn packed_byte_array_encode_decode_variant() {
     let decoded = a.decode_var_allow_nil(77, false);
     assert_eq!(decoded.0, Variant::nil());
     assert_eq!(decoded.1, 0);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Generic PackedArray<T> tests
+
+#[itest]
+fn packed_array_generic_extend() {
+    test_generic_extend(|n| (0..n as u8).collect());
+    test_generic_extend(|n| (0..n as i32).collect());
+    test_generic_extend(|n| {
+        (0..n)
+            .map(|i| GString::from(format!("test_{}", i)))
+            .collect()
+    });
+    test_generic_extend(|n| {
+        (0..n)
+            .map(|i| Vector3::new(i as f32, (i * 2) as f32, (i * 3) as f32))
+            .collect()
+    });
+}
+
+#[itest]
+fn packed_array_generic_push() {
+    test_generic_push(|n| (0..n as u8).collect());
+    test_generic_push(|n| (0..n as i32).collect());
+    test_generic_push(|n| {
+        (0..n)
+            .map(|i| GString::from(format!("item_{}", i)))
+            .collect()
+    });
+    test_generic_push(|n| {
+        (0..n)
+            .map(|i| Vector3::new(i as f32, (i + 10) as f32, (i + 20) as f32))
+            .collect()
+    });
+}
+
+#[itest]
+fn packed_array_generic_insert_remove() {
+    test_generic_insert_remove(|_| vec![10u8, 20u8, 30u8]);
+    test_generic_insert_remove(|_| vec![100i32, 200i32, 300i32]);
+    test_generic_insert_remove(|_| {
+        vec![
+            GString::from("first"),
+            GString::from("second"),
+            GString::from("third"),
+        ]
+    });
+    test_generic_insert_remove(|_| {
+        vec![
+            Vector3::new(1.0, 2.0, 3.0),
+            Vector3::new(4.0, 5.0, 6.0),
+            Vector3::new(7.0, 8.0, 9.0),
+        ]
+    });
+}
+
+#[itest]
+fn packed_array_generic_extend_array() {
+    test_generic_extend_array(|n| (0..n as u8).collect());
+    test_generic_extend_array(|n| (0..n as i32).collect());
+    test_generic_extend_array(|n| (0..n).map(|i| godot_str!("str_{}", i)).collect());
+    test_generic_extend_array(|n| {
+        (0..n)
+            .map(|i| Vector3::new(i as f32, i as f32 * 2.0, i as f32 * 3.0))
+            .collect()
+    });
+}
+
+#[itest]
+fn packed_array_generic_sort_reverse() {
+    test_generic_sort_reverse(|| vec![3u8, 1u8, 4u8, 1u8, 5u8]);
+    test_generic_sort_reverse(|| vec![42i32, 17i32, 99i32, 3i32]);
+}
+
+#[itest]
+fn packed_array_generic_resize_fill() {
+    test_generic_resize_fill(|| 42u8);
+    test_generic_resize_fill(|| 999i32);
+    test_generic_resize_fill(|| GString::from("filled"));
+    test_generic_resize_fill(|| Vector3::new(10.0, 20.0, 30.0));
+}
+
+#[itest]
+fn packed_array_generic_find_contains() {
+    test_generic_find_contains(|| vec![5u8, 10u8, 15u8, 20u8]);
+    test_generic_find_contains(|| vec![100i32, 200i32, 300i32]);
+    test_generic_find_contains(|| {
+        vec![
+            GString::from("alpha"),
+            GString::from("beta"),
+            GString::from("gamma"),
+        ]
+    });
+    test_generic_find_contains(|| {
+        vec![
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+        ]
+    });
+}
+
+#[itest]
+fn packed_array_generic_as_slice_as_mut_slice() {
+    let mut array = PackedArray::<i32>::new();
+    array.extend([10, 20, 30]);
+
+    // Test as_slice
+    let slice = array.as_slice();
+    assert_eq!(slice, &[10, 20, 30]);
+
+    // Test as_mut_slice
+    let mut_slice = array.as_mut_slice();
+    mut_slice[1] = 99;
+    assert_eq!(array[1], 99);
+    assert_eq!(array.as_slice(), &[10, 99, 30]);
+}
+
+#[itest]
+fn packed_array_generic_subarray() {
+    let mut array = PackedArray::<i32>::new();
+    array.extend([10, 20, 30, 40, 50]);
+
+    let sub = array.subarray(1, 4);
+    assert_eq!(sub.as_slice(), &[20, 30, 40]);
+
+    let sub_empty = array.subarray(2, 2);
+    assert_eq!(sub_empty.len(), 0);
+
+    // Test bounds clamping
+    let sub_clamped = array.subarray(3, 100);
+    assert_eq!(sub_clamped.as_slice(), &[40, 50]);
+}
+
+#[itest]
+fn packed_array_generic_to_vec() {
+    let original_vec = vec![GString::from("a"), GString::from("b"), GString::from("c")];
+    let mut array = PackedArray::<GString>::new();
+    array.extend(original_vec.iter().cloned());
+
+    let converted_vec = array.to_vec();
+    assert_eq!(converted_vec, original_vec);
+}
+
+#[itest]
+fn packed_array_generic_clone_eq() {
+    let mut array1 = PackedArray::<Vector3>::new();
+    array1.extend([Vector3::new(1.0, 2.0, 3.0), Vector3::new(4.0, 5.0, 6.0)]);
+
+    let array2 = array1.clone();
+    assert_eq!(array1, array2);
+
+    let mut array3 = PackedArray::<Vector3>::new();
+    array3.extend([Vector3::new(1.0, 2.0, 3.0)]);
+    assert_ne!(array1, array3);
+}
+
+#[itest]
+fn packed_array_generic_count() {
+    let mut array = PackedArray::<i32>::new();
+    array.extend([1, 2, 1, 3, 1, 4]);
+
+    assert_eq!(array.count(1), 3);
+    assert_eq!(array.count(2), 1);
+    assert_eq!(array.count(5), 0);
+}
+
+#[itest]
+fn packed_array_generic_clear() {
+    let mut array = PackedArray::<u8>::new();
+    array.extend([1, 2, 3, 4, 5]);
+    assert_eq!(array.len(), 5);
+
+    array.clear();
+    assert_eq!(array.len(), 0);
+    assert!(array.is_empty());
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Generic helpers
+
+fn test_generic_extend<T>(create_values: impl Fn(usize) -> Vec<T>) -> PackedArray<T>
+where
+    T: godot::meta::PackedArrayElement + Clone + PartialEq + std::fmt::Debug,
+{
+    let mut array = PackedArray::<T>::new();
+    let values1 = create_values(3);
+    let values2 = create_values(2);
+
+    array.extend(values1.iter().cloned());
+    assert_eq!(array.len(), 3);
+    for (i, expected) in values1.iter().enumerate() {
+        assert_eq!(&array[i], expected);
+    }
+
+    array.extend(values2);
+    assert_eq!(array.len(), 5);
+
+    array
+}
+
+fn test_generic_push<T>(create_values: impl Fn(usize) -> Vec<T>)
+where
+    T: godot::meta::PackedArrayElement + Clone + PartialEq + std::fmt::Debug,
+{
+    let mut array = PackedArray::<T>::new();
+    let values = create_values(3);
+
+    for value in values.iter() {
+        array.push(owned_into_arg(value.clone()));
+    }
+
+    assert_eq!(array.len(), 3);
+    for (i, expected) in values.iter().enumerate() {
+        assert_eq!(&array[i], expected);
+    }
+}
+
+fn test_generic_insert_remove<T>(create_values: impl Fn(usize) -> Vec<T>)
+where
+    T: godot::meta::PackedArrayElement + Clone + PartialEq + std::fmt::Debug,
+{
+    let mut array = PackedArray::<T>::new();
+    let values = create_values(3);
+
+    // Test insert
+    array.push(owned_into_arg(values[0].clone()));
+    array.push(owned_into_arg(values[2].clone()));
+    array.insert(1, owned_into_arg(values[1].clone()));
+
+    assert_eq!(array.len(), 3);
+    for (i, expected) in values.iter().enumerate() {
+        assert_eq!(&array[i], expected);
+    }
+
+    // Test remove
+    let removed = array.remove(1);
+    assert_eq!(removed, values[1]);
+    assert_eq!(array.len(), 2);
+    assert_eq!(array[0], values[0]);
+    assert_eq!(array[1], values[2]);
+}
+
+fn test_generic_extend_array<T>(create_values: impl Fn(usize) -> Vec<T>)
+where
+    T: godot::meta::PackedArrayElement + Clone + PartialEq + std::fmt::Debug,
+{
+    let mut array1 = PackedArray::<T>::new();
+    let values2 = create_values(3);
+    let mut array2 = PackedArray::<T>::new();
+    array2.extend(values2);
+    let values3 = create_values(2);
+    let mut array3 = PackedArray::<T>::new();
+    array3.extend(values3.iter().cloned());
+
+    array1.extend(create_values(2));
+    array1.extend_array(&array2);
+    array1.extend_array(&array3);
+
+    assert_eq!(array1.len(), 7);
+}
+
+fn test_generic_sort_reverse<T>(mut create_values: impl FnMut() -> Vec<T>)
+where
+    T: godot::meta::PackedArrayElement + Clone + PartialEq + std::fmt::Debug,
+{
+    let values = create_values();
+    if values.len() < 2 {
+        return;
+    }
+
+    let mut array = PackedArray::<T>::new();
+    array.extend(values.iter().cloned());
+    let original_len = array.len();
+
+    // Test reverse
+    array.reverse();
+    assert_eq!(array.len(), original_len);
+
+    // Test sort (note: sort behavior depends on T's ordering)
+    array.sort();
+    assert_eq!(array.len(), original_len);
+}
+
+fn test_generic_resize_fill<T>(create_value: impl Fn() -> T)
+where
+    T: godot::meta::PackedArrayElement + Clone + PartialEq + std::fmt::Debug,
+{
+    let mut array = PackedArray::<T>::new();
+    let test_value = create_value();
+
+    // Test resize larger
+    array.resize(5);
+    assert_eq!(array.len(), 5);
+
+    // Test fill
+    array.fill(owned_into_arg(test_value.clone()));
+    for i in 0..array.len() {
+        assert_eq!(array[i], test_value);
+    }
+
+    // Test resize smaller
+    array.resize(3);
+    assert_eq!(array.len(), 3);
+    for i in 0..array.len() {
+        assert_eq!(array[i], test_value);
+    }
+}
+
+fn test_generic_find_contains<T>(create_values: impl Fn() -> Vec<T>)
+where
+    T: godot::meta::PackedArrayElement + Clone + PartialEq + std::fmt::Debug,
+{
+    let values = create_values();
+    if values.is_empty() {
+        return;
+    }
+
+    let mut array = PackedArray::<T>::new();
+    array.extend(values.iter().cloned());
+
+    // Test contains
+    assert!(array.contains(ref_to_arg(&values[0])));
+
+    // Test find
+    assert_eq!(array.find(ref_to_arg(&values[0]), None), Some(0));
+    if values.len() > 1 {
+        assert_eq!(array.find(ref_to_arg(&values[1]), None), Some(1));
+    }
 }

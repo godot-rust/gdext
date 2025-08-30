@@ -123,8 +123,8 @@ where
 ///     T: ArrayElement + ToGodot + Generator,
 /// {
 ///     for _ in 0..count {
-///         let value = T::next();
-///         arr.push(owned_into_arg(value));
+///     let value = T::next();
+///     arr.push(owned_into_arg(value));
 ///     }
 /// }
 /// ```

@@ -73,6 +73,10 @@ pub mod strings {
     };
 }
 
+pub(crate) mod meta_reexport {
+    pub use super::collections::PackedArrayElement;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
@@ -114,10 +118,6 @@ pub(crate) fn to_i64(i: usize) -> i64 {
 }
 
 pub(crate) fn to_usize(i: i64) -> usize {
-    i.try_into().unwrap()
-}
-
-pub(crate) fn to_isize(i: usize) -> isize {
     i.try_into().unwrap()
 }
 

@@ -44,7 +44,7 @@ impl<T> CowArg<'_, T> {
     /// Returns the actual argument to be passed to function calls.
     ///
     /// [`CowArg`] does not implement [`AsArg<T>`] because a differently-named method is more explicit (fewer errors in codegen),
-    /// and because [`AsArg::consume_arg()`] is not meaningful.
+    /// and because [`AsArg::into_arg()`] is not meaningful.
     pub fn cow_as_arg(&self) -> RefArg<'_, T> {
         RefArg::new(self.cow_as_ref())
     }

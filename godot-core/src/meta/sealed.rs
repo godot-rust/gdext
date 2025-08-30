@@ -31,17 +31,11 @@ impl Sealed for Color {}
 impl Sealed for GString {}
 impl Sealed for StringName {}
 impl Sealed for NodePath {}
-impl Sealed for PackedByteArray {}
-impl Sealed for PackedInt32Array {}
-impl Sealed for PackedInt64Array {}
-impl Sealed for PackedFloat32Array {}
-impl Sealed for PackedFloat64Array {}
-impl Sealed for PackedStringArray {}
-impl Sealed for PackedVector2Array {}
-impl Sealed for PackedVector3Array {}
-#[cfg(since_api = "4.3")]
-impl Sealed for PackedVector4Array {}
-impl Sealed for PackedColorArray {}
+// Generic implementation for all PackedArray<T> types.
+use crate::builtin::PackedArray;
+
+// Implement Sealed for the generic PackedArray<T> type.
+impl<T: meta::PackedArrayElement> Sealed for PackedArray<T> {}
 impl Sealed for Plane {}
 impl Sealed for Projection {}
 impl Sealed for Rid {}
