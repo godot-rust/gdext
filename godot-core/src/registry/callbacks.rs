@@ -21,7 +21,7 @@ use crate::builtin::{StringName, Variant};
 use crate::classes::Object;
 use crate::meta::PropertyInfo;
 use crate::obj::{bounds, cap, AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass};
-use crate::private::{handle_panic, PanicPayload};
+use crate::private::{handle_panic, IntoVirtualMethodReceiver, PanicPayload};
 use crate::registry::plugin::ErasedDynGd;
 use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
 
@@ -250,8 +250,7 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     // Note: to_string currently always succeeds, as it is only provided for classes that have a working implementation.
 
     let storage = as_storage::<T>(instance);
-    let instance = storage.get();
-    let string = T::__godot_to_string(&*instance);
+    let string = T::__godot_to_string(T::Recv::instance(storage));
 
     // Transfer ownership to Godot
     string.move_into_string_ptr(out_string);
@@ -289,10 +288,10 @@ pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
     ret: sys::GDExtensionVariantPtr,
 ) -> sys::GDExtensionBool {
     let storage = as_storage::<T>(instance);
-    let instance = storage.get();
+    let instance = T::Recv::instance(storage);
     let property = StringName::new_from_string_sys(name);
 
-    match T::__godot_get_property(&*instance, property) {
+    match T::__godot_get_property(instance, property) {
         Some(value) => {
             value.move_into_var_ptr(ret);
             sys::conv::SYS_TRUE
@@ -307,12 +306,12 @@ pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
     value: sys::GDExtensionConstVariantPtr,
 ) -> sys::GDExtensionBool {
     let storage = as_storage::<T>(instance);
-    let mut instance = storage.get_mut();
+    let instance = T::Recv::instance(storage);
 
     let property = StringName::new_from_string_sys(name);
     let value = Variant::new_from_var_sys(value);
 
-    sys::conv::bool_to_sys(T::__godot_set_property(&mut *instance, property, value))
+    sys::conv::bool_to_sys(T::__godot_set_property(instance, property, value))
 }
 
 pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
@@ -335,9 +334,9 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
 ) -> *const sys::GDExtensionPropertyInfo {
     // SAFETY: Godot provides us with a valid instance pointer to a `T`. And it will live until the end of this function.
     let storage = unsafe { as_storage::<T>(instance) };
-    let mut instance = storage.get_mut();
+    let instance = T::Recv::instance(storage);
 
-    let property_list = T::__godot_get_property_list(&mut *instance);
+    let property_list = T::__godot_get_property_list(instance);
     let property_list_sys: Box<[sys::GDExtensionPropertyInfo]> = property_list
         .into_iter()
         .map(|prop| prop.into_owned_property_sys())
@@ -398,11 +397,11 @@ unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
 ) -> Option<Variant> {
     // SAFETY: `instance` is a valid `T` instance pointer for the duration of this function call.
     let storage = unsafe { as_storage::<T>(instance) };
-    let instance = storage.get();
+    let instance = T::Recv::instance(storage);
 
     // SAFETY: `property_name` is a valid `StringName` pointer for the duration of this function call.
     let property = unsafe { StringName::borrow_string_sys(property_name) };
-    T::__godot_property_get_revert(&*instance, property.clone())
+    T::__godot_property_get_revert(instance, property.clone())
 }
 
 /// # Safety
@@ -458,11 +457,11 @@ pub unsafe extern "C" fn validate_property<T: cap::GodotValidateProperty>(
 ) -> sys::GDExtensionBool {
     // SAFETY: `instance` is a valid `T` instance pointer for the duration of this function call.
     let storage = unsafe { as_storage::<T>(instance) };
-    let instance = storage.get();
+    let instance = T::Recv::instance(storage);
 
     // SAFETY: property_info_ptr must be valid.
     let mut property_info = unsafe { PropertyInfo::new_from_sys(property_info_ptr) };
-    T::__godot_validate_property(&*instance, &mut property_info);
+    T::__godot_validate_property(instance, &mut property_info);
 
     // SAFETY: property_info_ptr remains valid & unchanged.
     unsafe { property_info.move_into_property_info_ptr(property_info_ptr) };

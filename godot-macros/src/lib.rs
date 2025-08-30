@@ -823,6 +823,58 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// [`TransferMode`]: ../classes/multiplayer_peer/struct.TransferMode.html
 /// [`RpcConfig`]: ../register/struct.RpcConfig.html
 ///
+/// # Lifecycle functions with custom receivers
+///
+/// Functions inside I* interface impls, similarly to user-defined `#[func]`s, can be annotated with `#[func(gd_self)]` to use `Gd<Self>` receiver and
+/// avoid binding the instance.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node)]
+/// pub struct MyNode;
+///
+/// #[godot_api]
+/// impl INode for MyNode {
+///     #[func(gd_self)]
+///     fn ready(this: Gd<Self>) {
+///         godot_print!("I'm ready!");
+///     }
+/// }
+/// ```
+///
+/// Only methods with `self` receiver can be used with `#[func(gd_self)]`:
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node)]
+/// pub struct MyNode;
+///
+/// #[godot_api]
+/// impl INode for MyNode {
+///     #[func(gd_self)]
+///     fn init(this: Gd<Self>) -> Self {
+///         todo!()
+///     }
+/// }
+/// ```
+///
+/// Currently, `on_notification` can't be used with `[func(gd_self)]`, either:
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node)]
+/// pub struct MyNode;
+///
+/// #[godot_api]
+/// impl INode for MyNode {
+///     #[func(gd_self)]
+///     fn on_notification(this: Gd<Self>, what: ObjectNotification) {
+///         todo!()
+///     }
+/// }
+/// ```
 ///
 /// # Signals
 ///

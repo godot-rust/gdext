@@ -296,6 +296,43 @@ impl IRefCounted for RevertTest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[derive(GodotClass)]
+#[class(init)]
+struct VirtualGdSelfTest {
+    #[init(val = 4)]
+    some_val: i64,
+}
+
+#[godot_api]
+impl IRefCounted for VirtualGdSelfTest {
+    #[func(gd_self)]
+    fn to_string(_this: Gd<Self>) -> GString {
+        GString::from("Gd<Self>")
+    }
+
+    #[func(gd_self)]
+    fn get_property(this: Gd<Self>, _property: StringName) -> Option<Variant> {
+        // Delegates call to Display which calls `VirtualGdSelfTest::to_string` later in the chain.
+        Some(this.to_string().to_variant())
+    }
+
+    #[func(gd_self)]
+    fn set_property(mut this: Gd<Self>, _property: StringName, value: Variant) -> bool {
+        // Check bind_mut and bind.
+        this.bind_mut().some_val = value.to();
+        this.bind().some_val != 4
+    }
+
+    #[func(gd_self)]
+    fn property_get_revert(this: Gd<Self>, property: StringName) -> Option<Variant> {
+        // Access other virtual method directly.
+        let property = Self::get_property(this, property)?;
+        Some(property)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[itest]
 fn test_to_string() {
     let _obj = VirtualMethodTest::new_gd();
@@ -605,6 +642,25 @@ fn test_revert() {
 
     assert_eq!(revert.property_get_revert(&changes), Variant::nil());
     assert_eq!(revert.property_get_revert(&changes), true.to_variant());
+}
+
+#[itest]
+fn test_gd_self_virtual_methods() {
+    let mut obj = VirtualGdSelfTest::new_gd();
+    let expected = GString::from("Gd<Self>");
+
+    // Test various calling conventions:
+    let ret: GString = obj.call("to_string", &[]).to::<GString>();
+    assert_eq!(ret, expected);
+
+    let ret: GString = obj.call("get", vslice![""]).to();
+    assert_eq!(ret, expected);
+
+    obj.set("a", &4.to_variant());
+    assert_eq!(obj.bind().some_val, 4);
+
+    let ret: GString = obj.property_get_revert("a").to();
+    assert_eq!(ret, expected);
 }
 
 #[derive(GodotClass)]

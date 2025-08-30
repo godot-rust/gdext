@@ -6,6 +6,7 @@
  */
 
 use std::cell::Cell;
+use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 #[cfg(feature = "experimental-threads")]
@@ -168,6 +169,89 @@ const fn _assert_implements_storage<T: Storage + StorageRefCounted>() {}
 
 const _INSTANCE_STORAGE_IMPLEMENTS_STORAGE: () =
     _assert_implements_storage::<InstanceStorage<crate::classes::Object>>();
+
+/// Wrapper to handle multiple receivers type, without exposing the Storage itself.
+#[doc(hidden)]
+pub struct VirtualMethodReceiver<'a, T: GodotClass> {
+    inner: VirtualMethodReceiverInner<'a, T>,
+}
+
+enum VirtualMethodReceiverInner<'a, T: GodotClass> {
+    /// &self.
+    Ref(RefGuard<'a, T>),
+    /// &mut self.
+    Mut(MutGuard<'a, T>),
+    /// this: Gd<Self>.
+    GdSelf(Gd<T>),
+    /// Implementation detail – required to swap the values.
+    Uninit,
+}
+
+impl<'a, T: GodotClass> VirtualMethodReceiver<'a, T> {
+    pub fn recv_gd(mut self) -> Gd<T> {
+        match std::mem::replace(&mut self.inner, VirtualMethodReceiverInner::Uninit) {
+            VirtualMethodReceiverInner::GdSelf(instance) => instance,
+            _ => panic!("Tried to use Gd<Self> receiver for method which doesn't accept it."),
+        }
+    }
+
+    pub fn recv_self(mut self) -> impl Deref<Target = T> + use<'a, T> {
+        match std::mem::replace(&mut self.inner, VirtualMethodReceiverInner::Uninit) {
+            VirtualMethodReceiverInner::Ref(instance) => instance,
+            _ => panic!("Tried to use &self receiver for method which doesn't accept it."),
+        }
+    }
+
+    pub fn recv_self_mut(mut self) -> impl DerefMut<Target = T> + use<'a, T> {
+        match std::mem::replace(&mut self.inner, VirtualMethodReceiverInner::Uninit) {
+            VirtualMethodReceiverInner::Mut(instance) => instance,
+            _ => panic!("Tried to use &mut self receiver for method which doesn't accept it."),
+        }
+    }
+}
+
+// Marker structs.
+// Used to extract proper type from storage and pass it to public API while defined as an associated item on the trait (`T::Recv::instance(storage)`).
+
+#[doc(hidden)]
+pub enum RecvRef {}
+#[doc(hidden)]
+pub enum RecvMut {}
+#[doc(hidden)]
+pub enum RecvGdSelf {}
+
+#[doc(hidden)]
+pub trait IntoVirtualMethodReceiver<T: GodotClass> {
+    #[doc(hidden)]
+    fn instance<'a, 'b: 'a>(storage: &'b InstanceStorage<T>) -> VirtualMethodReceiver<'a, T>;
+}
+
+impl<T: GodotClass> IntoVirtualMethodReceiver<T> for RecvRef {
+    fn instance<'a, 'b: 'a>(storage: &'b InstanceStorage<T>) -> VirtualMethodReceiver<'a, T> {
+        VirtualMethodReceiver {
+            inner: VirtualMethodReceiverInner::Ref(storage.get()),
+        }
+    }
+}
+
+impl<T: GodotClass> IntoVirtualMethodReceiver<T> for RecvMut {
+    fn instance<'a, 'b: 'a>(storage: &'b InstanceStorage<T>) -> VirtualMethodReceiver<'a, T> {
+        VirtualMethodReceiver {
+            inner: VirtualMethodReceiverInner::Mut(storage.get_mut()),
+        }
+    }
+}
+
+impl<T> IntoVirtualMethodReceiver<T> for RecvGdSelf
+where
+    T: GodotClass + Inherits<<T as GodotClass>::Base>,
+{
+    fn instance<'a, 'b: 'a>(storage: &'b InstanceStorage<T>) -> VirtualMethodReceiver<'a, T> {
+        VirtualMethodReceiver {
+            inner: VirtualMethodReceiverInner::GdSelf(storage.get_gd()),
+        }
+    }
+}
 
 /// Interprets the opaque pointer as pointing to `InstanceStorage<T>`.
 ///
