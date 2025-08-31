@@ -15,6 +15,7 @@ use std::thread::ThreadId;
 
 use crate::builtin::{Callable, RustCallable, Signal, Variant};
 use crate::classes::object::ConnectFlags;
+use crate::godot_error;
 use crate::meta::sealed::Sealed;
 use crate::meta::InParamTuple;
 use crate::obj::{EngineBitfield, Gd, GodotClass, WithSignals};
@@ -375,8 +376,10 @@ pub unsafe trait DynamicSend: Send + Sealed {
 }
 
 /// Value that can be sent across threads, but only accessed on its original thread.
+///
+/// When moved to another thread, the inner value can no longer be accessed and will be leaked when the `ThreadConfined` is dropped.
 pub struct ThreadConfined<T> {
-    value: T,
+    value: Option<T>,
     thread_id: ThreadId,
 }
 
@@ -386,13 +389,37 @@ unsafe impl<T> Send for ThreadConfined<T> {}
 impl<T> ThreadConfined<T> {
     pub(crate) fn new(value: T) -> Self {
         Self {
-            value,
+            value: Some(value),
             thread_id: std::thread::current().id(),
         }
     }
 
-    pub(crate) fn extract(self) -> Option<T> {
-        (self.thread_id == std::thread::current().id()).then_some(self.value)
+    /// Retrieve the inner value, if the current thread is the one in which the `ThreadConfined` was created.
+    ///
+    /// If this fails, the value will be leaked immediately.
+    pub(crate) fn extract(mut self) -> Option<T> {
+        if self.is_original_thread() {
+            self.value.take()
+        } else {
+            None // causes Drop -> leak.
+        }
+    }
+
+    fn is_original_thread(&self) -> bool {
+        self.thread_id == std::thread::current().id()
+    }
+}
+
+impl<T> Drop for ThreadConfined<T> {
+    fn drop(&mut self) {
+        if !self.is_original_thread() {
+            std::mem::forget(self.value.take());
+
+            // Cannot panic, potentially during unwind already.
+            godot_error!(
+                "Dropped ThreadConfined<T> on a different thread than it was created on. The inner T value will be leaked."
+            );
+        }
     }
 }
 
@@ -498,9 +525,11 @@ macro_rules! impl_dynamic_send {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::thread;
 
-    use super::SignalFutureResolver;
+    use super::{SignalFutureResolver, ThreadConfined};
     use crate::classes::Object;
     use crate::obj::Gd;
     use crate::sys;
@@ -516,5 +545,40 @@ mod tests {
         let hash_b = sys::hash_value(&resolver_b);
 
         assert_eq!(hash_a, hash_b);
+    }
+
+    // Test that dropping ThreadConfined<T> on another thread leaks the inner value.
+    #[test]
+    fn thread_confined_extract() {
+        let confined = ThreadConfined::new(772);
+        assert_eq!(confined.extract(), Some(772));
+
+        let confined = ThreadConfined::new(772);
+
+        let handle = thread::spawn(move || {
+            assert!(confined.extract().is_none());
+        });
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn thread_confined_leak_on_other_thread() {
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+        struct DropCounter;
+        impl Drop for DropCounter {
+            fn drop(&mut self) {
+                COUNTER.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        let drop_counter = DropCounter;
+        let confined = ThreadConfined::new(drop_counter);
+
+        let handle = thread::spawn(move || drop(confined));
+        handle.join().unwrap();
+
+        // The counter should still be 0, meaning Drop was not called (leaked).
+        assert_eq!(COUNTER.load(Ordering::SeqCst), 0);
     }
 }

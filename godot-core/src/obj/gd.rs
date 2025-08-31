@@ -615,6 +615,12 @@ impl<T: GodotClass> Gd<T> {
         Self::from_obj_sys_weak_or_none(ptr).unwrap()
     }
 
+    #[cfg(feature = "trace")] // itest only.
+    #[doc(hidden)]
+    pub unsafe fn __from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
+        Self::from_obj_sys_weak(ptr)
+    }
+
     #[doc(hidden)]
     pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.raw.obj_sys()
