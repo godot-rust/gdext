@@ -30,7 +30,7 @@
 //!    Godot itself, and typically have public fields. <br><br>
 //!
 //! 2. **Copy-on-write types**: [`GString`][crate::builtin::GString],
-//!    [`StringName`][crate::builtin::StringName], and `Packed*Array` types.
+//!    [`StringName`][crate::builtin::StringName], and [`PackedArray`][crate::builtin::PackedArray] types.
 //!
 //!    These mostly act like value types, similar to Rust's own `Vec`. You can `Clone` them to get
 //!    a full copy of the entire object, as you would expect.

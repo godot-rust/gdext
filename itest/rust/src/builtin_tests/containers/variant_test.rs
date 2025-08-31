@@ -131,7 +131,7 @@ fn variant_relaxed_conversions() {
     convert_relaxed_to(123, Variant::from(123));
     convert_relaxed_to("hello", Variant::from("hello"));
 
-    // Array -> Packed*Array
+    // Array -> PackedArray
     let packed_ints = PackedInt32Array::from([1, 2, 3]);
     let packed_strings = PackedStringArray::from(["a".into(), "bb".into()]);
     let strings: Array<GString> = array!["a", "bb"];

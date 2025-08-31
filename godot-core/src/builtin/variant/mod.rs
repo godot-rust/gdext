@@ -96,7 +96,7 @@ impl Variant {
     ///       ▼       ▼           ▼                            Vector4 ◄───► Vector4i
     ///    bool ◄───► int       GString ◄───► NodePath           Rect2 ◄───► Rect2i
     ///                 ╲       ╱
-    ///                  ╲     ╱                                 Array ◄───► Packed*Array
+    ///                  ╲     ╱                              Array<T> ◄───► PackedArray<T>
     ///                   ▼   ▼
     ///                   Color                                   Gd<T> ───► Rid
     ///                                                             nil ───► Option<Gd<T>>

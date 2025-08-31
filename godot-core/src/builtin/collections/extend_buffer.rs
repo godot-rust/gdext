@@ -10,10 +10,14 @@ use std::ptr;
 
 /// A fixed-size buffer that does not do any allocations, and can hold up to `N` elements of type `T`.
 ///
-/// This is used to implement `Packed*Array::extend()` in an efficient way, because it forms a middle ground between
-/// repeated `push()` calls (slow) and first collecting the entire `Iterator` into a `Vec` (faster, but takes more memory).
+/// This is used to implement [`PackedArray::extend()`][crate::builtin::PackedArray::extend] in an efficient way, because it forms a middle
+/// ground between repeated `push()` calls (slow) and first collecting the entire `Iterator` into a `Vec` (faster, but takes more memory).
 ///
-/// Note that `N` must not be 0 for the buffer to be useful. This is checked at compile time.
+/// Note that `N` must not be 0 for the buffer to be useful.
+///
+/// The public API is implemented via the trait [`ExtendBufferTrait<T>`]. This is a necessity for generic programming, since Rust does not
+/// permit using the const-generic `N` in generic functions.
+#[doc(hidden)] // Public; used in associated type [`PackedArrayElement::ExtendBuffer`][crate::meta::PackedArrayElement::ExtendBuffer].
 pub struct ExtendBuffer<T, const N: usize> {
     buf: [MaybeUninit<T>; N],
     len: usize,
@@ -28,25 +32,25 @@ impl<T, const N: usize> Default for ExtendBuffer<T, N> {
     }
 }
 
-impl<T, const N: usize> ExtendBuffer<T, N> {
+impl<T, const N: usize> ExtendBufferTrait<T> for ExtendBuffer<T, N> {
     /// Appends the given value to the buffer.
     ///
     /// # Panics
     /// If the buffer is full.
-    pub fn push(&mut self, value: T) {
+    fn push(&mut self, value: T) {
         self.buf[self.len].write(value);
         self.len += 1;
     }
 
     /// Returns `true` iff the buffer is full.
-    pub fn is_full(&self) -> bool {
+    fn is_full(&self) -> bool {
         self.len == N
     }
 
     /// Returns a slice of all initialized elements in the buffer, and sets the length of the buffer back to 0.
     ///
     /// It is the caller's responsibility to ensure that all elements in the returned slice get dropped!
-    pub fn drain_as_mut_slice(&mut self) -> &mut [T] {
+    fn drain_as_mut_slice(&mut self) -> &mut [T] {
         // Prevent panic in self.buf[0] below.
         if N == 0 {
             return &mut [];
@@ -56,7 +60,7 @@ impl<T, const N: usize> ExtendBuffer<T, N> {
         let len = self.len;
         self.len = 0;
 
-        // MaybeUninit::slice_assume_init_ref could be used here instead, but it's experimental.
+        // MaybeUninit::slice_assume_init_ref() could be used here instead, but it's experimental.
         //
         // SAFETY:
         // - The pointer is non-null, valid and aligned.
@@ -119,4 +123,15 @@ fn test_extend_buffer_drop() {
 
     // The buffer has not dropped another reference.
     assert_eq!(Rc::strong_count(&value), 1);
+}
+
+/// Trait abstracting ExtendBuffer operations for different buffer sizes.
+///
+/// This is necessary because Rust can currently not use `N` const-generic in a generic function:
+/// `error[E0401]: can't use generic parameters from outer item`
+#[doc(hidden)] // Public; used in associated type [`PackedArrayElement::ExtendBuffer`][crate::meta::PackedArrayElement::ExtendBuffer].
+pub trait ExtendBufferTrait<T> {
+    fn push(&mut self, value: T);
+    fn is_full(&self) -> bool;
+    fn drain_as_mut_slice(&mut self) -> &mut [T];
 }

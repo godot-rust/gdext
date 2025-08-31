@@ -150,15 +150,6 @@ mod impls {
     impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
     impl_ffi_variant!(ref Dictionary, dictionary_to_variant, dictionary_from_variant);
-    impl_ffi_variant!(ref PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant);
-    impl_ffi_variant!(ref PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant);
-    impl_ffi_variant!(ref PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant);
-    impl_ffi_variant!(ref PackedFloat32Array, packed_float32_array_to_variant, packed_float32_array_from_variant);
-    impl_ffi_variant!(ref PackedFloat64Array, packed_float64_array_to_variant, packed_float64_array_from_variant);
-    impl_ffi_variant!(ref PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant);
-    impl_ffi_variant!(ref PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant);
-    impl_ffi_variant!(ref PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant);
-    impl_ffi_variant!(ref PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
 
@@ -222,9 +213,7 @@ mod impls {
     mod api_4_3 {
         use crate::task::impl_dynamic_send;
 
-        use super::*;
 
-        impl_ffi_variant!(ref PackedVector4Array, packed_vector4_array_to_variant, packed_vector4_array_from_variant);
 
         impl_dynamic_send!(!Send; PackedVector4Array);
     }
