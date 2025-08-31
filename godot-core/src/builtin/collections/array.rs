@@ -670,7 +670,6 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Calling `bsearch_by` on an unsorted array results in unspecified behavior. Consider using [`sort_by()`] to ensure
     /// the sorting order is compatible with your callable's ordering.
-    #[cfg(since_api = "4.2")]
     pub fn bsearch_by<F>(&self, mut func: F) -> Result<usize, usize>
     where
         F: FnMut(&T) -> cmp::Ordering + 'static,
@@ -755,7 +754,6 @@ impl<T: ArrayElement> Array<T> {
     /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
     /// This means that values considered equal may have their order changed when using `sort_unstable_by`. For most variant types,
     /// this distinction should not matter though.
-    #[cfg(since_api = "4.2")]
     pub fn sort_unstable_by<F>(&mut self, mut func: F)
     where
         F: FnMut(&T, &T) -> cmp::Ordering,
@@ -1217,11 +1215,8 @@ impl<T: ArrayElement> Var for Array<T> {
         // For array #[var], the hint string is "PackedInt32Array", "Node" etc. for typed arrays, and "" for untyped arrays.
         if Self::has_variant_t() {
             PropertyHintInfo::none()
-        } else if sys::GdextBuild::since_api("4.2") {
-            PropertyHintInfo::var_array_element::<T>()
         } else {
-            // Godot 4.1 was not using PropertyHint::ARRAY_TYPE, but the empty hint instead.
-            PropertyHintInfo::none()
+            PropertyHintInfo::var_array_element::<T>()
         }
     }
 }
@@ -1327,7 +1322,6 @@ impl<T: ArrayElement> GodotType for Array<T> {
         "Array".to_string()
     }
 
-    #[cfg(since_api = "4.2")]
     fn property_hint_info() -> PropertyHintInfo {
         // Array<Variant>, aka untyped array, has no hints.
         if Self::has_variant_t() {

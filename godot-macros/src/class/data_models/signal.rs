@@ -187,9 +187,7 @@ pub fn make_signal_registrations(
 ) -> ParseResult<(Vec<TokenStream>, Option<TokenStream>)> {
     let mut signal_registrations = Vec::new();
 
-    #[cfg(since_api = "4.2")]
     let mut collection_api = SignalCollection::default();
-    // #[cfg(since_api = "4.2")]
     // let mut max_visibility = SignalVisibility::Priv;
 
     for signal in signals {
@@ -201,8 +199,7 @@ pub fn make_signal_registrations(
 
         let details = SignalDetails::extract(fn_signature, class_name, external_attributes)?;
 
-        // Callable custom functions are only supported in 4.2+, upon which custom signals rely.
-        #[cfg(since_api = "4.2")]
+        // Type-safe signal builder API, if available.
         if *has_builder {
             collection_api.extend_with(&details);
             // max_visibility = max_visibility.max(details.vis_classified);
@@ -213,12 +210,8 @@ pub fn make_signal_registrations(
     }
 
     // Rewrite the above using #[cfg].
-    #[cfg(since_api = "4.2")]
     let signal_symbols =
         (!no_typed_signals).then(|| make_signal_symbols(class_name, collection_api));
-
-    #[cfg(before_api = "4.2")]
-    let signal_symbols = None;
 
     Ok((signal_registrations, signal_symbols))
 }
@@ -454,12 +447,10 @@ fn make_signal_symbols(
     // that collection type has *lower* visibility than the class, we *also* run into "leak private type" errors.
 
     // Unrelated, we could use the following for encapsulation:
-    //     #[cfg(since_api = "4.2")]
     //     mod #signal_mod_name {
     //         pub use super::*;
     //         ... // all the code below
     //     }
-    //     #[cfg(since_api = "4.2")]
     //     pub use #signal_mod_name::*;
     //
     // This now makes signal types/methods invisible to the surrounding scope, so we'd need to adjust visibility in some cases:
@@ -468,8 +459,8 @@ fn make_signal_symbols(
     //
     // Benefit of encapsulating would be:
     // * No need for `#[doc(hidden)]` on internal symbols like fields.
-    // * #[cfg(since_api = "4.2")] would not need to be repeated. This is less of a problem if the #[cfg] is used inside the macro
-    //   instead of generated code.
+    // * Any potential #[cfg]s (in the past for >= 4.2 API level) would not need to be repeated. This is less of a problem if the #[cfg]
+    //   is used inside the macro instead of generated code.
     // * Less scope pollution (even though names are mangled).
     //
     // Downside is slightly higher complexity and introducing signals in secondary blocks becomes harder (although we could use another

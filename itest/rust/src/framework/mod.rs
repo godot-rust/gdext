@@ -25,7 +25,6 @@ pub use runner::*;
 
 // Registers all the `#[itest]` tests and `#[bench]` benchmarks.
 sys::plugin_registry!(pub(crate) __GODOT_ITEST: RustTestCase);
-#[cfg(since_api = "4.2")]
 sys::plugin_registry!(pub(crate) __GODOT_ASYNC_ITEST: AsyncRustTestCase);
 sys::plugin_registry!(pub(crate) __GODOT_BENCH: RustBenchmark);
 
@@ -57,7 +56,6 @@ fn collect_rust_tests(filters: &[String]) -> (Vec<RustTestCase>, HashSet<&str>, 
 }
 
 /// Finds all `#[itest(async)]` tests.
-#[cfg(since_api = "4.2")]
 fn collect_async_rust_tests(
     filters: &[String],
     sync_focus_run: bool,
@@ -142,7 +140,6 @@ pub struct RustTestCase {
     pub function: fn(&TestContext),
 }
 
-#[cfg(since_api = "4.2")]
 #[derive(Copy, Clone)]
 pub struct AsyncRustTestCase {
     pub name: &'static str,
@@ -259,7 +256,6 @@ pub fn expect_debug_panic_or_release_ok(_context: &str, code: impl FnOnce()) {
 /// If there is a custom `MainLoop` present, it will be run _before_ this.
 ///
 /// Useful for assertions that run expect a `call_deferred()` or similar operation, and still want to check the result.
-#[cfg(since_api = "4.2")]
 #[must_use]
 #[allow(dead_code)] // not yet used.
 pub fn next_frame<F>(code: F) -> godot::task::TaskHandle

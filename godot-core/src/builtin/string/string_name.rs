@@ -82,8 +82,7 @@ impl StringName {
     ///
     /// When called with `Encoding::Latin1`, this can be slightly more efficient than `try_from_bytes()`.
     pub fn try_from_cstr(cstr: &std::ffi::CStr, encoding: Encoding) -> Result<Self, StringError> {
-        // Short-circuit the direct Godot 4.2 function for Latin-1, which takes a null-terminated C string.
-        #[cfg(since_api = "4.2")]
+        // Since Godot 4.2, we can directly short-circuit for Latin-1, which takes a null-terminated C string.
         if encoding == Encoding::Latin1 {
             // Note: CStr guarantees no intermediate NUL bytes, so we don't need to check for them.
 
@@ -123,7 +122,7 @@ impl StringName {
                 }
             }
             Encoding::Latin1 => {
-                // This branch is short-circuited if invoked for CStr and Godot 4.2+, which uses `string_name_new_with_latin1_chars`
+                // This branch is short-circuited if invoked for CStr, which uses `string_name_new_with_latin1_chars`
                 // (requires nul-termination). In general, fall back to GString conversion.
                 GString::try_from_bytes_with_nul_check(bytes, Encoding::Latin1, check_nul)
                     .map(Self::from)
@@ -252,7 +251,6 @@ impl StringName {
     }
 
     /// Increment ref-count. This may leak memory if used wrongly.
-    #[cfg(since_api = "4.2")]
     fn inc_ref(&self) {
         std::mem::forget(self.clone());
     }
@@ -321,13 +319,6 @@ unsafe impl Send for StringName {}
 impl_rust_string_conv!(StringName);
 
 impl From<&str> for StringName {
-    #[cfg(before_api = "4.2")]
-    fn from(string: &str) -> Self {
-        let intermediate = GString::from(string);
-        Self::from(&intermediate)
-    }
-
-    #[cfg(since_api = "4.2")]
     fn from(string: &str) -> Self {
         let utf8 = string.as_bytes();
 
@@ -393,7 +384,6 @@ impl From<NodePath> for StringName {
     }
 }
 
-#[cfg(since_api = "4.2")]
 impl From<&'static std::ffi::CStr> for StringName {
     /// Creates a `StringName` from a static ASCII/Latin-1 `c"string"`.
     ///

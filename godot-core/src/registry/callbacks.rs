@@ -71,7 +71,6 @@ pub unsafe extern "C" fn create_null<T>(
 /// Godot FFI function for recreating a GDExtension instance, e.g. after a hot reload.
 ///
 /// If the `init()` constructor panics, null is returned.
-#[cfg(since_api = "4.2")]
 pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     object: sys::GDExtensionObjectPtr,
@@ -83,7 +82,7 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
 ///
 /// Godot expects a creator function, but doesn't require an actual object to be instantiated.
-#[cfg(all(since_api = "4.2", before_api = "4.5"))]
+#[cfg(before_api = "4.5")]
 pub unsafe extern "C" fn recreate_null<T>(
     _class_userdata: *mut std::ffi::c_void,
     _object: sys::GDExtensionObjectPtr,
@@ -259,18 +258,6 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     *is_valid = sys::conv::SYS_TRUE;
 }
 
-#[cfg(before_api = "4.2")]
-pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
-    instance: sys::GDExtensionClassInstancePtr,
-    what: i32,
-) {
-    let storage = as_storage::<T>(instance);
-    let mut instance = storage.get_mut();
-
-    T::__godot_notification(&mut *instance, what);
-}
-
-#[cfg(since_api = "4.2")]
 pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
     instance: sys::GDExtensionClassInstancePtr,
     what: i32,
@@ -450,7 +437,6 @@ pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
 /// - `property_info_ptr` must be valid for the whole duration of this function call (i.e. - can't be freed nor consumed).
 ///
 #[deny(unsafe_op_in_unsafe_fn)]
-#[cfg(since_api = "4.2")]
 pub unsafe extern "C" fn validate_property<T: cap::GodotValidateProperty>(
     instance: sys::GDExtensionClassInstancePtr,
     property_info_ptr: *mut sys::GDExtensionPropertyInfo,

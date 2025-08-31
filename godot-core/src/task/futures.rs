@@ -465,10 +465,6 @@ macro_rules! impl_dynamic_send {
         )+
     };
 
-    (Send; builtin::{$($ty:ident),+}) => {
-        impl_dynamic_send!(Send; $($crate::builtin::$ty),+);
-    };
-
     (tuple; $($arg:ident: $ty:ident),*) => {
         unsafe impl<$($ty: $crate::task::DynamicSend ),*> $crate::task::DynamicSend for ($($ty,)*) {
             type Inner = ($($ty::Inner,)*);

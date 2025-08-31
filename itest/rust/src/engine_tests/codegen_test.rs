@@ -61,9 +61,9 @@ fn codegen_constants() {
 
 #[itest]
 fn cfg_test() {
-    // Makes sure that since_api and before_api are mutually exclusive
-    assert_ne!(cfg!(since_api = "4.2"), cfg!(before_api = "4.2"));
+    // Makes sure that since_api and before_api are mutually exclusive.
     assert_ne!(cfg!(since_api = "4.3"), cfg!(before_api = "4.3"));
+    assert_ne!(cfg!(since_api = "4.4"), cfg!(before_api = "4.4"));
 }
 
 #[derive(GodotClass)]

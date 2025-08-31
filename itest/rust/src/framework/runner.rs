@@ -13,7 +13,6 @@ use godot::global::godot_error;
 use godot::obj::Gd;
 use godot::register::{godot_api, GodotClass};
 
-#[cfg(since_api = "4.2")]
 use super::AsyncRustTestCase;
 use crate::framework::{
     bencher, passes_filter, BenchResult, RustBenchmark, RustTestCase, TestContext,
@@ -32,8 +31,6 @@ struct TestStats {
 pub struct IntegrationTests {
     stats: TestStats,
     focus_run: bool,
-    #[cfg(before_api = "4.2")]
-    base: godot::obj::Base<godot::classes::RefCounted>,
 }
 
 #[godot_api]
@@ -95,28 +92,6 @@ impl IntegrationTests {
             None
         };
 
-        #[cfg(before_api = "4.2")]
-        {
-            use godot::obj::WithBaseField;
-
-            property_tests.free();
-
-            let result = Self::conclude_tests(
-                &self.stats,
-                rust_time,
-                gdscript_time.map(|(elapsed, extra)| elapsed + extra),
-                allow_focus,
-            );
-
-            // on_finished will call back into self, so we have to make self re-entrant. We also can't call on_finished in deferred mode,
-            // since it's not available under the 4.1 API.
-            let base = self.base_mut();
-            on_finished.callv(&godot::builtin::varray![result]);
-            // We should do something with base to satisfy the compiler.
-            drop(base);
-        }
-
-        #[cfg(since_api = "4.2")]
         {
             let stats = self.stats.clone();
 
@@ -221,7 +196,6 @@ impl IntegrationTests {
         }
     }
 
-    #[cfg(since_api = "4.2")]
     fn run_async_rust_tests(
         stats: TestStats,
         tests: Vec<AsyncRustTestCase>,
@@ -243,7 +217,6 @@ impl IntegrationTests {
         Self::run_async_rust_tests_step(tests_iter, first_test, ctx, stats, None, on_finalize_test);
     }
 
-    #[cfg(since_api = "4.2")]
     fn run_async_rust_tests_step(
         mut tests_iter: impl Iterator<Item = AsyncRustTestCase> + 'static,
         test: AsyncRustTestCase,
@@ -459,7 +432,6 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
     TestOutcome::from_bool(success.is_ok())
 }
 
-#[cfg(since_api = "4.2")]
 fn run_async_rust_test(
     test: &AsyncRustTestCase,
     ctx: &TestContext,
@@ -481,7 +453,6 @@ fn run_async_rust_test(
     check_async_test_task(task_handle, on_test_finished, ctx);
 }
 
-#[cfg(since_api = "4.2")]
 fn check_async_test_task(
     task_handle: godot::task::TaskHandle,
     on_test_finished: impl FnOnce(TestOutcome) + 'static,
@@ -606,28 +577,12 @@ fn get_errors(test: &Variant) -> Array<GString> {
 
 struct RustTestCases {
     rust_tests: Vec<RustTestCase>,
-    #[cfg(since_api = "4.2")]
     async_rust_tests: Vec<AsyncRustTestCase>,
     rust_test_count: usize,
     rust_file_count: usize,
     focus_run: bool,
 }
 
-#[cfg(before_api = "4.2")]
-fn collect_rust_tests(filters: &[String]) -> RustTestCases {
-    let (rust_tests, rust_files, focus_run) = super::collect_rust_tests(filters);
-
-    let rust_test_count = rust_tests.len();
-
-    RustTestCases {
-        rust_tests,
-        rust_test_count,
-        rust_file_count: rust_files.len(),
-        focus_run,
-    }
-}
-
-#[cfg(since_api = "4.2")]
 fn collect_rust_tests(filters: &[String]) -> RustTestCases {
     let (mut rust_tests, mut rust_files, focus_run) = super::collect_rust_tests(filters);
 

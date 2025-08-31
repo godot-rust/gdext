@@ -166,7 +166,7 @@ impl GString {
 
     /// Gets the UTF-32 character slice from a `GString`.
     pub fn chars(&self) -> &[char] {
-        // SAFETY: Godot 4.1 ensures valid UTF-32, making interpreting as char slice safe.
+        // SAFETY: Since 4.1, Godot ensures valid UTF-32, making interpreting as char slice safe.
         // See https://github.com/godotengine/godot/pull/74760.
         unsafe {
             let s = self.string_sys();

@@ -29,14 +29,11 @@ use crate::sys;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public re-exports.
 
-// Godot 4.2+.
-#[cfg(since_api = "4.2")]
-mod reexport_4_2 {
+mod reexport_pub {
     pub use crate::classes::IScriptExtension;
     pub use crate::obj::Inherits;
 }
-#[cfg(since_api = "4.2")]
-pub use reexport_4_2::*;
+pub use reexport_pub::*;
 
 // Re-export guards.
 pub use crate::obj::guards::{ScriptBaseMut, ScriptBaseRef};
@@ -172,9 +169,7 @@ pub trait ScriptInstance: Sized {
     fn get_method_argument_count(&self, _method: StringName) -> Option<u32>;
 }
 
-#[cfg(before_api = "4.2")]
-type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo;
-#[cfg(all(since_api = "4.2", before_api = "4.3"))]
+#[cfg(before_api = "4.3")]
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
 #[cfg(since_api = "4.3")]
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo3;
@@ -262,13 +257,11 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         #[cfg(since_api = "4.3")]
         free_property_list_func: Some(script_instance_info::free_property_list_func),
 
-        #[cfg(since_api = "4.2")]
         get_class_category_func: None, // not yet implemented.
 
         property_can_revert_func: None, // unimplemented until needed.
         property_get_revert_func: None, // unimplemented until needed.
 
-        // ScriptInstance::get_owner() is apparently not called by Godot 4.1 to 4.2 (to verify).
         get_owner_func: None,
         get_property_state_func: Some(script_instance_info::get_property_state_func::<T>),
 
@@ -278,7 +271,6 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         #[cfg(since_api = "4.3")]
         free_method_list_func: Some(script_instance_info::free_method_list_func),
         get_property_type_func: Some(script_instance_info::get_property_type_func::<T>),
-        #[cfg(since_api = "4.2")]
         validate_property_func: None, // not yet implemented.
 
         has_method_func: Some(script_instance_info::has_method_func::<T>),
@@ -329,10 +321,7 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
     //
     // It is expected that the engine upholds the safety invariants stated on each of the GDEXtensionScriptInstanceInfo functions.
     unsafe {
-        #[cfg(before_api = "4.2")]
-        let create_fn = sys::interface_fn!(script_instance_create);
-
-        #[cfg(all(since_api = "4.2", before_api = "4.3"))]
+        #[cfg(before_api = "4.3")]
         let create_fn = sys::interface_fn!(script_instance_create2);
 
         #[cfg(since_api = "4.3")]
@@ -351,7 +340,6 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
 /// there is an instance for the script.
 ///
 /// Use this function to implement [`IScriptExtension::instance_has`].
-#[cfg(since_api = "4.2")]
 pub fn script_instance_exists<O, S>(object: &Gd<O>, script: &Gd<S>) -> bool
 where
     O: Inherits<Object>,

@@ -71,7 +71,6 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             "set_property" => {
                 handle_set_property(&class_name, &trait_path, cfg_attrs, &mut decls, is_gd_self);
             }
-            #[cfg(since_api = "4.2")]
             "validate_property" => {
                 handle_validate_property(
                     &class_name,

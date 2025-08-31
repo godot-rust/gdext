@@ -1,6 +1,6 @@
 [configuration]
 entry_symbol = "itest_init"
-compatibility_minimum = 4.1
+compatibility_minimum = 4.2
 
 [libraries]
 linux.debug.x86_64 = "res://../../target/debug/libitest.so"

@@ -67,10 +67,8 @@ pub fn make_class_signals(
         has_own_signals.then(|| make_upcast_deref_impl(class_name, &nearest_collection_name));
 
     let code = quote! {
-        #[cfg(since_api = "4.2")]
         pub use signals::*;
 
-        #[cfg(since_api = "4.2")]
         mod signals {
             use crate::obj::{Gd, GodotClass};
             use super::re_export::#class_name;

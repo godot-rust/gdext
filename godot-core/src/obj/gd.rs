@@ -574,7 +574,6 @@ impl<T: GodotClass> Gd<T> {
     ///
     /// Such a callable will be automatically invalidated by Godot when a linked Object is freed.
     /// If you need a Callable which can live indefinitely use [`Callable::from_local_fn()`].
-    #[cfg(since_api = "4.2")]
     pub fn linked_callable<F>(&self, method_name: impl AsArg<GString>, rust_function: F) -> Callable
     where
         F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
@@ -828,7 +827,6 @@ where
     /// walkthrough.
     ///
     /// [`WithUserSignals::signals()`]: crate::obj::WithUserSignals::signals()
-    #[cfg(since_api = "4.2")]
     pub fn signals(&self) -> T::SignalCollection<'_, T> {
         T::__signals_from_external(self)
     }

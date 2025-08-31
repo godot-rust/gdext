@@ -127,7 +127,6 @@ fn string_name_is_empty() {
 }
 
 #[itest]
-#[cfg(since_api = "4.2")]
 fn string_name_from_cstr() {
     use std::ffi::CStr;
 

@@ -233,7 +233,6 @@ impl Struct {
     pub fn with_generated<T: GodotClass + cap::GodotDefault>(mut self) -> Self {
         set(&mut self.generated_create_fn, callbacks::create::<T>);
 
-        #[cfg(since_api = "4.2")]
         set(&mut self.generated_recreate_fn, callbacks::recreate::<T>);
         self
     }
@@ -243,7 +242,6 @@ impl Struct {
     pub fn with_generated_no_default<T: GodotClass>(mut self) -> Self {
         set(&mut self.generated_create_fn, callbacks::create_null::<T>);
 
-        #[cfg(since_api = "4.2")]
         set(
             &mut self.generated_recreate_fn,
             callbacks::recreate_null::<T>,
@@ -352,10 +350,6 @@ pub struct ITraitImpl {
     >,
 
     /// User-defined `on_notification` function.
-    #[cfg(before_api = "4.2")]
-    pub(crate) user_on_notification_fn:
-        Option<unsafe extern "C" fn(p_instance: sys::GDExtensionClassInstancePtr, p_what: i32)>,
-    #[cfg(since_api = "4.2")]
     pub(crate) user_on_notification_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -433,7 +427,6 @@ pub struct ITraitImpl {
             r_ret: sys::GDExtensionVariantPtr,
         ) -> sys::GDExtensionBool,
     >,
-    #[cfg(since_api = "4.2")]
     pub(crate) validate_property_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -522,7 +515,6 @@ impl ITraitImpl {
         self
     }
 
-    #[cfg(since_api = "4.2")]
     pub fn with_validate_property<T: GodotClass + cap::GodotValidateProperty>(mut self) -> Self {
         set(
             &mut self.validate_property_fn,

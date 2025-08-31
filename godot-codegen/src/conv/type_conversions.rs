@@ -310,6 +310,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
             }
         }
         // empty string appears only for Callable/Rid in 4.0; default ctor syntax in 4.1+
+        // TODO(v0.4): check if we can remove ""
         "" | "RID()" | "Callable()" if !is_inner => {
             return match ty {
                 RustTy::BuiltinIdent { ty: ident, .. } if ident == "Rid" => quote! { Rid::Invalid },

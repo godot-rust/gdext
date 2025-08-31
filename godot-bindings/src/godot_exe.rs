@@ -130,7 +130,7 @@ pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
 /// True if Godot is a debug build (editor or debug export template), false otherwise (release export template).
 fn is_godot_debug_build(godot_bin: &Path) -> bool {
     // The `--version` command does not contain information about debug/release, but we can see if the `--help` output lists the command
-    // `--dump-extension-api`. This seems to be reliable down to Godot 4.1.
+    // `--dump-extension-api`. This seems to be reliable down to Godot 4.1 (past our support lower bound).
 
     let mut cmd = Command::new(godot_bin);
     cmd.arg("--help");

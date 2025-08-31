@@ -271,7 +271,6 @@ impl AsArg<StringName> for &String {
     }
 }
 
-#[cfg(since_api = "4.2")]
 impl AsArg<StringName> for &'static CStr {
     fn into_arg<'r>(self) -> CowArg<'r, StringName> {
         CowArg::Owned(StringName::from(self))

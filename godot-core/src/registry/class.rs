@@ -71,9 +71,7 @@ pub struct ClassMetadata {}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
-#[cfg(before_api = "4.2")]
-type GodotCreationInfo = sys::GDExtensionClassCreationInfo;
-#[cfg(all(since_api = "4.2", before_api = "4.3"))]
+#[cfg(before_api = "4.3")]
 type GodotCreationInfo = sys::GDExtensionClassCreationInfo2;
 #[cfg(all(since_api = "4.3", before_api = "4.4"))]
 type GodotCreationInfo = sys::GDExtensionClassCreationInfo3;
@@ -455,21 +453,13 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             )
             .expect("duplicate: create_instance_func (def)");
 
-            #[cfg(before_api = "4.2")]
-            let _ = is_internal; // mark used
-            #[cfg(since_api = "4.2")]
-            {
-                fill_into(
-                    &mut c.godot_params.recreate_instance_func,
-                    generated_recreate_fn,
-                )
-                .expect("duplicate: recreate_instance_func (def)");
+            fill_into(
+                &mut c.godot_params.recreate_instance_func,
+                generated_recreate_fn,
+            )
+            .expect("duplicate: recreate_instance_func (def)");
 
-                c.godot_params.is_exposed = sys::conv::bool_to_sys(!is_internal);
-            }
-
-            #[cfg(before_api = "4.2")]
-            assert!(generated_recreate_fn.is_none()); // not used
+            c.godot_params.is_exposed = sys::conv::bool_to_sys(!is_internal);
 
             #[cfg(before_api = "4.3")]
             let _ = is_tool; // mark used
@@ -504,7 +494,6 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             user_property_get_revert_fn,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
                 virtual_method_docs: _,
-            #[cfg(since_api = "4.2")]
             validate_property_fn,
         }) => {
             c.user_register_fn = user_register_fn;
@@ -515,12 +504,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             fill_into(&mut c.godot_params.create_instance_func, user_create_fn)
                 .expect("duplicate: create_instance_func (i)");
 
-            #[cfg(since_api = "4.2")]
             fill_into(&mut c.godot_params.recreate_instance_func, user_recreate_fn)
                 .expect("duplicate: recreate_instance_func (i)");
-
-            #[cfg(before_api = "4.2")]
-            assert!(user_recreate_fn.is_none()); // not used
 
             c.godot_params.to_string_func = user_to_string_fn;
             c.godot_params.notification_func = user_on_notification_fn;
@@ -531,7 +516,6 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.godot_params.property_can_revert_func = user_property_can_revert_fn;
             c.godot_params.property_get_revert_func = user_property_get_revert_fn;
             c.user_virtual_fn = get_virtual_fn;
-            #[cfg(since_api = "4.2")]
             {
                 c.godot_params.validate_property_func = validate_property_fn;
             }
@@ -585,10 +569,7 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     let registration_failed = unsafe {
         // Try to register class...
 
-        #[cfg(before_api = "4.2")]
-        let register_fn = interface_fn!(classdb_register_extension_class);
-
-        #[cfg(all(since_api = "4.2", before_api = "4.3"))]
+        #[cfg(before_api = "4.3")]
         let register_fn = interface_fn!(classdb_register_extension_class2);
 
         #[cfg(all(since_api = "4.3", before_api = "4.4"))]
@@ -703,30 +684,7 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
     }
 }
 
-#[cfg(before_api = "4.2")]
-fn default_creation_info() -> sys::GDExtensionClassCreationInfo {
-    sys::GDExtensionClassCreationInfo {
-        is_virtual: false as u8,
-        is_abstract: false as u8,
-        set_func: None,
-        get_func: None,
-        get_property_list_func: None,
-        free_property_list_func: None,
-        property_can_revert_func: None,
-        property_get_revert_func: None,
-        notification_func: None,
-        to_string_func: None,
-        reference_func: None,
-        unreference_func: None,
-        create_instance_func: None,
-        free_instance_func: None,
-        get_virtual_func: None,
-        get_rid_func: None,
-        class_userdata: ptr::null_mut(),
-    }
-}
-
-#[cfg(all(since_api = "4.2", before_api = "4.3"))]
+#[cfg(before_api = "4.3")]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
     sys::GDExtensionClassCreationInfo2 {
         is_virtual: false as u8,

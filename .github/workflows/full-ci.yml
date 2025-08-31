@@ -237,7 +237,7 @@ jobs:
         # - Double + lazy:    Godot nightly, custom, double, lazy func tables
         # - Features + exp:   Godot nightly, custom, threads, serde, experimental API
         # - Memcheck nightly: Godot mem nightly, custom, sanitizer
-        # - Memcheck 4.x:     Godot mem 4.0/4.1, sanitizer
+        # - Memcheck 4.x:     Godot mem 4.2, sanitizer
 
         # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
         include:
@@ -300,12 +300,6 @@ jobs:
             godot-binary: godot.windows.editor.dev.x86_64.exe
             godot-prebuilt-patch: '4.3'
 
-#          - name: windows-4.1
-#            os: windows-latest
-#            artifact-name: windows-4.1
-#            godot-binary: godot.windows.editor.dev.x86_64.exe
-#            godot-prebuilt-patch: '4.1.3'
-
           # Linux
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
@@ -352,7 +346,7 @@ jobs:
             rust-extra-args: --release --features itest/codegen-full-experimental
             rust-cache-key: release
 
-          # Linux compat (4.1 disabled, already covered by memcheck)
+          # Linux compat:
           # No hot-reload before 4.4, as the Godot project is 4.4+.
 
           - name: linux-4.4
@@ -368,6 +362,7 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.3'
 
+          # Can be disabled in the future (already covered by memcheck). For now kept on to differentiate quicker.
           - name: linux-4.2
             os: ubuntu-22.04
             artifact-name: linux-4.2
@@ -391,11 +386,11 @@ jobs:
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
             rust-target: x86_64-unknown-linux-gnu
 
-          - name: linux-memcheck-4.1
+          - name: linux-memcheck-4.2
             os: ubuntu-22.04
-            artifact-name: linux-memcheck-4.1
+            artifact-name: linux-memcheck-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-prebuilt-patch: '4.1' # check compat of API 4.1.0 with newer binaries.
+            godot-prebuilt-patch: '4.2' # check compat of API 4.2 with newer binaries.
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
