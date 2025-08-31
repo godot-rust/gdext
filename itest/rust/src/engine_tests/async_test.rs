@@ -11,6 +11,7 @@ use godot::builtin::{array, vslice, Array, Callable, Signal, Variant};
 use godot::classes::{Object, RefCounted};
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::prelude::{godot_api, GodotClass};
+use godot::sys;
 use godot::task::{self, create_test_signal_future_resolver, SignalFuture, TaskHandle};
 
 use crate::framework::{expect_async_panic, itest, TestContext};
@@ -145,13 +146,32 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
         },
     ));
 
+    // This test verifies that panics work if something is non-sendable. Since we can no longer safely invoke Drop in such a case,
+    // the object (here RefCounted) is leaked. However, we don't want memory leaks in tests, so we do it differently:
+    // Leaking a RefCounted can be counteracted by creating another RefCounted *weakly* (so it doesn't increase the refcount).
+    // This is done at the end -- after moving the object out of the thread via escape pod.
+    static ESCAPE_POD: sys::Global<Option<ThreadCrosser<Gd<RefCounted>>>> = sys::Global::default();
+
     let object = ThreadCrosser::new(object);
 
-    std::thread::spawn(move || {
+    let thread = std::thread::spawn(move || {
         let mut object = unsafe { object.extract() };
 
-        object.emit_signal("custom_signal", vslice![RefCounted::new_gd()])
+        let arg = RefCounted::new_gd();
+        // Eject the RefCounted before panic explodes the thread.
+        *ESCAPE_POD.lock() = Some(ThreadCrosser::new(arg.clone()));
+
+        // This will panic:
+        object.emit_signal("custom_signal", vslice![arg])
     });
+
+    // Wait until thread concludes, also to avoid race conditions.
+    thread.join().expect("failed to join thread");
+
+    let escape_pod = ESCAPE_POD.lock().take().unwrap();
+    let object = unsafe { escape_pod.extract() };
+    let balance_restorer: Gd<RefCounted> = unsafe { Gd::__from_obj_sys_weak(object.obj_sys()) };
+    drop(balance_restorer);
 
     handle
 }
