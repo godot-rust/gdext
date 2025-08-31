@@ -575,7 +575,7 @@ mod export_impls {
         }
     }
 
-    // Bounding Boxes
+    // Bounding boxes
     impl_property_by_godot_convert!(Aabb);
     impl_property_by_godot_convert!(Rect2);
     impl_property_by_godot_convert!(Rect2i);
@@ -594,11 +594,11 @@ mod export_impls {
     impl_property_by_godot_convert!(Vector4);
     impl_property_by_godot_convert!(Vector4i);
 
-    // Misc Math
+    // Misc math
     impl_property_by_godot_convert!(Quaternion);
     impl_property_by_godot_convert!(Plane);
 
-    // Stringy Types
+    // Stringy types
     impl_property_by_godot_convert!(GString);
     impl_property_by_godot_convert!(StringName);
     impl_property_by_godot_convert!(NodePath);
@@ -608,19 +608,6 @@ mod export_impls {
     // Dictionary: will need to be done manually once they become typed.
     impl_property_by_godot_convert!(Dictionary);
     impl_property_by_godot_convert!(Variant);
-
-    // Packed arrays: we manually implement `Export`.
-    impl_property_by_godot_convert!(PackedByteArray, no_export);
-    impl_property_by_godot_convert!(PackedInt32Array, no_export);
-    impl_property_by_godot_convert!(PackedInt64Array, no_export);
-    impl_property_by_godot_convert!(PackedFloat32Array, no_export);
-    impl_property_by_godot_convert!(PackedFloat64Array, no_export);
-    impl_property_by_godot_convert!(PackedStringArray, no_export);
-    impl_property_by_godot_convert!(PackedVector2Array, no_export);
-    impl_property_by_godot_convert!(PackedVector3Array, no_export);
-    #[cfg(since_api = "4.3")]
-    impl_property_by_godot_convert!(PackedVector4Array, no_export);
-    impl_property_by_godot_convert!(PackedColorArray, no_export);
 
     // Primitives
     impl_property_by_godot_convert!(f64);
@@ -655,6 +642,8 @@ mod export_impls {
     // Additionally, RIDs aren't persistent, and can sometimes behave a bit weirdly when passed from the
     // editor to the runtime.
     impl_property_by_godot_convert!(Rid, no_export);
+
+    // Var/Export for Array<T> and PackedArray<T> are implemented in the files of their struct declaration.
 
     // impl_property_by_godot_convert!(Signal);
 }

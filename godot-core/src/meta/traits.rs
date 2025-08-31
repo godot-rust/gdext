@@ -21,6 +21,8 @@ use crate::registry::property::builtin_type_string;
 #[rustfmt::skip] // Do not reorder.
 pub use sys::{ExtVariantType, GodotFfi, GodotNullableFfi};
 
+pub use crate::builtin::meta_reexport::PackedArrayElement;
+
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
 #[doc(hidden)]
 pub trait GodotFfiVariant: Sized + GodotFfi {
@@ -218,29 +220,3 @@ pub(crate) fn element_godot_type_name<T: ArrayElement>() -> String {
 // pub(crate)  fn element_godot_type_name<T: ArrayElement>() -> String {
 //     <T::Via as GodotType>::godot_type_name()
 // }
-
-/// Marker trait to identify types that can be stored in `Packed*Array` types.
-#[diagnostic::on_unimplemented(
-    message = "`Packed*Array` can only store element types supported in Godot packed arrays.",
-    label = "has invalid element type"
-)]
-pub trait PackedArrayElement: GodotType + sealed::Sealed {
-    /// See [`ArrayElement::element_type_string()`].
-    #[doc(hidden)]
-    fn element_type_string() -> String {
-        builtin_type_string::<Self>()
-    }
-}
-
-// Implement all packed array element types.
-impl PackedArrayElement for u8 {}
-impl PackedArrayElement for i32 {}
-impl PackedArrayElement for i64 {}
-impl PackedArrayElement for f32 {}
-impl PackedArrayElement for f64 {}
-impl PackedArrayElement for builtin::Vector2 {}
-impl PackedArrayElement for builtin::Vector3 {}
-#[cfg(since_api = "4.3")]
-impl PackedArrayElement for builtin::Vector4 {}
-impl PackedArrayElement for builtin::Color {}
-impl PackedArrayElement for builtin::GString {}

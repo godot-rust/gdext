@@ -17,8 +17,12 @@ use crate::meta::{ExtVariantType, FromGodot, ToGodot};
 
 /// Godot's `Dictionary` type.
 ///
+/// Ordered associative hash-table, mapping keys to values.
+///
 /// The keys and values of the dictionary are all `Variant`s, so they can be of different types.
-/// Variants are designed to be generally cheap to clone.
+/// Variants are designed to be generally cheap to clone. Typed dictionaries are planned in a future godot-rust version.
+///
+/// Check out the [book](https://godot-rust.github.io/book/godot-api/builtins.html#arrays-and-dictionaries) for a tutorial on dictionaries.
 ///
 /// # Dictionary example
 ///

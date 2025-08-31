@@ -24,7 +24,10 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 
 /// Godot's `Array` type.
 ///
-/// Unlike GDScript, all indices and sizes are unsigned, so negative indices are not supported.
+/// Versatile, linear storage container for all types that can be represented inside a `Variant`.  \
+/// For space-efficient storage, consider using [`PackedArray<T>`][crate::builtin::PackedArray] or `Vec<T>`.
+///
+/// Check out the [book](https://godot-rust.github.io/book/godot-api/builtins.html#arrays-and-dictionaries) for a tutorial on arrays.
 ///
 /// # Typed arrays
 ///
@@ -126,6 +129,10 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///   The Godot-faithful (but less convenient) alternative is to use `Option<Gd<T>>` element types.
 /// - Objects with dyn-trait association: [`DynGd<T, D>`][crate::obj::DynGd].
 ///   Godot doesn't know Rust traits and will only see the `T` part.
+///
+/// # Differences from GDScript
+///
+/// Unlike GDScript, all indices and sizes are unsigned, so negative indices are not supported.
 ///
 /// # Godot docs
 ///

@@ -9,6 +9,7 @@ mod array;
 mod dictionary;
 mod extend_buffer;
 mod packed_array;
+mod packed_array_element;
 
 // Re-export in godot::builtin.
 pub(crate) mod containers {
@@ -26,3 +27,6 @@ pub(crate) mod iterators {
     pub use super::dictionary::TypedIter as DictTypedIter;
     pub use super::dictionary::TypedKeys as DictTypedKeys;
 }
+
+// Re-export in godot::meta.
+pub use packed_array_element::PackedArrayElement;
