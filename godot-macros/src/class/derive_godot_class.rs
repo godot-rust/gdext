@@ -16,8 +16,7 @@ use crate::class::{
     FieldExport, FieldVar, GetterSetter, SignatureInfo,
 };
 use crate::util::{
-    bail, error, format_funcs_collection_struct, ident, path_ends_with_complex,
-    require_api_version, KvParser,
+    bail, error, format_funcs_collection_struct, ident, path_ends_with_complex, KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
@@ -535,8 +534,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 
         // #[class(internal)]
         // Named "internal" following Godot terminology: https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/class_db.hpp#L327
-        if let Some(span) = parser.handle_alone_with_span("internal")? {
-            require_api_version!("4.2", span, "#[class(internal)]")?;
+        if parser.handle_alone("internal")? {
             is_internal = true;
         } else {
             // Godot has an edge case where classes starting with "Editor" are implicitly hidden:
@@ -551,7 +549,6 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 
         // Deprecated #[class(hidden)]
         if let Some(ident) = parser.handle_alone_with_span("hidden")? {
-            require_api_version!("4.2", &ident, "#[class(hidden)]")?;
             is_internal = true;
 
             deprecations.push(quote_spanned! { ident.span()=>

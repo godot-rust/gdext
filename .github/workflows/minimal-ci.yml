@@ -205,12 +205,6 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.2.2'
 
-          - name: linux-4.1
-            os: ubuntu-22.04
-            artifact-name: linux-4.1
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.1.4'
-
           # Memory checkers
 
           - name: linux-memcheck

@@ -13,15 +13,10 @@ use crate::context::Context;
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::special_cases;
 
-pub(crate) fn is_builtin_method_excluded(method: &JsonBuiltinMethod) -> bool {
-    // The `cfg` below becomes `false` for api > 4.1 so clippy would complain it's always false.
-    #[allow(clippy::needless_bool)]
-    if method.is_vararg {
-        // Support for calling varargs using gdextension were added in 4.2.
-        cfg!(before_api = "4.2")
-    } else {
-        false
-    }
+pub(crate) fn is_builtin_method_excluded(_method: &JsonBuiltinMethod) -> bool {
+    // Prior to Godot 4.2, builtin varargs (method.is_vararg) weren't supported, but that's now our minimum supported version.
+
+    false
 }
 
 #[cfg(not(feature = "codegen-full"))]

@@ -31,19 +31,9 @@ fn property_template_test(ctx: &TestContext) {
     for property in rust_properties.get_property_list().iter_shared() {
         let name = property.get("name").unwrap().to::<String>();
 
-        // The format of array properties in Godot 4.2 changed. This doesn't seem to cause issues if we
-        // compile against 4.1 and provide the property in the format 4.1 expects, but run it with Godot 4.2.
-        // However, this test checks that our output matches that of Godot, and so would fail in this circumstance.
-        // For now, just ignore array properties when we compile for 4.1 but run in 4.2.
-        if GdextBuild::since_api("4.2")
-            && cfg!(before_api = "4.2")
-            && name.starts_with("var_array_")
-        {
-            continue;
-        }
-
         // Skip @export_file and similar properties for Array<GString> and PackedStringArray (only supported in Godot 4.3+).
         // Here, we use API and not runtime level, because inclusion/exclusion of GDScript code is determined at build time in godot-bindings.
+        // Anecdote: the format of array properties changed in Godot 4.2.
         //
         // Name can start in `export_file`, `export_global_file`, `export_dir`, `export_global_dir`.
         // Can end in either `_array` or `_parray`.

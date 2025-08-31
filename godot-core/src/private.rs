@@ -31,7 +31,6 @@ mod reexport_pub {
         ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
         PluginItem, Struct,
     };
-    #[cfg(since_api = "4.2")]
     pub use crate::registry::signal::priv_re_export::*;
     pub use crate::storage::{
         as_storage, IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage,

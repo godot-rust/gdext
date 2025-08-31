@@ -481,7 +481,6 @@ fn array_sort_unstable() {
 }
 
 #[itest]
-#[cfg(since_api = "4.2")]
 fn array_sort_unstable_by() {
     let mut array: Array<i32> = array![2, 1, 4, 3];
     array.sort_unstable_by(|a, b| a.cmp(b));
@@ -489,7 +488,6 @@ fn array_sort_unstable_by() {
 }
 
 #[itest]
-#[cfg(since_api = "4.2")]
 fn array_sort_unstable_custom() {
     let mut a = array![1, 2, 3, 4];
     let func = backwards_sort_callable();
@@ -509,7 +507,6 @@ fn array_bsearch() {
 }
 
 #[itest]
-#[cfg(since_api = "4.2")]
 fn array_bsearch_by() {
     let a: Array<i32> = array![1, 2, 4, 5];
 
@@ -522,7 +519,6 @@ fn array_bsearch_by() {
 }
 
 #[itest]
-#[cfg(since_api = "4.2")]
 fn array_bsearch_custom() {
     let a = array![5, 4, 2, 1];
     let func = backwards_sort_callable();
@@ -530,7 +526,6 @@ fn array_bsearch_custom() {
     assert_eq!(a.bsearch_custom(3, &func), 2);
 }
 
-#[cfg(since_api = "4.2")]
 fn backwards_sort_callable() -> Callable {
     Callable::from_local_fn("sort backwards", |args: &[&Variant]| {
         let res = args[0].to::<i32>() > args[1].to::<i32>();

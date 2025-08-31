@@ -46,7 +46,6 @@ fn signal_basic_connect_emit() {
 }
 
 // "Internal" means connect/emit happens from within the class, via self.signals().
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_internal() {
     let mut emitter = Emitter::new_alloc();
@@ -83,7 +82,6 @@ fn signal_symbols_internal() {
 }
 
 // "External" means connect/emit happens from outside the class, via Gd::signals().
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_external() {
     let emitter = Emitter::new_alloc();
@@ -130,7 +128,6 @@ fn signal_symbols_external() {
 }
 
 // "External" means connect/emit happens from outside the class, via Gd::signals().
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_complex_emit() {
     let emitter = Emitter::new_alloc();
@@ -151,7 +148,6 @@ fn signal_symbols_complex_emit() {
     emitter.free();
 }
 
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_receiver_auto_disconnect() {
     let emitter = Emitter::new_alloc();
@@ -175,7 +171,6 @@ fn signal_receiver_auto_disconnect() {
 }
 
 // "External" means connect/emit happens from outside the class, via Gd::signals().
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_external_builder() {
     let emitter = Emitter::new_alloc();
@@ -225,7 +220,7 @@ fn signal_symbols_external_builder() {
     emitter.free();
 }
 
-#[cfg(all(since_api = "4.2", feature = "experimental-threads"))]
+#[cfg(feature = "experimental-threads")]
 #[itest]
 fn signal_symbols_sync() {
     use std::sync::{Arc, Mutex};
@@ -250,7 +245,6 @@ fn signal_symbols_sync() {
     emitter.free();
 }
 
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
     // Add node to tree, to test Godot signal interactions.
@@ -298,7 +292,6 @@ fn signal_symbols_engine(ctx: &crate::framework::TestContext) {
 }
 
 // Test that Node signals are accessible from a derived class.
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
     let mut node = Emitter::new_alloc();
@@ -320,7 +313,6 @@ fn signal_symbols_engine_inherited(ctx: &crate::framework::TestContext) {
 }
 
 // Test that Node signals are accessible from a derived class, with Node3D middleman.
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_engine_inherited_indirect(ctx: &crate::framework::TestContext) {
     let original = Emitter::new_alloc();
@@ -343,7 +335,6 @@ fn signal_symbols_engine_inherited_indirect(ctx: &crate::framework::TestContext)
 }
 
 // Test that Node signals are *internally* accessible from a derived class.
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_engine_inherited_internal() {
     // No tree needed; signal is emitted manually.
@@ -356,7 +347,6 @@ fn signal_symbols_engine_inherited_internal() {
 }
 
 // Test that signal API methods accept engine types as receivers.
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_connect_engine() {
     // No tree needed; signal is emitted manually.
@@ -384,7 +374,6 @@ fn signal_symbols_connect_engine() {
 }
 
 // Test that rustc is capable of inferring the parameter types of closures passed to the signal API's connect methods.
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_connect_inferred() {
     let user = Emitter::new_alloc();
@@ -465,7 +454,6 @@ fn signal_symbols_connect_inferred() {
 
 // Test that Node signals are accessible from a derived class, when the class itself has no #[signal] declarations.
 // Verifies the code path that only generates the traits, no dedicated signal collection.
-#[cfg(since_api = "4.2")]
 #[itest]
 fn signal_symbols_engine_inherited_no_own_signals() {
     let mut obj = Receiver::new_alloc();
@@ -501,7 +489,6 @@ fn signal_construction_and_id() {
     assert_eq!(signal.object(), None);
 }
 
-#[cfg(since_api = "4.2")]
 #[itest]
 fn enums_as_signal_args() {
     #[derive(Debug, Clone)]
@@ -568,7 +555,6 @@ mod emitter {
     #[class(init, base=Node3D)] // Node instead of Object to test some signals defined in superclasses.
     pub struct Emitter {
         _base: Base<Node3D>,
-        #[cfg(since_api = "4.2")]
         pub last_received_int: i64,
     }
 
@@ -586,26 +572,17 @@ mod emitter {
 
         #[func]
         pub fn self_receive(&mut self, arg1: i64) {
-            #[cfg(since_api = "4.2")]
-            {
-                self.last_received_int = arg1;
-            }
+            self.last_received_int = arg1;
         }
 
         #[func]
         pub fn self_receive_gd_inc1(mut this: Gd<Self>, _arg1: i64) {
-            #[cfg(since_api = "4.2")]
-            {
-                this.bind_mut().last_received_int += 1;
-            }
+            this.bind_mut().last_received_int += 1;
         }
 
         #[func]
         pub fn self_receive_constant(&mut self) {
-            #[cfg(since_api = "4.2")]
-            {
-                self.last_received_int = 553;
-            }
+            self.last_received_int = 553;
         }
 
         #[func]
@@ -615,7 +592,6 @@ mod emitter {
 
         // "Internal" means connect/emit happens from within the class (via &mut self).
 
-        #[cfg(since_api = "4.2")]
         pub fn connect_signals_internal(&mut self, tracker: Rc<Cell<i64>>) {
             let sig = self.signals().signal_int();
             sig.connect_self(Self::self_receive);
@@ -624,19 +600,16 @@ mod emitter {
             sig.builder().connect_self_gd(Self::self_receive_gd_inc1);
         }
 
-        #[cfg(since_api = "4.2")]
         pub fn emit_signals_internal(&mut self) {
             self.signals().signal_int().emit(1234);
         }
 
-        #[cfg(since_api = "4.2")]
         pub fn connect_base_signals_internal(&mut self) {
             self.signals()
                 .renamed()
                 .connect_self(Emitter::self_receive_constant);
         }
 
-        #[cfg(since_api = "4.2")]
         pub fn emit_base_signals_internal(&mut self) {
             self.signals().renamed().emit();
         }
@@ -711,9 +684,8 @@ impl PubClassPrivSignal {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// 4.2+ custom callables
+// Custom callables
 
-#[cfg(since_api = "4.2")]
 mod custom_callable {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
@@ -817,7 +789,7 @@ mod custom_callable {
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------------------
-    // 4.2+ custom callables - helper functions
+    // Custom callables - helper functions
 
     fn add_remove_child(ctx: &TestContext, node: &mut Gd<Node>) {
         let mut tree = ctx.scene_tree.clone();

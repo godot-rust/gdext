@@ -13,7 +13,6 @@ use crate::init::InitLevel;
 use crate::meta::inspect::EnumConstant;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
-#[cfg(since_api = "4.2")]
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 
@@ -519,18 +518,11 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     }
 }
 
-// Dummy traits to still allow bounds and imports.
-#[cfg(before_api = "4.2")]
-pub trait WithSignals: GodotClass {}
-#[cfg(before_api = "4.2")]
-pub trait WithUserSignals: WithSignals + WithBaseField {}
-
 /// Implemented for all classes with registered signals, both engine- and user-declared.
 ///
 /// This trait enables the [`Gd::signals()`] method.
 ///
 /// User-defined classes with `#[signal]` additionally implement [`WithUserSignals`].
-#[cfg(since_api = "4.2")]
 // Inherits bound makes some up/downcasting in signals impl easier.
 pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
     /// The associated struct listing all signals of this class.
@@ -564,7 +556,6 @@ pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
 /// Implemented for user-defined classes with at least one `#[signal]` declaration.
 ///
 /// Allows to access signals from within the class, as `self.signals()`. This requires a `Base<T>` field.
-#[cfg(since_api = "4.2")]
 pub trait WithUserSignals: WithSignals + WithBaseField {
     /// Access user-defined signals of the current object `self`.
     ///
@@ -782,7 +773,6 @@ pub mod cap {
     }
 
     #[doc(hidden)]
-    #[cfg(since_api = "4.2")]
     pub trait GodotValidateProperty: GodotClass {
         #[doc(hidden)]
         type Recv: IntoVirtualMethodReceiver<Self>;

@@ -12,7 +12,7 @@ config_version=5
 
 config/name="IntegrationTests"
 run/main_scene="res://TestRunner.tscn"
-config/features=PackedStringArray("4.1")
+config/features=PackedStringArray("4.2")
 run/flush_stdout_on_print=true
 
 [debug]

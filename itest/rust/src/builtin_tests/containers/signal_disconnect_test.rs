@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![cfg(since_api = "4.2")]
-
 use godot::builtin::{Callable, Signal};
 use godot::classes::Object;
 use godot::obj::{Base, Gd, NewAlloc};

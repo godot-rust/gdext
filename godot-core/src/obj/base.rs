@@ -185,7 +185,6 @@ impl<T: GodotClass> Base<T> {
     ///
     /// # Panics (Debug)
     /// If called outside an initialization function, or for ref-counted objects on a non-main thread.
-    #[cfg(since_api = "4.2")]
     pub fn to_init_gd(&self) -> Gd<T> {
         #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
         assert!(

@@ -355,7 +355,6 @@ fn strings_as_arg() {
     assert_eq!(as_gstr_arg(npath.arg()), CowArg::Owned(gstring.clone()));
 
     assert_eq!(as_sname_arg(str), CowArg::Owned(sname.clone()));
-    #[cfg(since_api = "4.2")]
     assert_eq!(as_sname_arg(cstr), CowArg::Owned(sname.clone()));
     assert_eq!(as_sname_arg(&sname), CowArg::Borrowed(&sname));
     assert_eq!(as_sname_arg(gstring.arg()), CowArg::Owned(sname.clone()));

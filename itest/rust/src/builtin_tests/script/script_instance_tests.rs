@@ -37,7 +37,6 @@ impl TestScript {
 #[rustfmt::skip]
 #[godot_api]
 impl IScriptExtension for TestScript {
-    
     fn can_instantiate(&self) -> bool {
         true
     }
@@ -63,7 +62,6 @@ impl IScriptExtension for TestScript {
     fn reload(&mut self, _keep_state: bool) -> Error { unreachable!() }
     fn get_documentation(&self) -> Array<Dictionary> { unreachable!() }
     fn has_method(&self, _method: StringName) -> bool { unreachable!() }
-    #[cfg(since_api = "4.2")]
     fn has_static_method(&self, _method: StringName) -> bool { unreachable!() }
     fn get_method_info(&self, _method: StringName) -> Dictionary { unreachable!() }
     fn is_tool(&self) -> bool { unreachable!() }
@@ -339,7 +337,6 @@ impl IScriptLanguageExtension for TestScriptLanguage {
 
 // Test that [`script_instance_exists`] returns true if a instance of a script exists for the given object.
 #[itest]
-#[cfg(since_api = "4.2")]
 fn script_instance_exists() {
     let language = TestScriptLanguage::new_alloc();
     let script = TestScript::new(language.clone());

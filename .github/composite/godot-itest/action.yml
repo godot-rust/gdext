@@ -117,10 +117,10 @@ runs:
           echo "Update compatibility_minimum in .gdextension files to '$apiVersion'..."
           dirs=("itest")
         
-          # Note that this is still hardcoded to 4.1, the start of GDExtension's compatibility promise. This makes it easier for users
-          # to use gdext with older Godot versions. There is anyway a runtime check in gdext that checks compatibility again.
+          # Note that this is still hardcoded to 4.2, the lowest supported API level by godot-rust. This makes it easier for users
+          # to use godot-rust with older Godot versions. There is anyway a runtime check in gdext that checks compatibility again.
           for dir in "${dirs[@]}"; do
-              find "$dir" -type f -name "*.gdextension" -exec sed -i'.bak' "s/compatibility_minimum = 4\.1/compatibility_minimum = $apiVersion/" {} +
+              find "$dir" -type f -name "*.gdextension" -exec sed -i'.bak' "s/compatibility_minimum = 4\.2/compatibility_minimum = $apiVersion/" {} +
           done
         
           echo "Example output: itest/godot/itest.gdextension"

@@ -101,7 +101,7 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         return true;
     }
 
-    // OpenXR has not been available for macOS before 4.2.
+    // OpenXR has not been available for "macos" before 4.2 (now no longer supported by godot-rust).
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
     // OpenXR is also not available on iOS and Web: https://github.com/godotengine/godot/blob/13ba673c42951fd7cfa6fd8a7f25ede7e9ad92bb/modules/openxr/config.py#L2
     // Do not hardcode a list of OpenXR classes, as more may be added in future Godot versions; instead use prefix.
@@ -109,10 +109,6 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         let target_os = std::env::var("CARGO_CFG_TARGET_OS");
         match target_os.as_deref() {
             Ok("ios") | Ok("emscripten") => return true,
-            Ok("macos") => {
-                #[cfg(before_api = "4.2")]
-                return true;
-            }
             _ => {}
         }
     }
@@ -123,7 +119,7 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         | "JavaClassWrapper"
         | "JNISingleton"
         | "JavaClass"
-        // Only on WASM.
+        // Only on Wasm.
         | "JavaScriptBridge"
         | "JavaScriptObject"
 
@@ -131,24 +127,7 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         | "Thread"
         | "Mutex"
         | "Semaphore"
-
-        // Internal classes that were removed in https://github.com/godotengine/godot/pull/80852, but are still available for API < 4.2.
-        | "FramebufferCacheRD"
-        | "GDScriptEditorTranslationParserPlugin"
-        | "GDScriptNativeClass"
-        | "GLTFDocumentExtensionPhysics"
-        | "GLTFDocumentExtensionTextureWebP"
-        | "GodotPhysicsServer2D"
-        | "GodotPhysicsServer3D"
-        | "IPUnix"
-        | "MovieWriterMJPEG"
-        | "MovieWriterPNGWAV"
-        | "ResourceFormatImporterSaver"
         => true,
-
-        // Previously loaded lazily; in 4.2 it loads at the Scene level: https://github.com/godotengine/godot/pull/81305
-        | "ThemeDB"
-        => cfg!(before_api = "4.2"),
 
         // Reintroduced in 4.3: https://github.com/godotengine/godot/pull/80214
         | "UniformSetCacheRD"
@@ -156,6 +135,12 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
 
         _ => false
     }
+
+    // Older special cases:
+    // * ThemeDB was loaded lazily; from 4.2 it loads at the Scene level: https://github.com/godotengine/godot/pull/81305
+    // * Internal classes were accidentally exposed < 4.2: https://github.com/godotengine/godot/pull/80852: FramebufferCacheRD,
+    //   GDScriptEditorTranslationParserPlugin, GDScriptNativeClass, GLTFDocumentExtensionPhysics, GLTFDocumentExtensionTextureWebP,
+    //   GodotPhysicsServer2D, GodotPhysicsServer3D, IPUnix, MovieWriterMJPEG, MovieWriterPNGWAV, ResourceFormatImporterSaver
 }
 
 #[rustfmt::skip]

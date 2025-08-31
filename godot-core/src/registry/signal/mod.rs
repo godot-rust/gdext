@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// Whole module only available in Godot 4.2+.
-
 mod connect_builder;
 mod connect_handle;
 mod signal_object;

@@ -71,11 +71,7 @@ impl ClassNameSource {
     fn to_string_name(&self) -> StringName {
         match self {
             ClassNameSource::Owned(s) => StringName::from(s),
-
-            #[cfg(since_api = "4.2")]
             ClassNameSource::Borrowed(cstr) => StringName::from(*cstr),
-            #[cfg(before_api = "4.2")] // no C-string support for StringName.
-            ClassNameSource::Borrowed(cstr) => StringName::from(ascii_cstr_to_str(cstr)),
         }
     }
 

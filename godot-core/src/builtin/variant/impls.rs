@@ -6,14 +6,16 @@
  */
 
 use godot_ffi as sys;
+use sys::GodotFfi;
 
-use super::*;
 use crate::builtin::*;
 use crate::global;
 use crate::meta::error::{ConvertError, FromVariantError};
+use crate::meta::sealed::Sealed;
 use crate::meta::{
     ArrayElement, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo, RefArg,
 };
+use crate::task::{impl_dynamic_send, DynamicSend, IntoDynamicSend, ThreadConfined};
 
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
 
@@ -25,6 +27,7 @@ use crate::meta::{
 // that requires the pointer to be initialized. But some other types will cause a memory leak in 4.1 if initialized.
 //
 // Therefore, we can use `init` to indicate when it must be initialized in 4.0.
+// TODO(v0.4): see if above comment is still relevant for 4.2+.
 macro_rules! impl_ffi_variant {
     (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
         impl_ffi_variant!(@impls by_ref; $T, $from_fn, $to_fn $(; $GodotTy)?);
@@ -152,72 +155,71 @@ mod impls {
     impl_ffi_variant!(ref Dictionary, dictionary_to_variant, dictionary_from_variant);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
+}
 
-    #[cfg(since_api = "4.2")]
-    mod api_4_2 {
-        use crate::builtin::Array;
-        use crate::meta::ArrayElement;
-        use crate::meta::sealed::Sealed;
-        use crate::task::{impl_dynamic_send, DynamicSend, IntoDynamicSend, ThreadConfined};
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Async trait support
 
+impl<T: ArrayElement> Sealed for ThreadConfined<Array<T>> {}
 
-        impl_dynamic_send!(
-            Send;
-            bool, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64
-        );
-
-        impl_dynamic_send!(
-            Send;
-            builtin::{
-                StringName, Transform2D, Transform3D, Vector2, Vector2i, Vector2Axis,
-                Vector3, Vector3i, Vector3Axis, Vector4, Vector4i, Rect2, Rect2i, Plane, Quaternion, Aabb, Basis, Projection, Color, Rid
-            }
-        );
-
-        impl<T: ArrayElement> Sealed for ThreadConfined<Array<T>> {}
-
-        unsafe impl<T:ArrayElement> DynamicSend for ThreadConfined<Array<T>> {
-            type Inner = Array<T>;
-            fn extract_if_safe(self) -> Option<Self::Inner> {
-                self.extract()
-            }
-        }
-
-        impl<T: ArrayElement> IntoDynamicSend for Array<T> {
-            type Target = ThreadConfined<Array<T>>;
-            fn into_dynamic_send(self) -> Self::Target {
-                crate::task::ThreadConfined::new(self)
-            }
-        }
-
-        impl_dynamic_send!(
-            !Send;
-            Variant, GString, Dictionary, Callable, NodePath, PackedByteArray, PackedInt32Array, PackedInt64Array, PackedFloat32Array,
-            PackedFloat64Array, PackedStringArray, PackedVector2Array, PackedVector3Array, PackedColorArray, Signal
-        );
-
-        // This should be kept in sync with crate::registry::signal::variadic.
-        impl_dynamic_send!(tuple; );
-        impl_dynamic_send!(tuple; arg1: A1);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8);
-        impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9);
-    }
-
-    #[cfg(since_api = "4.3")]
-    mod api_4_3 {
-        use crate::task::impl_dynamic_send;
-
-
-
-        impl_dynamic_send!(!Send; PackedVector4Array);
+unsafe impl<T: ArrayElement> DynamicSend for ThreadConfined<Array<T>> {
+    type Inner = Array<T>;
+    fn extract_if_safe(self) -> Option<Self::Inner> {
+        self.extract()
     }
 }
+
+impl<T: ArrayElement> IntoDynamicSend for Array<T> {
+    type Target = ThreadConfined<Array<T>>;
+    fn into_dynamic_send(self) -> Self::Target {
+        ThreadConfined::new(self)
+    }
+}
+
+impl_dynamic_send!(
+    Send;
+    bool, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64
+);
+
+impl_dynamic_send!(
+    Send;
+    StringName, Color, Rid,
+    Vector2, Vector2i, Vector2Axis,
+    Vector3, Vector3i, Vector3Axis,
+    Vector4, Vector4i,
+    Rect2, Rect2i, Aabb,
+    Transform2D, Transform3D, Basis,
+    Plane, Quaternion, Projection
+);
+
+impl_dynamic_send!(
+    !Send;
+    Variant, NodePath, GString, Dictionary, Callable, Signal,
+    PackedByteArray, PackedInt32Array, PackedInt64Array, PackedFloat32Array, PackedFloat64Array, PackedStringArray,
+    PackedVector2Array, PackedVector3Array, PackedColorArray
+);
+
+// This should be kept in sync with crate::registry::signal::variadic.
+impl_dynamic_send!(tuple; );
+impl_dynamic_send!(tuple; arg1: A1);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8);
+impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9);
+
+#[cfg(since_api = "4.3")]
+mod api_4_3 {
+    use crate::task::impl_dynamic_send;
+
+    impl_dynamic_send!(!Send; PackedVector4Array);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Internal verification
 
 // Compile time check that we cover all the Variant types with trait implementations for:
 // - IntoDynamicSend
@@ -228,12 +230,6 @@ const _: () = {
     use crate::classes::Object;
     use crate::obj::{Gd, IndexEnum};
 
-    #[cfg(before_api = "4.2")]
-    const fn variant_type<T: GodotType + ArrayElement>() -> VariantType {
-        <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()
-    }
-
-    #[cfg(since_api = "4.2")]
     const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + ArrayElement>(
     ) -> VariantType {
         <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()

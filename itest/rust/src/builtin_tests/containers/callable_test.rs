@@ -213,7 +213,6 @@ fn callable_callv() {
     assert_eq!(Callable::invalid().callv(&varray![1, 2, 3]), Variant::nil());
 }
 
-#[cfg(since_api = "4.2")]
 #[itest]
 fn callable_call() {
     // See callable_callv() for future improvements.
@@ -247,7 +246,6 @@ fn callable_call_return() {
     assert_eq!(callable.callv(&varray!["string"]), Variant::nil());
 }
 
-#[cfg(since_api = "4.2")]
 #[itest]
 fn callable_call_engine() {
     let obj = Node2D::new_alloc();
@@ -281,7 +279,6 @@ fn callable_bindv() {
     );
 }
 
-#[cfg(since_api = "4.2")]
 #[itest]
 fn callable_bind() {
     let obj = CallableTestObj::new_gd();
@@ -294,7 +291,6 @@ fn callable_bind() {
     );
 }
 
-#[cfg(since_api = "4.2")]
 #[itest]
 fn callable_unbind() {
     let obj = CallableTestObj::new_gd();
@@ -371,7 +367,7 @@ impl CallableRefcountTest {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests and infrastructure for custom callables
 
-#[cfg(since_api = "4.2")]
+// Used to be #[cfg(since_api = "4.2")], could maybe be moved to own file.
 pub mod custom_callable {
     use std::fmt;
     use std::hash::Hash;
@@ -648,7 +644,6 @@ pub mod custom_callable {
         assert!(signal.is_connected(&identical_callable));
     }
 
-    #[cfg(since_api = "4.2")]
     #[itest]
     fn callable_from_once_fn() {
         let callable = Callable::__once_fn("once_test", move |_| Ok(42.to_variant()));

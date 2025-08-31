@@ -150,7 +150,6 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// See also in the Godot docs:
         /// * [`Object::_validate_property`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-validate-property)
-        #[cfg(since_api = "4.2")]
         fn validate_property(&self, property: &mut crate::meta::PropertyInfo) {
             unimplemented!()
         }

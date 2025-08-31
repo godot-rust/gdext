@@ -259,14 +259,12 @@ pub(super) struct RefcBased {
 #[godot_api]
 impl IRefCounted for RefcBased {
     fn init(base: Base<RefCounted>) -> Self {
-        #[cfg(since_api = "4.2")]
         base.to_init_gd(); // Immediately dropped.
         Self { base }
     }
 }
 
 // Only needed in base_init_test.rs.
-#[cfg(since_api = "4.2")]
 #[godot_api(no_typed_signals)]
 impl RefcBased {
     /// Used in `base_init_test.rs` to test that a base pointer can be extracted during initialization.

@@ -5,12 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! # Modern 4.1+ API
+//! # Modern 4.2+ API
 //!
 //! The extension entry point is passed `get_proc_address` function pointer, which can be used to load all other
 //! GDExtension FFI functions dynamically. This is a departure from the previous struct-based approach.
 //!
-//! No longer supports Godot 4.0.x.
+//! No longer supports Godot 4.0.x or 4.1.x.
 //!
 //! Relevant upstream PR: <https://github.com/godotengine/godot/pull/76406>.
 
@@ -84,11 +84,11 @@ pub fn ensure_static_runtime_compatibility(
         }
     }
 
-    // From here we can assume Godot 4.1+. We need to make sure that the runtime version is >= static version.
+    // From here we can assume Godot 4.2+. We need to make sure that the runtime version is >= static version.
     // Lexicographical tuple comparison does that.
     let static_version = crate::GdextBuild::godot_static_version_triple();
 
-    // SAFETY: We are now reasonably sure the runtime version is 4.1.
+    // SAFETY: We are now reasonably sure the runtime version is 4.2+.
     let runtime_version_raw = unsafe { runtime_version_inner(get_proc_address) };
 
     // SAFETY: Godot provides this version struct.

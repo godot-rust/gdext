@@ -207,7 +207,7 @@ fn dynamic_call_with_panic() {
 fn dynamic_call_with_too_few_args_engine() {
     // Disabled in release (parameter count is unchecked by engine).
     // Before 4.2, the Godot check had a bug: https://github.com/godotengine/godot/pull/80844.
-    if runs_release() || cfg!(before_api = "4.2") {
+    if runs_release() {
         return;
     }
 
@@ -238,7 +238,7 @@ fn dynamic_call_with_too_few_args_engine() {
 fn dynamic_call_with_too_many_args_engine() {
     // Disabled in release (parameter count is unchecked by engine).
     // Before 4.2, the Godot check had a bug: https://github.com/godotengine/godot/pull/80844.
-    if runs_release() || cfg!(before_api = "4.2") {
+    if runs_release() {
         return;
     }
 

@@ -17,11 +17,6 @@ fn main() {
 
     // [version-sync] [[
     //  [line] \tif cfg!(feature = "api-$kebabVersion") { count += 1; }
-    if cfg!(feature = "api-4-1") { count += 1; }
-    if cfg!(feature = "api-4-1-1") { count += 1; }
-    if cfg!(feature = "api-4-1-2") { count += 1; }
-    if cfg!(feature = "api-4-1-3") { count += 1; }
-    if cfg!(feature = "api-4-1-4") { count += 1; }
     if cfg!(feature = "api-4-2") { count += 1; }
     if cfg!(feature = "api-4-2-1") { count += 1; }
     if cfg!(feature = "api-4-2-2") { count += 1; }
