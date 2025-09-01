@@ -932,6 +932,38 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///     pub fn two(&self) { }
 /// }
 /// ```
+///
+/// `#[signal]` and `#[rpc]` attributes are not currently supported in secondary `impl` blocks.
+///
+///```compile_fail
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(init, base=Node)]
+/// # pub struct MyNode { base: Base<Node> }
+/// # // Without primary `impl` block the compilation will always fail (no matter if #[signal] attribute is present or not)
+/// # #[godot_api]
+/// # impl MyNode {}
+/// #[godot_api(secondary)]
+/// impl MyNode {
+///     #[signal]
+///     fn my_signal();
+/// }
+/// ```
+///
+///```compile_fail
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(init, base=Node)]
+/// # pub struct MyNode { base: Base<Node> }
+/// # // Without primary `impl` block the compilation will always fail (no matter if #[rpc] attribute is present or not).
+/// # #[godot_api]
+/// # impl MyNode {}
+/// #[godot_api(secondary)]
+/// impl MyNode {
+///     #[rpc]
+///     fn foo(&mut self) {}
+/// }
+/// ```
 #[doc(
     alias = "func",
     alias = "rpc",
