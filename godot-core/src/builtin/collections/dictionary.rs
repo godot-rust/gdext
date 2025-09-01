@@ -141,6 +141,40 @@ impl Dictionary {
         self.as_inner().get(&key.to_variant(), &Variant::nil())
     }
 
+    /// Gets a value and ensures the key is set, inserting default if key is absent.
+    ///
+    /// If the `key` exists in the dictionary, this behaves like [`get()`][Self::get], and the existing value is returned.
+    /// Otherwise, the `default` value is inserted and returned.
+    ///
+    /// # Compatibility
+    /// This function is natively available from Godot 4.3 onwards, we provide a polyfill for older versions.
+    ///
+    /// _Godot equivalent: `get_or_add`_
+    #[doc(alias = "get_or_add")]
+    pub fn get_or_insert<K: ToGodot, V: ToGodot>(&mut self, key: K, default: V) -> Variant {
+        self.debug_ensure_mutable();
+
+        let key_variant = key.to_variant();
+        let default_variant = default.to_variant();
+
+        // Godot 4.3+: delegate to native get_or_add().
+        #[cfg(since_api = "4.3")]
+        {
+            self.as_inner().get_or_add(&key_variant, &default_variant)
+        }
+
+        // Polyfill for Godot versions before 4.3.
+        #[cfg(before_api = "4.3")]
+        {
+            if let Some(existing_value) = self.get(key_variant.clone()) {
+                existing_value
+            } else {
+                self.set(key_variant, default_variant.clone());
+                default_variant
+            }
+        }
+    }
+
     /// Returns `true` if the dictionary contains the given key.
     ///
     /// _Godot equivalent: `has`_
