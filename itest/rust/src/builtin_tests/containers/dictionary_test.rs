@@ -226,6 +226,39 @@ fn dictionary_at() {
 }
 
 #[itest]
+fn dictionary_get_or_insert() {
+    let mut dict = vdict! {
+        "existing": 11,
+        "existing_nil": Variant::nil(),
+    };
+
+    // Existing key -> return old value.
+    let result = dict.get_or_insert("existing", 22);
+    assert_eq!(result, 11.to_variant());
+    assert_eq!(dict.at("existing"), 11.to_variant());
+
+    // New key -> insert + return new value.
+    let result = dict.get_or_insert("new_key", Variant::nil());
+    assert_eq!(result, Variant::nil());
+    assert_eq!(dict.at("new_key"), Variant::nil());
+
+    // Existing key, with NIL value -> return old value.
+    let result = dict.get_or_insert("existing_nil", "string");
+    assert_eq!(result, Variant::nil());
+    assert_eq!(dict.at("existing_nil"), Variant::nil());
+
+    // New NIL key -> insert + return new value.
+    let result = dict.get_or_insert(Variant::nil(), 11);
+    assert_eq!(result, 11.to_variant());
+    assert_eq!(dict.at(Variant::nil()), 11.to_variant());
+
+    // Existing NIL key -> return old value.
+    let result = dict.get_or_insert(Variant::nil(), 22);
+    assert_eq!(result, 11.to_variant());
+    assert_eq!(dict.at(Variant::nil()), 11.to_variant());
+}
+
+#[itest]
 fn dictionary_set() {
     let mut dictionary = vdict! { "zero": 0, "one": 1 };
 
