@@ -266,6 +266,13 @@ fn process_godot_fns(
 
         match attr.ty {
             ItemAttrType::Func(func, rpc_info) => {
+                if rpc_info.is_some() && is_secondary_impl {
+                    return bail!(
+                        &function,
+                        "#[rpc] is currently not supported in secondary impl blocks",
+                    )?;
+                }
+
                 let external_attributes = function.attributes.clone();
 
                 // Transforms the following.
