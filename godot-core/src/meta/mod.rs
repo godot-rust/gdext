@@ -79,7 +79,6 @@ pub use crate::arg_into_owned;
 
 // Crate-local re-exports
 mod reexport_crate {
-    pub(crate) use super::element_type::ArrayTypeInfo;
     pub(crate) use super::traits::{
         element_godot_type_name, element_variant_type, ffi_variant_type, ExtVariantType,
         GodotFfiVariant, GodotNullableFfi,

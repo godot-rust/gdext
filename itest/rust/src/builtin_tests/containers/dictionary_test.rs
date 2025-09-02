@@ -7,10 +7,12 @@
 
 use std::collections::{HashMap, HashSet};
 
-use godot::builtin::{varray, vdict, Dictionary, Variant};
-use godot::meta::{FromGodot, ToGodot};
+use godot::builtin::{varray, vdict, Dictionary, Variant, VariantType};
+use godot::classes::RefCounted;
+use godot::meta::{ElementType, FromGodot, ToGodot};
+use godot::obj::NewGd;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::{assert_match, create_gdscript, expect_panic, itest};
 
 #[itest]
 fn dictionary_default() {
@@ -735,4 +737,84 @@ fn dictionary_should_format_with_display() {
         "three": Variant::nil()
     };
     assert_eq!(format!("{d}"), "{ one: 1, two: true, three: <null> }")
+}
+
+#[itest]
+#[cfg(since_api = "4.4")]
+fn dictionary_element_type() {
+    use godot::meta::ElementType;
+
+    // Test untyped dictionary
+    let untyped = Dictionary::new();
+    assert!(
+        matches!(untyped.key_element_type(), ElementType::Untyped),
+        "expected untyped key for Dictionary"
+    );
+    assert!(
+        matches!(untyped.value_element_type(), ElementType::Untyped),
+        "expected untyped value for Dictionary"
+    );
+}
+
+#[itest]
+#[cfg(since_api = "4.4")]
+fn dictionary_element_type_custom_script() {
+    let gdscript = create_gdscript(
+        r#"
+extends RefCounted
+class_name CustomScriptForDictionaries
+
+func variant_variant_dict() -> Dictionary:
+    var dict := {}
+    dict["key1"] = self
+    return dict
+
+func builtin_variant_dict() -> Dictionary[String, Variant]:
+    return { "key1": 1, "key2": 2 }
+
+func builtin_class_dict() -> Dictionary[Color, RefCounted]:
+    return { Color.RED: RefCounted.new() }
+
+func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
+    return {"key": self}
+"#,
+    );
+
+    let mut object = RefCounted::new_gd();
+    object.set_script(&gdscript.to_variant());
+
+    // Test all 4 ElementType variants in alternating key/value pattern.
+
+    // 1) Dictionary.
+    let dict = object.call("variant_variant_dict", &[]).to::<Dictionary>();
+    assert_match!(dict.key_element_type(), ElementType::Untyped);
+    assert_match!(dict.value_element_type(), ElementType::Untyped);
+
+    // 2) Dictionary[String, Variant].
+    let dict = object.call("builtin_variant_dict", &[]).to::<Dictionary>();
+    assert_match!(
+        dict.key_element_type(),
+        ElementType::Builtin(VariantType::STRING)
+    );
+    assert_match!(dict.value_element_type(), ElementType::Untyped);
+
+    // 3) Dictionary[Color, RefCounted].
+    let dict = object.call("builtin_class_dict", &[]).to::<Dictionary>();
+    assert_match!(
+        dict.key_element_type(),
+        ElementType::Builtin(VariantType::COLOR)
+    );
+    assert_match!(dict.value_element_type(), ElementType::Class(class_name));
+    assert_eq!(class_name.to_string(), "RefCounted");
+
+    // 4) Dictionary[Variant, CustomScriptForDictionaries].
+    let dict = object.call("variant_script_dict", &[]).to::<Dictionary>();
+    assert_match!(dict.key_element_type(), ElementType::Untyped);
+    assert_match!(dict.value_element_type(), ElementType::ScriptClass(script));
+    let script = script.script().expect("script object should be alive");
+    assert_eq!(script, gdscript.upcast());
+    assert_eq!(
+        script.get_global_name(),
+        "CustomScriptForDictionaries".into()
+    );
 }

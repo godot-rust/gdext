@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cell::Cell;
 use std::marker::PhantomData;
 use std::{fmt, ptr};
 
@@ -13,7 +14,7 @@ use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use crate::builtin::{inner, Variant, VariantArray};
-use crate::meta::{ExtVariantType, FromGodot, ToGodot};
+use crate::meta::{ElementType, ExtVariantType, FromGodot, ToGodot};
 
 /// Godot's `Dictionary` type.
 ///
@@ -80,11 +81,27 @@ use crate::meta::{ExtVariantType, FromGodot, ToGodot};
 /// [`Dictionary` (stable)](https://docs.godotengine.org/en/stable/classes/class_dictionary.html)
 pub struct Dictionary {
     opaque: OpaqueDictionary,
+
+    /// Lazily computed and cached element type information for the key type.
+    ///
+    /// `ElementType::Untyped` means either "not yet queried" or "queried but array was untyped". Since GDScript can call
+    /// `set_type()` at any time, we must re-query FFI whenever cached value is `Untyped`.
+    cached_key_type: Cell<ElementType>,
+
+    /// Lazily computed and cached element type information for the key type.
+    ///
+    /// `ElementType::Untyped` means either "not yet queried" or "queried but array was untyped". Since GDScript can call
+    /// `set_type()` at any time, we must re-query FFI whenever cached value is `Untyped`.
+    cached_value_type: Cell<ElementType>,
 }
 
 impl Dictionary {
     fn from_opaque(opaque: OpaqueDictionary) -> Self {
-        Self { opaque }
+        Self {
+            opaque,
+            cached_key_type: Cell::new(ElementType::Untyped),
+            cached_value_type: Cell::new(ElementType::Untyped),
+        }
     }
 
     /// Constructs an empty `Dictionary`.
@@ -318,7 +335,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.duplicate(true)`_
     pub fn duplicate_deep(&self) -> Self {
-        self.as_inner().duplicate(true)
+        self.as_inner().duplicate(true).with_cache(self)
     }
 
     /// Shallow copy, copying elements but sharing nested collections.
@@ -331,7 +348,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_
     pub fn duplicate_shallow(&self) -> Self {
-        self.as_inner().duplicate(false)
+        self.as_inner().duplicate(false).with_cache(self)
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
@@ -402,6 +419,39 @@ impl Dictionary {
         );
     }
 
+    /// Returns the runtime element type information for keys in this dictionary.
+    ///
+    /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
+    ///
+    /// The caching strategy is best-effort. In the current implementation, untyped dictionaries are always re-queried over FFI, since
+    /// it's possible to call `set_key_type()`/`set_value_type()` in Godot. Once typed, the value is cached.
+    #[cfg(since_api = "4.4")]
+    pub fn key_element_type(&self) -> ElementType {
+        ElementType::get_or_compute_cached(
+            &self.cached_key_type,
+            || self.as_inner().get_typed_key_builtin(),
+            || self.as_inner().get_typed_key_class_name(),
+            || self.as_inner().get_typed_key_script(),
+        )
+    }
+
+    /// Returns the runtime element type information for values in this dictionary.
+    ///
+    /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
+    ///
+    /// The result is cached when the dictionary values are typed. If the values are untyped, this method
+    /// will always re-query Godot's FFI since GDScript may call `set_type()` at any time.
+    /// Repeated calls on typed dictionaries will not result in multiple Godot FFI roundtrips.
+    #[cfg(since_api = "4.4")]
+    pub fn value_element_type(&self) -> ElementType {
+        ElementType::get_or_compute_cached(
+            &self.cached_value_type,
+            || self.as_inner().get_typed_value_builtin(),
+            || self.as_inner().get_typed_value_class_name(),
+            || self.as_inner().get_typed_value_script(),
+        )
+    }
+
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerDictionary<'_> {
         inner::InnerDictionary::from_outer(self)
@@ -416,6 +466,17 @@ impl Dictionary {
         // Never a null pointer, since entry either existed already or was inserted above.
         // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
         unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) }
+    }
+
+    /// Execute a function that creates a new Dictionary, transferring cached element types if available.
+    ///
+    /// This is a convenience helper for methods that create new Dictionary instances and want to preserve
+    /// cached type information to avoid redundant FFI calls.
+    fn with_cache(self, source: &Self) -> Self {
+        // Transfer both key and value type caches independently
+        ElementType::transfer_cache(&source.cached_key_type, &self.cached_key_type);
+        ElementType::transfer_cache(&source.cached_value_type, &self.cached_value_type);
+        self
     }
 }
 
@@ -477,13 +538,14 @@ impl fmt::Display for Dictionary {
 impl Clone for Dictionary {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid dictionary, since we have a reference that keeps it alive.
-        unsafe {
+        let result = unsafe {
             Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(dictionary_construct_copy);
                 let args = [self.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
-        }
+        };
+        result.with_cache(self)
     }
 }
 

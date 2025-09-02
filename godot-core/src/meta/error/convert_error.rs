@@ -11,7 +11,7 @@ use std::fmt;
 use godot_ffi::VariantType;
 
 use crate::builtin::Variant;
-use crate::meta::{ArrayTypeInfo, ClassName, ToGodot};
+use crate::meta::{ClassName, ElementType, ToGodot};
 
 type Cause = Box<dyn Error + Send + Sync>;
 
@@ -181,8 +181,8 @@ impl fmt::Display for ErrorKind {
 pub(crate) enum FromGodotError {
     /// Destination `Array<T>` has different type than source's runtime type.
     BadArrayType {
-        expected: ArrayTypeInfo,
-        actual: ArrayTypeInfo,
+        expected: ElementType,
+        actual: ElementType,
     },
 
     /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
