@@ -5,9 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::sync::Mutex;
-
 use godot::init::{gdextension, ExtensionLibrary, InitLevel};
+use godot::sys::Global;
 
 mod benchmarks;
 mod builtin_tests;
@@ -20,7 +19,7 @@ mod register_tests;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Entry point
 
-static LEVELS_SEEN: Mutex<Vec<InitLevel>> = Mutex::new(Vec::new());
+static LEVELS_SEEN: Global<Vec<InitLevel>> = Global::default();
 
 #[gdextension(entry_symbol = itest_init)]
 unsafe impl ExtensionLibrary for framework::IntegrationTests {
@@ -28,14 +27,17 @@ unsafe impl ExtensionLibrary for framework::IntegrationTests {
         InitLevel::Core
     }
     fn on_level_init(level: InitLevel) {
-        LEVELS_SEEN.lock().unwrap().push(level);
+        LEVELS_SEEN.lock().push(level);
         match level {
             InitLevel::Core => {
-                // make sure we can access early core singletons
+                // Make sure we can access early core singletons.
                 object_tests::test_early_core_singletons();
             }
             InitLevel::Servers => {}
-            InitLevel::Scene => {}
+            InitLevel::Scene => {
+                // Make sure we can access server singletons by now.
+                object_tests::test_general_singletons();
+            }
             InitLevel::Editor => {}
         }
     }
@@ -44,7 +46,7 @@ unsafe impl ExtensionLibrary for framework::IntegrationTests {
 // Ensure that we saw all the init levels expected.
 #[crate::framework::itest]
 fn observed_all_init_levels() {
-    let levels_seen = LEVELS_SEEN.lock().unwrap().clone();
+    let levels_seen = LEVELS_SEEN.lock().clone();
     assert_eq!(levels_seen[0], InitLevel::Core);
     assert_eq!(levels_seen[1], InitLevel::Servers);
     assert_eq!(levels_seen[2], InitLevel::Scene);

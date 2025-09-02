@@ -1003,7 +1003,7 @@ pub fn get_derived_virtual_method_presence(class_name: &TyName, godot_method_nam
 ///   - register_server_singletons() ...another weird one.
 ///   - Autoloads, etc.
 #[rustfmt::skip]
-pub fn classify_codegen_level(class_name: &str, godot_classification: &str) -> Option<ClassCodegenLevel> {
+pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
     let level = match class_name {
         // See register_core_types() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
         // which is called before Core level is initialized.
@@ -1017,8 +1017,8 @@ pub fn classify_codegen_level(class_name: &str, godot_classification: &str) -> O
         | "ProjectSettings" | "Engine" | "OS" | "Time"
         => ClassCodegenLevel::Core,
 
-        // Anything that comes from another extension could be available in Core but since there would be load order dependencies,
-        // instead don't allow calls until Server level.
+        // Symbols from another extension could be available in Core, but since GDExtension can currently not guarantee
+        // the order of different extensions being loaded, we prevent implicit dependencies and require Server.
         | "OpenXRExtensionWrapperExtension" 
         => ClassCodegenLevel::Servers,
 
@@ -1050,18 +1050,8 @@ pub fn classify_codegen_level(class_name: &str, godot_classification: &str) -> O
         "ResourceImporterOggVorbis" | "ResourceImporterMP3" if cfg!(before_api = "4.3") 
         => ClassCodegenLevel::Editor,
 
-        _ => {
-            // NOTE: Right now, Godot reports everything that's not "editor" as "core" in `extension_api.json`. 
-            // If it wasn't picked up by the whitelist, and Godot reports it as "core" we will treat it as a scene class.
-            match godot_classification {
-                "editor" => ClassCodegenLevel::Editor,
-                "core" => ClassCodegenLevel::Scene,
-                _ => {
-                    // we don't know this classification
-                    return None;
-                }
-            }
-        }
+        // No special-case override for this class.
+        _ => return None,
     };
     Some(level)
 }

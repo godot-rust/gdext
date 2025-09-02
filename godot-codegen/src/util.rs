@@ -53,22 +53,25 @@ pub fn make_sname_ptr(identifier: &str) -> TokenStream {
 pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
     // NOTE: We have to use a whitelist of known classes because Godot doesn't separate these out
     // beyond "editor" and "core" and some classes are also  mis-classified in the JSON depending on the Godot version.
-    if let Some(forced_classification) =
-        special_cases::classify_codegen_level(&class.name, &class.api_type)
-    {
+    if let Some(forced_classification) = special_cases::classify_codegen_level(&class.name) {
         return forced_classification;
     }
 
-    // Fall back to just trusting the categorization. Presently, Godot only reports "core" and "editor".
-    for level in ClassCodegenLevel::with_tables() {
-        if level.lower() == class.api_type {
-            return level;
+    // NOTE: Right now, Godot reports everything that's not "editor" as "core" in `extension_api.json`.
+    // If it wasn't picked up by classify_codegen_level, and Godot reports it as "core" we will treat it as a scene class.
+    match class.api_type.as_str() {
+        "editor" => ClassCodegenLevel::Editor,
+        "core" => ClassCodegenLevel::Scene,
+        "extension" => ClassCodegenLevel::Scene,
+        "editor_extension" => ClassCodegenLevel::Editor,
+        _ => {
+            // we don't know this classification
+            panic!(
+                "class {} has unknown API type {}",
+                class.name, class.api_type
+            );
         }
     }
-    panic!(
-        "class {} has unknown API type {}",
-        class.name, class.api_type
-    );
 }
 
 pub fn ident(s: &str) -> Ident {

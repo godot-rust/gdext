@@ -140,7 +140,6 @@ const SELECTED_CLASSES: &[&str] = &[
     "ClassDB",
     "Engine",
     "OS",
-    "ProjectSettings",
     //
     // Editor plugins
     "EditorPlugin",
