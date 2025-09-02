@@ -44,8 +44,8 @@
 //! - [`AsObjectArg<T>`] is a more specialized version of `AsArg` that is used for object arguments, i.e. `Gd<T>`.
 
 mod args;
-mod array_type_info;
 mod class_name;
+mod element_type;
 mod godot_convert;
 mod method_info;
 mod param_tuple;
@@ -62,6 +62,7 @@ pub mod inspect;
 // Public re-exports
 pub use args::*;
 pub use class_name::ClassName;
+pub use element_type::{ElementScript, ElementType};
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use method_info::MethodInfo;
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple};
@@ -78,7 +79,7 @@ pub use crate::arg_into_owned;
 
 // Crate-local re-exports
 mod reexport_crate {
-    pub(crate) use super::array_type_info::ArrayTypeInfo;
+    pub(crate) use super::element_type::ArrayTypeInfo;
     pub(crate) use super::traits::{
         element_godot_type_name, element_variant_type, ffi_variant_type, ExtVariantType,
         GodotFfiVariant, GodotNullableFfi,
