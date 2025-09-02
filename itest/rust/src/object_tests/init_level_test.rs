@@ -60,7 +60,7 @@ pub fn test_early_core_singletons() {
 }
 
 // Runs during scene init level to ensure we can access general singletons in the Scene init call for the extension as a whole.
-pub fn test_general_singletons() {
+pub fn test_server_singletons() {
     let mut rendering = godot::classes::RenderingServer::singleton();
     assert!(rendering.get_test_cube() != godot::builtin::Rid::Invalid);
 }

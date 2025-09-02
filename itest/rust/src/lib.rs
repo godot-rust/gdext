@@ -33,11 +33,11 @@ unsafe impl ExtensionLibrary for framework::IntegrationTests {
                 // Make sure we can access early core singletons.
                 object_tests::test_early_core_singletons();
             }
-            InitLevel::Servers => {}
-            InitLevel::Scene => {
+            InitLevel::Servers => {
                 // Make sure we can access server singletons by now.
-                object_tests::test_general_singletons();
+                object_tests::test_server_singletons();
             }
+            InitLevel::Scene => {}
             InitLevel::Editor => {}
         }
     }

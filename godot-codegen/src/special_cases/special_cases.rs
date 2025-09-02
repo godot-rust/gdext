@@ -1036,7 +1036,6 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
         | "RenderSceneData" | "RenderSceneDataExtension"
         => ClassCodegenLevel::Servers,
         // Declared final (un-inheritable) in Rust, but those are still servers.
-        // NOTE: while these _types_ are available at Server level, the singletons themselves are actually not available until _even after_ Editor level.
         | "AudioServer" | "CameraServer" | "NavigationServer2D" | "NavigationServer3D" | "RenderingServer" | "TranslationServer" | "XRServer" | "DisplayServer"
         => ClassCodegenLevel::Servers,
 
