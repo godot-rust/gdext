@@ -8,8 +8,8 @@
 use std::collections::HashSet;
 use std::panic;
 
-use godot::classes::{Engine, Node, Os, SceneTree};
-use godot::obj::Gd;
+use godot::classes::{Engine, GDScript, Node, Os, SceneTree};
+use godot::obj::{Gd, NewGd};
 use godot::sys;
 
 mod bencher;
@@ -308,6 +308,14 @@ pub fn suppress_godot_print(mut f: impl FnMut()) {
 /// See <https://github.com/godotengine/godot/issues/86264>.
 pub fn runs_release() -> bool {
     !Os::singleton().is_debug_build()
+}
+
+/// Create a `GDScript` script from code, compiles and returns it.
+pub fn create_gdscript(code: &str) -> Gd<GDScript> {
+    let mut script = GDScript::new_gd();
+    script.set_source_code(code);
+    script.reload(); // Necessary so compile is triggered.
+    script
 }
 
 /// Workaround for tests of the form `assert!(a == a)`.

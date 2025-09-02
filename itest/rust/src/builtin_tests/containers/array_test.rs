@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot::meta::ElementType;
 use godot::prelude::*;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::{create_gdscript, expect_panic, itest};
 
 #[itest]
 fn array_default() {
@@ -576,6 +577,78 @@ fn __array_type_inference() {
     let d = ArrayTest::new_gd();
     let _array = array![&c, &d];
 }
+
+#[itest]
+fn array_element_type() {
+    // Untyped array.
+    let untyped = VariantArray::new();
+    assert!(
+        matches!(untyped.element_type(), ElementType::Untyped),
+        "expected untyped array for VariantArray"
+    );
+
+    let builtin_int = Array::<i64>::new();
+    if let ElementType::Builtin(variant_type) = builtin_int.element_type() {
+        assert_eq!(variant_type, VariantType::INT);
+    } else {
+        panic!("expected built-in type for Array<i64>");
+    }
+
+    let builtin_string = Array::<GString>::new();
+    if let ElementType::Builtin(variant_type) = builtin_string.element_type() {
+        assert_eq!(variant_type, VariantType::STRING);
+    } else {
+        panic!("expected built-in type for Array<GString>");
+    }
+
+    let class_array = Array::<Gd<Node>>::new();
+    if let ElementType::Class(class_name) = class_array.element_type() {
+        assert_eq!(class_name.to_string(), "Node");
+    } else {
+        panic!("expected class type for Array<Gd<Node>>");
+    }
+
+    let extension_class_array = Array::<Gd<ArrayTest>>::new();
+    if let ElementType::Class(class_name) = extension_class_array.element_type() {
+        assert_eq!(class_name, ArrayTest::class_name());
+    } else {
+        panic!("expected class type for Array<Gd<ArrayTest>>")
+    }
+}
+
+#[itest]
+fn array_element_type_custom_script() {
+    let gdscript = create_gdscript(
+        r#"
+extends RefCounted
+class_name CustomScriptForArrays
+
+func make_array() -> Array[CustomScriptForArrays]:
+    return [self]
+"#,
+    );
+
+    let mut object = RefCounted::new_gd();
+    object.set_script(&gdscript.to_variant());
+
+    // Invoke script to return an array of itself.
+    let result = object.call("make_array", &[]);
+    let array = result.to::<Array<Gd<RefCounted>>>();
+    let element_type = array.element_type();
+
+    let ElementType::ScriptClass(script) = element_type else {
+        panic!("expected CustomScript for array");
+    };
+
+    let script = script.script().expect("script object should be alive");
+    assert_eq!(script, gdscript.upcast());
+    assert_eq!(script.get_name(), GString::new()); // Resource name.
+    assert_eq!(script.get_global_name(), "CustomScriptForArrays".into());
+    assert_eq!(script.get_instance_base_type(), "RefCounted".into());
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Class definitions
 
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
