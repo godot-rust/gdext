@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cell::OnceCell;
 use std::marker::PhantomData;
 use std::{fmt, ptr};
 
@@ -12,8 +13,10 @@ use godot_ffi as sys;
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::{inner, Variant, VariantArray};
-use crate::meta::{ExtVariantType, FromGodot, ToGodot};
+use crate::builtin::{inner, Variant, VariantArray, VariantType};
+use crate::classes::Script;
+use crate::meta::{ClassName, ElementScript, ElementType, ExtVariantType, FromGodot, ToGodot};
+use crate::obj::Gd;
 
 /// Godot's `Dictionary` type.
 ///
@@ -80,11 +83,17 @@ use crate::meta::{ExtVariantType, FromGodot, ToGodot};
 /// [`Dictionary` (stable)](https://docs.godotengine.org/en/stable/classes/class_dictionary.html)
 pub struct Dictionary {
     opaque: OpaqueDictionary,
+
+    /// Lazily computed and cached element type information.
+    cached_element_types: OnceCell<DictionaryElementTypes>,
 }
 
 impl Dictionary {
     fn from_opaque(opaque: OpaqueDictionary) -> Self {
-        Self { opaque }
+        Self {
+            opaque,
+            cached_element_types: OnceCell::new(),
+        }
     }
 
     /// Constructs an empty `Dictionary`.
@@ -318,7 +327,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.duplicate(true)`_
     pub fn duplicate_deep(&self) -> Self {
-        self.as_inner().duplicate(true)
+        self.as_inner().duplicate(true).with_cache(self)
     }
 
     /// Shallow copy, copying elements but sharing nested collections.
@@ -331,7 +340,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_
     pub fn duplicate_shallow(&self) -> Self {
-        self.as_inner().duplicate(false)
+        self.as_inner().duplicate(false).with_cache(self)
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
@@ -402,6 +411,104 @@ impl Dictionary {
         );
     }
 
+    /// Returns the runtime element type information for keys in this dictionary.
+    ///
+    /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
+    ///
+    /// The result of this is cached after the first call. Repeated calls to [`key_element_type()`][Self::key_element_type] or
+    /// [`value_element_type()`][Self::value_element_type] will not result in multiple Godot FFI roundtrips.
+    pub fn key_element_type(&self) -> ElementType {
+        self.cached_element_types
+            .get_or_init(|| self.compute_element_types())
+            .key_type
+            .clone()
+    }
+
+    /// Returns the runtime element type information for values in this dictionary.
+    ///
+    /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
+    ///
+    /// The result of this is cached after the first call. Repeated calls to [`key_element_type()`][Self::key_element_type] or
+    /// [`value_element_type()`][Self::value_element_type] will not result in multiple Godot FFI roundtrips.
+    pub fn value_element_type(&self) -> ElementType {
+        self.cached_element_types
+            .get_or_init(|| self.compute_element_types())
+            .value_type
+            .clone()
+    }
+
+    /// Computes both key and value element types for this dictionary by querying Godot FFI.
+    fn compute_element_types(&self) -> DictionaryElementTypes {
+        DictionaryElementTypes {
+            key_type: self.compute_key_element_type(),
+            value_type: self.compute_value_element_type(),
+        }
+    }
+
+    /// Computes the key element type for this dictionary by querying Godot FFI.
+    fn compute_key_element_type(&self) -> ElementType {
+        let sys_variant_type = self.as_inner().get_typed_key_builtin();
+        let variant_type = VariantType::from_sys(sys_variant_type as u32);
+
+        if variant_type == VariantType::NIL {
+            ElementType::Untyped
+        } else if variant_type == VariantType::OBJECT {
+            let class_name_str = self.as_inner().get_typed_key_class_name();
+            let class_name = ClassName::new_dynamic(class_name_str.to_string());
+
+            // Check if there's a typed script associated with this dictionary's key type.
+            if let Some(script) = self.try_get_typed_key_script() {
+                return ElementType::ScriptClass(ElementScript::new(script));
+            }
+
+            ElementType::Class(class_name)
+        } else {
+            ElementType::Builtin(variant_type)
+        }
+    }
+
+    /// Computes the value element type for this dictionary by querying Godot FFI.
+    fn compute_value_element_type(&self) -> ElementType {
+        let sys_variant_type = self.as_inner().get_typed_value_builtin();
+        let variant_type = VariantType::from_sys(sys_variant_type as u32);
+
+        if variant_type == VariantType::NIL {
+            ElementType::Untyped
+        } else if variant_type == VariantType::OBJECT {
+            let class_name_str = self.as_inner().get_typed_value_class_name();
+            let class_name = ClassName::new_dynamic(class_name_str.to_string());
+
+            // Check if there's a typed script associated with this dictionary's value type.
+            if let Some(script) = self.try_get_typed_value_script() {
+                return ElementType::ScriptClass(ElementScript::new(script));
+            }
+
+            ElementType::Class(class_name)
+        } else {
+            ElementType::Builtin(variant_type)
+        }
+    }
+
+    /// Attempts to get the typed script for this dictionary's key type, if available.
+    fn try_get_typed_key_script(&self) -> Option<Gd<Script>> {
+        let script_variant = self.as_inner().get_typed_key_script();
+        if script_variant.get_type() != VariantType::NIL {
+            Gd::<Script>::try_from_variant(&script_variant).ok()
+        } else {
+            None
+        }
+    }
+
+    /// Attempts to get the typed script for this dictionary's value type, if available.
+    fn try_get_typed_value_script(&self) -> Option<Gd<Script>> {
+        let script_variant = self.as_inner().get_typed_value_script();
+        if script_variant.get_type() != VariantType::NIL {
+            Gd::<Script>::try_from_variant(&script_variant).ok()
+        } else {
+            None
+        }
+    }
+
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerDictionary<'_> {
         inner::InnerDictionary::from_outer(self)
@@ -416,6 +523,15 @@ impl Dictionary {
         // Never a null pointer, since entry either existed already or was inserted above.
         // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
         unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) }
+    }
+
+    /// Execute a function that creates a new Dictionary, transferring cached element types if available.
+    ///
+    /// This is a convenience helper for methods that create new Dictionary instances and want to preserve
+    /// cached type information to avoid redundant FFI calls.
+    fn with_cache(self, source: &Self) -> Self {
+        ElementType::transfer_cache(&source.cached_element_types, &self.cached_element_types);
+        self
     }
 }
 
@@ -477,13 +593,14 @@ impl fmt::Display for Dictionary {
 impl Clone for Dictionary {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid dictionary, since we have a reference that keeps it alive.
-        unsafe {
+        let result = unsafe {
             Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(dictionary_construct_copy);
                 let args = [self.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
-        }
+        };
+        result.with_cache(self)
     }
 }
 
@@ -747,6 +864,15 @@ impl<K: FromGodot, V: FromGodot> Iterator for TypedIter<'_, K, V> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Combined element types for dictionary caching.
+#[derive(Clone)]
+struct DictionaryElementTypes {
+    key_type: ElementType,
+    value_type: ElementType,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

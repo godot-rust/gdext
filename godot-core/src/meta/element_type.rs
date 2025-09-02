@@ -98,6 +98,25 @@ impl ElementType {
             _ => None,
         }
     }
+
+    /// Transfer cached element type from source `OnceCell` to destination OnceCell if initialized.
+    ///
+    /// This is a helper for cloning operations like duplicate(), slice(), etc. where we want to
+    /// preserve cached type information to avoid redundant FFI calls.
+    pub(crate) fn transfer_cache<T>(
+        source_cache: &std::cell::OnceCell<T>,
+        dest_cache: &std::cell::OnceCell<T>,
+    ) where
+        T: Clone,
+    {
+        if let Some(cached_value) = source_cache.get() {
+            let result = dest_cache.set(cached_value.clone());
+            debug_assert!(
+                result.is_ok(),
+                "Destination OnceCell was already initialized"
+            );
+        }
+    }
 }
 
 impl fmt::Debug for ElementType {
