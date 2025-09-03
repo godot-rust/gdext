@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::OnceCell;
+use std::cell::Cell;
 use std::marker::PhantomData;
 use std::{cmp, fmt};
 
@@ -143,8 +143,12 @@ pub struct Array<T: ArrayElement> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
     opaque: sys::types::OpaqueArray,
     _phantom: PhantomData<T>,
-    // Lazily computed and cached element type information.
-    cached_element_type: OnceCell<ElementType>,
+    /// Lazily computed and cached element type information.
+    /// 
+    /// `ElementType::Untyped` serves as sentinel value meaning either "not yet queried" or 
+    /// "queried but array was untyped". Since GDScript can call `set_type()` at any time,
+    /// we must re-query FFI whenever cached value is `Untyped`.
+    cached_element_type: Cell<ElementType>,
 }
 
 /// Guard that can only call immutable methods on the array.
@@ -187,7 +191,7 @@ impl<T: ArrayElement> Array<T> {
         Self {
             opaque,
             _phantom: PhantomData,
-            cached_element_type: OnceCell::new(),
+            cached_element_type: Cell::new(ElementType::Untyped),
         }
     }
 
@@ -1013,15 +1017,31 @@ impl<T: ArrayElement> Array<T> {
 
     /// Returns the runtime element type information for this array.
     ///
-    /// The result of this is cached after the first call. Repeated calls to
-    /// [`element_type()`][Self::element_type] will not result in multiple Godot FFI roundtrips.
+    /// The result is cached when the array is typed. If the array is untyped, this method
+    /// will always re-query Godot's FFI since GDScript may call `set_type()` at any time.
+    /// Repeated calls on typed arrays will not result in multiple Godot FFI roundtrips.
     pub fn element_type(&self) -> ElementType {
-        self.cached_element_type
-            .get_or_init(|| self.compute_element_type())
-            .clone()
+        let cached = self.cached_element_type.get();
+        
+        if !matches!(cached, ElementType::Untyped) {
+            // Array is typed - return cached value (will never change due to one-way constraint)
+            return cached;
+        }
+        
+        // Array is untyped or not queried yet - re-query FFI (GDScript might have typed it)
+        let current = self.compute_element_type();
+        
+        // Always update cache (Cell allows multiple writes)
+        self.cached_element_type.set(current);
+        
+        current
     }
 
     /// Computes the element type for this array by querying Godot FFI.
+    /// 
+    /// Returns `ElementType::Untyped` if the array is currently untyped at query time.
+    /// Due to Godot's one-way typing constraint, arrays can transition from untyped to
+    /// typed but never back to untyped.
     fn compute_element_type(&self) -> ElementType {
         let sys_variant_type = self.as_inner().get_typed_builtin();
         let variant_type = VariantType::from_sys(sys_variant_type as u32);

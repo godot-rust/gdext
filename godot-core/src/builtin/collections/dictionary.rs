@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::OnceCell;
+use std::cell::Cell;
 use std::marker::PhantomData;
 use std::{fmt, ptr};
 
@@ -84,15 +84,27 @@ use crate::obj::Gd;
 pub struct Dictionary {
     opaque: OpaqueDictionary,
 
-    /// Lazily computed and cached element type information.
-    cached_element_types: OnceCell<DictionaryElementTypes>,
+    /// Lazily computed and cached key element type information.
+    /// 
+    /// `ElementType::Untyped` serves as sentinel value meaning either "not yet queried" or
+    /// "queried but dictionary key was untyped". Since GDScript can call `set_type()` at any time,
+    /// we must re-query FFI whenever cached value is `Untyped`.
+    cached_key_type: Cell<ElementType>,
+    
+    /// Lazily computed and cached value element type information.
+    /// 
+    /// `ElementType::Untyped` serves as sentinel value meaning either "not yet queried" or
+    /// "queried but dictionary value was untyped". Since GDScript can call `set_type()` at any time,
+    /// we must re-query FFI whenever cached value is `Untyped`.
+    cached_value_type: Cell<ElementType>,
 }
 
 impl Dictionary {
     fn from_opaque(opaque: OpaqueDictionary) -> Self {
         Self {
             opaque,
-            cached_element_types: OnceCell::new(),
+            cached_key_type: Cell::new(ElementType::Untyped),
+            cached_value_type: Cell::new(ElementType::Untyped),
         }
     }
 
@@ -415,37 +427,56 @@ impl Dictionary {
     ///
     /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
     ///
-    /// The result of this is cached after the first call. Repeated calls to [`key_element_type()`][Self::key_element_type] or
-    /// [`value_element_type()`][Self::value_element_type] will not result in multiple Godot FFI roundtrips.
+    /// The result is cached when the dictionary keys are typed. If the keys are untyped, this method
+    /// will always re-query Godot's FFI since GDScript may call `set_type()` at any time.
+    /// Repeated calls on typed dictionaries will not result in multiple Godot FFI roundtrips.
     pub fn key_element_type(&self) -> ElementType {
-        self.cached_element_types
-            .get_or_init(|| self.compute_element_types())
-            .key_type
-            .clone()
+        let cached = self.cached_key_type.get();
+        
+        if !matches!(cached, ElementType::Untyped) {
+            // Keys are typed - return cached value (will never change due to one-way constraint)
+            return cached;
+        }
+        
+        // Keys are untyped or not queried yet - re-query FFI (GDScript might have typed them)
+        let current = self.compute_key_element_type();
+        
+        // Always update cache (Cell allows multiple writes)
+        self.cached_key_type.set(current);
+        
+        current
     }
 
     /// Returns the runtime element type information for values in this dictionary.
     ///
     /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
     ///
-    /// The result of this is cached after the first call. Repeated calls to [`key_element_type()`][Self::key_element_type] or
-    /// [`value_element_type()`][Self::value_element_type] will not result in multiple Godot FFI roundtrips.
+    /// The result is cached when the dictionary values are typed. If the values are untyped, this method
+    /// will always re-query Godot's FFI since GDScript may call `set_type()` at any time.
+    /// Repeated calls on typed dictionaries will not result in multiple Godot FFI roundtrips.
     pub fn value_element_type(&self) -> ElementType {
-        self.cached_element_types
-            .get_or_init(|| self.compute_element_types())
-            .value_type
-            .clone()
+        let cached = self.cached_value_type.get();
+        
+        if !matches!(cached, ElementType::Untyped) {
+            // Values are typed - return cached value (will never change due to one-way constraint)
+            return cached;
+        }
+        
+        // Values are untyped or not queried yet - re-query FFI (GDScript might have typed them)
+        let current = self.compute_value_element_type();
+        
+        // Always update cache (Cell allows multiple writes)
+        self.cached_value_type.set(current);
+        
+        current
     }
 
-    /// Computes both key and value element types for this dictionary by querying Godot FFI.
-    fn compute_element_types(&self) -> DictionaryElementTypes {
-        DictionaryElementTypes {
-            key_type: self.compute_key_element_type(),
-            value_type: self.compute_value_element_type(),
-        }
-    }
 
     /// Computes the key element type for this dictionary by querying Godot FFI.
+    /// 
+    /// Returns `ElementType::Untyped` if the dictionary keys are currently untyped at query time.
+    /// Due to Godot's one-way typing constraint, dictionaries can transition from untyped to
+    /// typed but never back to untyped.
     fn compute_key_element_type(&self) -> ElementType {
         let sys_variant_type = self.as_inner().get_typed_key_builtin();
         let variant_type = VariantType::from_sys(sys_variant_type as u32);
@@ -468,6 +499,10 @@ impl Dictionary {
     }
 
     /// Computes the value element type for this dictionary by querying Godot FFI.
+    /// 
+    /// Returns `ElementType::Untyped` if the dictionary values are currently untyped at query time.
+    /// Due to Godot's one-way typing constraint, dictionaries can transition from untyped to
+    /// typed but never back to untyped.
     fn compute_value_element_type(&self) -> ElementType {
         let sys_variant_type = self.as_inner().get_typed_value_builtin();
         let variant_type = VariantType::from_sys(sys_variant_type as u32);
@@ -530,7 +565,9 @@ impl Dictionary {
     /// This is a convenience helper for methods that create new Dictionary instances and want to preserve
     /// cached type information to avoid redundant FFI calls.
     fn with_cache(self, source: &Self) -> Self {
-        ElementType::transfer_cache(&source.cached_element_types, &self.cached_element_types);
+        // Transfer both key and value type caches independently
+        ElementType::transfer_cache(&source.cached_key_type, &self.cached_key_type);
+        ElementType::transfer_cache(&source.cached_value_type, &self.cached_value_type);
         self
     }
 }
@@ -864,15 +901,6 @@ impl<K: FromGodot, V: FromGodot> Iterator for TypedIter<'_, K, V> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
     }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Combined element types for dictionary caching.
-#[derive(Clone)]
-struct DictionaryElementTypes {
-    key_type: ElementType,
-    value_type: ElementType,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

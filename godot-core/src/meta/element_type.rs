@@ -7,7 +7,7 @@
 
 use std::fmt;
 
-use crate::builtin::{StringName, VariantType};
+use crate::builtin::VariantType;
 use crate::classes::Script;
 use crate::meta::traits::{element_variant_type, GodotType};
 use crate::meta::{ArrayElement, ClassName};
@@ -23,7 +23,7 @@ use crate::obj::{Gd, InstanceId};
 ///
 /// **Thread Safety**: This type is not `Send + Sync` due to the `ScriptClass` variant containing `Gd<Script>`.
 /// For error handling and other contexts requiring thread-safe type info, use [`ThreadSafeElementType`] instead.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ElementType {
     /// Untyped array/dictionary that can contain any `Variant`.
     Untyped,
@@ -55,20 +55,6 @@ impl ElementType {
         }
     }
 
-    /// Construct from runtime information (variant type and optional class name).
-    pub(crate) fn from_runtime(variant_type: VariantType, class_name: Option<StringName>) -> Self {
-        if variant_type == VariantType::NIL {
-            ElementType::Untyped
-        } else if variant_type == VariantType::OBJECT {
-            let class_name = class_name
-                .map(|name| ClassName::new_dynamic(name.to_string()))
-                .unwrap_or_else(ClassName::none);
-
-            ElementType::Class(class_name)
-        } else {
-            ElementType::Builtin(variant_type)
-        }
-    }
 
     /// True if this denotes a typed array (non-NIL variant type).
     pub fn is_typed(&self) -> bool {
@@ -99,22 +85,26 @@ impl ElementType {
         }
     }
 
-    /// Transfer cached element type from source `OnceCell` to destination OnceCell if initialized.
+    /// Transfer cached element type from source to destination, preserving more specific type info.
     ///
     /// This is a helper for cloning operations like duplicate(), slice(), etc. where we want to
-    /// preserve cached type information to avoid redundant FFI calls.
-    pub(crate) fn transfer_cache<T>(
-        source_cache: &std::cell::OnceCell<T>,
-        dest_cache: &std::cell::OnceCell<T>,
-    ) where
-        T: Clone,
-    {
-        if let Some(cached_value) = source_cache.get() {
-            let result = dest_cache.set(cached_value.clone());
-            debug_assert!(
-                result.is_ok(),
-                "Destination OnceCell was already initialized"
-            );
+    /// preserve cached type information to avoid redundant FFI calls. Only transfers if the source
+    /// has more specific information than the destination (typed vs untyped).
+    pub(crate) fn transfer_cache(
+        source_cache: &std::cell::Cell<ElementType>,
+        dest_cache: &std::cell::Cell<ElementType>,
+    ) {
+        let source_value = source_cache.get();
+        let dest_value = dest_cache.get();
+        
+        // Only transfer if source has more specific info (typed) than destination (untyped)
+        match (source_value, dest_value) {
+            // Source is typed, destination is untyped - transfer the typed info
+            (source, ElementType::Untyped) if !matches!(source, ElementType::Untyped) => {
+                dest_cache.set(source);
+            }
+            // All other cases: don't transfer (dest already has same or better info)
+            _ => {}
         }
     }
 }
@@ -149,7 +139,7 @@ pub(crate) type ArrayTypeInfo = ElementType;
 /// Compact representation inside [`ElementType::ScriptClass`].
 ///
 /// Encapsulates a `Gd<Script>`, obtained via [`script()`][Self::script].
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ElementScript {
     /// Weak pointer to Gd<Script>.
     script_instance_id: InstanceId,
