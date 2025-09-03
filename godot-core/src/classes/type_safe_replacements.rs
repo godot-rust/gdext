@@ -18,7 +18,16 @@ use crate::classes::scene_tree::GroupCallFlags;
 use crate::classes::{Object, SceneTree, Script};
 use crate::global::Error;
 use crate::meta::{AsArg, AsObjectArg, GodotFfiVariant};
-use crate::obj::{EngineBitfield, Gd};
+use crate::obj::{EngineBitfield, EngineEnum, Gd};
+
+#[cfg(feature = "codegen-full")]
+mod full_codegen_classes {
+    pub use crate::classes::tree::DropModeFlags;
+    pub use crate::classes::Tree;
+}
+
+#[cfg(feature = "codegen-full")]
+use full_codegen_classes::*;
 
 impl Object {
     pub fn get_script(&self) -> Option<Gd<Script>> {
@@ -88,5 +97,19 @@ impl SceneTree {
         notification: NodeNotification,
     ) {
         self.raw_notify_group_flags(call_flags.ord() as u32, group, notification.into())
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Extended codegen
+
+#[cfg(feature = "codegen-full")]
+impl Tree {
+    pub fn set_drop_mode_flags(&mut self, flags: DropModeFlags) {
+        self.raw_set_drop_mode_flags(flags.ord())
+    }
+
+    pub fn get_drop_mode_flags(&self) -> DropModeFlags {
+        DropModeFlags::from_ord(self.raw_get_drop_mode_flags())
     }
 }

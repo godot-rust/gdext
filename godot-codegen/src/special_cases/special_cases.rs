@@ -407,6 +407,10 @@ pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_n
         | ("SceneTree", "notify_group_flags")
         | ("SceneTree", "set_group_flags")
 
+        // i32 -> DropModeFlags
+        | ("Tree", "set_drop_mode_flags")
+        | ("Tree", "get_drop_mode_flags")
+
         => true, _ => false
     }
 }
