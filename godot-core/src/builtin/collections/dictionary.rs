@@ -85,14 +85,14 @@ pub struct Dictionary {
     opaque: OpaqueDictionary,
 
     /// Lazily computed and cached key element type information.
-    /// 
+    ///
     /// `ElementType::Untyped` serves as sentinel value meaning either "not yet queried" or
     /// "queried but dictionary key was untyped". Since GDScript can call `set_type()` at any time,
     /// we must re-query FFI whenever cached value is `Untyped`.
     cached_key_type: Cell<ElementType>,
-    
+
     /// Lazily computed and cached value element type information.
-    /// 
+    ///
     /// `ElementType::Untyped` serves as sentinel value meaning either "not yet queried" or
     /// "queried but dictionary value was untyped". Since GDScript can call `set_type()` at any time,
     /// we must re-query FFI whenever cached value is `Untyped`.
@@ -432,18 +432,18 @@ impl Dictionary {
     /// Repeated calls on typed dictionaries will not result in multiple Godot FFI roundtrips.
     pub fn key_element_type(&self) -> ElementType {
         let cached = self.cached_key_type.get();
-        
+
         if !matches!(cached, ElementType::Untyped) {
             // Keys are typed - return cached value (will never change due to one-way constraint)
             return cached;
         }
-        
+
         // Keys are untyped or not queried yet - re-query FFI (GDScript might have typed them)
         let current = self.compute_key_element_type();
-        
+
         // Always update cache (Cell allows multiple writes)
         self.cached_key_type.set(current);
-        
+
         current
     }
 
@@ -456,24 +456,23 @@ impl Dictionary {
     /// Repeated calls on typed dictionaries will not result in multiple Godot FFI roundtrips.
     pub fn value_element_type(&self) -> ElementType {
         let cached = self.cached_value_type.get();
-        
+
         if !matches!(cached, ElementType::Untyped) {
             // Values are typed - return cached value (will never change due to one-way constraint)
             return cached;
         }
-        
+
         // Values are untyped or not queried yet - re-query FFI (GDScript might have typed them)
         let current = self.compute_value_element_type();
-        
+
         // Always update cache (Cell allows multiple writes)
         self.cached_value_type.set(current);
-        
+
         current
     }
 
-
     /// Computes the key element type for this dictionary by querying Godot FFI.
-    /// 
+    ///
     /// Returns `ElementType::Untyped` if the dictionary keys are currently untyped at query time.
     /// Due to Godot's one-way typing constraint, dictionaries can transition from untyped to
     /// typed but never back to untyped.
@@ -499,7 +498,7 @@ impl Dictionary {
     }
 
     /// Computes the value element type for this dictionary by querying Godot FFI.
-    /// 
+    ///
     /// Returns `ElementType::Untyped` if the dictionary values are currently untyped at query time.
     /// Due to Godot's one-way typing constraint, dictionaries can transition from untyped to
     /// typed but never back to untyped.

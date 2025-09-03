@@ -226,12 +226,15 @@ impl fmt::Display for FromGodotError {
                     return write!(f, "expected array of type {expected:?}, got {actual:?}");
                 }
 
-                let exp_class = expected.class_name().expect("lhs class name present");
-                let act_class = actual.class_name().expect("rhs class name present");
-                assert_ne!(
-                    exp_class, act_class,
-                    "BadArrayType with expected == got, this is a gdext bug"
-                );
+                // Handle script classes where the script might be deallocated
+                let exp_class = match expected.class_name() {
+                    Some(name) => name.to_string(),
+                    None => format!("{expected:?}"),
+                };
+                let act_class = match actual.class_name() {
+                    Some(name) => name.to_string(),
+                    None => format!("{actual:?}"),
+                };
 
                 write!(
                     f,

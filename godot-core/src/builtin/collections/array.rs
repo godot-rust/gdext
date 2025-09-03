@@ -144,8 +144,8 @@ pub struct Array<T: ArrayElement> {
     opaque: sys::types::OpaqueArray,
     _phantom: PhantomData<T>,
     /// Lazily computed and cached element type information.
-    /// 
-    /// `ElementType::Untyped` serves as sentinel value meaning either "not yet queried" or 
+    ///
+    /// `ElementType::Untyped` serves as sentinel value meaning either "not yet queried" or
     /// "queried but array was untyped". Since GDScript can call `set_type()` at any time,
     /// we must re-query FFI whenever cached value is `Untyped`.
     cached_element_type: Cell<ElementType>,
@@ -999,7 +999,7 @@ impl<T: ArrayElement> Array<T> {
     /// Returns the runtime type info of this array.
     fn type_info(&self) -> ArrayTypeInfo {
         self.element_type()
-        
+
         /*
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
@@ -1022,23 +1022,23 @@ impl<T: ArrayElement> Array<T> {
     /// Repeated calls on typed arrays will not result in multiple Godot FFI roundtrips.
     pub fn element_type(&self) -> ElementType {
         let cached = self.cached_element_type.get();
-        
+
         if !matches!(cached, ElementType::Untyped) {
             // Array is typed - return cached value (will never change due to one-way constraint)
             return cached;
         }
-        
+
         // Array is untyped or not queried yet - re-query FFI (GDScript might have typed it)
         let current = self.compute_element_type();
-        
+
         // Always update cache (Cell allows multiple writes)
         self.cached_element_type.set(current);
-        
+
         current
     }
 
     /// Computes the element type for this array by querying Godot FFI.
-    /// 
+    ///
     /// Returns `ElementType::Untyped` if the array is currently untyped at query time.
     /// Due to Godot's one-way typing constraint, arrays can transition from untyped to
     /// typed but never back to untyped.
@@ -1081,15 +1081,28 @@ impl<T: ArrayElement> Array<T> {
         let self_ty = self.type_info();
         let target_ty = ArrayTypeInfo::of::<T>();
 
+        // Exact match: check successful.
         if self_ty == target_ty {
-            Ok(self)
-        } else {
-            Err(FromGodotError::BadArrayType {
-                expected: target_ty,
-                actual: self_ty,
-            }
-            .into_error(self))
+            return Ok(self);
         }
+
+        // Check if script class (runtime) matches its native base class (compile-time).
+        // This allows an Array[Enemy] from GDScript to be used as Array<Gd<RefCounted>> in Rust.
+        if let (ElementType::ScriptClass(_), ElementType::Class(expected_class)) =
+            (&self_ty, &target_ty)
+        {
+            if let Some(actual_base_class) = self_ty.class_name() {
+                if actual_base_class == *expected_class {
+                    return Ok(self);
+                }
+            }
+        }
+
+        Err(FromGodotError::BadArrayType {
+            expected: target_ty,
+            actual: self_ty,
+        }
+        .into_error(self))
     }
 
     /// Sets the type of the inner array.

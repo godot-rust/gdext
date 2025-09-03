@@ -55,7 +55,6 @@ impl ElementType {
         }
     }
 
-
     /// True if this denotes a typed array (non-NIL variant type).
     pub fn is_typed(&self) -> bool {
         !matches!(self, ElementType::Untyped)
@@ -96,7 +95,7 @@ impl ElementType {
     ) {
         let source_value = source_cache.get();
         let dest_value = dest_cache.get();
-        
+
         // Only transfer if source has more specific info (typed) than destination (untyped)
         match (source_value, dest_value) {
             // Source is typed, destination is untyped - transfer the typed info
