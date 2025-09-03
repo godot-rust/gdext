@@ -230,10 +230,7 @@ impl fmt::Display for FromGodotError {
                 let exp_class = format!("{expected:?}");
                 let act_class = format!("{actual:?}");
 
-                write!(
-                    f,
-                    "expected array of class {exp_class}, got array of class {act_class}"
-                )
+                write!(f, "expected array of type {exp_class}, got {act_class}")
             }
             #[cfg(debug_assertions)]
             Self::BadArrayTypeInt {

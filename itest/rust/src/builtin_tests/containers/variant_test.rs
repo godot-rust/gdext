@@ -327,7 +327,7 @@ fn variant_array_bad_class_conversions() {
         node2d_array.expect_err("Array<Gd<Node>> -> Array<Gd<Node2D>> conversion should fail");
     assert_eq!(
         err.to_string(),
-        "expected array of class Class(Node2D), got array of class Class(Node): []"
+        "expected array of type Class(Node2D), got Class(Node): []"
     )
 }
 
