@@ -11,7 +11,7 @@ use std::fmt;
 use godot_ffi::VariantType;
 
 use crate::builtin::Variant;
-use crate::meta::{ArrayTypeInfo, ClassName, ElementType, ToGodot};
+use crate::meta::{ArrayTypeInfo, ClassName, ToGodot};
 
 type Cause = Box<dyn Error + Send + Sync>;
 
@@ -226,37 +226,9 @@ impl fmt::Display for FromGodotError {
                     return write!(f, "expected array of type {expected:?}, got {actual:?}");
                 }
 
-                // Extract user-friendly class names for error messages.
-                let exp_class = match expected {
-                    ElementType::Class(class_name) => class_name.to_string(),
-                    ElementType::ScriptClass(script) => match script.script() {
-                        Some(s) => {
-                            let script_name = s.get_global_name().to_string();
-                            if script_name.is_empty() {
-                                s.get_instance_base_type().to_string()
-                            } else {
-                                script_name
-                            }
-                        }
-                        None => "ScriptClass(<Freed Object>)".to_string(),
-                    },
-                    _ => format!("{expected:?}"),
-                };
-                let act_class = match actual {
-                    ElementType::Class(class_name) => class_name.to_string(),
-                    ElementType::ScriptClass(script) => match script.script() {
-                        Some(s) => {
-                            let script_name = s.get_global_name().to_string();
-                            if script_name.is_empty() {
-                                s.get_instance_base_type().to_string()
-                            } else {
-                                script_name
-                            }
-                        }
-                        None => "ScriptClass(<Freed Object>)".to_string(),
-                    },
-                    _ => format!("{actual:?}"),
-                };
+                // Use Debug formatting which is now panic-safe and informative.
+                let exp_class = format!("{expected:?}");
+                let act_class = format!("{actual:?}");
 
                 write!(
                     f,
