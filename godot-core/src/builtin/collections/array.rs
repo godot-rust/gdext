@@ -994,6 +994,9 @@ impl<T: ArrayElement> Array<T> {
 
     /// Returns the runtime type info of this array.
     fn type_info(&self) -> ArrayTypeInfo {
+        self.element_type()
+        
+        /*
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
@@ -1005,6 +1008,7 @@ impl<T: ArrayElement> Array<T> {
         };
 
         ArrayTypeInfo::from_runtime(variant_type, class_name)
+         */
     }
 
     /// Returns the runtime element type information for this array.
