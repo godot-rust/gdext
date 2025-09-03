@@ -397,8 +397,14 @@ pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_n
         // Variant -> Option<Gd<Script>>
         | ("Object", "get_script")
         | ("Object", "set_script")
-        //
+
+        // u32 -> ConnectFlags
         | ("Object", "connect")
+
+        // i32 -> CallGroupFlags
+        | ("SceneTree", "call_group_flags")
+        | ("SceneTree", "notify_group_flags")
+        | ("SceneTree", "set_group_flags")
 
         => true, _ => false
     }
@@ -1093,6 +1099,7 @@ pub fn is_enum_bitfield(class_name: Option<&TyName>, enum_name: &str) -> Option<
     let class_name = class_name.map(|c| c.godot_ty.as_str());
     match (class_name, enum_name) {
         | (Some("Object"), "ConnectFlags")
+        | (Some("SceneTree"), "GroupCallFlags")
 
         => Some(true),
         _ => None

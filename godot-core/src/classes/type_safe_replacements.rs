@@ -11,9 +11,11 @@
 //!
 //! See also sister module [super::manual_extensions].
 
-use crate::builtin::{Callable, StringName};
+use crate::builtin::{Callable, GString, StringName, Variant};
+use crate::classes::notify::NodeNotification;
 use crate::classes::object::ConnectFlags;
-use crate::classes::{Object, Script};
+use crate::classes::scene_tree::GroupCallFlags;
+use crate::classes::{Object, SceneTree, Script};
 use crate::global::Error;
 use crate::meta::{AsArg, AsObjectArg, GodotFfiVariant};
 use crate::obj::{EngineBitfield, Gd};
@@ -46,5 +48,37 @@ impl Object {
         self.raw_connect_ex(signal, callable)
             .flags(flags.ord() as u32)
             .done()
+    }
+}
+
+impl SceneTree {
+    pub fn call_group_flags(
+        &mut self,
+        flags: GroupCallFlags,
+        group: impl AsArg<StringName>,
+        method: impl AsArg<StringName>,
+        varargs: &[Variant],
+    ) {
+        self.raw_call_group_flags(flags.ord() as i64, group, method, varargs)
+    }
+
+    /// Assumes notifications of `Node`. To relay those of derived constants, use [`NodeNotification::Unknown`].
+    pub fn notify_group_flags(
+        &mut self,
+        call_flags: GroupCallFlags,
+        group: impl AsArg<StringName>,
+        notification: NodeNotification,
+    ) {
+        self.raw_notify_group_flags(call_flags.ord() as u32, group, notification.into())
+    }
+
+    pub fn set_group_flags(
+        &mut self,
+        call_flags: GroupCallFlags,
+        group: impl AsArg<StringName>,
+        property: impl AsArg<GString>,
+        value: &Variant,
+    ) {
+        self.raw_set_group_flags(call_flags.ord() as u32, group, property, value)
     }
 }
