@@ -56,11 +56,13 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         .to_string();
 
     // Determine if we can use ASCII for the class name (in most cases).
+    // Crate godot-macros does not have knowledge of `api-*` features (and neither does user crate where macros are generated),
+    // so we can't cause a compile error if Unicode is used before Godot 4.4. However, this causes a runtime error at startup.
     let class_name_allocation = if class_name_str.is_ascii() {
         let c_str = util::c_str(&class_name_str);
-        quote! { ClassName::alloc_next_ascii(#c_str) }
+        quote! { ClassName::__alloc_next_ascii(#c_str) }
     } else {
-        quote! { ClassName::alloc_next_unicode(#class_name_str) }
+        quote! { ClassName::__alloc_next_unicode(#class_name_str) }
     };
 
     if struct_cfg.is_internal {
