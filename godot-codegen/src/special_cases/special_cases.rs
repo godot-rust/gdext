@@ -403,6 +403,7 @@ pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_n
 
         // i32 -> CallGroupFlags
         | ("SceneTree", "call_group_flags")
+        | ("SceneTree", "notify_group")
         | ("SceneTree", "notify_group_flags")
         | ("SceneTree", "set_group_flags")
 

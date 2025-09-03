@@ -52,6 +52,9 @@ impl Object {
 }
 
 impl SceneTree {
+    // Note: this creates different order between call_group(), call_group_flags() in docs.
+    // Maybe worth redeclaring those as well?
+
     pub fn call_group_flags(
         &mut self,
         flags: GroupCallFlags,
@@ -62,16 +65,6 @@ impl SceneTree {
         self.raw_call_group_flags(flags.ord() as i64, group, method, varargs)
     }
 
-    /// Assumes notifications of `Node`. To relay those of derived constants, use [`NodeNotification::Unknown`].
-    pub fn notify_group_flags(
-        &mut self,
-        call_flags: GroupCallFlags,
-        group: impl AsArg<StringName>,
-        notification: NodeNotification,
-    ) {
-        self.raw_notify_group_flags(call_flags.ord() as u32, group, notification.into())
-    }
-
     pub fn set_group_flags(
         &mut self,
         call_flags: GroupCallFlags,
@@ -80,5 +73,20 @@ impl SceneTree {
         value: &Variant,
     ) {
         self.raw_set_group_flags(call_flags.ord() as u32, group, property, value)
+    }
+
+    /// Assumes notifications of `Node`. To relay those of derived constants, use [`NodeNotification::Unknown`].
+    pub fn notify_group(&mut self, group: impl AsArg<StringName>, notification: NodeNotification) {
+        self.raw_notify_group(group, notification.into())
+    }
+
+    /// Assumes notifications of `Node`. To relay those of derived constants, use [`NodeNotification::Unknown`].
+    pub fn notify_group_flags(
+        &mut self,
+        call_flags: GroupCallFlags,
+        group: impl AsArg<StringName>,
+        notification: NodeNotification,
+    ) {
+        self.raw_notify_group_flags(call_flags.ord() as u32, group, notification.into())
     }
 }
