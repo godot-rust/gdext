@@ -118,13 +118,17 @@ impl fmt::Debug for ElementType {
             ElementType::Class(class_name) => {
                 write!(f, "Class({})", class_name)
             }
-            ElementType::ScriptClass(script) => {
-                if let Some(s) = script.script() {
-                    write!(f, "ScriptClass({:?})", s)
-                } else {
-                    write!(f, "ScriptClass(<invalid>)")
+            ElementType::ScriptClass(script) => match script.script() {
+                Some(s) => {
+                    let script_name = s.get_global_name().to_string();
+                    if script_name.is_empty() {
+                        write!(f, "ScriptClass(? extends {})", s.get_instance_base_type())
+                    } else {
+                        write!(f, "ScriptClass({})", script_name)
+                    }
                 }
-            }
+                None => write!(f, "ScriptClass(<Freed Object>)"),
+            },
         }
     }
 }
