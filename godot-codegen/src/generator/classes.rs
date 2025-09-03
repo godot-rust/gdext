@@ -248,7 +248,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                     // Optimization note: instead of lazy init, could use separate static which is manually initialized during registration.
                     static CLASS_NAME: std::sync::OnceLock<ClassName> = std::sync::OnceLock::new();
 
-                    let name: &'static ClassName = CLASS_NAME.get_or_init(|| ClassName::alloc_next_ascii(#class_name_cstr));
+                    let name: &'static ClassName = CLASS_NAME.get_or_init(|| ClassName::__alloc_next_ascii(#class_name_cstr));
                     *name
                 }
 
