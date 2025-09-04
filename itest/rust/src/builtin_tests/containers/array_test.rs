@@ -579,7 +579,7 @@ fn __array_type_inference() {
 }
 
 #[itest]
-fn array_element_type() {
+fn array_element_type_from_rust() {
     // Untyped array.
     let untyped = VariantArray::new();
     assert!(
@@ -616,17 +616,15 @@ fn array_element_type() {
     }
 }
 
+// $ArrayType is
 macro_rules! verify_elem {
     (
-        $object:ident.$method:ident(),
+        $object:ident.$method:ident() as $ArrayType:ty,
         elem: $elem_pattern:pat,
     ) => {
         let __method = stringify!($method);
         let result = $object.call(__method, &[]);
-
-        // All arrays from GDScript should be convertible to VariantArray
-        // even if they are typed, since VariantArray can represent any array
-        let array = result.to::<VariantArray>();
+        let array = result.to::<$ArrayType>();
 
         let __elem = array.element_type();
         let $elem_pattern = __elem else {
@@ -638,8 +636,8 @@ macro_rules! verify_elem {
     };
 }
 
-#[itest(focus)]
-fn array_element_type_comprehensive() {
+#[itest]
+fn array_element_type_from_gdscript() {
     let gdscript = create_gdscript(
         r#"
 extends RefCounted
@@ -664,29 +662,29 @@ func script_array() -> Array[CustomScriptForArrays]:
 
     // Test all 4 ElementType variants.
 
-    // Array (untyped)
+    // Array (untyped).
     verify_elem!(
-        object.variant_array(),
+        object.variant_array() as VariantArray,
         elem: ElementType::Untyped,
     );
 
     // Array[String]
     verify_elem!(
-        object.builtin_array(),
+        object.builtin_array() as Array<GString>,
         elem: ElementType::Builtin(variant_type),
     );
     assert_eq!(variant_type, VariantType::STRING);
 
-    // Array[RefCounted]
+    // Array[RefCounted].
     verify_elem!(
-        object.class_array(),
+        object.class_array() as Array<Gd<RefCounted>>,
         elem: ElementType::Class(class_name),
     );
     assert_eq!(class_name.to_string(), "RefCounted");
 
-    // Array[CustomScriptForArrays]
+    // Array[CustomScriptForArrays].
     verify_elem!(
-        object.script_array(),
+        object.script_array() as Array<Gd<RefCounted>>,
         elem: ElementType::ScriptClass(script),
     );
     let script = script.script().expect("script object should be alive");
