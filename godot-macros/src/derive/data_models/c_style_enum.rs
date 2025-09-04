@@ -115,7 +115,8 @@ impl CStyleEnum {
         }
 
         quote! {
-            format!(#fmt, #(#fmt_args),*)
+            // & because it is passed to GString::from().
+            &format!(#fmt, #(#fmt_args),*)
         }
     }
 

@@ -28,11 +28,6 @@ fn string_name_conversion() {
     let back = GString::from(&name);
 
     assert_eq!(string, back);
-
-    let second = StringName::from(string.clone());
-    let back = GString::from(second);
-
-    assert_eq!(string, back);
 }
 
 #[itest]
@@ -40,11 +35,6 @@ fn string_name_node_path_conversion() {
     let string = StringName::from("some string");
     let name = NodePath::from(&string);
     let back = StringName::from(&name);
-
-    assert_eq!(string, back);
-
-    let second = NodePath::from(string.clone());
-    let back = StringName::from(second);
 
     assert_eq!(string, back);
 }

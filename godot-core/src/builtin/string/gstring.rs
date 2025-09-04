@@ -359,12 +359,6 @@ impl From<&[char]> for GString {
     }
 }
 
-impl From<String> for GString {
-    fn from(value: String) -> Self {
-        value.as_str().into()
-    }
-}
-
 impl From<&String> for GString {
     fn from(value: &String) -> Self {
         value.as_str().into()
@@ -424,15 +418,6 @@ impl From<&StringName> for GString {
     }
 }
 
-impl From<StringName> for GString {
-    /// Converts this `StringName` to a `GString`.
-    ///
-    /// This is identical to `GString::from(&string_name)`, and as such there is no performance benefit.
-    fn from(string_name: StringName) -> Self {
-        Self::from(&string_name)
-    }
-}
-
 impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
         unsafe {
@@ -442,15 +427,6 @@ impl From<&NodePath> for GString {
                 ctor(self_ptr, args.as_ptr());
             })
         }
-    }
-}
-
-impl From<NodePath> for GString {
-    /// Converts this `NodePath` to a `GString`.
-    ///
-    /// This is identical to `GString::from(&path)`, and as such there is no performance benefit.
-    fn from(path: NodePath) -> Self {
-        Self::from(&path)
     }
 }
 

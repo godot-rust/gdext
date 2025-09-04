@@ -700,7 +700,7 @@ mod custom_callable {
         r_out: sys::GDExtensionStringPtr,
     ) {
         let c: &T = CallableUserdata::inner_from_raw(callable_userdata);
-        let s = crate::builtin::GString::from(c.to_string());
+        let s = GString::from(&c.to_string());
 
         s.move_into_string_ptr(r_out);
         *r_is_valid = sys::conv::SYS_TRUE;
