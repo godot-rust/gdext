@@ -616,6 +616,84 @@ fn array_element_type() {
     }
 }
 
+macro_rules! verify_elem {
+    (
+        $object:ident.$method:ident(),
+        elem: $elem_pattern:pat,
+    ) => {
+        let __method = stringify!($method);
+        let result = $object.call(__method, &[]);
+
+        // All arrays from GDScript should be convertible to VariantArray
+        // even if they are typed, since VariantArray can represent any array
+        let array = result.to::<VariantArray>();
+
+        let __elem = array.element_type();
+        let $elem_pattern = __elem else {
+            panic!(
+                "{__method}():\n  expected elem = {}\n  but was elem =  {__elem:?}",
+                stringify!($elem_pattern)
+            );
+        };
+    };
+}
+
+#[itest(focus)]
+fn array_element_type_comprehensive() {
+    let gdscript = create_gdscript(
+        r#"
+extends RefCounted
+class_name CustomScriptForArrays
+
+func variant_array() -> Array:
+    return []
+
+func builtin_array() -> Array[String]:
+    return []
+
+func class_array() -> Array[RefCounted]:
+    return []
+
+func script_array() -> Array[CustomScriptForArrays]:
+    return []
+"#,
+    );
+
+    let mut object = RefCounted::new_gd();
+    object.set_script(&gdscript.to_variant());
+
+    // Test all 4 ElementType variants.
+
+    // Array (untyped)
+    verify_elem!(
+        object.variant_array(),
+        elem: ElementType::Untyped,
+    );
+
+    // Array[String]
+    verify_elem!(
+        object.builtin_array(),
+        elem: ElementType::Builtin(variant_type),
+    );
+    assert_eq!(variant_type, VariantType::STRING);
+
+    // Array[RefCounted]
+    verify_elem!(
+        object.class_array(),
+        elem: ElementType::Class(class_name),
+    );
+    assert_eq!(class_name.to_string(), "RefCounted");
+
+    // Array[CustomScriptForArrays]
+    verify_elem!(
+        object.script_array(),
+        elem: ElementType::ScriptClass(script),
+    );
+    let script = script.script().expect("script object should be alive");
+    assert_eq!(script, gdscript.upcast());
+    assert_eq!(script.get_global_name(), "CustomScriptForArrays".into());
+}
+
 #[itest]
 fn array_element_type_custom_script() {
     let gdscript = create_gdscript(
