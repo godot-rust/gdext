@@ -360,7 +360,7 @@ impl<T: GodotClass> RawGd<T> {
         debug_assert!(!self.is_null(), "cannot upcast null object refs");
 
         // In Debug builds, go the long path via Godot FFI to verify the results are the same.
-        #[cfg(debug_assertions)]
+        #[cfg(checks_at_least = "paranoid")]
         {
             // SAFETY: we forget the object below and do not leave the function before.
             let ffi_dest = self.ffi_cast::<Base>().expect("failed FFI upcast");
@@ -383,10 +383,14 @@ impl<T: GodotClass> RawGd<T> {
 
     /// Verify that the object is non-null and alive. In Debug mode, additionally verify that it is of type `T` or derived.
     pub(crate) fn check_rtti(&self, method_name: &'static str) {
-        let call_ctx = CallContext::gd::<T>(method_name);
+        #[cfg(checks_at_least = "balanced")]
+        {
+            let call_ctx = CallContext::gd::<T>(method_name);
 
-        let instance_id = self.check_dynamic_type(&call_ctx);
-        classes::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
+            let instance_id = self.check_dynamic_type(&call_ctx);
+
+            classes::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
+        }
     }
 
     /// Checks only type, not alive-ness. Used in Gd<T> in case of `free()`.
@@ -509,7 +513,7 @@ where
 
         let ptr: sys::GDExtensionClassInstancePtr = binding.cast();
 
-        #[cfg(debug_assertions)]
+        #[cfg(checks_at_least = "paranoid")]
         crate::classes::ensure_binding_not_null::<T>(ptr);
 
         self.cached_storage_ptr.set(ptr);

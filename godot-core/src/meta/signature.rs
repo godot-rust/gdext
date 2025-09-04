@@ -144,6 +144,7 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         //$crate::out!("out_class_varcall: {call_ctx}");
 
         // Note: varcalls are not safe from failing, if they happen through an object pointer -> validity check necessary.
+        #[cfg(checks_at_least = "balanced")]
         if let Some(instance_id) = maybe_instance_id {
             crate::classes::ensure_object_alive(instance_id, object_ptr, &call_ctx);
         }
@@ -304,6 +305,7 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         let call_ctx = CallContext::outbound(class_name, method_name);
         // $crate::out!("out_class_ptrcall: {call_ctx}");
 
+        #[cfg(checks_at_least = "balanced")]
         if let Some(instance_id) = maybe_instance_id {
             crate::classes::ensure_object_alive(instance_id, object_ptr, &call_ctx);
         }

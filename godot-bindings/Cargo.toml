@@ -32,6 +32,14 @@ api-custom = ["dep:bindgen", "dep:regex", "dep:which"]
 api-custom-json = ["dep:nanoserde", "dep:bindgen", "dep:regex", "dep:which"]
 api-custom-extheader = []
 
+debug-checks-fast-unsafe = []
+debug-checks-balanced = []
+debug-checks-paranoid = []
+
+release-checks-fast-unsafe = []
+release-checks-balanced = []
+release-checks-paranoid = []
+
 [dependencies]
 gdextension-api = { workspace = true }
 

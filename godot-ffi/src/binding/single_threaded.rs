@@ -123,7 +123,7 @@ impl BindingStorage {
 
         // We only check if we are in the main thread in debug builds if we aren't building for a non-threaded Godot build,
         // since we could otherwise assume there won't be multi-threading.
-        #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+        #[cfg(all(checks_at_least = "paranoid", not(wasm_nothreads)))]
         {
             if !crate::is_main_thread() {
                 // If a binding is accessed the first time, this will panic and start unwinding. It can then happen that during unwinding,
