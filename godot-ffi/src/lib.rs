@@ -81,6 +81,7 @@ pub use gen::interface::*;
 // Method tables
 pub use gen::table_builtins::*;
 pub use gen::table_builtins_lifecycle::*;
+pub use gen::table_core_classes::*;
 pub use gen::table_editor_classes::*;
 pub use gen::table_scene_classes::*;
 pub use gen::table_servers_classes::*;
@@ -101,8 +102,9 @@ mod binding;
 
 pub use binding::*;
 use binding::{
-    initialize_binding, initialize_builtin_method_table, initialize_class_editor_method_table,
-    initialize_class_scene_method_table, initialize_class_server_method_table, runtime_metadata,
+    initialize_binding, initialize_builtin_method_table, initialize_class_core_method_table,
+    initialize_class_editor_method_table, initialize_class_scene_method_table,
+    initialize_class_server_method_table, runtime_metadata,
 };
 
 #[cfg(not(wasm_nothreads))]
@@ -313,9 +315,18 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
     let (class_count, method_count);
     match api_level {
         InitLevel::Core => {
-            // Currently we don't need to do anything in `Core`, this may change in the future.
-            class_count = 0;
-            method_count = 0;
+            // SAFETY: The interface has been initialized and this function hasn't been called before.
+            unsafe {
+                #[cfg(feature = "codegen-lazy-fptrs")]
+                initialize_class_core_method_table(ClassCoreMethodTable::load());
+                #[cfg(not(feature = "codegen-lazy-fptrs"))]
+                initialize_class_core_method_table(ClassCoreMethodTable::load(
+                    interface,
+                    &mut string_names,
+                ));
+            }
+            class_count = ClassCoreMethodTable::CLASS_COUNT;
+            method_count = ClassCoreMethodTable::METHOD_COUNT;
         }
         InitLevel::Servers => {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
@@ -386,7 +397,7 @@ pub unsafe fn godot_has_feature(
     // Issue a raw C call to OS.has_feature(tag_string).
 
     // SAFETY: Called from main thread, interface has been initialized, and the scene api has been initialized.
-    let method_bind = unsafe { class_scene_api() }.os__has_feature();
+    let method_bind = unsafe { class_core_api() }.os__has_feature();
 
     // SAFETY: Called from main thread, and interface has been initialized.
     let interface = unsafe { get_interface() };
