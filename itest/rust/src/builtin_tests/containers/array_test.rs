@@ -580,56 +580,71 @@ fn __array_type_inference() {
 
 #[itest]
 fn array_element_type_from_rust() {
-    // Untyped array.
-    let untyped = VariantArray::new();
-    assert!(
-        matches!(untyped.element_type(), ElementType::Untyped),
-        "expected untyped array for VariantArray"
+    // Untyped array
+    verify_elem!(
+        VariantArray::new() as VariantArray,
+        elem: ElementType::Untyped,
     );
 
-    let builtin_int = Array::<i64>::new();
-    if let ElementType::Builtin(variant_type) = builtin_int.element_type() {
-        assert_eq!(variant_type, VariantType::INT);
-    } else {
-        panic!("expected built-in type for Array<i64>");
-    }
+    // Array<i64>
+    verify_elem!(
+        Array::<i64>::new() as Array<i64>,
+        elem: ElementType::Builtin(variant_type),
+    );
+    assert_eq!(variant_type, VariantType::INT);
 
-    let builtin_string = Array::<GString>::new();
-    if let ElementType::Builtin(variant_type) = builtin_string.element_type() {
-        assert_eq!(variant_type, VariantType::STRING);
-    } else {
-        panic!("expected built-in type for Array<GString>");
-    }
+    // Array<GString>
+    verify_elem!(
+        Array::<GString>::new() as Array<GString>,
+        elem: ElementType::Builtin(variant_type),
+    );
+    assert_eq!(variant_type, VariantType::STRING);
 
-    let class_array = Array::<Gd<Node>>::new();
-    if let ElementType::Class(class_name) = class_array.element_type() {
-        assert_eq!(class_name.to_string(), "Node");
-    } else {
-        panic!("expected class type for Array<Gd<Node>>");
-    }
+    // Array<Gd<Node>>
+    verify_elem!(
+        Array::<Gd<Node>>::new() as Array<Gd<Node>>,
+        elem: ElementType::Class(class_name),
+    );
+    assert_eq!(class_name.to_string(), "Node");
 
-    let extension_class_array = Array::<Gd<ArrayTest>>::new();
-    if let ElementType::Class(class_name) = extension_class_array.element_type() {
-        assert_eq!(class_name, ArrayTest::class_name());
-    } else {
-        panic!("expected class type for Array<Gd<ArrayTest>>")
-    }
+    // Array<Gd<ArrayTest>>
+    verify_elem!(
+        Array::<Gd<ArrayTest>>::new() as Array<Gd<ArrayTest>>,
+        elem: ElementType::Class(class_name),
+    );
+    assert_eq!(class_name, ArrayTest::class_name());
 }
 
-// $ArrayType is
 macro_rules! verify_elem {
+    // Function call branch - forwards to expression branch
     (
         $object:ident.$method:ident() as $ArrayType:ty,
         elem: $elem_pattern:pat,
     ) => {
         let __method = stringify!($method);
         let result = $object.call(__method, &[]);
-        let array = result.to::<$ArrayType>();
-
-        let __elem = array.element_type();
+        verify_elem!(result.to::<$ArrayType>() => $elem_pattern, method: __method);
+    };
+    
+    // Expression branch - handles any array expression
+    (
+        $array_expr:expr as $ArrayType:ty,
+        elem: $elem_pattern:pat,
+    ) => {
+        let array: $ArrayType = $array_expr;
+        verify_elem!(array => $elem_pattern, method: stringify!($array_expr));
+    };
+    
+    // Internal branch - actual verification logic
+    (
+        $array:expr => $elem_pattern:pat,
+        method: $method_name:expr,
+    ) => {
+        let __elem = $array.element_type();
         let $elem_pattern = __elem else {
             panic!(
-                "{__method}():\n  expected elem = {}\n  but was elem =  {__elem:?}",
+                "{}:\n  expected elem = {}\n  but was elem =  {__elem:?}",
+                $method_name,
                 stringify!($elem_pattern)
             );
         };
