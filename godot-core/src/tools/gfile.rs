@@ -747,7 +747,7 @@ impl Write for GFile {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.pack_into_write_buffer(buf);
         self.fa
-            .store_buffer(&self.write_buffer.subarray(0, buf.len()));
+            .store_buffer(&self.write_buffer.subarray(0..buf.len() as i32));
         self.clear_file_length();
         self.check_error()?;
 

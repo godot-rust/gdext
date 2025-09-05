@@ -13,8 +13,6 @@ mod node_path;
 mod string_macros;
 mod string_name;
 
-use std::ops;
-
 pub use gstring::*;
 pub use node_path::NodePath;
 pub use string_name::*;
@@ -69,71 +67,6 @@ pub enum Encoding {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Returns a tuple of `(from, len)` from a Rust range.
-///
-/// Unbounded upper bounds are represented by `len = -1`.
-fn to_godot_fromlen_neg1<R>(range: R) -> (i64, i64)
-where
-    R: ops::RangeBounds<usize>,
-{
-    let from = match range.start_bound() {
-        ops::Bound::Included(&n) => n as i64,
-        ops::Bound::Excluded(&n) => (n as i64) + 1,
-        ops::Bound::Unbounded => 0,
-    };
-
-    let len = match range.end_bound() {
-        ops::Bound::Included(&n) => {
-            let to = (n + 1) as i64;
-            debug_assert!(
-                from <= to,
-                "range: start ({from}) > inclusive end ({n}) + 1"
-            );
-            to - from
-        }
-        ops::Bound::Excluded(&n) => {
-            let to = n as i64;
-            debug_assert!(from <= to, "range: start ({from}) > exclusive end ({to})");
-            to - from
-        }
-        ops::Bound::Unbounded => -1,
-    };
-
-    (from, len)
-}
-
-/// Returns a tuple of `(from, len)` from a Rust range.
-///
-/// Unbounded upper bounds are represented by `i32::MAX` (yes, not `i64::MAX` -- since Godot treats some indexes as 32-bit despite being
-/// declared `i64` in GDExtension API).
-fn to_godot_fromlen_i32max<R>(range: R) -> (i64, i64)
-where
-    R: ops::RangeBounds<usize>,
-{
-    let (from, len) = to_godot_fromlen_neg1(range);
-    if len == -1 {
-        // Use i32 here because Godot may wrap around larger values (see Rustdoc).
-        (from, i32::MAX as i64)
-    } else {
-        (from, len)
-    }
-}
-
-/// Returns a tuple of `(from, to)` from a Rust range.
-///
-/// Unbounded upper bounds are represented by `to = 0`.
-fn to_godot_fromto<R>(range: R) -> (i64, i64)
-where
-    R: ops::RangeBounds<usize>,
-{
-    let (from, len) = to_godot_fromlen_neg1(range);
-    if len == -1 {
-        (from, 0)
-    } else {
-        (from, from + len)
-    }
-}
 
 fn populated_or_none(s: GString) -> Option<GString> {
     if s.is_empty() {

@@ -113,6 +113,9 @@ pub mod inner {
     pub use crate::gen::builtin_classes::*;
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conversion functions
+
 pub(crate) fn to_i64(i: usize) -> i64 {
     i.try_into().unwrap()
 }
