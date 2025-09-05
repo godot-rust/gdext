@@ -50,6 +50,22 @@ impl<T> CowArg<'_, T> {
     }
 }
 
+impl<T> CowArg<'_, crate::obj::Gd<T>>
+where
+    T: crate::obj::GodotClass + crate::obj::Bounds<Declarer = crate::obj::bounds::DeclEngine>,
+{
+    /// Convert `CowArg<Gd<T>>` to `ObjectCow<T>` for storage in Ex structs.
+    /// This is a temporary method for the AsArg migration.
+    #[doc(hidden)]
+    pub fn cow_to_object_cow(self) -> crate::meta::args::ObjectCow<T> {
+        use crate::meta::args::{AsObjectArg, ObjectCow};
+        match self {
+            CowArg::Owned(gd) => ObjectCow::Owned(gd),
+            CowArg::Borrowed(gd_ref) => ObjectCow::Borrowed(gd_ref.as_object_arg()),
+        }
+    }
+}
+
 macro_rules! wrong_direction {
     ($fn:ident) => {
         unreachable!(concat!(

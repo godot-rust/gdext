@@ -392,7 +392,7 @@ pub(crate) enum FnArgExpr {
 /// How parameters are declared in a function signature.
 #[derive(Copy, Clone)]
 pub(crate) enum FnParamDecl {
-    /// Public-facing, i.e. `T`, `&T`, `impl AsArg<T>` or `impl AsObjectArg<T>`.
+    /// Public-facing, i.e. `T`, `&T`, `impl AsArg<T>` or `impl AsArg<Gd<T>>`.
     FnPublic,
 
     /// Public-facing with explicit lifetime, e.g. `&'a T`. Used in `Ex` builder methods.
@@ -446,7 +446,7 @@ pub(crate) fn make_param_or_field_type(
     let mut special_ty = None;
 
     let param_ty = match ty {
-        // Objects: impl AsObjectArg<T>
+        // Objects: impl AsArg<Gd<T>>
         RustTy::EngineClass {
             object_arg,
             impl_as_object_arg,
@@ -513,11 +513,11 @@ pub(crate) fn make_arg_expr(name: &Ident, ty: &RustTy, expr: FnArgExpr) -> Token
     match ty {
         // Objects.
         RustTy::EngineClass { .. } => match expr {
-            FnArgExpr::PassToFfi => quote! { #name.as_object_arg() },
+            FnArgExpr::PassToFfi => quote! { #name.into_arg().cow_as_ref().as_object_arg() },
             FnArgExpr::PassToFfiFromEx => quote! { #name.cow_as_object_arg() },
             FnArgExpr::Forward => quote! { #name },
-            FnArgExpr::StoreInField => quote! { #name.consume_arg() },
-            FnArgExpr::StoreInDefaultField => quote! { #name.consume_arg() },
+            FnArgExpr::StoreInField => quote! { #name.into_arg().cow_to_object_cow() },
+            FnArgExpr::StoreInDefaultField => quote! { #name.into_arg().cow_to_object_cow() },
         },
 
         // Strings.
