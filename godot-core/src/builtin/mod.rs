@@ -13,6 +13,9 @@
 //! API design behind the builtin types (and some wider parts of the library) is elaborated in the
 //! [extended documentation page](../__docs/index.html#builtin-api-design).
 
+use std::fmt::Debug;
+use std::ops;
+
 // Re-export generated enums.
 pub use crate::gen::central::global_reexported_enums::{Corner, EulerOrder, Side, VariantOperator};
 // Not yet public.
@@ -113,12 +116,83 @@ pub mod inner {
     pub use crate::gen::builtin_classes::*;
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// utils
+
 pub(crate) fn to_i64(i: usize) -> i64 {
     i.try_into().unwrap()
 }
 
 pub(crate) fn to_usize(i: i64) -> usize {
     i.try_into().unwrap()
+}
+
+/// Trait easing converting Rust ranges to values expected by Godot.
+///
+/// Note: Unbounded upper bounds must be represented by `i32::MAX` instead of `i64::MAX`,
+/// since Godot treats some indexes as 32-bit despite being declared `i64` in GDExtension API.
+pub(crate) trait GodotRange<T> {
+    /// Returns a tuple of `(from, to)` from a Rust range.
+    fn to_godot_range_fromto(&self) -> (i64, Option<i64>);
+
+    /// Returns a tuple of `(from, len)` from a Rust range.
+    ///
+    /// Unbounded upper bound will be represented by `from = default_unbounded_upper`.
+    ///
+    /// # Panics
+    /// In debug mode, when `from` > `to`.
+    fn to_godot_range_fromto_checked(&self, default_unbounded_upper: i64) -> (i64, i64) {
+        match self.to_godot_range_fromto() {
+            (from, Some(to)) => {
+                debug_assert!(from <= to, "range: start ({from}) > end ({to})");
+                (from, to)
+            }
+            (from, None) => (from, default_unbounded_upper),
+        }
+    }
+
+    /// Returns a tuple of `(from, len)` from a Rust range.
+    ///
+    /// Unbounded upper bounds are represented by `len = default_unbounded_upper`.
+    fn to_godot_range_fromlen(&self, default_unbounded_upper: i64) -> (i64, i64) {
+        match self.to_godot_range_fromto() {
+            (from, Some(to)) => {
+                debug_assert!(from <= to, "range: start ({from}) > end ({to})");
+                (from, to - from)
+            }
+            (from, None) => (from, default_unbounded_upper),
+        }
+    }
+}
+
+impl<T, R> GodotRange<T> for R
+where
+    R: ops::RangeBounds<T>,
+    i64: TryFrom<T>,
+    T: Copy + std::fmt::Display,
+    <T as TryInto<i64>>::Error: Debug,
+{
+    fn to_godot_range_fromto(&self) -> (i64, Option<i64>) {
+        let from = match self.start_bound() {
+            ops::Bound::Included(&n) => i64::try_from(n).unwrap(),
+            ops::Bound::Excluded(&n) => i64::try_from(n).unwrap() + 1,
+            ops::Bound::Unbounded => 0,
+        };
+
+        let to = match self.end_bound() {
+            ops::Bound::Included(&n) => {
+                let to = i64::try_from(n).unwrap() + 1;
+                Some(to)
+            }
+            ops::Bound::Excluded(&n) => {
+                let to = i64::try_from(n).unwrap();
+                Some(to)
+            }
+            ops::Bound::Unbounded => None,
+        };
+
+        (from, to)
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
