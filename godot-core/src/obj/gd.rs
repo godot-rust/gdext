@@ -983,11 +983,15 @@ where
 }
 */
 
-impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
+impl<T, U> AsArg<Option<Gd<T>>> for Option<&Gd<U>>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+{
     fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
-        // TODO avoid cloning.
+        // TODO avoid cloning when T == U.
         match self {
-            Some(gd) => CowArg::Owned(Some(gd.clone())),
+            Some(gd) => CowArg::Owned(Some(gd.clone().upcast::<T>())),
             None => CowArg::Owned(None),
         }
     }

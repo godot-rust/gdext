@@ -141,6 +141,10 @@ where
     }
 }
 
+// Optional object argument implementations
+// Note: Option<&Gd<T>> -> Option<Gd<T>> is already implemented in gd.rs
+// and Option<Gd<T>> -> Option<Gd<T>> works through blanket impls.
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public helper functions (T|&T -> AsArg)
 
