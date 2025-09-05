@@ -81,13 +81,15 @@ macro_rules! impl_shared_string_api {
 
             /// Count how many times `what` appears within `range`. Use `..` for full string search.
             pub fn count(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
-                let (from, to) = super::to_godot_fromto(range);
+                use $crate::meta::godot_range::GodotRange;
+                let (from, to) = range.to_godot_range_fromto_checked(0);
                 self.as_inner().count(what, from, to) as usize
             }
 
             /// Count how many times `what` appears within `range`, case-insensitively. Use `..` for full string search.
             pub fn countn(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
-                let (from, to) = super::to_godot_fromto(range);
+                use $crate::meta::godot_range::GodotRange;
+                let (from, to) = range.to_godot_range_fromto_checked(0);
                 self.as_inner().countn(what, from, to) as usize
             }
 
@@ -121,7 +123,8 @@ macro_rules! impl_shared_string_api {
             /// Returns a substring of this, as another `GString`.
             // TODO is there no efficient way to implement this for StringName by interning?
             pub fn substr(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
-                let (from, len) = super::to_godot_fromlen_neg1(range);
+                use $crate::meta::godot_range::GodotRange;
+                let (from, len) = range.to_godot_range_fromlen(-1);
 
                 self.as_inner().substr(from, len)
             }
@@ -163,7 +166,11 @@ macro_rules! impl_shared_string_api {
 
             /// Returns a copy of the string without the specified index range.
             pub fn erase(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
-                let (from, len) = super::to_godot_fromlen_i32max(range);
+                use $crate::meta::godot_range::GodotRange;
+                // Unbounded upper bounds are represented by `i32::MAX` instead of `i64::MAX`,
+                // since Godot treats some indexes as 32-bit despite being declared `i64` in GDExtension API.
+                let (from, len) = range.to_godot_range_fromlen(i32::MAX as i64);
+
                 self.as_inner().erase(from, len)
             }
 

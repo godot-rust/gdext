@@ -4,11 +4,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+use std::ops::RangeBounds;
 
 use sys::{interface_fn, GodotFfi, SysPtr};
 
 use crate::builtin::collections::extend_buffer::{ExtendBuffer, ExtendBufferTrait};
 use crate::builtin::PackedArray;
+use crate::meta::godot_range::GodotRange;
 use crate::meta::{CowArg, FromGodot, GodotType, ToGodot};
 use crate::registry::property::builtin_type_string;
 use crate::{builtin, sys};
@@ -126,7 +128,7 @@ pub trait PackedArrayElement: GodotType + Clone + ToGodot + FromGodot {
     fn op_append_array(inner: Self::Inner<'_>, other: &PackedArray<Self>);
 
     #[doc(hidden)]
-    fn op_slice(inner: Self::Inner<'_>, begin: i64, end: i64) -> PackedArray<Self>;
+    fn op_slice(inner: Self::Inner<'_>, range: impl RangeBounds<i32>) -> PackedArray<Self>;
 
     #[doc(hidden)]
     fn op_find(inner: Self::Inner<'_>, value: CowArg<'_, Self>, from: i64) -> i64;
@@ -285,8 +287,9 @@ macro_rules! impl_packed_array_element {
                 inner.append_array(other);
             }
 
-            fn op_slice(inner: Self::Inner<'_>, begin: i64, end: i64) -> PackedArray<Self> {
-                inner.slice(begin, end)
+            fn op_slice(inner: Self::Inner<'_>, range: impl RangeBounds<i32>) -> PackedArray<Self> {
+                let (begin, end) = range.to_godot_range_fromto();
+                inner.slice(begin, end.unwrap_or(i32::MAX as i64))
             }
 
             fn op_find(inner: Self::Inner<'_>, value: CowArg<'_, Self>, from: i64) -> i64 {

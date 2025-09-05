@@ -56,6 +56,7 @@ mod uniform_object_deref;
 pub(crate) mod sealed;
 
 pub mod error;
+pub(crate) mod godot_range;
 pub mod inspect;
 
 // Public re-exports

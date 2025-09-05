@@ -88,22 +88,23 @@ fn node_path_with_null() {
 
 #[itest]
 #[cfg(since_api = "4.3")]
+#[allow(clippy::reversed_empty_ranges)]
 fn node_path_subpath() {
     let path = NodePath::from("path/to/Node:with:props");
     let parts = path.get_name_count() + path.get_subname_count();
 
-    assert_eq!(path.subpath(0, 1), "path".into());
-    assert_eq!(path.subpath(1, 2), "to".into());
-    assert_eq!(path.subpath(2, 3), "Node".into());
-    assert_eq!(path.subpath(3, 4), ":with".into());
-    assert_eq!(path.subpath(4, 5), ":props".into());
+    assert_eq!(path.subpath(0..1), "path".into());
+    assert_eq!(path.subpath(1..2), "to".into());
+    assert_eq!(path.subpath(2..3), "Node".into());
+    assert_eq!(path.subpath(3..4), ":with".into());
+    assert_eq!(path.subpath(4..5), ":props".into());
 
-    assert_eq!(path.subpath(1, -1), "to/Node:with".into());
-    assert_eq!(path.subpath(1, parts as i32 - 1), "to/Node:with".into());
-    assert_eq!(path.subpath(0, -2), "path/to/Node".into());
-    assert_eq!(path.subpath(-3, -1), "Node:with".into());
-    assert_eq!(path.subpath(-2, i32::MAX), ":with:props".into());
-    assert_eq!(path.subpath(-1, i32::MAX), ":props".into());
+    assert_eq!(path.subpath(1..-1), "to/Node:with".into());
+    assert_eq!(path.subpath(1..parts as i32 - 1), "to/Node:with".into());
+    assert_eq!(path.subpath(0..-2), "path/to/Node".into());
+    assert_eq!(path.subpath(-3..-1), "Node:with".into());
+    assert_eq!(path.subpath(-2..), ":with:props".into());
+    assert_eq!(path.subpath(-1..), ":props".into());
 }
 
 #[itest]
