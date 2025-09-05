@@ -806,7 +806,7 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> impl meta::AsObjectArg<T> {
+    pub fn null_arg() -> impl meta::AsArg<Gd<T>> {
         meta::ObjectNullArg(std::marker::PhantomData)
     }
 

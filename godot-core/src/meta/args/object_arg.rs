@@ -11,7 +11,7 @@ use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
-use crate::meta::{ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
+use crate::meta::{AsArg, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits, RawGd};
 use crate::{obj, sys};
 
@@ -132,7 +132,7 @@ where
     fn consume_arg(self) -> ObjectCow<T> {
         match self {
             Some(obj) => obj.consume_arg(),
-            None => Gd::null_arg().consume_arg(),
+            None => ObjectCow::Borrowed(ObjectArg::null()),
         }
     }
 }
