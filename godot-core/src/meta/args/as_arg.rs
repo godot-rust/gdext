@@ -396,5 +396,37 @@ impl ArgPassing for ByRef {
     }
 }
 
+/// Pass object arguments to Godot optimized for object-specific conversions.
+///
+/// See [`ToGodot::Pass`].
+pub enum ByObject {}
+impl Sealed for ByObject {}
+impl ArgPassing for ByObject {
+    type Output<'r, T: 'r> = &'r T;
+
+    type FfiOutput<'f, T>
+        = T::ToFfi<'f>
+    where
+        T: GodotType + 'f;
+
+    fn ref_to_owned_via<T>(value: &T) -> T::Via
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: Clone,
+    {
+        // For ByObject types, forward to the object's to_godot() method.
+        value.to_godot().clone()
+    }
+
+    fn ref_to_ffi<T>(value: &T) -> <T::Via as GodotType>::ToFfi<'_>
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: GodotType,
+    {
+        // Use by-ref conversion for objects, avoiding unnecessary clones.
+        value.to_godot().to_ffi()
+    }
+}
+
 #[doc(hidden)] // Easier for internal use.
 pub type ToArg<'r, Via, Pass> = <Pass as ArgPassing>::Output<'r, Via>;
