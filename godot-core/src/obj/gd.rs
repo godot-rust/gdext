@@ -871,7 +871,7 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 }
 
 impl<T: GodotClass> ToGodot for Gd<T> {
-    type Pass = meta::ByRef;
+    type Pass = meta::ByObject;
 
     fn to_godot(&self) -> &Self::Via {
         self.raw.check_rtti("to_godot");
