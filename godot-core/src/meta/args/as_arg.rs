@@ -11,6 +11,8 @@ use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::GodotFfiVariant;
 use crate::meta::{CowArg, GodotType, ToGodot};
+use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits, RawGd};
+use crate::meta::args::ObjectNullArg;
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///
@@ -94,6 +96,48 @@ where
         Self: 'r,
     {
         CowArg::Owned(self)
+    }
+}
+
+// Object-specific AsArg implementations for Gd<T> and related types.
+impl<'r, T, U> AsArg<Gd<T>> for &'r Gd<U>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
+    where
+        'r: 'cow,
+    {
+        // For now, we clone and upcast. This mirrors the AsObjectArg behavior.
+        // TODO: optimize to avoid cloning when T == U.
+        CowArg::Owned(self.clone().upcast::<T>())
+    }
+}
+
+impl<'r, T, U, D> AsArg<DynGd<T, D>> for &'r DynGd<U, D>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+    D: ?Sized,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, DynGd<T, D>>
+    where
+        'r: 'cow,
+    {
+        CowArg::Owned(self.clone().upcast::<T>())
+    }
+}
+
+impl<T> AsArg<Gd<T>> for ObjectNullArg<T>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, Gd<T>>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(Gd::null())
     }
 }
 

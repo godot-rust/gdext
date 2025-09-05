@@ -809,6 +809,12 @@ where
     pub fn null_arg() -> impl meta::AsObjectArg<T> {
         meta::ObjectNullArg(std::marker::PhantomData)
     }
+
+    /// Temporary helper for AsArg migration - creates a null Gd<T>.
+    /// TODO: remove this once migration is complete.
+    pub fn null2() -> Self {
+        unsafe { Self::from_obj_sys_weak_or_none(std::ptr::null_mut()).unwrap_err().into() }
+    }
 }
 
 impl<T> Gd<T>
