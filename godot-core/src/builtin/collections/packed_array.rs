@@ -231,13 +231,9 @@ impl<T: PackedArrayElement> PackedArray<T> {
     ///
     /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
     #[doc(alias = "slice")]
-    // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
-    pub fn subarray(&self, begin: usize, end: usize) -> Self {
-        let len = self.len();
-        let begin = begin.min(len);
-        let end = end.min(len);
-
-        T::op_slice(self.as_inner(), to_i64(begin), to_i64(end))
+    // Note: Godot will clamp values by itself.
+    pub fn subarray(&self, begin: i32, end: i32) -> Self {
+        T::op_slice(self.as_inner(), begin as i64, end as i64)
     }
 
     /// Returns a shared Rust slice of the array.

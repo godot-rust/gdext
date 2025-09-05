@@ -533,8 +533,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
-    // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
-    pub fn subarray_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+    pub fn subarray_shallow(&self, begin: i32, end: i32, step: Option<i32>) -> Self {
         self.subarray_impl(begin, end, step, false)
     }
 
@@ -552,23 +551,20 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
-    // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
-    pub fn subarray_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+    pub fn subarray_deep(&self, begin: i32, end: i32, step: Option<i32>) -> Self {
         self.subarray_impl(begin, end, step, true)
     }
 
-    fn subarray_impl(&self, begin: usize, end: usize, step: Option<isize>, deep: bool) -> Self {
+    // Note: Godot will clamp values by itself.
+    fn subarray_impl(&self, begin: i32, end: i32, step: Option<i32>, deep: bool) -> Self {
         assert_ne!(step, Some(0), "subarray: step cannot be zero");
 
-        let len = self.len();
-        let begin = begin.min(len);
-        let end = end.min(len);
         let step = step.unwrap_or(1);
 
         // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
         let subarray: VariantArray = unsafe {
             self.as_inner()
-                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep)
+                .slice(begin as i64, end as i64, step as i64, deep)
         };
 
         // SAFETY: slice() returns a typed array with the same type as Self

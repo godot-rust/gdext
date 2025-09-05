@@ -140,6 +140,15 @@ fn array_subarray_shallow() {
     let slice = array.subarray_shallow(5, 1, Some(-2));
     assert_eq!(slice, array![5, 3]);
 
+    let negative_slice = array.subarray_shallow(-1, -5, Some(-2));
+    assert_eq!(negative_slice, array![5, 3]);
+
+    let clamped_slice = array.subarray_shallow(100, -1, Some(2));
+    assert_eq!(clamped_slice, array![]);
+
+    let other_clamped_slice = array.subarray_shallow(5, 100, Some(2));
+    assert_eq!(other_clamped_slice, array![5]);
+
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let slice = array.subarray_shallow(1, 2, None);
@@ -154,6 +163,15 @@ fn array_subarray_deep() {
     let array = array![0, 1, 2, 3, 4, 5];
     let slice = array.subarray_deep(5, 1, Some(-2));
     assert_eq!(slice, array![5, 3]);
+
+    let negative_slice = array.subarray_deep(-1, -5, Some(-2));
+    assert_eq!(negative_slice, array![5, 3]);
+
+    let clamped_slice = array.subarray_deep(100, -1, Some(2));
+    assert_eq!(clamped_slice, array![]);
+
+    let other_clamped_slice = array.subarray_deep(5, 100, Some(2));
+    assert_eq!(other_clamped_slice, array![5]);
 
     let subarray = array![2, 3];
     let array = varray![1, subarray];

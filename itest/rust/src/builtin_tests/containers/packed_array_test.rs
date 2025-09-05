@@ -449,6 +449,9 @@ fn packed_array_subarray() {
     let sub = array.subarray(1, 4);
     assert_eq!(sub.as_slice(), &[20, 30, 40]);
 
+    let negative_sub = array.subarray(-4, -2);
+    assert_eq!(negative_sub.as_slice(), &[20, 30]);
+
     let sub_empty = array.subarray(2, 2);
     assert_eq!(sub_empty.len(), 0);
 
