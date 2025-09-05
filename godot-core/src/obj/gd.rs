@@ -813,7 +813,10 @@ where
     /// Temporary helper for AsArg migration - creates a null Gd<T>.
     /// TODO: remove this once migration is complete.
     pub fn null2() -> Self {
-        unsafe { Self::from_obj_sys_weak_or_none(std::ptr::null_mut()).unwrap_err().into() }
+        unsafe {
+            let raw = RawGd::from_obj_sys_weak(std::ptr::null_mut());
+            Self { raw }
+        }
     }
 }
 

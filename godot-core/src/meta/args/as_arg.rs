@@ -137,7 +137,7 @@ where
     where
         Self: 'r,
     {
-        CowArg::Owned(Gd::null())
+        CowArg::Owned(Gd::null2())
     }
 }
 
