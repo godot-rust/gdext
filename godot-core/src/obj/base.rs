@@ -246,6 +246,13 @@ impl<T: GodotClass> Base<T> {
                 "Base unexpectedly had its strong ref rug-pulled"
             );
 
+            // Editor creates instances of given class for various purposes (getting class docs, default values...)
+            // and frees them instantly before our callable can be executed.
+            // Make sure that our instance is still valid if we are in the Editor.
+            if !instance_id.lookup_validity() {
+                strong_ref.unwrap().drop_weak();
+            }
+
             // Triggers RawGd::drop() -> dec-ref -> possibly object destruction.
         });
     }
