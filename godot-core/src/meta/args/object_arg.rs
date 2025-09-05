@@ -46,6 +46,10 @@ use crate::{obj, sys};
 /// | `Option<&Gd>`     | `Option<&Gd>`         | `arg`            |
 /// | `Option<&mut Gd>` | `Option<&Gd>`         | `arg.as_deref()` |
 /// | (null literal)    |                       | `Gd::null_arg()` |
+#[deprecated(
+    since = "0.4.0",
+    note = "Use `AsArg<Gd<T>>` instead. `AsObjectArg<T>` has been unified into the `AsArg` trait."
+)]
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsObjectArg<{T}>` parameter",
     note = "if you pass by value, consider borrowing instead.",
@@ -184,12 +188,20 @@ where
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[deprecated(
+    since = "0.4.0",
+    note = "Use `Gd::null_arg()` which now returns `impl AsArg<Gd<T>>` instead."
+)]
 #[doc(hidden)]
 pub struct ObjectNullArg<T>(pub(crate) std::marker::PhantomData<*mut T>);
 
 /// Exists for cases where a value must be moved, and retaining `ObjectArg<T>` may not be possible if the source is owned.
 ///
 /// Only used in default-param extender structs.
+#[deprecated(
+    since = "0.4.0",
+    note = "Use `CowArg<Gd<T>>` instead. `ObjectCow<T>` will be removed in favor of the unified `CowArg` type."
+)]
 #[doc(hidden)]
 pub enum ObjectCow<T: GodotClass> {
     Owned(Gd<T>),
@@ -218,6 +230,10 @@ where
 ///
 /// Could technically have a lifetime, but this makes the whole calling code more complex, e.g. `type CallSig`. Since usage is quite localized
 /// and this type doesn't use `Drop` or is propagated further, this should be fine.
+#[deprecated(
+    since = "0.4.0",
+    note = "Use `AsArg<Gd<T>>` instead. `ObjectArg<T>` will be removed in favor of the unified `AsArg` trait."
+)]
 #[derive(Debug)]
 #[doc(hidden)]
 pub struct ObjectArg<T: GodotClass> {
