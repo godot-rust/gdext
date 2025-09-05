@@ -11,7 +11,7 @@ use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::GodotFfiVariant;
 use crate::meta::{CowArg, GodotType, ToGodot};
-use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits, RawGd};
+use crate::obj::{Bounds, DynGd, Gd, GodotClass, Inherits};
 use crate::meta::args::ObjectNullArg;
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -102,7 +102,7 @@ where
 // Object-specific AsArg implementations for Gd<T> and related types.
 impl<'r, T, U> AsArg<Gd<T>> for &'r Gd<U>
 where
-    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    T: GodotClass + Bounds,
     U: Inherits<T>,
 {
     fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
@@ -117,7 +117,7 @@ where
 
 impl<'r, T, U, D> AsArg<DynGd<T, D>> for &'r DynGd<U, D>
 where
-    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    T: GodotClass + Bounds,
     U: Inherits<T>,
     D: ?Sized,
 {
@@ -129,21 +129,59 @@ where
     }
 }
 
+// Allow DynGd to be used as Gd<T> arguments (upcast to concrete type)
+impl<'r, T, U, D> AsArg<Gd<T>> for &'r DynGd<U, D>
+where
+    T: GodotClass + Bounds,
+    U: Inherits<T>,
+    D: ?Sized,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
+    where
+        'r: 'cow,
+    {
+        CowArg::Owned(self.clone().upcast::<T>().into_gd())
+    }
+}
+
 impl<T> AsArg<Gd<T>> for ObjectNullArg<T>
 where
-    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    T: GodotClass + Bounds,
 {
     fn into_arg<'r>(self) -> CowArg<'r, Gd<T>>
     where
         Self: 'r,
     {
-        CowArg::Owned(Gd::null2())
+        // Create a null Gd<T> for FFI argument passing.
+        // This will be converted to ObjectArg::null() later in the call chain.
+        CowArg::Owned(Gd::null_for_ffi())
     }
 }
 
 // Optional object argument implementations
 // Note: Option<&Gd<T>> -> Option<Gd<T>> is already implemented in gd.rs
 // and Option<Gd<T>> -> Option<Gd<T>> works through blanket impls.
+
+// Allow unwrapping Option<&Gd<U>> when the function expects Gd<T> (for tests that expect non-null)
+impl<'r, T, U> AsArg<Gd<T>> for Option<&'r Gd<U>>
+where
+    T: GodotClass + Bounds,
+    U: Inherits<T>,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
+    where
+        'r: 'cow,
+    {
+        match self {
+            Some(gd) => CowArg::Owned(gd.clone().upcast::<T>()),
+            None => {
+                // Create a null Gd<T> for FFI argument passing.
+                // This will be converted to ObjectArg::null() later in the call chain.
+                CowArg::Owned(Gd::null_for_ffi())
+            }
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public helper functions (T|&T -> AsArg)

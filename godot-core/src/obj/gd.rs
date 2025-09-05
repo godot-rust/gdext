@@ -820,6 +820,17 @@ where
     }
 }
 
+impl<T: GodotClass> Gd<T> {
+    /// Creates a null Gd<T> for use in AsArg implementations.
+    /// This bypasses normal null checks and is only intended for FFI argument passing.
+    pub(crate) fn null_for_ffi() -> Self {
+        unsafe {
+            let raw = RawGd::from_obj_sys_weak(std::ptr::null_mut());
+            Self { raw }
+        }
+    }
+}
+
 impl<T> Gd<T>
 where
     T: WithSignals,

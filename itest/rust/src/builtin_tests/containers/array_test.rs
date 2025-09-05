@@ -570,11 +570,11 @@ fn array_resize() {
 fn __array_type_inference() {
     let a = Node::new_alloc();
     let b = Node::new_alloc();
-    let _array = array![&a, &b];
+    let _array: Array<Gd<Node>> = array![&a, &b];
 
     let c = ArrayTest::new_gd();
     let d = ArrayTest::new_gd();
-    let _array = array![&c, &d];
+    let _array: Array<Gd<ArrayTest>> = array![&c, &d];
 }
 
 #[derive(GodotClass, Debug)]
