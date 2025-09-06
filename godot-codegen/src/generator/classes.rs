@@ -266,6 +266,12 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                 unsafe impl crate::obj::Inherits<crate::classes::#all_bases> for #class_name {}
             )*
 
+            #(
+                // SAFETY: Same safety guarantees as Inherits - #all_bases represents actual parent classes of #class_name.
+                // StrictInheritsDistinct combines both inheritance and U != T, used for AsArg disambiguation.
+                unsafe impl crate::obj::StrictInheritsDistinct<crate::classes::#all_bases> for #class_name {}
+            )*
+
             #godot_default_impl
             #deref_impl
             #inherits_macro_code
@@ -339,6 +345,12 @@ fn make_inherits_macro(class: &Class, all_bases: &[TyName]) -> (Option<Ident>, T
                 unsafe impl ::godot::obj::Inherits<::godot::classes::#class_name> for $Class {}
                 #(
                     unsafe impl ::godot::obj::Inherits<::godot::classes::#all_bases> for $Class {}
+                )*
+                
+                // StrictInheritsDistinct implementations (non-reflexive, for AsArg disambiguation)
+                unsafe impl ::godot::obj::StrictInheritsDistinct<::godot::classes::#class_name> for $Class {}
+                #(
+                    unsafe impl ::godot::obj::StrictInheritsDistinct<::godot::classes::#all_bases> for $Class {}
                 )*
             }
         }

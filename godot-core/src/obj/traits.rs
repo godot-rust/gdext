@@ -139,6 +139,47 @@ pub unsafe trait Inherits<Base: GodotClass>: GodotClass {}
 // SAFETY: Every class is a subclass of itself.
 unsafe impl<T: GodotClass> Inherits<T> for T {}
 
+/// **Non-reflexive** inheritance trait for Godot classes.
+///
+/// Unlike [`Inherits`], this trait is **not reflexive**: `T` does not implement `StrictInherits<T>`.
+/// This trait represents only actual parent-child inheritance relationships in the Godot class hierarchy.
+///
+/// # Purpose
+///
+/// This trait enables type inference disambiguation in generic contexts where both identity (`T == T`)
+/// and inheritance (`T <: Base`) relationships exist. By separating actual inheritance from identity,
+/// the type system can make unambiguous choices.
+///
+/// # Example
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// // Node inherits from Object, but not from itself
+/// static_assert!(Node: StrictInherits<Object>);     // ✓ True inheritance
+/// static_assert!(!(Node: StrictInherits<Node>));    // ✗ Not reflexive
+/// 
+/// // This now works without type ambiguity:
+/// let a = Node::new_alloc();
+/// let b = Node::new_alloc();
+/// let array = array![&a, &b]; // Infers Array<Gd<Node>> unambiguously
+/// ```
+///
+/// # Safety
+///
+/// This is an unsafe trait with the same safety requirements as [`Inherits`]:
+/// implementations must guarantee that it is safe to upcast `Gd<Self>` to `Gd<Base>`.
+pub unsafe trait StrictInherits<Base: GodotClass>: GodotClass {}
+
+// NOTE: No blanket impl - only actual inheritance relationships are implemented via codegen
+
+/// Helper marker trait to enable different AsArg implementations for inheritance vs identity.
+///
+/// This trait is automatically implemented by codegen for inheritance relationships only.
+/// It combines both the inheritance relationship AND the fact that U != T, resolving
+/// trait coherence issues in AsArg implementations.
+#[doc(hidden)]
+pub trait StrictInheritsDistinct<Base: GodotClass>: GodotClass {}
+
 /// Trait that defines a `T` -> `dyn Trait` relation for use in [`DynGd`][crate::obj::DynGd].
 ///
 /// You should typically not implement this manually, but use the [`#[godot_dyn]`](../register/attr.godot_dyn.html) macro.

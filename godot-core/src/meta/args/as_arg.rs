@@ -12,7 +12,7 @@ use crate::meta::args::ObjectNullArg;
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::GodotFfiVariant;
 use crate::meta::{CowArg, GodotType, ToGodot};
-use crate::obj::{Bounds, DynGd, Gd, GodotClass, Inherits};
+use crate::obj::{Bounds, DynGd, Gd, GodotClass, Inherits, StrictInheritsDistinct};
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///
@@ -109,16 +109,30 @@ where
     where
         'r: 'cow,
     {
-        // For now, we clone and upcast. This mirrors the AsObjectArg behavior.
-        // TODO: optimize to avoid cloning when T == U.
+        // Clone and upcast. When T == U, upcast() is a no-op that just clones.
         CowArg::Owned(self.clone().upcast::<T>())
     }
 }
 
+// DynGd exact type implementation
+impl<T, D> AsArg<DynGd<T, D>> for &DynGd<T, D>
+where
+    T: GodotClass + Bounds,
+    D: ?Sized,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, DynGd<T, D>>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(self.clone())
+    }
+}
+
+// DynGd strict inheritance implementation
 impl<'r, T, U, D> AsArg<DynGd<T, D>> for &'r DynGd<U, D>
 where
     T: GodotClass + Bounds,
-    U: Inherits<T>,
+    U: StrictInheritsDistinct<T>,  // Combines inheritance + U != T constraint
     D: ?Sized,
 {
     fn into_arg<'cow>(self) -> CowArg<'cow, DynGd<T, D>>
@@ -129,11 +143,25 @@ where
     }
 }
 
-// Allow DynGd to be used as Gd<T> arguments (upcast to concrete type)
+// Allow DynGd to be used as Gd<T> arguments - exact type case
+impl<T, D> AsArg<Gd<T>> for &DynGd<T, D>
+where
+    T: GodotClass + Bounds,
+    D: ?Sized,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, Gd<T>>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(self.clone().into_gd())
+    }
+}
+
+// Allow DynGd to be used as Gd<T> arguments - strict inheritance case
 impl<'r, T, U, D> AsArg<Gd<T>> for &'r DynGd<U, D>
 where
     T: GodotClass + Bounds,
-    U: Inherits<T>,
+    U: StrictInheritsDistinct<T>,  // Combines inheritance + U != T constraint
     D: ?Sized,
 {
     fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>

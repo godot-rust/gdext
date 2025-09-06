@@ -570,7 +570,7 @@ fn array_resize() {
 fn __array_type_inference() {
     let a = Node::new_alloc();
     let b = Node::new_alloc();
-    let _array = array![a.exact_arg(), b.exact_arg()]; // Uses exact_arg() to avoid inheritance ambiguity
+    let _array = array![&a, &b]; // Should now work without type ambiguity thanks to StrictInherits
 
     let c = ArrayTest::new_gd();
     let d = ArrayTest::new_gd();

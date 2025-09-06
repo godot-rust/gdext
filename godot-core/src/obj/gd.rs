@@ -819,21 +819,6 @@ where
         }
     }
 
-    /// Helper method to get an exact-type AsArg implementation, avoiding inheritance ambiguity.
-    ///
-    /// This method returns an `AsArg<Gd<T>>` that specifically targets the exact type T,
-    /// which helps with type inference in cases where multiple inheritance paths exist.
-    /// Use this when the compiler can't infer the type due to inheritance ambiguity.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::prelude::*;
-    /// let node = Node::new_alloc();
-    /// let _array = array![node.exact_arg(), node.exact_arg()]; // Infers Array<Gd<Node>>
-    /// ```
-    pub fn exact_arg(&self) -> impl meta::AsArg<Gd<T>> + '_ {
-        ExactGdArg { gd_ref: self }
-    }
 }
 
 impl<T: GodotClass> Gd<T> {
@@ -1158,17 +1143,3 @@ impl<T: GodotClass> std::hash::Hash for Gd<T> {
 impl<T: GodotClass> std::panic::UnwindSafe for Gd<T> {}
 impl<T: GodotClass> std::panic::RefUnwindSafe for Gd<T> {}
 
-// Helper struct for exact-type AsArg implementation
-struct ExactGdArg<'a, T: GodotClass> {
-    gd_ref: &'a Gd<T>,
-}
-
-impl<T: GodotClass + Bounds> AsArg<Gd<T>> for ExactGdArg<'_, T> {
-    fn into_arg<'r>(self) -> CowArg<'r, Gd<T>>
-    where
-        Self: 'r,
-    {
-        // Clone the exact type without any upcasting
-        CowArg::Owned(self.gd_ref.clone())
-    }
-}
