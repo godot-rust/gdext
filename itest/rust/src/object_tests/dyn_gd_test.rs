@@ -413,8 +413,8 @@ fn dyn_gd_store_in_godot_array() {
     let a = Gd::from_object(RefcHealth { hp: 33 }).into_dyn();
     let b = foreign::NodeHealth::new_alloc().into_dyn();
 
-    // Forward compat: .upcast() here becomes a breaking change if we generalize AsArg to include derived->base conversions.
-    let array: Array<DynGd<Object, _>> = array![&a.upcast::<Object>(), &b.upcast::<Object>()];
+    // Test that AsArg<Gd<T>> now handles inheritance automatically - no upcast needed
+    let array: Array<DynGd<Object, _>> = array![&a, &b];
 
     assert_eq!(array.at(0).dyn_bind().get_hitpoints(), 33);
     assert_eq!(array.at(1).dyn_bind().get_hitpoints(), 100);
