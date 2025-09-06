@@ -8,11 +8,11 @@
 use std::ffi::CStr;
 
 use crate::builtin::{GString, NodePath, StringName, Variant};
+use crate::meta::args::ObjectNullArg;
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::GodotFfiVariant;
 use crate::meta::{CowArg, GodotType, ToGodot};
 use crate::obj::{Bounds, DynGd, Gd, GodotClass, Inherits};
-use crate::meta::args::ObjectNullArg;
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///
