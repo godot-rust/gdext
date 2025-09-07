@@ -314,7 +314,8 @@ impl<T: GodotClass> Base<T> {
             "to_script_gd() can only be called on script-context Base objects"
         );
 
-        (*self.obj).clone()
+        // SAFETY: ScriptBase{Ref,Mut} also drop weakly.
+        unsafe { (*self.obj).clone_weak() }
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
@@ -333,6 +334,22 @@ impl<T: GodotClass> Base<T> {
         );
 
         (*self.obj).clone()
+    }
+
+    /// Returns a weak [`Gd`] referencing the base object, assuming the derived object is fully constructed.
+    ///
+    /// Unlike `__constructed_gd()`, this does not increment the reference count for ref-counted `T`s.
+    /// The returned weak reference is safe to use only as long as the associated instance remains alive.
+    #[doc(hidden)]
+    pub fn __constructed_gd_weak(&self) -> Gd<T> {
+        #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
+        assert!(
+            !self.is_initializing(),
+            "WithBaseField::base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
+        );
+
+        // Create weak reference from the same object pointer without cloning (incrementing refcount).
+        unsafe { Gd::from_obj_sys_weak(self.obj.obj_sys()) }
     }
 }
 

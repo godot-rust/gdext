@@ -335,6 +335,15 @@ impl<T: GodotClass> Gd<T> {
         Some(rc.map(|i| i as usize))
     }
 
+    /// Create a non-owning pointer from this.
+    ///
+    /// # Safety
+    /// Must be destroyed with [`drop_weak()`][Self::drop_weak]; regular `Drop` will cause use-after-free.
+    pub(crate) unsafe fn clone_weak(&self) -> Self {
+        // SAFETY: delegated to caller.
+        unsafe { Gd::from_obj_sys_weak(self.obj_sys()) }
+    }
+
     /// Drop without decrementing ref-counter.
     ///
     /// Needed in situations where the instance should effectively be forgotten, but without leaking other associated data.

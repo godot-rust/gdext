@@ -199,16 +199,24 @@ macro_rules! make_base_ref {
         #[doc = concat!("This can be used to call methods on the base object of a ", $object_name, " that takes `&self` as the receiver.\n\n")]
         #[doc = concat!("See [`", stringify!($doc_type), "::base()`](", stringify!($doc_path), "::base()) for usage.")]
         pub struct $ident<'a, T: $bound> {
-            gd: Gd<T::Base>,
+            // Weak reference to the base object. Safe because 'a lifetime keeps the object (strong ref) alive.
+            // Option because Gd::drop_weak() takes ownership, thus can't use ManuallyDrop.
+            weak_gd: Option<Gd<T::Base>>,
             _instance: &'a T,
         }
 
         impl<'a, T: $bound> $ident<'a, T> {
-            pub(crate) fn new(gd: Gd<T::Base>, instance: &'a T) -> Self {
+            pub(crate) fn new(weak_gd: Gd<T::Base>, instance: &'a T) -> Self {
                 Self {
-                    gd,
+                    weak_gd: Some(weak_gd),
                     _instance: instance,
                 }
+            }
+        }
+
+        impl<'a, T: $bound> Drop for $ident<'a, T> {
+            fn drop(&mut self) {
+                self.weak_gd.take().unwrap().drop_weak();
             }
         }
 
@@ -216,7 +224,7 @@ macro_rules! make_base_ref {
             type Target = Gd<T::Base>;
 
             fn deref(&self) -> &Gd<T::Base> {
-                &self.gd
+                self.weak_gd.as_ref().unwrap()
             }
         }
     };
@@ -232,19 +240,27 @@ macro_rules! make_base_mut {
         ///
         #[doc = concat!("See [`", stringify!($doc_type), "::base_mut()`](", stringify!($doc_path), "::base_mut()) for usage.\n")]
         pub struct $ident<'a, T: $bound> {
-            gd: Gd<T::Base>,
+            // Weak reference to the base object. Safe because 'a lifetime keeps the object (strong ref) alive.
+            // Option because Gd::drop_weak() takes ownership, thus can't use ManuallyDrop.
+            weak_gd: Option<Gd<T::Base>>,
             _inaccessible_guard: InaccessibleGuard<'a, T>,
         }
 
         impl<'a, T: $bound> $ident<'a, T> {
             pub(crate) fn new(
-                gd: Gd<T::Base>,
+                weak_gd: Gd<T::Base>,
                 inaccessible_guard: InaccessibleGuard<'a, T>,
             ) -> Self {
                 Self {
-                    gd,
+                    weak_gd: Some(weak_gd),
                     _inaccessible_guard: inaccessible_guard,
                 }
+            }
+        }
+
+        impl<'a, T: $bound> Drop for $ident<'a, T> {
+            fn drop(&mut self) {
+                self.weak_gd.take().unwrap().drop_weak();
             }
         }
 
@@ -252,13 +268,13 @@ macro_rules! make_base_mut {
             type Target = Gd<T::Base>;
 
             fn deref(&self) -> &Gd<T::Base> {
-                &self.gd
+                self.weak_gd.as_ref().unwrap()
             }
         }
 
         impl<T: $bound> DerefMut for $ident<'_, T> {
             fn deref_mut(&mut self) -> &mut Gd<T::Base> {
-                &mut self.gd
+                self.weak_gd.as_mut().unwrap()
             }
         }
     };
