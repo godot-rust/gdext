@@ -324,4 +324,44 @@ macro_rules! assert_eq_self {
     }};
 }
 
-pub use crate::assert_eq_self;
+pub use crate::{assert_eq_self, assert_match};
+
+/// Asserts that `$expr` matches `$pat` and introduces the bindings from `$pat` into the surrounding scope.
+/// On failure, panics with either a default message (showing the value via `Debug`) or a custom message.
+///
+/// # Examples
+/// ```
+/// # use crate::assert_match;
+/// struct Point { x: i32, y: i32 }
+/// let point = Some(Point { x: 1, y: 2 });
+/// assert_match!(point, Some(Point { x, y }), "expected Point");
+/// assert_eq!(x, 1);
+/// assert_eq!(y, 2);
+/// ```
+/// ```should_panic
+/// # use crate::assert_match;
+/// // This will panic.
+/// let value = None::<i32>;
+/// assert_match!(value, Some(_));
+/// ```
+#[macro_export]
+macro_rules! assert_match {
+    // Default message, show the unexpected value (requires Debug).
+    ($expr:expr, $pat:pat $(,)?) => {
+        let __expr = $expr;
+        let $pat = __expr else {
+            panic!(
+                "assert_match! failed: expected {}, got {__expr:?}",
+                stringify!($pat),
+            );
+        };
+    };
+
+    // Custom panic message (format args supported).
+    ($expr:expr, $pat:pat, $($arg:tt)+) => {
+        let __expr = $expr;
+        let $pat = __expr else {
+            panic!($($arg)+);
+        };
+    };
+}
