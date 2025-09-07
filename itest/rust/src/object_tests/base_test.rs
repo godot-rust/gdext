@@ -171,6 +171,36 @@ fn base_swapping() {
     two.free();
 }
 
+#[itest]
+fn base_refcounted_weak_reference() {
+    // Not new_gd(), to not interfere with to_init_gd() ref-count handling.
+    let obj = RefcBased::create_one();
+
+    let initial_refcount = obj.get_reference_count();
+    assert_eq!(initial_refcount, 1);
+
+    {
+        let bind_guard = obj.bind();
+        let base_guard = bind_guard.base();
+
+        let intermediate_refcount = obj.get_reference_count();
+        assert_eq!(
+            intermediate_refcount, 1,
+            "base() should not increment refcount"
+        );
+
+        // Call an API to ensure Base is functional.
+        let class_name = base_guard.get_class();
+        assert_eq!(class_name, "RefcBased".into());
+    }
+
+    let final_refcount = obj.get_reference_count();
+    assert_eq!(
+        final_refcount, 1,
+        "refcount should remain unchanged after dropping base guard"
+    );
+}
+
 fn create_object_with_extracted_base() -> (Gd<Baseless>, Base<Node2D>) {
     let mut extracted_base = None;
     let obj = Baseless::smuggle_out(&mut extracted_base);
@@ -267,6 +297,11 @@ impl IRefCounted for RefcBased {
 // Only needed in base_init_test.rs.
 #[godot_api(no_typed_signals)]
 impl RefcBased {
+    /// No `to_init_gd()` call, so the reference count is 1 after initialization.
+    pub fn create_one() -> Gd<Self> {
+        Gd::from_init_fn(|base| Self { base })
+    }
+
     /// Used in `base_init_test.rs` to test that a base pointer can be extracted during initialization.
     pub fn split_simple() -> (Gd<Self>, Gd<RefCounted>) {
         let mut moved_out = None;
