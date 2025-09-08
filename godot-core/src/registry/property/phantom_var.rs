@@ -135,6 +135,12 @@ impl<T: GodotType + Var> Hash for PhantomVar<T> {
     fn hash<H: Hasher>(&self, _state: &mut H) {}
 }
 
+// SAFETY: This type contains no data.
+unsafe impl<T: GodotType + Var> Send for PhantomVar<T> {}
+
+// SAFETY: This type contains no data.
+unsafe impl<T: GodotType + Var> Sync for PhantomVar<T> {}
+
 /// This type exists only as a place to add `compile_fail` doctests for `PhantomVar`, which do not need to be in the public documentation.
 ///
 /// Omitting the `#[var]` attribute is an error:
