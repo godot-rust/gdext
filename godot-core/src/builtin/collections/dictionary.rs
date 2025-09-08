@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::Cell;
+use std::cell::OnceCell;
 use std::marker::PhantomData;
 use std::{fmt, ptr};
 
@@ -83,24 +83,18 @@ pub struct Dictionary {
     opaque: OpaqueDictionary,
 
     /// Lazily computed and cached element type information for the key type.
-    ///
-    /// `ElementType::Untyped` means either "not yet queried" or "queried but array was untyped". Since GDScript can call
-    /// `set_type()` at any time, we must re-query FFI whenever cached value is `Untyped`.
-    cached_key_type: Cell<ElementType>,
+    cached_key_type: OnceCell<ElementType>,
 
-    /// Lazily computed and cached element type information for the key type.
-    ///
-    /// `ElementType::Untyped` means either "not yet queried" or "queried but array was untyped". Since GDScript can call
-    /// `set_type()` at any time, we must re-query FFI whenever cached value is `Untyped`.
-    cached_value_type: Cell<ElementType>,
+    /// Lazily computed and cached element type information for the value type.
+    cached_value_type: OnceCell<ElementType>,
 }
 
 impl Dictionary {
     fn from_opaque(opaque: OpaqueDictionary) -> Self {
         Self {
             opaque,
-            cached_key_type: Cell::new(ElementType::Untyped),
-            cached_value_type: Cell::new(ElementType::Untyped),
+            cached_key_type: OnceCell::new(),
+            cached_value_type: OnceCell::new(),
         }
     }
 
@@ -423,8 +417,12 @@ impl Dictionary {
     ///
     /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
     ///
-    /// The caching strategy is best-effort. In the current implementation, untyped dictionaries are always re-queried over FFI, since
-    /// it's possible to call `set_key_type()`/`set_value_type()` in Godot. Once typed, the value is cached.
+    /// The result is generally cached, so feel free to call this method repeatedly.
+    ///
+    /// # Panics (Debug)
+    /// In the astronomically rare case where another extension in Godot modifies a dictionary's key type (which godot-rust already cached as `Untyped`)
+    /// via C function `dictionary_set_typed`, thus leading to incorrect cache values. Such bad practice of not typing dictionaries immediately on
+    /// construction is not supported, and will not be checked in Release mode.
     #[cfg(since_api = "4.4")]
     pub fn key_element_type(&self) -> ElementType {
         ElementType::get_or_compute_cached(
@@ -439,9 +437,12 @@ impl Dictionary {
     ///
     /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
     ///
-    /// The result is cached when the dictionary values are typed. If the values are untyped, this method
-    /// will always re-query Godot's FFI since GDScript may call `set_type()` at any time.
-    /// Repeated calls on typed dictionaries will not result in multiple Godot FFI roundtrips.
+    /// The result is generally cached, so feel free to call this method repeatedly.
+    ///
+    /// # Panics (Debug)
+    /// In the astronomically rare case where another extension in Godot modifies a dictionary's value type (which godot-rust already cached as `Untyped`)
+    /// via C function `dictionary_set_typed`, thus leading to incorrect cache values. Such bad practice of not typing dictionaries immediately on
+    /// construction is not supported, and will not be checked in Release mode.
     #[cfg(since_api = "4.4")]
     pub fn value_element_type(&self) -> ElementType {
         ElementType::get_or_compute_cached(

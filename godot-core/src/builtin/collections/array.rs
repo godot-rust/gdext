@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::Cell;
+use std::cell::OnceCell;
 use std::marker::PhantomData;
 use std::{cmp, fmt};
 
@@ -144,10 +144,7 @@ pub struct Array<T: ArrayElement> {
     _phantom: PhantomData<T>,
 
     /// Lazily computed and cached element type information.
-    ///
-    /// `ElementType::Untyped` means either "not yet queried" or "queried but array was untyped". Since GDScript can call
-    /// `set_type()` at any time, we must re-query FFI whenever cached value is `Untyped`.
-    cached_element_type: Cell<ElementType>,
+    cached_element_type: OnceCell<ElementType>,
 }
 
 /// Guard that can only call immutable methods on the array.
@@ -190,7 +187,7 @@ impl<T: ArrayElement> Array<T> {
         Self {
             opaque,
             _phantom: PhantomData,
-            cached_element_type: Cell::new(ElementType::Untyped),
+            cached_element_type: OnceCell::new(),
         }
     }
 
@@ -997,9 +994,12 @@ impl<T: ArrayElement> Array<T> {
 
     /// Returns the runtime element type information for this array.
     ///
-    /// The result is cached when the array is typed. If the array is untyped, this method
-    /// will always re-query Godot's FFI since GDScript may call `set_type()` at any time.
-    /// Repeated calls on typed arrays will not result in multiple Godot FFI roundtrips.
+    /// The result is generally cached, so feel free to call this method repeatedly.
+    ///
+    /// # Panics (Debug)
+    /// In the astronomically rare case where another extension in Godot modifies an array's type (which godot-rust already cached as `Untyped`)
+    /// via C function `array_set_typed`, thus leading to incorrect cache values. Such bad practice of not typing arrays immediately on
+    /// construction is not supported, and will not be checked in Release mode.
     pub fn element_type(&self) -> ElementType {
         ElementType::get_or_compute_cached(
             &self.cached_element_type,
@@ -1041,13 +1041,18 @@ impl<T: ArrayElement> Array<T> {
     /// Sets the type of the inner array.
     ///
     /// # Safety
-    ///
     /// Must only be called once, directly after creation.
     unsafe fn init_inner_type(&mut self) {
         debug_assert!(self.is_empty());
-        debug_assert!(!self.element_type().is_typed());
+        debug_assert!(
+            self.cached_element_type.get().is_none(),
+            "init_inner_type() called twice"
+        );
 
+        // Immediately set cache to static type.
         let elem_ty = ElementType::of::<T>();
+        let _ = self.cached_element_type.set(elem_ty);
+
         if elem_ty.is_typed() {
             let script = Variant::nil();
 
