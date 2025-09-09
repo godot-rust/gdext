@@ -267,3 +267,28 @@ pub fn before_api(major_minor: &str) -> bool {
 pub fn since_api(major_minor: &str) -> bool {
     !before_api(major_minor)
 }
+
+pub fn emit_checks_mode() {
+    let check_modes = ["fast-unsafe", "balanced", "paranoid"];
+    let mut checks_level = if cfg!(debug_assertions) { 2 } else { 1 };
+    if cfg!(debug_assertions) {
+        if cfg!(feature = "debug-checks-fast-unsafe") {
+            checks_level = 0;
+        } else if cfg!(feature = "debug-checks-balanced") {
+            checks_level = 1;
+        } else if cfg!(feature = "debug-checks-paranoid") {
+            checks_level = 2;
+        }
+    } else if cfg!(feature = "release-checks-fast-unsafe") {
+        checks_level = 0;
+    } else if cfg!(feature = "release-checks-balanced") {
+        checks_level = 1;
+    } else if cfg!(feature = "release-checks-paranoid") {
+        checks_level = 2;
+    }
+
+    for checks in check_modes.iter().take(checks_level + 1) {
+        println!(r#"cargo:rustc-check-cfg=cfg(checks_at_least, values("{checks}"))"#);
+        println!(r#"cargo:rustc-cfg=checks_at_least="{checks}""#);
+    }
+}

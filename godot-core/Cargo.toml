@@ -37,6 +37,14 @@ api-4-3 = ["godot-ffi/api-4-3"]
 api-4-4 = ["godot-ffi/api-4-4"]
 # ]]
 
+debug-checks-fast-unsafe = ["godot-ffi/debug-checks-fast-unsafe"]
+debug-checks-balanced = ["godot-ffi/debug-checks-balanced"]
+debug-checks-paranoid = ["godot-ffi/debug-checks-paranoid"]
+
+release-checks-fast-unsafe = ["godot-ffi/release-checks-fast-unsafe"]
+release-checks-balanced = ["godot-ffi/release-checks-balanced"]
+release-checks-paranoid = ["godot-ffi/release-checks-paranoid"]
+
 [dependencies]
 godot-ffi = { path = "../godot-ffi", version = "=0.3.5" }
 
