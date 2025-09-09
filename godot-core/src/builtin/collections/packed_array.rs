@@ -10,6 +10,7 @@
 #![allow(clippy::result_unit_err)]
 
 use std::iter::FromIterator;
+use std::ops::RangeBounds;
 use std::{fmt, ops, ptr};
 
 use godot_ffi as sys;
@@ -226,14 +227,33 @@ impl<T: PackedArrayElement> PackedArray<T> {
 
     /// Returns a sub-range `begin..end`, as a new packed array.
     ///
-    /// This method is called `slice()` in Godot.
     /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
     ///
+    /// If either `begin` or `end` are negative, their value is relative to the end of the array.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use godot::builtin::PackedArray;
+    /// let array = PackedArray::from([10, 20, 30, 40, 50]);
+    /// assert_eq!(array.subarray(-4..-2), PackedArray::from([20, 30]));
+    /// ```
+    ///
+    /// If `end` is not specified, the resulting subarray will span to the end of the array.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use godot::builtin::PackedArray;
+    /// let array = PackedArray::from([10, 20, 30, 40, 50]);
+    /// assert_eq!(array.subarray(2..), PackedArray::from([30, 40, 50]));
+    /// ```
+    ///
     /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
+    ///
+    /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
     // Note: Godot will clamp values by itself.
-    pub fn subarray(&self, begin: i32, end: i32) -> Self {
-        T::op_slice(self.as_inner(), begin as i64, end as i64)
+    pub fn subarray(&self, range: impl RangeBounds<i32>) -> Self {
+        T::op_slice(self.as_inner(), range)
     }
 
     /// Returns a shared Rust slice of the array.

@@ -15,6 +15,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
+use crate::meta::godot_range::GodotRange;
 use crate::meta::{
     element_godot_type_name, element_variant_type, ArrayElement, ArrayTypeInfo, AsArg, ClassName,
     ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, PropertyHintInfo, RefArg,
@@ -526,6 +527,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If either `begin` or `end` are negative, their value is relative to the end of the array.
     ///
+    /// # Example
     /// ```no_run
     /// # use godot_core::array;
     /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_shallow(-1..-5, None), array![5, 3]);
@@ -533,6 +535,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If `end` is not specified, the range spans through whole array.
     ///
+    /// # Example
     /// ```no_run
     /// # use godot_core::array;
     /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_shallow(1.., None), array![1, 2, 3, 4, 5]);
@@ -541,6 +544,7 @@ impl<T: ArrayElement> Array<T> {
     /// If specified, `step` is the relative index between source elements. It can be negative,
     /// in which case `begin` must be higher than `end`.
     ///
+    /// # Example
     /// ```no_run
     /// # use godot_core::array;
     /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_shallow(-1..-5, Some(-2)), array![5, 3]);
@@ -562,6 +566,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If either `begin` or `end` are negative, their value is relative to the end of the array.
     ///
+    /// # Example
     /// ```no_run
     /// # use godot_core::array;
     /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_deep(-1..-5, None), array![5, 3]);
@@ -569,6 +574,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If `end` is not specified, the range spans through whole array.
     ///
+    /// # Example
     /// ```no_run
     /// # use godot_core::array;
     /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_deep(1.., None), array![1, 2, 3, 4, 5]);
@@ -577,6 +583,7 @@ impl<T: ArrayElement> Array<T> {
     /// If specified, `step` is the relative index between source elements. It can be negative,
     /// in which case `begin` must be higher than `end`.
     ///
+    /// # Example
     /// ```no_run
     /// # use godot_core::array;
     /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_deep(-1..-5, Some(-2)), array![5, 3]);
