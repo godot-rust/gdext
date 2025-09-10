@@ -11,7 +11,7 @@ use std::fmt;
 use godot_ffi::VariantType;
 
 use crate::builtin::Variant;
-use crate::meta::{ArrayTypeInfo, ClassName, ToGodot};
+use crate::meta::{ClassName, ElementType, ToGodot};
 
 type Cause = Box<dyn Error + Send + Sync>;
 
@@ -181,13 +181,16 @@ impl fmt::Display for ErrorKind {
 pub(crate) enum FromGodotError {
     /// Destination `Array<T>` has different type than source's runtime type.
     BadArrayType {
-        expected: ArrayTypeInfo,
-        actual: ArrayTypeInfo,
+        expected: ElementType,
+        actual: ElementType,
     },
 
     /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
     #[cfg(debug_assertions)]
-    BadArrayTypeInt { expected: ArrayTypeInfo, value: i64 },
+    BadArrayTypeInt {
+        expected_int_type: &'static str,
+        value: i64,
+    },
 
     /// InvalidEnum is also used by bitfields.
     InvalidEnum,
@@ -219,39 +222,23 @@ impl fmt::Display for FromGodotError {
         match self {
             Self::BadArrayType { expected, actual } => {
                 if expected.variant_type() != actual.variant_type() {
-                    return if expected.is_typed() {
-                        write!(
-                            f,
-                            "expected array of type {:?}, got array of type {:?}",
-                            expected.variant_type(),
-                            actual.variant_type()
-                        )
-                    } else {
-                        write!(
-                            f,
-                            "expected untyped array, got array of type {:?}",
-                            actual.variant_type()
-                        )
-                    };
+                    // Includes either of two sides being Untyped (VARIANT).
+                    return write!(f, "expected array of type {expected:?}, got {actual:?}");
                 }
 
-                let exp_class = expected.class_name().expect("lhs class name present");
-                let act_class = actual.class_name().expect("rhs class name present");
-                assert_ne!(
-                    exp_class, act_class,
-                    "BadArrayType with expected == got, this is a gdext bug"
-                );
+                let exp_class = format!("{expected:?}");
+                let act_class = format!("{actual:?}");
 
-                write!(
-                    f,
-                    "expected array of class {exp_class}, got array of class {act_class}"
-                )
+                write!(f, "expected array of type {exp_class}, got {act_class}")
             }
             #[cfg(debug_assertions)]
-            Self::BadArrayTypeInt { expected, value } => {
+            Self::BadArrayTypeInt {
+                expected_int_type,
+                value,
+            } => {
                 write!(
                     f,
-                    "integer value {value} does not fit into Array of type {expected:?}"
+                    "integer value {value} does not fit into Array<{expected_int_type}>"
                 )
             }
             Self::InvalidEnum => write!(f, "invalid engine enum value"),

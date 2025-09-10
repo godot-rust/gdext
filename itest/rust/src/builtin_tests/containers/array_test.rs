@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot::meta::ElementType;
 use godot::prelude::*;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::{assert_match, create_gdscript, expect_panic, itest};
 
 #[itest]
 fn array_default() {
@@ -576,6 +577,75 @@ fn __array_type_inference() {
     let d = ArrayTest::new_gd();
     let _array = array![&c, &d];
 }
+
+#[itest]
+fn array_element_type() {
+    // Untyped array.
+    let untyped = VariantArray::new();
+    assert!(
+        matches!(untyped.element_type(), ElementType::Untyped),
+        "expected untyped array for VariantArray"
+    );
+
+    let builtin_int = Array::<i64>::new();
+    assert_match!(
+        builtin_int.element_type(),
+        ElementType::Builtin(VariantType::INT),
+    );
+
+    let builtin_string = Array::<GString>::new();
+    assert_match!(
+        builtin_string.element_type(),
+        ElementType::Builtin(VariantType::STRING),
+    );
+
+    let class_array = Array::<Gd<Node>>::new();
+    assert_match!(class_array.element_type(), ElementType::Class(class_name));
+    assert_eq!(class_name.to_string(), "Node");
+
+    let extension_class_array = Array::<Gd<ArrayTest>>::new();
+    assert_match!(
+        extension_class_array.element_type(),
+        ElementType::Class(class_name),
+    );
+    assert_eq!(class_name, ArrayTest::class_name());
+}
+
+#[itest]
+fn array_element_type_custom_script() {
+    let gdscript = create_gdscript(
+        r#"
+extends RefCounted
+class_name CustomScriptForArrays
+
+func make_array() -> Array[CustomScriptForArrays]:
+    return [self]
+"#,
+    );
+
+    let mut object = RefCounted::new_gd();
+    object.set_script(&gdscript.to_variant());
+
+    // Invoke script to return an array of itself.
+    let result = object.call("make_array", &[]);
+    let array = result.to::<Array<Gd<RefCounted>>>();
+    let element_type = array.element_type();
+
+    let ElementType::ScriptClass(script) = element_type else {
+        panic!("expected CustomScript for array");
+    };
+
+    let script = script.script().expect("script object should be alive");
+    assert_eq!(script, gdscript.upcast());
+    assert_eq!(script.get_name(), GString::new()); // Resource name.
+    assert_eq!(script.get_instance_base_type(), "RefCounted".into());
+
+    #[cfg(since_api = "4.3")]
+    assert_eq!(script.get_global_name(), "CustomScriptForArrays".into());
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Class definitions
 
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]

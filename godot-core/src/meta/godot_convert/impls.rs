@@ -199,7 +199,7 @@ macro_rules! impl_godot_scalar {
         // For integer types, we can validate the conversion.
         impl ArrayElement for $T {
             fn debug_validate_elements(array: &Array<Self>) -> Result<(), ConvertError> {
-                array.debug_validate_elements()
+                array.debug_validate_int_elements()
             }
         }
 

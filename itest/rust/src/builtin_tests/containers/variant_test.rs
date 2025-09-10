@@ -301,8 +301,69 @@ fn variant_bad_conversion_error_message() {
     assert_eq!(err.to_string(), "cannot convert from INT to OBJECT: 123");
 }
 
+// Different builtin types: i32 -> Object.
 #[itest]
-fn variant_array_bad_conversions() {
+fn variant_array_bad_type_conversions() {
+    let i32_array: Array<i32> = array![1, 2, 160, -40];
+    let i32_variant = i32_array.to_variant();
+    let object_array = i32_variant.try_to::<Array<Gd<Node>>>();
+
+    let err = object_array.expect_err("Array<i32> -> Array<Gd<Node>> conversion should fail");
+    assert_eq!(
+        err.to_string(),
+        "expected array of type Class(Node), got Builtin(INT): [1, 2, 160, -40]"
+    )
+}
+
+// Incompatible class types: Node -> Node2D.
+#[itest]
+fn variant_array_bad_class_conversions() {
+    // Even empty arrays are typed and cannot be converted.
+    let node_array: Array<Gd<Node>> = array![];
+    let node_variant = node_array.to_variant();
+    let node2d_array = node_variant.try_to::<Array<Gd<Node2D>>>();
+
+    let err =
+        node2d_array.expect_err("Array<Gd<Node>> -> Array<Gd<Node2D>> conversion should fail");
+    assert_eq!(
+        err.to_string(),
+        "expected array of type Class(Node2D), got Class(Node): []"
+    )
+}
+
+// Convert typed to untyped array (incompatible).
+#[itest]
+fn variant_array_to_untyped_conversions() {
+    // Even empty arrays are typed and cannot be converted.
+    let node_array: Array<Gd<Node>> = array![];
+    let node_variant = node_array.to_variant();
+    let untyped_array = node_variant.try_to::<VariantArray>();
+
+    let err = untyped_array.expect_err("Array<Gd<Node>> -> VariantArray conversion should fail");
+    assert_eq!(
+        err.to_string(),
+        "expected array of type Untyped, got Class(Node): []"
+    )
+}
+
+// Convert typed to untyped array (incompatible).
+#[itest]
+fn variant_array_from_untyped_conversions() {
+    // Even empty arrays are typed and cannot be converted.
+    let untyped_array: VariantArray = varray![1, 2];
+    let untyped_variant = untyped_array.to_variant();
+    let int_array = untyped_variant.try_to::<Array<i64>>();
+
+    let err = int_array.expect_err("VariantArray -> Array<i64> conversion should fail");
+    assert_eq!(
+        err.to_string(),
+        "expected array of type Builtin(INT), got Untyped: [1, 2]"
+    )
+}
+
+// Same builtin type INT, but incompatible integers (Debug-only).
+#[itest]
+fn variant_array_bad_integer_conversions() {
     let i32_array: Array<i32> = array![1, 2, 160, -40];
     let i32_variant = i32_array.to_variant();
     let i8_back = i32_variant.try_to::<Array<i8>>();
@@ -313,7 +374,7 @@ fn variant_array_bad_conversions() {
         let err = i8_back.expect_err("Array<i32> -> Array<i8> conversion should fail");
         assert_eq!(
             err.to_string(),
-            "integer value 160 does not fit into Array of type INT: [1, 2, 160, -40]"
+            "integer value 160 does not fit into Array<i8>: [1, 2, 160, -40]"
         )
     }
 

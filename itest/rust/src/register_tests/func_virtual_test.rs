@@ -12,7 +12,7 @@ use godot::builtin::vslice;
 use godot::classes::GDScript;
 use godot::prelude::*;
 
-use crate::framework::itest;
+use crate::framework::{create_gdscript, itest};
 
 #[derive(GodotClass)]
 #[class(init)]
@@ -142,9 +142,7 @@ func _get_thing():
     return thing
 "#;
 
-    let mut script = GDScript::new_gd();
-    script.set_source_code(code);
-    script.reload(); // Necessary so compile is triggered.
+    let mut script = create_gdscript(code);
 
     let methods = script
         .get_script_method_list()
