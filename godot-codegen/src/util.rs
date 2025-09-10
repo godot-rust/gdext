@@ -51,32 +51,26 @@ pub fn make_sname_ptr(identifier: &str) -> TokenStream {
 }
 
 pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
-    // Work around wrong classification in https://github.com/godotengine/godot/issues/86206.
-    fn override_editor(class_name: &str) -> bool {
-        match class_name {
-            // https://github.com/godotengine/godot/issues/103867
-            "OpenXRInteractionProfileEditorBase"
-            | "OpenXRInteractionProfileEditor"
-            | "OpenXRBindingModifierEditor" => cfg!(before_api = "4.5"),
-
-            // https://github.com/godotengine/godot/issues/86206
-            "ResourceImporterOggVorbis" | "ResourceImporterMP3" => cfg!(before_api = "4.3"),
-
-            _ => false,
-        }
+    // NOTE: We have to use a whitelist of known classes because Godot doesn't separate these out
+    // beyond "editor" and "core" and some classes are also  mis-classified in the JSON depending on the Godot version.
+    if let Some(forced_classification) = special_cases::classify_codegen_level(&class.name) {
+        return forced_classification;
     }
 
-    if special_cases::is_class_level_server(&class.name) {
-        ClassCodegenLevel::Servers
-    } else if class.api_type == "editor" || override_editor(&class.name) {
-        ClassCodegenLevel::Editor
-    } else if class.api_type == "core" {
-        ClassCodegenLevel::Scene
-    } else {
-        panic!(
-            "class {} has unknown API type {}",
-            class.name, class.api_type
-        )
+    // NOTE: Right now, Godot reports everything that's not "editor" as "core" in `extension_api.json`.
+    // If it wasn't picked up by classify_codegen_level, and Godot reports it as "core" we will treat it as a scene class.
+    match class.api_type.as_str() {
+        "editor" => ClassCodegenLevel::Editor,
+        "core" => ClassCodegenLevel::Scene,
+        "extension" => ClassCodegenLevel::Scene,
+        "editor_extension" => ClassCodegenLevel::Editor,
+        _ => {
+            // we don't know this classification
+            panic!(
+                "class {} has unknown API type {}",
+                class.name, class.api_type
+            );
+        }
     }
 }
 

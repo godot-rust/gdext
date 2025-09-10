@@ -47,6 +47,7 @@ pub fn generate_sys_module_file(sys_gen_path: &Path, submit_fn: &mut SubmitFn) {
     let code = quote! {
         pub mod table_builtins;
         pub mod table_builtins_lifecycle;
+        pub mod table_core_classes;
         pub mod table_servers_classes;
         pub mod table_scene_classes;
         pub mod table_editor_classes;
