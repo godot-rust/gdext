@@ -422,9 +422,9 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
     fn base(&self) -> BaseRef<'_, Self> {
-        let gd = self.base_field().__constructed_gd();
+        let weak_gd = self.base_field().__constructed_gd_weak();
 
-        BaseRef::new(gd, self)
+        BaseRef::new(weak_gd, self)
     }
 
     /// Returns a mutable reference suitable for calling engine methods on this object.
@@ -493,7 +493,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// ```
     #[allow(clippy::let_unit_value)]
     fn base_mut(&mut self) -> BaseMut<'_, Self> {
-        let base_gd = self.base_field().__constructed_gd();
+        let weak_gd = self.base_field().__constructed_gd_weak();
 
         let gd = self.to_gd();
         // SAFETY:
@@ -514,7 +514,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
 
         let guard = storage.get_inaccessible(self);
 
-        BaseMut::new(base_gd, guard)
+        BaseMut::new(weak_gd, guard)
     }
 }
 
