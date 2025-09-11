@@ -638,7 +638,7 @@ pub fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod
 }
 
 /// Currently only for virtual methods; checks if the specified parameter is required (non-null) and can be declared as `Gd<T>`
-/// instead of `Option<Gd<T>>`.
+/// instead of `Option<Gd<T>>`. By default, parameters are optional since we don't have nullability information in GDExtension.
 pub fn is_class_method_param_required(
     class_name: &TyName,
     godot_method_name: &str,

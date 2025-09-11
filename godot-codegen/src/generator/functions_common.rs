@@ -392,7 +392,7 @@ pub(crate) enum FnArgExpr {
 /// How parameters are declared in a function signature.
 #[derive(Copy, Clone)]
 pub(crate) enum FnParamDecl {
-    /// Public-facing, i.e. `T`, `&T`, `impl AsArg<T>` or `impl AsObjectArg<T>`.
+    /// Public-facing, i.e. `T`, `&T`, `impl AsArg<T>`.
     FnPublic,
 
     /// Public-facing with explicit lifetime, e.g. `&'a T`. Used in `Ex` builder methods.
@@ -401,7 +401,7 @@ pub(crate) enum FnParamDecl {
     /// Parameters in internal methods, used for delegation.
     FnInternal,
 
-    /// Store in a field, i.e. `v`, `CowArg<T>` or `ObjectCow<T>`.
+    /// Store in a field, i.e. `v` or `CowArg<T>`.
     Field,
 }
 
@@ -446,20 +446,24 @@ pub(crate) fn make_param_or_field_type(
     let mut special_ty = None;
 
     let param_ty = match ty {
-        // Objects: impl AsObjectArg<T>
+        // Objects: impl AsArg<Gd<T>>
         RustTy::EngineClass {
-            object_arg,
             impl_as_object_arg,
             inner_class,
             ..
         } => {
-            special_ty = Some(quote! { #object_arg });
+            let lft = lifetimes.next();
+            special_ty = Some(quote! { CowArg<#lft, Option<Gd<crate::classes::#inner_class>>> });
 
             match decl {
                 FnParamDecl::FnPublic => quote! { #impl_as_object_arg },
-                FnParamDecl::FnPublicLifetime => quote! { #impl_as_object_arg },
-                FnParamDecl::FnInternal => quote! { #object_arg },
-                FnParamDecl::Field => quote! { ObjectCow<crate::classes::#inner_class> },
+                FnParamDecl::FnPublicLifetime => quote! { #impl_as_object_arg + 'a },
+                FnParamDecl::FnInternal => {
+                    quote! { CowArg<Option<Gd<crate::classes::#inner_class>>> }
+                }
+                FnParamDecl::Field => {
+                    quote! { CowArg<'a, Option<Gd<crate::classes::#inner_class>>> }
+                }
             }
         }
 
@@ -513,11 +517,11 @@ pub(crate) fn make_arg_expr(name: &Ident, ty: &RustTy, expr: FnArgExpr) -> Token
     match ty {
         // Objects.
         RustTy::EngineClass { .. } => match expr {
-            FnArgExpr::PassToFfi => quote! { #name.as_object_arg() },
-            FnArgExpr::PassToFfiFromEx => quote! { #name.cow_as_object_arg() },
+            FnArgExpr::PassToFfi => quote! { #name.into_arg() },
+            FnArgExpr::PassToFfiFromEx => quote! { #name },
             FnArgExpr::Forward => quote! { #name },
-            FnArgExpr::StoreInField => quote! { #name.consume_arg() },
-            FnArgExpr::StoreInDefaultField => quote! { #name.consume_arg() },
+            FnArgExpr::StoreInField => quote! { #name.into_arg() },
+            FnArgExpr::StoreInDefaultField => quote! { #name.into_arg() },
         },
 
         // Strings.

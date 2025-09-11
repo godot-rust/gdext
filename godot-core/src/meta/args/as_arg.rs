@@ -11,6 +11,7 @@ use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::GodotFfiVariant;
 use crate::meta::{CowArg, GodotType, ToGodot};
+use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits};
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///
@@ -22,10 +23,8 @@ use crate::meta::{CowArg, GodotType, ToGodot};
 ///   - These all implement `ToGodot<Pass = ByValue>` and typically also `Copy`.
 /// - `&T` for **by-ref** built-ins: `GString`, `Array`, `Dictionary`, `PackedArray`, `Variant`...
 ///   - These all implement `ToGodot<Pass = ByRef>`.
-/// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`.
-///
-/// See also the [`AsObjectArg`][crate::meta::AsObjectArg] trait which is specialized for object arguments. It may be merged with `AsArg`
-/// in the future.
+/// - `&str`, `&String` additionally for string types `GString`, `StringName`, `NodePath`, see [String arguments](#string-arguments).
+/// - `&Gd`, `Option<&Gd>` for objects, see [Object arguments](#object-arguments).
 ///
 /// # Owned values vs. references
 /// Implicitly converting from `T` for **by-ref** built-ins is explicitly not supported, i.e. you need to pass `&variant` instead of `variant`.
@@ -35,7 +34,14 @@ use crate::meta::{CowArg, GodotType, ToGodot};
 /// Sometimes, you need exactly that for generic programming though: consistently pass `T` or `&T`. For this purpose, the global functions
 /// [`owned_into_arg()`] and [`ref_to_arg()`] are provided.
 ///
-/// # Performance for strings
+/// # Using the trait
+/// `AsArg` is meant to be used from the function call site, not the declaration site. If you declare a parameter as `impl AsArg<...>` yourself,
+/// you can only forward it as-is to a Godot API -- there are no stable APIs to access the inner object yet.
+///
+/// The blanket implementations of `AsArg` for `T` (in case of `Pass = ByValue`) and `&T` (`Pass = ByRef`) should readily enable most use
+/// cases, as long as your type already supports `ToGodot`. In the majority of cases, you'll simply use by-value passing, e.g. for enums.
+///
+/// # String arguments
 /// Godot has three string types: [`GString`], [`StringName`] and [`NodePath`]. Conversions between those three, as well as between `String` and
 /// them, is generally expensive because of allocations, re-encoding, validations, hashing, etc. While this doesn't matter for a few strings
 /// passed to engine APIs, it can become a problematic when passing long strings in a hot loop.
@@ -48,12 +54,29 @@ use crate::meta::{CowArg, GodotType, ToGodot};
 /// If you want to convert between Godot's string types for the sake of argument passing, each type provides an `arg()` method, such as
 /// [`GString::arg()`]. You cannot use this method in other contexts.
 ///
-/// # Using the trait
-/// `AsArg` is meant to be used from the function call site, not the declaration site. If you declare a parameter as `impl AsArg<...>` yourself,
-/// you can only forward it as-is to a Godot API -- there are no stable APIs to access the inner object yet.
+/// # Object arguments
+/// This section treats `AsArg<Gd<*>>`. The trait is implemented for **shared references** in multiple ways:
+/// - [`&Gd<T>`][crate::obj::Gd]  to pass objects. Subclasses of `T` are explicitly supported.
+/// - [`Option<&Gd<T>>`][Option], to pass optional objects. `None` is mapped to a null argument.
+/// - [`Gd::null_arg()`], to pass `null` arguments without using `Option`.
 ///
-/// The blanket implementations of `AsArg` for `T` (in case of `Pass = ByValue`) and `&T` (`Pass = ByRef`) should readily enable most use
-/// cases, as long as your type already supports `ToGodot`. In the majority of cases, you'll simply use by-value passing, e.g. for enums.
+/// The following table lists the possible argument types and how you can pass them. `Gd` is short for `Gd<T>`.
+///
+/// | Type              | Closest accepted type | How to transform |
+/// |-------------------|-----------------------|------------------|
+/// | `Gd`              | `&Gd`                 | `&arg`           |
+/// | `&Gd`             | `&Gd`                 | `arg`            |
+/// | `&mut Gd`         | `&Gd`                 | `&*arg`          |
+/// | `Option<Gd>`      | `Option<&Gd>`         | `arg.as_ref()`   |
+/// | `Option<&Gd>`     | `Option<&Gd>`         | `arg`            |
+/// | `Option<&mut Gd>` | `Option<&Gd>`         | `arg.as_deref()` |
+/// | (null literal)    |                       | `Gd::null_arg()` |
+///
+/// ## Nullability
+/// <div class="warning">
+/// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
+/// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
+/// </div>
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "if you pass by value, consider borrowing instead.",
@@ -94,6 +117,106 @@ where
         Self: 'r,
     {
         CowArg::Owned(self)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Object (Gd + DynGd) impls
+
+// TODO(v0.4): all objects + optional objects should be pass-by-ref.
+
+impl<T, Base> AsArg<Gd<Base>> for &Gd<T>
+where
+    T: Inherits<Base>,
+    Base: GodotClass,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, Gd<Base>>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(self.clone().upcast::<Base>())
+    }
+}
+
+impl<T, U, D> AsArg<DynGd<T, D>> for &DynGd<U, D>
+where
+    T: GodotClass,
+    U: Inherits<T>,
+    D: ?Sized,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, DynGd<T, D>>
+    where
+        Self: 'r,
+    {
+        CowArg::Owned(self.clone().upcast::<T>())
+    }
+}
+
+// Convert DynGd -> Gd (with upcast).
+impl<'r, T, U, D> AsArg<Gd<T>> for &'r DynGd<U, D>
+where
+    T: GodotClass,
+    U: Inherits<T>,
+    D: ?Sized,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<T>>
+    where
+        'r: 'cow,
+    {
+        CowArg::Owned(self.clone().upcast::<T>().into_gd())
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Optional object (Gd + DynGd) impls
+
+impl<T, U> AsArg<Option<Gd<T>>> for &Option<Gd<U>>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+{
+    fn into_arg<'r>(self) -> CowArg<'r, Option<Gd<T>>> {
+        match self {
+            Some(gd) => CowArg::Owned(Some(gd.clone().upcast::<T>())),
+            None => CowArg::Owned(None),
+        }
+    }
+}
+
+impl<T, U> AsArg<Option<Gd<T>>> for Option<&Gd<U>>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
+        // This needs to construct a new Option<Gd<T>>, so cloning is unavoidable
+        // since we go from Option<&Gd<U>> to Option<Gd<T>>
+        match self {
+            Some(gd) => CowArg::Owned(Some(gd.clone().upcast::<T>())),
+            None => CowArg::Owned(None),
+        }
+    }
+}
+
+impl<T, U> AsArg<Option<Gd<T>>> for &Gd<U>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
+        CowArg::Owned(Some(self.clone().upcast::<T>()))
+    }
+}
+
+impl<T, U, D> AsArg<Option<Gd<T>>> for &DynGd<U, D>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+    D: ?Sized,
+{
+    fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
+        let gd: &Gd<U> = self; // Deref
+        CowArg::Owned(Some(gd.clone().upcast::<T>()))
     }
 }
 

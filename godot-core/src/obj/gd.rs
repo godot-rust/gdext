@@ -789,7 +789,7 @@ where
     /// Represents `null` when passing an object argument to Godot.
     ///
     /// This expression is only intended for function argument lists. It can be used whenever a Godot signature accepts
-    /// [`AsObjectArg<T>`][crate::meta::AsObjectArg]. `Gd::null_arg()` as an argument is equivalent to `Option::<Gd<T>>::None`, but less wordy.
+    /// [`AsArg<Option<Gd<T>>>`][crate::meta::AsArg]. `Gd::null_arg()` as an argument is equivalent to `Option::<Gd<T>>::None`, but less wordy.
     ///
     /// To work with objects that can be null, use `Option<Gd<T>>` instead. For APIs that accept `Variant`, you can pass [`Variant::nil()`].
     ///
@@ -806,8 +806,23 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> impl meta::AsObjectArg<T> {
-        meta::ObjectNullArg(std::marker::PhantomData)
+    pub fn null_arg() -> impl AsArg<Option<Gd<T>>> {
+        // Anonymous struct that creates None for optional object arguments.
+        struct NullGdArg<T>(std::marker::PhantomData<*mut T>);
+
+        impl<T> AsArg<Option<Gd<T>>> for NullGdArg<T>
+        where
+            T: GodotClass,
+        {
+            fn into_arg<'r>(self) -> CowArg<'r, Option<Gd<T>>>
+            where
+                Self: 'r,
+            {
+                CowArg::Owned(None)
+            }
+        }
+
+        NullGdArg(std::marker::PhantomData)
     }
 }
 
@@ -871,11 +886,15 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 }
 
 impl<T: GodotClass> ToGodot for Gd<T> {
-    type Pass = meta::ByRef;
+    // FIXME(v0.4): ByRef/ByObject.
+    type Pass = meta::ByValue;
 
-    fn to_godot(&self) -> &Self::Via {
-        self.raw.check_rtti("to_godot");
-        self
+    fn to_godot(&self) -> Self::Via {
+        // For null objects created for FFI parameter passing, skip RTTI check.
+        if !self.raw.is_null() {
+            self.raw.check_rtti("to_godot");
+        }
+        self.clone()
     }
 }
 
@@ -973,16 +992,6 @@ where
     }
 }
 */
-
-impl<T: GodotClass> AsArg<Option<Gd<T>>> for Option<&Gd<T>> {
-    fn into_arg<'cow>(self) -> CowArg<'cow, Option<Gd<T>>> {
-        // TODO avoid cloning.
-        match self {
-            Some(gd) => CowArg::Owned(Some(gd.clone())),
-            None => CowArg::Owned(None),
-        }
-    }
-}
 
 impl<T> Default for Gd<T>
 where
