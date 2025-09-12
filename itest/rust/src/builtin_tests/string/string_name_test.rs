@@ -7,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use godot::builtin::{Encoding, GString, NodePath, StringName};
+use godot::builtin::{static_name, Encoding, GString, NodePath, StringName};
 
 use crate::framework::{assert_eq_self, itest};
 
@@ -132,6 +132,30 @@ fn string_name_from_cstr() {
 
         assert_eq!(a, b);
     }
+}
+
+#[itest]
+fn string_name_static_name() {
+    let a = static_name!(c"pure ASCII\t[~]").clone();
+    let b = StringName::from("pure ASCII\t[~]");
+
+    assert_eq!(a, b);
+
+    let a1 = a.clone();
+    let a2 = static_name!(c"pure ASCII\t[~]").clone();
+
+    assert_eq!(a, a1);
+    assert_eq!(a1, a2);
+
+    let a = static_name!(c"\xB1").clone();
+    let b = StringName::from("±");
+
+    assert_eq!(a, b);
+
+    let a = static_name!(c"Latin-1 \xA3 \xB1 text \xBE").clone();
+    let b = StringName::from("Latin-1 £ ± text ¾");
+
+    assert_eq!(a, b);
 }
 
 #[itest]
