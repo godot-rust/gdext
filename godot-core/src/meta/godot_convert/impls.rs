@@ -83,6 +83,14 @@ where
     fn godot_type_name() -> String {
         T::godot_type_name()
     }
+
+    // Only relevant for object types T.
+    unsafe fn as_object_arg(&self) -> crate::meta::ObjectArg {
+        match self {
+            Some(inner) => unsafe { inner.as_object_arg() },
+            None => crate::meta::ObjectArg::null(),
+        }
+    }
 }
 
 impl<T: GodotConvert> GodotConvert for Option<T>

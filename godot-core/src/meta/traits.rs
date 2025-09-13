@@ -140,6 +140,25 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     fn qualifies_as_special_none(_from_variant: &Variant) -> bool {
         false
     }
+
+    /// Convert to `ObjectArg` for efficient object argument passing.
+    ///
+    /// Implemented in `GodotType` because Rust has no specialization, and there's no good way to have trait bounds in `ByObject`, but not in
+    /// other arg-passing strategies `ByValue`/`ByRef`.
+    ///
+    /// # Panics
+    /// If `Self` is not an object type (`Gd<T>`, `Option<Gd<T>>`). Note that `DynGd<T>` isn't directly implemented here, but uses `Gd<T>`'s
+    /// impl on the FFI layer.
+    ///
+    /// # Safety
+    /// `self` must be kept alive while return value is in use. Might be addressed with lifetime in the future.
+    #[doc(hidden)]
+    unsafe fn as_object_arg(&self) -> crate::meta::ObjectArg {
+        panic!(
+            "as_object_arg() called for non-object type: {}",
+            std::any::type_name::<Self>()
+        )
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

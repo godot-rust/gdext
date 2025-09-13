@@ -9,7 +9,10 @@ use std::ptr;
 
 use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 
-use crate::obj::{Gd, GodotClass, Inherits, RawGd};
+use crate::builtin::Variant;
+use crate::meta::error::ConvertError;
+use crate::meta::traits::GodotFfiVariant;
+use crate::obj::{Gd, GodotClass};
 use crate::{obj, sys};
 
 /// View for object arguments passed to the Godot engine. Never owning; must be null or backed by `Gd<T>`.
@@ -34,29 +37,13 @@ impl ObjectArg {
         }
     }
 
-    /// Creates `ObjectArg` from a `RawGd`.
+    /// Creates `ObjectArg` from an `Option<Gd>`.
     ///
     /// # Safety
-    /// The referenced `RawGd` must remain valid for the lifetime of this `ObjectArg`.
-    pub unsafe fn from_raw_gd<T: GodotClass>(obj: &RawGd<T>) -> Self {
-        // Runtime check is necessary, to ensure that object is still alive and has correct runtime type.
-        if !obj.is_null() {
-            obj.check_rtti("from_raw_gd");
-        }
-
-        Self {
-            object_ptr: obj.obj_sys(),
-        }
-    }
-
-    /// Creates `ObjectArg` from `Option<&Gd<U>>`, handling upcast to target type `T`.
-    pub fn from_option_gd_ref<T, U>(opt: Option<&Gd<U>>) -> Self
-    where
-        T: GodotClass,
-        U: GodotClass + Inherits<T>,
-    {
-        match opt {
-            Some(gd) => unsafe { Self::from_gd(gd) },
+    /// The referenced `Gd`, if not `None`, must remain valid for the lifetime of this `ObjectArg`.
+    pub unsafe fn from_option_gd<T: GodotClass>(obj: Option<&Gd<T>>) -> Self {
+        match obj {
+            Some(gd) => Self::from_gd(gd),
             None => Self::null(),
         }
     }
@@ -71,11 +58,6 @@ impl ObjectArg {
     /// Returns true if this ObjectArg represents null
     pub fn is_null(&self) -> bool {
         self.object_ptr.is_null()
-    }
-
-    /// Returns the raw object pointer
-    pub fn raw_ptr(&self) -> sys::GDExtensionObjectPtr {
-        self.object_ptr
     }
 }
 
@@ -126,6 +108,16 @@ unsafe impl GodotFfi for ObjectArg {
     }
 
     unsafe fn move_return_ptr(self, _ptr: sys::GDExtensionTypePtr, _call_type: PtrcallType) {
+        unreachable!("ObjectArg should only be passed *to* Godot, not *from*.")
+    }
+}
+
+impl GodotFfiVariant for ObjectArg {
+    fn ffi_to_variant(&self) -> Variant {
+        obj::object_ffi_to_variant(self)
+    }
+
+    fn ffi_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
         unreachable!("ObjectArg should only be passed *to* Godot, not *from*.")
     }
 }
