@@ -10,7 +10,7 @@ use std::ffi::CStr;
 use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::GodotFfiVariant;
-use crate::meta::{CowArg, GodotType, ToGodot};
+use crate::meta::{CowArg, GodotType, ObjectArg, ToGodot};
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits};
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -515,7 +515,39 @@ impl ArgPassing for ByRef {
         T::Via: GodotType,
     {
         // Use by-ref conversion if possible, avoiding unnecessary clones when passing to FFI.
-        value.to_godot().to_ffi()
+        GodotType::to_ffi(value.to_godot())
+    }
+}
+
+/// Pass arguments to Godot by object pointer (for objects only).
+///
+/// See [`ToGodot::Pass`].
+pub enum ByObject {}
+impl Sealed for ByObject {}
+impl ArgPassing for ByObject {
+    type Output<'r, T: 'r> = &'r T;
+
+    type FfiOutput<'f, T>
+        = ObjectArg
+    where
+        T: GodotType + 'f;
+
+    fn ref_to_owned_via<T>(value: &T) -> T::Via
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: Clone,
+    {
+        // For ByObject types, do like ByRef: clone the reference to get owned value.
+        value.to_godot().clone()
+    }
+
+    fn ref_to_ffi<T>(value: &T) -> ObjectArg
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: GodotType,
+    {
+        let obj_ref: &T::Via = value.to_godot(); // implements GodotType.
+        unsafe { obj_ref.as_object_arg() }
     }
 }
 

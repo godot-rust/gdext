@@ -553,9 +553,10 @@ where
     T: GodotClass,
     D: ?Sized,
 {
+    // Delegate to Gd<T> passing strategy.
     type Pass = <Gd<T> as ToGodot>::Pass;
 
-    fn to_godot(&self) -> Self::Via {
+    fn to_godot(&self) -> &Self::Via {
         self.obj.to_godot()
     }
 
