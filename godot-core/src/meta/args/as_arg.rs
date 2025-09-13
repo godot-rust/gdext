@@ -9,7 +9,7 @@ use std::ffi::CStr;
 
 use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
-use crate::meta::traits::GodotFfiVariant;
+use crate::meta::traits::{GodotFfiVariant, GodotNullableFfi};
 use crate::meta::{CowArg, GodotType, ObjectArg, ToGodot};
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits};
 
@@ -423,7 +423,9 @@ impl AsArg<NodePath> for &String {
 /// See [`ToGodot::Pass`].
 pub trait ArgPassing: Sealed {
     /// Return type: `T` or `&'r T`.
-    type Output<'r, T: 'r>;
+    type Output<'r, T: 'r>
+    where
+        Self: 'r;
 
     /// FFI argument type: `T::Ffi` or `T::ToFfi<'f>`.
     #[doc(hidden)]
@@ -521,6 +523,8 @@ impl ArgPassing for ByRef {
 
 /// Pass arguments to Godot by object pointer (for objects only).
 ///
+/// Currently distinct from [`ByRef`] to not interfere with the blanket impl for `&T` for all `ByRef` types. Semantics are largely the same.
+///
 /// See [`ToGodot::Pass`].
 pub enum ByObject {}
 impl Sealed for ByObject {}
@@ -548,6 +552,55 @@ impl ArgPassing for ByObject {
     {
         let obj_ref: &T::Via = value.to_godot(); // implements GodotType.
         unsafe { obj_ref.as_object_arg() }
+    }
+}
+
+/// Pass optional arguments by returning `Option<&T::Via>`, allowing delegation to underlying type's strategy.
+///
+/// This enables `Option<T>` to benefit from the underlying type's efficient passing without cloning. [`ByRef`] doesn't support this because it
+/// would transform `Option<T>` to `&Option<T>`; however, we need `Option<&T>` instead.
+///
+/// See [`ToGodot::Pass`].
+pub enum ByOption<Via> {
+    // Uses `Via` generic type to work around the near-impossibility of Output<'r, T> pointing to a metafunction that transforms Option<T> to
+    // Option<&'r T>. Such a metafunction cannot be implemented via trait (overlapping impls cause coherence issues), and we would need to
+    // pollute also the other `By*` types by anything. Using a generic parameter on the trait rather than the associated type avoids that.
+    _Phantom(std::marker::PhantomData<Via>),
+}
+impl<Via> Sealed for ByOption<Via> {}
+impl<Via> ArgPassing for ByOption<Via>
+where
+    Via: GodotType,
+    for<'f> Via::ToFfi<'f>: GodotNullableFfi,
+{
+    type Output<'r, T: 'r>
+        = Option<&'r Via>
+    where
+        Self: 'r;
+
+    type FfiOutput<'f, T>
+        = <Via as GodotType>::ToFfi<'f>
+    where
+        T: GodotType + 'f;
+
+    // value:  &Option<U>
+    // return: T::Via = Option<U::Via>
+    fn ref_to_owned_via<T>(value: &T) -> T::Via
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: Clone,
+    {
+        value.to_godot_owned()
+    }
+
+    fn ref_to_ffi<T>(value: &T) -> Self::FfiOutput<'_, T::Via>
+    where
+        T: ToGodot<Pass = Self>,
+        T::Via: GodotType,
+    {
+        // Reuse pattern from impl GodotType for Option<T>:
+        // Convert Option<&Via> to Option<Via::ToFfi> and then flatten to Via::ToFfi with null handling.
+        GodotNullableFfi::flatten_option(value.to_godot().map(|via_ref| via_ref.to_ffi()))
     }
 }
 

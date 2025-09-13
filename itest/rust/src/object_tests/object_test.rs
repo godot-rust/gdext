@@ -100,17 +100,20 @@ fn object_engine_roundtrip() {
 }
 
 #[itest]
-fn object_null_argument() {
-    // Objects currently use ObjectArg instead of RefArg, so this scenario shouldn't occur. Test can be updated if code is refactored.
+fn object_option_argument() {
+    // Tests following things:
+    // - to_godot() returns Option<&T>
+    // - None maps to None
+    // - Some(gd) maps to Some(&gd)
 
-    let null_obj = Option::<Gd<Node>>::None;
+    let null_obj = None::<Gd<Node>>;
+    let via: Option<&Gd<Node>> = null_obj.to_godot();
+    assert_eq!(via, None);
 
-    let via = null_obj.to_godot();
-    let ffi = via.to_ffi();
-
-    expect_panic("not yet implemented: pass objects through RefArg", || {
-        ffi.to_godot();
-    });
+    let refc = RefCounted::new_gd();
+    let some_obj = Some(refc.clone());
+    let via: Option<&Gd<RefCounted>> = some_obj.to_godot();
+    assert_eq!(via, Some(&refc));
 }
 
 #[itest]
