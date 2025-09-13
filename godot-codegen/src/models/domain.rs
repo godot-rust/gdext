@@ -541,7 +541,7 @@ impl FnParam {
         }
     }
 
-    /// `impl AsObjectArg<T>` for object parameters. Only set if requested and `T` is an engine class.
+    /// `impl AsArg<Gd<T>>` for object parameters. Only set if requested and `T` is an engine class.
     pub fn new_no_defaults(method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
         FnParam {
             name: safe_ident(&method_arg.name),
@@ -653,10 +653,7 @@ pub enum RustTy {
         /// Tokens with full `Gd<T>` (e.g. used in return type position).
         tokens: TokenStream,
 
-        /// Tokens with `ObjectArg<T>` (used in `type CallSig` tuple types).
-        object_arg: TokenStream,
-
-        /// Signature declaration with `impl AsObjectArg<T>`.
+        /// Signature declaration with `impl AsArg<Gd<T>>`.
         impl_as_object_arg: TokenStream,
 
         /// only inner `T`

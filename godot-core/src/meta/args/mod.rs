@@ -23,9 +23,8 @@ pub use as_arg::{owned_into_arg, ref_to_arg, ArgPassing, AsArg, ByRef, ByValue, 
 pub use cow_arg::CowArg;
 #[cfg(not(feature = "trace"))]
 pub(crate) use cow_arg::CowArg;
-pub use object_arg::AsObjectArg;
-#[allow(unused_imports)] // ObjectCow is used in generated code.
-pub(crate) use object_arg::{ObjectArg, ObjectCow, ObjectNullArg};
+#[allow(unused)] // TODO(v0.4): replace contents with newer changes
+pub use object_arg::ObjectArg;
 pub use ref_arg::RefArg;
 
 // #[doc(hidden)]

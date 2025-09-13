@@ -142,8 +142,8 @@ fn signal_symbols_complex_emit() {
         });
     }
 
-    // Forward compat: .upcast() here becomes a breaking change if we generalize AsArg to include derived->base conversions.
-    sig.emit(&arg.upcast(), "hello");
+    // Allows upcasting.
+    sig.emit(&arg, "hello");
 
     emitter.free();
 }

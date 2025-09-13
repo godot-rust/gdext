@@ -237,8 +237,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         RustTy::EngineClass {
             tokens: quote! { Gd<#qualified_class> },
-            object_arg: quote! { ObjectArg<#qualified_class> },
-            impl_as_object_arg: quote! { impl AsObjectArg<#qualified_class> },
+            impl_as_object_arg: quote! { impl AsArg<Option<Gd<#qualified_class>>> },
             inner_class: ty,
         }
     }

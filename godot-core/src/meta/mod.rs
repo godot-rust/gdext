@@ -40,8 +40,7 @@
 //! "T-compatible" arguments into `T`. This library specializes this idea with two traits:
 //!
 //! - [`AsArg<T>`] allows argument conversions from arguments into `T`. This is most interesting in the context of strings (so you can pass
-//!   `&str` to a function expecting `GString`), but is generic to support e.g. array insertion.
-//! - [`AsObjectArg<T>`] is a more specialized version of `AsArg` that is used for object arguments, i.e. `Gd<T>`.
+//!   `&str` to a function expecting `GString`), but is generic to support object arguments like `Gd<T>` and array insertion.
 
 mod args;
 mod class_name;

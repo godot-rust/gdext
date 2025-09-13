@@ -566,16 +566,15 @@ fn array_resize() {
     assert_eq!(a, Array::new());
 }
 
-// Tests that arrays of objects can be declared without explicit type annotations. A similar test exists for DynGd in dyn_gd_test.rs.
-// This has deliberately been added to guard against regressions in case `AsArg` is extended (T: Inherits<Base> support broke this).
 fn __array_type_inference() {
     let a = Node::new_alloc();
-    let b = Node::new_alloc();
-    let _array = array![&a, &b];
+    let b = Node2D::new_alloc(); // will be implicitly upcast.
+    let _array: Array<Gd<Node>> = array![&a, &b];
 
     let c = ArrayTest::new_gd();
     let d = ArrayTest::new_gd();
-    let _array = array![&c, &d];
+    let _array: Array<Gd<ArrayTest>> = array![&c, &d];
+    // Earlier versions supported `let _array = array[&a, &b]`. This is nice, but allows no upcasting support -- it's a trade-off.
 }
 
 #[itest]
