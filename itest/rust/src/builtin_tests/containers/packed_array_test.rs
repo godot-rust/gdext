@@ -446,14 +446,20 @@ fn packed_array_extend_array() {
 fn packed_array_subarray() {
     let array = PackedArray::from([10, 20, 30, 40, 50]);
 
-    let sub = array.subarray(1, 4);
+    let sub = array.subarray(1..4);
     assert_eq!(sub.as_slice(), &[20, 30, 40]);
 
-    let sub_empty = array.subarray(2, 2);
+    let endless = array.subarray(2..);
+    assert_eq!(endless.as_slice(), &[30, 40, 50]);
+
+    let negative_sub = array.subarray(-4..-2);
+    assert_eq!(negative_sub.as_slice(), &[20, 30]);
+
+    let sub_empty = array.subarray(2..2);
     assert_eq!(sub_empty.len(), 0);
 
     // Half-open range: end index is clamped to len.
-    let sub_clamped = array.subarray(3, 100);
+    let sub_clamped = array.subarray(3..100);
     assert_eq!(sub_clamped.as_slice(), &[40, 50]);
 }
 
