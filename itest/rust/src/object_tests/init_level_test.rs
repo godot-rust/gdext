@@ -7,12 +7,15 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use godot::init::InitLevel;
 use godot::obj::NewAlloc;
 use godot::register::{godot_api, GodotClass};
+use godot::sys::Global;
 
-use crate::framework::itest;
+use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
 
 static OBJECT_CALL_HAS_RUN: AtomicBool = AtomicBool::new(false);
+static LEVELS_SEEN: Global<Vec<InitLevel>> = Global::default();
 
 #[derive(GodotClass)]
 #[class(base = Object, init)]
@@ -34,8 +37,49 @@ impl SomeObject {
     }
 }
 
+// Ensure that the above function has actually run and succeeded.
+#[itest]
+fn init_level_all_initialized() {
+    assert!(
+        OBJECT_CALL_HAS_RUN.load(Ordering::Relaxed),
+        "Object call function did not run during Core init level"
+    );
+}
+
+// Ensure that we saw all the init levels expected.
+#[itest]
+fn init_level_observed_all() {
+    let levels_seen = LEVELS_SEEN.lock().clone();
+
+    assert_eq!(levels_seen[0], InitLevel::Core);
+    assert_eq!(levels_seen[1], InitLevel::Servers);
+    assert_eq!(levels_seen[2], InitLevel::Scene);
+
+    // In Debug/Editor builds, Editor level is loaded; otherwise not.
+    let level_3 = levels_seen.get(3);
+    if runs_release() {
+        assert_eq!(level_3, None);
+    } else {
+        assert_eq!(level_3, Some(&InitLevel::Editor));
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Level-specific callbacks
+
+pub fn on_level_init(level: InitLevel) {
+    LEVELS_SEEN.lock().push(level);
+
+    match level {
+        InitLevel::Core => on_init_core(),
+        InitLevel::Servers => on_init_servers(),
+        InitLevel::Scene => on_init_scene(),
+        InitLevel::Editor => on_init_editor(),
+    }
+}
+
 // Runs during core init level to ensure we can access core singletons.
-pub fn test_early_core_singletons() {
+fn on_init_core() {
     // Ensure we can create and use an Object-derived class during Core init level.
     SomeObject::test();
 
@@ -59,14 +103,20 @@ pub fn test_early_core_singletons() {
     assert!(time.get_ticks_usec() <= time.get_ticks_usec());
 }
 
-// Runs during scene init level to ensure we can access general singletons in the Scene init call for the extension as a whole.
-pub fn test_server_singletons() {
-    let mut rendering = godot::classes::RenderingServer::singleton();
-    assert!(rendering.get_test_cube() != godot::builtin::Rid::Invalid);
+fn on_init_servers() {
+    // Nothing yet.
 }
 
-// Ensure that the above function actually ran.
-#[itest]
-fn class_run_during_servers_init() {
-    assert!(OBJECT_CALL_HAS_RUN.load(Ordering::Acquire));
+fn on_init_scene() {
+    // Known limitation that singletons only become available later:
+    // https://github.com/godotengine/godot-cpp/issues/1180#issuecomment-3074351805
+    expect_panic("Singletons not loaded during Scene init level", || {
+        suppress_godot_print(|| {
+            let _ = godot::classes::RenderingServer::singleton();
+        });
+    });
+}
+
+pub fn on_init_editor() {
+    // Nothing yet.
 }

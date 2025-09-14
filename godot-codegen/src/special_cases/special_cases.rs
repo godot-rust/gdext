@@ -985,7 +985,7 @@ pub fn get_derived_virtual_method_presence(class_name: &TyName, godot_method_nam
     }
 }
 
-/// Initialization order for Godot (see https://github.com/godotengine/godot/blob/master/main/main.cpp)
+/// Initialization order for Godot (see https://github.com/godotengine/godot/blob/master/main/main.cpp).
 /// - Main::setup()
 ///   - register_core_types()
 ///   - register_early_core_singletons()
@@ -1002,13 +1002,25 @@ pub fn get_derived_virtual_method_presence(class_name: &TyName, godot_method_nam
 ///     - initialize_extensions(GDExtension::INITIALIZATION_LEVEL_EDITOR)
 ///   - register_server_singletons() ...another weird one.
 ///   - Autoloads, etc.
+///
+/// ## Singleton availability by initialization level
+/// - **Core level**: Basic singletons like `Engine`, `OS`, `ProjectSettings`, `Time` are available.
+/// - **Servers level**: Server singletons like `RenderingServer` are NOT yet available due to GDExtension timing issues.
+/// - **Scene level**: All singletons including `RenderingServer` are available.
+/// - **Editor level**: Editor-specific functionality is available.
+///
+/// GDExtension singletons are generally not available during *any* level initialization, with the exception of a few core singletons 
+/// (see above). This is different from how modules work, where servers are available at _Servers_ level.
+///
+/// See also:
+/// - Singletons not accessible in Scene (godot-cpp): <https://github.com/godotengine/godot-cpp/issues/1180>
+/// - `global_get_singleton` not returning singletons: <https://github.com/godotengine/godot/issues/64975>
+/// - PR to make singletons available: <https://github.com/godotengine/godot/pull/98862>
 #[rustfmt::skip]
 pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
     let level = match class_name {
         // See register_core_types() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
-        // which is called before Core level is initialized.
-        // Currently only promoting super basic classes to Core level since this is a brittle hardcoded list (feel free expand as 
-        // necessary based on careful evaluation of register_core_types).
+        // which is called before Core level is initialized. Only a small list is promoted to Core; carefully evaluate if more are added.
         | "Object" | "RefCounted" | "Resource" | "MainLoop" | "GDExtension"
         => ClassCodegenLevel::Core,
 
@@ -1035,6 +1047,7 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
         | "RenderData" | "RenderDataExtension"
         | "RenderSceneData" | "RenderSceneDataExtension"
         => ClassCodegenLevel::Servers,
+        
         // Declared final (un-inheritable) in Rust, but those are still servers.
         | "AudioServer" | "CameraServer" | "NavigationServer2D" | "NavigationServer3D" | "RenderingServer" | "TranslationServer" | "XRServer" | "DisplayServer"
         => ClassCodegenLevel::Servers,
@@ -1045,6 +1058,7 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
         | "OpenXRInteractionProfileEditor"
         | "OpenXRBindingModifierEditor" if cfg!(before_api = "4.5") 
         => ClassCodegenLevel::Editor,
+        
         // https://github.com/godotengine/godot/issues/86206
         "ResourceImporterOggVorbis" | "ResourceImporterMP3" if cfg!(before_api = "4.3") 
         => ClassCodegenLevel::Editor,
