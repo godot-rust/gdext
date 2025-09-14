@@ -298,6 +298,9 @@ where
 /// Disable printing errors from Godot. Ideally we should catch and handle errors, ensuring they happen when
 /// expected. But that isn't possible, so for now we can just disable printing the error to avoid spamming
 /// the terminal when tests should error.
+///
+/// **Important:** Do not run this inside [`expect_panic()`], it will mute panic messages forever. Instead, make sure [`suppress_godot_print()`]
+/// is the outer function.
 pub fn suppress_godot_print(mut f: impl FnMut()) {
     Engine::singleton().set_print_error_messages(false);
     f();

@@ -895,15 +895,12 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 }
 
 impl<T: GodotClass> ToGodot for Gd<T> {
-    // FIXME(v0.4): ByRef/ByObject.
-    type Pass = meta::ByValue;
+    type Pass = meta::ByObject;
 
-    fn to_godot(&self) -> Self::Via {
-        // For null objects created for FFI parameter passing, skip RTTI check.
-        if !self.raw.is_null() {
-            self.raw.check_rtti("to_godot");
-        }
-        self.clone()
+    fn to_godot(&self) -> &Self {
+        // Note: Gd<T> never null, so no need to check raw.is_null().
+        self.raw.check_rtti("to_godot");
+        self
     }
 }
 
@@ -962,6 +959,10 @@ impl<T: GodotClass> GodotType for Gd<T> {
         }
 
         false
+    }
+
+    unsafe fn as_object_arg(&self) -> meta::ObjectArg {
+        meta::ObjectArg::from_gd(self)
     }
 }
 
