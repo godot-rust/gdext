@@ -442,7 +442,8 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// }
     /// ```
     pub fn base(&self) -> ScriptBaseRef<'_, T> {
-        ScriptBaseRef::new(self.base_ref.to_script_gd(), self.mut_ref)
+        let passive_gd = self.base_ref.to_script_passive();
+        ScriptBaseRef::new(passive_gd, self.mut_ref)
     }
 
     /// Returns a mutable reference suitable for calling engine methods on this object.
@@ -505,8 +506,9 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// ```
     pub fn base_mut(&mut self) -> ScriptBaseMut<'_, T> {
         let guard = self.cell.make_inaccessible(self.mut_ref).unwrap();
+        let passive_gd = self.base_ref.to_script_passive();
 
-        ScriptBaseMut::new(self.base_ref.to_script_gd(), guard)
+        ScriptBaseMut::new(passive_gd, guard)
     }
 }
 

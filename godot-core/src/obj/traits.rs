@@ -422,9 +422,8 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
     fn base(&self) -> BaseRef<'_, Self> {
-        let weak_gd = self.base_field().__constructed_gd_weak();
-
-        BaseRef::new(weak_gd, self)
+        let passive_gd = self.base_field().constructed_passive();
+        BaseRef::new(passive_gd, self)
     }
 
     /// Returns a mutable reference suitable for calling engine methods on this object.
@@ -493,9 +492,12 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// ```
     #[allow(clippy::let_unit_value)]
     fn base_mut(&mut self) -> BaseMut<'_, Self> {
-        let weak_gd = self.base_field().__constructed_gd_weak();
+        // We need to construct this first, as the mut-borrow below will block all other access.
+        // SAFETY: lifetime is re-established at the bottom BaseMut construction, since return type of this fn has lifetime bound to instance.
+        let passive_gd = unsafe { self.base_field().constructed_passive_unbounded() };
 
         let gd = self.to_gd();
+
         // SAFETY:
         // - We have a `Gd<Self>` so, provided that `storage_unbounded` succeeds, the associated instance
         //   storage has been created.
@@ -509,12 +511,13 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         let storage = unsafe {
             gd.raw
                 .storage_unbounded()
-                .expect("we have a `Gd<Self>` so the raw should not be null")
+                .expect("we have Gd<Self>; its RawGd should not be null")
         };
 
         let guard = storage.get_inaccessible(self);
 
-        BaseMut::new(weak_gd, guard)
+        // Narrows lifetime again from 'static to 'self.
+        BaseMut::new(passive_gd, guard)
     }
 }
 

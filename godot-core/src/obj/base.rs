@@ -15,7 +15,7 @@ use std::mem::ManuallyDrop;
 use std::rc::Rc;
 
 use crate::builtin::{Callable, Variant};
-use crate::obj::{bounds, Gd, GodotClass, InstanceId};
+use crate::obj::{bounds, Gd, GodotClass, InstanceId, PassiveGd};
 use crate::{classes, sys};
 
 thread_local! {
@@ -305,17 +305,16 @@ impl<T: GodotClass> Base<T> {
         self.obj.instance_id()
     }
 
-    /// Returns a [`Gd`] referencing the base object, for use in script contexts only.
-    pub(crate) fn to_script_gd(&self) -> Gd<T> {
+    /// Returns a passive reference to the base object, for use in script contexts only.
+    pub(crate) fn to_script_passive(&self) -> PassiveGd<'_, T> {
         #[cfg(debug_assertions)]
         assert_eq!(
             self.init_state.get(),
             InitState::Script,
-            "to_script_gd() can only be called on script-context Base objects"
+            "to_script_passive() can only be called on script-context Base objects"
         );
 
-        // SAFETY: ScriptBase{Ref,Mut} also drop weakly.
-        unsafe { (*self.obj).clone_weak() }
+        PassiveGd::from_strong_ref(&self.obj)
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
@@ -336,12 +335,24 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
+    /// Returns a [`PassiveGd`] referencing the base object, assuming the derived object is fully constructed.
+    ///
+    /// This method directly creates a PassiveGd from a weak reference, providing clean lifetime management
+    /// without the need for manual `drop_weak()` calls.
+    pub(crate) fn constructed_passive(&self) -> PassiveGd<'_, T> {
+        // SAFETY: returned lifetime here is re-bound to self. Covariant lifetime conversion 'static -> 'self.
+        unsafe { self.constructed_passive_unbounded() }
+    }
+
     /// Returns a weak [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     ///
-    /// Unlike `__constructed_gd()`, this does not increment the reference count for ref-counted `T`s.
+    /// Unlike [`Self::__constructed_gd()`], this does not increment the reference count for ref-counted `T`s.
     /// The returned weak reference is safe to use only as long as the associated instance remains alive.
-    #[doc(hidden)]
-    pub fn __constructed_gd_weak(&self) -> Gd<T> {
+    ///
+    /// # Safety
+    /// This method disconnects the lifetime, as opposed to [`Self::constructed_passive()]. Caller is responsible of re-binding the
+    /// lifetime to the instance.
+    pub(crate) unsafe fn constructed_passive_unbounded(&self) -> PassiveGd<'static, T> {
         #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
         assert!(
             !self.is_initializing(),
@@ -349,7 +360,10 @@ impl<T: GodotClass> Base<T> {
         );
 
         // Create weak reference from the same object pointer without cloning (incrementing refcount).
-        unsafe { Gd::from_obj_sys_weak(self.obj.obj_sys()) }
+        let weak_gd = unsafe { Gd::from_obj_sys_weak(self.obj.obj_sys()) };
+
+        // SAFETY: weak_gd is a weakly created Gd, and remains valid as long as self is alive (per safety precondition of this fn).
+        unsafe { PassiveGd::from_weak_owned(weak_gd) }
     }
 }
 
