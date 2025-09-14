@@ -244,6 +244,23 @@ fn gdext_on_level_deinit(level: InitLevel) {
 /// Note that this only changes the name. You cannot provide your own function -- use the [`on_level_init()`][ExtensionLibrary::on_level_init]
 /// hook for custom startup logic.
 ///
+/// # Availability of Godot APIs during init and deinit
+// Init order: see also special_cases.rs > classify_codegen_level().
+/// Godot loads functionality gradually during its startup routines, and unloads it during shutdown. As a result, Godot classes are only
+/// available above a certain level. Trying to access a class API when it's not available will panic (if not, please report it as a bug).
+///
+/// A few singletons (`Engine`, `Os`, `Time`, `ProjectSettings`) are available from the `Core` level onward and can be used inside
+/// this method. Most other singletons are **not available during init** at all, and will only become accessible once the first frame has
+/// run.
+///
+/// The exact time a class is available depends on the Godot initialization logic, which is quite complex and may change between versions.
+/// To get an up-to-date view, inspect the Godot source code of [main.cpp], particularly `Main::setup()`, `Main::setup2()` and
+/// `Main::cleanup()` methods. Make sure to look at the correct version of the file.
+///
+/// In case of doubt, do not rely on classes being available during init/deinit.
+///
+/// [main.cpp]: https://github.com/godotengine/godot/blob/master/main/main.cpp
+///
 /// # Safety
 /// The library cannot enforce any safety guarantees outside Rust code, which means that **you as a user** are
 /// responsible to uphold them: namely in GDScript code or other GDExtension bindings loaded by the engine.
@@ -269,6 +286,8 @@ pub unsafe trait ExtensionLibrary {
     /// Custom logic when a certain init-level of Godot is loaded.
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in ascending order. Use `if` or `match` to hook to specific levels.
+    ///
+    /// If the overridden method panics, an error will be printed, but GDExtension loading is **not** aborted.
     #[allow(unused_variables)]
     fn on_level_init(level: InitLevel) {
         // Nothing by default.
@@ -277,6 +296,8 @@ pub unsafe trait ExtensionLibrary {
     /// Custom logic when a certain init-level of Godot is unloaded.
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in descending order. Use `if` or `match` to hook to specific levels.
+    ///
+    /// If the overridden method panics, an error will be printed, but GDExtension unloading is **not** aborted.
     #[allow(unused_variables)]
     fn on_level_deinit(level: InitLevel) {
         // Nothing by default.
