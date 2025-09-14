@@ -20,6 +20,7 @@ mod guards;
 mod instance_id;
 mod on_editor;
 mod on_ready;
+mod passive_gd;
 mod raw_gd;
 mod traits;
 
@@ -33,6 +34,7 @@ pub use guards::{BaseMut, BaseRef, DynGdMut, DynGdRef, GdMut, GdRef};
 pub use instance_id::*;
 pub use on_editor::*;
 pub use on_ready::*;
+pub(crate) use passive_gd::PassiveGd;
 pub use raw_gd::*;
 pub use traits::*;
 
