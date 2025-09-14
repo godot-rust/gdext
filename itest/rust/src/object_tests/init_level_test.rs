@@ -110,8 +110,8 @@ fn on_init_servers() {
 fn on_init_scene() {
     // Known limitation that singletons only become available later:
     // https://github.com/godotengine/godot-cpp/issues/1180#issuecomment-3074351805
-    expect_panic("Singletons not loaded during Scene init level", || {
-        suppress_godot_print(|| {
+    suppress_godot_print(|| {
+        expect_panic("Singletons not loaded during Scene init level", || {
             let _ = godot::classes::RenderingServer::singleton();
         });
     });
