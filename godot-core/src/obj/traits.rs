@@ -363,7 +363,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     #[doc(hidden)]
     fn base_field(&self) -> &Base<Self::Base>;
 
-    /// Returns a shared reference suitable for calling engine methods on this object.
+    /// Returns a shared reference guard, suitable for calling `&self` engine methods on this object.
     ///
     /// Holding a shared guard prevents other code paths from obtaining a _mutable_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
@@ -374,7 +374,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// use godot::prelude::*;
     ///
     /// #[derive(GodotClass)]
-    /// #[class(init, base = Node)]
+    /// #[class(init, base=Node)]
     /// struct MyClass {
     ///     base: Base<Node>,
     /// }
@@ -386,11 +386,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///         godot_print!("name is {name}");
     ///     }
     /// }
-    ///
-    /// # pub struct Test;
-    ///
-    /// # #[gdextension]
-    /// # unsafe impl ExtensionLibrary for Test {}
     /// ```
     ///
     /// However, we cannot call methods that require `&mut Base`, such as
@@ -422,25 +417,24 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
     fn base(&self) -> BaseRef<'_, Self> {
-        let passive_gd = self.base_field().constructed_passive();
+        // SAFETY: lifetime is bound to self through BaseRef, ensuring the object remains valid.
+        let passive_gd = unsafe { self.base_field().constructed_passive() };
         BaseRef::new(passive_gd, self)
     }
 
-    /// Returns a mutable reference suitable for calling engine methods on this object.
+    /// Returns an exclusive reference guard, suitable for calling `&self`/`&mut self` engine methods on this object.
     ///
-    /// This method will allow you to call back into the same object from Godot, unlike what would happen
-    /// if you used [`to_gd()`](WithBaseField::to_gd). You have to keep the `BaseRef` guard bound for the entire duration the engine might
-    /// re-enter a function of your class. The guard temporarily absorbs the `&mut self` reference, which allows for an additional mutable
-    /// reference to be acquired.
+    /// This method will allow you to call back into the same object from Godot -- something that [`to_gd()`][Self::to_gd] does not allow.
+    /// You have to keep the `BaseMut` guard bound for the entire duration the engine might re-enter a function of your class. The guard
+    /// temporarily absorbs the `&mut self` reference, which allows for an additional exclusive (mutable) reference to be acquired.
     ///
-    /// Holding a mutable guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
+    /// Holding an exclusive guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use godot::prelude::*;
-    ///
+    /// # use godot::prelude::*;
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
@@ -463,11 +457,10 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// We can call back into `self` through Godot:
     ///
-    /// ```
-    /// use godot::prelude::*;
-    ///
+    /// ```no_run
+    /// # use godot::prelude::*;
     /// #[derive(GodotClass)]
-    /// #[class(init, base = Node)]
+    /// #[class(init, base=Node)]
     /// struct MyClass {
     ///     base: Base<Node>,
     /// }
@@ -484,17 +477,32 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///     #[func]
     ///     fn other_method(&mut self) {}
     /// }
+    /// ```
     ///
-    /// # pub struct Test;
+    /// Rust's borrow checking rules are enforced if you try to overlap `base_mut()` calls:
+    /// ```compile_fail
+    /// # use godot::prelude::*;
+    /// # #[derive(GodotClass)]
+    /// # #[class(init)]
+    /// # struct MyStruct {
+    /// #     base: Base<RefCounted>,
+    /// # }
+    /// # impl MyStruct {
+    /// // error[E0499]: cannot borrow `*self` as mutable more than once at a time
     ///
-    /// # #[gdextension]
-    /// # unsafe impl ExtensionLibrary for Test {}
+    /// fn method(&mut self) {
+    ///     let mut a = self.base_mut();
+    ///     //          ---- first mutable borrow occurs here
+    ///     let mut b = self.base_mut();
+    ///     //          ^^^^ second mutable borrow occurs here
+    /// }
+    /// # }
     /// ```
     #[allow(clippy::let_unit_value)]
     fn base_mut(&mut self) -> BaseMut<'_, Self> {
         // We need to construct this first, as the mut-borrow below will block all other access.
         // SAFETY: lifetime is re-established at the bottom BaseMut construction, since return type of this fn has lifetime bound to instance.
-        let passive_gd = unsafe { self.base_field().constructed_passive_unbounded() };
+        let passive_gd = unsafe { self.base_field().constructed_passive() };
 
         let gd = self.to_gd();
 

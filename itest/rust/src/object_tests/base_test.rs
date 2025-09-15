@@ -260,6 +260,18 @@ impl Based {
         use godot::obj::WithBaseField as _;
         self.to_gd()
     }
+
+    // Regression compile test for https://github.com/godot-rust/gdext/pull/1312, causing overly restrictive borrow errors.
+    // base() + base_mut() guards' lifetime must not be extended too much.
+    fn _borrow_checks(&mut self) {
+        for _child in self.base().get_children().iter_shared() {
+            self.base_mut().rotate(10.0);
+        }
+
+        for i in 0..self.base().get_child_count() {
+            self.base_mut().rotate(i as real);
+        }
+    }
 }
 
 #[derive(GodotClass)]
