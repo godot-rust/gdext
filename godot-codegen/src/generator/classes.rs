@@ -263,7 +263,9 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
             #(
                 // SAFETY: #all_bases is a list of classes provided by Godot such that #class_name is guaranteed a subclass of all of them.
-                unsafe impl crate::obj::Inherits<crate::classes::#all_bases> for #class_name {}
+                unsafe impl crate::obj::Inherits<crate::classes::#all_bases> for #class_name {
+                    const IS_SAME_CLASS: bool = false;
+                }
             )*
 
             #godot_default_impl
@@ -336,9 +338,13 @@ fn make_inherits_macro(class: &Class, all_bases: &[TyName]) -> (Option<Ident>, T
         #[allow(non_snake_case)]
         macro_rules! #inherits_macro_ident {
             ($Class:ident) => {
-                unsafe impl ::godot::obj::Inherits<::godot::classes::#class_name> for $Class {}
+                unsafe impl ::godot::obj::Inherits<::godot::classes::#class_name> for $Class {
+                    const IS_SAME_CLASS: bool = false;
+                }
                 #(
-                    unsafe impl ::godot::obj::Inherits<::godot::classes::#all_bases> for $Class {}
+                    unsafe impl ::godot::obj::Inherits<::godot::classes::#all_bases> for $Class {
+                        const IS_SAME_CLASS: bool = false;
+                    }
                 )*
             }
         }
