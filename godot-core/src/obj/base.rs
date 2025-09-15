@@ -306,7 +306,7 @@ impl<T: GodotClass> Base<T> {
     }
 
     /// Returns a passive reference to the base object, for use in script contexts only.
-    pub(crate) fn to_script_passive(&self) -> PassiveGd<'_, T> {
+    pub(crate) fn to_script_passive(&self) -> PassiveGd<T> {
         #[cfg(debug_assertions)]
         assert_eq!(
             self.init_state.get(),
@@ -314,7 +314,8 @@ impl<T: GodotClass> Base<T> {
             "to_script_passive() can only be called on script-context Base objects"
         );
 
-        PassiveGd::from_strong_ref(&self.obj)
+        // SAFETY: the object remains valid for script contexts as per the assertion above.
+        unsafe { PassiveGd::from_strong_ref(&self.obj) }
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
@@ -337,33 +338,20 @@ impl<T: GodotClass> Base<T> {
 
     /// Returns a [`PassiveGd`] referencing the base object, assuming the derived object is fully constructed.
     ///
-    /// This method directly creates a PassiveGd from a weak reference, providing clean lifetime management
-    /// without the need for manual `drop_weak()` calls.
-    pub(crate) fn constructed_passive(&self) -> PassiveGd<'_, T> {
-        // SAFETY: returned lifetime here is re-bound to self. Covariant lifetime conversion 'static -> 'self.
-        unsafe { self.constructed_passive_unbounded() }
-    }
-
-    /// Returns a weak [`Gd`] referencing the base object, assuming the derived object is fully constructed.
-    ///
     /// Unlike [`Self::__constructed_gd()`], this does not increment the reference count for ref-counted `T`s.
     /// The returned weak reference is safe to use only as long as the associated instance remains alive.
     ///
     /// # Safety
-    /// This method disconnects the lifetime, as opposed to [`Self::constructed_passive()]. Caller is responsible of re-binding the
-    /// lifetime to the instance.
-    pub(crate) unsafe fn constructed_passive_unbounded(&self) -> PassiveGd<'static, T> {
+    /// Caller must ensure that the underlying object remains valid for the entire lifetime of the returned `PassiveGd`.
+    pub(crate) unsafe fn constructed_passive(&self) -> PassiveGd<T> {
         #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
         assert!(
             !self.is_initializing(),
             "WithBaseField::base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
         );
 
-        // Create weak reference from the same object pointer without cloning (incrementing refcount).
-        let weak_gd = unsafe { Gd::from_obj_sys_weak(self.obj.obj_sys()) };
-
-        // SAFETY: weak_gd is a weakly created Gd, and remains valid as long as self is alive (per safety precondition of this fn).
-        unsafe { PassiveGd::from_weak_owned(weak_gd) }
+        // SAFETY: object pointer is valid and remains valid as long as self is alive (per safety precondition of this fn).
+        unsafe { PassiveGd::from_obj_sys(self.obj.obj_sys()) }
     }
 }
 

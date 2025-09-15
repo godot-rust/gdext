@@ -198,12 +198,12 @@ macro_rules! make_base_ref {
         #[doc = concat!("This can be used to call methods on the base object of a ", $object_name, " that takes `&self` as the receiver.\n\n")]
         #[doc = concat!("See [`", stringify!($doc_type), "::base()`](", stringify!($doc_path), "::base()) for usage.")]
         pub struct $ident<'a, T: $bound> {
-            passive_gd: PassiveGd<'a, T::Base>,
+            passive_gd: PassiveGd<T::Base>,
             _instance: &'a T,
         }
 
         impl<'a, T: $bound> $ident<'a, T> {
-            pub(crate) fn new(passive_gd: PassiveGd<'a, T::Base>, instance: &'a T) -> Self {
+            pub(crate) fn new(passive_gd: PassiveGd<T::Base>, instance: &'a T) -> Self {
                 Self {
                     passive_gd,
                     _instance: instance,
@@ -231,13 +231,13 @@ macro_rules! make_base_mut {
         ///
         #[doc = concat!("See [`", stringify!($doc_type), "::base_mut()`](", stringify!($doc_path), "::base_mut()) for usage.\n")]
         pub struct $ident<'a, T: $bound> {
-            passive_gd: PassiveGd<'a, T::Base>,
+            passive_gd: PassiveGd<T::Base>,
             _inaccessible_guard: InaccessibleGuard<'a, T>,
         }
 
         impl<'a, T: $bound> $ident<'a, T> {
             pub(crate) fn new(
-                passive_gd: PassiveGd<'a, T::Base>,
+                passive_gd: PassiveGd<T::Base>,
                 inaccessible_guard: InaccessibleGuard<'a, T>,
             ) -> Self {
                 Self {
