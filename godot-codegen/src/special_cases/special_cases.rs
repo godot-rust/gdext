@@ -27,8 +27,9 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
-use proc_macro2::Ident;
 use std::borrow::Cow;
+
+use proc_macro2::Ident;
 
 use crate::conv::to_enum_type_uncached;
 use crate::models::domain::{ClassCodegenLevel, Enum, RustTy, TyName, VirtualMethodPresence};
@@ -397,8 +398,26 @@ pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_n
         // Variant -> Option<Gd<Script>>
         | ("Object", "get_script")
         | ("Object", "set_script")
-        //
+
+        // u32 -> ConnectFlags
         | ("Object", "connect")
+
+        // i32 -> CallGroupFlags
+        | ("SceneTree", "call_group_flags")
+        | ("SceneTree", "notify_group")
+        | ("SceneTree", "notify_group_flags")
+        | ("SceneTree", "set_group_flags")
+
+        // i32 -> DropModeFlags
+        | ("Tree", "set_drop_mode_flags")
+        | ("Tree", "get_drop_mode_flags")
+
+        // i32 -> ModeFlags (codegen-full)
+        | ("FileAccess", "create_temp")
+
+        // u32 -> EmitFlags (codegen-full)
+        | ("GPUParticles2D", "emit_particle")
+        | ("GPUParticles3D", "emit_particle")
 
         => true, _ => false
     }
@@ -1147,6 +1166,10 @@ pub fn is_enum_bitfield(class_name: Option<&TyName>, enum_name: &str) -> Option<
     let class_name = class_name.map(|c| c.godot_ty.as_str());
     match (class_name, enum_name) {
         | (Some("Object"), "ConnectFlags")
+        | (Some("SceneTree"), "GroupCallFlags")
+        | (Some("FileAccess"), "ModeFlags")
+        | (Some("GPUParticles2D"), "EmitFlags")
+        | (Some("GPUParticles3D"), "EmitFlags")
 
         => Some(true),
         _ => None
