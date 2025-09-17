@@ -80,7 +80,7 @@ pub fn make_function_definition_with_defaults(
         #[doc = #builder_doc]
         #[must_use]
         #cfg_attributes
-        pub struct #builder_ty<'a> {
+        #vis struct #builder_ty<'a> {
             _phantom: std::marker::PhantomData<&'a ()>,
             #( #builder_field_decls, )*
         }
