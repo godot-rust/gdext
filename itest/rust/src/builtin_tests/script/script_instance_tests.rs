@@ -342,12 +342,12 @@ fn script_instance_exists() {
     let script = TestScript::new(language.clone());
     let mut object = Object::new_alloc();
 
-    object.set_script(&script.to_variant());
+    object.set_script(&script);
 
     let instance_exists = godot::obj::script::script_instance_exists(&object, &script);
     assert!(instance_exists);
 
-    object.set_script(&Variant::nil());
+    object.set_script(Gd::null_arg());
 
     let instance_exists = godot::obj::script::script_instance_exists(&object, &script);
     assert!(!instance_exists);

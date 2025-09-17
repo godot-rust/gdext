@@ -58,7 +58,7 @@ fn func_virtual() {
     assert_eq!(object.bind().greet_lang(72), GString::from("Rust#72"));
 
     // With script: "GDScript".
-    object.set_script(&make_script().to_variant());
+    object.set_script(&make_script());
     assert_eq!(object.bind().greet_lang(72), GString::from("GDScript#72"));
 
     // Dynamic call: "GDScript".
@@ -76,7 +76,7 @@ fn func_virtual_renamed() {
     );
 
     // With script: "GDScript".
-    object.set_script(&make_script().to_variant());
+    object.set_script(&make_script());
     assert_eq!(
         object.bind().gl2("Hello".into()),
         GString::from("Hello GDScript")
@@ -97,7 +97,7 @@ fn func_virtual_gd_self() {
     );
 
     // With script: "GDScript".
-    object.set_script(&make_script().to_variant());
+    object.set_script(&make_script());
     assert_eq!(
         VirtualScriptCalls::greet_lang3(object.clone(), "Hoi".into()),
         GString::from("Hoi GDScript")
@@ -111,7 +111,7 @@ fn func_virtual_gd_self() {
 #[itest]
 fn func_virtual_stateful() {
     let mut object = VirtualScriptCalls::new_gd();
-    object.set_script(&make_script().to_variant());
+    object.set_script(&make_script());
 
     let variant = Vector3i::new(1, 2, 2).to_variant();
     object.bind_mut().set_thing(variant.clone());
