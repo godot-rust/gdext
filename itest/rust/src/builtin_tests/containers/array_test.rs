@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::meta::ElementType;
+use godot::meta::{wrapped, ElementType};
 use godot::prelude::*;
 
 use crate::framework::{assert_match, create_gdscript, expect_panic, itest};
@@ -146,10 +146,13 @@ fn array_subarray_shallow() {
     let slice = array.subarray_shallow(5..1, Some(-2));
     assert_eq!(slice, array![5, 3]);
 
-    let negative_slice = array.subarray_shallow(-1..-5, Some(-2));
+    let negative_slice = array.subarray_shallow(wrapped(-1..-5), Some(-2));
     assert_eq!(negative_slice, array![5, 3]);
 
-    let clamped_slice = array.subarray_shallow(100..-1, None);
+    let other_negative_slice = array.subarray_shallow(wrapped(-1..3), Some(-1));
+    assert_eq!(other_negative_slice, array![5, 4]);
+
+    let clamped_slice = array.subarray_shallow(wrapped(100..-1), None);
     assert_eq!(clamped_slice, array![]);
 
     let other_clamped_slice = array.subarray_shallow(5.., Some(2));
@@ -175,10 +178,13 @@ fn array_subarray_deep() {
     let slice = array.subarray_deep(5..1, Some(-2));
     assert_eq!(slice, array![5, 3]);
 
-    let negative_slice = array.subarray_deep(-1..-5, Some(-2));
+    let negative_slice = array.subarray_deep(wrapped(-1..-5), Some(-2));
     assert_eq!(negative_slice, array![5, 3]);
 
-    let clamped_slice = array.subarray_deep(100..-1, None);
+    let other_negative_slice = array.subarray_deep(wrapped(-1..3), Some(-1));
+    assert_eq!(other_negative_slice, array![5, 4]);
+
+    let clamped_slice = array.subarray_deep(wrapped(100..-1), None);
     assert_eq!(clamped_slice, array![]);
 
     let other_clamped_slice = array.subarray_deep(5.., Some(2));

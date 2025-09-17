@@ -56,8 +56,8 @@ mod uniform_object_deref;
 pub(crate) mod sealed;
 
 pub mod error;
-pub(crate) mod godot_range;
 pub mod inspect;
+pub(crate) mod signed_range;
 
 // Public re-exports
 pub use args::*;
@@ -71,6 +71,7 @@ pub use property_info::{PropertyHintInfo, PropertyInfo};
 pub use signature::trace;
 #[doc(hidden)]
 pub use signature::*;
+pub use signed_range::{wrapped, SignedRange};
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 pub use uniform_object_deref::UniformObjectDeref;
 

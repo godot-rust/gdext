@@ -10,7 +10,6 @@
 #![allow(clippy::result_unit_err)]
 
 use std::iter::FromIterator;
-use std::ops::RangeBounds;
 use std::{fmt, ops, ptr};
 
 use godot_ffi as sys;
@@ -20,6 +19,7 @@ use crate::builtin::collections::extend_buffer::ExtendBufferTrait;
 use crate::builtin::*;
 use crate::classes::file_access::CompressionMode;
 use crate::meta;
+use crate::meta::signed_range::SignedRange;
 use crate::meta::{AsArg, FromGodot, GodotConvert, PackedArrayElement, ToGodot};
 use crate::obj::EngineEnum;
 use crate::registry::property::{Export, Var};
@@ -228,31 +228,29 @@ impl<T: PackedArrayElement> PackedArray<T> {
     /// Returns a sub-range `begin..end`, as a new packed array.
     ///
     /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-    ///
-    /// If either `begin` or `end` are negative, their value is relative to the end of the array.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::PackedArray;
-    /// let array = PackedArray::from([10, 20, 30, 40, 50]);
-    /// assert_eq!(array.subarray(-4..-2), PackedArray::from([20, 30]));
-    /// ```
-    ///
-    /// If `end` is not specified, the resulting subarray will span to the end of the array.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::PackedArray;
-    /// let array = PackedArray::from([10, 20, 30, 40, 50]);
-    /// assert_eq!(array.subarray(2..), PackedArray::from([30, 40, 50]));
-    /// ```
-    ///
     /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
+    ///
+    /// # Usage
+    /// For negative indices, use [`wrapped()`](crate::meta::wrapped).
+    ///
+    /// ```no_run
+    /// # use godot::builtin::PackedArray;
+    /// # use godot::meta::wrapped;
+    /// let array = PackedArray::from([10, 20, 30, 40, 50]);
+    ///
+    /// // If either `begin` or `end` is negative, its value is relative to the end of the array.
+    /// let sub = array.subarray(wrapped(-4..-2));
+    /// assert_eq!(sub, PackedArray::from([20, 30]));
+    ///
+    /// // If `end` is not specified, the resulting subarray will span to the end of the array.
+    /// let sub = array.subarray(2..);
+    /// assert_eq!(sub, PackedArray::from([30, 40, 50]));
+    /// ```
     ///
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
     // Note: Godot will clamp values by itself.
-    pub fn subarray(&self, range: impl RangeBounds<i32>) -> Self {
+    pub fn subarray(&self, range: impl SignedRange) -> Self {
         T::op_slice(self.as_inner(), range)
     }
 
