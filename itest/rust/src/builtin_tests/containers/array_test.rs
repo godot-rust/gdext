@@ -623,7 +623,7 @@ func make_array() -> Array[CustomScriptForArrays]:
     );
 
     let mut object = RefCounted::new_gd();
-    object.set_script(&gdscript.to_variant());
+    object.set_script(&gdscript);
 
     // Invoke script to return an array of itself.
     let result = object.call("make_array", &[]);
