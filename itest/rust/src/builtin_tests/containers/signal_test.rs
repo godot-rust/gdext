@@ -810,7 +810,7 @@ mod custom_callable {
 
         let received = Arc::new(AtomicU32::new(0));
         let callable = callable(received.clone());
-        signal.connect(&callable, 0);
+        signal.connect(&callable);
 
         emit(&mut node);
         assert_eq!(1, received.load(Ordering::SeqCst));

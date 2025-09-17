@@ -620,7 +620,7 @@ pub mod custom_callable {
 
         let obj = RefCounted::new_gd();
         let signal = Signal::from_object_signal(&obj, "script_changed");
-        signal.connect(&some_callable, 0);
+        signal.connect(&some_callable);
 
         // Given Custom Callable is connected to signal
         // if callable with the very same hash is already connected.
