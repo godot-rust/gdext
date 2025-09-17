@@ -8,6 +8,7 @@
 use std::collections::HashSet;
 
 use godot::builtin::{GString, NodePath};
+use godot::meta::wrapped;
 
 use crate::framework::{expect_debug_panic_or_release_ok, itest};
 
@@ -99,12 +100,15 @@ fn node_path_subpath() {
     assert_eq!(path.subpath(3..4), ":with".into());
     assert_eq!(path.subpath(4..5), ":props".into());
 
-    assert_eq!(path.subpath(1..-1), "to/Node:with".into());
-    assert_eq!(path.subpath(1..parts as i32 - 1), "to/Node:with".into());
-    assert_eq!(path.subpath(0..-2), "path/to/Node".into());
-    assert_eq!(path.subpath(-3..-1), "Node:with".into());
-    assert_eq!(path.subpath(-2..), ":with:props".into());
-    assert_eq!(path.subpath(-1..), ":props".into());
+    assert_eq!(path.subpath(wrapped(1..-1)), "to/Node:with".into());
+    assert_eq!(
+        path.subpath(wrapped(1..parts as i32 - 1)),
+        "to/Node:with".into()
+    );
+    assert_eq!(path.subpath(wrapped(0..-2)), "path/to/Node".into());
+    assert_eq!(path.subpath(wrapped(-3..-1)), "Node:with".into());
+    assert_eq!(path.subpath(wrapped(-2..)), ":with:props".into());
+    assert_eq!(path.subpath(wrapped(-1..)), ":props".into());
 }
 
 #[itest]

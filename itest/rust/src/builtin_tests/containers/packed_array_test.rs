@@ -11,7 +11,7 @@ use godot::builtin::{
     Variant, Vector2, Vector3, Vector4,
 };
 use godot::global::godot_str;
-use godot::meta::{owned_into_arg, ref_to_arg, PackedArrayElement, ToGodot};
+use godot::meta::{owned_into_arg, ref_to_arg, wrapped, PackedArrayElement, ToGodot};
 
 use crate::framework::{expect_panic, itest};
 
@@ -452,7 +452,7 @@ fn packed_array_subarray() {
     let endless = array.subarray(2..);
     assert_eq!(endless.as_slice(), &[30, 40, 50]);
 
-    let negative_sub = array.subarray(-4..-2);
+    let negative_sub = array.subarray(wrapped(-4..-2));
     assert_eq!(negative_sub.as_slice(), &[20, 30]);
 
     let sub_empty = array.subarray(2..2);

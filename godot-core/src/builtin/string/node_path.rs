@@ -5,14 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::{fmt, ops};
+use std::fmt;
 
 use godot_ffi as sys;
 use godot_ffi::{ffi_methods, ExtVariantType, GdextBuild, GodotFfi};
 
 use super::{GString, StringName};
 use crate::builtin::inner;
-use crate::meta::godot_range::GodotRange;
+use crate::meta::signed_range::SignedRange;
 
 /// A pre-parsed scene tree path.
 ///
@@ -128,36 +128,37 @@ impl NodePath {
     /// Returns the range `begin..exclusive_end` as a new `NodePath`.
     ///
     /// The absolute value of `begin` and `exclusive_end` will be clamped to [`get_total_count()`][Self::get_total_count].
-    /// If upper bound is not defined `exclusive_end` will span to the end of the `NodePath`.
     ///
-    /// # Example
+    /// # Usage
+    /// For negative indices, use [`wrapped()`](crate::meta::wrapped).
+    ///
     /// ```no_run
     /// # use godot::builtin::NodePath;
-    /// assert_eq!(NodePath::from("path/to/Node:with:props").subpath(-1..), ":props".into());
-    /// ```
-    ///
-    /// If either `begin` or `exclusive_end` are negative, they will be relative to the end of the `NodePath`.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::NodePath;
+    /// # use godot::meta::wrapped;
     /// let path = NodePath::from("path/to/Node:with:props");
-    /// let total_count = path.get_total_count() as i32;
-    /// // Both are equal to "path/to/Node".
-    /// assert_eq!(path.subpath(0..-2), path.subpath(0..total_count - 2));
     ///
+    /// // If upper bound is not defined, `exclusive_end` will span to the end of the `NodePath`.
+    /// let sub = path.subpath(2..);
+    /// assert_eq!(sub, ":props".into());
+    ///
+    /// // If either `begin` or `exclusive_end` are negative, they will be relative to the end of the `NodePath`.
+    /// let total_count = path.get_total_count();
+    /// let wrapped_sub = path.subpath(wrapped(0..-2));
+    /// let normal_sub = path.subpath(0..total_count - 2);
+    /// // Both are equal to "path/to/Node".
+    /// assert_eq!(wrapped_sub, normal_sub);
     /// ```
     ///
     /// _Godot equivalent: `slice`_
     ///
     /// # Compatibility
-    /// The `slice()` behavior for Godot <= 4.3 is unintuitive, see [#100954](https://github.com/godotengine/godot/pull/100954). godot-rust
+    /// The `slice()` behavior for Godot <= 4.3 is unintuitive, see [#100954](https://github.com/godotengine/godot/pull/100954). Godot-rust
     /// automatically changes this to the fixed version for Godot 4.4+, even when used in older versions. So, the behavior is always the same.
     // i32 used because it can be negative and many Godot APIs use this, see https://github.com/godot-rust/gdext/pull/982/files#r1893732978.
     #[cfg(since_api = "4.3")]
     #[doc(alias = "slice")]
-    pub fn subpath(&self, range: impl ops::RangeBounds<i32>) -> NodePath {
-        let (from, exclusive_end) = range.to_godot_range_fromto();
+    pub fn subpath(&self, range: impl SignedRange) -> NodePath {
+        let (from, exclusive_end) = range.signed();
         // Polyfill for bug https://github.com/godotengine/godot/pull/100954, fixed in 4.4.
         let begin = if GdextBuild::since_api("4.4") {
             from

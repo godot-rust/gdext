@@ -7,7 +7,6 @@
 
 use std::cell::OnceCell;
 use std::marker::PhantomData;
-use std::ops::RangeBounds;
 use std::{cmp, fmt};
 
 use godot_ffi as sys;
@@ -16,7 +15,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
-use crate::meta::godot_range::GodotRange;
+use crate::meta::signed_range::SignedRange;
 use crate::meta::{
     element_godot_type_name, element_variant_type, ArrayElement, AsArg, ClassName, ElementType,
     ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, PropertyHintInfo, RefArg,
@@ -108,6 +107,35 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// let maybe: Option<Variant> = array.get(3);
 ///
 /// // ...and so on.
+/// ```
+///
+/// # Working with signed ranges and steps
+///
+/// For negative indices, use [`wrapped()`](crate::meta::wrapped).
+///
+/// ```no_run
+/// # use godot::builtin::array;
+/// # use godot::meta::wrapped;
+/// let arr = array![0, 1, 2, 3, 4, 5];
+///
+/// // The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
+/// let clamped_array = arr.subarray_deep(999..99999, None);
+/// assert_eq!(clamped_array, array![]);
+///
+/// // If either `begin` or `end` is negative, its value is relative to the end of the array.
+/// let sub = arr.subarray_shallow(wrapped(-1..-5), None);
+/// assert_eq!(sub, array![5, 3]);
+///
+/// // If `end` is not specified, the range spans through whole array.
+/// let sub = arr.subarray_deep(1.., None);
+/// assert_eq!(sub, array![1, 2, 3, 4, 5]);
+/// let other_clamped_array = arr.subarray_shallow(5.., Some(2));
+/// assert_eq!(other_clamped_array, array![5]);
+///
+/// // If specified, `step` is the relative index between source elements. It can be negative,
+/// // in which case `begin` must be higher than `end`.
+/// let sub = arr.subarray_shallow(wrapped(-1..-5), Some(-2));
+/// assert_eq!(sub, array![5, 3]);
 /// ```
 ///
 /// # Thread safety
@@ -530,71 +558,17 @@ impl<T: ArrayElement> Array<T> {
 
     /// Returns a sub-range `begin..end` as a new `Array`.
     ///
-    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-    ///
-    /// If either `begin` or `end` are negative, their value is relative to the end of the array.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::array;
-    /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_shallow(-1..-5, None), array![5, 3]);
-    /// ```
-    ///
-    /// If `end` is not specified, the range spans through whole array.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::array;
-    /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_shallow(1.., None), array![1, 2, 3, 4, 5]);
-    /// ```
-    ///
-    /// If specified, `step` is the relative index between source elements. It can be negative,
-    /// in which case `begin` must be higher than `end`.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::array;
-    /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_shallow(-1..-5, Some(-2)), array![5, 3]);
-    /// ```
-    ///
     /// Array elements are copied to the slice, but any reference types (such as `Array`,
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
     /// [`subarray_deep()`][Self::subarray_deep] instead.
     ///
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
-    pub fn subarray_shallow(&self, range: impl RangeBounds<i32>, step: Option<i32>) -> Self {
+    pub fn subarray_shallow(&self, range: impl SignedRange, step: Option<i32>) -> Self {
         self.subarray_impl(range, step, false)
     }
 
     /// Returns a sub-range `begin..end` as a new `Array`.
-    ///
-    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-    ///
-    /// If either `begin` or `end` are negative, their value is relative to the end of the array.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::array;
-    /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_deep(-1..-5, None), array![5, 3]);
-    /// ```
-    ///
-    /// If `end` is not specified, the range spans through whole array.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::array;
-    /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_deep(1.., None), array![1, 2, 3, 4, 5]);
-    /// ```
-    ///
-    /// If specified, `step` is the relative index between source elements. It can be negative,
-    /// in which case `begin` must be higher than `end`.
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use godot::builtin::array;
-    /// assert_eq!(array![0, 1, 2, 3, 4, 5].subarray_deep(-1..-5, Some(-2)), array![5, 3]);
-    /// ```
     ///
     /// All nested arrays and dictionaries are duplicated and will not be shared with the original
     /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
@@ -602,19 +576,16 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
-    pub fn subarray_deep(&self, range: impl RangeBounds<i32>, step: Option<i32>) -> Self {
+    pub fn subarray_deep(&self, range: impl SignedRange, step: Option<i32>) -> Self {
         self.subarray_impl(range, step, true)
     }
 
     // Note: Godot will clamp values by itself.
-    fn subarray_impl(&self, range: impl GodotRange<i32>, step: Option<i32>, deep: bool) -> Self {
+    fn subarray_impl(&self, range: impl SignedRange, step: Option<i32>, deep: bool) -> Self {
         assert_ne!(step, Some(0), "subarray: step cannot be zero");
 
         let step = step.unwrap_or(1);
-        let (begin, end) = range.to_godot_range_fromto();
-
-        // Unbounded upper bounds are represented by `i32::MAX` instead of `i64::MAX`,
-        // since Godot treats some indexes as 32-bit despite being declared `i64` in GDExtension API.
+        let (begin, end) = range.signed();
         let end = end.unwrap_or(i32::MAX as i64);
 
         // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
