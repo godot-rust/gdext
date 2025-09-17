@@ -431,7 +431,7 @@ impl ClassMethod {
 
         Self::from_json_inner(
             method,
-            rust_method_name,
+            rust_method_name.as_ref(),
             class_name,
             FnDirection::Outbound { hash },
             ctx,

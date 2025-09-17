@@ -28,6 +28,7 @@
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
 use proc_macro2::Ident;
+use std::borrow::Cow;
 
 use crate::conv::to_enum_type_uncached;
 use crate::models::domain::{ClassCodegenLevel, Enum, RustTy, TyName, VirtualMethodPresence};
@@ -372,6 +373,10 @@ pub fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_nam
 /// to make them public, see [`is_builtin_method_exposed`].
 #[rustfmt::skip]
 pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
+    if is_class_method_replaced_with_type_safe(class_or_builtin_ty, godot_method_name) {
+        return true;
+    }
+
     match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
         // Already covered by manual APIs
         | ("Object", "to_string")
@@ -379,6 +384,18 @@ pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
         | ("RefCounted", "reference")
         | ("RefCounted", "unreference")
         | ("Object", "notification")
+
+        => true, _ => false
+    }
+}
+
+/// Lists methods that are replaced with manual, more type-safe equivalents. See `type_safe_replacements.rs`.
+#[rustfmt::skip]
+pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_name: &str) -> bool {
+
+    match (class_ty.godot_ty.as_str(), godot_method_name) {
+        | ("Object", "get_script")
+        | ("Object", "set_script")
 
         => true, _ => false
     }
@@ -722,15 +739,25 @@ pub fn is_utility_function_private(function: &JsonUtilityFunction) -> bool {
     }
 }
 
-pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
+pub fn maybe_rename_class_method<'m>(
+    class_name: &TyName,
+    godot_method_name: &'m str,
+) -> Cow<'m, str> {
     // This is for non-virtual methods only. For virtual methods, use other handler below.
 
-    match (class_name.godot_ty.as_str(), godot_method_name) {
+    if is_class_method_replaced_with_type_safe(class_name, godot_method_name) {
+        let new_name = format!("raw_{godot_method_name}");
+        return Cow::Owned(new_name);
+    }
+
+    let hardcoded = match (class_name.godot_ty.as_str(), godot_method_name) {
         // GDScript class, possibly more in the future.
         (_, "new") => "instantiate",
 
         _ => godot_method_name,
-    }
+    };
+
+    Cow::Borrowed(hardcoded)
 }
 
 // Maybe merge with above?
