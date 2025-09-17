@@ -165,17 +165,15 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         callable: Callable,
         flags: Option<ConnectFlags>,
     ) -> ConnectHandle {
-        use crate::obj::EngineBitfield;
-
         let signal_name = self.name.as_ref();
 
         let mut owned_object = self.object.to_owned_object();
         owned_object.with_object_mut(|obj| {
-            let mut c = obj.connect_ex(signal_name, &callable);
             if let Some(flags) = flags {
-                c = c.flags(flags.ord() as u32);
+                obj.connect_flags(signal_name, &callable, flags);
+            } else {
+                obj.connect(signal_name, &callable);
             }
-            c.done();
         });
 
         ConnectHandle::new(owned_object, self.name.clone(), callable)

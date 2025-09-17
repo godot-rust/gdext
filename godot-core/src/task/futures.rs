@@ -18,7 +18,7 @@ use crate::classes::object::ConnectFlags;
 use crate::godot_error;
 use crate::meta::sealed::Sealed;
 use crate::meta::InParamTuple;
-use crate::obj::{EngineBitfield, Gd, GodotClass, WithSignals};
+use crate::obj::{Gd, GodotClass, WithSignals};
 use crate::registry::signal::TypedSignal;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -207,9 +207,9 @@ impl<R: InParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
         // The callable currently requires that the return value is Sync + Send.
         let callable = SignalFutureResolver::new(data.clone());
 
-        signal.connect(
+        signal.connect_flags(
             &Callable::from_custom(callable.clone()),
-            ConnectFlags::ONE_SHOT.ord() as i64,
+            ConnectFlags::ONE_SHOT,
         );
 
         Self {

@@ -394,8 +394,11 @@ pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
 pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_name: &str) -> bool {
 
     match (class_ty.godot_ty.as_str(), godot_method_name) {
+        // Variant -> Option<Gd<Script>>
         | ("Object", "get_script")
         | ("Object", "set_script")
+        //
+        | ("Object", "connect")
 
         => true, _ => false
     }

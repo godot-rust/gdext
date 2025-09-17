@@ -11,9 +11,12 @@
 //!
 //! See also sister module [super::manual_extensions].
 
+use crate::builtin::{Callable, StringName};
+use crate::classes::object::ConnectFlags;
 use crate::classes::{Object, Script};
-use crate::meta::{AsObjectArg, GodotFfiVariant};
-use crate::obj::Gd;
+use crate::global::Error;
+use crate::meta::{AsArg, AsObjectArg, GodotFfiVariant};
+use crate::obj::{EngineBitfield, Gd};
 
 impl Object {
     pub fn get_script(&self) -> Option<Gd<Script>> {
@@ -30,11 +33,18 @@ impl Object {
         self.raw_set_script(&variant);
     }
 
-    //    pub fn  connect(
-    //     &mut self,
-    //     signal: impl AsArg<StringName>,
-    //     callable: &Callable,
-    // ) -> Error {
-    //
-    //    }
+    pub fn connect(&mut self, signal: impl AsArg<StringName>, callable: &Callable) -> Error {
+        self.raw_connect(signal, callable)
+    }
+
+    pub fn connect_flags(
+        &mut self,
+        signal: impl AsArg<StringName>,
+        callable: &Callable,
+        flags: ConnectFlags,
+    ) -> Error {
+        self.raw_connect_ex(signal, callable)
+            .flags(flags.ord() as u32)
+            .done()
+    }
 }
