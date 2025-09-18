@@ -22,6 +22,7 @@ pub use string_name::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
+pub use crate::static_name;
 
 impl GodotConvert for &str {
     type Via = GString;
