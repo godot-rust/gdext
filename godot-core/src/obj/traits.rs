@@ -134,10 +134,18 @@ unsafe impl Bounds for NoBase {
 /// This trait must only be implemented for subclasses of `Base`.
 ///
 /// Importantly, this means it is always safe to upcast a value of type `Gd<Self>` to `Gd<Base>`.
-pub unsafe trait Inherits<Base: GodotClass>: GodotClass {}
+pub unsafe trait Inherits<Base: GodotClass>: GodotClass {
+    /// True iff `Self == Base`.
+    ///
+    /// Exists because something like C++'s [`std::is_same`](https://en.cppreference.com/w/cpp/types/is_same.html) is notoriously difficult
+    /// in stable Rust, due to lack of specialization.
+    const IS_SAME_CLASS: bool = false;
+}
 
 // SAFETY: Every class is a subclass of itself.
-unsafe impl<T: GodotClass> Inherits<T> for T {}
+unsafe impl<T: GodotClass> Inherits<T> for T {
+    const IS_SAME_CLASS: bool = true;
+}
 
 /// Trait that defines a `T` -> `dyn Trait` relation for use in [`DynGd`][crate::obj::DynGd].
 ///
