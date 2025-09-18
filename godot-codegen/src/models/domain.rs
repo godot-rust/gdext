@@ -17,9 +17,9 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 
 use crate::context::Context;
+use crate::conv;
 use crate::models::json::{JsonMethodArg, JsonMethodReturn};
 use crate::util::{ident, option_as_slice, safe_ident};
-use crate::{conv, special_cases};
 
 mod enums;
 
@@ -498,7 +498,6 @@ impl FnQualifier {
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Clone)]
 pub struct FnParam {
     pub name: Ident,
 
@@ -511,29 +510,29 @@ pub struct FnParam {
 
 impl FnParam {
     /// Creates a new parameter builder for constructing function parameters with configurable options.
-    pub fn builder<'a>() -> FnParamBuilder<'a> {
+    pub fn builder() -> FnParamBuilder {
         FnParamBuilder::new()
     }
 }
 
 /// Builder for constructing `FnParam` instances with configurable enum replacements and default value handling.
-pub struct FnParamBuilder<'a> {
-    surrounding_class_method: Option<(&'a TyName, &'a str)>,
+pub struct FnParamBuilder {
+    replacements: EnumReplacements,
     no_defaults: bool,
 }
 
-impl<'a> FnParamBuilder<'a> {
-    /// Creates a new parameter builder with default settings (replacements disabled, defaults enabled).
+impl FnParamBuilder {
+    /// Creates a new parameter builder with default settings (no replacements, defaults enabled).
     pub fn new() -> Self {
         Self {
-            surrounding_class_method: None,
+            replacements: &[],
             no_defaults: false,
         }
     }
 
-    /// Configures the builder to apply enum replacements for the specified class and method context.
-    pub fn with_replacements(mut self, class_name: &'a TyName, method_name: &'a str) -> Self {
-        self.surrounding_class_method = Some((class_name, method_name));
+    /// Configures the builder to use specific enum replacements.
+    pub fn enum_replacements(mut self, replacements: EnumReplacements) -> Self {
+        self.replacements = replacements;
         self
     }
 
@@ -541,29 +540,6 @@ impl<'a> FnParamBuilder<'a> {
     pub fn no_defaults(mut self) -> Self {
         self.no_defaults = true;
         self
-    }
-
-    /// Core implementation for processing a single JSON method argument into a `FnParam`.
-    fn build_single_impl(&self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
-        let name = safe_ident(&method_arg.name);
-        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
-        let type_ =
-            apply_enum_replacement(Some(&method_arg.name), type_, self.surrounding_class_method);
-
-        let default_value = if self.no_defaults {
-            None
-        } else {
-            method_arg
-                .default_value
-                .as_ref()
-                .map(|v| conv::to_rust_expr(v, &type_))
-        };
-
-        FnParam {
-            name,
-            type_,
-            default_value,
-        }
     }
 
     /// Builds a single function parameter from the provided JSON method argument.
@@ -581,6 +557,44 @@ impl<'a> FnParamBuilder<'a> {
             .iter()
             .map(|arg| self.build_single_impl(arg, ctx))
             .collect()
+    }
+
+    /// Core implementation for processing a single JSON method argument into a `FnParam`.
+    fn build_single_impl(&self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
+        let name = safe_ident(&method_arg.name);
+        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
+
+        // Apply enum replacement if one exists for this parameter
+        let matching_replacement = self
+            .replacements
+            .iter()
+            .find(|(p, ..)| *p == method_arg.name);
+        let type_ = if let Some((_, enum_name, is_bitfield)) = matching_replacement {
+            if !type_.is_integer() {
+                panic!(
+                    "Parameter `{}` is of type {}, but can only replace int with enum",
+                    method_arg.name, type_
+                );
+            }
+            conv::to_enum_type_uncached(enum_name, *is_bitfield)
+        } else {
+            type_
+        };
+
+        let default_value = if self.no_defaults {
+            None
+        } else {
+            method_arg
+                .default_value
+                .as_ref()
+                .map(|v| conv::to_rust_expr(v, &type_))
+        };
+
+        FnParam {
+            name,
+            type_,
+            default_value,
+        }
     }
 }
 
@@ -604,17 +618,30 @@ pub struct FnReturn {
 
 impl FnReturn {
     pub fn new(return_value: &Option<JsonMethodReturn>, ctx: &mut Context) -> Self {
-        Self::new_with_replacements(return_value, None, ctx)
+        Self::with_enum_replacements(return_value, &[], ctx)
     }
 
-    pub fn new_with_replacements(
+    pub fn with_enum_replacements(
         return_value: &Option<JsonMethodReturn>,
-        surrounding_class_method: Option<(&TyName, &str)>,
+        replacements: EnumReplacements,
         ctx: &mut Context,
     ) -> Self {
         if let Some(ret) = return_value {
             let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
-            let ty = apply_enum_replacement(None, ty, surrounding_class_method);
+
+            // Apply enum replacement if one exists for return type (indicated by empty string)
+            let matching_replacement = replacements.iter().find(|(p, ..)| p.is_empty());
+            let ty = if let Some((_, enum_name, is_bitfield)) = matching_replacement {
+                if !ty.is_integer() {
+                    panic!(
+                        "Return type is of type {}, but can only replace int with enum",
+                        ty
+                    );
+                }
+                conv::to_enum_type_uncached(enum_name, *is_bitfield)
+            } else {
+                ty
+            };
 
             Self {
                 decl: ty.return_decl(),
@@ -649,56 +676,12 @@ impl FnReturn {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Int->enum replacements
 
-/// Replaces int parameters/return types with enums, if applicable.
-fn apply_enum_replacement(
-    param_or_return: Option<&str>, // None for return type, Some(name) for parameter
-    type_: RustTy,
-    surrounding: Option<(&TyName, &str)>,
-) -> RustTy {
-    // No surrounding class/method info -> caller doesn't need replacements.
-    let Some((class_name, method_name)) = surrounding else {
-        return type_;
-    };
-
-    let replacements =
-        special_cases::get_class_method_param_enum_replacement(class_name, method_name);
-
-    let matching_replacement = match param_or_return {
-        // Look for a specific parameter name.
-        Some(param_name) => replacements.iter().find(|(p, ..)| *p == param_name),
-
-        // Look for return type (empty string).
-        None => replacements.iter().find(|(p, ..)| p.is_empty()),
-    };
-
-    if let Some((_, enum_name, is_bitfield)) = matching_replacement {
-        if !type_.is_integer() {
-            let what = format_param_or_return(class_name, method_name, param_or_return);
-            panic!("{what} is of type {type_}, but can only replace int with enum");
-        }
-
-        conv::to_enum_type_uncached(enum_name, *is_bitfield)
-    } else {
-        // No replacement.
-        type_
-    }
-}
-
-fn format_param_or_return(
-    class_name: &TyName,
-    method_name: &str,
-    param_or_return: Option<&str>,
-) -> String {
-    let what = if let Some(param_name) = param_or_return {
-        format!("parameter `{param_name}`")
-    } else {
-        "return type".to_string()
-    };
-
-    let class_name = &class_name.godot_ty;
-    format!("{class_name}::{method_name} {what}")
-}
+/// Replacement of int->enum in engine APIs; each tuple being `(param_name, enum_type, is_bitfield)`.
+///
+/// Empty string `""` is used as `param_name` to denote return type replacements.
+pub type EnumReplacements = &'static [(&'static str, &'static str, bool)];
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Godot type

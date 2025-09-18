@@ -13,14 +13,14 @@ use crate::context::Context;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
-    Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn,
-    FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, RustTy, Singleton, TyName,
-    UtilityFunction,
+    EnumReplacements, Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier,
+    FnReturn, FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, RustTy,
+    Singleton, TyName, UtilityFunction,
 };
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
     JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
-    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
+    JsonMethodArg, JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
     JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
@@ -520,14 +520,22 @@ impl ClassMethod {
             is_required_in_json
         };
 
-        let parameters = FnParam::builder()
-            .with_replacements(class_name, &method.name)
-            .build_many(&method.arguments, ctx);
-        let return_value = FnReturn::new_with_replacements(
-            &method.return_value,
-            Some((class_name, &method.name)),
-            ctx,
+        // Ensure that parameters/return types listed in the replacement truly exist in the method.
+        // The validation function now returns the validated replacement slice for reuse.
+        let enum_replacements = validate_enum_replacements(
+            class_name,
+            &method.name,
+            option_as_slice(&method.arguments),
+            method.return_value.is_some(),
         );
+
+        let parameters = FnParam::builder()
+            .enum_replacements(enum_replacements)
+            .build_many(&method.arguments, ctx);
+
+        let return_value =
+            FnReturn::with_enum_replacements(&method.return_value, enum_replacements, ctx);
+
         let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
 
         // Future note: if further changes are made to the virtual method name, make sure to make it reversible so that #[godot_api]
@@ -743,6 +751,44 @@ impl ClassConstant {
             value,
         }
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Validates that all parameters and non-unit return types declared in an enum replacement slices actually exist in the method.
+///
+/// This is a measure to prevent accidental typos or listing inexistent parameters, which would have no effect.
+fn validate_enum_replacements(
+    class_ty: &TyName,
+    godot_method_name: &str,
+    method_arguments: &[JsonMethodArg],
+    has_return_type: bool,
+) -> EnumReplacements {
+    let replacements =
+        special_cases::get_class_method_param_enum_replacement(class_ty, godot_method_name);
+
+    for (param_name, enum_name, _) in replacements {
+        if param_name.is_empty() {
+            assert!(has_return_type,
+                "Method `{class}.{godot_method_name}` has no return type, but replacement with `{enum_name}` is declared",
+                class = class_ty.godot_ty
+            );
+        } else if !method_arguments.iter().any(|arg| arg.name == *param_name) {
+            let available_params = method_arguments
+                .iter()
+                .map(|arg| format!("  * {}: {}", arg.name, arg.type_))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            panic!(
+                "Method `{class}.{godot_method_name}` has no parameter `{param_name}`, but a replacement with `{enum_name}` is declared\n\
+                \n{count} parameters available:\n{available_params}\n",
+                class = class_ty.godot_ty, count = method_arguments.len(),
+            );
+        }
+    }
+
+    replacements
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
