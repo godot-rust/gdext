@@ -34,11 +34,6 @@ use crate::{impl_shared_string_api, meta};
 /// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and  \
 /// `"hello, world!\0 ignored by Godot"` will be treated as the same string if converted to a `StringName`.
 ///
-/// # Performance
-///
-/// The fastest way to create string names is using [`static_name!`][crate::builtin::static_name], which creates a static cached `StringName` from null-terminated C-string literals such as `c"MyClass"`. These can be used directly by Godot without conversion. The encoding is limited to Latin-1, however. See the corresponding
-/// [`From<&CStr>` impl](#impl-From<%26CStr>-for-StringName).
-///
 /// # All string types
 ///
 /// | Intended use case | String type                                |
@@ -492,29 +487,17 @@ mod serialize {
     }
 }
 
+// TODO(v0.4.x): consider re-exposing in public API. Open questions: thread-safety, performance, memory leaks, global overhead.
 /// Creates and gets a reference to a static `StringName` from a ASCII/Latin-1 `c"string"`.
 ///
 /// This is the fastest way to create a StringName repeatedly, with the result being cached and never released, like `SNAME` in Godot source code. Suitable for scenarios where high performance is required.
 #[macro_export]
-macro_rules! static_name {
+macro_rules! static_sname {
     ($str:literal) => {{
         use std::sync::OnceLock;
 
-        use godot::sys;
-
         let c_str: &'static std::ffi::CStr = $str;
         static SNAME: OnceLock<StringName> = OnceLock::new();
-        SNAME.get_or_init(|| {
-            // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
-            unsafe {
-                StringName::new_with_string_uninit(|ptr| {
-                    sys::interface_fn!(string_name_new_with_latin1_chars)(
-                        ptr,
-                        c_str.as_ptr(),
-                        sys::conv::SYS_TRUE, // p_is_static
-                    )
-                })
-            }
-        })
+        SNAME.get_or_init(|| StringName::__static_cstr(c_str))
     }};
 }

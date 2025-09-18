@@ -41,7 +41,7 @@ pub mod __prelude_reexport {
     pub use rect2i::*;
     pub use rid::*;
     pub use signal::*;
-    pub use string::{static_name, Encoding, GString, NodePath, StringName};
+    pub use string::{Encoding, GString, NodePath, StringName};
     pub use transform2d::*;
     pub use transform3d::*;
     pub use variant::*;
@@ -54,6 +54,9 @@ pub mod __prelude_reexport {
     #[allow(deprecated)]
     #[rustfmt::skip] // Do not reorder.
     pub use crate::dict;
+
+    #[cfg(feature = "trace")] // Test only.
+    pub use crate::static_sname;
 }
 
 pub use __prelude_reexport::*;
