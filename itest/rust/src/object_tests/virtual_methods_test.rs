@@ -17,6 +17,7 @@ use godot::classes::{
     IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, InputEvent, InputEventAction, Node,
     Node2D, Object, PrimitiveMesh, RefCounted, Window,
 };
+use godot::global::godot_str;
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::private::class_macros::assert_eq_approx;
@@ -44,7 +45,7 @@ struct VirtualMethodTest {
 #[godot_api]
 impl IRefCounted for VirtualMethodTest {
     fn to_string(&self) -> GString {
-        format!("VirtualMethodTest[integer={}]", self.integer).into()
+        godot_str!("VirtualMethodTest[integer={}]", self.integer)
     }
 }
 

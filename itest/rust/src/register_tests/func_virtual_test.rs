@@ -10,6 +10,7 @@
 
 use godot::builtin::vslice;
 use godot::classes::GDScript;
+use godot::global::godot_str;
 use godot::prelude::*;
 
 use crate::framework::{create_gdscript, itest};
@@ -24,17 +25,17 @@ struct VirtualScriptCalls {
 impl VirtualScriptCalls {
     #[func(virtual)]
     fn greet_lang(&self, i: i32) -> GString {
-        GString::from(format!("Rust#{i}"))
+        godot_str!("Rust#{i}")
     }
 
     #[func(virtual, rename = greet_lang2)]
     fn gl2(&self, s: GString) -> GString {
-        GString::from(format!("{s} Rust"))
+        godot_str!("{s} Rust")
     }
 
     #[func(virtual, gd_self)]
     fn greet_lang3(_this: Gd<Self>, s: GString) -> GString {
-        GString::from(format!("{s} Rust"))
+        godot_str!("{s} Rust")
     }
 
     #[func(virtual)]

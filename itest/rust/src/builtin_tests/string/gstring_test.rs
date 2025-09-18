@@ -28,11 +28,6 @@ fn string_conversion() {
     let back = String::from(&second);
 
     assert_eq!(string, back);
-
-    let second = GString::from(string.clone());
-    let back = String::from(second);
-
-    assert_eq!(string, back);
 }
 
 #[itest]
@@ -75,7 +70,7 @@ fn string_chars() {
 
     let string = String::from("ö🍎A💡");
     let string_chars: Vec<char> = string.chars().collect();
-    let gstring = GString::from(string);
+    let gstring = GString::from(&string);
 
     assert_eq!(gstring.chars(), string_chars.as_slice());
     assert_eq!(

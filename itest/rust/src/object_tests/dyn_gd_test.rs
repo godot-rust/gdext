@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
+use godot::global::godot_str;
 // Test that all important dyn-related symbols are in the prelude.
 use godot::prelude::*;
 
@@ -554,7 +554,7 @@ struct RefcHealth {
 #[godot_api]
 impl IRefCounted for RefcHealth {
     fn to_string(&self) -> GString {
-        format!("RefcHealth(hp={})", self.hp).into()
+        godot_str!("RefcHealth(hp={})", self.hp)
     }
 }
 

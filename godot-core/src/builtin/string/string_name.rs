@@ -125,7 +125,7 @@ impl StringName {
                 // This branch is short-circuited if invoked for CStr, which uses `string_name_new_with_latin1_chars`
                 // (requires nul-termination). In general, fall back to GString conversion.
                 GString::try_from_bytes_with_nul_check(bytes, Encoding::Latin1, check_nul)
-                    .map(Self::from)
+                    .map(|s| Self::from(&s))
             }
             Encoding::Utf8 => {
                 // from_utf8() also checks for intermediate NUL bytes.
@@ -335,12 +335,6 @@ impl From<&str> for StringName {
     }
 }
 
-impl From<String> for StringName {
-    fn from(value: String) -> Self {
-        value.as_str().into()
-    }
-}
-
 impl From<&String> for StringName {
     fn from(value: &String) -> Self {
         value.as_str().into()
@@ -360,27 +354,9 @@ impl From<&GString> for StringName {
     }
 }
 
-impl From<GString> for StringName {
-    /// Converts this `GString` to a `StringName`.
-    ///
-    /// This is identical to `StringName::from(&string)`, and as such there is no performance benefit.
-    fn from(string: GString) -> Self {
-        Self::from(&string)
-    }
-}
-
 impl From<&NodePath> for StringName {
     fn from(path: &NodePath) -> Self {
-        Self::from(GString::from(path))
-    }
-}
-
-impl From<NodePath> for StringName {
-    /// Converts this `NodePath` to a `StringName`.
-    ///
-    /// This is identical to `StringName::from(&path)`, and as such there is no performance benefit.
-    fn from(path: NodePath) -> Self {
-        Self::from(GString::from(path))
+        Self::from(&GString::from(path))
     }
 }
 
