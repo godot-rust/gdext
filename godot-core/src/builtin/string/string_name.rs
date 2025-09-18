@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use std::fmt;
 
 use godot_ffi as sys;
@@ -248,6 +249,37 @@ impl StringName {
     pub fn as_inner(&self) -> inner::InnerStringName<'_> {
         inner::InnerStringName::from_outer(self)
     }
+
+    /// Creates a `StringName` from a static ASCII/Latin-1 `c"string"`.
+    ///
+    /// This avoids unnecessary copies and allocations and directly uses the backing buffer. Useful for literals.
+    ///
+    /// Note that while Latin-1 encoding is the most common encoding for c-strings, it isn't a requirement. So if your c-string
+    /// uses a different encoding (e.g. UTF-8), it is possible that some characters will not show up as expected.
+    ///
+    /// # Safety
+    /// `c_str` must be a static c-string that remains valid for the entire program duration.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::builtin::StringName;
+    ///
+    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
+    /// let sname = StringName::__static_cstr(c"\xb1 Latin-1 string");
+    /// ```
+    #[doc(hidden)] // Private for now. Needs API discussion, also regarding overlap with try_from_cstr().
+    pub fn __static_cstr(c_str: &'static std::ffi::CStr) -> Self {
+        // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
+        unsafe {
+            Self::new_with_string_uninit(|ptr| {
+                sys::interface_fn!(string_name_new_with_latin1_chars)(
+                    ptr,
+                    c_str.as_ptr(),
+                    sys::conv::SYS_TRUE, // p_is_static
+                )
+            })
+        }
+    }
 }
 
 // SAFETY:
@@ -351,35 +383,6 @@ impl From<&GString> for StringName {
 impl From<&NodePath> for StringName {
     fn from(path: &NodePath) -> Self {
         Self::from(&GString::from(path))
-    }
-}
-
-impl From<&std::ffi::CStr> for StringName {
-    /// Creates a `StringName` from a ASCII/Latin-1 `c"string"`.
-    ///
-    /// This avoids unnecessary copies and allocations and directly uses the backing buffer. Useful for literals.
-    ///
-    /// Note that while Latin-1 encoding is the most common encoding for c-strings, it isn't a requirement. So if your c-string
-    /// uses a different encoding (e.g. UTF-8), it is possible that some characters will not show up as expected.
-    ///
-    /// # Example
-    /// ```no_run
-    /// use godot::builtin::StringName;
-    ///
-    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
-    /// let sname = StringName::from(c"\xb1 Latin-1 string");
-    /// ```
-    fn from(c_str: &std::ffi::CStr) -> Self {
-        // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
-        unsafe {
-            Self::new_with_string_uninit(|ptr| {
-                sys::interface_fn!(string_name_new_with_latin1_chars)(
-                    ptr,
-                    c_str.as_ptr(),
-                    sys::conv::SYS_FALSE, // p_is_static
-                )
-            })
-        }
     }
 }
 

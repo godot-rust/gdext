@@ -263,7 +263,7 @@ impl ClassIdSource {
     fn to_string_name(&self) -> StringName {
         match self {
             ClassIdSource::Owned(s) => StringName::from(s),
-            ClassIdSource::Borrowed(cstr) => StringName::from(*cstr),
+            ClassIdSource::Borrowed(cstr) => StringName::__cstr(cstr),
         }
     }
 
