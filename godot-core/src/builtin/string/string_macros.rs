@@ -81,13 +81,13 @@ macro_rules! impl_shared_string_api {
 
             /// Count how many times `what` appears within `range`. Use `..` for full string search.
             pub fn count(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
-                let (from, to) = super::to_godot_fromto(range);
+                let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
                 self.as_inner().count(what, from, to) as usize
             }
 
             /// Count how many times `what` appears within `range`, case-insensitively. Use `..` for full string search.
             pub fn countn(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
-                let (from, to) = super::to_godot_fromto(range);
+                let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
                 self.as_inner().countn(what, from, to) as usize
             }
 
@@ -121,7 +121,7 @@ macro_rules! impl_shared_string_api {
             /// Returns a substring of this, as another `GString`.
             // TODO is there no efficient way to implement this for StringName by interning?
             pub fn substr(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
-                let (from, len) = super::to_godot_fromlen_neg1(range);
+                let (from, len) = $crate::meta::signed_range::to_godot_range_fromlen(range, -1);
 
                 self.as_inner().substr(from, len)
             }
@@ -163,7 +163,7 @@ macro_rules! impl_shared_string_api {
 
             /// Returns a copy of the string without the specified index range.
             pub fn erase(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
-                let (from, len) = super::to_godot_fromlen_i32max(range);
+                let (from, len) = $crate::meta::signed_range::to_godot_range_fromlen(range, i32::MAX as i64);
                 self.as_inner().erase(from, len)
             }
 

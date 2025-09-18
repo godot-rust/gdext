@@ -15,6 +15,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
+use crate::meta::signed_range::SignedRange;
 use crate::meta::{
     element_godot_type_name, element_variant_type, ArrayElement, AsArg, ClassName, ElementType,
     ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, PropertyHintInfo, RefArg,
@@ -106,6 +107,35 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// let maybe: Option<Variant> = array.get(3);
 ///
 /// // ...and so on.
+/// ```
+///
+/// # Working with signed ranges and steps
+///
+/// For negative indices, use [`wrapped()`](crate::meta::wrapped).
+///
+/// ```no_run
+/// # use godot::builtin::array;
+/// # use godot::meta::wrapped;
+/// let arr = array![0, 1, 2, 3, 4, 5];
+///
+/// // The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
+/// let clamped_array = arr.subarray_deep(999..99999, None);
+/// assert_eq!(clamped_array, array![]);
+///
+/// // If either `begin` or `end` is negative, its value is relative to the end of the array.
+/// let sub = arr.subarray_shallow(wrapped(-1..-5), None);
+/// assert_eq!(sub, array![5, 3]);
+///
+/// // If `end` is not specified, the range spans through whole array.
+/// let sub = arr.subarray_deep(1.., None);
+/// assert_eq!(sub, array![1, 2, 3, 4, 5]);
+/// let other_clamped_array = arr.subarray_shallow(5.., Some(2));
+/// assert_eq!(other_clamped_array, array![5]);
+///
+/// // If specified, `step` is the relative index between source elements. It can be negative,
+/// // in which case `begin` must be higher than `end`.
+/// let sub = arr.subarray_shallow(wrapped(-1..-5), Some(-2));
+/// assert_eq!(sub, array![5, 3]);
 /// ```
 ///
 /// # Thread safety
@@ -526,13 +556,7 @@ impl<T: ArrayElement> Array<T> {
         result.with_cache(self)
     }
 
-    /// Returns a sub-range `begin..end`, as a new array.
-    ///
-    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-    ///
-    /// If specified, `step` is the relative index between source elements. It can be negative,
-    /// in which case `begin` must be higher than `end`. For example,
-    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    /// Returns a sub-range `begin..end` as a new `Array`.
     ///
     /// Array elements are copied to the slice, but any reference types (such as `Array`,
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
@@ -540,18 +564,11 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
-    // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
-    pub fn subarray_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
-        self.subarray_impl(begin, end, step, false)
+    pub fn subarray_shallow(&self, range: impl SignedRange, step: Option<i32>) -> Self {
+        self.subarray_impl(range, step, false)
     }
 
-    /// Returns a sub-range `begin..end`, as a new `Array`.
-    ///
-    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-    ///
-    /// If specified, `step` is the relative index between source elements. It can be negative,
-    /// in which case `begin` must be higher than `end`. For example,
-    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    /// Returns a sub-range `begin..end` as a new `Array`.
     ///
     /// All nested arrays and dictionaries are duplicated and will not be shared with the original
     /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
@@ -559,24 +576,21 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
-    // TODO(v0.3): change to i32 like NodePath::slice/subpath() and support+test negative indices.
-    pub fn subarray_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
-        self.subarray_impl(begin, end, step, true)
+    pub fn subarray_deep(&self, range: impl SignedRange, step: Option<i32>) -> Self {
+        self.subarray_impl(range, step, true)
     }
 
-    fn subarray_impl(&self, begin: usize, end: usize, step: Option<isize>, deep: bool) -> Self {
+    // Note: Godot will clamp values by itself.
+    fn subarray_impl(&self, range: impl SignedRange, step: Option<i32>, deep: bool) -> Self {
         assert_ne!(step, Some(0), "subarray: step cannot be zero");
 
-        let len = self.len();
-        let begin = begin.min(len);
-        let end = end.min(len);
         let step = step.unwrap_or(1);
+        let (begin, end) = range.signed();
+        let end = end.unwrap_or(i32::MAX as i64);
 
         // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
-        let subarray: VariantArray = unsafe {
-            self.as_inner()
-                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep)
-        };
+        let subarray: VariantArray =
+            unsafe { self.as_inner().slice(begin, end, step as i64, deep) };
 
         // SAFETY: slice() returns a typed array with the same type as Self.
         let result = unsafe { subarray.assume_type() };

@@ -12,6 +12,7 @@ use godot_ffi::{ffi_methods, ExtVariantType, GdextBuild, GodotFfi};
 
 use super::{GString, StringName};
 use crate::builtin::inner;
+use crate::meta::signed_range::SignedRange;
 
 /// A pre-parsed scene tree path.
 ///
@@ -127,29 +128,46 @@ impl NodePath {
     /// Returns the range `begin..exclusive_end` as a new `NodePath`.
     ///
     /// The absolute value of `begin` and `exclusive_end` will be clamped to [`get_total_count()`][Self::get_total_count].
-    /// So, to express "until the end", you can simply pass a large value for `exclusive_end`, such as `i32::MAX`.
     ///
-    /// If either `begin` or `exclusive_end` are negative, they will be relative to the end of the `NodePath`.  \
-    /// For example, `path.subpath(0, -2)` is a shorthand for `path.subpath(0, path.get_total_count() - 2)`.
+    /// # Usage
+    /// For negative indices, use [`wrapped()`](crate::meta::wrapped).
+    ///
+    /// ```no_run
+    /// # use godot::builtin::NodePath;
+    /// # use godot::meta::wrapped;
+    /// let path = NodePath::from("path/to/Node:with:props");
+    ///
+    /// // If upper bound is not defined, `exclusive_end` will span to the end of the `NodePath`.
+    /// let sub = path.subpath(2..);
+    /// assert_eq!(sub, ":props".into());
+    ///
+    /// // If either `begin` or `exclusive_end` are negative, they will be relative to the end of the `NodePath`.
+    /// let total_count = path.get_total_count();
+    /// let wrapped_sub = path.subpath(wrapped(0..-2));
+    /// let normal_sub = path.subpath(0..total_count - 2);
+    /// // Both are equal to "path/to/Node".
+    /// assert_eq!(wrapped_sub, normal_sub);
+    /// ```
     ///
     /// _Godot equivalent: `slice`_
     ///
     /// # Compatibility
-    /// The `slice()` behavior for Godot <= 4.3 is unintuitive, see [#100954](https://github.com/godotengine/godot/pull/100954). godot-rust
+    /// The `slice()` behavior for Godot <= 4.3 is unintuitive, see [#100954](https://github.com/godotengine/godot/pull/100954). Godot-rust
     /// automatically changes this to the fixed version for Godot 4.4+, even when used in older versions. So, the behavior is always the same.
     // i32 used because it can be negative and many Godot APIs use this, see https://github.com/godot-rust/gdext/pull/982/files#r1893732978.
     #[cfg(since_api = "4.3")]
     #[doc(alias = "slice")]
-    pub fn subpath(&self, begin: i32, exclusive_end: i32) -> NodePath {
+    pub fn subpath(&self, range: impl SignedRange) -> NodePath {
+        let (from, exclusive_end) = range.signed();
         // Polyfill for bug https://github.com/godotengine/godot/pull/100954, fixed in 4.4.
         let begin = if GdextBuild::since_api("4.4") {
-            begin
+            from
         } else {
-            let name_count = self.get_name_count() as i32;
-            let subname_count = self.get_subname_count() as i32;
+            let name_count = self.get_name_count() as i64;
+            let subname_count = self.get_subname_count() as i64;
             let total_count = name_count + subname_count;
 
-            let mut begin = begin.clamp(-total_count, total_count);
+            let mut begin = from.clamp(-total_count, total_count);
             if begin < 0 {
                 begin += total_count;
             }
@@ -159,7 +177,8 @@ impl NodePath {
             begin
         };
 
-        self.as_inner().slice(begin as i64, exclusive_end as i64)
+        self.as_inner()
+            .slice(begin, exclusive_end.unwrap_or(i32::MAX as i64))
     }
 
     crate::meta::declare_arg_method! {
