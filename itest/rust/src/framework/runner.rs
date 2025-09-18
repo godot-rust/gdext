@@ -459,7 +459,6 @@ fn check_async_test_task(
     ctx: &TestContext,
 ) {
     use godot::classes::object::ConnectFlags;
-    use godot::obj::EngineBitfield;
     use godot::task::has_godot_task_panicked;
 
     if !task_handle.is_pending() {
@@ -490,9 +489,7 @@ fn check_async_test_task(
     ctx.scene_tree
         .get_tree()
         .expect("The itest scene tree node is part of a Godot SceneTree")
-        .connect_ex("process_frame", &deferred)
-        .flags(ConnectFlags::ONE_SHOT.ord() as u32)
-        .done();
+        .connect_flags("process_frame", &deferred, ConnectFlags::ONE_SHOT);
 }
 
 fn print_test_pre(test_case: &str, test_file: &str, last_file: Option<&str>, flush: bool) {

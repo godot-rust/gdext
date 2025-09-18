@@ -196,6 +196,41 @@ impl TraitA for CodegenTest3 {
 // See retain_attributes_except() function.
 #[itest]
 #[expect(unused_variables)]
-fn test_itest_macro_attribute_retention() {
+fn itest_macro_attribute_retention() {
     let unused_var = 42; // Should not generate warning.
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Int->enum replacements
+
+// Tests both that code compiles, and that FFI does not break by replacement.
+#[cfg(feature = "codegen-full")]
+#[itest]
+fn changed_enum_apis() {
+    use godot::classes::file_access::ModeFlags;
+    use godot::classes::gpu_particles_2d::EmitFlags;
+    use godot::classes::tree::DropModeFlags;
+    use godot::classes::{FileAccess, GpuParticles2D, Tree};
+
+    // FileAccess::create_temp() with ModeFlags.
+    let file = FileAccess::create_temp(ModeFlags::READ);
+    assert!(file.is_none());
+
+    // GPUParticles2D::emit_particle with EmitFlags.
+    let mut particles2d = GpuParticles2D::new_alloc();
+    particles2d.emit_particle(
+        Transform2D::IDENTITY,
+        Vector2::ZERO,
+        Color::RED,
+        Color::BLACK,
+        EmitFlags::POSITION | EmitFlags::ROTATION_SCALE,
+    );
+    particles2d.free();
+
+    // Tree::{set,get}_drop_mode_flags() with DropModeFlags.
+    let mut tree = Tree::new_alloc();
+    tree.set_drop_mode_flags(DropModeFlags::INBETWEEN);
+    let mode = tree.get_drop_mode_flags();
+    assert_eq!(mode, DropModeFlags::INBETWEEN);
+    tree.free();
 }

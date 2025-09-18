@@ -13,14 +13,14 @@ use crate::context::Context;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
-    Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn,
-    FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, RustTy, Singleton, TyName,
-    UtilityFunction,
+    EnumReplacements, Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier,
+    FnReturn, FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, RustTy,
+    Singleton, TyName, UtilityFunction,
 };
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
     JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
-    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
+    JsonMethodArg, JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
     JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
@@ -378,7 +378,9 @@ impl BuiltinMethod {
                 godot_name: method.name.clone(),
                 // Disable default parameters for builtin classes.
                 // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
-                parameters: FnParam::new_range_no_defaults(&method.arguments, ctx),
+                parameters: FnParam::builder()
+                    .no_defaults()
+                    .build_many(&method.arguments, ctx),
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
@@ -431,7 +433,7 @@ impl ClassMethod {
 
         Self::from_json_inner(
             method,
-            rust_method_name,
+            rust_method_name.as_ref(),
             class_name,
             FnDirection::Outbound { hash },
             ctx,
@@ -518,8 +520,22 @@ impl ClassMethod {
             is_required_in_json
         };
 
-        let parameters = FnParam::new_range(&method.arguments, ctx);
-        let return_value = FnReturn::new(&method.return_value, ctx);
+        // Ensure that parameters/return types listed in the replacement truly exist in the method.
+        // The validation function now returns the validated replacement slice for reuse.
+        let enum_replacements = validate_enum_replacements(
+            class_name,
+            &method.name,
+            option_as_slice(&method.arguments),
+            method.return_value.is_some(),
+        );
+
+        let parameters = FnParam::builder()
+            .enum_replacements(enum_replacements)
+            .build_many(&method.arguments, ctx);
+
+        let return_value =
+            FnReturn::with_enum_replacements(&method.return_value, enum_replacements, ctx);
+
         let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
 
         // Future note: if further changes are made to the virtual method name, make sure to make it reversible so that #[godot_api]
@@ -586,7 +602,7 @@ impl ClassSignal {
 
         Some(Self {
             name: json_signal.name.clone(),
-            parameters: FnParam::new_range(&json_signal.arguments, ctx),
+            parameters: FnParam::builder().build_many(&json_signal.arguments, ctx),
             surrounding_class: surrounding_class.clone(),
         })
     }
@@ -605,7 +621,7 @@ impl UtilityFunction {
         let parameters = if function.is_vararg && args.len() == 1 && args[0].name == "arg1" {
             vec![]
         } else {
-            FnParam::new_range(&function.arguments, ctx)
+            FnParam::builder().build_many(&function.arguments, ctx)
         };
 
         let godot_method_name = function.name.clone();
@@ -735,6 +751,44 @@ impl ClassConstant {
             value,
         }
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Validates that all parameters and non-unit return types declared in an enum replacement slices actually exist in the method.
+///
+/// This is a measure to prevent accidental typos or listing inexistent parameters, which would have no effect.
+fn validate_enum_replacements(
+    class_ty: &TyName,
+    godot_method_name: &str,
+    method_arguments: &[JsonMethodArg],
+    has_return_type: bool,
+) -> EnumReplacements {
+    let replacements =
+        special_cases::get_class_method_param_enum_replacement(class_ty, godot_method_name);
+
+    for (param_name, enum_name, _) in replacements {
+        if param_name.is_empty() {
+            assert!(has_return_type,
+                "Method `{class}.{godot_method_name}` has no return type, but replacement with `{enum_name}` is declared",
+                class = class_ty.godot_ty
+            );
+        } else if !method_arguments.iter().any(|arg| arg.name == *param_name) {
+            let available_params = method_arguments
+                .iter()
+                .map(|arg| format!("  * {}: {}", arg.name, arg.type_))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            panic!(
+                "Method `{class}.{godot_method_name}` has no parameter `{param_name}`, but a replacement with `{enum_name}` is declared\n\
+                \n{count} parameters available:\n{available_params}\n",
+                class = class_ty.godot_ty, count = method_arguments.len(),
+            );
+        }
+    }
+
+    replacements
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

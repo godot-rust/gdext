@@ -781,7 +781,7 @@ func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
     );
 
     let mut object = RefCounted::new_gd();
-    object.set_script(&gdscript.to_variant());
+    object.set_script(&gdscript);
 
     // Test all 4 ElementType variants in alternating key/value pattern.
 

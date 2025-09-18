@@ -345,16 +345,11 @@ where
     O: Inherits<Object>,
     S: Inherits<Script> + IScriptExtension + super::Bounds<Declarer = super::bounds::DeclUser>,
 {
-    let object_script_variant = object.upcast_ref().get_script();
-
-    if object_script_variant.is_nil() {
+    let Some(object_script) = object.upcast_ref().get_script() else {
         return false;
-    }
+    };
 
-    if object_script_variant
-        .object_id()
-        .is_none_or(|instance_id| instance_id != script.instance_id())
-    {
+    if object_script.instance_id() != script.instance_id() {
         return false;
     }
 
