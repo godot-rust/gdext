@@ -59,6 +59,11 @@ impl ObjectArg {
     pub fn is_null(&self) -> bool {
         self.object_ptr.is_null()
     }
+
+    /// Returns the raw object pointer.
+    pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
+        self.object_ptr
+    }
 }
 
 // #[derive(Clone)] doesn't seem to get bounds right.
