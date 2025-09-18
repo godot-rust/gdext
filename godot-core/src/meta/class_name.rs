@@ -266,7 +266,7 @@ impl ClassNameSource {
     fn to_string_name(&self) -> StringName {
         match self {
             ClassNameSource::Owned(s) => StringName::from(s),
-            ClassNameSource::Borrowed(cstr) => StringName::from(*cstr),
+            ClassNameSource::Borrowed(cstr) => StringName::__static_cstr(cstr),
         }
     }
 
