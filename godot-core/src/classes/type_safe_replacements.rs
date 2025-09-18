@@ -18,71 +18,7 @@ use crate::classes::scene_tree::GroupCallFlags;
 use crate::classes::{Object, SceneTree, Script};
 use crate::global::Error;
 use crate::meta::{arg_into_ref, AsArg, ToGodot};
-use crate::obj::{EngineBitfield, EngineEnum, Gd};
-
-#[cfg(feature = "codegen-full")]
-mod codegen_full {
-    use super::*;
-    use crate::builtin::{Color, Transform2D, Transform3D, Vector2, Vector3};
-    use crate::classes::file_access::{ExRawCreateTemp, ModeFlags};
-    use crate::classes::gpu_particles_2d::EmitFlags as EmitFlags2D;
-    use crate::classes::gpu_particles_3d::EmitFlags as EmitFlags3D;
-    use crate::classes::tree::DropModeFlags;
-    use crate::classes::{FileAccess, GpuParticles2D, GpuParticles3D, Tree};
-    use crate::obj::Gd;
-
-    impl Tree {
-        /// Set drop mode flags with type-safe enum instead of raw integer.
-        pub fn set_drop_mode_flags(&mut self, flags: DropModeFlags) {
-            self.raw_set_drop_mode_flags(flags.ord())
-        }
-
-        /// Get drop mode flags as type-safe enum instead of raw integer.
-        pub fn get_drop_mode_flags(&self) -> DropModeFlags {
-            DropModeFlags::from_ord(self.raw_get_drop_mode_flags())
-        }
-    }
-
-    impl FileAccess {
-        /// Create a temporary file with type-safe mode flags.
-        pub fn create_temp(mode_flags: ModeFlags) -> Option<Gd<FileAccess>> {
-            Self::raw_create_temp(mode_flags.ord() as i32)
-        }
-
-        // FIXME: warning: type `gen::classes::file_access::ExRawCreateTemp<'a>` is more private than the item `codegen_full::<impl gen::classes::file_access::re_export::FileAccess>::create_temp_ex`
-        pub fn create_temp_ex<'a>(mode_flags: ModeFlags) -> ExRawCreateTemp<'a> {
-            Self::raw_create_temp_ex(mode_flags.ord() as i32)
-        }
-    }
-
-    impl GpuParticles2D {
-        /// Emit a particle with type-safe emit flags.
-        pub fn emit_particle(
-            &mut self,
-            xform: Transform2D,
-            velocity: Vector2,
-            color: Color,
-            custom: Color,
-            flags: EmitFlags2D,
-        ) {
-            self.raw_emit_particle(xform, velocity, color, custom, flags.ord() as u32)
-        }
-    }
-
-    impl GpuParticles3D {
-        /// Emit a particle with type-safe emit flags.
-        pub fn emit_particle(
-            &mut self,
-            xform: Transform3D,
-            velocity: Vector3,
-            color: Color,
-            custom: Color,
-            flags: EmitFlags3D,
-        ) {
-            self.raw_emit_particle(xform, velocity, color, custom, flags.ord() as u32)
-        }
-    }
-}
+use crate::obj::{EngineBitfield, Gd};
 
 impl Object {
     pub fn get_script(&self) -> Option<Gd<Script>> {
@@ -154,4 +90,9 @@ impl SceneTree {
     ) {
         self.raw_notify_group_flags(call_flags.ord() as u32, group, notification.into())
     }
+}
+
+#[cfg(feature = "codegen-full")]
+mod codegen_full {
+    // For future, expanding manual replacements for classes in the codegen-full set.
 }
