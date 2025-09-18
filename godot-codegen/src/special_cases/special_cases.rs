@@ -32,7 +32,9 @@ use std::borrow::Cow;
 use proc_macro2::Ident;
 
 use crate::conv::to_enum_type_uncached;
-use crate::models::domain::{ClassCodegenLevel, Enum, RustTy, TyName, VirtualMethodPresence};
+use crate::models::domain::{
+    ClassCodegenLevel, Enum, EnumReplacements, RustTy, TyName, VirtualMethodPresence,
+};
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::util::option_as_slice;
@@ -427,7 +429,7 @@ pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_n
 pub fn get_class_method_param_enum_replacement(
     class_ty: &TyName,
     godot_method_name: &str,
-) -> &'static [(&'static str, &'static str, bool)] {
+) -> EnumReplacements {
     let godot_class_name = class_ty.godot_ty.as_str();
 
     // Notes on replacement mechanism:
