@@ -228,7 +228,7 @@ impl<T> Deref for CowArg<'_, T> {
             CowArg::Owned(value) => value,
             CowArg::Borrowed(value) => value,
             CowArg::FfiObject(_) => {
-                todo!("Deref not implemented for FfiObject variant")
+                unreachable!("deref(): FfiObject path should only be used for FFI logic")
             }
         }
     }
