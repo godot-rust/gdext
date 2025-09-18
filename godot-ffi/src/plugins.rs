@@ -59,26 +59,15 @@ macro_rules! plugin_execute_pre_main {
     };
 }
 
-/// Register a plugin by executing code pre-main that adds the plugin to the registry.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! plugin_add_inner {
-    ($registry:path; $plugin:expr) => {
-        $crate::plugin_execute_pre_main!({
-            let mut guard = $registry.lock().unwrap();
-
-            guard.push($plugin);
-        });
-    };
-}
-
 /// Register a plugin to a registry.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! plugin_add {
     ( $registry:path; $plugin:expr ) => {
-		$crate::plugin_add_inner!($registry; $plugin);
-	};
+        $crate::plugin_execute_pre_main!({
+            $registry.lock().unwrap().push($plugin);
+        });
+    };
 }
 
 #[doc(hidden)]
