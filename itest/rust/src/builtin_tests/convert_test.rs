@@ -327,15 +327,15 @@ fn slice_to_array() {
     assert!(to.is_err());
 }
 
-fn as_gstr_arg<'a, T: 'a + AsArg<GString>>(t: T) -> CowArg<'a, GString> {
+fn as_gstr_arg<'arg, T: 'arg + AsArg<GString>>(t: T) -> CowArg<'arg, GString> {
     t.into_arg()
 }
 
-fn as_sname_arg<'a, T: 'a + AsArg<StringName>>(t: T) -> CowArg<'a, StringName> {
+fn as_sname_arg<'arg, T: 'arg + AsArg<StringName>>(t: T) -> CowArg<'arg, StringName> {
     t.into_arg()
 }
 
-fn as_npath_arg<'a, T: 'a + AsArg<NodePath>>(t: T) -> CowArg<'a, NodePath> {
+fn as_npath_arg<'arg, T: 'arg + AsArg<NodePath>>(t: T) -> CowArg<'arg, NodePath> {
     t.into_arg()
 }
 
