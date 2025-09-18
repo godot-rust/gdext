@@ -378,7 +378,9 @@ impl BuiltinMethod {
                 godot_name: method.name.clone(),
                 // Disable default parameters for builtin classes.
                 // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
-                parameters: FnParam::new_range_no_defaults(&method.arguments, ctx),
+                parameters: FnParam::builder()
+                    .no_defaults()
+                    .build_many(&method.arguments, ctx),
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
@@ -518,8 +520,14 @@ impl ClassMethod {
             is_required_in_json
         };
 
-        let parameters = FnParam::new_range(&method.arguments, ctx);
-        let return_value = FnReturn::new(&method.return_value, ctx);
+        let parameters = FnParam::builder()
+            .with_replacements(class_name, &method.name)
+            .build_many(&method.arguments, ctx);
+        let return_value = FnReturn::new_with_replacements(
+            &method.return_value,
+            Some((class_name, &method.name)),
+            ctx,
+        );
         let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
 
         // Future note: if further changes are made to the virtual method name, make sure to make it reversible so that #[godot_api]
@@ -586,7 +594,7 @@ impl ClassSignal {
 
         Some(Self {
             name: json_signal.name.clone(),
-            parameters: FnParam::new_range(&json_signal.arguments, ctx),
+            parameters: FnParam::builder().build_many(&json_signal.arguments, ctx),
             surrounding_class: surrounding_class.clone(),
         })
     }
@@ -605,7 +613,7 @@ impl UtilityFunction {
         let parameters = if function.is_vararg && args.len() == 1 && args[0].name == "arg1" {
             vec![]
         } else {
-            FnParam::new_range(&function.arguments, ctx)
+            FnParam::builder().build_many(&function.arguments, ctx)
         };
 
         let godot_method_name = function.name.clone();

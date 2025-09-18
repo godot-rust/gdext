@@ -17,9 +17,9 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 
 use crate::context::Context;
-use crate::conv;
 use crate::models::json::{JsonMethodArg, JsonMethodReturn};
 use crate::util::{ident, option_as_slice, safe_ident};
+use crate::{conv, special_cases};
 
 mod enums;
 
@@ -498,6 +498,7 @@ impl FnQualifier {
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[derive(Clone)]
 pub struct FnParam {
     pub name: Ident,
 
@@ -509,30 +510,54 @@ pub struct FnParam {
 }
 
 impl FnParam {
-    pub fn new_range(method_args: &Option<Vec<JsonMethodArg>>, ctx: &mut Context) -> Vec<FnParam> {
-        option_as_slice(method_args)
-            .iter()
-            .map(|arg| Self::new(arg, ctx))
-            .collect()
+    /// Creates a new parameter builder for constructing function parameters with configurable options.
+    pub fn builder<'a>() -> FnParamBuilder<'a> {
+        FnParamBuilder::new()
+    }
+}
+
+/// Builder for constructing `FnParam` instances with configurable enum replacements and default value handling.
+pub struct FnParamBuilder<'a> {
+    surrounding_class_method: Option<(&'a TyName, &'a str)>,
+    no_defaults: bool,
+}
+
+impl<'a> FnParamBuilder<'a> {
+    /// Creates a new parameter builder with default settings (replacements disabled, defaults enabled).
+    pub fn new() -> Self {
+        Self {
+            surrounding_class_method: None,
+            no_defaults: false,
+        }
     }
 
-    pub fn new_range_no_defaults(
-        method_args: &Option<Vec<JsonMethodArg>>,
-        ctx: &mut Context,
-    ) -> Vec<FnParam> {
-        option_as_slice(method_args)
-            .iter()
-            .map(|arg| Self::new_no_defaults(arg, ctx))
-            .collect()
+    /// Configures the builder to apply enum replacements for the specified class and method context.
+    pub fn with_replacements(mut self, class_name: &'a TyName, method_name: &'a str) -> Self {
+        self.surrounding_class_method = Some((class_name, method_name));
+        self
     }
 
-    pub fn new(method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
+    /// Configures the builder to exclude default values from generated parameters.
+    pub fn no_defaults(mut self) -> Self {
+        self.no_defaults = true;
+        self
+    }
+
+    /// Core implementation for processing a single JSON method argument into a `FnParam`.
+    fn build_single_impl(&self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
         let name = safe_ident(&method_arg.name);
         let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
-        let default_value = method_arg
-            .default_value
-            .as_ref()
-            .map(|v| conv::to_rust_expr(v, &type_));
+        let type_ =
+            apply_enum_replacement(Some(&method_arg.name), type_, self.surrounding_class_method);
+
+        let default_value = if self.no_defaults {
+            None
+        } else {
+            method_arg
+                .default_value
+                .as_ref()
+                .map(|v| conv::to_rust_expr(v, &type_))
+        };
 
         FnParam {
             name,
@@ -541,14 +566,21 @@ impl FnParam {
         }
     }
 
-    /// `impl AsArg<Gd<T>>` for object parameters. Only set if requested and `T` is an engine class.
-    pub fn new_no_defaults(method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
-        FnParam {
-            name: safe_ident(&method_arg.name),
-            type_: conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx),
-            //type_: to_rust_type(&method_arg.type_, &method_arg.meta, ctx),
-            default_value: None,
-        }
+    /// Builds a single function parameter from the provided JSON method argument.
+    pub fn build_single(self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
+        self.build_single_impl(method_arg, ctx)
+    }
+
+    /// Builds a vector of function parameters from the provided JSON method arguments.
+    pub fn build_many(
+        self,
+        method_args: &Option<Vec<JsonMethodArg>>,
+        ctx: &mut Context,
+    ) -> Vec<FnParam> {
+        option_as_slice(method_args)
+            .iter()
+            .map(|arg| self.build_single_impl(arg, ctx))
+            .collect()
     }
 }
 
@@ -572,8 +604,17 @@ pub struct FnReturn {
 
 impl FnReturn {
     pub fn new(return_value: &Option<JsonMethodReturn>, ctx: &mut Context) -> Self {
+        Self::new_with_replacements(return_value, None, ctx)
+    }
+
+    pub fn new_with_replacements(
+        return_value: &Option<JsonMethodReturn>,
+        surrounding_class_method: Option<(&TyName, &str)>,
+        ctx: &mut Context,
+    ) -> Self {
         if let Some(ret) = return_value {
             let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
+            let ty = apply_enum_replacement(None, ty, surrounding_class_method);
 
             Self {
                 decl: ty.return_decl(),
@@ -605,6 +646,58 @@ impl FnReturn {
         let ret = self.type_tokens();
         quote! { -> Result<#ret, crate::meta::error::CallError> }
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Replaces int parameters/return types with enums, if applicable.
+fn apply_enum_replacement(
+    param_or_return: Option<&str>, // None for return type, Some(name) for parameter
+    type_: RustTy,
+    surrounding: Option<(&TyName, &str)>,
+) -> RustTy {
+    // No surrounding class/method info -> caller doesn't need replacements.
+    let Some((class_name, method_name)) = surrounding else {
+        return type_;
+    };
+
+    let replacements =
+        special_cases::get_class_method_param_enum_replacement(class_name, method_name);
+
+    let matching_replacement = match param_or_return {
+        // Look for a specific parameter name.
+        Some(param_name) => replacements.iter().find(|(p, ..)| *p == param_name),
+
+        // Look for return type (empty string).
+        None => replacements.iter().find(|(p, ..)| p.is_empty()),
+    };
+
+    if let Some((_, enum_name, is_bitfield)) = matching_replacement {
+        if !type_.is_integer() {
+            let what = format_param_or_return(class_name, method_name, param_or_return);
+            panic!("{what} is of type {type_}, but can only replace int with enum");
+        }
+
+        conv::to_enum_type_uncached(enum_name, *is_bitfield)
+    } else {
+        // No replacement.
+        type_
+    }
+}
+
+fn format_param_or_return(
+    class_name: &TyName,
+    method_name: &str,
+    param_or_return: Option<&str>,
+) -> String {
+    let what = if let Some(param_name) = param_or_return {
+        format!("parameter `{param_name}`")
+    } else {
+        "return type".to_string()
+    };
+
+    let class_name = &class_name.godot_ty;
+    format!("{class_name}::{method_name} {what}")
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -681,6 +774,18 @@ impl RustTy {
             Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
             other => quote! { -> #other },
         }
+    }
+
+    pub fn is_integer(&self) -> bool {
+        let RustTy::BuiltinIdent { ty, .. } = self else {
+            return false;
+        };
+
+        // isize/usize currently not supported (2025-09), but this is more future-proof.
+        matches!(
+            ty.to_string().as_str(),
+            "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "isize" | "usize"
+        )
     }
 }
 

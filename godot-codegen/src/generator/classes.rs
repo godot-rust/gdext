@@ -573,6 +573,8 @@ fn make_class_method_definition(
         return FnDefinition::none();
     };
 
+    // Note: parameter type replacements (int -> enum) are already handled during domain mapping.
+
     let rust_class_name = class.name().rust_ty.to_string();
     let rust_method_name = method.name();
     let godot_method_name = method.godot_name();
