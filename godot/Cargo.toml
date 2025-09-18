@@ -49,6 +49,10 @@ __trace = ["godot-core/trace"]
 godot-core = { path = "../godot-core", version = "=0.3.5" }
 godot-macros = { path = "../godot-macros", version = "=0.3.5" }
 
+[dev-dependencies]
+# Testing framework with embedded Godot runtime
+godot-testability-runtime = { version = "0.1.0" }
+
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
 features = ["experimental-godot-api"]
@@ -58,3 +62,8 @@ rustc-args = ["--cfg", "published_docs"]
 # Currently causes "unused manifest key" warnings. Maybe re-enable in the future, to make `published_docs` known.
 #[lints.rust]
 #unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }
+
+# Test configuration - requires main thread execution
+[[test]]
+name = "godot_runtime_tests"
+harness = false
