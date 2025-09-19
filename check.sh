@@ -312,18 +312,18 @@ function compute_elapsed() {
 for cmd in "${cmds[@]}"; do
     "cmd_${cmd}" || {
         compute_elapsed
-        log -ne "$RED\n====================="
-        log -ne "\ngdext: checks FAILED."
-        log -ne "\n=====================\n$END"
+        log -ne "$RED\n=========================="
+        log -ne "\ngodot-rust: checks FAILED."
+        log -ne "\n==========================\n$END"
         log -ne "\nTotal duration: $elapsed.\n"
         exit 1
     }
 done
 
 compute_elapsed
-log -ne "$CYAN\n========================="
-log -ne "\ngdext: checks SUCCESSFUL."
-log -ne "\n=========================\n$END"
+log -ne "$CYAN\n=============================="
+log -ne "\ngodot-rust: checks SUCCESSFUL."
+log -ne "\n==============================\n$END"
 log -ne "\nTotal duration: $elapsed.\n"
 
 # If invoked with sh instead of bash, pressing Up arrow after executing `sh check.sh` may cause a `[A` to appear.
