@@ -225,6 +225,42 @@ where
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Null arguments
+
+/// Private struct for passing null arguments to optional object parameters.
+///
+/// This struct implements `AsArg` for both `Option<Gd<T>>` and `Option<DynGd<T, D>>`, allowing [`Gd::null_arg()`] and [`DynGd::null_arg()`]
+/// to share implementation.
+///
+/// Not public, as `impl AsArg<...>` is used by `null_arg()` methods.
+pub(crate) struct NullArg<T>(pub std::marker::PhantomData<*mut T>);
+
+impl<T> AsArg<Option<Gd<T>>> for NullArg<T>
+where
+    T: GodotClass,
+{
+    fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<T>>>
+    where
+        Self: 'arg,
+    {
+        CowArg::Owned(None)
+    }
+}
+
+impl<T, D> AsArg<Option<DynGd<T, D>>> for NullArg<T>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn into_arg<'arg>(self) -> CowArg<'arg, Option<DynGd<T, D>>>
+    where
+        Self: 'arg,
+    {
+        CowArg::Owned(None)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Optional object (Gd + DynGd) impls
 
 /// Convert `&Gd` -> `Option<Gd>` (with upcast).

@@ -16,6 +16,7 @@ mod ref_arg;
 pub use as_arg::{
     owned_into_arg, ref_to_arg, ArgPassing, AsArg, ByObject, ByOption, ByRef, ByValue, ToArg,
 };
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Internal APIs
 
@@ -28,6 +29,8 @@ pub(crate) use cow_arg::{CowArg, FfiArg};
 #[allow(unused)] // TODO(v0.4): replace contents with newer changes
 pub use object_arg::ObjectArg;
 pub use ref_arg::RefArg;
+
+pub(crate) use as_arg::NullArg;
 
 // #[doc(hidden)]
 // pub use cow_arg::*;

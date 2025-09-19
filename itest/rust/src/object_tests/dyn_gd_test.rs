@@ -451,9 +451,9 @@ fn dyn_gd_as_arg() {
         Some(&refc_health),
         Some(&node_health),
         typed_none,
-        // Gd::null_arg(),
+        DynGd::null_arg(),
     ];
-    assert_eq!(opt_array.len(), 3);
+    assert_eq!(opt_array.len(), 4);
 
     let first = opt_array.at(0).expect("element 0 is Some");
     assert_eq!(first.dyn_bind().get_hitpoints(), 42);
@@ -463,6 +463,9 @@ fn dyn_gd_as_arg() {
 
     let third = opt_array.at(2);
     assert!(third.is_none(), "element 2 is None");
+
+    let fourth = opt_array.at(3);
+    assert!(fourth.is_none(), "element 3 is None (null_arg)");
 
     // Clean up manually managed objects.
     opt_array.at(1).unwrap().free();

@@ -403,6 +403,13 @@ where
     pub fn into_gd(self) -> Gd<T> {
         self.obj
     }
+
+    /// Represents `null` when passing a dynamic object argument to Godot.
+    ///
+    /// See [`Gd::null_arg()`]
+    pub fn null_arg() -> impl meta::AsArg<Option<DynGd<T, D>>> {
+        meta::NullArg(std::marker::PhantomData)
+    }
 }
 
 impl<T, D> DynGd<T, D>
