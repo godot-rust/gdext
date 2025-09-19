@@ -149,11 +149,8 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     /// # Panics
     /// If `Self` is not an object type (`Gd<T>`, `Option<Gd<T>>`). Note that `DynGd<T>` isn't directly implemented here, but uses `Gd<T>`'s
     /// impl on the FFI layer.
-    ///
-    /// # Safety
-    /// `self` must be kept alive while return value is in use. Might be addressed with lifetime in the future.
     #[doc(hidden)]
-    unsafe fn as_object_arg(&self) -> crate::meta::ObjectArg {
+    fn as_object_arg(&self) -> crate::meta::ObjectArg<'_> {
         panic!(
             "as_object_arg() called for non-object type: {}",
             std::any::type_name::<Self>()
