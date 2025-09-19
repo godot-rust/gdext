@@ -161,8 +161,7 @@ where
     where
         Self: 'arg,
     {
-        // SAFETY: ObjectArg exists only during FFI call.
-        let arg = unsafe { ObjectArg::from_gd(self) };
+        let arg = ObjectArg::from_gd(self);
         CowArg::FfiObject(arg)
     }
 }
@@ -194,8 +193,7 @@ where
     where
         Self: 'arg,
     {
-        // SAFETY: ObjectArg exists only during FFI call.
-        let arg = unsafe { ObjectArg::from_gd(self) };
+        let arg = ObjectArg::from_gd(self);
         CowArg::FfiObject(arg)
     }
 }
@@ -248,8 +246,7 @@ where
     where
         Self: 'arg,
     {
-        // SAFETY: ObjectArg exists only during FFI call.
-        let arg = unsafe { ObjectArg::from_option_gd(self) };
+        let arg = ObjectArg::from_option_gd(self);
         CowArg::FfiObject(arg)
     }
 }
@@ -272,8 +269,7 @@ where
     where
         Self: 'arg,
     {
-        // SAFETY: ObjectArg exists only during FFI call.
-        let arg = unsafe { ObjectArg::from_gd(self) };
+        let arg = ObjectArg::from_gd(self);
         CowArg::FfiObject(arg)
     }
 }
@@ -614,7 +610,7 @@ impl ArgPassing for ByObject {
     type Output<'r, T: 'r> = &'r T;
 
     type FfiOutput<'f, T>
-        = ObjectArg
+        = ObjectArg<'f>
     where
         T: GodotType + 'f;
 
@@ -627,13 +623,13 @@ impl ArgPassing for ByObject {
         value.to_godot().clone()
     }
 
-    fn ref_to_ffi<T>(value: &T) -> ObjectArg
+    fn ref_to_ffi<T>(value: &T) -> ObjectArg<'_>
     where
         T: ToGodot<Pass = Self>,
         T::Via: GodotType,
     {
         let obj_ref: &T::Via = value.to_godot(); // implements GodotType.
-        unsafe { obj_ref.as_object_arg() }
+        obj_ref.as_object_arg()
     }
 }
 

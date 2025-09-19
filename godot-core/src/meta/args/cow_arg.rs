@@ -25,7 +25,7 @@ pub enum CowArg<'arg, T> {
     /// Raw object pointer for efficient FFI argument passing without cloning.
     ///
     /// Only valid for object types (`Gd<T>`, `Option<Gd<T>>`). Can avoid the `Owned` creation.
-    FfiObject(ObjectArg),
+    FfiObject(ObjectArg<'arg>),
 }
 
 impl<T> CowArg<'_, T> {
@@ -68,7 +68,7 @@ impl<T> CowArg<'_, T> {
     /// Extracts ObjectArg directly for ByObject FFI conversion.
     ///
     /// Returns Some(ObjectArg) if this contains FfiObject, None otherwise.
-    pub fn try_extract_object_arg(&self) -> Option<ObjectArg> {
+    pub fn try_extract_object_arg(&self) -> Option<ObjectArg<'_>> {
         match self {
             CowArg::FfiObject(obj_arg) => Some(obj_arg.clone()),
             _ => None,

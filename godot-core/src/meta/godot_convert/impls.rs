@@ -86,9 +86,9 @@ where
     }
 
     // Only relevant for object types T.
-    unsafe fn as_object_arg(&self) -> meta::ObjectArg {
+    fn as_object_arg(&self) -> meta::ObjectArg<'_> {
         match self {
-            Some(inner) => unsafe { inner.as_object_arg() },
+            Some(inner) => inner.as_object_arg(),
             None => meta::ObjectArg::null(),
         }
     }

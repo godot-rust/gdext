@@ -961,7 +961,7 @@ impl<T: GodotClass> GodotType for Gd<T> {
         false
     }
 
-    unsafe fn as_object_arg(&self) -> meta::ObjectArg {
+    fn as_object_arg(&self) -> meta::ObjectArg<'_> {
         meta::ObjectArg::from_gd(self)
     }
 }
