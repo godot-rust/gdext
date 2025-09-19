@@ -70,13 +70,7 @@ impl ElementType {
     pub fn class_id(&self) -> Option<ClassId> {
         match self {
             ElementType::Class(class_name) => Some(*class_name),
-            ElementType::ScriptClass(script) => {
-                // For script classes, we return the native base class name
-                script.script().map(|s| {
-                    let base_type = s.get_instance_base_type();
-                    ClassId::new_dynamic(base_type.to_string())
-                })
-            }
+            ElementType::ScriptClass(script) => script.base_class_id(),
             _ => None,
         }
     }
@@ -227,5 +221,15 @@ impl ElementScript {
     pub fn script(&self) -> Option<Gd<Script>> {
         // Note: might also fail in the future if acquired on another thread.
         Gd::try_from_instance_id(self.script_instance_id).ok()
+    }
+
+    /// Returns the native base class of the script.
+    ///
+    /// Typically, this corresponds to the class mentioned in `extends` in GDScript.
+    pub fn base_class_id(&self) -> Option<ClassId> {
+        self.script().map(|s| {
+            let base_type = s.get_instance_base_type();
+            ClassId::new_dynamic(base_type.to_string())
+        })
     }
 }

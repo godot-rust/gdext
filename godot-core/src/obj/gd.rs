@@ -748,8 +748,8 @@ where
             sys::interface_fn!(object_destroy)(self.raw.obj_sys());
         }
 
-        // TODO: this might leak associated data in Gd<T>, e.g. ClassId.
-        std::mem::forget(self);
+        // Deallocate associated data in Gd, without destroying the object pointer itself (already done above).
+        self.drop_weak()
     }
 }
 
