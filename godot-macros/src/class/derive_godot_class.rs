@@ -393,6 +393,8 @@ fn make_oneditor_panic_inits(class_name: &Ident, all_fields: &[Field]) -> TokenS
 
     if !on_editor_fields_checks.is_empty() {
         quote! {
+            // Triggers `clippy::useless_let_if_seq` lint if only one `#on_editor_fields_checks` is present.
+            #[allow(clippy::useless_let_if_seq)]
             fn __are_oneditor_fields_initalized(this: &#class_name) -> bool {
                 // Early return for `#[class(tool)]`.
                 if #is_in_editor {
