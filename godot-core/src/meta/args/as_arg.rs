@@ -10,7 +10,7 @@ use std::ffi::CStr;
 use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::{GodotFfiVariant, GodotNullableFfi};
-use crate::meta::{CowArg, GodotType, ObjectArg, ToGodot};
+use crate::meta::{CowArg, FfiArg, GodotType, ObjectArg, ToGodot};
 use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits};
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -97,13 +97,14 @@ where
 
     /// FFI-optimized argument conversion that may use `FfiObject` when beneficial.
     ///
-    /// Defaults to calling `into_arg()`, which always works, but might be an `Owned` for a conservative approach (e.g. object upcast).
+    /// Defaults to calling `into_arg()` and wrapping in `FfiArg::Cow()`, which always works, but might be an `Owned` for a conservative
+    /// approach (e.g. object upcast).
     #[doc(hidden)]
-    fn into_ffi_arg<'arg>(self) -> CowArg<'arg, T>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, T>
     where
         Self: 'arg,
     {
-        self.into_arg()
+        FfiArg::Cow(self.into_arg())
     }
 }
 
@@ -157,12 +158,12 @@ where
         }
     }
 
-    fn into_ffi_arg<'arg>(self) -> CowArg<'arg, Gd<Base>>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Gd<Base>>
     where
         Self: 'arg,
     {
         let arg = ObjectArg::from_gd(self);
-        CowArg::FfiObject(arg)
+        FfiArg::FfiObject(arg)
     }
 }
 
@@ -189,12 +190,12 @@ where
         }
     }
 
-    fn into_ffi_arg<'arg>(self) -> CowArg<'arg, DynGd<Base, D>>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, DynGd<Base, D>>
     where
         Self: 'arg,
     {
         let arg = ObjectArg::from_gd(self);
-        CowArg::FfiObject(arg)
+        FfiArg::FfiObject(arg)
     }
 }
 
@@ -213,7 +214,7 @@ where
         AsArg::into_arg(gd_ref)
     }
 
-    fn into_ffi_arg<'arg>(self) -> CowArg<'arg, Gd<Base>>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Gd<Base>>
     where
         Self: 'arg,
     {
@@ -242,12 +243,12 @@ where
         }
     }
 
-    fn into_ffi_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Option<Gd<Base>>>
     where
         Self: 'arg,
     {
         let arg = ObjectArg::from_option_gd(self);
-        CowArg::FfiObject(arg)
+        FfiArg::FfiObject(arg)
     }
 }
 
@@ -265,12 +266,12 @@ where
         CowArg::Owned(Some(self.clone().upcast::<Base>()))
     }
 
-    fn into_ffi_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Option<Gd<Base>>>
     where
         Self: 'arg,
     {
         let arg = ObjectArg::from_gd(self);
-        CowArg::FfiObject(arg)
+        FfiArg::FfiObject(arg)
     }
 }
 
@@ -289,7 +290,7 @@ where
         AsArg::into_arg(gd_ref)
     }
 
-    fn into_ffi_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Option<Gd<Base>>>
     where
         Self: 'arg,
     {

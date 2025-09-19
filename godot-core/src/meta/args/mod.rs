@@ -22,9 +22,9 @@ pub use as_arg::{
 // Solely public for itest/convert_test.rs.
 #[cfg(feature = "trace")]
 #[doc(hidden)]
-pub use cow_arg::CowArg;
+pub use cow_arg::{CowArg, FfiArg};
 #[cfg(not(feature = "trace"))]
-pub(crate) use cow_arg::CowArg;
+pub(crate) use cow_arg::{CowArg, FfiArg};
 #[allow(unused)] // TODO(v0.4): replace contents with newer changes
 pub use object_arg::ObjectArg;
 pub use ref_arg::RefArg;
