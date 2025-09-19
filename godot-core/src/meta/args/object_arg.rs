@@ -21,27 +21,23 @@ use crate::{obj, sys};
 /// without cloning. It supports nullable object passing for optional object arguments.
 #[derive(Debug, PartialEq)]
 #[doc(hidden)]
-pub struct ObjectArg {
+pub struct ObjectArg<'gd> {
     // Never dropped since it's just a view; see constructor.
     object_ptr: sys::GDExtensionObjectPtr,
+    _lifetime: std::marker::PhantomData<&'gd ()>,
 }
 
-impl ObjectArg {
-    /// Creates `ObjectArg` from a `Gd`.
-    ///
-    /// # Safety
-    /// The referenced `Gd` must remain valid for the lifetime of this `ObjectArg`.
-    pub unsafe fn from_gd<T: GodotClass>(obj: &Gd<T>) -> Self {
+impl<'gd> ObjectArg<'gd> {
+    /// Creates a temporary `ObjectArg` from a `Gd` reference.
+    pub fn from_gd<T: GodotClass>(obj: &'gd Gd<T>) -> Self {
         Self {
             object_ptr: obj.obj_sys(),
+            _lifetime: std::marker::PhantomData,
         }
     }
 
-    /// Creates `ObjectArg` from an `Option<Gd>`.
-    ///
-    /// # Safety
-    /// The referenced `Gd`, if not `None`, must remain valid for the lifetime of this `ObjectArg`.
-    pub unsafe fn from_option_gd<T: GodotClass>(obj: Option<&Gd<T>>) -> Self {
+    /// Creates a temporary `ObjectArg` from an `Option<&Gd>` reference.
+    pub fn from_option_gd<T: GodotClass>(obj: Option<&'gd Gd<T>>) -> Self {
         match obj {
             Some(gd) => Self::from_gd(gd),
             None => Self::null(),
@@ -52,6 +48,7 @@ impl ObjectArg {
     pub fn null() -> Self {
         Self {
             object_ptr: ptr::null_mut(),
+            _lifetime: std::marker::PhantomData,
         }
     }
 
@@ -67,16 +64,17 @@ impl ObjectArg {
 }
 
 // #[derive(Clone)] doesn't seem to get bounds right.
-impl Clone for ObjectArg {
+impl<'gd> Clone for ObjectArg<'gd> {
     fn clone(&self) -> Self {
         Self {
             object_ptr: self.object_ptr,
+            _lifetime: std::marker::PhantomData,
         }
     }
 }
 
 // SAFETY: see impl GodotFfi for RawGd.
-unsafe impl GodotFfi for ObjectArg {
+unsafe impl<'gd> GodotFfi for ObjectArg<'gd> {
     // If anything changes here, keep in sync with RawGd impl.
 
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::OBJECT);
@@ -117,7 +115,7 @@ unsafe impl GodotFfi for ObjectArg {
     }
 }
 
-impl GodotFfiVariant for ObjectArg {
+impl<'gd> GodotFfiVariant for ObjectArg<'gd> {
     fn ffi_to_variant(&self) -> Variant {
         obj::object_ffi_to_variant(self)
     }
@@ -127,7 +125,7 @@ impl GodotFfiVariant for ObjectArg {
     }
 }
 
-impl GodotNullableFfi for ObjectArg {
+impl<'gd> GodotNullableFfi for ObjectArg<'gd> {
     fn null() -> Self {
         Self::null()
     }
