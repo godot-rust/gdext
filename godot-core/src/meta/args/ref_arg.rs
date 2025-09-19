@@ -16,7 +16,10 @@ use crate::sys;
 
 /// Simple reference wrapper, used when passing arguments by-ref to Godot APIs.
 ///
-/// This type is often used as the result of [`ToGodot::to_godot()`], if `Self` is not a `Copy` type.
+/// This type is exclusively used at the FFI boundary, to avoid unnecessary cloning of values.
+///
+/// Private type. Cannot be `pub(crate)` because it's used in `#[doc(hidden)]` associate type `GodotType::ToFfi<'f>`, and `GodotType` is public.
+#[doc(hidden)]
 pub struct RefArg<'r, T> {
     /// Only `None` if `T: GodotNullableFfi` and `T::is_null()` is true.
     shared_ref: Option<&'r T>,

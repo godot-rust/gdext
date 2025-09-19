@@ -14,7 +14,7 @@ use sys::{static_assert_eq_size_align, SysPtr as _};
 use crate::builtin::{Callable, GString, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
+    ArrayElement, AsArg, CallContext, ClassName, FromGodot, GodotConvert, GodotType,
     PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
