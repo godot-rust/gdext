@@ -606,6 +606,16 @@ where
     }
 }
 
+impl<T, D> meta::ArrayElement for Option<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn element_type_string() -> String {
+        DynGd::<T, D>::element_type_string()
+    }
+}
+
 impl<T, D> Var for DynGd<T, D>
 where
     T: GodotClass,

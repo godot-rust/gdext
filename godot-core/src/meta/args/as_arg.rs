@@ -143,6 +143,7 @@ where
     T: Inherits<Base>,
     Base: GodotClass,
 {
+    //noinspection RsConstantConditionIf - false positive in IDE for `T::IS_SAME_CLASS`.
     fn into_arg<'arg>(self) -> CowArg<'arg, Gd<Base>>
     where
         Self: 'arg,
@@ -199,7 +200,7 @@ where
     }
 }
 
-// Convert `DynGd` -> `Gd` (with upcast).
+/// Convert `DynGd` -> `Gd` (with upcast).
 impl<T, D, Base> AsArg<Gd<Base>> for &DynGd<T, D>
 where
     T: Inherits<Base>,
@@ -225,6 +226,29 @@ where
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Optional object (Gd + DynGd) impls
+
+/// Convert `&Gd` -> `Option<Gd>` (with upcast).
+impl<T, Base> AsArg<Option<Gd<Base>>> for &Gd<T>
+where
+    T: Inherits<Base>,
+    Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+{
+    fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
+    where
+        Self: 'arg,
+    {
+        // Upcasting to an owned value Gd<Base> requires cloning. Optimized path in into_ffi_arg().
+        CowArg::Owned(Some(self.clone().upcast::<Base>()))
+    }
+
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Option<Gd<Base>>>
+    where
+        Self: 'arg,
+    {
+        let arg = ObjectArg::from_gd(self);
+        FfiArg::FfiObject(arg)
+    }
+}
 
 /// Convert `Option<&Gd>` -> `Option<Gd>` (with upcast).
 impl<T, Base> AsArg<Option<Gd<Base>>> for Option<&Gd<T>>
@@ -252,21 +276,22 @@ where
     }
 }
 
-/// Convert `&Gd` -> `Option<Gd>` (with upcast).
-impl<T, Base> AsArg<Option<Gd<Base>>> for &Gd<T>
+/// Convert `&DynGd` -> `Option<DynGd>` (with upcast).
+impl<T, D, Base> AsArg<Option<DynGd<Base, D>>> for &DynGd<T, D>
 where
     T: Inherits<Base>,
+    D: ?Sized,
     Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
 {
-    fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
+    fn into_arg<'arg>(self) -> CowArg<'arg, Option<DynGd<Base, D>>>
     where
         Self: 'arg,
     {
-        // Upcasting to an owned value Gd<Base> requires cloning. Optimized path in into_ffi_arg().
-        CowArg::Owned(Some(self.clone().upcast::<Base>()))
+        // Upcasting to an owned value DynGd<Base, D> requires cloning. Optimized path in into_ffi_arg().
+        CowArg::Owned(Some(self.clone().upcast()))
     }
 
-    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Option<Gd<Base>>>
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Option<DynGd<Base, D>>>
     where
         Self: 'arg,
     {
@@ -296,6 +321,34 @@ where
     {
         let gd_ref: &Gd<T> = self; // DynGd -> Gd deref.
         AsArg::into_ffi_arg(gd_ref)
+    }
+}
+
+/// Convert `Option<&DynGd>` -> `Option<DynGd>` (with upcast).
+impl<T, D, Base> AsArg<Option<DynGd<Base, D>>> for Option<&DynGd<T, D>>
+where
+    T: Inherits<Base>,
+    D: ?Sized,
+    Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+{
+    fn into_arg<'arg>(self) -> CowArg<'arg, Option<DynGd<Base, D>>>
+    where
+        Self: 'arg,
+    {
+        // Upcasting to an owned value Gd<Base> requires cloning. Optimized path in into_ffi_arg().
+        match self {
+            Some(gd_ref) => AsArg::into_arg(gd_ref),
+            None => CowArg::Owned(None),
+        }
+    }
+
+    fn into_ffi_arg<'arg>(self) -> FfiArg<'arg, Option<DynGd<Base, D>>>
+    where
+        Self: 'arg,
+    {
+        let option_gd: Option<&Gd<T>> = self.map(|v| &**v); // as_deref() not working.
+        let arg = ObjectArg::from_option_gd(option_gd);
+        FfiArg::FfiObject(arg)
     }
 }
 

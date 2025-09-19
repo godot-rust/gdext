@@ -62,6 +62,7 @@ impl<T: ArrayElement> Sealed for Array<T> {}
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> Sealed for RawGd<T> {}
 impl<T: GodotClass, D: ?Sized> Sealed for DynGd<T, D> {}
+impl<T: GodotClass, D: ?Sized + 'static> Sealed for Option<DynGd<T, D>> {}
 impl<T> Sealed for Option<T>
 where
     T: GodotType,
