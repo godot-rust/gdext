@@ -14,7 +14,7 @@ use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 use crate::classes::ClassDb;
 use crate::init::InitLevel;
 use crate::meta::error::FromGodotError;
-use crate::meta::ClassName;
+use crate::meta::ClassId;
 use crate::obj::{cap, DynGd, Gd, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
@@ -40,8 +40,8 @@ fn global_loaded_classes_by_init_level(
 ///
 /// Complementary mechanism to the on-registration hooks like `__register_methods()`. This is used for runtime queries about a class, for
 /// information which isn't stored in Godot. Example: list related `dyn Trait` implementations.
-fn global_loaded_classes_by_name() -> GlobalGuard<'static, HashMap<ClassName, ClassMetadata>> {
-    static LOADED_CLASSES_BY_NAME: Global<HashMap<ClassName, ClassMetadata>> = Global::default();
+fn global_loaded_classes_by_name() -> GlobalGuard<'static, HashMap<ClassId, ClassMetadata>> {
+    static LOADED_CLASSES_BY_NAME: Global<HashMap<ClassId, ClassMetadata>> = Global::default();
 
     lock_or_panic(&LOADED_CLASSES_BY_NAME, "loaded classes (by name)")
 }
@@ -59,7 +59,7 @@ fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Ve
 ///
 /// Besides the name, this type holds information relevant for the deregistration of the class.
 pub struct LoadedClass {
-    name: ClassName,
+    name: ClassId,
     is_editor_plugin: bool,
 }
 
@@ -85,8 +85,8 @@ pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual2 as sys::Inne
 
 #[derive(Debug)]
 struct ClassRegistrationInfo {
-    class_name: ClassName,
-    parent_class_name: Option<ClassName>,
+    class_name: ClassId,
+    parent_class_name: Option<ClassId>,
     // Following functions are stored separately, since their order matters.
     register_methods_constants_fn: Option<ErasedRegisterFn>,
     register_properties_fn: Option<ErasedRegisterFn>,
@@ -161,13 +161,13 @@ pub(crate) fn register_class<
     };
 
     assert!(
-        !T::class_name().is_none(),
+        !T::class_id().is_none(),
         "cannot register () or unnamed class"
     );
 
     register_class_raw(ClassRegistrationInfo {
-        class_name: T::class_name(),
-        parent_class_name: Some(T::Base::class_name()),
+        class_name: T::class_id(),
+        parent_class_name: Some(T::Base::class_id()),
         register_methods_constants_fn: None,
         register_properties_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
@@ -191,7 +191,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
     // * missing #[derive(GodotClass)] or impl GodotClass for T
     // * duplicate impl GodotDefault for T
     //
-    let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
+    let mut map = HashMap::<ClassId, ClassRegistrationInfo>::new();
 
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
         // Filter per ClassPlugin and not PluginItem, because all components of all classes are mixed together in one huge list.
@@ -217,7 +217,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
 
     // Editor plugins should be added to the editor AFTER all the classes has been registered.
     // Adding EditorPlugin to the Editor before registering all the classes it depends on might result in crash.
-    let mut editor_plugins: Vec<ClassName> = Vec::new();
+    let mut editor_plugins: Vec<ClassId> = Vec::new();
 
     // Actually register all the classes.
     for info in map.into_values() {
@@ -245,7 +245,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
 }
 
 fn register_classes_and_dyn_traits(
-    map: &mut HashMap<ClassName, ClassRegistrationInfo>,
+    map: &mut HashMap<ClassId, ClassRegistrationInfo>,
     init_level: InitLevel,
 ) {
     let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
@@ -307,7 +307,7 @@ pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
     if let Some(InherentImpl {
         register_rpcs_fn: Some(closure),
         ..
-    }) = crate::private::find_inherent_impl(T::class_name())
+    }) = crate::private::find_inherent_impl(T::class_id())
     {
         (closure.raw)(object);
     }
@@ -364,7 +364,7 @@ where
 {
     // Exporting multiple node types is not supported.
     if T::inherits::<classes::Node>() {
-        return T::class_name().to_string();
+        return T::class_id().to_string();
     }
 
     let typeid = any::TypeId::of::<D>();
@@ -389,10 +389,10 @@ where
     // For example – don't include Nodes or Objects while creating hint_string for Resource.
     let relations_iter = relations.iter().filter_map(|implementor| {
         // TODO – check if caching it (using is_derived_base_cached) yields any benefits.
-        if implementor.parent_class_name? == T::class_name()
+        if implementor.parent_class_name? == T::class_id()
             || ClassDb::singleton().is_parent_class(
                 &implementor.parent_class_name?.to_string_name(),
-                &T::class_name().to_string_name(),
+                &T::class_id().to_string_name(),
             )
         {
             Some(implementor)
@@ -667,7 +667,7 @@ fn lock_or_panic<T>(global: &'static Global<T>, ctx: &str) -> GlobalGuard<'stati
 
 // Yes, bindgen can implement Default, but only for _all_ types (with single exceptions).
 // For FFI types, it's better to have explicit initialization in the general case though.
-fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
+fn default_registration_info(class_name: ClassId) -> ClassRegistrationInfo {
     ClassRegistrationInfo {
         class_name,
         parent_class_name: None,

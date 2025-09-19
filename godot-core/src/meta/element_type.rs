@@ -10,7 +10,7 @@ use std::fmt;
 use crate::builtin::VariantType;
 use crate::classes::Script;
 use crate::meta::traits::{element_variant_type, GodotType};
-use crate::meta::{ArrayElement, ClassName};
+use crate::meta::{ArrayElement, ClassId};
 use crate::obj::{Gd, InstanceId};
 
 /// Dynamic type information of Godot arrays and dictionaries.
@@ -29,7 +29,7 @@ pub enum ElementType {
     Builtin(VariantType),
 
     /// Typed array with class (e.g., `Array<Gd<Node3D>>`, `Array<Gd<Resource>>`).
-    Class(ClassName),
+    Class(ClassId),
 
     /// Typed array with a script-based class (e.g. GDScript class `Enemy`).
     ///
@@ -46,7 +46,7 @@ impl ElementType {
         if variant_type == VariantType::NIL {
             ElementType::Untyped
         } else if variant_type == VariantType::OBJECT {
-            ElementType::Class(T::Via::class_name())
+            ElementType::Class(T::Via::class_id())
         } else {
             ElementType::Builtin(variant_type)
         }
@@ -66,15 +66,15 @@ impl ElementType {
         }
     }
 
-    /// The class name if this is a class-typed array.
-    pub fn class_name(&self) -> Option<ClassName> {
+    /// The class ID, if this type is of type [`Class`][ElementType::Class] or [`ScriptClass`][ElementType::ScriptClass].
+    pub fn class_id(&self) -> Option<ClassId> {
         match self {
             ElementType::Class(class_name) => Some(*class_name),
             ElementType::ScriptClass(script) => {
                 // For script classes, we return the native base class name
                 script.script().map(|s| {
                     let base_type = s.get_instance_base_type();
-                    ClassName::new_dynamic(base_type.to_string())
+                    ClassId::new_dynamic(base_type.to_string())
                 })
             }
             _ => None,
@@ -123,7 +123,7 @@ impl ElementType {
                 ElementType::Untyped
             } else if variant_type == VariantType::OBJECT {
                 let class_name_stringname = get_class_name();
-                let class_name = ClassName::new_dynamic(class_name_stringname.to_string());
+                let class_name = ClassId::new_dynamic(class_name_stringname.to_string());
 
                 // If there's a script associated, the class is interpreted as the native base class of the script.
                 let script_variant = get_script_variant();

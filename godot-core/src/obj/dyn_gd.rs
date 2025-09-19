@@ -9,7 +9,7 @@ use std::{fmt, ops};
 
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
-use crate::meta::{ClassName, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
+use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor};
 use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
@@ -371,8 +371,8 @@ where
         self.try_cast().unwrap_or_else(|from_obj| {
             panic!(
                 "downcast from {from} to {to} failed; instance {from_obj:?}",
-                from = T::class_name(),
-                to = Derived::class_name(),
+                from = T::class_id(),
+                to = Derived::class_id(),
             )
         })
     }
@@ -649,7 +649,7 @@ where
     }
 
     #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
 }
@@ -699,7 +699,7 @@ where
     }
 
     #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
 }

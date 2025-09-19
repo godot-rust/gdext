@@ -244,11 +244,11 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                 type Base = #base_ty;
 
                 // Code duplicated in godot-macros.
-                fn class_name() -> ClassName {
+                fn class_id() -> ClassId {
                     // Optimization note: instead of lazy init, could use separate static which is manually initialized during registration.
-                    static CLASS_NAME: std::sync::OnceLock<ClassName> = std::sync::OnceLock::new();
+                    static CLASS_ID: std::sync::OnceLock<ClassId> = std::sync::OnceLock::new();
 
-                    let name: &'static ClassName = CLASS_NAME.get_or_init(|| ClassName::__alloc_next_ascii(#class_name_cstr));
+                    let name: &'static ClassId = CLASS_ID.get_or_init(|| ClassId::__alloc_next_ascii(#class_name_cstr));
                     *name
                 }
 
@@ -421,8 +421,8 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
     let class_name = class.name();
 
     let godot_class_stringname = make_string_name(&class_name.godot_ty);
-    // Note: this could use class_name() but is not yet done due to potential future lazy-load refactoring.
-    //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
+    // Note: this could use class_id() but is not yet done due to potential future lazy-load refactoring.
+    //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_id() };
 
     let (constructor, construct_doc, has_godot_default_impl);
     if ctx.is_singleton(class_name) {

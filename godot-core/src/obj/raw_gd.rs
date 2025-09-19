@@ -13,7 +13,7 @@ use sys::{interface_fn, ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType}
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
-    CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot,
+    CallContext, ClassId, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot,
 };
 use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::casts::CastSuccess;
@@ -116,7 +116,7 @@ impl<T: GodotClass> RawGd<T> {
         U: GodotClass,
     {
         self.is_null() // Null can be cast to anything.
-            || self.as_object_ref().is_class(&U::class_name().to_gstring())
+            || self.as_object_ref().is_class(&U::class_id().to_gstring())
     }
 
     /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
@@ -154,7 +154,7 @@ impl<T: GodotClass> RawGd<T> {
     where
         U: GodotClass,
     {
-        //eprintln!("ffi_cast: {} (dyn {}) -> {}", T::class_name(), self.as_non_null().dynamic_class_string(), U::class_name());
+        //eprintln!("ffi_cast: {} (dyn {}) -> {}", T::class_id(), self.as_non_null().dynamic_class_string(), U::class_name());
 
         // `self` may be null when we convert a null-variant into a `Option<Gd<T>>`, since we use `ffi_cast`
         // in the `ffi_from_variant` conversion function to ensure type-correctness. So the chain would be as follows:
@@ -175,7 +175,7 @@ impl<T: GodotClass> RawGd<T> {
         self.check_rtti("ffi_cast");
 
         let cast_object_ptr = unsafe {
-            let class_tag = interface_fn!(classdb_get_class_tag)(U::class_name().string_sys());
+            let class_tag = interface_fn!(classdb_get_class_tag)(U::class_id().string_sys());
             interface_fn!(object_cast_to)(self.obj_sys(), class_tag)
         };
 
@@ -633,12 +633,12 @@ impl<T: GodotClass> GodotType for RawGd<T> {
         Ok(ffi)
     }
 
-    fn class_name() -> ClassName {
-        T::class_name()
+    fn class_id() -> ClassId {
+        T::class_id()
     }
 
     fn godot_type_name() -> String {
-        T::class_name().to_string()
+        T::class_id().to_string()
     }
 }
 
@@ -677,7 +677,7 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
 
         raw.with_inc_refcount().owned_cast().map_err(|raw| {
             FromVariantError::WrongClass {
-                expected: T::class_name(),
+                expected: T::class_id(),
             }
             .into_error(raw)
         })

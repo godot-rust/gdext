@@ -115,15 +115,15 @@ pub(super) mod private {
     /// ```no_run
     /// use godot::prelude::*;
     /// use godot::obj::bounds::implement_godot_bounds;
-    /// use godot::meta::ClassName;
+    /// use godot::meta::ClassId;
     ///
     /// struct MyClass {}
     ///
     /// impl GodotClass for MyClass {
     ///     type Base = Node;
     ///
-    ///     fn class_name() -> ClassName {
-    ///         ClassName::new_cached::<MyClass>(|| "MyClass".to_string())
+    ///     fn class_id() -> ClassId {
+    ///         ClassId::new_cached::<MyClass>(|| "MyClass".to_string())
     ///     }
     /// }
     ///

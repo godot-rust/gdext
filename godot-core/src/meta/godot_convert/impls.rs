@@ -11,8 +11,8 @@ use crate::builtin::{Array, Variant};
 use crate::meta;
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
-    PropertyHintInfo, PropertyInfo, ToGodot,
+    ArrayElement, ClassId, FromGodot, GodotConvert, GodotNullableFfi, GodotType, PropertyHintInfo,
+    PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
 
@@ -61,8 +61,8 @@ where
         T::param_metadata()
     }
 
-    fn class_name() -> ClassName {
-        T::class_name()
+    fn class_id() -> ClassId {
+        T::class_id()
     }
 
     fn property_info(property_name: &str) -> PropertyInfo {

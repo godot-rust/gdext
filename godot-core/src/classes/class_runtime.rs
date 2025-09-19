@@ -12,7 +12,7 @@ use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
 #[cfg(debug_assertions)]
-use crate::meta::ClassName;
+use crate::meta::ClassId;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
 use crate::sys;
 
@@ -171,7 +171,7 @@ where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
 {
     let mut obj = unsafe {
-        let object_ptr = sys::classdb_construct_object(T::class_name().string_sys());
+        let object_ptr = sys::classdb_construct_object(T::class_id().string_sys());
         Gd::<T>::from_obj_sys(object_ptr)
     };
     #[cfg(since_api = "4.4")]
@@ -202,9 +202,9 @@ pub(crate) fn ensure_object_alive(
 }
 
 #[cfg(debug_assertions)]
-pub(crate) fn ensure_object_inherits(derived: ClassName, base: ClassName, instance_id: InstanceId) {
+pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_id: InstanceId) {
     if derived == base
-        || base == Object::class_name() // for Object base, anything inherits by definition
+        || base == Object::class_id() // for Object base, anything inherits by definition
         || is_derived_base_cached(derived, base)
     {
         return;
@@ -245,12 +245,12 @@ where
 
 /// Checks if `derived` inherits from `base`, using a cache for _successful_ queries.
 #[cfg(debug_assertions)]
-fn is_derived_base_cached(derived: ClassName, base: ClassName) -> bool {
+fn is_derived_base_cached(derived: ClassId, base: ClassId) -> bool {
     use std::collections::HashSet;
 
     use sys::Global;
 
-    static CACHE: Global<HashSet<(ClassName, ClassName)>> = Global::default();
+    static CACHE: Global<HashSet<(ClassId, ClassId)>> = Global::default();
 
     let mut cache = CACHE.lock();
     let key = (derived, base);

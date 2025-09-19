@@ -28,9 +28,9 @@ pub mod rename {
 #[itest]
 fn renaming_changes_the_name() {
     assert_ne!(
-        dont_rename::RepeatMe::class_name(),
-        rename::RepeatMe::class_name()
+        dont_rename::RepeatMe::class_id(),
+        rename::RepeatMe::class_id()
     );
-    assert_eq!(dont_rename::RepeatMe::class_name().to_string(), "RepeatMe");
-    assert_eq!(rename::RepeatMe::class_name().to_string(), "NoRepeat");
+    assert_eq!(dont_rename::RepeatMe::class_id().to_string(), "RepeatMe");
+    assert_eq!(rename::RepeatMe::class_id().to_string(), "NoRepeat");
 }

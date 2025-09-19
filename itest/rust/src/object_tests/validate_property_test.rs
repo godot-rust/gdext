@@ -30,8 +30,8 @@ impl IObject for ValidatePropertyTest {
             property.hint_info.hint_string = GString::from("SomePropertyHint");
             property.hint_info.hint = PropertyHint::TYPE_STRING;
 
-            // Makes no sense, but allows to check if given ClassName can be properly moved to GDExtensionPropertyInfo.
-            property.class_name = <ValidatePropertyTest as godot::obj::GodotClass>::class_name();
+            // Makes no sense, but allows to check if given ClassId can be properly moved to GDExtensionPropertyInfo.
+            property.class_id = <ValidatePropertyTest as godot::obj::GodotClass>::class_id();
         }
     }
 }

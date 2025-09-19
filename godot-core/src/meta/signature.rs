@@ -488,7 +488,7 @@ impl<'a> CallContext<'a> {
     /// Outbound call from Rust into the engine, via Gd methods.
     pub fn gd<T: GodotClass>(function_name: &'a str) -> Self {
         Self {
-            class_name: T::class_name().to_cow_str(),
+            class_name: T::class_id().to_cow_str(),
             function_name,
         }
     }

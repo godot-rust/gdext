@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use sys::interface_fn;
 
 use crate::builtin::StringName;
-use crate::meta::ClassName;
+use crate::meta::ClassId;
 
 /// A constant named `name` with the value `value`.
 pub struct IntegerConstant {
@@ -30,7 +30,7 @@ impl IntegerConstant {
         }
     }
 
-    fn register(&self, class_name: ClassName, enum_name: &StringName, is_bitfield: bool) {
+    fn register(&self, class_name: ClassId, enum_name: &StringName, is_bitfield: bool) {
         unsafe {
             interface_fn!(classdb_register_extension_class_integer_constant)(
                 sys::get_library(),
@@ -59,7 +59,7 @@ pub enum ConstantKind {
 }
 
 impl ConstantKind {
-    fn register(&self, class_name: ClassName) {
+    fn register(&self, class_name: ClassId) {
         match self {
             ConstantKind::Integer(integer) => {
                 integer.register(class_name, &StringName::default(), false)
@@ -80,12 +80,12 @@ impl ConstantKind {
 
 /// All the info needed to export a constant to Godot.
 pub struct ExportConstant {
-    class_name: ClassName,
+    class_name: ClassId,
     kind: ConstantKind,
 }
 
 impl ExportConstant {
-    pub fn new(class_name: ClassName, kind: ConstantKind) -> Self {
+    pub fn new(class_name: ClassId, kind: ConstantKind) -> Self {
         Self { class_name, kind }
     }
 

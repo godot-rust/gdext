@@ -12,7 +12,7 @@ use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{
-    sealed, ClassName, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
+    sealed, ClassId, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
 use crate::registry::property::builtin_type_string;
@@ -85,16 +85,16 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     }
 
     #[doc(hidden)]
-    fn class_name() -> ClassName {
-        // If we use `ClassName::of::<()>()` then this type shows up as `(no base)` in documentation.
-        ClassName::none()
+    fn class_id() -> ClassId {
+        // If we use `ClassId::of::<()>`, then this type shows up as `(no base)` in documentation.
+        ClassId::none()
     }
 
     #[doc(hidden)]
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
             variant_type: Self::Ffi::VARIANT_TYPE.variant_as_nil(),
-            class_name: Self::class_name(),
+            class_id: Self::class_id(),
             property_name: builtin::StringName::from(property_name),
             hint_info: Self::property_hint_info(),
             usage: PropertyUsageFlags::DEFAULT,

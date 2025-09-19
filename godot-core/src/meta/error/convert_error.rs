@@ -11,7 +11,7 @@ use std::fmt;
 use godot_ffi::VariantType;
 
 use crate::builtin::Variant;
-use crate::meta::{ClassName, ElementType, ToGodot};
+use crate::meta::{ClassId, ElementType, ToGodot};
 
 type Cause = Box<dyn Error + Send + Sync>;
 
@@ -318,7 +318,7 @@ pub(crate) enum FromVariantError {
     BadValue,
 
     WrongClass {
-        expected: ClassName,
+        expected: ClassId,
     },
 
     /// Variant holds an object which is no longer alive.

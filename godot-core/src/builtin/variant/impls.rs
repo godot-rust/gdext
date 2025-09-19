@@ -401,7 +401,7 @@ impl GodotType for Variant {
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
             variant_type: Self::VARIANT_TYPE.variant_as_nil(),
-            class_name: Self::class_name(),
+            class_id: Self::class_id(),
             property_name: StringName::from(property_name),
             hint_info: PropertyHintInfo::none(),
             usage: global::PropertyUsageFlags::DEFAULT | global::PropertyUsageFlags::NIL_IS_VARIANT,

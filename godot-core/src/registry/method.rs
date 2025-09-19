@@ -10,7 +10,7 @@ use sys::interface_fn;
 
 use crate::builtin::{StringName, Variant};
 use crate::global::MethodFlags;
-use crate::meta::{ClassName, GodotConvert, GodotType, ParamTuple, PropertyInfo, Signature};
+use crate::meta::{ClassId, GodotConvert, GodotType, ParamTuple, PropertyInfo, Signature};
 use crate::obj::GodotClass;
 
 /// Info relating to an argument or return type in a method.
@@ -27,7 +27,7 @@ impl MethodParamOrReturnInfo {
 
 /// All info needed to register a method for a class with Godot.
 pub struct ClassMethodInfo {
-    class_name: ClassName,
+    class_id: ClassId,
     method_name: StringName,
     call_func: sys::GDExtensionClassMethodCall,
     ptrcall_func: sys::GDExtensionClassMethodPtrCall,
@@ -71,7 +71,7 @@ impl ClassMethodInfo {
         );
 
         Self {
-            class_name: C::class_name(),
+            class_id: C::class_id(),
             method_name,
             call_func,
             ptrcall_func,
@@ -141,7 +141,7 @@ impl ClassMethodInfo {
         unsafe {
             interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
-                self.class_name.string_sys(),
+                self.class_id.string_sys(),
                 std::ptr::addr_of!(method_info_sys),
             )
         }
@@ -168,7 +168,7 @@ impl ClassMethodInfo {
         unsafe {
             interface_fn!(classdb_register_extension_class_virtual_method)(
                 sys::get_library(),
-                self.class_name.string_sys(),
+                self.class_id.string_sys(),
                 std::ptr::addr_of!(method_info_sys),
             )
         }

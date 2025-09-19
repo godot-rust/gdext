@@ -14,7 +14,7 @@ use sys::{static_assert_eq_size_align, SysPtr as _};
 use crate::builtin::{Callable, GString, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, AsArg, CallContext, ClassName, FromGodot, GodotConvert, GodotType,
+    ArrayElement, AsArg, CallContext, ClassId, FromGodot, GodotConvert, GodotType,
     PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
@@ -234,7 +234,7 @@ impl<T: GodotClass> Gd<T> {
             panic!(
                 "Instance ID {} does not belong to a valid object of class '{}': {}",
                 instance_id,
-                T::class_name(),
+                T::class_id(),
                 err
             )
         })
@@ -294,7 +294,7 @@ impl<T: GodotClass> Gd<T> {
 
     /// Returns the dynamic class name of the object as `StringName`.
     ///
-    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_name()`][GodotClass::class_name]
+    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_id()`][GodotClass::class_name]
     /// if derived classes are involved.
     ///
     /// Unlike [`Object::get_class()`][crate::classes::Object::get_class], this returns `StringName` instead of `GString` and needs no
@@ -505,8 +505,8 @@ impl<T: GodotClass> Gd<T> {
         self.owned_cast().unwrap_or_else(|from_obj| {
             panic!(
                 "downcast from {from} to {to} failed; instance {from_obj:?}",
-                from = T::class_name(),
-                to = Derived::class_name(),
+                from = T::class_id(),
+                to = Derived::class_id(),
             )
         })
     }
@@ -748,7 +748,7 @@ where
             sys::interface_fn!(object_destroy)(self.raw.obj_sys());
         }
 
-        // TODO: this might leak associated data in Gd<T>, e.g. ClassName.
+        // TODO: this might leak associated data in Gd<T>, e.g. ClassId.
         std::mem::forget(self);
     }
 }
@@ -923,12 +923,12 @@ impl<T: GodotClass> GodotType for Gd<T> {
         }
     }
 
-    fn class_name() -> ClassName {
-        T::class_name()
+    fn class_id() -> ClassId {
+        T::class_id()
     }
 
     fn godot_type_name() -> String {
-        T::class_name().to_string()
+        T::class_id().to_string()
     }
 
     fn qualifies_as_special_none(from_variant: &Variant) -> bool {
@@ -954,7 +954,7 @@ impl<T: GodotClass> GodotType for Gd<T> {
 impl<T: GodotClass> ArrayElement for Gd<T> {
     fn element_type_string() -> String {
         // See also impl Export for Gd<T>.
-        object_export_element_type_string::<T>(T::class_name())
+        object_export_element_type_string::<T>(T::class_id())
     }
 }
 
@@ -1010,7 +1010,7 @@ where
     }
 
     #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
 }
@@ -1053,7 +1053,7 @@ where
     }
 
     #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
 }

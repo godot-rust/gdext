@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use crate::meta::ClassName;
+use crate::meta::ClassId;
 use crate::registry::plugin::{ITraitImpl, InherentImpl, PluginItem, Struct};
 
 /// Created for documentation on
@@ -75,7 +75,7 @@ struct DocPieces {
 /// strings of not-yet-parented XML tags (or empty string if no method has been documented).
 #[doc(hidden)]
 pub fn gather_xml_docs() -> impl Iterator<Item = String> {
-    let mut map = HashMap::<ClassName, DocPieces>::new();
+    let mut map = HashMap::<ClassId, DocPieces>::new();
     crate::private::iterate_plugins(|x| {
         let class_name = x.class_name;
 

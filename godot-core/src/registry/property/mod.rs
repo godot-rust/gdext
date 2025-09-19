@@ -14,7 +14,7 @@ use godot_ffi::{GodotNullableFfi, VariantType};
 
 use crate::classes;
 use crate::global::PropertyHint;
-use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
+use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 use crate::obj::{EngineEnum, GodotClass};
 
 mod phantom_var;
@@ -77,12 +77,12 @@ pub trait Export: Var {
         <Self as Var>::var_hint()
     }
 
-    /// If this is a class inheriting `Node`, returns the `ClassName`; otherwise `None`.
+    /// If this is a class inheriting `Node`, returns the `ClassId`; otherwise `None`.
     ///
     /// Only overridden for `Gd<T>`, to detect erroneous exports of `Node` inside a `Resource` class.
     #[allow(clippy::wrong_self_convention)]
     #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         None
     }
 }

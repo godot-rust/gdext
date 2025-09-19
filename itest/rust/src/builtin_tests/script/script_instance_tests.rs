@@ -13,7 +13,7 @@ use godot::classes::{
     ScriptLanguageExtension,
 };
 use godot::global::{Error, MethodFlags};
-use godot::meta::{ClassName, FromGodot, MethodInfo, PropertyInfo, ToGodot};
+use godot::meta::{ClassId, FromGodot, MethodInfo, PropertyInfo, ToGodot};
 use godot::obj::script::{create_script_instance, ScriptInstance, SiMut};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::register::{godot_api, GodotClass};
@@ -107,7 +107,7 @@ impl TestScriptInstance {
             method_list: vec![MethodInfo {
                 id: 1,
                 method_name: StringName::from("script_method_a"),
-                class_name: ClassName::new_cached::<TestScript>(|| "TestScript".to_string()),
+                class_name: ClassId::new_cached::<TestScript>(|| "TestScript".to_string()),
                 return_type: PropertyInfo::new_var::<GString>(""),
                 arguments: vec![
                     PropertyInfo::new_var::<GString>("arg_a"),
