@@ -823,9 +823,9 @@ where
         where
             T: GodotClass,
         {
-            fn into_arg<'r>(self) -> CowArg<'r, Option<Gd<T>>>
+            fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<T>>>
             where
-                Self: 'r,
+                Self: 'arg,
             {
                 CowArg::Owned(None)
             }
@@ -978,30 +978,6 @@ impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
         Gd::<T>::element_type_string()
     }
 }
-
-/*
-// TODO find a way to generalize AsArg to derived->base conversions without breaking type inference in array![].
-// Possibly we could use a "canonical type" with unambiguous mapping (&Gd<T> -> &Gd<T>, not &Gd<T> -> &Gd<TBase>).
-// See also regression test in array_test.rs.
-
-impl<'r, T, TBase> AsArg<Gd<TBase>> for &'r Gd<T>
-where
-    T: Inherits<TBase>,
-    TBase: GodotClass,
-{
-    #[doc(hidden)] // Repeated despite already hidden in trait; some IDEs suggest this otherwise.
-    fn into_arg<'cow>(self) -> CowArg<'cow, Gd<TBase>>
-    where
-        'r: 'cow, // Original reference must be valid for at least as long as the returned cow.
-    {
-        // Performance: clones unnecessarily, which has overhead for ref-counted objects.
-        // A result of being generic over base objects and allowing T: Inherits<Base> rather than just T == Base.
-        // Was previously `CowArg::Borrowed(self)`. Borrowed() can maybe be specialized for objects, or combined with AsObjectArg.
-
-        CowArg::Owned(self.clone().upcast::<TBase>())
-    }
-}
-*/
 
 impl<T> Default for Gd<T>
 where

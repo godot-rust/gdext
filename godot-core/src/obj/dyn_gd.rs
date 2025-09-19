@@ -586,9 +586,9 @@ where
     TBase: GodotClass,
     D: ?Sized + 'static,
 {
-    fn into_arg<'cow>(self) -> meta::CowArg<'cow, DynGd<TBase, D>>
+    fn into_arg<'arg>(self) -> meta::CowArg<'arg, DynGd<TBase, D>>
     where
-        'r: 'cow,
+        'r: 'arg,
     {
         meta::CowArg::Owned(self.clone().upcast::<TBase>())
     }
