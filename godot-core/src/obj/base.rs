@@ -320,7 +320,7 @@ impl<T: GodotClass> Base<T> {
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
     #[cfg(debug_assertions)]
-    fn is_initializing(&self) -> bool {
+    pub(crate) fn is_initializing(&self) -> bool {
         self.init_state.get() == InitState::ObjectConstructing
     }
 
@@ -344,12 +344,6 @@ impl<T: GodotClass> Base<T> {
     /// # Safety
     /// Caller must ensure that the underlying object remains valid for the entire lifetime of the returned `PassiveGd`.
     pub(crate) unsafe fn constructed_passive(&self) -> PassiveGd<T> {
-        #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
-        assert!(
-            !self.is_initializing(),
-            "WithBaseField::base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
-        );
-
         // SAFETY: object pointer is valid and remains valid as long as self is alive (per safety precondition of this fn).
         unsafe { PassiveGd::from_obj_sys(self.obj.obj_sys()) }
     }
