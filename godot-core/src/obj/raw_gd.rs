@@ -440,7 +440,12 @@ where
     /// Storage object associated with the extension instance.
     ///
     /// Returns `None` if self is null.
+    ///
+    /// # Panics
+    /// In Debug mode, if binding is null.
     pub(crate) fn storage(&self) -> Option<&InstanceStorage<T>> {
+        #[cfg(debug_assertions)]
+        self.ensure_storage_not_null();
         // SAFETY:
         // - We have a `&self`, so the storage must already have been created.
         // - The storage cannot be destroyed while we have a `&self` reference, so it will not be
@@ -450,7 +455,7 @@ where
 
     /// Storage object associated with the extension instance.
     ///
-    /// Returns `None` if self is null.
+    /// Returns `None` if self is null, or if binding is null.
     ///
     /// # Safety
     ///
@@ -474,8 +479,29 @@ where
         }
     }
 
+    #[cfg(debug_assertions)]
+    pub(crate) fn ensure_storage_not_null(&self) {
+        let binding = self.resolve_instance_ptr();
+        if !binding.is_null() {
+            return;
+        }
+        // Non-tool classes can't be instantiated in the editor.
+        if crate::classes::Engine::singleton().is_editor_hint() {
+            panic!(
+                    "Class {} -- null instance; does the class have a Godot creator function? \
+                    Ensure that the given class is a tool class with #[class(tool)], if it is being accessed in the editor.",
+                    std::any::type_name::<Self>()
+                )
+        } else {
+            panic!(
+                "Class {} -- null instance; does the class have a Godot creator function?",
+                std::any::type_name::<Self>()
+            );
+        }
+    }
+
     /// Retrieves and caches pointer to this class instance if `self.obj` is non-null.
-    /// Returns a null pointer otherwise.
+    /// Returns a null pointer otherwise, or if binding is null.
     ///
     /// Note: The returned pointer to the GDExtensionClass instance (even when `self.obj` is non-null)
     /// might still be null when:
@@ -483,9 +509,6 @@ where
     /// - The instance is a placeholder (e.g., non-`tool` classes in the editor).
     ///
     /// However, null pointers might also occur in other, undocumented contexts.
-    ///
-    /// # Panics
-    /// In Debug mode, if binding is null.
     fn resolve_instance_ptr(&self) -> sys::GDExtensionClassInstancePtr {
         if self.is_null() {
             return ptr::null_mut();
@@ -509,8 +532,9 @@ where
 
         let ptr: sys::GDExtensionClassInstancePtr = binding.cast();
 
-        #[cfg(debug_assertions)]
-        crate::classes::ensure_binding_not_null::<T>(ptr);
+        if ptr.is_null() {
+            return ptr::null_mut();
+        }
 
         self.cached_storage_ptr.set(ptr);
         ptr
