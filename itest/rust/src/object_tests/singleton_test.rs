@@ -7,16 +7,16 @@
 
 use godot::builtin::GString;
 use godot::classes::{Input, Os};
-use godot::obj::Gd;
+use godot::obj::{Gd, Singleton};
 
 use crate::framework::itest;
 
 #[itest]
 fn singleton_is_unique() {
-    let a: Gd<Input> = Input::singleton();
+    let a: Gd<Input> = Input::one();
     let id_a = a.instance_id();
 
-    let b: Gd<Input> = Input::singleton();
+    let b: Gd<Input> = Input::one();
     let id_b = b.instance_id();
 
     assert_eq!(id_a, id_b, "Singletons have same instance ID");
@@ -24,7 +24,7 @@ fn singleton_is_unique() {
 
 #[itest]
 fn singleton_from_instance_id() {
-    let a: Gd<Os> = Os::singleton();
+    let a: Gd<Os> = Os::one();
     let id = a.instance_id();
 
     let b: Gd<Os> = Gd::from_instance_id(id);
@@ -34,7 +34,7 @@ fn singleton_from_instance_id() {
 
 #[itest]
 fn singleton_is_operational() {
-    let os: Gd<Os> = Os::singleton();
+    let os: Gd<Os> = Os::one();
     let key = GString::from("MY_TEST_ENV");
     let value = GString::from("SOME_VALUE");
 

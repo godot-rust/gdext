@@ -8,7 +8,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use godot::init::InitLevel;
-use godot::obj::NewAlloc;
+use godot::obj::{NewAlloc, Singleton};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::Global;
 
@@ -86,20 +86,20 @@ fn on_init_core() {
     // Check the early core singletons we can access here.
     #[cfg(feature = "codegen-full")]
     {
-        let project_settings = godot::classes::ProjectSettings::singleton();
+        let project_settings = godot::classes::ProjectSettings::one();
         assert_eq!(
             project_settings.get("application/config/name").get_type(),
             godot::builtin::VariantType::STRING
         );
     }
 
-    let engine = godot::classes::Engine::singleton();
+    let engine = godot::classes::Engine::one();
     assert!(engine.get_physics_ticks_per_second() > 0);
 
-    let os = godot::classes::Os::singleton();
+    let os = godot::classes::Os::one();
     assert!(!os.get_name().is_empty());
 
-    let time = godot::classes::Time::singleton();
+    let time = godot::classes::Time::one();
     assert!(time.get_ticks_usec() <= time.get_ticks_usec());
 }
 
@@ -112,7 +112,7 @@ fn on_init_scene() {
     // https://github.com/godotengine/godot-cpp/issues/1180#issuecomment-3074351805
     suppress_godot_print(|| {
         expect_panic("Singletons not loaded during Scene init level", || {
-            let _ = godot::classes::RenderingServer::singleton();
+            let _ = godot::classes::RenderingServer::one();
         });
     });
 }

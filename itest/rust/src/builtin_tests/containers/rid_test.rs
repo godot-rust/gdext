@@ -8,6 +8,7 @@
 use godot::builtin::inner::InnerRid;
 use godot::builtin::Rid;
 use godot::classes::RenderingServer;
+use godot::obj::Singleton;
 
 use crate::framework::{itest, suppress_godot_print};
 
@@ -25,7 +26,7 @@ fn rid_equiv() {
 #[itest]
 fn canvas_set_parent() {
     // This originally caused UB, but still testing it here in case it breaks.
-    let mut server = RenderingServer::singleton();
+    let mut server = RenderingServer::one();
     let canvas = server.canvas_create();
     let viewport = server.viewport_create();
 
@@ -46,7 +47,7 @@ fn multi_thread_test() {
     let threads = (0..10)
         .map(|_| {
             std::thread::spawn(|| {
-                let mut server = RenderingServer::singleton();
+                let mut server = RenderingServer::one();
                 (0..1000).map(|_| server.canvas_item_create()).collect()
             })
         })
@@ -61,7 +62,7 @@ fn multi_thread_test() {
     let set = rids.iter().cloned().collect::<HashSet<_>>();
     assert_eq!(set.len(), rids.len());
 
-    let mut server = RenderingServer::singleton();
+    let mut server = RenderingServer::one();
 
     for rid in rids.iter() {
         server.canvas_item_add_circle(*rid, Vector2::ZERO, 1.0, Color::from_rgb(1.0, 0.0, 0.0));
@@ -75,7 +76,7 @@ fn multi_thread_test() {
 /// Check that godot does not crash upon receiving various RIDs that may be edge cases. As it could do in Godot 3.
 #[itest]
 fn strange_rids() {
-    let mut server = RenderingServer::singleton();
+    let mut server = RenderingServer::one();
     let mut rids: Vec<u64> = vec![
         // Invalid RID.
         0,

@@ -10,7 +10,7 @@ use godot::builtin::Vector2;
 use godot::classes::notify::ObjectNotification;
 use godot::classes::{ClassDb, IRefCounted, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithBaseField};
+use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, Singleton, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::task::TaskHandle;
 
@@ -97,7 +97,7 @@ fn base_init_refcounted_simple() {
 // Tests that the auto-decrement of surplus references also works when instantiated through the engine.
 #[itest(async)]
 fn base_init_refcounted_from_engine() -> TaskHandle {
-    let db = ClassDb::singleton();
+    let db = ClassDb::one();
     let obj = db.instantiate("RefcBased").to::<Gd<RefcBased>>();
 
     assert_eq!(obj.get_reference_count(), 2);

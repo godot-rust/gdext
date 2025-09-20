@@ -9,6 +9,7 @@
 #![allow(clippy::non_minimal_cfg)]
 
 use godot::classes::ClassDb;
+use godot::obj::Singleton;
 use godot::prelude::*;
 use godot::sys::static_assert;
 
@@ -68,7 +69,7 @@ impl HasConstants {
 
 /// Checks at runtime if a class has a given integer constant through [ClassDb].
 fn class_has_integer_constant<T: GodotClass>(name: &str) -> bool {
-    ClassDb::singleton().class_has_integer_constant(&T::class_name().to_string_name(), name)
+    ClassDb::one().class_has_integer_constant(&T::class_name().to_string_name(), name)
 }
 
 #[itest]
@@ -85,7 +86,7 @@ fn constants_correct_value() {
     ];
 
     let class_name = HasConstants::class_name().to_string_name();
-    let constants = ClassDb::singleton()
+    let constants = ClassDb::one()
         .class_get_integer_constant_list_ex(&class_name)
         .no_inheritance(true)
         .done();
@@ -93,7 +94,7 @@ fn constants_correct_value() {
     for (constant_name, constant_value) in CONSTANTS {
         assert!(constants.contains(constant_name));
         assert_eq!(
-            ClassDb::singleton().class_get_integer_constant(&class_name, constant_name),
+            ClassDb::one().class_get_integer_constant(&class_name, constant_name),
             constant_value
         );
     }
@@ -193,17 +194,17 @@ macro_rules! test_enum_export {
                 $((stringify!($enumerators), <$class>::$enumerators)),*
             ];
 
-            assert!(ClassDb::singleton()
+            assert!(ClassDb::one()
                 .class_has_enum_ex(&class_name, &enum_name)
                 .no_inheritance(true)
                 .done());
 
-            let godot_variants = ClassDb::singleton()
+            let godot_variants = ClassDb::one()
                 .class_get_enum_constants_ex(&class_name, &enum_name)
                 .no_inheritance(true)
                 .done();
 
-            let constants = ClassDb::singleton()
+            let constants = ClassDb::one()
                 .class_get_integer_constant_list_ex(&class_name)
                 .no_inheritance(true)
                 .done();
@@ -213,7 +214,7 @@ macro_rules! test_enum_export {
                 assert!(godot_variants.contains(&variant_name));
                 assert!(constants.contains(&variant_name));
                 assert_eq!(
-                    ClassDb::singleton().class_get_integer_constant(&class_name, variant_name.arg()),
+                    ClassDb::one().class_get_integer_constant(&class_name, variant_name.arg()),
                     variant_value
                 );
             }

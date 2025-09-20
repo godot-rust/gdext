@@ -13,7 +13,7 @@ use sys::{ffi_methods, ExtVariantType, GodotFfi};
 use crate::builtin::{inner, GString, StringName, Variant, VariantArray};
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
-use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
+use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
 use crate::{classes, meta};
 
 #[cfg(before_api = "4.3")]
@@ -106,7 +106,7 @@ impl Callable {
         Self::from_local_fn(&callable_name, move |args| {
             let args = args.iter().cloned().cloned().collect::<Vec<_>>();
 
-            let result: Variant = classes::ClassDb::singleton().class_call_static(
+            let result: Variant = classes::ClassDb::one().class_call_static(
                 &class_name,
                 &function_name,
                 args.as_slice(),

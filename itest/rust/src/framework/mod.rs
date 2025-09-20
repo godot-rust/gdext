@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::panic;
 
 use godot::classes::{Engine, GDScript, Node, Os, SceneTree};
-use godot::obj::{Gd, NewGd};
+use godot::obj::{Gd, NewGd, Singleton};
 use godot::sys;
 
 mod bencher;
@@ -262,10 +262,7 @@ pub fn next_frame<F>(code: F) -> godot::task::TaskHandle
 where
     F: FnOnce() + 'static,
 {
-    let tree = Engine::singleton()
-        .get_main_loop()
-        .unwrap()
-        .cast::<SceneTree>();
+    let tree = Engine::one().get_main_loop().unwrap().cast::<SceneTree>();
 
     godot::task::spawn(async move {
         let _: () = tree.signals().process_frame().to_future().await;
@@ -302,15 +299,15 @@ where
 /// **Important:** Do not run this inside [`expect_panic()`], it will mute panic messages forever. Instead, make sure [`suppress_godot_print()`]
 /// is the outer function.
 pub fn suppress_godot_print(mut f: impl FnMut()) {
-    Engine::singleton().set_print_error_messages(false);
+    Engine::one().set_print_error_messages(false);
     f();
-    Engine::singleton().set_print_error_messages(true);
+    Engine::one().set_print_error_messages(true);
 }
 
 /// Some tests are disabled, as they rely on Godot checks which are only available in Debug builds.
 /// See <https://github.com/godotengine/godot/issues/86264>.
 pub fn runs_release() -> bool {
-    !Os::singleton().is_debug_build()
+    !Os::one().is_debug_build()
 }
 
 /// Create a `GDScript` script from code, compiles and returns it.

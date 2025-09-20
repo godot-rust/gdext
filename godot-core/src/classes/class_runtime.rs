@@ -13,7 +13,7 @@ use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
 #[cfg(debug_assertions)]
 use crate::meta::ClassName;
-use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd, Singleton};
 use crate::sys;
 
 pub(crate) fn debug_string<T: GodotClass>(
@@ -181,6 +181,16 @@ where
     obj
 }
 
+/// # Safety
+/// The caller must ensure that `class_name` corresponds to the actual class name of type `T`.
+pub(crate) unsafe fn singleton_unchecked<T>(class_name: &StringName) -> Gd<T>
+where
+    T: GodotClass,
+{
+    let object_ptr = unsafe { sys::interface_fn!(global_get_singleton)(class_name.string_sys()) };
+    Gd::<T>::from_obj_sys(object_ptr)
+}
+
 pub(crate) fn ensure_object_alive(
     instance_id: InstanceId,
     old_object_ptr: sys::GDExtensionObjectPtr,
@@ -226,7 +236,7 @@ where
     }
 
     // Non-tool classes can't be instantiated in the editor.
-    if crate::classes::Engine::singleton().is_editor_hint() {
+    if crate::classes::Engine::one().is_editor_hint() {
         panic!(
             "Class {} -- null instance; does the class have a Godot creator function? \
             Ensure that the given class is a tool class with #[class(tool)], if it is being accessed in the editor.",
@@ -260,7 +270,7 @@ fn is_derived_base_cached(derived: ClassName, base: ClassName) -> bool {
 
     // Query Godot API (takes linear time in depth of inheritance tree).
     let is_parent_class =
-        ClassDb::singleton().is_parent_class(&derived.to_string_name(), &base.to_string_name());
+        ClassDb::one().is_parent_class(&derived.to_string_name(), &base.to_string_name());
 
     // Insert only successful queries. Those that fail are on the error path already and don't need to be fast.
     if is_parent_class {

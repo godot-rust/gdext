@@ -645,6 +645,18 @@ pub trait NewAlloc: GodotClass {
     fn new_alloc() -> Gd<Self>;
 }
 
+/// Trait for singleton classes in Godot.
+///
+/// There is only one instance of each singleton class in the engine, accessible through [`one()`][Self::one].
+pub trait Singleton: GodotClass {
+    /// Returns the singleton instance.
+    ///
+    /// # Panics
+    /// If called during global init/deinit of godot-rust. Most singletons are only available after the first frame has run.
+    /// See also [`ExtensionLibrary`](../init/trait.ExtensionLibrary.html#availability-of-godot-apis-during-init-and-deinit).
+    fn one() -> Gd<Self>;
+}
+
 impl<T> NewAlloc for T
 where
     T: cap::GodotDefault + Bounds<Memory = bounds::MemManual>,

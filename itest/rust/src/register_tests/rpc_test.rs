@@ -8,6 +8,7 @@
 use godot::classes::multiplayer_api::RpcMode;
 use godot::classes::multiplayer_peer::TransferMode;
 use godot::classes::{Engine, MultiplayerApi};
+use godot::obj::Singleton;
 use godot::prelude::*;
 use godot::register::RpcConfig;
 use godot::test::itest;
@@ -90,10 +91,7 @@ fn node_enters_tree() {
     let node = RpcTest::new_alloc();
 
     // Registering is done in `UserClass::__before_ready()`, and it requires a multiplayer API to exist.
-    let mut scene_tree = Engine::singleton()
-        .get_main_loop()
-        .unwrap()
-        .cast::<SceneTree>();
+    let mut scene_tree = Engine::one().get_main_loop().unwrap().cast::<SceneTree>();
     scene_tree.set_multiplayer(MultiplayerApi::create_default_interface().as_ref());
 
     let mut root = scene_tree.get_root().unwrap();

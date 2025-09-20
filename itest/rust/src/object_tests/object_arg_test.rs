@@ -9,7 +9,7 @@ use godot::builtin::{vslice, Variant};
 use godot::classes::{ClassDb, Node, RefCounted, ResourceFormatLoader, ResourceLoader};
 use godot::global;
 use godot::meta::ToGodot;
-use godot::obj::{Gd, NewAlloc, NewGd};
+use godot::obj::{Gd, NewAlloc, NewGd, Singleton};
 use godot::register::{godot_api, GodotClass};
 
 use crate::framework::{create_gdscript, itest};
@@ -19,7 +19,7 @@ use crate::object_tests::object_test::{user_refc_instance, RefcPayload};
 #[itest]
 fn object_arg_owned() {
     with_objects(|manual, refc| {
-        let db = ClassDb::singleton();
+        let db = ClassDb::one();
         let a = db.class_set_property(manual, "name", &Variant::from("hello"));
         let b = db.class_set_property(refc, "value", &Variant::from(-123));
         (a, b)
@@ -30,7 +30,7 @@ fn object_arg_owned() {
 #[itest]
 fn object_arg_borrowed() {
     with_objects(|manual, refc| {
-        let db = ClassDb::singleton();
+        let db = ClassDb::one();
         let a = db.class_set_property(&manual, "name", &Variant::from("hello"));
         let b = db.class_set_property(&refc, "value", &Variant::from(-123));
         (a, b)
@@ -40,7 +40,7 @@ fn object_arg_borrowed() {
 #[itest]
 fn object_arg_borrowed_mut() {
     with_objects(|mut manual, mut refc| {
-        let db = ClassDb::singleton();
+        let db = ClassDb::one();
 
         let manual_ref = &mut manual;
         let refc_ref = &mut refc;
@@ -55,7 +55,7 @@ fn object_arg_borrowed_mut() {
 #[itest]
 fn object_arg_option_owned() {
     with_objects(|manual, refc| {
-        let db = ClassDb::singleton();
+        let db = ClassDb::one();
         let a = db.class_set_property(Some(manual), "name", &Variant::from("hello"));
         let b = db.class_set_property(Some(refc), "value", &Variant::from(-123));
         (a, b)
@@ -66,7 +66,7 @@ fn object_arg_option_owned() {
 #[itest]
 fn object_arg_option_borrowed() {
     with_objects(|manual, refc| {
-        let db = ClassDb::singleton();
+        let db = ClassDb::one();
         let a = db.class_set_property(Some(&manual), "name", &Variant::from("hello"));
         let b = db.class_set_property(Some(&refc), "value", &Variant::from(-123));
         (a, b)
@@ -77,7 +77,7 @@ fn object_arg_option_borrowed() {
 #[itest]
 fn object_arg_option_borrowed_outer() {
     with_objects(|manual, refc| {
-        let db = ClassDb::singleton();
+        let db = ClassDb::one();
         let a = db.class_set_property(&Some(manual), "name", &Variant::from("hello"));
         let b = db.class_set_property(&Some(refc), "value", &Variant::from(-123));
         (a, b)
@@ -90,7 +90,7 @@ fn object_arg_option_borrowed_mut() {
     // If you have an Option<&mut Gd<T>>, you can use as_deref() to get Option<&Gd<T>>.
 
     with_objects(|mut manual, mut refc| {
-        let db = ClassDb::singleton();
+        let db = ClassDb::one();
 
         let manual_opt: Option<&mut Gd<Node>> = Some(&mut manual);
         let refc_opt: Option<&mut Gd<RefcPayload>> = Some(&mut refc);
@@ -107,7 +107,7 @@ fn object_arg_option_none() {
     let refc: Option<Gd<RefcPayload>> = None;
 
     // Will emit errors but should not crash.
-    let db = ClassDb::singleton();
+    let db = ClassDb::one();
     let error = db.class_set_property(manual.as_ref(), "name", &Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
@@ -118,7 +118,7 @@ fn object_arg_option_none() {
 #[itest]
 fn object_arg_null_arg() {
     // Will emit errors but should not crash.
-    let db = ClassDb::singleton();
+    let db = ClassDb::one();
     let error = db.class_set_property(Gd::null_arg(), "name", &Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
@@ -134,14 +134,14 @@ fn object_arg_owned_default_params() {
     let b = ResourceFormatLoader::new_gd();
 
     // Use direct and explicit _ex() call syntax.
-    ResourceLoader::singleton().add_resource_format_loader(&a);
-    ResourceLoader::singleton()
+    ResourceLoader::one().add_resource_format_loader(&a);
+    ResourceLoader::one()
         .add_resource_format_loader_ex(&b)
         .done();
 
     // Clean up (no leaks).
-    ResourceLoader::singleton().remove_resource_format_loader(&a);
-    ResourceLoader::singleton().remove_resource_format_loader(&b);
+    ResourceLoader::one().remove_resource_format_loader(&a);
+    ResourceLoader::one().remove_resource_format_loader(&b);
 }
 
 // Gd<RefCounted> passed to GDScript should not create unnecessary clones.

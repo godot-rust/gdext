@@ -15,7 +15,7 @@ use crate::classes::ClassDb;
 use crate::init::InitLevel;
 use crate::meta::error::FromGodotError;
 use crate::meta::ClassName;
-use crate::obj::{cap, DynGd, Gd, GodotClass};
+use crate::obj::{cap, DynGd, Gd, GodotClass, Singleton};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
@@ -390,7 +390,7 @@ where
     let relations_iter = relations.iter().filter_map(|implementor| {
         // TODO – check if caching it (using is_derived_base_cached) yields any benefits.
         if implementor.parent_class_name? == T::class_name()
-            || ClassDb::singleton().is_parent_class(
+            || ClassDb::one().is_parent_class(
                 &implementor.parent_class_name?.to_string_name(),
                 &T::class_name().to_string_name(),
             )

@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use godot::builtin::{vslice, Array, Callable, GString, Variant, VariantArray};
 use godot::classes::{Engine, Node, Os};
 use godot::global::godot_error;
-use godot::obj::Gd;
+use godot::obj::{Gd, Singleton};
 use godot::register::{godot_api, GodotClass};
 
 use super::AsyncRustTestCase;
@@ -159,7 +159,7 @@ impl IntegrationTests {
 
     fn warn_if_debug(&self) {
         let rust_debug = cfg!(debug_assertions);
-        let godot_debug = Os::singleton().is_debug_build();
+        let godot_debug = Os::one().is_debug_build();
 
         let what = match (rust_debug, godot_debug) {
             (true, true) => Some("both Rust and Godot engine use debug builds"),
@@ -264,7 +264,7 @@ impl IntegrationTests {
             let result = std::panic::catch_unwind(|| test.call("run", &[]));
 
             // In case a test needs to disable error messages, to ensure it runs properly.
-            Engine::singleton().set_print_error_messages(true);
+            Engine::one().set_print_error_messages(true);
 
             if let Some(duration) = get_execution_time(&test) {
                 extra_duration += duration;

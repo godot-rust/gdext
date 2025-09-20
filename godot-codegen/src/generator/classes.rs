@@ -84,6 +84,7 @@ struct Construction {
     construct_doc: &'static str,
     final_doc: Option<&'static str>,
     godot_default_impl: TokenStream,
+    singleton_impl: TokenStream,
 }
 
 fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClass {
@@ -106,6 +107,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         construct_doc,
         final_doc,
         godot_default_impl,
+        singleton_impl,
     } = make_constructor_and_default(class, ctx);
 
     let mut extended_class_doc = construct_doc.replace("Self", &class_name.rust_ty.to_string());
@@ -267,6 +269,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
             )*
 
             #godot_default_impl
+            #singleton_impl
             #deref_impl
             #inherits_macro_code
         }
@@ -432,16 +435,13 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
         // As long as the user has multiple Gd smart pointers to the same singletons, only the internal raw pointers are aliased.
         // See also Deref/DerefMut impl for Gd.
         constructor = quote! {
+            #[deprecated = "Migrate to `Singleton::one()` (associated trait function)."]
             pub fn singleton() -> Gd<Self> {
-                unsafe {
-                    let __class_name = #godot_class_stringname;
-                    let __object_ptr = sys::interface_fn!(global_get_singleton)(__class_name.string_sys());
-                    Gd::from_obj_sys(__object_ptr)
-                }
+                <Self as crate::obj::Singleton>::one()
             }
         };
         construct_doc = "# Singleton\n\n\
-            This class is a singleton. You can get the one instance using [`Self::singleton()`][Self::singleton].";
+            This class is a singleton. You can get the one instance using [`Singleton::one()`][crate::obj::Singleton::one].";
         has_godot_default_impl = false;
     } else if !class.is_instantiable {
         // Abstract base classes or non-singleton classes without constructor.
@@ -488,11 +488,26 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
         TokenStream::new()
     };
 
+    let singleton_impl = if ctx.is_singleton(class_name) {
+        let class_name = &class.name().rust_ty;
+        quote! {
+            impl crate::obj::Singleton for #class_name {
+                fn one() -> crate::obj::Gd<Self> {
+                    // SAFETY: Class name matches type T, per code generator.
+                    unsafe { crate::classes::singleton_unchecked(&#godot_class_stringname) }
+                }
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
+
     Construction {
         constructor,
         construct_doc,
         final_doc,
         godot_default_impl,
+        singleton_impl,
     }
 }
 
@@ -572,8 +587,6 @@ fn make_class_method_definition(
     let FnDirection::Outbound { hash } = method.direction() else {
         return FnDefinition::none();
     };
-
-    // Note: parameter type replacements (int -> enum) are already handled during domain mapping.
 
     let rust_class_name = class.name().rust_ty.to_string();
     let rust_method_name = method.name();

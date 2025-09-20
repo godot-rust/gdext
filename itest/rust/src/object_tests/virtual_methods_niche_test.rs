@@ -12,6 +12,7 @@ use godot::classes::{
     BoxMesh, IResourceFormatLoader, IRigidBody2D, InputEvent, InputEventAction,
     ResourceFormatLoader, ResourceLoader, Viewport, Window,
 };
+use godot::obj::Singleton;
 use godot::prelude::*;
 
 use crate::framework::{itest, TestContext};
@@ -98,7 +99,7 @@ impl CollisionObject2DTest {
 fn test_format_loader(_test_context: &TestContext) {
     let format_loader = FormatLoaderTest::new_gd();
 
-    let mut loader = ResourceLoader::singleton();
+    let mut loader = ResourceLoader::one();
     loader
         .add_resource_format_loader_ex(&format_loader)
         .at_front(true)

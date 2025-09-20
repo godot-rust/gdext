@@ -16,7 +16,7 @@ use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 use godot_ffi as sys;
 
 use crate::godot_error;
-use crate::obj::{Base, Gd, GodotClass, Inherits};
+use crate::obj::{Base, Gd, GodotClass, Inherits, Singleton};
 use crate::storage::log_pre_drop;
 
 #[derive(Copy, Clone, Debug)]
@@ -302,7 +302,7 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
         // In Release mode, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
         if cfg!(debug_assertions) {
             let error = crate::builtin::GString::from(&error);
-            crate::classes::Os::singleton().crash(&error);
+            crate::classes::Os::one().crash(&error);
         } else {
             leak_rust_object = true;
             godot_error!("{}", error);

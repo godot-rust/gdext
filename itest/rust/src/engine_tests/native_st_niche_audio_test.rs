@@ -19,7 +19,7 @@ use godot::classes::{
     AudioStreamGeneratorPlayback, AudioStreamPlayer, Engine, IAudioEffect, IAudioEffectInstance,
     SceneTree,
 };
-use godot::obj::{Base, Gd, NewAlloc, NewGd};
+use godot::obj::{Base, Gd, NewAlloc, NewGd, Singleton};
 use godot::register::{godot_api, GodotClass};
 
 use crate::framework::itest;
@@ -101,7 +101,7 @@ fn native_audio_structure_out_parameter() {
     let receiver = AudioEffectReceiver::new_gd().upcast::<AudioEffect>();
     let asserter = AudioEffectAsserter::new_gd().upcast::<AudioEffect>();
 
-    let mut audio_server = AudioServer::singleton();
+    let mut audio_server = AudioServer::one();
 
     // Add both effects to the audio bus so they get called during audio processing.
     audio_server.add_bus_effect(0, &receiver);
@@ -110,10 +110,7 @@ fn native_audio_structure_out_parameter() {
     let generator = AudioStreamGenerator::new_gd();
     let mut player = AudioStreamPlayer::new_alloc();
 
-    let tree = Engine::singleton()
-        .get_main_loop()
-        .unwrap()
-        .cast::<SceneTree>();
+    let tree = Engine::one().get_main_loop().unwrap().cast::<SceneTree>();
 
     tree.get_root().unwrap().add_child(&player);
     player.set_stream(&generator);
