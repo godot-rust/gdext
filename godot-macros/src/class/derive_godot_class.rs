@@ -680,7 +680,7 @@ fn parse_fields(
 
         // #[export]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export")? {
-            let export = FieldExport::new_from_kv(&mut parser)?;
+            let export = FieldExport::new_from_kv(&mut parser, named_field.ty.clone())?;
             field.export = Some(export);
             parser.finish()?;
         }

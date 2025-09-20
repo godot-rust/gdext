@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, ExtVariantType, GdextBuild, GodotFfi};
+use godot_ffi::{ffi_methods, ExtVariantType, GodotFfi};
 
 use super::{GString, StringName};
 use crate::builtin::inner;
@@ -160,7 +160,7 @@ impl NodePath {
     pub fn subpath(&self, range: impl SignedRange) -> NodePath {
         let (from, exclusive_end) = range.signed();
         // Polyfill for bug https://github.com/godotengine/godot/pull/100954, fixed in 4.4.
-        let begin = if GdextBuild::since_api("4.4") {
+        let begin = if sys::GdextBuild::since_api("4.4") {
             from
         } else {
             let name_count = self.get_name_count() as i64;

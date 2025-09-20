@@ -177,10 +177,11 @@ where
         // String formatting by itself is an infallible operation.
         // Read more at: https://doc.rust-lang.org/stable/std/fmt/index.html#formatting-traits
         write!(&mut result, "{first}", first = format_elem(&first))
-            .expect("Formatter should not fail!");
+            .expect("formatter should not fail");
+
         for item in iter {
             write!(&mut result, "{sep}{item}", item = format_elem(&item))
-                .expect("Formatter should not fail!");
+                .expect("formatter should not fail");
         }
     }
     result

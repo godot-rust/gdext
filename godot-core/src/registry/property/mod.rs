@@ -17,6 +17,9 @@ use crate::global::PropertyHint;
 use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 use crate::obj::{EngineEnum, GodotClass};
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Child modules
+
 mod phantom_var;
 
 pub use phantom_var::PhantomVar;
@@ -229,6 +232,9 @@ where
 /// Each function is named the same as the equivalent Godot annotation.  
 /// For instance, `@export_range` in Godot is `fn export_range` here.
 pub mod export_info_functions {
+    use std::fmt;
+    use std::fmt::Write;
+
     use godot_ffi::VariantType;
 
     use crate::builtin::GString;
@@ -236,11 +242,12 @@ pub mod export_info_functions {
     use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
     use crate::obj::EngineEnum;
     use crate::registry::property::Export;
+    use crate::{godot_str, sys};
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
     macro_rules! comma_separate_boolean_idents {
-        ($( $ident:ident),* $(,)?) => {
+        ($( $ident:ident ),* $(,)?) => {
             {
                 let mut strings = Vec::new();
 
@@ -261,24 +268,26 @@ pub mod export_info_functions {
     /// You'll never call this function itself, but will instead use the macro `#[export(range=(...))]`, as below.  The syntax is
     /// very similar to Godot's [`@export_range`](https://docs.godotengine.org/en/stable/classes/class_%40gdscript.html#class-gdscript-annotation-export-range).
     /// `min`, `max`, and `step` are `f32` positional arguments, with `step` being optional and defaulting to `1.0`.  The rest of
-    /// the arguments can be written in any order.  The symbols of type `bool` just need to have those symbols written, and those of type `Option<T>` will be written as `{KEY}={VALUE}`, e.g. `suffix="px"`.
+    /// the arguments can be written in any order.  The symbols of type `bool` just need to have those symbols written, and those of type
+    /// `Option<T>` will be written as `{KEY}={VALUE}`, e.g. `suffix="px"`.
     ///
     /// ```
     /// # use godot::prelude::*;
     /// #[derive(GodotClass)]
     /// #[class(init, base=Node)]
     /// struct MyClassWithRangedValues {
-    ///     #[export(range=(0.0, 400.0, 1.0, or_greater, suffix="px"))]
+    ///     #[export(range=(0, 400, 1, or_greater, suffix="px"))]
     ///     icon_width: i32,
+    ///
     ///     #[export(range=(-180.0, 180.0, degrees))]
     ///     angle: f32,
     /// }
     /// ```
     #[allow(clippy::too_many_arguments)]
-    pub fn export_range(
-        min: f64,
-        max: f64,
-        step: Option<f64>,
+    pub fn export_range<T: Export + fmt::Display>(
+        min: T,
+        max: T,
+        step: Option<T>,
         or_greater: bool,
         or_less: bool,
         exp: bool,
@@ -307,10 +316,10 @@ pub mod export_info_functions {
 
         let mut hint_string = hint_beginning;
         if !rest.is_empty() {
-            hint_string.push_str(&format!(",{rest}"));
+            write!(hint_string, ",{rest}").unwrap();
         }
         if let Some(suffix) = suffix {
-            hint_string.push_str(&format!(",suffix:{suffix}"));
+            write!(hint_string, ",suffix:{suffix}").unwrap();
         }
 
         PropertyHintInfo {
@@ -319,6 +328,7 @@ pub mod export_info_functions {
         }
     }
 
+    // See also godot-macros > c_style_enum.rs; some code duplication.
     #[doc(hidden)]
     pub struct ExportValueWithKey<T> {
         variant: String,
@@ -339,15 +349,11 @@ pub mod export_info_functions {
         where
             for<'a> &'a V: Into<Self>,
         {
-            let values = values
-                .iter()
-                .map(|v| v.into().as_hint_string())
-                .collect::<Vec<_>>();
-
-            values.join(",")
+            sys::join_with(values.iter(), ",", |v| (*v).into().as_hint_string())
         }
     }
 
+    /// Allows syntax `("name", None)` and `("name", Some(10))`.
     impl<T, S> From<&(S, Option<T>)> for ExportValueWithKey<T>
     where
         T: Clone,
@@ -355,7 +361,7 @@ pub mod export_info_functions {
     {
         fn from((variant, key): &(S, Option<T>)) -> Self {
             Self {
-                variant: variant.as_ref().into(),
+                variant: variant.as_ref().to_string(),
                 key: key.clone(),
             }
         }
@@ -493,14 +499,14 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(&format!("{hint_string}:{filter}")),
+            hint_string: godot_str!("{hint_string}:{filter}"),
         }
     }
 
-    pub fn export_placeholder<S: AsRef<str>>(placeholder: S) -> PropertyHintInfo {
+    pub fn export_placeholder(placeholder: &str) -> PropertyHintInfo {
         PropertyHintInfo {
             hint: PropertyHint::PLACEHOLDER_TEXT,
-            hint_string: GString::from(placeholder.as_ref()),
+            hint_string: GString::from(placeholder),
         }
     }
 
@@ -544,6 +550,12 @@ mod export_impls {
             impl_property_by_godot_convert!(@property $Ty);
         };
 
+        ($Ty:ty, limit_range) => {
+            impl_property_by_godot_convert!(@property $Ty);
+            impl_property_by_godot_convert!(@export_range $Ty);
+            impl_property_by_godot_convert!(@builtin $Ty);
+        };
+
         ($Ty:ty) => {
             impl_property_by_godot_convert!(@property $Ty);
             impl_property_by_godot_convert!(@export $Ty);
@@ -566,6 +578,14 @@ mod export_impls {
             impl Export for $Ty {
                 fn export_hint() -> PropertyHintInfo {
                     PropertyHintInfo::type_name::<$Ty>()
+                }
+            }
+        };
+
+        (@export_range $Ty:ty) => {
+            impl Export for $Ty {
+                fn export_hint() -> PropertyHintInfo {
+                    PropertyHintInfo::type_name_range(<$Ty>::MIN, <$Ty>::MAX)
                 }
             }
         };
@@ -618,16 +638,14 @@ mod export_impls {
     // then the property will just round the value or become inf.
     impl_property_by_godot_convert!(f32);
 
-    // Godot uses i64 internally for integers, and if Godot tries to pass an invalid integer into a property
-    // accepting one of the below values then rust will panic. In the editor this will appear as the property
-    // failing to be set to a value and an error printed in the console. During runtime this will crash the
-    // program and print the panic from rust stating that the property cannot store the value.
-    impl_property_by_godot_convert!(i32);
-    impl_property_by_godot_convert!(i16);
-    impl_property_by_godot_convert!(i8);
-    impl_property_by_godot_convert!(u32);
-    impl_property_by_godot_convert!(u16);
-    impl_property_by_godot_convert!(u8);
+    // Godot uses i64 internally for integers. We use the @export_range hints to limit the integers to a sub-range of i64, so the editor UI
+    // can only set the respective values. If values are assigned in other ways (e.g. GDScript), a panic may occur, causing a Godot error.
+    impl_property_by_godot_convert!(i32, limit_range);
+    impl_property_by_godot_convert!(i16, limit_range);
+    impl_property_by_godot_convert!(i8, limit_range);
+    impl_property_by_godot_convert!(u32, limit_range);
+    impl_property_by_godot_convert!(u16, limit_range);
+    impl_property_by_godot_convert!(u8, limit_range);
 
     // Callables and Signals are useless when exported to the editor, so we only need to make them available as
     // properties.
