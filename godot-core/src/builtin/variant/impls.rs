@@ -22,12 +22,10 @@ use crate::task::{impl_dynamic_send, DynamicSend, IntoDynamicSend, ThreadConfine
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macro definitions
 
-// Certain types need to be passed as initialized pointers in their from_variant implementations in 4.0. Because
-// 4.0 uses `*ptr = value` to return the type, and some types in C++ override `operator=` in C++ in a way
-// that requires the pointer to be initialized. But some other types will cause a memory leak in 4.1 if initialized.
-//
-// Therefore, we can use `init` to indicate when it must be initialized in 4.0.
-// TODO(v0.4): see if above comment is still relevant for 4.2+.
+// Historical note: In Godot 4.0, certain types needed to be passed as initialized pointers in their from_variant implementations, because
+// 4.0 used `*ptr = value` to return the type, and some types in C++ override `operator=` in a way that requires the pointer to be initialized.
+// However, those same types would cause memory leaks in Godot 4.1 if pre-initialized. A compat layer `new_with_uninit_or_init()` addressed this.
+// As these Godot versions are no longer supported, the current implementation uses `new_with_uninit()` uniformly for all versions.
 macro_rules! impl_ffi_variant {
     (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
         impl_ffi_variant!(@impls by_ref; $T, $from_fn, $to_fn $(; $GodotTy)?);

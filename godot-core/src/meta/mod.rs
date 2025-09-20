@@ -37,10 +37,11 @@
 //! ## Argument conversions
 //!
 //! Rust does not support implicit conversions, however it has something very close: the `impl Into<T>` idiom, which can be used to convert
-//! "T-compatible" arguments into `T`. This library specializes this idea with two traits:
+//! "T-compatible" arguments into `T`.
 //!
-//! - [`AsArg<T>`] allows argument conversions from arguments into `T`. This is most interesting in the context of strings (so you can pass
-//!   `&str` to a function expecting `GString`), but is generic to support object arguments like `Gd<T>` and array insertion.
+//! This library specializes this idea with the trait [`AsArg<T>`]. `AsArg` allows argument conversions from arguments into `T`.
+//! This is most interesting in the context of strings (so you can pass `&str` to a function expecting `GString`) and objects (pass
+//! `&Gd<Node2D>` to a function expecting `Node2D` objects).
 
 mod args;
 mod class_id;
