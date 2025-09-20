@@ -14,7 +14,7 @@ use sys::{static_assert_eq_size_align, SysPtr as _};
 use crate::builtin::{Callable, GString, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, AsArg, CallContext, ClassName, CowArg, FromGodot, GodotConvert, GodotType,
+    ArrayElement, AsArg, CallContext, ClassName, FromGodot, GodotConvert, GodotType,
     PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
@@ -816,22 +816,7 @@ where
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
     pub fn null_arg() -> impl AsArg<Option<Gd<T>>> {
-        // Anonymous struct that creates None for optional object arguments.
-        struct NullGdArg<T>(std::marker::PhantomData<*mut T>);
-
-        impl<T> AsArg<Option<Gd<T>>> for NullGdArg<T>
-        where
-            T: GodotClass,
-        {
-            fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<T>>>
-            where
-                Self: 'arg,
-            {
-                CowArg::Owned(None)
-            }
-        }
-
-        NullGdArg(std::marker::PhantomData)
+        meta::NullArg(std::marker::PhantomData)
     }
 }
 

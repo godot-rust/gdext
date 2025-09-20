@@ -403,6 +403,13 @@ where
     pub fn into_gd(self) -> Gd<T> {
         self.obj
     }
+
+    /// Represents `null` when passing a dynamic object argument to Godot.
+    ///
+    /// See [`Gd::null_arg()`]
+    pub fn null_arg() -> impl meta::AsArg<Option<DynGd<T, D>>> {
+        meta::NullArg(std::marker::PhantomData)
+    }
 }
 
 impl<T, D> DynGd<T, D>
@@ -603,6 +610,16 @@ where
     fn element_type_string() -> String {
         let hint_string = get_dyn_property_hint_string::<T, D>();
         object_export_element_type_string::<T>(hint_string)
+    }
+}
+
+impl<T, D> meta::ArrayElement for Option<DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized + 'static,
+{
+    fn element_type_string() -> String {
+        DynGd::<T, D>::element_type_string()
     }
 }
 
