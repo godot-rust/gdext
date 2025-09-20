@@ -13,7 +13,7 @@ use crate::meta::{element_godot_type_name, ArrayElement, ClassId, GodotType, Pac
 use crate::obj::{bounds, Bounds, EngineBitfield, EngineEnum, GodotClass};
 use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
-use crate::{classes, sys};
+use crate::{classes, godot_str, sys};
 
 /// Describes a property in Godot.
 ///
@@ -295,6 +295,13 @@ impl PropertyHintInfo {
         Self {
             hint: PropertyHint::NONE,
             hint_string,
+        }
+    }
+
+    pub fn type_name_range<T: GodotType + std::fmt::Display>(lower: T, upper: T) -> Self {
+        Self {
+            hint: PropertyHint::RANGE,
+            hint_string: godot_str!("{lower},{upper}"), // also valid for <4.3.
         }
     }
 

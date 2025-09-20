@@ -96,8 +96,13 @@ fn signal_symbols_external() {
         });
     }
 
-    // Self-modifying method.
-    sig.connect_self(Emitter::self_receive);
+    // Self-modifying method. Have 2 branches just to ensure they compile.
+    if std::hint::black_box(true) {
+        sig.connect_self(Emitter::self_receive);
+    } else {
+        // Needs explicit type here.
+        sig.connect_self(|this: &mut Emitter, i| this.self_receive(i));
+    }
 
     // Connect to other object.
     let receiver = Receiver::new_alloc();
