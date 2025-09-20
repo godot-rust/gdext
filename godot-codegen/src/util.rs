@@ -41,7 +41,7 @@ pub fn c_str(string: &str) -> Literal {
 pub fn make_string_name(identifier: &str) -> TokenStream {
     let lit = c_str(identifier);
 
-    quote! { StringName::from(#lit) }
+    quote! { StringName::__static_cstr(#lit) }
 }
 
 pub fn make_sname_ptr(identifier: &str) -> TokenStream {
