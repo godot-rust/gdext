@@ -32,7 +32,7 @@ impl Node {
         self.try_get_node_as(path).unwrap_or_else(|| {
             panic!(
                 "There is no node of type {ty} at path `{path}`",
-                ty = T::class_name()
+                ty = T::class_id()
             )
         })
     }
@@ -66,7 +66,7 @@ impl PackedScene {
         T: Inherits<Node>,
     {
         self.try_instantiate_as::<T>()
-            .unwrap_or_else(|| panic!("Failed to instantiate {to}", to = T::class_name()))
+            .unwrap_or_else(|| panic!("Failed to instantiate {to}", to = T::class_id()))
     }
 
     /// Instantiates the scene as type `T` (fallible).

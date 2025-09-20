@@ -22,11 +22,11 @@ pub struct ObjectRtti {
 
     /// Only in Debug mode: dynamic class.
     #[cfg(debug_assertions)]
-    class_name: crate::meta::ClassName,
+    class_name: crate::meta::ClassId,
     //
-    // TODO(bromeon): class_name is not always most-derived class; ObjectRtti is sometimes constructed from a base class, via RawGd::from_obj_sys_weak().
+    // TODO(bromeon): class_id is not always most-derived class; ObjectRtti is sometimes constructed from a base class, via RawGd::from_obj_sys_weak().
     // Examples: after upcast, when receiving Gd<Base> from Godot, etc.
-    // Thus, dynamic lookup via Godot get_class() is needed. However, this returns a String, and ClassName is 'static + Copy right now.
+    // Thus, dynamic lookup via Godot get_class() is needed. However, this returns a String, and ClassId is 'static + Copy right now.
 }
 
 impl ObjectRtti {
@@ -37,7 +37,7 @@ impl ObjectRtti {
             instance_id,
 
             #[cfg(debug_assertions)]
-            class_name: T::class_name(),
+            class_name: T::class_id(),
         }
     }
 
@@ -48,7 +48,7 @@ impl ObjectRtti {
     #[inline]
     pub fn check_type<T: GodotClass>(&self) -> InstanceId {
         #[cfg(debug_assertions)]
-        crate::classes::ensure_object_inherits(self.class_name, T::class_name(), self.instance_id);
+        crate::classes::ensure_object_inherits(self.class_name, T::class_id(), self.instance_id);
 
         self.instance_id
     }

@@ -17,7 +17,7 @@ use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{
-    element_godot_type_name, element_variant_type, ArrayElement, AsArg, ClassName, ElementType,
+    element_godot_type_name, element_variant_type, ArrayElement, AsArg, ClassId, ElementType,
     ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, PropertyHintInfo, RefArg,
     ToGodot,
 };
@@ -1038,7 +1038,7 @@ impl<T: ArrayElement> Array<T> {
         if let (ElementType::ScriptClass(_), ElementType::Class(expected_class)) =
             (&self_ty, &target_ty)
         {
-            if let Some(actual_base_class) = self_ty.class_name() {
+            if let Some(actual_base_class) = self_ty.class_id() {
                 if actual_base_class == *expected_class {
                     return Ok(self);
                 }
@@ -1073,8 +1073,8 @@ impl<T: ArrayElement> Array<T> {
             // A bit contrived because empty StringName is lazy-initialized but must also remain valid.
             #[allow(unused_assignments)]
             let mut empty_string_name = None;
-            let class_name = if let Some(class_name) = elem_ty.class_name() {
-                class_name.string_sys()
+            let class_name = if let Some(class_id) = elem_ty.class_id() {
+                class_id.string_sys()
             } else {
                 empty_string_name = Some(StringName::default());
                 // as_ref() crucial here -- otherwise the StringName is dropped.
@@ -1297,7 +1297,7 @@ where
     }
 
     #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
 }
@@ -1315,7 +1315,7 @@ where
     }
 
     #[doc(hidden)]
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
     }
 }

@@ -43,7 +43,7 @@
 //!   `&str` to a function expecting `GString`), but is generic to support object arguments like `Gd<T>` and array insertion.
 
 mod args;
-mod class_name;
+mod class_id;
 mod element_type;
 mod godot_convert;
 mod method_info;
@@ -61,7 +61,8 @@ pub(crate) mod signed_range;
 
 // Public re-exports
 pub use args::*;
-pub use class_name::ClassName;
+#[expect(deprecated)]
+pub use class_id::{ClassId, ClassName};
 pub use element_type::{ElementScript, ElementType};
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use method_info::MethodInfo;
@@ -95,7 +96,7 @@ pub(crate) use reexport_crate::*;
 /// Clean up various resources at end of usage.
 ///
 /// # Safety
-/// Must not use meta facilities (e.g. `ClassName`) after this call.
+/// Must not use meta facilities (e.g. `ClassId`) after this call.
 pub(crate) unsafe fn cleanup() {
-    class_name::cleanup();
+    class_id::cleanup();
 }

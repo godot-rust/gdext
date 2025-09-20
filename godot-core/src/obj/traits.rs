@@ -11,7 +11,7 @@ use crate::builder::ClassBuilder;
 use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::inspect::EnumConstant;
-use crate::meta::ClassName;
+use crate::meta::ClassId;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
@@ -34,10 +34,15 @@ where
     /// The immediate superclass of `T`. This is always a Godot engine class.
     type Base: GodotClass; // not EngineClass because it can be ()
 
-    /// The name of the class, under which it is registered in Godot.
+    /// Globally unique class ID, linked to the name under which the class is registered in Godot.
     ///
-    /// This may deviate from the Rust struct name: `HttpRequest::class_name().as_str() == "HTTPRequest"`.
-    fn class_name() -> ClassName;
+    /// The name may deviate from the Rust struct name: `HttpRequest::class_id().as_str() == "HTTPRequest"`.
+    fn class_id() -> ClassId;
+
+    #[deprecated = "Renamed to `class_id()`"]
+    fn class_name() -> ClassId {
+        Self::class_id()
+    }
 
     /// Initialization level, during which this class should be initialized with Godot.
     ///
@@ -45,18 +50,18 @@ where
     /// It must not be less than `Base::INIT_LEVEL`.
     const INIT_LEVEL: InitLevel = <Self::Base as GodotClass>::INIT_LEVEL;
 
-    /// Returns whether `Self` inherits from `U`.
+    /// Returns whether `Self` inherits from `Base`.
     ///
     /// This is reflexive, i.e `Self` inherits from itself.
     ///
     /// See also [`Inherits`] for a trait bound.
-    fn inherits<U: GodotClass>() -> bool {
-        if Self::class_name() == U::class_name() {
+    fn inherits<Base: GodotClass>() -> bool {
+        if Self::class_id() == Base::class_id() {
             true
-        } else if Self::Base::class_name() == <NoBase>::class_name() {
+        } else if Self::Base::class_id() == <NoBase>::class_id() {
             false
         } else {
-            Self::Base::inherits::<U>()
+            Self::Base::inherits::<Base>()
         }
     }
 }
@@ -71,8 +76,8 @@ pub enum NoBase {}
 impl GodotClass for NoBase {
     type Base = NoBase;
 
-    fn class_name() -> ClassName {
-        ClassName::none()
+    fn class_id() -> ClassId {
+        ClassId::none()
     }
 
     const INIT_LEVEL: InitLevel = InitLevel::Core; // arbitrary; never read.

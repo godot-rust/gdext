@@ -23,7 +23,7 @@ use crate::sys;
 /// _Varcall_ refers to the "variant call" calling convention, meaning that arguments and return values are passed as `Variant` (as opposed
 /// to _ptrcall_, which passes direct pointers to Rust objects).
 ///
-/// Allows to inspect the involved class and method via `class_name()` and `method_name()`. Implements the `std::error::Error` trait, so
+/// Allows to inspect the involved class and method via `class_id()` and `method_name()`. Implements the `std::error::Error` trait, so
 /// it comes with `Display` and `Error::source()` APIs.
 ///
 /// # Possible error causes

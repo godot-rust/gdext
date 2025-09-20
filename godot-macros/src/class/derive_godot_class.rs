@@ -60,9 +60,9 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     // so we can't cause a compile error if Unicode is used before Godot 4.4. However, this causes a runtime error at startup.
     let class_name_allocation = if class_name_str.is_ascii() {
         let c_str = util::c_str(&class_name_str);
-        quote! { ClassName::__alloc_next_ascii(#c_str) }
+        quote! { ClassId::__alloc_next_ascii(#c_str) }
     } else {
-        quote! { ClassName::__alloc_next_unicode(#class_name_str) }
+        quote! { ClassId::__alloc_next_unicode(#class_name_str) }
     };
 
     if struct_cfg.is_internal {
@@ -166,14 +166,14 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             type Base = #base_class;
 
             // Code duplicated in godot-codegen.
-            fn class_name() -> ::godot::meta::ClassName {
-                use ::godot::meta::ClassName;
+            fn class_id() -> ::godot::meta::ClassId {
+                use ::godot::meta::ClassId;
 
                 // Optimization note: instead of lazy init, could use separate static which is manually initialized during registration.
-                static CLASS_NAME: std::sync::OnceLock<ClassName> = std::sync::OnceLock::new();
+                static CLASS_ID: std::sync::OnceLock<ClassId> = std::sync::OnceLock::new();
 
-                let name: &'static ClassName = CLASS_NAME.get_or_init(|| #class_name_allocation);
-                *name
+                let id: &'static ClassId = CLASS_ID.get_or_init(|| #class_name_allocation);
+                *id
             }
         }
 

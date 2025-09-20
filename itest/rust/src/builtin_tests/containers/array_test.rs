@@ -641,7 +641,7 @@ fn array_element_type() {
         extension_class_array.element_type(),
         ElementType::Class(class_name),
     );
-    assert_eq!(class_name, ArrayTest::class_name());
+    assert_eq!(class_name, ArrayTest::class_id());
 }
 
 #[itest]

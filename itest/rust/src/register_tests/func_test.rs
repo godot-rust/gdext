@@ -346,12 +346,12 @@ fn cfg_removes_or_keeps_signals() {
 /// Checks at runtime if a class has a given method through [ClassDb].
 fn class_has_method<T: GodotClass>(name: &str) -> bool {
     ClassDb::singleton()
-        .class_has_method_ex(&T::class_name().to_string_name(), name)
+        .class_has_method_ex(&T::class_id().to_string_name(), name)
         .no_inheritance(true)
         .done()
 }
 
 /// Checks at runtime if a class has a given signal through [ClassDb].
 fn class_has_signal<T: GodotClass>(name: &str) -> bool {
-    ClassDb::singleton().class_has_signal(&T::class_name().to_string_name(), name)
+    ClassDb::singleton().class_has_signal(&T::class_id().to_string_name(), name)
 }

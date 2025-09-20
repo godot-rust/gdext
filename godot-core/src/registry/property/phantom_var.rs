@@ -10,7 +10,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
-use crate::meta::{ClassName, GodotConvert, GodotType, PropertyHintInfo};
+use crate::meta::{ClassId, GodotConvert, GodotType, PropertyHintInfo};
 use crate::registry::property::{Export, Var};
 
 /// A zero-sized type for creating a property without a backing field, accessible only through custom getter/setter functions.
@@ -83,7 +83,7 @@ impl<T: GodotType + Var + Export> Export for PhantomVar<T> {
         <T as Export>::export_hint()
     }
 
-    fn as_node_class() -> Option<ClassName> {
+    fn as_node_class() -> Option<ClassId> {
         <T as Export>::as_node_class()
     }
 }

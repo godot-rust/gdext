@@ -147,7 +147,7 @@ pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
 }
 
 #[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
-pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassName) -> Option<InherentImpl> {
+pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassId) -> Option<InherentImpl> {
     // We do this manually instead of using `iterate_plugins()` because we want to break as soon as we find a match.
     let plugins = __GODOT_PLUGIN_REGISTRY.lock().unwrap();
 

@@ -11,7 +11,7 @@ use std::{any, fmt};
 #[cfg(all(since_api = "4.3", feature = "register-docs"))]
 use crate::docs::*;
 use crate::init::InitLevel;
-use crate::meta::ClassName;
+use crate::meta::ClassId;
 use crate::obj::{bounds, cap, Bounds, DynGd, Gd, GodotClass, Inherits, UserClass};
 use crate::registry::callbacks;
 use crate::registry::class::GodotGetVirtual;
@@ -32,7 +32,7 @@ pub struct ClassPlugin {
     ///
     /// This is used to group plugins so that all class properties for a single class can be registered at the same time.
     /// Incorrectly setting this value should not cause any UB but will likely cause errors during registration time.
-    pub(crate) class_name: ClassName,
+    pub(crate) class_name: ClassId,
 
     /// Which [`InitLevel`] this plugin should be registered at.
     ///
@@ -49,7 +49,7 @@ impl ClassPlugin {
     /// Creates a new `ClassPlugin`, automatically setting the `class_name` and `init_level` to the values defined in [`GodotClass`].
     pub fn new<T: GodotClass>(item: PluginItem) -> Self {
         Self {
-            class_name: T::class_name(),
+            class_name: T::class_id(),
             init_level: T::INIT_LEVEL,
             item,
         }
@@ -144,7 +144,7 @@ pub struct Struct {
     /// The name of the base class in Godot.
     ///
     /// This must match [`GodotClass::Base`]'s class name.
-    pub(crate) base_class_name: ClassName,
+    pub(crate) base_class_name: ClassId,
 
     /// Godot low-level `create` function, wired up to library-generated `init`.
     ///
@@ -210,7 +210,7 @@ impl Struct {
         let refcounted = <T::Memory as bounds::Memory>::IS_REF_COUNTED;
 
         Self {
-            base_class_name: T::Base::class_name(),
+            base_class_name: T::Base::class_id(),
             generated_create_fn: None,
             generated_recreate_fn: None,
             register_properties_fn: ErasedRegisterFn {
@@ -530,7 +530,7 @@ impl ITraitImpl {
 #[derive(Clone, Debug)]
 pub struct DynTraitImpl {
     /// The class that this `dyn Trait` implementation corresponds to.
-    class_name: ClassName,
+    class_name: ClassId,
 
     /// Base inherited class required for `DynGd<T, D>` exports (i.e. one specified in `#[class(base = ...)]`).
     ///
@@ -540,7 +540,7 @@ pub struct DynTraitImpl {
     /// It is important to fill this information before registration.
     ///
     /// See also [`get_dyn_property_hint_string`][crate::registry::class::get_dyn_property_hint_string].
-    pub(crate) parent_class_name: Option<ClassName>,
+    pub(crate) parent_class_name: Option<ClassId>,
 
     /// TypeId of the `dyn Trait` object.
     dyn_trait_typeid: any::TypeId,
@@ -563,7 +563,7 @@ impl DynTraitImpl {
         D: ?Sized + 'static,
     {
         Self {
-            class_name: T::class_name(),
+            class_name: T::class_id(),
             parent_class_name: None,
             dyn_trait_typeid: std::any::TypeId::of::<D>(),
             erased_dynify_fn: callbacks::dynify_fn::<T, D>,
@@ -571,7 +571,7 @@ impl DynTraitImpl {
     }
 
     /// The class that this `dyn Trait` implementation corresponds to.
-    pub fn class_name(&self) -> &ClassName {
+    pub fn class_name(&self) -> &ClassId {
         &self.class_name
     }
 
@@ -582,7 +582,7 @@ impl DynTraitImpl {
 
     /// Convert a [`Gd<T>`] to a [`DynGd<T, D>`] using `self`.
     ///
-    /// This will fail with `Err(object)` if the dynamic class of `object` does not match the [`ClassName`] stored in `self`.
+    /// This will fail with `Err(object)` if the dynamic class of `object` does not match the [`ClassId`] stored in `self`.
     pub fn get_dyn_gd<T: GodotClass, D: ?Sized + 'static>(
         &self,
         object: Gd<T>,

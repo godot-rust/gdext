@@ -31,7 +31,7 @@ pub fn c_str(string: &str) -> Literal {
 
 pub fn class_name_obj(class: &impl ToTokens) -> TokenStream {
     let class = class.to_token_stream();
-    quote! { <#class as ::godot::obj::GodotClass>::class_name() }
+    quote! { <#class as ::godot::obj::GodotClass>::class_id() }
 }
 
 pub fn bail_fn<R, T>(msg: impl AsRef<str>, tokens: T) -> ParseResult<R>

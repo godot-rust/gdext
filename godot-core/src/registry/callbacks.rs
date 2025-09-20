@@ -98,7 +98,7 @@ where
     T: GodotClass,
     F: FnOnce(Base<T::Base>) -> T,
 {
-    let base_class_name = T::Base::class_name();
+    let base_class_name = T::Base::class_id();
     let base_ptr = unsafe { sys::classdb_construct_object(base_class_name.string_sys()) };
 
     let postinit = |base_ptr| {
@@ -140,7 +140,7 @@ where
     F: FnOnce(Base<T::Base>) -> T,
     P: Fn(sys::GDExtensionObjectPtr),
 {
-    let class_name = T::class_name();
+    let class_name = T::class_id();
     //out!("create callback: {}", class_name.backing);
 
     let base = unsafe { Base::from_sys(base_ptr) };
