@@ -47,14 +47,6 @@ macro_rules! impl_vector_axis_enum {
                 }
             }
 
-            fn godot_name(&self) -> &'static str {
-                match *self {
-                    $(
-                        Self::$axis => concat!("AXIS_", stringify!($axis)),
-                    )+
-                }
-            }
-
             fn values() -> &'static [Self] {
                 // For vector axis enums, all values are distinct, so both are the same
                 &[
