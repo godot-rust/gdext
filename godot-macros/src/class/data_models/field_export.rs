@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
-use crate::util::{ident, KvParser, ListParser};
+use crate::util::{bail, ident, KvParser, ListParser};
 use crate::ParseResult;
 
 pub struct FieldExport {
@@ -72,7 +72,6 @@ pub enum ExportType {
         or_less: bool,
         exp: bool,
         radians_as_degrees: bool,
-        radians: bool,
         degrees: bool,
         hide_slider: bool,
         suffix: Option<TokenStream>,
@@ -331,11 +330,19 @@ impl ExportType {
             let key_maybe_value =
                 parser.next_allowed_key_optional_value(&FLAG_OPTIONS, &KV_OPTIONS)?;
             match key_maybe_value {
-                Some((option, None)) => {
-                    flags.insert(option.to_string());
+                Some((ident, None)) => {
+                    if ident == "radians" {
+                        return bail!(
+                            &ident,
+                            "#[export(range = (...))]: `radians` is broken in Godot and superseded by `radians_as_degrees`.\n\
+                            See https://github.com/godotengine/godot/pull/82195 for details."
+                        );
+                    }
+
+                    flags.insert(ident.to_string());
                 }
-                Some((option, Some(value))) => {
-                    kvs.insert(option.to_string(), value.expr()?);
+                Some((ident, Some(value))) => {
+                    kvs.insert(ident.to_string(), value.expr()?);
                 }
                 None => break,
             }
@@ -351,7 +358,6 @@ impl ExportType {
             or_less: flags.contains("or_less"),
             exp: flags.contains("exp"),
             radians_as_degrees: flags.contains("radians_as_degrees"),
-            radians: flags.contains("radians"),
             degrees: flags.contains("degrees"),
             hide_slider: flags.contains("hide_slider"),
             suffix: kvs.get("suffix").cloned(),
@@ -441,7 +447,6 @@ impl ExportType {
                 or_less,
                 exp,
                 radians_as_degrees,
-                radians,
                 degrees,
                 hide_slider,
                 suffix,
@@ -452,22 +457,9 @@ impl ExportType {
                     quote! { None }
                 };
                 let export_func = quote_export_func! {
-                    export_range(#min, #max, #step, #or_greater, #or_less, #exp, #radians_as_degrees || #radians, #degrees, #hide_slider, #suffix)
+                    export_range(#min, #max, #step, #or_greater, #or_less, #exp, #radians_as_degrees, #degrees, #hide_slider, #suffix)
                 }?;
-                let deprecation_warning = if *radians {
-                    // For some reason, rustfmt formatting like this.  Probably a bug.
-                    // See https://github.com/godot-rust/gdext/pull/783#discussion_r1669105958 and
-                    // https://github.com/rust-lang/rustfmt/issues/6233
-                    quote! {
-                    #export_func;
-                    ::godot::__deprecated::emit_deprecated_warning!(export_range_radians);
-                            }
-                } else {
-                    quote! { #export_func }
-                };
-                Some(quote! {
-                    #deprecation_warning
-                })
+                Some(export_func)
             }
 
             Self::Enum { variants } => {
