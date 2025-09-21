@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::ffi::CStr;
-
 use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::{GodotFfiVariant, GodotNullableFfi};
@@ -557,12 +555,6 @@ impl AsArg<StringName> for &str {
 }
 
 impl AsArg<StringName> for &String {
-    fn into_arg<'arg>(self) -> CowArg<'arg, StringName> {
-        CowArg::Owned(StringName::from(self))
-    }
-}
-
-impl AsArg<StringName> for &'static CStr {
     fn into_arg<'arg>(self) -> CowArg<'arg, StringName> {
         CowArg::Owned(StringName::from(self))
     }

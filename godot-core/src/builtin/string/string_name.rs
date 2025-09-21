@@ -4,10 +4,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::interface_fn;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::{inner, Encoding, GString, NodePath, Variant};
@@ -32,11 +32,6 @@ use crate::{impl_shared_string_api, meta};
 ///
 /// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and  \
 /// `"hello, world!\0 ignored by Godot"` will be treated as the same string if converted to a `StringName`.
-///
-/// # Performance
-///
-/// The fastest way to create string names is using [`static_name!`][crate::builtin::static_name], which creates a static cached `StringName` from null-terminated C-string literals such as `c"MyClass"`. These can be used directly by Godot without conversion. The encoding is limited to Latin-1, however. See the corresponding
-/// [`From<&CStr>` impl](#impl-From<%26CStr>-for-StringName).
 ///
 /// # All string types
 ///
@@ -88,7 +83,7 @@ impl StringName {
             let is_static = sys::conv::SYS_FALSE;
             let s = unsafe {
                 Self::new_with_string_uninit(|string_ptr| {
-                    let ctor = interface_fn!(string_name_new_with_latin1_chars);
+                    let ctor = sys::interface_fn!(string_name_new_with_latin1_chars);
                     ctor(
                         string_ptr,
                         cstr.as_ptr() as *const std::ffi::c_char,
@@ -248,6 +243,48 @@ impl StringName {
     pub fn as_inner(&self) -> inner::InnerStringName<'_> {
         inner::InnerStringName::from_outer(self)
     }
+
+    #[doc(hidden)] // Private for now. Needs API discussion, also regarding overlap with try_from_cstr().
+    pub fn __cstr(c_str: &'static std::ffi::CStr) -> Self {
+        // This used to be set to true, but `p_is_static` parameter in Godot should only be enabled if the result is indeed stored
+        // in a static. See discussion in https://github.com/godot-rust/gdext/pull/1316. We may unify this into a regular constructor,
+        // or provide a dedicated StringName cache (similar to ClassId cache) in the future, which would be freed on shutdown.
+        let is_static = false;
+
+        Self::__cstr_with_static(c_str, is_static)
+    }
+
+    /// Creates a `StringName` from a static ASCII/Latin-1 `c"string"`.
+    ///
+    /// If `is_static` is true, avoids unnecessary copies and allocations and directly uses the backing buffer. However, this must
+    /// be stored in an actual `static` to not cause leaks/error messages with Godot. For literals, use `is_static=false`.
+    ///
+    /// Note that while Latin-1 encoding is the most common encoding for c-strings, it isn't a requirement. So if your c-string
+    /// uses a different encoding (e.g. UTF-8), it is possible that some characters will not show up as expected.
+    ///
+    /// # Safety
+    /// `c_str` must be a static c-string that remains valid for the entire program duration.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::builtin::StringName;
+    ///
+    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
+    /// let sname = StringName::__cstr(c"\xb1 Latin-1 string");
+    /// ```
+    #[doc(hidden)] // Private for now. Needs API discussion, also regarding overlap with try_from_cstr().
+    pub fn __cstr_with_static(c_str: &'static std::ffi::CStr, is_static: bool) -> Self {
+        // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
+        unsafe {
+            Self::new_with_string_uninit(|ptr| {
+                sys::interface_fn!(string_name_new_with_latin1_chars)(
+                    ptr,
+                    c_str.as_ptr(),
+                    sys::conv::bool_to_sys(is_static),
+                )
+            })
+        }
+    }
 }
 
 // SAFETY:
@@ -351,35 +388,6 @@ impl From<&GString> for StringName {
 impl From<&NodePath> for StringName {
     fn from(path: &NodePath) -> Self {
         Self::from(&GString::from(path))
-    }
-}
-
-impl From<&std::ffi::CStr> for StringName {
-    /// Creates a `StringName` from a ASCII/Latin-1 `c"string"`.
-    ///
-    /// This avoids unnecessary copies and allocations and directly uses the backing buffer. Useful for literals.
-    ///
-    /// Note that while Latin-1 encoding is the most common encoding for c-strings, it isn't a requirement. So if your c-string
-    /// uses a different encoding (e.g. UTF-8), it is possible that some characters will not show up as expected.
-    ///
-    /// # Example
-    /// ```no_run
-    /// use godot::builtin::StringName;
-    ///
-    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
-    /// let sname = StringName::from(c"\xb1 Latin-1 string");
-    /// ```
-    fn from(c_str: &std::ffi::CStr) -> Self {
-        // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
-        unsafe {
-            Self::new_with_string_uninit(|ptr| {
-                sys::interface_fn!(string_name_new_with_latin1_chars)(
-                    ptr,
-                    c_str.as_ptr(),
-                    sys::conv::SYS_FALSE, // p_is_static
-                )
-            })
-        }
     }
 }
 
@@ -489,29 +497,18 @@ mod serialize {
     }
 }
 
+// TODO(v0.4.x): consider re-exposing in public API. Open questions: thread-safety, performance, memory leaks, global overhead.
+// Possibly in a more general StringName cache, similar to ClassId. See https://github.com/godot-rust/gdext/pull/1316.
 /// Creates and gets a reference to a static `StringName` from a ASCII/Latin-1 `c"string"`.
 ///
 /// This is the fastest way to create a StringName repeatedly, with the result being cached and never released, like `SNAME` in Godot source code. Suitable for scenarios where high performance is required.
 #[macro_export]
-macro_rules! static_name {
+macro_rules! static_sname {
     ($str:literal) => {{
         use std::sync::OnceLock;
 
-        use godot::sys;
-
         let c_str: &'static std::ffi::CStr = $str;
         static SNAME: OnceLock<StringName> = OnceLock::new();
-        SNAME.get_or_init(|| {
-            // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
-            unsafe {
-                StringName::new_with_string_uninit(|ptr| {
-                    sys::interface_fn!(string_name_new_with_latin1_chars)(
-                        ptr,
-                        c_str.as_ptr(),
-                        sys::conv::SYS_TRUE, // p_is_static
-                    )
-                })
-            }
-        })
+        SNAME.get_or_init(|| StringName::__cstr_with_static(c_str, true))
     }};
 }
