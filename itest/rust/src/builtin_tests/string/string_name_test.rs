@@ -127,7 +127,7 @@ fn string_name_from_cstr() {
     ];
 
     for (bytes, string) in cases.into_iter() {
-        let a = StringName::__static_cstr(bytes);
+        let a = StringName::__cstr(bytes);
         let b = StringName::from(string);
 
         assert_eq!(a, b);

@@ -459,7 +459,7 @@ fn add_virtual_script_call(
 
     let code = quote! {
         let object_ptr = #object_ptr;
-        let method_sname = ::godot::builtin::StringName::__static_cstr(#method_name_cstr);
+        let method_sname = ::godot::builtin::StringName::__cstr(#method_name_cstr);
         let method_sname_ptr = method_sname.string_sys();
         let has_virtual_override = unsafe { ::godot::private::has_virtual_script_method(object_ptr, method_sname_ptr) };
 
