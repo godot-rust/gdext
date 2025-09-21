@@ -5,64 +5,95 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::ops::DerefMut;
-
-use godot_ffi::is_main_thread;
-
-use crate::builtin::{Callable, Variant};
-use crate::meta::UniformObjectDeref;
-use crate::obj::bounds::Declarer;
-use crate::obj::GodotClass;
-use crate::registry::signal::ToSignalObj;
+use crate::obj::{Gd, GodotClass, WithBaseField};
 
 // TODO(v0.4): seal this and similar traits.
 
-/// Enables `Gd::apply_deferred()` for type-safe deferred calls.
+/// Enables deferred execution for user classes containing a `Base<T>` field.
 ///
-/// The trait is automatically available for all engine-defined Godot classes and user classes containing a `Base<T>` field.
+/// This trait provides `run_deferred()` and `run_deferred_gd()` methods for user class instances.
+/// For `Gd<T>` instances, use the inherent methods [`Gd::run_deferred()`] and [`Gd::run_deferred_gd()`] instead.
+///
+/// The trait is automatically available for user classes containing a `Base<T>` field.
 ///
 /// # Usage
 ///
 /// ```no_run
 /// # use godot::prelude::*;
-/// # use std::f32::consts::PI;
-/// fn some_fn(mut node: Gd<Node2D>) {
-///     node.apply_deferred(|n: &mut Node2D| n.rotate(PI))
+/// #
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node2D)]
+/// struct MyNode {
+///     base: Base<Node2D>,
+/// }
+///
+/// #[godot_api]
+/// impl MyNode {
+///     fn some_method(&mut self) {
+///         self.run_deferred(|this: &mut MyNode| {
+///             // Direct access to Rust struct.
+///         });
+///
+///         self.run_deferred_gd(|gd: Gd<MyNode>| {
+///             // Access to Gd. Needs bind/bind_mut for struct access.
+///         });
+///     }
 /// }
 /// ```
-pub trait WithDeferredCall<T: GodotClass> {
+pub trait WithDeferredCall: GodotClass + WithBaseField {
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
     ///
     /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred].
     ///
+    /// The closure receives `&mut Self` allowing direct access to Rust fields and methods.
+    ///
     /// # Panics
     /// If called outside the main thread.
+    fn run_deferred<F>(&mut self, mut_self_method: F)
+    where
+        F: FnOnce(&mut Self) + 'static;
+
+    /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
+    ///
+    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred].
+    ///
+    /// The closure receives `Gd<Self>` which can be used to call engine methods.
+    ///
+    /// # Panics
+    /// If called outside the main thread.
+    fn run_deferred_gd<F>(&mut self, gd_function: F)
+    where
+        F: FnOnce(Gd<Self>) + 'static;
+
+    #[deprecated(
+        since = "0.4.0",
+        note = "Split into `run_deferred()` + `run_deferred_gd`"
+    )]
     fn apply_deferred<F>(&mut self, rust_function: F)
     where
-        F: FnOnce(&mut T) + 'static;
+        F: FnOnce(&mut Self) + 'static,
+    {
+        self.run_deferred(rust_function)
+    }
 }
 
-impl<T, S, D> WithDeferredCall<T> for S
+impl<T> WithDeferredCall for T
 where
-    T: UniformObjectDeref<D, Declarer = D>,
-    S: ToSignalObj<T>,
-    D: Declarer,
+    T: WithBaseField,
 {
-    fn apply_deferred<'a, F>(&mut self, rust_function: F)
+    fn run_deferred<F>(&mut self, mut_self_method: F)
     where
-        F: FnOnce(&mut T) + 'static,
+        F: FnOnce(&mut Self) + 'static,
     {
-        assert!(
-            is_main_thread(),
-            "`apply_deferred` must be called on the main thread"
-        );
+        // We need to copy the Gd, because the lifetime of `&mut self` does not extend throughout the closure, which will only be called
+        // deferred. It might even be freed in-between, causing panic on bind_mut().
+        self.to_gd().run_deferred(mut_self_method)
+    }
 
-        let mut this = self.to_signal_obj().clone();
-        let callable = Callable::from_once_fn("apply_deferred", move |_| {
-            let mut this_mut = T::object_as_mut(&mut this);
-            rust_function(this_mut.deref_mut());
-            Ok(Variant::nil())
-        });
-        callable.call_deferred(&[]);
+    fn run_deferred_gd<F>(&mut self, gd_function: F)
+    where
+        F: FnOnce(Gd<Self>) + 'static,
+    {
+        self.to_gd().run_deferred_gd(gd_function)
     }
 }
