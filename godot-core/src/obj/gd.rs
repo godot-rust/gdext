@@ -9,6 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
+use godot_ffi::is_main_thread;
 use sys::{static_assert_eq_size_align, SysPtr as _};
 
 use crate::builtin::{Callable, GString, NodePath, StringName, Variant};
@@ -19,7 +20,7 @@ use crate::meta::{
 };
 use crate::obj::{
     bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    OnEditor, RawGd, WithSignals,
+    OnEditor, RawGd, WithBaseField, WithSignals,
 };
 use crate::private::{callbacks, PanicPayload};
 use crate::registry::class::try_dynify_object;
@@ -664,6 +665,55 @@ impl<T: GodotClass> Gd<T> {
 
         // Do not increment ref-count; assumed to be return value from FFI.
         sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
+    }
+
+    /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
+    ///
+    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred]. The closure receives
+    /// `&mut Self` allowing direct access to Rust fields and methods.
+    ///
+    /// This method is only available for user-defined classes with a `Base<T>` field.
+    /// For engine classes, use [`run_deferred_gd()`][Self::run_deferred_gd] instead.
+    ///
+    /// See also [`WithBaseField::run_deferred()`] if you are within an `impl` block and have access to `self`.
+    ///
+    /// # Panics
+    /// If called outside the main thread.
+    pub fn run_deferred<F>(&mut self, mut_self_method: F)
+    where
+        T: WithBaseField,
+        F: FnOnce(&mut T) + 'static,
+    {
+        self.run_deferred_gd(move |mut gd| {
+            let mut guard = gd.bind_mut();
+            mut_self_method(&mut *guard);
+        });
+    }
+
+    /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
+    ///
+    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred]. The closure receives
+    /// `Gd<T>`, which can be used to call engine methods or [`bind()`][Gd::bind]/[`bind_mut()`][Gd::bind_mut] to access the Rust object.
+    ///
+    /// See also [`WithBaseField::run_deferred_gd()`] if you are within an `impl` block and have access to `self`.
+    ///
+    /// # Panics
+    /// If called outside the main thread.
+    pub fn run_deferred_gd<F>(&mut self, gd_function: F)
+    where
+        F: FnOnce(Gd<T>) + 'static,
+    {
+        let obj = self.clone();
+        assert!(
+            is_main_thread(),
+            "`run_deferred` must be called on the main thread"
+        );
+
+        let callable = Callable::from_once_fn("run_deferred", move |_| {
+            gd_function(obj);
+            Ok(Variant::nil())
+        });
+        callable.call_deferred(&[]);
     }
 }
 

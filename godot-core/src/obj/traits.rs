@@ -540,6 +540,40 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         // Narrows lifetime again from 'static to 'self.
         BaseMut::new(passive_gd, guard)
     }
+
+    /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
+    ///
+    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred]. The closure receives
+    /// `&mut Self` allowing direct access to Rust fields and methods.
+    ///
+    /// See also [`Gd::run_deferred()`] to defer logic outside of `self`.
+    ///
+    /// # Panics
+    /// If called outside the main thread.
+    fn run_deferred<F>(&mut self, mut_self_method: F)
+    where
+        F: FnOnce(&mut Self) + 'static,
+    {
+        // We need to copy the Gd, because the lifetime of `&mut self` does not extend throughout the closure, which will only be called
+        // deferred. It might even be freed in-between, causing panic on bind_mut().
+        self.to_gd().run_deferred(mut_self_method)
+    }
+
+    /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
+    ///
+    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred]. The closure receives
+    /// `Gd<Self>`, which can be used to call engine methods or [`bind()`][Gd::bind]/[`bind_mut()`][Gd::bind_mut] to access the Rust object.
+    ///
+    /// See also [`Gd::run_deferred_gd()`] to defer logic outside of `self`.
+    ///
+    /// # Panics
+    /// If called outside the main thread.
+    fn run_deferred_gd<F>(&mut self, gd_function: F)
+    where
+        F: FnOnce(Gd<Self>) + 'static,
+    {
+        self.to_gd().run_deferred_gd(gd_function)
+    }
 }
 
 /// Implemented for all classes with registered signals, both engine- and user-declared.

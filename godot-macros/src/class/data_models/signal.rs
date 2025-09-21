@@ -422,7 +422,7 @@ fn make_signal_symbols(
     // Earlier implementation generated a simplified code when no #[signal] was declared: only WithSignals/WithUserSignals impl, but no own
     // collection, instead the associated type pointing to the base class. This has however some problems:
     // * Part of the reason for user-defined collection is to store UserSignalObject instead of Gd, which can store &mut self.
-    //   This is necessary for self.signals().some_base_signal().emit(), if such a signal is connected to Self::method_mut;
+    //   This is necessary for self.signals().some_base_signal().emit(), if such a signal is connected to Self::connect*() taking &mut self;
     //   Gd would cause a borrow error.
     // * Once we add Rust-Rust inheritance, we'd need to differentiate case again, which can be tricky since #[godot_api] has no information
     //   about the base class.
