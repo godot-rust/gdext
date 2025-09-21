@@ -268,7 +268,7 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
             }
         });
 
-        let str_functions = make_enum_str_functions(enum_);
+        let str_functions = make_enum_as_str(enum_);
         let values_and_constants_functions = make_enum_values_and_constants_functions(enum_);
 
         quote! {
@@ -296,7 +296,7 @@ fn make_enum_engine_trait_impl(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
         // However, those with masks don't have strict validation when marshalling from integers, and a Debug repr which includes the mask.
 
         let unique_ords = enum_.unique_ords().expect("self is an enum");
-        let str_functions = make_enum_str_functions(enum_);
+        let str_functions = make_enum_as_str(enum_);
         let values_and_constants_functions = make_enum_values_and_constants_functions(enum_);
 
         // We can technically check against all possible mask values, remove each mask, and then verify it's a valid base-enum value.
@@ -391,48 +391,9 @@ fn make_all_constants_function(enum_: &Enum) -> TokenStream {
     }
 }
 
-/// Creates the `as_str` and `godot_name` implementations for the enum.
-fn make_enum_str_functions(enum_: &Enum) -> TokenStream {
+/// Creates the `as_str()` implementation for the enum.
+fn make_enum_as_str(enum_: &Enum) -> TokenStream {
     let as_str_enumerators = make_enum_to_str_cases(enum_);
-
-    // Only enumerations with different godot names are specified.
-    // `as_str` is called for the rest of them.
-    let godot_different_cases = {
-        let enumerators = enum_
-            .enumerators
-            .iter()
-            .filter(|enumerator| enumerator.name != enumerator.godot_name)
-            .map(|enumerator| {
-                let Enumerator {
-                    name, godot_name, ..
-                } = enumerator;
-                let godot_name_str = godot_name.to_string();
-                quote! {
-                    Self::#name => #godot_name_str,
-                }
-            });
-
-        quote! {
-            #( #enumerators )*
-        }
-    };
-
-    let godot_name_match = if godot_different_cases.is_empty() {
-        // If empty, all the Rust names match the Godot ones.
-        // Remove match statement to avoid `clippy::match_single_binding`.
-        quote! {
-            self.as_str()
-        }
-    } else {
-        quote! {
-            // Many enums have duplicates, thus allow unreachable.
-            #[allow(unreachable_patterns)]
-            match *self {
-                #godot_different_cases
-                _ => self.as_str(),
-            }
-        }
-    };
 
     quote! {
         #[inline]
@@ -443,10 +404,6 @@ fn make_enum_str_functions(enum_: &Enum) -> TokenStream {
                 #as_str_enumerators
                 _ => "",
             }
-        }
-
-        fn godot_name(&self) -> &'static str {
-            #godot_name_match
         }
     }
 }
