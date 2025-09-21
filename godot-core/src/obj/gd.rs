@@ -729,7 +729,8 @@ where
         // Skip check during panic unwind; would need to rewrite whole thing to use Result instead. Having BOTH panic-in-panic and bad type is
         // a very unlikely corner case.
         if !is_panic_unwind {
-            self.raw.check_dynamic_type(&CallContext::gd::<T>("free"));
+            self.raw
+                .check_dynamic_type(|| CallContext::gd::<T>(String::from("free")));
         }
 
         // SAFETY: object must be alive, which was just checked above. No multithreading here.

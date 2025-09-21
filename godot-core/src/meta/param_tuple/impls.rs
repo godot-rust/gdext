@@ -54,10 +54,10 @@ macro_rules! unsafe_impl_param_tuple {
         }
 
         impl<$($P),*> InParamTuple for ($($P,)*) where $($P: FromGodot + fmt::Debug),* {
-            unsafe fn from_varcall_args(
+            unsafe fn from_varcall_args<F>(
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
-                call_ctx: &crate::meta::CallContext,
-            ) -> signature::CallResult<Self> {
+                call_ctx: &F
+            ) -> signature::CallResult<Self> where F: Fn() -> signature::CallContext {
                 let args = (
                     $(
                         // SAFETY: `args_ptr` is an array with length `Self::LEN` and each element is a valid pointer, since they
@@ -69,23 +69,23 @@ macro_rules! unsafe_impl_param_tuple {
                 let param_tuple = (
                     $(
                         // SAFETY: Each pointer in `args_ptr` is reborrowable as a `&Variant` for the duration of this call.
-                        unsafe { varcall_arg::<$P>(args.$n, call_ctx, $n)? },
+                        unsafe { varcall_arg::<$P, F>(args.$n, call_ctx, $n)? },
                     )*
                 );
 
                 Ok(param_tuple)
             }
 
-            unsafe fn from_ptrcall_args(
+            unsafe fn from_ptrcall_args<F>(
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 call_type: sys::PtrcallType,
-                call_ctx: &crate::meta::CallContext,
-            ) -> Self {
+                call_ctx: &F,
+            ) -> Self where F: Fn() -> crate::meta::CallContext{
                 (
                     $(
                         // SAFETY: `args_ptr` has length `Self::LEN` and `$n` is less than `Self::LEN`, and `args_ptr` must be an array whose
                         // `$n`-th element is of type `$P`.
-                        unsafe { ptrcall_arg::<$P, $n>(args_ptr, call_ctx, call_type) },
+                        unsafe { ptrcall_arg::<$P, $n, F>(args_ptr, call_ctx, call_type) },
                     )*
                 )
             }
@@ -192,11 +192,14 @@ unsafe_impl_param_tuple!((p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4
 /// - It must be safe to dereference the address at `args_ptr.offset(N)`.
 /// - The pointer at `args_ptr.offset(N)` must follow the safety requirements as laid out in
 ///   [`GodotFfi::from_arg_ptr`].
-pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
+pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize, F>(
     args_ptr: *const sys::GDExtensionConstTypePtr,
-    call_ctx: &CallContext,
+    call_ctx: &F,
     call_type: sys::PtrcallType,
-) -> P {
+) -> P
+where
+    F: Fn() -> CallContext,
+{
     // SAFETY: It is safe to dereference `args_ptr` at `N`.
     let offset_ptr = unsafe { *args_ptr.offset(N) };
 
@@ -207,7 +210,7 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
 
     <P::Via as GodotType>::try_from_ffi(ffi)
         .and_then(P::try_from_godot)
-        .unwrap_or_else(|err| param_error::<P>(call_ctx, N as i32, err))
+        .unwrap_or_else(|err| param_error::<P>(&call_ctx(), N as i32, err))
 }
 
 /// Converts `arg` into a value of type `P`.
@@ -215,17 +218,20 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
 /// # Safety
 ///
 /// - It must be safe to reborrow `arg` as a `&Variant` with a lifetime that lasts for the duration of the call.
-pub(super) unsafe fn varcall_arg<P: FromGodot>(
+pub(super) unsafe fn varcall_arg<P: FromGodot, F>(
     arg: sys::GDExtensionConstVariantPtr,
-    call_ctx: &CallContext,
+    call_ctx: &F,
     param_index: isize,
-) -> Result<P, CallError> {
+) -> Result<P, CallError>
+where
+    F: Fn() -> CallContext,
+{
     // SAFETY: It is safe to dereference `args_ptr` at `N` as a `Variant`.
     let variant_ref = unsafe { Variant::borrow_var_sys(arg) };
 
     variant_ref
         .try_to_relaxed::<P>()
-        .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, param_index, err))
+        .map_err(|err| CallError::failed_param_conversion::<P>(&call_ctx(), param_index, err))
 }
 
 fn param_error<P>(call_ctx: &CallContext, index: i32, err: ConvertError) -> ! {

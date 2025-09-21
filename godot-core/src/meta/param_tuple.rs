@@ -48,10 +48,12 @@ pub trait InParamTuple: ParamTuple {
     /// - `args_ptr` must be a pointer to an array of length [`Self::LEN`](ParamTuple::LEN)
     /// - Each element of `args_ptr` must be reborrowable as a `&Variant` with a lifetime that lasts for the duration of the call.
     #[doc(hidden)] // Hidden since v0.3.2.
-    unsafe fn from_varcall_args(
+    unsafe fn from_varcall_args<F>(
         args_ptr: *const sys::GDExtensionConstVariantPtr,
-        call_ctx: &CallContext,
-    ) -> CallResult<Self>;
+        call_ctx: &F,
+    ) -> CallResult<Self>
+    where
+        F: Fn() -> CallContext;
 
     /// Converts `args_ptr` to `Self` directly.
     ///
@@ -60,11 +62,13 @@ pub trait InParamTuple: ParamTuple {
     /// - `args_ptr` must be a pointer to a valid array of length [`Self::LEN`](ParamTuple::LEN)
     /// - each element of `args_ptr` must be of the same type as each element of `Self`
     #[doc(hidden)] // Hidden since v0.3.2.
-    unsafe fn from_ptrcall_args(
+    unsafe fn from_ptrcall_args<F>(
         args_ptr: *const sys::GDExtensionConstTypePtr,
         call_type: sys::PtrcallType,
-        call_ctx: &CallContext,
-    ) -> Self;
+        call_ctx: &F,
+    ) -> Self
+    where
+        F: Fn() -> CallContext;
 
     /// Converts `array` to `Self` by calling [`from_variant`](crate::meta::FromGodot::from_variant) on each argument.
     fn from_variant_array(array: &[&Variant]) -> Self;

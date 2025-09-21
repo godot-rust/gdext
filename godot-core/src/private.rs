@@ -428,17 +428,13 @@ where
     result
 }
 
-// TODO(bromeon): make call_ctx lazy-evaluated (like error_ctx) everywhere;
-// or make it eager everywhere and ensure it's cheaply constructed in the call sites.
-pub fn handle_varcall_panic<F, R>(
-    call_ctx: &CallContext,
-    out_err: &mut sys::GDExtensionCallError,
-    code: F,
-) where
+pub fn handle_varcall_panic<C, F, R>(call_ctx: C, out_err: &mut sys::GDExtensionCallError, code: F)
+where
+    C: Fn() -> CallContext,
     F: FnOnce() -> Result<R, CallError> + std::panic::UnwindSafe,
 {
     let outcome: Result<Result<R, CallError>, PanicPayload> =
-        handle_panic(|| call_ctx.to_string(), code);
+        handle_panic(|| call_ctx().to_string(), code);
 
     let call_error = match outcome {
         // All good.
@@ -448,7 +444,7 @@ pub fn handle_varcall_panic<F, R>(
         Ok(Err(err)) => err,
 
         // Panic occurred (typically through user): forward message.
-        Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
+        Err(panic_msg) => CallError::failed_by_user_panic(&call_ctx(), panic_msg),
     };
 
     let error_id = report_call_error(call_error, true);
@@ -463,18 +459,19 @@ pub fn handle_varcall_panic<F, R>(
     //sys::interface_fn!(variant_new_nil)(sys::AsUninit::as_uninit(ret));
 }
 
-pub fn handle_ptrcall_panic<F, R>(call_ctx: &CallContext, code: F)
+pub fn handle_ptrcall_panic<C, F, R>(call_ctx: C, code: F)
 where
+    C: Fn() -> CallContext,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    let outcome: Result<R, PanicPayload> = handle_panic(|| call_ctx.to_string(), code);
+    let outcome: Result<R, PanicPayload> = handle_panic(|| call_ctx().to_string(), code);
 
     let call_error = match outcome {
         // All good.
         Ok(_result) => return,
 
         // Panic occurred (typically through user): forward message.
-        Err(payload) => CallError::failed_by_user_panic(call_ctx, payload),
+        Err(payload) => CallError::failed_by_user_panic(&call_ctx(), payload),
     };
 
     let _id = report_call_error(call_error, false);
@@ -513,7 +510,7 @@ mod tests {
 
     fn make(index: usize) -> CallError {
         let method_name = format!("method_{index}");
-        let ctx = CallContext::func("Class", &method_name);
+        let ctx = CallContext::func("Class".to_string(), method_name.to_string());
         let payload = PanicPayload::new(Box::new("some panic reason".to_string()));
 
         CallError::failed_by_user_panic(&ctx, payload)

@@ -181,23 +181,26 @@ where
     obj
 }
 
-pub(crate) fn ensure_object_alive(
+pub(crate) fn ensure_object_alive<F>(
     instance_id: InstanceId,
     old_object_ptr: sys::GDExtensionObjectPtr,
-    call_ctx: &CallContext,
-) {
+    call_ctx: F,
+) where
+    F: FnOnce() -> CallContext,
+{
     let new_object_ptr = object_ptr_from_id(instance_id);
 
     assert!(
         !new_object_ptr.is_null(),
-        "{call_ctx}: access to instance with ID {instance_id} after it has been freed"
+        "{}: access to instance with ID {instance_id} after it has been freed",
+        call_ctx()
     );
 
     // This should not happen, as reuse of instance IDs was fixed according to https://github.com/godotengine/godot/issues/32383,
     // namely in PR https://github.com/godotengine/godot/pull/36189. Double-check to make sure.
     assert_eq!(
         new_object_ptr, old_object_ptr,
-        "{call_ctx}: instance ID {instance_id} points to a stale, reused object. Please report this to godot-rust maintainers."
+        "{}: instance ID {instance_id} points to a stale, reused object. Please report this to godot-rust maintainers.", call_ctx()
     );
 }
 

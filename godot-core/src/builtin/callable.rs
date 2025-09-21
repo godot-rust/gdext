@@ -616,19 +616,21 @@ mod custom_callable {
     ) {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        let name = {
-            let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
-            c.to_string()
-        };
-        let ctx = meta::CallContext::custom_callable(name.as_str());
-
-        crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
-            // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
-            let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
-            let result = c.invoke(arg_refs);
-            meta::varcall_return_checked(result, r_return, r_error);
-            Ok(())
-        });
+        crate::private::handle_varcall_panic(
+            move || {
+                let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
+                let name = { w.name.to_string() };
+                meta::CallContext::custom_callable(name)
+            },
+            &mut *r_error,
+            move || {
+                // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
+                let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
+                let result = c.invoke(arg_refs);
+                meta::varcall_return_checked(result, r_return, r_error);
+                Ok(())
+            },
+        );
     }
 
     pub unsafe extern "C" fn rust_callable_call_fn<F>(
@@ -642,32 +644,36 @@ mod custom_callable {
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        let name = {
-            let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
-            w.name.to_string()
-        };
-        let ctx = meta::CallContext::custom_callable(name.as_str());
+        crate::private::handle_varcall_panic(
+            move || {
+                let name = {
+                    let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
+                    w.name.to_string()
+                };
+                meta::CallContext::custom_callable(name)
+            },
+            &mut *r_error,
+            move || {
+                // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
+                let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
-        crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
-            // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
-            let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
-
-            if w.thread_id
-                .is_some_and(|tid| tid != std::thread::current().id())
-            {
-                // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
-                // See comments in itest callable_call() for details.
-                panic!(
+                if w.thread_id
+                    .is_some_and(|tid| tid != std::thread::current().id())
+                {
+                    // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
+                    // See comments in itest callable_call() for details.
+                    panic!(
                     "Callable '{}' created with from_local_fn() must be called from the same thread it was created in.\n\
                     If you need to call it from any thread, use from_sync_fn() instead (requires `experimental-threads` feature).",
                     w.name
                 );
-            }
+                }
 
-            let result = (w.rust_function)(arg_refs);
-            meta::varcall_return_checked(result, r_return, r_error);
-            Ok(())
-        });
+                let result = (w.rust_function)(arg_refs);
+                meta::varcall_return_checked(result, r_return, r_error);
+                Ok(())
+            },
+        );
     }
 
     pub unsafe extern "C" fn rust_callable_destroy<T>(callable_userdata: *mut std::ffi::c_void) {
