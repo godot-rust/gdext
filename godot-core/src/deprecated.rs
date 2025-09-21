@@ -38,10 +38,6 @@ pub use crate::emit_deprecated_warning;
 // Library-side deprecations -- see usage description above.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Godot-side deprecations
+// Godot-side deprecations (we may mark them deprecated but keep support).
 
-// This is a Godot-side deprecation. Since it's the only way in Godot 4.1, we keep compatibility for now.
-// TODO(v0.4): remove with error.
-#[deprecated = "\nUse #[export(range = (radians_as_degrees))] and not #[export(range = (radians))].\n\
-	More information on https://github.com/godotengine/godot/pull/82195."]
-pub const fn export_range_radians() {}
+// Past removals: `radians` in #[export(range)].
