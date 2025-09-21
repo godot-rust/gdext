@@ -669,12 +669,13 @@ impl<T: GodotClass> Gd<T> {
 
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
     ///
-    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred].
+    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred]. The closure receives
+    /// `&mut Self` allowing direct access to Rust fields and methods.
     ///
-    /// The closure receives `&mut T` allowing direct access to Rust fields and methods.
     /// This method is only available for user-defined classes with a `Base<T>` field.
-    ///
     /// For engine classes, use [`run_deferred_gd()`][Self::run_deferred_gd] instead.
+    ///
+    /// See also [`WithBaseField::run_deferred()`] if you are within an `impl` block and have access to `self`.
     ///
     /// # Panics
     /// If called outside the main thread.
@@ -691,10 +692,10 @@ impl<T: GodotClass> Gd<T> {
 
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
     ///
-    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred].
+    /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred]. The closure receives
+    /// `Gd<T>`, which can be used to call engine methods or [`bind()`][Gd::bind]/[`bind_mut()`][Gd::bind_mut] to access the Rust object.
     ///
-    /// The closure receives a `Gd<T>` which can be used to call engine methods.
-    /// This method works for any Godot class (engine or user-defined).
+    /// See also [`WithBaseField::run_deferred_gd()`] if you are within an `impl` block and have access to `self`.
     ///
     /// # Panics
     /// If called outside the main thread.

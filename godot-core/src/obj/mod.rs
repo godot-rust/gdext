@@ -12,7 +12,6 @@
 //! * [`Gd`], a smart pointer that manages instances of Godot classes.
 
 mod base;
-mod call_deferred;
 mod casts;
 mod dyn_gd;
 mod gd;
@@ -27,7 +26,6 @@ mod traits;
 pub(crate) mod rtti;
 
 pub use base::*;
-pub use call_deferred::WithDeferredCall;
 pub use dyn_gd::DynGd;
 pub use gd::*;
 pub use guards::{BaseMut, BaseRef, DynGdMut, DynGdRef, GdMut, GdRef};
