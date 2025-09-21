@@ -80,7 +80,7 @@ where
         CallError::check_arg_count(&call_ctx, arg_count as usize, Params::LEN)?;
 
         #[cfg(feature = "trace")]
-        trace::push(true, false, call_ctx);
+        trace::push(true, false, &call_ctx());
 
         // SAFETY: TODO.
         // TODO: pass the fn
@@ -111,7 +111,7 @@ where
         // $crate::out!("in_ptrcall: {call_ctx}");
 
         #[cfg(feature = "trace")]
-        trace::push(true, true, call_ctx);
+        trace::push(true, true, &call_ctx());
 
         // SAFETY: TODO.
         let args = unsafe { Params::from_ptrcall_args(args_ptr, call_type, call_ctx) };
@@ -471,7 +471,7 @@ impl CallContext {
     /// Call from Godot into a user-defined #[func] function.
     pub const fn func(class_name: String, function_name: String) -> Self {
         Self {
-            class_name: class_name,
+            class_name,
             function_name,
         }
     }
@@ -495,7 +495,7 @@ impl CallContext {
     /// Outbound call from Rust into the engine, via Gd methods.
     pub fn gd<T: GodotClass>(function_name: String) -> Self {
         Self {
-            class_name: T::class_id().to_cow_str(),
+            class_name: T::class_id().to_string(),
             function_name,
         }
     }
