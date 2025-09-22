@@ -548,7 +548,6 @@ mod custom_callable {
 
     use super::*;
     use crate::builtin::GString;
-    use crate::meta::trace;
 
     pub struct CallableUserdata<T> {
         pub inner: T,
@@ -617,24 +616,10 @@ mod custom_callable {
     ) {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        #[cfg(trace)]
-        {
-            let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
-            trace::push(
-                true,
-                true,
-                meta::CallContext::custom_callable(w.name.to_string()),
-            );
-        }
-
         crate::private::handle_varcall_panic(
             move || {
-                let name = if !callable_userdata.is_null() {
-                    let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
-                    w.name.to_string()
-                } else {
-                    String::from("null")
-                };
+                let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
+                let name = { w.name.to_string() };
                 meta::CallContext::custom_callable(name)
             },
             &mut *r_error,
@@ -659,23 +644,11 @@ mod custom_callable {
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        #[cfg(trace)]
-        {
-            let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
-            trace::push(
-                true,
-                true,
-                meta::CallContext::custom_callable(w.name.to_string()),
-            );
-        }
-
         crate::private::handle_varcall_panic(
             move || {
-                let name = if !callable_userdata.is_null() {
+                let name = {
                     let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
                     w.name.to_string()
-                } else {
-                    String::from("null")
                 };
                 meta::CallContext::custom_callable(name)
             },
