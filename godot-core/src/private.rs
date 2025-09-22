@@ -199,6 +199,8 @@ pub const fn is_editor_plugin<T: crate::obj::Inherits<crate::classes::EditorPlug
 // Starting from 4.3, Godot has "runtime classes"; this emulation is no longer needed.
 #[cfg(before_api = "4.3")]
 pub fn is_class_inactive(is_tool: bool) -> bool {
+    use crate::obj::Singleton;
+
     if is_tool {
         return false;
     }

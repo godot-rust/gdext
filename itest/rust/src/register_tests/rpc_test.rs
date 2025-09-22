@@ -8,6 +8,7 @@
 use godot::classes::multiplayer_api::RpcMode;
 use godot::classes::multiplayer_peer::TransferMode;
 use godot::classes::{Engine, MultiplayerApi};
+use godot::obj::Singleton;
 use godot::prelude::*;
 use godot::register::RpcConfig;
 use godot::test::itest;

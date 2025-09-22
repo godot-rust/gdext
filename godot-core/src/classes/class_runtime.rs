@@ -13,7 +13,7 @@ use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
 #[cfg(debug_assertions)]
 use crate::meta::ClassId;
-use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd, Singleton};
 use crate::sys;
 
 pub(crate) fn debug_string<T: GodotClass>(
@@ -179,6 +179,16 @@ where
         .notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
 
     obj
+}
+
+/// # Safety
+/// The caller must ensure that `class_name` corresponds to the actual class name of type `T`.
+pub(crate) unsafe fn singleton_unchecked<T>(class_name: &StringName) -> Gd<T>
+where
+    T: GodotClass,
+{
+    let object_ptr = unsafe { sys::interface_fn!(global_get_singleton)(class_name.string_sys()) };
+    Gd::<T>::from_obj_sys(object_ptr)
 }
 
 pub(crate) fn ensure_object_alive(

@@ -10,6 +10,7 @@
 
 use godot::builtin::vslice;
 use godot::classes::ClassDb;
+use godot::obj::Singleton;
 use godot::prelude::*;
 
 use crate::framework::{expect_panic, itest};

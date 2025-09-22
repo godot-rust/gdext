@@ -13,7 +13,7 @@ use sys::{ffi_methods, ExtVariantType, GodotFfi};
 use crate::builtin::{inner, GString, StringName, Variant, VariantArray};
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
-use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
+use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
 use crate::{classes, meta};
 
 #[cfg(before_api = "4.3")]

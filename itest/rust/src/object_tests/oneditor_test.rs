@@ -7,7 +7,7 @@
 
 use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node, RefCounted};
-use godot::obj::{Gd, NewAlloc, OnEditor};
+use godot::obj::{Gd, NewAlloc, OnEditor, Singleton};
 use godot::register::{godot_api, GodotClass};
 
 use crate::framework::{expect_panic, itest};

@@ -10,7 +10,7 @@ use crate::classes::{Resource, ResourceLoader, ResourceSaver};
 use crate::global::Error as GodotError;
 use crate::meta::error::IoError;
 use crate::meta::{arg_into_ref, AsArg};
-use crate::obj::{Gd, Inherits};
+use crate::obj::{Gd, Inherits, Singleton};
 
 /// ⚠️ Loads a resource from the filesystem located at `path`, panicking on error.
 ///

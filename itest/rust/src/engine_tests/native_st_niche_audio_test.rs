@@ -19,7 +19,7 @@ use godot::classes::{
     AudioStreamGeneratorPlayback, AudioStreamPlayer, Engine, IAudioEffect, IAudioEffectInstance,
     SceneTree,
 };
-use godot::obj::{Base, Gd, NewAlloc, NewGd};
+use godot::obj::{Base, Gd, NewAlloc, NewGd, Singleton};
 use godot::register::{godot_api, GodotClass};
 
 use crate::framework::itest;

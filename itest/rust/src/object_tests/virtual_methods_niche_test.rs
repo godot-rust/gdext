@@ -12,6 +12,7 @@ use godot::classes::{
     BoxMesh, IResourceFormatLoader, IRigidBody2D, InputEvent, InputEventAction,
     ResourceFormatLoader, ResourceLoader, Viewport, Window,
 };
+use godot::obj::Singleton;
 use godot::prelude::*;
 
 use crate::framework::{itest, TestContext};

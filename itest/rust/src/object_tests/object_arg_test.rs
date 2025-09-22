@@ -9,7 +9,7 @@ use godot::builtin::{vslice, Variant};
 use godot::classes::{ClassDb, Node, RefCounted, ResourceFormatLoader, ResourceLoader};
 use godot::global;
 use godot::meta::ToGodot;
-use godot::obj::{Gd, NewAlloc, NewGd};
+use godot::obj::{Gd, NewAlloc, NewGd, Singleton};
 use godot::register::{godot_api, GodotClass};
 
 use crate::framework::{create_gdscript, itest};

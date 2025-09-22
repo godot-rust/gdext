@@ -16,7 +16,7 @@ use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 use godot_ffi as sys;
 
 use crate::godot_error;
-use crate::obj::{Base, Gd, GodotClass, Inherits};
+use crate::obj::{Base, Gd, GodotClass, Inherits, Singleton};
 use crate::storage::log_pre_drop;
 
 #[derive(Copy, Clone, Debug)]
