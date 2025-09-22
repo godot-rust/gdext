@@ -548,8 +548,8 @@ mod custom_callable {
 
     use super::*;
     use crate::builtin::GString;
+    use crate::meta::trace;
 
-    #[derive(Clone, Copy)]
     pub struct CallableUserdata<T> {
         pub inner: T,
     }
@@ -617,9 +617,26 @@ mod custom_callable {
     ) {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
+        #[cfg(trace)]
+        {
+            let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
+            trace::push(
+                true,
+                true,
+                meta::CallContext::custom_callable(w.name.to_string()),
+            );
+        }
+
         crate::private::handle_varcall_panic(
-            move || meta::CallContext::custom_callable(w.name.to_string()),
+            move || {
+                let name = if !callable_userdata.is_null() {
+                    let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
+                    w.name.to_string()
+                } else {
+                    String::from("null")
+                };
+                meta::CallContext::custom_callable(name)
+            },
             &mut *r_error,
             move || {
                 // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
@@ -642,10 +659,26 @@ mod custom_callable {
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
+        #[cfg(trace)]
+        {
+            let w: &FnWrapper<C> = CallableUserdata::inner_from_raw(callable_userdata);
+            trace::push(
+                true,
+                true,
+                meta::CallContext::custom_callable(w.name.to_string()),
+            );
+        }
 
         crate::private::handle_varcall_panic(
-            move || meta::CallContext::custom_callable(w.name.to_string()),
+            move || {
+                let name = if !callable_userdata.is_null() {
+                    let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
+                    w.name.to_string()
+                } else {
+                    String::from("null")
+                };
+                meta::CallContext::custom_callable(name)
+            },
             &mut *r_error,
             move || {
                 // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.

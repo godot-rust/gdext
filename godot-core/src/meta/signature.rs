@@ -83,7 +83,6 @@ where
         trace::push(true, false, &call_ctx());
 
         // SAFETY: TODO.
-        // TODO: pass the fn
         let args = unsafe { Params::from_varcall_args(args_ptr, &call_ctx)? };
 
         let rust_result = unsafe { func(instance_ptr, args) };
