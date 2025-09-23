@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::panic;
 
 use godot::classes::{Engine, GDScript, Node, Os, SceneTree};
-use godot::obj::{Gd, NewGd};
+use godot::obj::{Gd, NewGd, Singleton};
 use godot::sys;
 
 mod bencher;

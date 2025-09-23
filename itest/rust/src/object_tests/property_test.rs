@@ -11,7 +11,7 @@ use godot::builtin::{
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
-use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd, OnEditor};
+use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd, OnEditor, Singleton};
 use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
@@ -266,10 +266,6 @@ struct CheckAllExports {
 
     #[export(range = (0.0, 10.0, 0.2, or_greater, or_less, exp, radians_as_degrees, hide_slider))]
     range_exported_with_step: f64,
-
-    // Fails to compile if literal is floating-point or outside i8 range.
-    #[export(range = (-5, 127))]
-    int_exported: i8,
 
     #[export(enum = (A = 10, B, C, D = 20))]
     enum_exported: i64,

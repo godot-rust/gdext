@@ -684,6 +684,23 @@ pub trait NewAlloc: GodotClass {
     fn new_alloc() -> Gd<Self>;
 }
 
+/// Trait for singleton classes in Godot.
+///
+/// There is only one instance of each singleton class in the engine, accessible through [`singleton()`][Self::singleton].
+pub trait Singleton: GodotClass {
+    // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias. Returning &'static Self is possible,  but we'd
+    // lose the whole mutability information (even if that is best-effort and not strict Rust mutability, it makes the API much more usable).
+    // As long as the user has multiple Gd smart pointers to the same singletons, only the internal raw pointers are aliased.
+    // See also Deref/DerefMut impl for Gd.
+
+    /// Returns the singleton instance.
+    ///
+    /// # Panics
+    /// If called during global init/deinit of godot-rust. Most singletons are only available after the first frame has run.
+    /// See also [`ExtensionLibrary`](../init/trait.ExtensionLibrary.html#availability-of-godot-apis-during-init-and-deinit).
+    fn singleton() -> Gd<Self>;
+}
+
 impl<T> NewAlloc for T
 where
     T: cap::GodotDefault + Bounds<Memory = bounds::MemManual>,

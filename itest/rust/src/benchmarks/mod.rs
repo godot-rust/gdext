@@ -12,7 +12,7 @@ use std::hint::black_box;
 use godot::builtin::inner::InnerRect2i;
 use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i};
 use godot::classes::{Node3D, Os, RefCounted};
-use godot::obj::{Gd, InstanceId, NewAlloc, NewGd};
+use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
 use godot::register::GodotClass;
 
 use crate::framework::bench;

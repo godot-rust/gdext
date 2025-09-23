@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use godot::builtin::{vslice, Array, Callable, GString, Variant, VariantArray};
 use godot::classes::{Engine, Node, Os};
 use godot::global::godot_error;
-use godot::obj::Gd;
+use godot::obj::{Gd, Singleton};
 use godot::register::{godot_api, GodotClass};
 
 use super::AsyncRustTestCase;

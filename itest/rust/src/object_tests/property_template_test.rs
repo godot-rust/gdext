@@ -56,19 +56,19 @@ fn property_template_test(ctx: &TestContext) {
             continue;
         };
 
-        let mut rust_usage = rust_prop.at("usage").to::<PropertyUsageFlags>();
+        let mut rust_usage = rust_prop.at("usage").to::<i64>();
 
-        // The GDScript variables are script variables, and so have `PROPERTY_USAGE_SCRIPT_VARIABLE` set.
+        // The GDSscript variables are script variables, and so have `PROPERTY_USAGE_SCRIPT_VARIABLE` set.
         // Before 4.3, `PROPERTY_USAGE_SCRIPT_VARIABLE` did the same thing as `PROPERTY_USAGE_STORAGE` and
         // so GDScript didn't set both if it didn't need to.
         if GdextBuild::before_api("4.3") {
-            if rust_usage == PropertyUsageFlags::STORAGE {
-                rust_usage = PropertyUsageFlags::SCRIPT_VARIABLE
+            if rust_usage == PropertyUsageFlags::STORAGE.ord() as i64 {
+                rust_usage = PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64
             } else {
-                rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE;
+                rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64;
             }
         } else {
-            rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE;
+            rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64;
         }
 
         rust_prop.set("usage", rust_usage);

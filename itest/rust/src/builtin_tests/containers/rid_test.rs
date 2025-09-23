@@ -8,6 +8,7 @@
 use godot::builtin::inner::InnerRid;
 use godot::builtin::Rid;
 use godot::classes::RenderingServer;
+use godot::obj::Singleton;
 
 use crate::framework::{itest, suppress_godot_print};
 

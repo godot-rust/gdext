@@ -15,7 +15,7 @@ use crate::classes::ClassDb;
 use crate::init::InitLevel;
 use crate::meta::error::FromGodotError;
 use crate::meta::ClassId;
-use crate::obj::{cap, DynGd, Gd, GodotClass};
+use crate::obj::{cap, DynGd, Gd, GodotClass, Singleton};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};

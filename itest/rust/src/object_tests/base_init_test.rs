@@ -10,7 +10,7 @@ use godot::builtin::Vector2;
 use godot::classes::notify::ObjectNotification;
 use godot::classes::{ClassDb, IRefCounted, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithBaseField};
+use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, Singleton, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::task::TaskHandle;
 

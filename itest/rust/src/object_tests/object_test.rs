@@ -18,7 +18,7 @@ use godot::classes::{
 use godot::global::godot_str;
 #[allow(deprecated)]
 use godot::meta::{FromGodot, GodotType, ToGodot};
-use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
+use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::{self, interface_fn, GodotFfi};
 

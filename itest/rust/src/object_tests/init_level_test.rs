@@ -8,7 +8,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use godot::init::InitLevel;
-use godot::obj::NewAlloc;
+use godot::obj::{NewAlloc, Singleton};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::Global;
 

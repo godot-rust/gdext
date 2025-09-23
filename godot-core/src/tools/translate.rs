@@ -41,14 +41,14 @@ macro_rules! tr {
     ($fmt:literal $(, $($args:tt)*)?) => {{
         let msg = format!($fmt $(, $($args)*)?);
 
-        $crate::classes::Engine::singleton().tr(&msg)
+        <$crate::classes::Engine as $crate::obj::Singleton>::singleton().tr(&msg)
     }};
 
     ($context:expr; $fmt:literal $(, $($args:tt)*)?) => {{
         let msg = format!($fmt $(, $($args)*)?);
         let context = format!("{}", $context);
 
-        $crate::classes::Engine::singleton()
+        <$crate::classes::Engine as $crate::obj::Singleton>::singleton()
             .tr_ex(&msg)
             .context(&context)
             .done()
@@ -87,7 +87,7 @@ macro_rules! tr {
 #[macro_export]
 macro_rules! tr_n {
     ($n:expr; $singular:literal, $plural:literal $(, $($args:tt)*)?) => {
-        $crate::classes::Engine::singleton()
+        <$crate::classes::Engine as $crate::obj::Singleton>::singleton()
             .tr_n(
                 &format!($singular$(, $($args)*)?),
                 &format!($plural$(, $($args)*)?),
@@ -96,7 +96,7 @@ macro_rules! tr_n {
     };
 
     ($n:expr, $context:expr; $singular:literal, $plural:literal $(, $($args:tt)*)?) => {
-        $crate::classes::Engine::singleton()
+        <$crate::classes::Engine as $crate::obj::Singleton>::singleton()
             .tr_n_ex(
                 &format!($singular$(, $($args)*)?),
                 &format!($plural$(, $($args)*)?),

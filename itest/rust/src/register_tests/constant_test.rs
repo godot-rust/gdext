@@ -9,6 +9,7 @@
 #![allow(clippy::non_minimal_cfg)]
 
 use godot::classes::ClassDb;
+use godot::obj::Singleton;
 use godot::prelude::*;
 use godot::sys::static_assert;
 
