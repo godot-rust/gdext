@@ -226,7 +226,7 @@ impl<T: GodotClass> Base<T> {
         let name = format!("Base<{}> deferred unref", T::class_id());
         let callable = Callable::from_once_fn(&name, move |_args| {
             Self::drop_strong_ref(instance_id);
-            Ok(Variant::nil())
+            Variant::nil()
         });
 
         // Use Callable::call_deferred() instead of Gd::apply_deferred(). The latter implicitly borrows &mut self,

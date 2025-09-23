@@ -115,7 +115,7 @@ impl<R: IntoDynamicSend> PartialEq for SignalFutureResolver<R> {
 }
 
 impl<R: InParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R> {
-    fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
+    fn invoke(&mut self, args: &[&Variant]) -> Variant {
         let waker = {
             let mut data = self.data.lock().unwrap();
             data.state = SignalFutureState::Ready(R::from_variant_array(args).into_dynamic_send());
@@ -128,7 +128,7 @@ impl<R: InParamTuple + IntoDynamicSend> RustCallable for SignalFutureResolver<R>
             waker.wake();
         }
 
-        Ok(Variant::nil())
+        Variant::nil()
     }
 }
 

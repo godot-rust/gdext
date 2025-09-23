@@ -690,7 +690,7 @@ mod custom_callable {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
 
-    use godot::builtin::{vslice, Callable, Signal};
+    use godot::builtin::{vslice, Callable, Signal, Variant};
     use godot::classes::Node;
     use godot::obj::{Gd, NewAlloc};
 
@@ -819,7 +819,7 @@ mod custom_callable {
     }
 
     fn connect_signal_panic_from_fn(received: Arc<AtomicU32>) -> Callable {
-        Callable::from_local_fn("test", move |_args| {
+        Callable::from_local_fn("test", move |_args| -> Variant {
             panic!("TEST: {}", received.fetch_add(1, Ordering::SeqCst))
         })
     }

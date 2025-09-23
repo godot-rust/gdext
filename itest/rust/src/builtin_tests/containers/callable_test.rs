@@ -407,7 +407,7 @@ pub mod custom_callable {
 
         let callable = Callable::from_local_fn("change_global", |_args| {
             *GLOBAL.lock() = 777;
-            Ok(Variant::nil())
+            Variant::nil()
         });
 
         // Note that Callable itself isn't Sync/Send, so we have to transfer it unsafely.
@@ -471,7 +471,7 @@ pub mod custom_callable {
     #[itest]
     fn callable_custom_with_err() {
         let callable_with_err =
-            Callable::from_local_fn("on_error_doesnt_crash", |_args: &[&Variant]| Err(()));
+            Callable::from_local_fn("on_error_doesnt_crash", |_args: &[&Variant]| Variant::nil());
 
         // Causes error in Godot, but should not crash.
         assert_eq!(callable_with_err.callv(&varray![]), Variant::nil());
@@ -487,9 +487,9 @@ pub mod custom_callable {
         assert_ne!(a, c, "same function, different instance -> not equal");
     }
 
-    fn sum(args: &[&Variant]) -> Result<Variant, ()> {
+    fn sum(args: &[&Variant]) -> Variant {
         let sum: i32 = args.iter().map(|arg| arg.to::<i32>()).sum();
-        Ok(sum.to_variant())
+        sum.to_variant()
     }
 
     #[itest]
@@ -588,10 +588,11 @@ pub mod custom_callable {
     fn callable_callv_panic_from_fn() {
         let received = Arc::new(AtomicU32::new(0));
         let received_callable = received.clone();
-        let callable = Callable::from_local_fn("test", move |_args| {
+        let callable = Callable::from_local_fn("test", move |_args| -> Variant {
             suppress_panic_log(|| {
                 panic!("TEST: {}", received_callable.fetch_add(1, Ordering::SeqCst))
-            })
+            });
+            Variant::nil()
         });
 
         assert_eq!(Variant::nil(), callable.callv(&varray![]));
@@ -646,7 +647,7 @@ pub mod custom_callable {
 
     #[itest]
     fn callable_from_once_fn() {
-        let callable = Callable::__once_fn("once_test", move |_| Ok(42.to_variant()));
+        let callable = Callable::__once_fn("once_test", move |_| 42.to_variant());
 
         // First call should succeed.
         let result = callable.call(&[]);
@@ -708,12 +709,12 @@ pub mod custom_callable {
     }
 
     impl RustCallable for Adder {
-        fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
+        fn invoke(&mut self, args: &[&Variant]) -> Variant {
             for arg in args {
                 self.sum += arg.to::<i32>();
             }
 
-            Ok(self.sum.to_variant())
+            self.sum.to_variant()
         }
     }
 
@@ -761,7 +762,7 @@ pub mod custom_callable {
     }
 
     impl RustCallable for PanicCallable {
-        fn invoke(&mut self, _args: &[&Variant]) -> Result<Variant, ()> {
+        fn invoke(&mut self, _args: &[&Variant]) -> Variant {
             panic!("TEST: {}", self.0.fetch_add(1, Ordering::SeqCst))
         }
     }

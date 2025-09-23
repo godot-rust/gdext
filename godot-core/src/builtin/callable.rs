@@ -111,7 +111,7 @@ impl Callable {
                 &function_name,
                 args.as_slice(),
             );
-            Ok(result)
+            result
         })
     }
 
@@ -139,14 +139,16 @@ impl Callable {
     ///
     /// This constructor only allows the callable to be invoked from the same thread as creating it. If you need to invoke it from any thread,
     /// use [`from_sync_fn`][Self::from_sync_fn] instead (requires crate feature `experimental-threads`; only enable if really needed).
-    pub fn from_local_fn<F, S>(name: S, rust_function: F) -> Self
+    #[cfg(since_api = "4.2")]
+    pub fn from_local_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        R: ToGodot,
+        F: 'static + FnMut(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
-        Self::from_fn_wrapper(FnWrapper {
+        Self::from_fn_wrapper::<F, R>(FnWrapper {
             rust_function,
             name,
             thread_id: Some(std::thread::current().id()),
@@ -165,12 +167,12 @@ impl Callable {
     pub fn from_linked_fn<F, T, S>(name: S, linked_object: &Gd<T>, rust_function: F) -> Self
     where
         T: GodotClass,
-        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnMut(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
-        Self::from_fn_wrapper(FnWrapper {
+        Self::from_fn_wrapper::<F, Variant>(FnWrapper {
             rust_function,
             name,
             thread_id: Some(std::thread::current().id()),
@@ -186,7 +188,7 @@ impl Callable {
     /// useful for deferred operations that should only execute once. For repeated execution, use [`from_local_fn()][Self::from_local_fn].
     pub(crate) fn from_once_fn<F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + FnOnce(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnOnce(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
@@ -204,7 +206,7 @@ impl Callable {
     #[doc(hidden)]
     pub fn __once_fn<F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + FnOnce(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnOnce(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         Self::from_once_fn(name, rust_function)
@@ -213,12 +215,12 @@ impl Callable {
     pub(crate) fn with_scoped_fn<S, F, Fc, R>(name: S, rust_function: F, callable_usage: Fc) -> R
     where
         S: meta::AsArg<GString>,
-        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: FnMut(&[&Variant]) -> Variant,
         Fc: FnOnce(&Callable) -> R,
     {
         meta::arg_into_owned!(name);
 
-        let callable = Self::from_fn_wrapper(FnWrapper {
+        let callable = Self::from_fn_wrapper::<F, Variant>(FnWrapper {
             rust_function,
             name,
             thread_id: Some(std::thread::current().id()),
@@ -250,12 +252,12 @@ impl Callable {
     #[cfg(feature = "experimental-threads")]
     pub fn from_sync_fn<F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + Send + Sync + FnMut(&[&Variant]) -> Variant,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
-        Self::from_fn_wrapper(FnWrapper {
+        Self::from_fn_wrapper::<F, Variant>(FnWrapper {
             rust_function,
             name,
             thread_id: None,
@@ -287,9 +289,10 @@ impl Callable {
         Self::from_custom_info(info)
     }
 
-    fn from_fn_wrapper<F>(inner: FnWrapper<F>) -> Self
+    fn from_fn_wrapper<F, R>(inner: FnWrapper<F>) -> Self
     where
-        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: FnMut(&[&Variant]) -> R,
+        R: ToGodot,
     {
         let object_id = inner.linked_object_id();
 
@@ -298,7 +301,7 @@ impl Callable {
         let info = CallableCustomInfo {
             object_id,
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
-            call_func: Some(rust_callable_call_fn::<F>),
+            call_func: Some(rust_callable_call_fn::<F, R>),
             free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
             to_string_func: Some(rust_callable_to_string_named::<F>),
             is_valid_func: Some(rust_callable_is_valid),
@@ -593,7 +596,7 @@ mod custom_callable {
         /// Return `Ok(...)` if the call succeeded, and `Err(())` otherwise.
         /// Error handling is mostly needed in case argument number or types mismatch.
         #[allow(clippy::result_unit_err)] // TODO remove once there's a clear error type here.
-        fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()>;
+        fn invoke(&mut self, args: &[&Variant]) -> Variant;
 
         // TODO(v0.3): add object_id().
 
@@ -626,19 +629,20 @@ mod custom_callable {
             // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
             let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
             let result = c.invoke(arg_refs);
-            meta::varcall_return_checked(result, r_return, r_error);
+            meta::varcall_return_checked(Ok(result), r_return, r_error);
             Ok(())
         });
     }
 
-    pub unsafe extern "C" fn rust_callable_call_fn<F>(
+    pub unsafe extern "C" fn rust_callable_call_fn<F, R>(
         callable_userdata: *mut std::ffi::c_void,
         p_args: *const sys::GDExtensionConstVariantPtr,
         p_argument_count: sys::GDExtensionInt,
         r_return: sys::GDExtensionVariantPtr,
         r_error: *mut sys::GDExtensionCallError,
     ) where
-        F: FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: FnMut(&[&Variant]) -> R,
+        R: ToGodot,
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
@@ -664,8 +668,8 @@ mod custom_callable {
                 );
             }
 
-            let result = (w.rust_function)(arg_refs);
-            meta::varcall_return_checked(result, r_return, r_error);
+            let result = (w.rust_function)(arg_refs).to_variant();
+            meta::varcall_return_checked(Ok(result), r_return, r_error);
             Ok(())
         });
     }

@@ -564,7 +564,7 @@ fn array_bsearch_custom() {
 fn backwards_sort_callable() -> Callable {
     Callable::from_local_fn("sort backwards", |args: &[&Variant]| {
         let res = args[0].to::<i32>() > args[1].to::<i32>();
-        Ok(res.to_variant())
+        res.to_variant()
     })
 }
 

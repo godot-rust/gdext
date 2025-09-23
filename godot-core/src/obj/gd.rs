@@ -586,7 +586,7 @@ impl<T: GodotClass> Gd<T> {
     /// If you need a Callable which can live indefinitely use [`Callable::from_local_fn()`].
     pub fn linked_callable<F>(&self, method_name: impl AsArg<GString>, rust_function: F) -> Callable
     where
-        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        F: 'static + FnMut(&[&Variant]) -> Variant,
     {
         Callable::from_linked_fn(method_name, self, rust_function)
     }
@@ -711,7 +711,7 @@ impl<T: GodotClass> Gd<T> {
 
         let callable = Callable::from_once_fn("run_deferred", move |_| {
             gd_function(obj);
-            Ok(Variant::nil())
+            Variant::nil()
         });
         callable.call_deferred(&[]);
     }

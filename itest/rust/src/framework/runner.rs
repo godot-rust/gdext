@@ -483,7 +483,7 @@ fn check_async_test_task(
                 .expect("Callable should not be called multiple times!"),
             &next_ctx,
         );
-        Ok(Variant::nil())
+        Variant::nil()
     });
 
     ctx.scene_tree

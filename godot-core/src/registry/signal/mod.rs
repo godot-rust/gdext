@@ -39,16 +39,15 @@ pub mod priv_re_export {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // Used by both `TypedSignal` and `ConnectBuilder`.
-fn make_godot_fn<Ps, F>(mut input: F) -> impl FnMut(&[&Variant]) -> Result<Variant, ()>
+fn make_godot_fn<Ps, F>(mut input: F) -> impl FnMut(&[&Variant]) -> Variant
 where
     F: FnMut(Ps),
     Ps: meta::InParamTuple,
 {
-    move |variant_args: &[&Variant]| -> Result<Variant, ()> {
+    move |variant_args: &[&Variant]| {
         let args = Ps::from_variant_array(variant_args);
         input(args);
-
-        Ok(Variant::nil())
+        Variant::nil()
     }
 }
 
