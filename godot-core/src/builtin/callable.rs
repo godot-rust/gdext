@@ -72,7 +72,7 @@ impl Callable {
     /// If the builtin type does not have the method, the returned callable will be invalid.
     ///
     /// Static builtin methods (e.g. `String.humanize_size`) are not supported in reflection as of Godot 4.4. For static _class_ functions,
-    /// use [`from_local_static()`][Self::from_local_static] instead.
+    /// use [`from_class_static()`][Self::from_class_static] instead.
     ///
     /// _Godot equivalent: `Callable.create(Variant variant, StringName method)`_
     #[cfg(since_api = "4.3")]
@@ -84,17 +84,15 @@ impl Callable {
         inner::InnerCallable::create(variant, method_name)
     }
 
-    /// Create a callable for the static method `class_name::function` (single-threaded).
+    /// Create a callable for the static method `class_name::function`
     ///
-    /// Allows you to call static functions through `Callable`.
+    /// Allows you to call static functions through `Callable`. Allows both single- and multi-threaded calls; what happens on Godot side
+    /// is your responsibility.
     ///
-    /// Does not support built-in types (such as `String`), only classes.
-    ///
-    /// # Compatibility
-    /// Not available before Godot 4.4. Library versions <0.3 used to provide this, however the polyfill used to emulate it was half-broken
-    /// (not supporting signals, bind(), method_name(), is_valid(), etc).
+    /// Does not support built-in types (such as `String`), only classes. Static functions on built-in types are not supported in Godot's
+    /// reflection APIs at the moment.
     #[cfg(since_api = "4.4")]
-    pub fn from_local_static(
+    pub fn from_class_static(
         class_name: impl meta::AsArg<StringName>,
         function_name: impl meta::AsArg<StringName>,
     ) -> Self {
@@ -103,7 +101,7 @@ impl Callable {
 
         let callable_name = format!("{class_name}.{function_name}");
 
-        Self::from_local_fn(&callable_name, move |args| {
+        let function = move |args: &[&Variant]| {
             let args = args.iter().cloned().cloned().collect::<Vec<_>>();
 
             let result: Variant = classes::ClassDb::singleton().class_call_static(
@@ -112,7 +110,24 @@ impl Callable {
                 args.as_slice(),
             );
             result
-        })
+        };
+
+        #[cfg(feature = "experimental-threads")]
+        let callable = Self::from_sync_fn(&callable_name, function);
+
+        #[cfg(not(feature = "experimental-threads"))]
+        let callable = Self::from_local_fn(&callable_name, function);
+
+        callable
+    }
+
+    #[deprecated = "Renamed to `from_class_static`."]
+    #[cfg(since_api = "4.4")]
+    pub fn from_local_static(
+        class_name: impl meta::AsArg<StringName>,
+        function_name: impl meta::AsArg<StringName>,
+    ) -> Self {
+        Self::from_class_static(class_name, function_name)
     }
 
     fn default_callable_custom_info() -> CallableCustomInfo {

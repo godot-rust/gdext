@@ -140,7 +140,7 @@ fn callable_variant_method() {
 #[itest]
 #[cfg(since_api = "4.4")]
 fn callable_static() {
-    let callable = Callable::from_local_static("CallableTestObj", "concat_array");
+    let callable = Callable::from_class_static("CallableTestObj", "concat_array");
 
     assert_eq!(callable.object(), None);
     assert_eq!(callable.object_id(), None);
@@ -170,7 +170,7 @@ fn callable_static() {
 #[itest]
 #[cfg(since_api = "4.4")]
 fn callable_static_bind() {
-    let callable = Callable::from_local_static("CallableTestObj", "concat_array");
+    let callable = Callable::from_class_static("CallableTestObj", "concat_array");
     assert!(callable.is_valid());
 
     // Test varying binds to static callables.
