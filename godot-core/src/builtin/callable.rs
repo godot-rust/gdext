@@ -154,7 +154,6 @@ impl Callable {
     ///
     /// This constructor only allows the callable to be invoked from the same thread as creating it. If you need to invoke it from any thread,
     /// use [`from_sync_fn`][Self::from_sync_fn] instead (requires crate feature `experimental-threads`; only enable if really needed).
-    #[cfg(since_api = "4.2")]
     pub fn from_local_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
         R: ToGodot,
@@ -201,9 +200,10 @@ impl Callable {
     ///
     /// After the first invocation, subsequent calls will panic with a message indicating the callable has already been consumed. This is
     /// useful for deferred operations that should only execute once. For repeated execution, use [`from_local_fn()][Self::from_local_fn].
-    pub(crate) fn from_once_fn<F, S>(name: S, rust_function: F) -> Self
+    pub(crate) fn from_once_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + FnOnce(&[&Variant]) -> Variant,
+        R: ToGodot,
+        F: 'static + FnOnce(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
@@ -213,6 +213,7 @@ impl Callable {
             let rust_fn_once = rust_fn_once
                 .take()
                 .expect("callable created with from_once_fn() has already been consumed");
+
             rust_fn_once(args)
         })
     }
@@ -265,14 +266,15 @@ impl Callable {
     /// });
     /// ```
     #[cfg(feature = "experimental-threads")]
-    pub fn from_sync_fn<F, S>(name: S, rust_function: F) -> Self
+    pub fn from_sync_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
-        F: 'static + Send + Sync + FnMut(&[&Variant]) -> Variant,
+        R: ToGodot,
+        F: 'static + Send + Sync + FnMut(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
-        Self::from_fn_wrapper::<F, Variant>(FnWrapper {
+        Self::from_fn_wrapper::<F, R>(FnWrapper {
             rust_function,
             name,
             thread_id: None,

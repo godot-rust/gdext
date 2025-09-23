@@ -819,6 +819,8 @@ mod custom_callable {
     }
 
     fn connect_signal_panic_from_fn(received: Arc<AtomicU32>) -> Callable {
+        // Explicit `Variant` return type to avoid following warning becoming a hard error in edition 2024.
+        // warning: this function depends on never type fallback being `()`
         Callable::from_local_fn("test", move |_args| -> Variant {
             panic!("TEST: {}", received.fetch_add(1, Ordering::SeqCst))
         })

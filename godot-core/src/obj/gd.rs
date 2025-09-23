@@ -711,7 +711,6 @@ impl<T: GodotClass> Gd<T> {
 
         let callable = Callable::from_once_fn("run_deferred", move |_| {
             gd_function(obj);
-            Variant::nil()
         });
         callable.call_deferred(&[]);
     }
