@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cell::OnceCell;
 #[cfg(debug_assertions)]
 use std::cell::RefCell;
 use std::io::Write;
@@ -433,8 +434,16 @@ where
     C: Fn() -> CallContext,
     F: FnOnce() -> Result<R, CallError> + std::panic::UnwindSafe,
 {
-    let outcome: Result<Result<R, CallError>, PanicPayload> =
-        handle_panic(|| call_ctx().to_string(), code);
+    let evaluated_ctx = OnceCell::new();
+    let outcome: Result<Result<R, CallError>, PanicPayload> = handle_panic(
+        || {
+            let call_ctx = call_ctx();
+            let ctx_str = call_ctx.to_string();
+            _ = evaluated_ctx.set(call_ctx);
+            ctx_str
+        },
+        code,
+    );
 
     let call_error = match outcome {
         // All good.
@@ -444,7 +453,12 @@ where
         Ok(Err(err)) => err,
 
         // Panic occurred (typically through user): forward message.
-        Err(panic_msg) => CallError::failed_by_user_panic(&call_ctx(), panic_msg),
+        Err(panic_msg) => {
+            // The call context would not be set if debug_assertions are false, or if the panic
+            // hook is unset
+            let ctx = evaluated_ctx.get_or_init(CallContext::default);
+            CallError::failed_by_user_panic(ctx, panic_msg)
+        }
     };
 
     let error_id = report_call_error(call_error, true);
@@ -464,14 +478,28 @@ where
     C: Fn() -> CallContext,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    let outcome: Result<R, PanicPayload> = handle_panic(|| call_ctx().to_string(), code);
+    let evaluated_ctx = OnceCell::new();
+    let outcome: Result<R, PanicPayload> = handle_panic(
+        || {
+            let call_ctx = call_ctx();
+            let ctx_str = call_ctx.to_string();
+            _ = evaluated_ctx.set(call_ctx);
+            ctx_str
+        },
+        code,
+    );
 
     let call_error = match outcome {
         // All good.
         Ok(_result) => return,
 
         // Panic occurred (typically through user): forward message.
-        Err(payload) => CallError::failed_by_user_panic(&call_ctx(), payload),
+        Err(payload) => {
+            // The call context would not be set if debug_assertions are false, or if the panic
+            // hook is unset
+            let ctx = evaluated_ctx.get_or_init(CallContext::default);
+            CallError::failed_by_user_panic(ctx, payload)
+        }
     };
 
     let _id = report_call_error(call_error, false);

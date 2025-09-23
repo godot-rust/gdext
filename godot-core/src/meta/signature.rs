@@ -83,7 +83,6 @@ where
         trace::push(true, false, &call_ctx());
 
         // SAFETY: TODO.
-        // TODO: pass the fn
         let args = unsafe { Params::from_varcall_args(args_ptr, &call_ctx)? };
 
         let rust_result = unsafe { func(instance_ptr, args) };
@@ -460,7 +459,7 @@ fn return_error<R>(call_ctx: &CallContext, err: ConvertError) -> ! {
 }
 
 // Lazy Display, so we don't create tens of thousands of extra string literals.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[doc(hidden)] // currently exposed in godot::meta
 pub struct CallContext {
     pub(crate) class_name: String,
