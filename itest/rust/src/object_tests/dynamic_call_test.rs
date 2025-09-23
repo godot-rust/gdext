@@ -160,8 +160,14 @@ fn dynamic_call_with_panic() {
     let result = obj.try_call("do_panic", &[]);
     let call_error = result.expect_err("panic should cause a call error");
 
-    assert_eq!(call_error.class_name(), Some("Object"));
-    assert_eq!(call_error.method_name(), "call");
+    // Call context is only provided with debug_assertions
+    if cfg!(debug_assertions) {
+        assert_eq!(call_error.class_name(), Some("Object"));
+        assert_eq!(call_error.method_name(), "call");
+    } else {
+        assert_eq!(call_error.class_name(), Some(""));
+        assert_eq!(call_error.method_name(), "");
+    }
 
     let expected_error_message = "godot-rust function call failed: Object::call(&\"do_panic\")\
         \n  Source: ObjPayload::do_panic()\
