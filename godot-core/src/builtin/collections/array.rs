@@ -710,7 +710,7 @@ impl<T: ArrayElement> Array<T> {
             let value = T::from_variant(args[0]);
             let is_less = matches!(func(&value), cmp::Ordering::Less);
 
-            Ok(is_less.to_variant())
+            is_less.to_variant()
         };
 
         let debug_name = std::any::type_name::<F>();
@@ -787,7 +787,7 @@ impl<T: ArrayElement> Array<T> {
             let rhs = T::from_variant(args[1]);
             let is_less = matches!(func(&lhs, &rhs), cmp::Ordering::Less);
 
-            Ok(is_less.to_variant())
+            is_less.to_variant()
         };
 
         let debug_name = std::any::type_name::<F>();

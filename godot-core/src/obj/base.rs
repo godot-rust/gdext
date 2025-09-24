@@ -14,7 +14,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 use std::rc::Rc;
 
-use crate::builtin::{Callable, Variant};
+use crate::builtin::Callable;
 use crate::obj::{bounds, Gd, GodotClass, InstanceId, PassiveGd};
 use crate::{classes, sys};
 
@@ -226,7 +226,6 @@ impl<T: GodotClass> Base<T> {
         let name = format!("Base<{}> deferred unref", T::class_id());
         let callable = Callable::from_once_fn(&name, move |_args| {
             Self::drop_strong_ref(instance_id);
-            Ok(Variant::nil())
         });
 
         // Use Callable::call_deferred() instead of Gd::apply_deferred(). The latter implicitly borrows &mut self,

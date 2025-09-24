@@ -12,7 +12,7 @@ use godot::builtin::inner::InnerColor;
 use godot::classes::{FileAccess, HttpRequest, IHttpRequest, RenderingServer};
 use godot::prelude::*;
 
-use crate::framework::{itest, suppress_godot_print};
+use crate::framework::itest;
 
 #[itest]
 fn codegen_class_renamed() {
@@ -211,6 +211,8 @@ fn changed_enum_apis() {
     use godot::classes::gpu_particles_2d::EmitFlags;
     use godot::classes::tree::DropModeFlags;
     use godot::classes::{FileAccess, GpuParticles2D, Tree};
+
+    use crate::framework::suppress_godot_print;
 
     suppress_godot_print(|| {
         // FileAccess::create_temp() with ModeFlags. Deliberately invalid prefix to not create an actual file.

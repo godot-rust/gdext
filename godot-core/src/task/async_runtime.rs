@@ -500,7 +500,7 @@ impl Wake for GodotWaker {
         /// This appears to be a common issue: https://github.com/rust-lang/rust/issues/89976
         fn callback_type_hint<F>(f: F) -> F
         where
-            F: for<'a> FnMut(&'a [&Variant]) -> Result<Variant, ()>,
+            F: for<'a> FnMut(&'a [&Variant]) -> Variant,
         {
             f
         }
@@ -515,7 +515,7 @@ impl Wake for GodotWaker {
             "GodotWaker::wake",
             callback_type_hint(move |_args| {
                 poll_future(waker.take().expect("Callable will never be called again"));
-                Ok(Variant::nil())
+                Variant::nil()
             }),
         );
 
