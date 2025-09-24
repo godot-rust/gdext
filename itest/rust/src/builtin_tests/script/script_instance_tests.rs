@@ -13,11 +13,11 @@ use godot::classes::{
     ScriptLanguageExtension,
 };
 use godot::global::{Error, MethodFlags};
+use godot::meta::error::CallErrorType;
 use godot::meta::{ClassId, FromGodot, MethodInfo, PropertyInfo, ToGodot};
 use godot::obj::script::{create_script_instance, ScriptInstance, SiMut};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::register::{godot_api, GodotClass};
-use godot::sys;
 
 use crate::framework::itest;
 
@@ -166,7 +166,7 @@ impl ScriptInstance for TestScriptInstance {
         mut this: SiMut<Self>,
         method: StringName,
         args: &[&Variant],
-    ) -> Result<Variant, sys::GDExtensionCallErrorType> {
+    ) -> Result<Variant, CallErrorType> {
         match method.to_string().as_str() {
             "script_method_a" => {
                 let arg_a = args[0].to::<GString>();
@@ -190,7 +190,7 @@ impl ScriptInstance for TestScriptInstance {
 
             other => {
                 println!("CALL: {other} with args: {args:?}");
-                Err(sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD)
+                Err(CallErrorType::InvalidMethod)
             }
         }
     }
