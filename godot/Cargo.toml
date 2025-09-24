@@ -38,6 +38,10 @@ api-4-3 = ["godot-core/api-4-3"]
 api-4-4 = ["godot-core/api-4-4"]
 # ]]
 
+
+debug-checks-balanced = ["godot-core/debug-checks-balanced"]
+release-checks-fast = ["godot-core/release-checks-fast"]
+
 default = ["__codegen-full"]
 
 # Private features, they are under no stability guarantee
