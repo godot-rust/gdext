@@ -232,13 +232,14 @@ macro_rules! make_base_mut {
         #[doc = concat!("See [`", stringify!($doc_type), "::base_mut()`](", stringify!($doc_path), "::base_mut()) for usage.\n")]
         pub struct $ident<'a, T: $bound> {
             passive_gd: PassiveGd<T::Base>,
-            _inaccessible_guard: InaccessibleGuard<'a, T>,
+       		// Option because we can't make a guard yet since the instance storage is null during initializing.
+    	    _inaccessible_guard: Option<InaccessibleGuard<'a, T>>,
         }
 
         impl<'a, T: $bound> $ident<'a, T> {
             pub(crate) fn new(
                 passive_gd: PassiveGd<T::Base>,
-                inaccessible_guard: InaccessibleGuard<'a, T>,
+                inaccessible_guard: Option<InaccessibleGuard<'a, T>>,
             ) -> Self {
                 Self {
                     passive_gd,

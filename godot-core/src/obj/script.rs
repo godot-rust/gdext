@@ -503,7 +503,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
         let guard = self.cell.make_inaccessible(self.mut_ref).unwrap();
         let passive_gd = self.base_ref.to_script_passive();
 
-        ScriptBaseMut::new(passive_gd, guard)
+        ScriptBaseMut::new(passive_gd, Some(guard))
     }
 }
 

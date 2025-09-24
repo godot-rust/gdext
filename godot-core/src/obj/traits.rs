@@ -12,7 +12,7 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::inspect::EnumConstant;
 use crate::meta::ClassId;
-use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
+use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd, PassiveGd};
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 
@@ -516,12 +516,17 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         // We need to construct this first, as the mut-borrow below will block all other access.
         // SAFETY: lifetime is re-established at the bottom BaseMut construction, since return type of this fn has lifetime bound to instance.
         let passive_gd = unsafe { self.base_field().constructed_passive() };
+        // SAFETY: The object ptr of `Gd<Self::Base>` is guaranteed to be valid `Gd<Self>`.
+        let gd = unsafe { PassiveGd::from_obj_sys(passive_gd.obj_sys()) };
 
-        let gd = self.to_gd();
+        // If the object is fully constructed, the associated instance storage must have been created.
+        #[cfg(debug_assertions)]
+        if !self.base_field().is_initializing() {
+            gd.raw.ensure_storage_not_null();
+        }
 
         // SAFETY:
-        // - We have a `Gd<Self>` so, provided that `storage_unbounded` succeeds, the associated instance
-        //   storage has been created.
+        // - `storage_unbounded` will succeed if the object is fully constructed, otherwise it returns None.
         //
         // - Since we can get a `&'a Base<Self::Base>` from `&'a self`, that must mean we have a Rust object
         //   somewhere that has this base object. The only way to have such a base object is by being the
@@ -529,13 +534,8 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         //   object. That means this storage cannot be destroyed for the lifetime of that Rust object. And
         //   since we have a reference to the base object derived from that Rust object, then that Rust
         //   object must outlive `'a`. And so the storage cannot be destroyed during the lifetime `'a`.
-        let storage = unsafe {
-            gd.raw
-                .storage_unbounded()
-                .expect("we have Gd<Self>; its RawGd should not be null")
-        };
-
-        let guard = storage.get_inaccessible(self);
+        let storage = unsafe { gd.raw.storage_unbounded() };
+        let guard = storage.map(|s| s.get_inaccessible(self));
 
         // Narrows lifetime again from 'static to 'self.
         BaseMut::new(passive_gd, guard)
