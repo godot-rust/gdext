@@ -22,6 +22,7 @@ use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{Object, Script, ScriptLanguage};
+use crate::meta::error::CallErrorType;
 use crate::meta::{MethodInfo, PropertyInfo};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
@@ -113,12 +114,11 @@ pub trait ScriptInstance: Sized {
     /// mutable method calls like rust.
     ///
     /// It's important that the script does not cause a second call to this function while executing a method call. This would result in a panic.
-    // TODO: map the sys::GDExtensionCallErrorType to some public API type.
     fn call(
         this: SiMut<Self>,
         method: StringName,
         args: &[&Variant],
-    ) -> Result<Variant, sys::GDExtensionCallErrorType>;
+    ) -> Result<Variant, CallErrorType>;
 
     /// Identifies the script instance as a placeholder, routing property writes to a fallback if applicable.
     ///
@@ -400,7 +400,9 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// # use godot::classes::{ScriptLanguage, Script};
     /// # use godot::obj::script::{ScriptInstance, SiMut};
     /// # use godot::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::meta::error::CallErrorType;
     /// # use godot::sys;
+    ///
     /// struct ExampleScriptInstance;
     ///
     /// impl ScriptInstance for ExampleScriptInstance {
@@ -410,7 +412,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///         this: SiMut<Self>,
     ///         method: StringName,
     ///         args: &[&Variant],
-    ///     ) -> Result<Variant, sys::GDExtensionCallErrorType>{
+    ///     ) -> Result<Variant, CallErrorType>{
     ///         let name = this.base().get_name();
     ///         godot_print!("name is {name}");
     ///         // However, we cannot call methods that require `&mut Base`, such as:
@@ -456,7 +458,9 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// # use godot::classes::{ScriptLanguage, Script};
     /// # use godot::obj::script::{ScriptInstance, SiMut};
     /// # use godot::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::meta::error::CallErrorType;
     /// # use godot::sys;
+    ///
     /// struct ExampleScriptInstance;
     ///
     /// impl ScriptInstance for ExampleScriptInstance {
@@ -466,7 +470,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///         mut this: SiMut<Self>,
     ///         method: StringName,
     ///         args: &[&Variant],
-    ///     ) -> Result<Variant, sys::GDExtensionCallErrorType> {
+    ///     ) -> Result<Variant, CallErrorType> {
     ///         // Check whether method is available on this script
     ///         if method == StringName::from("script_method") {
     ///             godot_print!("script_method called!");
@@ -817,7 +821,8 @@ mod script_instance_info {
     ) {
         // SAFETY: `p_method` is a valid [`StringName`] pointer.
         let method = unsafe { StringName::new_from_string_sys(p_method) };
-        // SAFETY: `p_args` is a valid array of length `p_argument_count`
+
+        // SAFETY: `p_args` is a valid array of length `p_argument_count`.
         let args = unsafe {
             Variant::borrow_ref_slice(
                 p_args,
@@ -845,7 +850,7 @@ mod script_instance_info {
                 sys::GDEXTENSION_CALL_OK
             }
 
-            Ok(Err(err)) => err,
+            Ok(Err(err)) => err.to_sys(),
 
             Err(_) => sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD,
         };
