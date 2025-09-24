@@ -221,7 +221,9 @@ impl DynMemory for MemRefCounted {
         }
         obj.with_ref_counted(|refc| {
             let success = refc.init_ref();
-            assert!(success, "init_ref() failed");
+            if !success {
+                crate::godot_error!("init_ref() failed, make sure you don't create a `Gd` pointer to base/self in predelete or drop()");
+            };
         });
 
         /*
@@ -249,6 +251,10 @@ impl DynMemory for MemRefCounted {
             return false;
         }
         obj.with_ref_counted(|refc| {
+            if refc.get_reference_count() == 0 {
+	            crate::godot_error!("Trying to unreference a RefCounted whose reference count is already zero, make sure you don't create a `Gd` pointer to base/self in predelete or drop()");
+				return false;
+            }
             let is_last = refc.unreference();
             out!("  +-- was last={is_last}");
             is_last

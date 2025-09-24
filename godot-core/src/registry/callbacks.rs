@@ -20,7 +20,9 @@ use crate::builder::ClassBuilder;
 use crate::builtin::{StringName, Variant};
 use crate::classes::Object;
 use crate::meta::PropertyInfo;
-use crate::obj::{bounds, cap, AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass};
+use crate::obj::{
+    bounds, cap, AsDyn, Base, Bounds, Gd, GodotClass, Inherits, PassiveGd, UserClass,
+};
 use crate::private::{handle_panic, IntoVirtualMethodReceiver, PanicPayload};
 use crate::registry::plugin::ErasedDynGd;
 use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
@@ -100,24 +102,25 @@ where
 {
     let base_class_name = T::Base::class_id();
     let base_ptr = unsafe { sys::classdb_construct_object(base_class_name.string_sys()) };
+    let raw_id = unsafe { interface_fn!(object_get_instance_id)(base_ptr) };
 
     let postinit = |base_ptr| {
         #[cfg(since_api = "4.4")]
         if notify_postinitialize {
             // Should notify it with a weak pointer, during `NOTIFICATION_POSTINITIALIZE`, ref-counted object is not yet fully-initialized.
-            let mut obj = unsafe { Gd::<Object>::from_obj_sys_weak(base_ptr) };
+            let mut obj = unsafe { PassiveGd::<Object>::from_obj_sys(base_ptr) };
             obj.notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
-            obj.drop_weak();
         }
     };
 
     match create_rust_part_for_existing_godot_part(make_user_instance, base_ptr, postinit) {
         Ok(_extension_ptr) => Ok(base_ptr),
         Err(payload) => {
-            // Creation of extension object failed; we must now also destroy the base object to avoid leak.
-            // SAFETY: `base_ptr` was just created above.
-            unsafe { interface_fn!(object_destroy)(base_ptr) };
-
+            if crate::global::is_instance_id_valid(raw_id as i64) {
+                // Creation of extension object failed; we must now also destroy the base object to avoid leak.
+                // SAFETY: the validity of `base_ptr` is checked above.
+                unsafe { interface_fn!(object_destroy)(base_ptr) };
+            }
             Err(payload)
         }
     }
@@ -144,11 +147,21 @@ where
     //out!("create callback: {}", class_name.backing);
 
     let base = unsafe { Base::from_sys(base_ptr) };
+    let raw_id = unsafe { interface_fn!(object_get_instance_id)(base_ptr) };
 
     // User constructor init() can panic, which crashes the engine if unhandled.
     let context = || format!("panic during {class_name}::init() constructor");
     let code = || make_user_instance(unsafe { Base::from_base(&base) });
-    let user_instance = handle_panic(context, std::panic::AssertUnwindSafe(code))?;
+    let user_instance = handle_panic(
+        context,
+        std::panic::AssertUnwindSafe(|| {
+            let instance = code();
+            debug_assert!(crate::global::is_instance_id_valid(raw_id as i64),
+			   	"Object is released during {class_name}::init(). For RefCounted, make sure you don't create a `Gd` pointer to base/self in init(). For Object, make sure you don't call `Gd.free()` in init()"
+        	);
+            instance
+        }),
+    )?;
 
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
     // godot_error!("failed to create instance of {class_name}; Rust init() panicked");
