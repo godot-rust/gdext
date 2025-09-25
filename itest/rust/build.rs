@@ -361,6 +361,7 @@ fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
         .collect::<Vec<_>>();
 
     let manual_methods = quote! {
+        #[allow(clippy::suspicious_else_formatting)] // `quote!` might output whole file as one big line.
         #[func]
         fn check_last_notrace(last_method_name: String, expected_callconv: String) -> bool {
             let last = godot::private::trace::pop();
