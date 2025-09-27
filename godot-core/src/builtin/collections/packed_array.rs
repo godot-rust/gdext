@@ -771,8 +771,6 @@ impl<T: PackedArrayElement + fmt::Display> fmt::Display for PackedArray<T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Specific API for PackedByteArray
 
-impl_builtin_froms!(PackedByteArray; VariantArray => packed_byte_array_from_array);
-
 macro_rules! declare_encode_decode {
     // $Via could be inferred, but ensures we have the correct type expectations.
     ($Ty:ty, $bytes:literal, $encode_fn:ident, $decode_fn:ident, $Via:ty) => {

@@ -156,16 +156,6 @@ impl<T: GodotClass> Base<T> {
         }
     }
 
-    /// Returns a [`Gd`] referencing the same object as this reference.
-    ///
-    /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
-    /// methods from [`WithBaseField`](super::WithBaseField) when possible.
-    #[doc(hidden)]
-    #[deprecated = "Private API. Use `Base::to_init_gd()` or `WithBaseField::to_gd()` instead."] // TODO(v0.4): remove.
-    pub fn to_gd(&self) -> Gd<T> {
-        (*self.obj).clone()
-    }
-
     /// Returns a [`Gd`] referencing the base object, for exclusive use during object initialization and `NOTIFICATION_POSTINITIALIZE`.
     ///
     /// Can be used during an initialization function [`I*::init()`][crate::classes::IObject::init] or [`Gd::from_init_fn()`], or [`POSTINITIALIZE`][crate::classes::notify::ObjectNotification::POSTINITIALIZE].

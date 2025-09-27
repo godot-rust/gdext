@@ -615,7 +615,7 @@ mod custom_callable {
         #[allow(clippy::result_unit_err)] // TODO remove once there's a clear error type here.
         fn invoke(&mut self, args: &[&Variant]) -> Variant;
 
-        // TODO(v0.3): add object_id().
+        // TODO(v0.5): add object_id().
 
         /// Returns whether the callable is considered valid.
         ///

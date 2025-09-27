@@ -11,10 +11,10 @@ use crate::builtin::Callable;
 use crate::builtin::{GString, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
-use crate::meta::InParamTuple;
+use crate::meta::{InParamTuple, ObjectToOwned};
 use crate::obj::{bounds, Bounds, Gd, GodotClass, WithSignals};
 use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
-use crate::registry::signal::{ConnectHandle, ToSignalObj, TypedSignal};
+use crate::registry::signal::{ConnectHandle, TypedSignal};
 
 /// Builder for customizing signal connections.
 ///
@@ -239,7 +239,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
     pub fn connect_other_mut<F, OtherC>(
         self,
-        object: &impl ToSignalObj<OtherC>,
+        object: &impl ObjectToOwned<OtherC>,
         mut method: F,
     ) -> ConnectHandle
     where
@@ -247,7 +247,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps>,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, &'c_rcv mut OtherC, Ps, F>: From<&'c_rcv mut F>,
     {
-        let mut gd = object.to_signal_obj();
+        let mut gd = object.object_to_owned();
 
         let godot_fn = make_godot_fn(move |args| {
             let mut guard = Gd::bind_mut(&mut gd);
@@ -256,7 +256,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(&mut *guard, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn, &object.to_signal_obj())
+        self.inner_connect_godot_fn::<F>(godot_fn, &object.object_to_owned())
     }
 
     /// Connect a method with any `&mut Gd<OtherC>` as the first parameter (user + engine classes).
@@ -272,7 +272,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
     /// - If you need cross-thread signals, use [`connect_sync()`](#method.connect_sync) instead (requires feature "experimental-threads").
     pub fn connect_other_gd<F, OtherC>(
         self,
-        object: &impl ToSignalObj<OtherC>,
+        object: &impl ObjectToOwned<OtherC>,
         mut method: F,
     ) -> ConnectHandle
     where
@@ -280,7 +280,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
         F: SignalReceiver<Gd<OtherC>, Ps>,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, Gd<OtherC>, Ps, F>: From<&'c_rcv mut F>,
     {
-        let gd = object.to_signal_obj();
+        let gd = object.object_to_owned();
 
         let godot_fn = make_godot_fn(move |args| {
             IndirectSignalReceiver::from(&mut method)
@@ -288,7 +288,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(gd.clone(), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn, &object.to_signal_obj())
+        self.inner_connect_godot_fn::<F>(godot_fn, &object.object_to_owned())
     }
 
     /// Connect to this signal using a thread-safe function, allows the signal to be called across threads.

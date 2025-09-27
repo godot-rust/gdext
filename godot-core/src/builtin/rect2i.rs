@@ -28,8 +28,11 @@ use crate::builtin::{Rect2, Side, Vector2i};
 ///
 /// [`Aabb`]: crate::builtin::Aabb
 ///
-/// # Godot docs
+/// # Soft invariants
+/// `Rect2i` requires non-negative size for certain operations, which is validated only on a best-effort basis. Violations may
+/// cause panics in Debug mode. See also [_Builtin API design_](../__docs/index.html#6-public-fields-and-soft-invariants).
 ///
+/// # Godot docs
 /// [`Rect2i` (stable)](https://docs.godotengine.org/en/stable/classes/class_rect2i.html)
 #[derive(Default, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

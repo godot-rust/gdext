@@ -133,8 +133,6 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Object (Gd + DynGd) impls
 
-// TODO(v0.4): all objects + optional objects should be pass-by-ref.
-
 // Convert `Gd` -> `Gd` (with upcast).
 impl<T, Base> AsArg<Gd<Base>> for &Gd<T>
 where
