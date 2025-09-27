@@ -30,6 +30,10 @@ api-4-4 = ["godot-bindings/api-4-4"]
 api-4-5 = ["godot-bindings/api-4-5"]
 # ]]
 
+
+debug-checks-balanced = ["godot-bindings/debug-checks-balanced"]
+release-checks-fast = ["godot-bindings/release-checks-fast"]
+
 [dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
