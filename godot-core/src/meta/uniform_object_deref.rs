@@ -60,6 +60,9 @@ use crate::obj::{Gd, GdMut, GdRef, GodotClass, WithBaseField};
 ///     abstract_over_objects(&user_obj);
 /// }
 /// ```
+///
+/// # Similar traits
+/// - [`ObjectToOwned`][crate::meta::ObjectToOwned] provides conversion from `&self` or `&Gd<T>` to owned `Gd<T>`.
 //
 // The crate `https://crates.io/crates/disjoint_impls` handles this in a more user-friendly way, we should
 // consider using it if disjoint impls are going to be frequently used.

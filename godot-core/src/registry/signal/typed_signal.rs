@@ -13,30 +13,9 @@ use super::{make_callable_name, make_godot_fn, ConnectBuilder, ConnectHandle, Si
 use crate::builtin::{Callable, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
-use crate::meta::{InParamTuple, UniformObjectDeref};
-use crate::obj::{Gd, GodotClass, WithBaseField, WithSignals};
+use crate::meta::{InParamTuple, ObjectToOwned, UniformObjectDeref};
+use crate::obj::{Gd, GodotClass, WithSignals};
 use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
-
-// TODO(v0.4): find more general name for trait.
-/// Object part of the signal receiver (handler).
-///
-/// Functionality overlaps partly with [`meta::AsObjectArg`] and [`meta::AsArg<ObjectArg>`]. Can however not directly be replaced
-/// with `AsObjectArg`, since that allows nullability and doesn't require `&mut T`. Maybe there's a way to reuse them though.
-pub trait ToSignalObj<C: GodotClass> {
-    fn to_signal_obj(&self) -> Gd<C>;
-}
-
-impl<C: GodotClass> ToSignalObj<C> for Gd<C> {
-    fn to_signal_obj(&self) -> Gd<C> {
-        self.clone()
-    }
-}
-
-impl<C: WithBaseField> ToSignalObj<C> for C {
-    fn to_signal_obj(&self) -> Gd<C> {
-        WithBaseField::to_gd(self)
-    }
-}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -234,7 +213,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     /// The parameter `object` can be of 2 different "categories":
     /// - Any `&Gd<OtherC>` (e.g.: `&Gd<Node>`, `&Gd<CustomUserClass>`).
     /// - `&OtherC`, as long as `OtherC` is a user class that contains a `base` field (it implements the
-    ///   [`WithBaseField`](WithBaseField) trait).
+    ///   [`WithBaseField`][crate::obj::WithBaseField] trait).
     ///
     /// ---
     ///
@@ -242,7 +221,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
     pub fn connect_other<F, OtherC, Declarer>(
         &self,
-        object: &impl ToSignalObj<OtherC>,
+        object: &impl ObjectToOwned<OtherC>,
         mut method: F,
     ) -> ConnectHandle
     where
@@ -250,7 +229,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
         for<'c_rcv> F: SignalReceiver<&'c_rcv mut OtherC, Ps> + 'static,
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, &'c_rcv mut OtherC, Ps, F>: From<&'c_rcv mut F>,
     {
-        let mut gd = object.to_signal_obj();
+        let mut gd = object.object_to_owned();
 
         let godot_fn = make_godot_fn(move |args| {
             let mut target = OtherC::object_as_mut(&mut gd);
@@ -260,6 +239,6 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
                 .call(target_mut, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn, &object.to_signal_obj())
+        self.inner_connect_godot_fn::<F>(godot_fn, &object.object_to_owned())
     }
 }

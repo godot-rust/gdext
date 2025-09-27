@@ -47,6 +47,7 @@ mod class_id;
 mod element_type;
 mod godot_convert;
 mod method_info;
+mod object_to_owned;
 mod param_tuple;
 mod property_info;
 mod signature;
@@ -66,6 +67,7 @@ pub use class_id::{ClassId, ClassName};
 pub use element_type::{ElementScript, ElementType};
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
 pub use method_info::MethodInfo;
+pub use object_to_owned::ObjectToOwned;
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple};
 pub use property_info::{PropertyHintInfo, PropertyInfo};
 #[cfg(feature = "trace")]
