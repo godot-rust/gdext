@@ -141,10 +141,12 @@ fn node_path_get_subname() {
     })
 }
 
-crate::generate_string_standard_fmt_tests!(
+crate::generate_string_fmt_conversion_tests!(
     builtin: NodePath,
     tests: [
         node_path_display,
         node_path_standard_pad,
+        str_to_godot_strings_trait,
+        string_to_godot_strings_trait,
     ]
 );

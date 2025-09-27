@@ -202,10 +202,12 @@ crate::generate_string_bytes_and_cstr_tests!(
     ]
 );
 
-crate::generate_string_standard_fmt_tests!(
+crate::generate_string_fmt_conversion_tests!(
     builtin: StringName,
     tests: [
         string_name_display,
         string_name_standard_pad,
+        str_to_godot_strings_trait,
+        string_to_godot_strings_trait,
     ]
 );

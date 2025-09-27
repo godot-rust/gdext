@@ -12,10 +12,12 @@ mod macros;
 mod node_path;
 mod string_macros;
 mod string_name;
+mod to_godot_strings;
 
 pub use gstring::*;
 pub use node_path::NodePath;
 pub use string_name::*;
+pub use to_godot_strings::ToGodotStrings;
 
 use crate::meta;
 use crate::meta::error::ConvertError;

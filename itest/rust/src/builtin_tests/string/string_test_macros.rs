@@ -7,6 +7,7 @@
 
 //! Byte and C-string conversions.
 
+/// Tests conversions from bytes and c-strings.
 #[macro_export]
 macro_rules! generate_string_bytes_and_cstr_tests {
     (
@@ -163,14 +164,16 @@ macro_rules! generate_string_bytes_and_cstr_tests {
     };
 }
 
-// Tests padding with the standard formatter.
+/// Tests `Display` + padding with the standard formatter.
 #[macro_export]
-macro_rules! generate_string_standard_fmt_tests {
+macro_rules! generate_string_fmt_conversion_tests {
     (
         builtin: $T:ty,
         tests: [
             $display:ident,
             $standard_pad:ident,
+            $str_trait:ident,
+            $string_trait:ident,
         ]
     ) => {
         #[itest]
@@ -191,6 +194,24 @@ macro_rules! generate_string_standard_fmt_tests {
             // Precision.
             assert_eq!(format!("{s:.2}"), "ab");
             assert_eq!(format!("{s:.3}"), "abc");
+        }
+
+        #[itest]
+        fn $str_trait() {
+            use godot::builtin::{GString, StringName, NodePath, ToGodotStrings};
+            let input = "test string";
+            assert_eq!(input.to_gstring(), GString::from("test string"));
+            assert_eq!(input.to_string_name(), StringName::from("test string"));
+            assert_eq!(input.to_node_path(), NodePath::from("test string"));
+        }
+
+        #[itest]
+        fn $string_trait() {
+            use godot::builtin::{GString, StringName, NodePath, ToGodotStrings};
+            let input = String::from("test string");
+            assert_eq!(input.to_gstring(), GString::from("test string"));
+            assert_eq!(input.to_string_name(), StringName::from("test string"));
+            assert_eq!(input.to_node_path(), NodePath::from("test string"));
         }
     };
 }
