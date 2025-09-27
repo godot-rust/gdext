@@ -550,6 +550,14 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     {
         self.to_gd().run_deferred_gd(gd_function)
     }
+
+    #[deprecated = "Split into `run_deferred()` + `run_deferred_gd()`."]
+    fn apply_deferred<F>(&mut self, rust_function: F)
+    where
+        F: FnOnce(&mut Self) + 'static,
+    {
+        self.run_deferred(rust_function)
+    }
 }
 
 /// Implemented for all classes with registered signals, both engine- and user-declared.
