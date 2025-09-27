@@ -636,11 +636,14 @@ mod custom_callable {
     ) {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        let name = {
+        #[cfg(debug_assertions)]
+        let name = &{
             let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
             c.to_string()
         };
-        let ctx = meta::CallContext::custom_callable(name.as_str());
+        #[cfg(not(debug_assertions))]
+        let name = "<optimized out>";
+        let ctx = meta::CallContext::custom_callable(name);
 
         crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
             // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
@@ -663,11 +666,14 @@ mod custom_callable {
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        let name = {
+        #[cfg(debug_assertions)]
+        let name = &{
             let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
             w.name.to_string()
         };
-        let ctx = meta::CallContext::custom_callable(name.as_str());
+        #[cfg(not(debug_assertions))]
+        let name = "<optimized out>";
+        let ctx = meta::CallContext::custom_callable(name);
 
         crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
             // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
