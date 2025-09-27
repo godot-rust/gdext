@@ -40,6 +40,18 @@ fn string_name_node_path_conversion() {
 }
 
 #[itest]
+fn string_name_to_gstring() {
+    let string_name = StringName::from("test string");
+    assert_eq!(string_name.to_gstring(), GString::from("test string"));
+}
+
+#[itest]
+fn string_name_to_node_path() {
+    let string_name = StringName::from("path/to/node");
+    assert_eq!(string_name.to_node_path(), NodePath::from("path/to/node"));
+}
+
+#[itest]
 fn string_name_equality() {
     let string = StringName::from("some string");
     let second = StringName::from("some string");

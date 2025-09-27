@@ -7,14 +7,12 @@
 
 use std::collections::HashSet;
 
-use godot::builtin::{Encoding, GString, PackedStringArray};
+use godot::builtin::{Encoding, GString, NodePath, PackedStringArray, StringName};
 
 use crate::framework::{expect_debug_panic_or_release_ok, itest};
 
-// TODO use tests from godot-rust/gdnative
-
 #[itest]
-fn string_default() {
+fn gstring_default() {
     let string = GString::new();
     let back = String::from(&string);
 
@@ -22,7 +20,7 @@ fn string_default() {
 }
 
 #[itest]
-fn string_conversion() {
+fn gstring_conversion() {
     let string = String::from("some string");
     let second = GString::from(&string);
     let back = String::from(&second);
@@ -31,7 +29,19 @@ fn string_conversion() {
 }
 
 #[itest]
-fn string_equality() {
+fn gstring_to_string_name() {
+    let gstring = GString::from("test string");
+    assert_eq!(gstring.to_string_name(), StringName::from("test string"));
+}
+
+#[itest]
+fn gstring_to_node_path() {
+    let gstring = GString::from("path/to/node");
+    assert_eq!(gstring.to_node_path(), NodePath::from("path/to/node"));
+}
+
+#[itest]
+fn gstring_equality() {
     let string = GString::from("some string");
     let second = GString::from("some string");
     let different = GString::from("some");
@@ -41,7 +51,7 @@ fn string_equality() {
 }
 
 #[itest]
-fn string_ordering() {
+fn gstring_ordering() {
     let low = GString::from("Alpha");
     let high = GString::from("Beta");
 
@@ -52,7 +62,7 @@ fn string_ordering() {
 }
 
 #[itest]
-fn string_clone() {
+fn gstring_clone() {
     let first = GString::from("some string");
     #[allow(clippy::redundant_clone)]
     let cloned = first.clone();
@@ -61,7 +71,7 @@ fn string_clone() {
 }
 
 #[itest]
-fn string_chars() {
+fn gstring_chars() {
     // Empty tests regression from #228: Null pointer passed to slice::from_raw_parts().
     let string = GString::new();
     let empty_char_slice: &[char] = &[];
@@ -87,7 +97,7 @@ fn string_chars() {
 }
 
 #[itest]
-fn string_unicode_at() {
+fn gstring_unicode_at() {
     let s = GString::from("ö🍎A💡");
     assert_eq!(s.unicode_at(0), 'ö');
     assert_eq!(s.unicode_at(1), '🍎');
@@ -101,7 +111,7 @@ fn string_unicode_at() {
 }
 
 #[itest]
-fn string_hash() {
+fn gstring_hash() {
     let set: HashSet<GString> = [
         "string_1",
         "SECOND string! :D",
@@ -116,7 +126,7 @@ fn string_hash() {
 }
 
 #[itest]
-fn string_with_null() {
+fn gstring_with_null() {
     // Godot always ignores bytes after a null byte.
     let cases: &[(&str, &str)] = &[
         (
@@ -135,7 +145,7 @@ fn string_with_null() {
 }
 
 #[itest]
-fn string_substr() {
+fn gstring_substr() {
     let string = GString::from("stable");
     assert_eq!(string.substr(..), "stable".into());
     assert_eq!(string.substr(1..), "table".into());

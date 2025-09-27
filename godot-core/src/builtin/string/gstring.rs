@@ -241,6 +241,16 @@ impl GString {
         self.move_return_ptr(dst, sys::PtrcallType::Standard);
     }
 
+    /// Convert this `GString` to a `StringName`.
+    pub fn to_string_name(&self) -> StringName {
+        StringName::from(self)
+    }
+
+    /// Convert this `GString` to a `NodePath`.
+    pub fn to_node_path(&self) -> NodePath {
+        NodePath::from(self)
+    }
+
     meta::declare_arg_method! {
         /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::meta::AsArg] parameter.
         ///

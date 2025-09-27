@@ -175,6 +175,16 @@ impl StringName {
         TransientStringNameOrd(self)
     }
 
+    /// Convert this `StringName` to a `GString`.
+    pub fn to_gstring(&self) -> GString {
+        GString::from(self)
+    }
+
+    /// Convert this `StringName` to a `NodePath`.
+    pub fn to_node_path(&self) -> NodePath {
+        NodePath::from(self)
+    }
+
     ffi_methods! {
         type sys::GDExtensionStringNamePtr = *mut Opaque;
 

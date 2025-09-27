@@ -181,6 +181,16 @@ impl NodePath {
             .slice(begin, exclusive_end.unwrap_or(i32::MAX as i64))
     }
 
+    /// Convert this `NodePath` to a `GString`.
+    pub fn to_gstring(&self) -> GString {
+        GString::from(self)
+    }
+
+    /// Convert this `NodePath` to a `StringName`.
+    pub fn to_string_name(&self) -> StringName {
+        StringName::from(self)
+    }
+
     crate::meta::declare_arg_method! {
         /// Use as argument for an [`impl AsArg<GString|StringName>`][crate::meta::AsArg] parameter.
         ///

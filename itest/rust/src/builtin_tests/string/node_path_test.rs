@@ -7,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use godot::builtin::{GString, NodePath};
+use godot::builtin::{GString, NodePath, StringName};
 use godot::meta::wrapped;
 
 use crate::framework::{expect_debug_panic_or_release_ok, itest};
@@ -27,6 +27,18 @@ fn node_path_conversion() {
     let back = GString::from(&name);
 
     assert_eq!(string, back);
+}
+
+#[itest]
+fn node_path_to_gstring() {
+    let node_path = NodePath::from("path/to/node");
+    assert_eq!(node_path.to_gstring(), GString::from("path/to/node"));
+}
+
+#[itest]
+fn node_path_to_string_name() {
+    let node_path = NodePath::from("test string");
+    assert_eq!(node_path.to_string_name(), StringName::from("test string"));
 }
 
 #[itest]
