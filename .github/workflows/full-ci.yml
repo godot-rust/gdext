@@ -361,13 +361,14 @@ jobs:
             artifact-name: linux-4.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.4'
-            hot-reload: stable
+            hot-reload: api-4-4
 
           - name: linux-4.3
             os: ubuntu-22.04
             artifact-name: linux-4.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.3'
+            hot-reload: api-4-3
 
           # Can be disabled in the future (already covered by memcheck). For now kept on to differentiate quicker.
           - name: linux-4.2
@@ -375,6 +376,7 @@ jobs:
             artifact-name: linux-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.2.2'
+            hot-reload: api-4-2
 
           # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
           # See also https://rustc-dev-guide.rust-lang.org/sanitizers.html.
