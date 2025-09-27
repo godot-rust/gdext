@@ -156,10 +156,9 @@ impl StringName {
         /// [`Node::set_name()`][crate::classes::Node::set_name] takes `GString`, let's pass a `StringName`:
         /// ```no_run
         /// # use godot::prelude::*;
-        /// let name = StringName::from("my cool node");
-        ///
-        /// let mut node = Node::new_alloc();
-        /// node.set_name(name.arg());
+        /// let needle = StringName::from("str");
+        /// let haystack = GString::from("a long string");
+        /// let found = haystack.find(needle.arg());
         /// ```
     }
 
