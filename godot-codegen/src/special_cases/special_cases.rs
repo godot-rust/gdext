@@ -97,6 +97,7 @@ pub fn is_native_struct_excluded(ty: &str) -> bool {
     codegen_special_cases::is_native_struct_excluded(ty)
 }
 
+#[rustfmt::skip]
 pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
     // Note: parameter can be a class or builtin name, but also something like "enum::AESContext.Mode".
 
@@ -117,15 +118,20 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         }
     }
 
+    // cfg!(target_os = "...") are relatively new and need more testing. If causing problems, revert to `true` (deleted) for now.
+    // TODO(v0.5): for doc generation, consider moving the target-filters to the generated code, so that API docs still show the classes.
     match godot_ty {
-        // Hardcoded cases that are not accessible.
         // Only on Android.
-        | "JavaClassWrapper"
-        | "JNISingleton"
         | "JavaClass"
+        | "JavaClassWrapper"
+        | "JavaObject"
+        | "JNISingleton"
+        => !cfg!(target_os = "android"),
+
         // Only on Wasm.
         | "JavaScriptBridge"
         | "JavaScriptObject"
+        => !cfg!(target_os = "emscripten"),
 
         // Thread APIs.
         | "Thread"
