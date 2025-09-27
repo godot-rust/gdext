@@ -11,8 +11,10 @@ if [[ $1 == "api-custom" ]]; then
   cargoArgs="--features godot/api-custom"
 elif [[ $1 == "stable" ]]; then
   cargoArgs=""
+elif [[ $1 == api-4-* ]]; then
+  cargoArgs="--features godot/$1"
 else
-  echo "[Bash]      Error: Unknown argument '$1'. Expected 'api-custom' or 'stable'."
+  echo "[Bash]      Error: Unknown argument '$1'. Expected 'stable', 'api-custom' or 'api-4.*'."
   exit 1
 fi
 
