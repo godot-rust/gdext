@@ -29,7 +29,7 @@ use crate::{GodotVersion, StopWatch};
 // [version-sync] [[
 //  [include] current.minor
 //  [line] use gdextension_api::version_$snakeVersion::load_gdextension_header_h as load_latest_gdextension_headers;
-use gdextension_api::version_4_4::load_gdextension_header_h as load_latest_gdextension_headers;
+use gdextension_api::version_4_5::load_gdextension_header_h as load_latest_gdextension_headers;
 // ]]
 
 /// A minimal version of deserialized JsonExtensionApi that includes only the header.
