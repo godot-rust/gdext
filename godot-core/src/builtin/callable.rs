@@ -178,15 +178,16 @@ impl Callable {
     /// Prefer using [`Gd::linked_callable()`] instead.
     ///
     /// If you need a callable which can live indefinitely use [`Callable::from_local_fn()`].
-    pub fn from_linked_fn<F, T, S>(name: S, linked_object: &Gd<T>, rust_function: F) -> Self
+    pub fn from_linked_fn<R, F, T, S>(name: S, linked_object: &Gd<T>, rust_function: F) -> Self
     where
+        R: ToGodot,
         T: GodotClass,
-        F: 'static + FnMut(&[&Variant]) -> Variant,
+        F: 'static + FnMut(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
         meta::arg_into_owned!(name);
 
-        Self::from_fn_wrapper::<F, Variant>(FnWrapper {
+        Self::from_fn_wrapper::<F, R>(FnWrapper {
             rust_function,
             name,
             thread_id: Some(std::thread::current().id()),

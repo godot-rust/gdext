@@ -584,9 +584,14 @@ impl<T: GodotClass> Gd<T> {
     ///
     /// Such a callable will be automatically invalidated by Godot when a linked Object is freed.
     /// If you need a Callable which can live indefinitely use [`Callable::from_local_fn()`].
-    pub fn linked_callable<F>(&self, method_name: impl AsArg<GString>, rust_function: F) -> Callable
+    pub fn linked_callable<R, F>(
+        &self,
+        method_name: impl AsArg<GString>,
+        rust_function: F,
+    ) -> Callable
     where
-        F: 'static + FnMut(&[&Variant]) -> Variant,
+        R: ToGodot,
+        F: 'static + FnMut(&[&Variant]) -> R,
     {
         Callable::from_linked_fn(method_name, self, rust_function)
     }
