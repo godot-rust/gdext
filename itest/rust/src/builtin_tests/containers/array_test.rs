@@ -563,7 +563,7 @@ fn array_bsearch_custom() {
 
 fn backwards_sort_callable() -> Callable {
     // No &[&Variant] explicit type in arguments.
-    Callable::from_local_fn("sort backwards", |args| {
+    Callable::from_fn("sort backwards", |args| {
         args[0].to::<i32>() > args[1].to::<i32>()
     })
 }

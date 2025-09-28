@@ -116,7 +116,7 @@ impl Callable {
         let callable = Self::from_sync_fn(&callable_name, function);
 
         #[cfg(not(feature = "experimental-threads"))]
-        let callable = Self::from_local_fn(&callable_name, function);
+        let callable = Self::from_fn(&callable_name, function);
 
         callable
     }
@@ -154,7 +154,9 @@ impl Callable {
     ///
     /// This constructor only allows the callable to be invoked from the same thread as creating it. If you need to invoke it from any thread,
     /// use [`from_sync_fn`][Self::from_sync_fn] instead (requires crate feature `experimental-threads`; only enable if really needed).
-    pub fn from_local_fn<R, F, S>(name: S, rust_function: F) -> Self
+    ///
+    /// You can also couple the callable to the lifetime of an object, see [`from_linked_fn()`][Self::from_linked_fn].
+    pub fn from_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
         R: ToGodot,
         F: 'static + FnMut(&[&Variant]) -> R,
@@ -177,7 +179,7 @@ impl Callable {
     /// Such a callable will be automatically invalidated by Godot when a linked object is freed.
     /// Prefer using [`Gd::linked_callable()`] instead.
     ///
-    /// If you need a callable which can live indefinitely use [`Callable::from_local_fn()`].
+    /// If you need a callable which can live indefinitely, use [`Callable::from_fn()`].
     pub fn from_linked_fn<R, F, T, S>(name: S, linked_object: &Gd<T>, rust_function: F) -> Self
     where
         R: ToGodot,
@@ -195,12 +197,29 @@ impl Callable {
         })
     }
 
+    /// This constructor is being phased out in favor of [`from_fn()`][Self::from_fn], but kept through v0.4 for smoother migration.
+    ///
+    /// `from_fn()` accepts any `R: ToGodot` return type directly instead of requiring `Result<Variant, ()>`.
+    #[deprecated = "Migrate to `from_fn()`, which returns `R: ToGodot` directly."]
+    pub fn from_local_fn<F, S>(name: S, mut rust_function: F) -> Self
+    where
+        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
+        S: meta::AsArg<GString>,
+    {
+        meta::arg_into_owned!(name);
+
+        Self::from_fn(&name, move |args| {
+            // Ignore errors.
+            rust_function(args).unwrap_or_else(|()| Variant::nil())
+        })
+    }
+
     /// Create callable from **single-threaded** Rust function or closure that can only be called once.
     ///
     /// `name` is used for the string representation of the closure, which helps debugging.
     ///
     /// After the first invocation, subsequent calls will panic with a message indicating the callable has already been consumed. This is
-    /// useful for deferred operations that should only execute once. For repeated execution, use [`from_local_fn()][Self::from_local_fn].
+    /// useful for deferred operations that should only execute once. For repeated execution, use [`from_fn()][Self::from_fn].
     pub(crate) fn from_once_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
         R: ToGodot,
@@ -210,7 +229,7 @@ impl Callable {
         meta::arg_into_owned!(name);
 
         let mut rust_fn_once = Some(rust_function);
-        Self::from_local_fn(&name, move |args| {
+        Self::from_fn(&name, move |args| {
             let rust_fn_once = rust_fn_once
                 .take()
                 .expect("callable created with from_once_fn() has already been consumed");
@@ -252,9 +271,9 @@ impl Callable {
     /// `name` is used for the string representation of the closure, which helps debugging.
     ///
     /// This constructor requires `Send` + `Sync` bound and allows the callable to be invoked from any thread. If you guarantee that you invoke
-    /// it from the same thread as creating it, use [`from_local_fn`][Self::from_local_fn] instead.
+    /// it from the same thread as creating it, use [`from_fn`][Self::from_fn] instead.
     ///
-    /// Callables created through multiple `from_local_fn` or `from_sync_fn()` calls are never equal, even if they refer to the same function.
+    /// Callables created through multiple `from_fn` or `from_sync_fn()` calls are never equal, even if they refer to the same function.
     /// If you want to use equality, either clone an existing `Callable` instance, or define your own `PartialEq` impl with
     /// [`Callable::from_custom`].
     ///
@@ -680,7 +699,7 @@ mod custom_callable {
                 // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
                 // See comments in itest callable_call() for details.
                 panic!(
-                    "Callable '{}' created with from_local_fn() must be called from the same thread it was created in.\n\
+                    "Callable '{}' created with from_fn() must be called from the same thread it was created in.\n\
                     If you need to call it from any thread, use from_sync_fn() instead (requires `experimental-threads` feature).",
                     w.name
                 );

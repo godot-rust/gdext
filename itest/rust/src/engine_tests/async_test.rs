@@ -211,7 +211,7 @@ fn resolver_callabable_equality() {
 
     let callable = Callable::from_custom(resolver.clone());
     let cloned_callable = Callable::from_custom(resolver.clone());
-    let unrelated_callable = Callable::from_local_fn("unrelated", |_| {});
+    let unrelated_callable = Callable::from_fn("unrelated", |_| {});
 
     assert_eq!(callable, cloned_callable);
     assert_ne!(callable, unrelated_callable);
