@@ -506,7 +506,7 @@ impl Wake for GodotWaker {
         }
 
         #[cfg(not(feature = "experimental-threads"))]
-        let create_callable = Callable::from_local_fn;
+        let create_callable = Callable::from_fn;
 
         #[cfg(feature = "experimental-threads")]
         let create_callable = Callable::from_sync_fn;

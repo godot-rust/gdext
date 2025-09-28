@@ -382,8 +382,8 @@ pub mod custom_callable {
     use crate::framework::{assert_eq_self, quick_thread, suppress_panic_log, ThreadCrosser};
 
     #[itest]
-    fn callable_from_local_fn() {
-        let callable = Callable::from_local_fn("sum", sum);
+    fn callable_from_fn() {
+        let callable = Callable::from_fn("sum", sum);
 
         assert!(callable.is_valid());
         assert!(!callable.is_null());
@@ -398,14 +398,14 @@ pub mod custom_callable {
         assert_eq!(sum2, 0.to_variant());
     }
 
-    // Without this feature, any access to the global binding from another thread fails; so the from_local_fn() cannot be tested in isolation.
+    // Without this feature, any access to the global binding from another thread fails; so the from_fn() cannot be tested in isolation.
     #[itest]
-    fn callable_from_local_fn_crossthread() {
+    fn callable_from_fn_crossthread() {
         // This static is a workaround for not being able to propagate failed `Callable` invocations as panics.
         // See note in itest callable_call() for further info.
         static GLOBAL: sys::Global<i32> = sys::Global::default();
 
-        let callable = Callable::from_local_fn("change_global", |_args| {
+        let callable = Callable::from_fn("change_global", |_args| {
             *GLOBAL.lock() = 777;
         });
 
@@ -423,7 +423,7 @@ pub mod custom_callable {
         if !cfg!(feature = "experimental-threads") && cfg!(debug_assertions) {
             // Single-threaded and Debug.
             crate::framework::expect_panic(
-                "Callable created with from_local_fn() must panic when invoked on other thread",
+                "Callable created with from_fn() must panic when invoked on other thread",
                 || {
                     quick_thread(|| {
                         let callable = unsafe { crosser.extract() };
@@ -442,7 +442,7 @@ pub mod custom_callable {
         assert_eq!(
             *GLOBAL.lock(),
             0,
-            "Callable created with from_local_fn() must not run when invoked on other thread"
+            "Callable created with from_fn() must not run when invoked on other thread"
         );
     }
 
@@ -469,16 +469,16 @@ pub mod custom_callable {
 
     #[itest]
     fn callable_from_fn_nil() {
-        let callable_with_err = Callable::from_local_fn("returns_nil", |_args: &[&Variant]| {});
+        let callable_with_err = Callable::from_fn("returns_nil", |_args: &[&Variant]| {});
 
         assert_eq!(callable_with_err.callv(&varray![]), Variant::nil());
     }
 
     #[itest]
     fn callable_from_fn_eq() {
-        let a = Callable::from_local_fn("sum", sum);
+        let a = Callable::from_fn("sum", sum);
         let b = a.clone();
-        let c = Callable::from_local_fn("sum", sum);
+        let c = Callable::from_fn("sum", sum);
 
         assert_eq!(a, b, "same function, same instance -> equal");
         assert_ne!(a, c, "same function, different instance -> not equal");
@@ -585,7 +585,7 @@ pub mod custom_callable {
     fn callable_callv_panic_from_fn() {
         let received = Arc::new(AtomicU32::new(0));
         let received_callable = received.clone();
-        let callable = Callable::from_local_fn("test", move |_args| {
+        let callable = Callable::from_fn("test", move |_args| {
             suppress_panic_log(|| {
                 panic!("TEST: {}", received_callable.fetch_add(1, Ordering::SeqCst))
             });

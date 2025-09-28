@@ -583,7 +583,7 @@ impl<T: GodotClass> Gd<T> {
     /// `name` is used for the string representation of the closure, which helps with debugging.
     ///
     /// Such a callable will be automatically invalidated by Godot when a linked Object is freed.
-    /// If you need a Callable which can live indefinitely use [`Callable::from_local_fn()`].
+    /// If you need a Callable which can live indefinitely, use [`Callable::from_fn()`].
     pub fn linked_callable<R, F>(
         &self,
         method_name: impl AsArg<GString>,

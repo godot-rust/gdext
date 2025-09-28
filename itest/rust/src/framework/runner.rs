@@ -473,7 +473,7 @@ fn check_async_test_task(
     let mut callback = Some(on_test_finished);
     let mut probably_task_handle = Some(task_handle);
 
-    let deferred = Callable::from_local_fn("run_async_rust_test", move |_| {
+    let deferred = Callable::from_fn("run_async_rust_test", move |_| {
         check_async_test_task(
             probably_task_handle
                 .take()
