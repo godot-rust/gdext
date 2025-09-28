@@ -70,23 +70,6 @@ fn base_debug() {
     obj.free();
 }
 
-// Compatibility check until v0.4 Base::to_gd() is removed.
-#[itest]
-fn base_with_init() {
-    let obj = Gd::<Based>::from_init_fn(|base| {
-        #[allow(deprecated)]
-        base.to_gd().set_rotation(11.0);
-        Based { base, i: 732 }
-    });
-
-    {
-        let guard = obj.bind();
-        assert_eq!(guard.i, 732);
-        assert_eq!(guard.base().get_rotation(), 11.0);
-    }
-    obj.free();
-}
-
 #[itest]
 fn base_gd_self() {
     let obj = Based::new_alloc();

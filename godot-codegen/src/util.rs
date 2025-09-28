@@ -85,6 +85,14 @@ pub fn lifetime(s: &str) -> TokenStream {
     TokenStream::from_iter([tk_apostrophe, tk_lifetime])
 }
 
+pub fn make_load_safety_doc() -> TokenStream {
+    quote! {
+        /// # Safety
+        /// - Must be called exactly once during library initialization.
+        /// - All parameters (dependencies) must have been initialized and valid.
+    }
+}
+
 // This function is duplicated in godot-macros\src\util\mod.rs
 #[rustfmt::skip]
 pub fn safe_ident(s: &str) -> Ident {

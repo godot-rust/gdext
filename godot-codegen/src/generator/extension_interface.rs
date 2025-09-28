@@ -12,7 +12,7 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::quote;
 use regex::Regex;
 
-use crate::util::ident;
+use crate::util::{ident, make_load_safety_doc};
 use crate::SubmitFn;
 
 pub fn generate_sys_interface_file(
@@ -77,15 +77,14 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
     }
 
     // Do not derive Copy -- even though the struct is bitwise-copyable, this is rarely needed and may point to an error.
+    let safety_doc = make_load_safety_doc();
     let code = quote! {
         pub struct GDExtensionInterface {
             #( #fptr_decls )*
         }
 
         impl GDExtensionInterface {
-            // TODO: Figure out the right safety preconditions. This currently does not have any because incomplete safety docs
-            // can cause issues with people assuming they are sufficient.
-            #[allow(clippy::missing_safety_doc)]
+            #safety_doc
             pub(crate) unsafe fn load(
                 get_proc_address: crate::GDExtensionInterfaceGetProcAddress,
             ) -> Self {

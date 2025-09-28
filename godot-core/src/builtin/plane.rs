@@ -23,8 +23,11 @@ use crate::builtin::{real, Vector3};
 /// unit length and will panic if this invariant is violated. This is not separately
 /// annotated for each method.
 ///
-/// # Godot docs
+/// # Soft invariants
+/// `Plane` requires that the normal vector has unit length for most operations, which is validated only on a best-effort basis. Violations may
+/// cause panics in Debug mode. See also [_Builtin API design_](../__docs/index.html#6-public-fields-and-soft-invariants).
 ///
+/// # Godot docs
 /// [Plane (stable)](https://docs.godotengine.org/en/stable/classes/class_plane.html)
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

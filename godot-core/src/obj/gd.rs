@@ -714,6 +714,15 @@ impl<T: GodotClass> Gd<T> {
         });
         callable.call_deferred(&[]);
     }
+
+    #[deprecated = "Split into `run_deferred()` + `run_deferred_gd()`."]
+    pub fn apply_deferred<F>(&mut self, rust_function: F)
+    where
+        T: WithBaseField,
+        F: FnOnce(&mut T) + 'static,
+    {
+        self.run_deferred(rust_function)
+    }
 }
 
 /// _The methods in this impl block are only available for objects `T` that are manually managed,

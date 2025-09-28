@@ -28,8 +28,11 @@ use crate::builtin::{real, Plane, Vector3, Vector3Axis};
 /// [`Rect2`]: crate::builtin::Rect2
 /// [`Rect2i`]: crate::builtin::Rect2i
 ///
-/// # Godot docs
+/// # Soft invariants
+/// `Aabb` requires non-negative size for certain operations, which is validated only on a best-effort basis. Violations may
+/// cause panics in Debug mode. See also [_Builtin API design_](../__docs/index.html#6-public-fields-and-soft-invariants).
 ///
+/// # Godot docs
 /// [`AABB`](https://docs.godotengine.org/en/stable/classes/class_aabb.html)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -421,8 +424,7 @@ impl Aabb {
     ///
     /// Most functions will fail to give a correct result if the size is negative.
     #[inline]
-    /// TODO(v0.3): make private, change to debug_assert().
-    pub fn assert_nonnegative(self) {
+    fn assert_nonnegative(self) {
         assert!(
             self.size.x >= 0.0 && self.size.y >= 0.0 && self.size.z >= 0.0,
             "size {:?} is negative",

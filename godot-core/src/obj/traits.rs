@@ -211,30 +211,6 @@ pub trait EngineEnum: Copy {
     /// If the value does not match one of the known enumerators, the empty string is returned.
     fn as_str(&self) -> &'static str;
 
-    /// The equivalent name of the enumerator, as specified in Godot.
-    ///
-    /// If the value does not match one of the known enumerators, the empty string is returned.
-    ///
-    /// # Deprecation
-    /// Design change is due to the fact that Godot enums may have multiple constants with the same ordinal value, and `godot_name()` cannot
-    /// always return a unique name for it. So there are cases where this method returns unexpected results.
-    ///
-    /// To keep the old -- possibly incorrect -- behavior, you can write the following function. However, it runs in linear rather than constant
-    /// time (which is often OK, given that there are very few constants per enum).
-    /// ```
-    /// use godot::obj::EngineEnum;
-    ///
-    /// fn godot_name<T: EngineEnum + Eq + PartialEq + 'static>(value: T) -> &'static str {
-    ///     T::all_constants()
-    ///         .iter()
-    ///         .find(|c| c.value() == value)
-    ///         .map(|c| c.godot_name())
-    ///         .unwrap_or("") // Previous behavior.
-    /// }
-    /// ```
-    #[deprecated = "Moved to introspection API, see `EngineEnum::all_constants()` and `EnumConstant::godot_name()`"]
-    fn godot_name(&self) -> &'static str;
-
     /// Returns a slice of distinct enum values.
     ///
     /// This excludes `MAX` constants at the end (existing only to express the number of enumerators) and deduplicates aliases,
@@ -573,6 +549,14 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         F: FnOnce(Gd<Self>) + 'static,
     {
         self.to_gd().run_deferred_gd(gd_function)
+    }
+
+    #[deprecated = "Split into `run_deferred()` + `run_deferred_gd()`."]
+    fn apply_deferred<F>(&mut self, rust_function: F)
+    where
+        F: FnOnce(&mut Self) + 'static,
+    {
+        self.run_deferred(rust_function)
     }
 }
 

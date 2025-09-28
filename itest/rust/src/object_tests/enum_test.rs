@@ -114,29 +114,6 @@ fn enum_godot_name() {
     assert_eq!(godot_name(Key::from_ord(1234)), "");
 }
 
-#[itest]
-#[expect(deprecated)]
-fn enum_godot_name_deprecated() {
-    use godot::obj::EngineEnum;
-    assert_eq!(
-        Orientation::VERTICAL.godot_name(),
-        Orientation::VERTICAL.as_str()
-    );
-    assert_eq!(
-        Orientation::HORIZONTAL.godot_name(),
-        Orientation::HORIZONTAL.as_str()
-    );
-
-    assert_eq!(Key::NONE.godot_name(), "KEY_NONE");
-    assert_eq!(Key::SPECIAL.godot_name(), "KEY_SPECIAL");
-    assert_eq!(Key::ESCAPE.godot_name(), "KEY_ESCAPE");
-    assert_eq!(Key::TAB.godot_name(), "KEY_TAB");
-    assert_eq!(Key::A.godot_name(), "KEY_A");
-
-    // Unknown enumerators (might come from the future).
-    assert_eq!(Key::from_ord(1234).godot_name(), "");
-}
-
 fn godot_name<T: EngineEnum + Eq + PartialEq + 'static>(value: T) -> &'static str {
     T::all_constants()
         .iter()
