@@ -178,7 +178,7 @@ where
     {
         if T::IS_SAME_CLASS {
             // SAFETY: T == Base, so &DynGd<T, D> can be treated as &DynGd<Base, D>.
-            let gd_ref = unsafe { std::mem::transmute::<&Gd<T>, &DynGd<Base, D>>(self) };
+            let gd_ref = unsafe { std::mem::transmute::<&DynGd<T, D>, &DynGd<Base, D>>(self) };
             CowArg::Borrowed(gd_ref)
         } else {
             // Different types: clone and upcast. May incur ref-count increment for RefCounted objects, but the common path

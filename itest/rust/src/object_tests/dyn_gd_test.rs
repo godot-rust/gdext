@@ -431,10 +431,17 @@ fn dyn_gd_store_in_godot_array() {
 }
 
 #[itest]
-fn dyn_gd_as_arg() {
+fn dyn_gd_as_arg_inherited_base() {
     let refc_health = Gd::from_object(RefcHealth { hp: 42 }).into_dyn();
     let node_health = foreign::NodeHealth::new_alloc().into_dyn();
     let typed_none = None::<&DynGd<RefcHealth, dyn Health>>;
+
+    // Array<DynGd<Base, D>>.
+    // See: https://github.com/godot-rust/gdext/pull/1345.
+    let array: Array<DynGd<RefcHealth, dyn Health>> = array![&refc_health];
+    assert_eq!(array.len(), 1);
+    let first = array.at(0);
+    assert_eq!(first.dyn_bind().get_hitpoints(), 42);
 
     // Array<DynGd>.
     let array: Array<DynGd<Object, dyn Health>> = array![&refc_health, &node_health];
