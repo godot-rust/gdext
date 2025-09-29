@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -13,7 +14,7 @@
 mod bench;
 mod class;
 mod derive;
-#[cfg(all(feature = "register-docs", since_api = "4.3"))]
+#[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
 mod docs;
 mod ffi_macros;
 mod gdextension;
@@ -1210,7 +1211,7 @@ pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
 
 /// Creates an initialization block for Wasm.
 #[proc_macro]
-#[cfg(feature = "experimental-wasm")]
+#[cfg(feature = "experimental-wasm")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-wasm")))]
 pub fn wasm_declare_init_fn(input: TokenStream) -> TokenStream {
     translate_functional(input, ffi_macros::wasm_declare_init_fn)
 }
@@ -1256,7 +1257,7 @@ where
 }
 
 /// For `#[proc_macro]` function-style macros.
-#[cfg(feature = "experimental-wasm")]
+#[cfg(feature = "experimental-wasm")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-wasm")))]
 fn translate_functional<F>(input: TokenStream, transform: F) -> TokenStream
 where
     F: FnOnce(TokenStream2) -> ParseResult<TokenStream2>,

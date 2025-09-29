@@ -89,7 +89,7 @@ impl ClassId {
         // Not cached, need to get or create entry
         let name = init_fn();
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         assert!(
             name.is_ascii(),
             "In Godot < 4.4, class name must be ASCII: '{name}'"
@@ -316,7 +316,7 @@ impl ClassIdCache {
 
         if expect_first {
             // Debug verification that we're indeed the first to register this string.
-            #[cfg(debug_assertions)]
+            #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
             assert!(
                 !self.string_to_index.contains_key(name_str.as_ref()),
                 "insert_class_name() called for already-existing string: {}",

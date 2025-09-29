@@ -168,7 +168,7 @@ pub enum GlobalLockError<'a, T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use std::collections::HashMap;
 

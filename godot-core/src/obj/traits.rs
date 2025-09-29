@@ -860,14 +860,14 @@ pub mod cap {
 
     /// Auto-implemented for `#[godot_api] impl XyVirtual for MyClass` blocks
     pub trait ImplementsGodotVirtual: GodotClass {
-        // Cannot use #[cfg(since_api = "4.4")] on the `hash` parameter, because the doc-postprocessing generates #[doc(cfg)],
+        // Cannot use #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))] on the `hash` parameter, because the doc-postprocessing generates #[doc(cfg)],
         // which isn't valid in parameter position.
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         #[doc(hidden)]
         fn __virtual_call(name: &str) -> sys::GDExtensionClassCallVirtual;
 
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         #[doc(hidden)]
         fn __virtual_call(name: &str, hash: u32) -> sys::GDExtensionClassCallVirtual;
     }

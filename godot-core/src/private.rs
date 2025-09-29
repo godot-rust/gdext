@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 use std::cell::RefCell;
 use std::io::Write;
 use std::sync::atomic;
@@ -23,7 +23,7 @@ use crate::{classes, sys};
 
 mod reexport_pub {
     pub use crate::gen::classes::class_macros;
-    #[cfg(feature = "trace")]
+    #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
     pub use crate::meta::trace;
     pub use crate::obj::rtti::ObjectRtti;
     pub use crate::registry::callbacks;
@@ -185,7 +185,7 @@ pub fn auto_init<T>(l: &mut crate::obj::OnReady<T>, base: &crate::obj::Gd<crate:
     l.init_auto(base);
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub unsafe fn has_virtual_script_method(
     object_ptr: sys::GDExtensionObjectPtr,
     method_sname: sys::GDExtensionConstStringNamePtr,
@@ -197,7 +197,7 @@ pub unsafe fn has_virtual_script_method(
 pub const fn is_editor_plugin<T: crate::obj::Inherits<crate::classes::EditorPlugin>>() {}
 
 // Starting from 4.3, Godot has "runtime classes"; this emulation is no longer needed.
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 pub fn is_class_inactive(is_tool: bool) -> bool {
     use crate::obj::Singleton;
 
@@ -214,7 +214,7 @@ pub fn is_class_inactive(is_tool: bool) -> bool {
 }
 
 // Starting from 4.3, Godot has "runtime classes"; we only need to check whether editor is running.
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub fn is_class_runtime(is_tool: bool) -> bool {
     if is_tool {
         return false;
@@ -266,7 +266,7 @@ pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
 }
 
 // Macro instead of function, to avoid 1 extra frame in backtrace.
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 #[macro_export]
 macro_rules! format_backtrace {
     ($prefix:expr, $backtrace:expr) => {{
@@ -292,7 +292,7 @@ macro_rules! format_backtrace {
     };
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
 #[macro_export]
 macro_rules! format_backtrace {
     ($prefix:expr $(, $backtrace:expr)? ) => {
@@ -335,12 +335,12 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
 /// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
 /// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 struct ScopedFunctionStack {
     functions: Vec<*const dyn Fn() -> String>,
 }
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 impl ScopedFunctionStack {
     /// # Safety
     /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
@@ -365,7 +365,7 @@ impl ScopedFunctionStack {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 thread_local! {
     static ERROR_CONTEXT_STACK: RefCell<ScopedFunctionStack> = const {
         RefCell::new(ScopedFunctionStack { functions: Vec::new() })
@@ -374,10 +374,10 @@ thread_local! {
 
 // Value may return `None`, even from panic hook, if called from a non-Godot thread.
 pub fn get_gdext_panic_context() -> Option<String> {
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
     None
 }
 
@@ -414,10 +414,10 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
     let _ = error_context; // Unused in Release.
 
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     ERROR_CONTEXT_STACK.with(|cell| unsafe {
         // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
         cell.borrow_mut().push_function(&error_context)
@@ -425,7 +425,7 @@ where
 
     let result = std::panic::catch_unwind(code).map_err(PanicPayload::new);
 
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
     result
 }
@@ -508,7 +508,7 @@ pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::{CallError, CallErrors, PanicPayload};
     use crate::meta::CallContext;

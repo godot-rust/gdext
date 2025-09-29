@@ -107,7 +107,7 @@ struct SignalDetails<'a> {
     signal_name: &'a Ident,
     /// `"MySignal"`
     signal_name_str: String,
-    /// `#[cfg(..)] #[cfg(..)]`
+    /// `#[cfg(..)] #[cfg_attr(published_docs, doc(cfg(..)))] #[cfg(..)]`
     signal_cfg_attrs: Vec<&'a venial::Attribute>,
     /// `MyClass_MySignal`
     individual_struct_name: Ident,
@@ -561,7 +561,7 @@ fn make_upcast_deref_impl(class_name: &Ident, collection_struct_name: &Ident) ->
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::*;
 

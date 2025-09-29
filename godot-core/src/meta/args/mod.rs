@@ -21,10 +21,10 @@ pub(crate) use as_arg::NullArg;
 pub use as_arg::{
     owned_into_arg, ref_to_arg, ArgPassing, AsArg, ByObject, ByOption, ByRef, ByValue, ToArg,
 };
-#[cfg(not(feature = "trace"))]
+#[cfg(not(feature = "trace"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "trace"))))]
 pub(crate) use cow_arg::{CowArg, FfiArg};
 // Integration test only.
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 #[doc(hidden)]
 pub use cow_arg::{CowArg, FfiArg};
 pub use object_arg::ObjectArg;

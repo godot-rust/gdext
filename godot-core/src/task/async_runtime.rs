@@ -200,7 +200,7 @@ pub(crate) fn cleanup() {
     ASYNC_RUNTIME.set(None);
 }
 
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub fn has_godot_task_panicked(task_handle: TaskHandle) -> bool {
     ASYNC_RUNTIME.with_runtime(|rt| rt.panicked_tasks.contains(&task_handle.id))
 }
@@ -289,7 +289,7 @@ impl<T> FutureSlot<T> {
 struct AsyncRuntime {
     tasks: Vec<FutureSlot<Pin<Box<dyn Future<Output = ()>>>>>,
     next_task_id: u64,
-    #[cfg(feature = "trace")]
+    #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
     panicked_tasks: std::collections::HashSet<u64>,
 }
 
@@ -299,7 +299,7 @@ impl AsyncRuntime {
             // We only create a new async runtime inside a thread_local, which has lazy initialization on first use.
             tasks: Vec::with_capacity(16),
             next_task_id: 0,
-            #[cfg(feature = "trace")]
+            #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
             panicked_tasks: std::collections::HashSet::default(),
         }
     }
@@ -374,7 +374,7 @@ impl AsyncRuntime {
     /// Track that a future caused a panic.
     ///
     /// This is only available for itest.
-    #[cfg(feature = "trace")]
+    #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
     fn track_panic(&mut self, task_id: u64) {
         self.panicked_tasks.insert(task_id);
     }
@@ -456,7 +456,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     let Ok((poll_result, future)) = panic_result else {
         // Polling the future caused a panic. The task state has to be cleaned up and we want track the panic if the trace feature is enabled.
         ASYNC_RUNTIME.with_runtime_mut(|rt| {
-            #[cfg(feature = "trace")]
+            #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
             rt.track_panic(godot_waker.task_id);
             rt.clear_task(godot_waker.runtime_index);
         });
@@ -505,10 +505,10 @@ impl Wake for GodotWaker {
             f
         }
 
-        #[cfg(not(feature = "experimental-threads"))]
+        #[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
         let create_callable = Callable::from_fn;
 
-        #[cfg(feature = "experimental-threads")]
+        #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
         let create_callable = Callable::from_sync_fn;
 
         let callable = create_callable(

@@ -20,9 +20,9 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
 
     let prv = quote! { ::godot::private };
 
-    #[cfg(all(feature = "register-docs", since_api = "4.3"))]
+    #[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
     let docs = crate::docs::document_interface_trait_impl(&original_impl.body_items);
-    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
+    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))] #[cfg_attr(published_docs, doc(cfg(not(all(feature = "register-docs", since_api = "4.3")))))]
     let docs = quote! {};
 
     let mut decls = IDecls::default();
@@ -452,7 +452,7 @@ fn handle_validate_property<'a>(
     decls.add_modifier(cfg_attrs, "with_validate_property");
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 fn handle_get_property_list<'a>(
     _class_name: &Ident,
     _trait_path: &venial::TypeExpr,
@@ -466,7 +466,7 @@ fn handle_get_property_list<'a>(
     };
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 fn handle_get_property_list<'a>(
     class_name: &Ident,
     trait_path: &venial::TypeExpr,
@@ -641,7 +641,7 @@ fn is_possibly_node_class(trait_base_class: &Ident) -> bool {
     )
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 fn make_inactive_class_check(return_value: TokenStream) -> TokenStream {
     quote! {
         if ::godot::private::is_class_inactive(Self::__config().is_tool) {
@@ -650,7 +650,7 @@ fn make_inactive_class_check(return_value: TokenStream) -> TokenStream {
     }
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 fn make_inactive_class_check(_return_value: TokenStream) -> TokenStream {
     TokenStream::new()
 }

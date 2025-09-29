@@ -209,7 +209,7 @@ impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6
 impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8);
 impl_dynamic_send!(tuple; arg1: A1, arg2: A2, arg3: A3, arg4: A4, arg5: A5, arg6: A6, arg7: A7, arg8: A8, arg9: A9);
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 mod api_4_3 {
     use crate::task::impl_dynamic_send;
 
@@ -273,7 +273,7 @@ const _: () = {
     const PACKED_VECTOR3_ARRAY: VariantType = variant_type::<PackedVector3Array>();
     const PACKED_COLOR_ARRAY: VariantType = variant_type::<PackedColorArray>();
 
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     const PACKED_VECTOR4_ARRAY: VariantType = variant_type::<PackedVector4Array>();
 
     const MAX: i32 = VariantType::ENUMERATOR_COUNT as i32;
@@ -321,7 +321,7 @@ const _: () = {
         PACKED_VECTOR3_ARRAY => (),
         PACKED_COLOR_ARRAY => (),
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         PACKED_VECTOR4_ARRAY => (),
         VariantType { ord: MAX.. } => panic!("ord is out of defined range!"),
     }

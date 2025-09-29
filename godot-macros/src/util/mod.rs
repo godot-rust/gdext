@@ -256,7 +256,7 @@ pub fn is_cfg_or_cfg_attr(attr: &venial::Attribute) -> bool {
         return false;
     };
 
-    // #[cfg(condition)]
+    // #[cfg(condition)] #[cfg_attr(published_docs, doc(cfg(condition)))]
     if attr_name == "cfg" {
         return true;
     }
@@ -275,7 +275,7 @@ pub(crate) fn extract_cfg_attrs(
     attrs.iter().filter(|attr| is_cfg_or_cfg_attr(attr))
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 pub fn make_virtual_tool_check() -> TokenStream {
     quote! {
         if ::godot::private::is_class_inactive(Self::__config().is_tool) {
@@ -284,7 +284,7 @@ pub fn make_virtual_tool_check() -> TokenStream {
     }
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub fn make_virtual_tool_check() -> TokenStream {
     TokenStream::new()
 }
