@@ -26,7 +26,7 @@ env:
     godot
 
   # Used for integration test artifact, must be without patch version.
-  GODOT_ARTIFACT_VERSION: "4.4"
+  GODOT_ARTIFACT_VERSION: "4.5"
 
   # Note: used for test and clippy, not for publish. Test features are different from other CIs.
   CLIPPY_TEST_FEATURES: "--features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde"
