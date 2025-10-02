@@ -7,6 +7,8 @@
 
 // Integration of OnReady with #[init(load = "PATH")] is tested in save_load_test.rs.
 
+use std::ops::{Deref, DerefMut};
+
 use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node};
 use godot::obj::{Gd, NewAlloc, OnReady};
@@ -29,6 +31,39 @@ fn onready_deref() {
     let l = l;
     let shared_ref: &i32 = &l;
     assert_eq!(*shared_ref, 42);
+
+    node.free();
+}
+
+#[itest]
+fn onready_poisoned() {
+    let node = Node::new_alloc();
+    let mut l = OnReady::<i32>::new(|| panic!("Auto init failure."));
+    expect_panic("Auto init must fail", || {
+        godot::private::auto_init(&mut l, &node)
+    });
+    expect_panic("Calling `init` after failed auto init fails", || {
+        l.init(44);
+    });
+
+    expect_panic(
+        "Calling `auto_init` again after failed auto init fails",
+        || {
+            godot::private::auto_init(&mut l, &node);
+        },
+    );
+    expect_panic(
+        "Panic on deref after automatic initialization failure",
+        || {
+            let _failed_deref = Deref::deref(&l);
+        },
+    );
+    expect_panic(
+        "Panic on deref mut after automatic initialization failure",
+        || {
+            let _failed_deref = DerefMut::deref_mut(&mut l);
+        },
+    );
 
     node.free();
 }
