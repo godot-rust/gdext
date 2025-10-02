@@ -207,12 +207,8 @@ impl<T> OnReady<T> {
             InitState::ManualUninitialized => {
                 self.state = InitState::Initialized { value };
             }
-            InitState::AutoPrepared { .. } => {
+            InitState::AutoPrepared { .. } | InitState::AutoInitializationFailed => {
                 panic!("cannot call init() on auto-initialized OnReady objects")
-            }
-            InitState::AutoInitializing => {
-                // SAFETY: Loading is ephemeral state that is only set in init_auto() and immediately overwritten.
-                unsafe { std::hint::unreachable_unchecked() }
             }
             InitState::Initialized { .. } => {
                 panic!("already initialized; did you call init() more than once?")
@@ -223,22 +219,22 @@ impl<T> OnReady<T> {
     /// Runs initialization.
     ///
     /// # Panics
-    /// If the value is already initialized.
+    /// - If the value is already initialized.
+    /// - If previous auto initialization failed.
     pub(crate) fn init_auto(&mut self, base: &Gd<Node>) {
         // Two branches needed, because mem::replace() could accidentally overwrite an already initialized value.
         match &self.state {
             InitState::ManualUninitialized => return, // skipped
             InitState::AutoPrepared { .. } => {}      // handled below
-            InitState::AutoInitializing => {
-                // SAFETY: Loading is ephemeral state that is only set below and immediately overwritten.
-                unsafe { std::hint::unreachable_unchecked() }
+            InitState::AutoInitializationFailed => {
+                panic!("OnReady automatic value initialization has already failed")
             }
             InitState::Initialized { .. } => panic!("OnReady object already initialized"),
         };
 
-        // Temporarily replace with dummy state, as it's not possible to take ownership of the initializer closure otherwise.
+        // Temporarily replace with AutoInitializationFailed state which will be left in iff initialization fails.
         let InitState::AutoPrepared { initializer } =
-            mem::replace(&mut self.state, InitState::AutoInitializing)
+            mem::replace(&mut self.state, InitState::AutoInitializationFailed)
         else {
             // SAFETY: condition checked above.
             unsafe { std::hint::unreachable_unchecked() }
@@ -267,7 +263,9 @@ impl<T> std::ops::Deref for OnReady<T> {
             InitState::AutoPrepared { .. } => {
                 panic!("OnReady automatic value uninitialized, is only available in ready()")
             }
-            InitState::AutoInitializing => unreachable!(),
+            InitState::AutoInitializationFailed => {
+                panic!("OnReady automatic value initialization failed")
+            }
             InitState::Initialized { value } => value,
         }
     }
@@ -284,7 +282,9 @@ impl<T> std::ops::DerefMut for OnReady<T> {
             InitState::ManualUninitialized | InitState::AutoPrepared { .. } => {
                 panic!("value not yet initialized")
             }
-            InitState::AutoInitializing => unreachable!(),
+            InitState::AutoInitializationFailed => {
+                panic!("OnReady automatic value initialization failed")
+            }
         }
     }
 }
@@ -313,7 +313,7 @@ type InitFn<T> = dyn FnOnce(&Gd<Node>) -> T;
 enum InitState<T> {
     ManualUninitialized,
     AutoPrepared { initializer: Box<InitFn<T>> },
-    AutoInitializing, // needed because state cannot be empty
+    AutoInitializationFailed,
     Initialized { value: T },
 }
 
@@ -324,7 +324,9 @@ impl<T: Debug> Debug for InitState<T> {
             InitState::AutoPrepared { .. } => {
                 fmt.debug_struct("AutoPrepared").finish_non_exhaustive()
             }
-            InitState::AutoInitializing => fmt.debug_struct("AutoInitializing").finish(),
+            InitState::AutoInitializationFailed => {
+                fmt.debug_struct("AutoInitializationFailed").finish()
+            }
             InitState::Initialized { value } => fmt
                 .debug_struct("Initialized")
                 .field("value", value)
