@@ -91,7 +91,6 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
     // Strings
     let godot_class_str = &class_name.godot_ty;
-    let class_name_cstr = util::c_str(godot_class_str);
 
     // Idents and tokens
     let (base_ty, base_ident_opt) = match class.base_class.as_ref() {
@@ -248,7 +247,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                     // Optimization note: instead of lazy init, could use separate static which is manually initialized during registration.
                     static CLASS_ID: std::sync::OnceLock<ClassId> = std::sync::OnceLock::new();
 
-                    let name: &'static ClassId = CLASS_ID.get_or_init(|| ClassId::__alloc_next_ascii(#class_name_cstr));
+                    let name: &'static ClassId = CLASS_ID.get_or_init(|| ClassId::__alloc_next_unicode(#godot_class_str));
                     *name
                 }
 

@@ -9,7 +9,6 @@ use std::any::TypeId;
 use std::borrow::Cow;
 use std::cell::OnceCell;
 use std::collections::HashMap;
-use std::ffi::CStr;
 use std::fmt;
 use std::hash::Hash;
 
@@ -95,7 +94,7 @@ impl ClassId {
             "In Godot < 4.4, class name must be ASCII: '{name}'"
         );
 
-        cache.insert_class_id(ClassIdSource::Owned(name), Some(type_id), false)
+        cache.insert_class_id(Cow::Owned(name), Some(type_id), false)
     }
 
     /// Create a `ClassId` from a runtime string (for dynamic class names).
@@ -105,7 +104,7 @@ impl ClassId {
     pub(crate) fn new_dynamic(class_name: String) -> Self {
         let mut cache = CLASS_ID_CACHE.lock();
 
-        cache.insert_class_id(ClassIdSource::Owned(class_name), None, false)
+        cache.insert_class_id(Cow::Owned(class_name), None, false)
     }
 
     // Test-only APIs.
@@ -127,37 +126,16 @@ impl ClassId {
         Self { global_index: 0 }
     }
 
-    /// Create a new ASCII; expect to be unique. Internal, reserved for macros.
-    #[doc(hidden)]
-    pub fn __alloc_next_ascii(class_name_cstr: &'static CStr) -> Self {
-        let utf8 = class_name_cstr
-            .to_str()
-            .expect("class name is invalid UTF-8");
-
-        assert!(
-            utf8.is_ascii(),
-            "ClassId::alloc_next_ascii() with non-ASCII Unicode string '{utf8}'"
-        );
-
-        let source = ClassIdSource::Borrowed(class_name_cstr);
-        let mut cache = CLASS_ID_CACHE.lock();
-        cache.insert_class_id(source, None, true)
-    }
-
     /// Create a new Unicode entry; expect to be unique. Internal, reserved for macros.
     #[doc(hidden)]
     pub fn __alloc_next_unicode(class_name_str: &'static str) -> Self {
+        #[cfg(before_api = "4.4")]
         assert!(
-            cfg!(since_api = "4.4"),
+            class_name_str.is_ascii(),
             "Before Godot 4.4, class names must be ASCII, but '{class_name_str}' is not.\nSee https://github.com/godotengine/godot/pull/96501."
         );
 
-        assert!(
-            !class_name_str.is_ascii(),
-            "ClassId::__alloc_next_unicode() with ASCII string '{class_name_str}'"
-        );
-
-        let source = ClassIdSource::Owned(class_name_str.to_owned());
+        let source = Cow::Borrowed(class_name_str);
         let mut cache = CLASS_ID_CACHE.lock();
         cache.insert_class_id(source, None, true)
     }
@@ -181,7 +159,7 @@ impl ClassId {
     pub fn to_cow_str(&self) -> Cow<'static, str> {
         let cache = CLASS_ID_CACHE.lock();
         let entry = cache.get_entry(self.global_index as usize);
-        entry.rust_str.as_cow_str()
+        entry.rust_str.clone()
     }
 
     /// The returned pointer is valid indefinitely, as entries are never deleted from the cache.
@@ -198,7 +176,7 @@ impl ClassId {
 
         let string_name = entry
             .godot_str
-            .get_or_init(|| entry.rust_str.to_string_name());
+            .get_or_init(|| StringName::from(entry.rust_str.as_ref()));
 
         func(string_name)
     }
@@ -206,15 +184,13 @@ impl ClassId {
 
 impl fmt::Display for ClassId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.with_string_name(|s| s.fmt(f))
+        self.to_cow_str().fmt(f)
     }
 }
 
 impl fmt::Debug for ClassId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let cache = CLASS_ID_CACHE.lock();
-        let entry = cache.get_entry(self.global_index as usize);
-        let name = entry.rust_str.as_cow_str();
+        let name = self.to_cow_str();
 
         if name.is_empty() {
             write!(f, "ClassId(none)")
@@ -224,22 +200,18 @@ impl fmt::Debug for ClassId {
     }
 }
 
-fn ascii_cstr_to_str(cstr: &CStr) -> &str {
-    cstr.to_str().expect("should be validated ASCII")
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Entry in the class name cache.
 ///
 /// `StringName` needs to be lazy-initialized because the Godot binding may not be initialized yet.
 struct ClassIdEntry {
-    rust_str: ClassIdSource,
+    rust_str: Cow<'static, str>,
     godot_str: OnceCell<StringName>,
 }
 
 impl ClassIdEntry {
-    fn new(rust_str: ClassIdSource) -> Self {
+    fn new(rust_str: Cow<'static, str>) -> Self {
         Self {
             rust_str,
             godot_str: OnceCell::new(),
@@ -247,33 +219,10 @@ impl ClassIdEntry {
     }
 
     fn none() -> Self {
-        Self::new(ClassIdSource::Borrowed(c""))
+        Self::new(Cow::Borrowed(""))
     }
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// `Cow`-like enum for class names, but with C strings as the borrowed variant.
-enum ClassIdSource {
-    Owned(String),
-    Borrowed(&'static CStr),
-}
-
-impl ClassIdSource {
-    fn to_string_name(&self) -> StringName {
-        match self {
-            ClassIdSource::Owned(s) => StringName::from(s),
-            ClassIdSource::Borrowed(cstr) => StringName::__cstr(cstr),
-        }
-    }
-
-    fn as_cow_str(&self) -> Cow<'static, str> {
-        match self {
-            ClassIdSource::Owned(s) => Cow::Owned(s.clone()),
-            ClassIdSource::Borrowed(cstr) => Cow::Borrowed(ascii_cstr_to_str(cstr)),
-        }
-    }
-}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Unified cache for all class name data.
@@ -308,23 +257,21 @@ impl ClassIdCache {
     /// If `expect_first` is true and the string is already present in the cache.
     fn insert_class_id(
         &mut self,
-        source: ClassIdSource,
+        source: Cow<'static, str>,
         type_id: Option<TypeId>,
         expect_first: bool,
     ) -> ClassId {
-        let name_str = source.as_cow_str();
-
         if expect_first {
             // Debug verification that we're indeed the first to register this string.
             #[cfg(debug_assertions)]
             assert!(
-                !self.string_to_index.contains_key(name_str.as_ref()),
+                !self.string_to_index.contains_key(source.as_ref()),
                 "insert_class_name() called for already-existing string: {}",
-                name_str
+                source
             );
         } else {
             // Check string cache first (dynamic path may reuse existing entries).
-            if let Some(&existing_index) = self.string_to_index.get(name_str.as_ref()) {
+            if let Some(&existing_index) = self.string_to_index.get(source.as_ref()) {
                 // Update type cache if we have a TypeId and it's not already cached (dynamic-then-static case).
                 // Note: if type_id is Some, we know it came from new_cached_inner after a failed TypeId lookup.
                 if let Some(type_id) = type_id {
@@ -342,9 +289,9 @@ impl ClassIdCache {
                 panic!("ClassId cache exceeded maximum capacity of 65536 entries")
             });
 
-        self.entries.push(ClassIdEntry::new(source));
+        self.entries.push(ClassIdEntry::new(source.clone()));
         self.string_to_index
-            .insert(name_str.into_owned(), global_index);
+            .insert(source.into_owned(), global_index);
 
         if let Some(type_id) = type_id {
             self.type_to_index.insert(type_id, global_index);
