@@ -275,6 +275,15 @@ pub(crate) fn extract_cfg_attrs(
     attrs.iter().filter(|attr| is_cfg_or_cfg_attr(attr))
 }
 
+pub(crate) fn extract_doc_attrs(
+    attrs: &[venial::Attribute],
+) -> impl IntoIterator<Item = &venial::Attribute> {
+    attrs.iter().filter(|attr| {
+        attr.get_single_path_segment()
+            .is_some_and(|attr_name| attr_name == "doc")
+    })
+}
+
 #[cfg(before_api = "4.3")]
 pub fn make_virtual_tool_check() -> TokenStream {
     quote! {

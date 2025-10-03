@@ -192,6 +192,17 @@ impl GdSelfObj {
     #[cfg(any())]
     fn cfg_removes_signal();
 
+    /// Sample docstring.
+    ///
+    /// Impossible to check by other means than manually, but it is still nice to have some documentation.
+    #[signal]
+    fn docstring_is_preserved_in_signal();
+
+    /// Sample docstring, to watch if it causes any issues with `#[cfg(...)]`.
+    #[signal]
+    #[cfg(any())]
+    fn cfg_removes_signal_with_docstring();
+
     #[func]
     fn fail_to_update_internal_value_due_to_conflicting_borrow(
         &mut self,
