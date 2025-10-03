@@ -282,7 +282,7 @@ impl Callable {
     /// # use godot::prelude::*;
     /// let callable = Callable::from_sync_fn("sum", |args: &[&Variant]| {
     ///     let sum: i32 = args.iter().map(|arg| arg.to::<i32>()).sum();
-    ///     Ok(sum.to_variant())
+    ///     sum
     /// });
     /// ```
     #[cfg(feature = "experimental-threads")]
@@ -630,9 +630,7 @@ mod custom_callable {
     pub trait RustCallable: 'static + PartialEq + Hash + fmt::Display + Send + Sync {
         /// Invokes the callable with the given arguments as `Variant` references.
         ///
-        /// Return `Ok(...)` if the call succeeded, and `Err(())` otherwise.
-        /// Error handling is mostly needed in case argument number or types mismatch.
-        #[allow(clippy::result_unit_err)] // TODO remove once there's a clear error type here.
+        /// Errors are supported via panics.
         fn invoke(&mut self, args: &[&Variant]) -> Variant;
 
         // TODO(v0.5): add object_id().
