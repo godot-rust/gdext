@@ -654,6 +654,83 @@ pub mod custom_callable {
         assert!(result.is_nil());
     }
 
+    #[itest]
+    fn callable_context_custom_panic() {
+        let old_hook = std::panic::take_hook();
+
+        let panic_message = Arc::new(Mutex::new(None));
+        let panic_message_clone = panic_message.clone();
+
+        std::panic::set_hook(Box::new(move |panic_info| {
+            let error_message = godot::private::format_panic_message(panic_info);
+            *panic_message_clone.lock().unwrap() = Some(error_message);
+        }));
+
+        let received = Arc::new(AtomicU32::new(0));
+        let callable = Callable::from_custom(PanicCallable(received));
+        callable.callv(&varray![]);
+
+        let function_name = if cfg!(debug_assertions) {
+            "test"
+        } else {
+            "<optimed out>"
+        };
+        let expected_msg = format!("Context: <Callable>::{}", function_name);
+
+        let panic_message = panic_message
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("panic message absent");
+        let context_line = panic_message
+            .lines()
+            .last()
+            .expect("empty panic message")
+            .trim();
+
+        assert_eq!(context_line, expected_msg);
+
+        std::panic::set_hook(old_hook);
+    }
+
+    #[itest]
+    fn callable_context_rust_fn_panic() {
+        let old_hook = std::panic::take_hook();
+
+        let panic_message = Arc::new(Mutex::new(None));
+        let panic_message_clone = panic_message.clone();
+
+        std::panic::set_hook(Box::new(move |panic_info| {
+            let error_message = godot::private::format_panic_message(panic_info);
+            *panic_message_clone.lock().unwrap() = Some(error_message);
+        }));
+
+        let callable = Callable::from_local_fn("test", |_args| -> Variant { panic!("ahh") });
+        callable.callv(&varray![]);
+
+        let function_name = if cfg!(debug_assertions) {
+            "test"
+        } else {
+            "<optimed out>"
+        };
+        let expected_msg = format!("Context: <Callable>::{}", function_name);
+
+        let panic_message = panic_message
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("panic message absent");
+        let context_line = panic_message
+            .lines()
+            .last()
+            .expect("empty panic message")
+            .trim();
+
+        assert_eq!(context_line, expected_msg);
+
+        std::panic::set_hook(old_hook);
+    }
+
     // ------------------------------------------------------------------------------------------------------------------------------------------
     // Helper structs and functions for custom callables
 
