@@ -48,16 +48,16 @@ pub struct StructDocs {
 /// All fields are XML parts, escaped where necessary.
 #[derive(Default, Copy, Clone, Debug)]
 pub struct InherentImplDocs {
-    pub methods: &'static str,
-    pub signals_block: &'static str,
-    pub constants_block: &'static str,
+    pub methods: Vec<&'static str>,
+    pub signals: Vec<&'static str>,
+    pub constants: Vec<&'static str>,
 }
 
 #[derive(Default)]
 struct DocPieces {
     definition: StructDocs,
     inherent: InherentImplDocs,
-    virtual_methods: &'static str,
+    virtual_methods: Vec<&'static str>,
 }
 
 /// This function scours the registered plugins to find their documentation pieces,
@@ -79,18 +79,21 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
     crate::private::iterate_plugins(|x| {
         let class_name = x.class_name;
 
-        match x.item {
+        match &x.item {
             PluginItem::InherentImpl(InherentImpl { docs, .. }) => {
-                map.entry(class_name).or_default().inherent = docs
+                map.entry(class_name).or_default().inherent = docs.clone();
             }
-
             PluginItem::ITraitImpl(ITraitImpl {
                 virtual_method_docs,
                 ..
-            }) => map.entry(class_name).or_default().virtual_methods = virtual_method_docs,
+            }) => map
+                .entry(class_name)
+                .or_default()
+                .virtual_methods
+                .push(virtual_method_docs),
 
             PluginItem::Struct(Struct { docs, .. }) => {
-                map.entry(class_name).or_default().definition = docs
+                map.entry(class_name).or_default().definition = *docs;
             }
 
             _ => (),
@@ -98,32 +101,43 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
     });
 
     map.into_iter().map(|(class, pieces)| {
-            let StructDocs {
-                base,
-                description,
-                experimental,
-                deprecated,
-                members,
-            } = pieces.definition;
+        let StructDocs {
+            base,
+            description,
+            experimental,
+            deprecated,
+            members,
+        } = pieces.definition;
 
-            let InherentImplDocs {
-                methods,
-                signals_block,
-                constants_block,
-            } = pieces.inherent;
+        let virtual_methods = pieces.virtual_methods;
 
-            let virtual_methods = pieces.virtual_methods;
-            let methods_block = (virtual_methods.is_empty() && methods.is_empty())
-                .then(String::new)
-                .unwrap_or_else(|| format!("<methods>{methods}{virtual_methods}</methods>"));
+        let mut method_docs = String::from_iter(pieces.inherent.methods);
+        let signal_docs = String::from_iter(pieces.inherent.signals);
+        let constant_docs = String::from_iter(pieces.inherent.constants);
 
-            let (brief, description) = match description
-                .split_once("[br]") {
-                    Some((brief, description)) => (brief, description.trim_start_matches("[br]")),
-                    None => (description, ""),
-                };
+        method_docs.extend(virtual_methods);
+        let methods_block = if method_docs.is_empty() {
+            String::new()
+        } else {
+            format!("<methods>{method_docs}</methods>")
+        };
+        let signals_block = if signal_docs.is_empty() {
+            String::new()
+        } else {
+            format!("<signals>{signal_docs}</signals>")
+        };
+        let constants_block = if constant_docs.is_empty() {
+            String::new()
+        } else {
+            format!("<constants>{constant_docs}</constants>")
+        };
+        let (brief, description) = match description
+            .split_once("[br]") {
+            Some((brief, description)) => (brief, description.trim_start_matches("[br]")),
+            None => (description, ""),
+        };
 
-            format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+        format!(r#"<?xml version="1.0" encoding="UTF-8"?>
 <class name="{class}" inherits="{base}"{deprecated}{experimental} xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 <brief_description>{brief}</brief_description>
 <description>{description}</description>
@@ -132,8 +146,8 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
 {signals_block}
 <members>{members}</members>
 </class>"#)
-        },
-        )
+    },
+    )
 }
 
 /// # Safety

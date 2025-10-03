@@ -115,7 +115,10 @@ impl ClassRegistrationInfo {
         // Note: when changing this match, make sure the array has sufficient size.
         let index = match item {
             PluginItem::Struct { .. } => 0,
-            PluginItem::InherentImpl(_) => 1,
+            PluginItem::InherentImpl(_) => {
+                // Inherent impls don't need to be unique.
+                return;
+            }
             PluginItem::ITraitImpl { .. } => 2,
 
             // Multiple dyn traits can be registered, thus don't validate for uniqueness.

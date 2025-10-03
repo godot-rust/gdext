@@ -142,6 +142,22 @@ pub fn next_class_id() -> u16 {
     NEXT_CLASS_ID.fetch_add(1, atomic::Ordering::Relaxed)
 }
 
+// Don't touch unless you know what you're doing.
+#[doc(hidden)]
+pub fn edit_inherent_impl(class_name: crate::meta::ClassName, f: impl FnOnce(&mut InherentImpl)) {
+    let mut plugins = __GODOT_PLUGIN_REGISTRY.lock().unwrap();
+
+    for elem in plugins.iter_mut().filter(|p| p.class_name == class_name) {
+        match &mut elem.item {
+            PluginItem::InherentImpl(inherent_impl) => {
+                f(inherent_impl);
+                return;
+            }
+            PluginItem::Struct(_) | PluginItem::ITraitImpl(_) | PluginItem::DynTraitImpl(_) => {}
+        }
+    }
+}
+
 pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
     sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
 }

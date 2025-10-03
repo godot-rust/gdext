@@ -24,6 +24,12 @@ struct XmlParagraphs {
     deprecated_attr: String,
 }
 
+pub struct InherentImplXmlDocs {
+    pub method_xml_elems: String,
+    pub constant_xml_elems: String,
+    pub signal_xml_elems: String,
+}
+
 /// Returns code containing the doc information of a `#[derive(GodotClass)] struct MyClass` declaration iff class or any of its members is documented.
 pub fn document_struct(
     base: String,
@@ -59,39 +65,27 @@ pub fn document_inherent_impl(
     functions: &[FuncDefinition],
     constants: &[ConstDefinition],
     signals: &[SignalDefinition],
-) -> TokenStream {
-    let group_xml_block = |s: String, tag: &str| -> String {
-        if s.is_empty() {
-            s
-        } else {
-            format!("<{tag}>{s}</{tag}>")
-        }
-    };
-
+) -> InherentImplXmlDocs {
     let signal_xml_elems = signals
         .iter()
         .filter_map(format_signal_xml)
         .collect::<String>();
-    let signals_block = group_xml_block(signal_xml_elems, "signals");
 
     let constant_xml_elems = constants
         .iter()
         .map(|ConstDefinition { raw_constant }| raw_constant)
         .filter_map(format_constant_xml)
         .collect::<String>();
-    let constants_block = group_xml_block(constant_xml_elems, "constants");
 
     let method_xml_elems = functions
         .iter()
         .filter_map(format_method_xml)
         .collect::<String>();
 
-    quote! {
-        ::godot::docs::InherentImplDocs {
-            methods: #method_xml_elems,
-            signals_block: #signals_block,
-            constants_block: #constants_block,
-        }
+    InherentImplXmlDocs {
+        method_xml_elems,
+        constant_xml_elems,
+        signal_xml_elems,
     }
 }
 
