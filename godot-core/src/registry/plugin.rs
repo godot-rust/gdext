@@ -39,10 +39,10 @@ pub struct ClassPlugin {
     /// Incorrectly setting this value should not cause any UB but will likely cause errors during registration time.
     // Init-level is per ClassPlugin and not per PluginItem, because all components of all classes are mixed together in one
     // huge linker list. There is no per-class aggregation going on, so this allows to easily filter relevant classes.
-    pub(crate) init_level: InitLevel,
+    pub init_level: InitLevel,
 
     /// The actual item being registered.
-    pub(crate) item: PluginItem,
+    pub item: PluginItem,
 }
 
 impl ClassPlugin {
@@ -300,9 +300,7 @@ pub struct InherentImpl {
 }
 
 impl InherentImpl {
-    pub fn new<T: cap::ImplementsGodotApi>(
-        #[cfg(all(since_api = "4.3", feature = "register-docs"))] docs: InherentImplDocs,
-    ) -> Self {
+    pub fn new<T: cap::ImplementsGodotApi>() -> Self {
         Self {
             register_methods_constants_fn: ErasedRegisterFn {
                 raw: callbacks::register_user_methods_constants::<T>,
@@ -311,7 +309,7 @@ impl InherentImpl {
                 raw: callbacks::register_user_rpcs::<T>,
             }),
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
-            docs,
+            docs: Default::default(),
         }
     }
 }

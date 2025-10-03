@@ -93,8 +93,6 @@ pub fn transform_inherent_impl(
 
     #[cfg(all(feature = "register-docs", since_api = "4.3"))]
     let docs = crate::docs::document_inherent_impl(&funcs, &consts, &signals);
-    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
-    let docs = quote! {};
 
     // Container struct holding names of all registered #[func]s.
     // The struct is declared by #[derive(GodotClass)].
@@ -127,17 +125,41 @@ pub fn transform_inherent_impl(
     let method_storage_name = format_ident!("__registration_methods_{class_name}");
     let constants_storage_name = format_ident!("__registration_constants_{class_name}");
 
-    let fill_storage = quote! {
-        ::godot::sys::plugin_execute_pre_main!({
-            #method_storage_name.lock().unwrap().push(|| {
-                #( #method_registrations )*
-                #( #signal_registrations )*
-            });
+    let fill_storage = {
+        #[cfg(all(feature = "register-docs", since_api = "4.3"))]
+        let push_docs = {
+            let crate::docs::InherentImplXmlDocs {
+                method_xml_elems,
+                constant_xml_elems,
+                signal_xml_elems,
+            } = docs;
 
-            #constants_storage_name.lock().unwrap().push(|| {
-                #constant_registration
+            quote! {
+                #prv::edit_inherent_impl(#class_name_obj, |inherent_impl| {
+                    inherent_impl.docs.methods.push(#method_xml_elems);
+                    inherent_impl.docs.constants.push(#constant_xml_elems);
+                    inherent_impl.docs.signals.push(#signal_xml_elems);
+                });
+            }
+        };
+
+        #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
+        let push_docs = TokenStream::new();
+
+        quote! {
+            ::godot::sys::plugin_execute_pre_main!({
+                #method_storage_name.lock().unwrap().push(|| {
+                    #( #method_registrations )*
+                    #( #signal_registrations )*
+                });
+
+                #constants_storage_name.lock().unwrap().push(|| {
+                    #constant_registration
+                });
+
+                #push_docs
             });
-        });
+        }
     };
 
     if !meta.secondary {
@@ -175,7 +197,7 @@ pub fn transform_inherent_impl(
 
         let class_registration = quote! {
             ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
-                #prv::PluginItem::InherentImpl(#prv::InherentImpl::new::<#class_name>(#docs))
+                #prv::PluginItem::InherentImpl(#prv::InherentImpl::new::<#class_name>())
             ));
         };
 
