@@ -6,11 +6,11 @@
  */
 
 use godot::builtin::real_consts::FRAC_PI_3;
-use godot::builtin::Vector2;
+use godot::builtin::{Array, PackedArray, Variant, Vector2};
 use godot::classes::notify::ObjectNotification;
-use godot::classes::{ClassDb, IRefCounted, RefCounted};
+use godot::classes::{mesh, ArrayMesh, ClassDb, IArrayMesh, IRefCounted, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, Singleton, WithBaseField};
+use godot::obj::{Base, Gd, IndexEnum, InstanceId, NewAlloc, NewGd, Singleton, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::task::TaskHandle;
 
@@ -196,4 +196,70 @@ fn base_postinit_refcounted() -> TaskHandle {
     assert_eq!(obj.get_meta("meta"), "postinited".to_variant());
     assert_eq!(obj.get_reference_count(), 2);
     next_frame(move || assert_eq!(obj.get_reference_count(), 1, "eventual dec-ref happens"))
+}
+
+fn make_mesh_arrays() -> Array<Variant> {
+    let mut arrays = Array::new();
+    arrays.resize(mesh::ArrayType::ENUMERATOR_COUNT, &Variant::nil());
+    let indices = PackedArray::<i32>::from([0, 1, 2]);
+    let vertex = PackedArray::<Vector2>::from([
+        Vector2::new(0.0, 0.0),
+        Vector2::new(1.0, 0.0),
+        Vector2::new(0.0, 1.0),
+    ]);
+    arrays.set(mesh::ArrayType::INDEX.to_index(), &indices.to_variant());
+    arrays.set(mesh::ArrayType::VERTEX.to_index(), &vertex.to_variant());
+    arrays
+}
+
+#[derive(GodotClass)]
+#[class(base=ArrayMesh)]
+struct InitArrayMeshTest {
+    base: Base<ArrayMesh>,
+}
+
+#[rustfmt::skip]
+#[godot_api]
+impl IArrayMesh for InitArrayMeshTest {
+    fn init(base: Base<ArrayMesh>) -> Self {
+        let mut sf = Self { base };
+        sf.base_mut()
+            .add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &make_mesh_arrays());
+        sf
+    }
+
+    fn on_notification(&mut self, what: ObjectNotification) {
+        if what == ObjectNotification::PREDELETE {
+            let arr = make_mesh_arrays();
+            self.base_mut().add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arr);
+
+            assert_eq!(self.base().get_surface_count(), 2);
+            assert_eq!(self.base().surface_get_arrays(0), arr);
+            assert_eq!(self.base().surface_get_arrays(1), arr);
+        }
+    }
+
+    fn get_surface_count(&self) -> i32 { unreachable!(); }
+    fn surface_get_array_len(&self, _index: i32) -> i32 { unreachable!(); }
+    fn surface_get_array_index_len(&self, _index: i32) -> i32 { unreachable!(); }
+    fn surface_get_arrays(&self, _index: i32) -> Array<Variant> { unreachable!(); }
+    fn surface_get_blend_shape_arrays(&self, _index: i32) -> Array<Array<Variant>> { unreachable!(); }
+    fn surface_get_lods(&self, _index: i32) -> godot::builtin::Dictionary { unreachable!(); }
+    fn surface_get_format(&self, _index: i32) -> u32 { unreachable!(); }
+    fn surface_get_primitive_type(&self, _index: i32) -> u32 { unreachable!(); }
+    #[cfg(feature = "codegen-full")]
+    fn surface_set_material(&mut self, _index: i32, _material: Option<Gd<godot::classes::Material>>) { unreachable!(); }
+    #[cfg(feature = "codegen-full")]
+    fn surface_get_material(&self, _index: i32) -> Option<Gd<godot::classes::Material>> { unreachable!(); }
+    fn get_blend_shape_count(&self) -> i32 { unreachable!(); }
+    fn get_blend_shape_name(&self, _index: i32) -> godot::builtin::StringName { unreachable!(); }
+    fn set_blend_shape_name(&mut self, _index: i32, _name: godot::builtin::StringName){ unreachable!(); }
+    fn get_aabb(&self) -> godot::builtin::Aabb { unreachable!(); }
+}
+
+#[itest]
+fn base_mut_init_array_mesh() {
+    let mesh = InitArrayMeshTest::new_gd();
+    assert_eq!(mesh.get_surface_count(), 1);
+    assert_eq!(mesh.surface_get_arrays(0), make_mesh_arrays());
 }

@@ -12,13 +12,16 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use godot::builtin::{GString, StringName, Variant, Vector3};
+use godot::classes::notify::ObjectNotification;
 use godot::classes::{
-    file_access, Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted,
+    file_access, Engine, FileAccess, IObject, IRefCounted, Node, Node2D, Node3D, Object, RefCounted,
 };
 use godot::global::godot_str;
 #[allow(deprecated)]
 use godot::meta::{FromGodot, GodotType, ToGodot};
-use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton};
+use godot::obj::{
+    Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton, WithBaseField,
+};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::{self, interface_fn, GodotFfi};
 
@@ -1112,6 +1115,65 @@ fn double_use_reference() {
 
     double_use.free();
     emitter.free();
+}
+
+#[derive(GodotClass)]
+#[class(base=Object)]
+pub struct ObjInitFree {
+    base: Base<Object>,
+}
+
+#[godot_api]
+impl IObject for ObjInitFree {
+    fn init(base: Base<Object>) -> Self {
+        let sf = Self { base };
+        Gd::<Self::Base>::from_instance_id(sf.base().instance_id()).free();
+        sf
+    }
+}
+
+#[derive(GodotClass)]
+#[class]
+pub struct RefcInitUnref {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for RefcInitUnref {
+    fn init(base: Base<RefCounted>) -> Self {
+        let sf = Self { base };
+        Gd::<Self::Base>::from_instance_id(sf.base().instance_id());
+        sf
+    }
+}
+
+#[derive(GodotClass)]
+#[class(init)]
+struct RefcPredeleteUnref {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for RefcPredeleteUnref {
+    fn on_notification(&mut self, what: ObjectNotification) {
+        if what == ObjectNotification::PREDELETE {
+            Gd::<Self>::from_instance_id(self.base().instance_id());
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+#[itest]
+fn object_unexpected_freed() {
+    expect_panic("Object freed in init()", || {
+        ObjInitFree::new_alloc().free();
+    });
+    expect_panic("RefCounted ref and unref in init()", || {
+        RefcInitUnref::new_gd();
+    });
+
+    // RefCounted ref and unref in predelete.
+    RefcPredeleteUnref::new_gd();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
