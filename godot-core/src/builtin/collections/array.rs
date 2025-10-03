@@ -1245,8 +1245,9 @@ impl<T: ArrayElement> Clone for Array<T> {
 
         // Double-check copy's runtime type in Debug mode.
         if cfg!(debug_assertions) {
-            copy.with_checked_type()
-                .expect("copied array should have same type as original array")
+            copy.with_checked_type().unwrap_or_else(|e| {
+                panic!("copied array should have same type as original array: {e}")
+            })
         } else {
             copy
         }
