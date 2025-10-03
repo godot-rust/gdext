@@ -783,7 +783,9 @@ where
         }
 
         // If ref_counted returned None, that means the instance was destroyed
-        if ref_counted != Some(false) || !self.is_instance_valid() {
+        if ref_counted != Some(false)
+            || (cfg!(checks_at_least = "balanced") && !self.is_instance_valid())
+        {
             return error_or_panic("called free() on already destroyed object".to_string());
         }
 
