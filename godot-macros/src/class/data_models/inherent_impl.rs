@@ -91,8 +91,8 @@ pub fn transform_inherent_impl(
     let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block, meta.secondary)?;
     let consts = process_godot_constants(&mut impl_block)?;
 
-    #[cfg(all(feature = "register-docs", since_api = "4.3"))]
-    let docs = crate::docs::document_inherent_impl(&funcs, &consts, &signals);
+    let inherent_impl_docs =
+        crate::docs::make_trait_docs_registration(&funcs, &consts, &signals, &class_name, &prv);
 
     // Container struct holding names of all registered #[func]s.
     // The struct is declared by #[derive(GodotClass)].
@@ -126,26 +126,6 @@ pub fn transform_inherent_impl(
     let constants_storage_name = format_ident!("__registration_constants_{class_name}");
 
     let fill_storage = {
-        #[cfg(all(feature = "register-docs", since_api = "4.3"))]
-        let push_docs = {
-            let crate::docs::InherentImplXmlDocs {
-                method_xml_elems,
-                constant_xml_elems,
-                signal_xml_elems,
-            } = docs;
-
-            quote! {
-                #prv::edit_inherent_impl(#class_name_obj, |inherent_impl| {
-                    inherent_impl.docs.methods.push(#method_xml_elems);
-                    inherent_impl.docs.constants.push(#constant_xml_elems);
-                    inherent_impl.docs.signals.push(#signal_xml_elems);
-                });
-            }
-        };
-
-        #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
-        let push_docs = TokenStream::new();
-
         quote! {
             ::godot::sys::plugin_execute_pre_main!({
                 #method_storage_name.lock().unwrap().push(|| {
@@ -157,7 +137,6 @@ pub fn transform_inherent_impl(
                     #constant_registration
                 });
 
-                #push_docs
             });
         }
     };
@@ -211,6 +190,7 @@ pub fn transform_inherent_impl(
                 #( #func_name_constants )*
             }
             #signal_symbol_types
+            #inherent_impl_docs
         };
 
         Ok(result)
@@ -224,6 +204,7 @@ pub fn transform_inherent_impl(
             impl #funcs_collection {
                 #( #func_name_constants )*
             }
+            #inherent_impl_docs
         };
 
         Ok(result)

@@ -69,18 +69,21 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         modifiers.push(quote! { with_internal })
     }
     let base_ty = &struct_cfg.base_ty;
-    #[cfg(all(feature = "register-docs", since_api = "4.3"))]
-    let docs =
-        crate::docs::document_struct(base_ty.to_string(), &class.attributes, &fields.all_fields);
-    #[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
-    let docs = quote! {};
+    let prv = quote! { ::godot::private };
+
+    let struct_docs_registration = crate::docs::make_struct_docs_registration(
+        base_ty.to_string(),
+        &class.attributes,
+        &fields.all_fields,
+        class_name,
+        &prv,
+    );
     let base_class = quote! { ::godot::classes::#base_ty };
 
     // Use this name because when typing a non-existent class, users will be met with the following error:
     //    could not find `inherit_from_OS__ensure_class_exists` in `class_macros`.
     let inherits_macro_ident = format_ident!("inherit_from_{}__ensure_class_exists", base_ty);
 
-    let prv = quote! { ::godot::private };
     let godot_exports_impl = make_property_impl(class_name, &fields);
 
     let godot_withbase_impl = if let Some(Field { name, ty, .. }) = &fields.base_field {
@@ -196,9 +199,10 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #( #deprecations )*
         #( #errors )*
 
+        #struct_docs_registration
         ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
             #prv::PluginItem::Struct(
-                #prv::Struct::new::<#class_name>(#docs)#(.#modifiers())*
+                #prv::Struct::new::<#class_name>()#(.#modifiers())*
             )
         ));
 

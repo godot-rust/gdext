@@ -305,6 +305,20 @@ impl FairlyDocumented {
     fn other_signal(x: i64);
 }
 
+#[godot_api(secondary)]
+impl FairlyDocumented {
+    /// Documented method in godot_api secondary block
+    #[func]
+    fn secondary_but_documented(&self, _smth: i64) {}
+}
+
+#[godot_api(secondary)]
+impl FairlyDocumented {
+    /// Documented method in other godot_api secondary block
+    #[func]
+    fn trinary_but_documented(&self, _smth: i64) {}
+}
+
 #[itest]
 fn test_register_docs() {
     let xml = find_class_docs("FairlyDocumented");

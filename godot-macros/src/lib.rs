@@ -13,7 +13,6 @@
 mod bench;
 mod class;
 mod derive;
-#[cfg(all(feature = "register-docs", since_api = "4.3"))]
 mod docs;
 mod ffi_macros;
 mod gdextension;

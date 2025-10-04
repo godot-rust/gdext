@@ -22,6 +22,8 @@ use crate::{classes, sys};
 // Public re-exports
 
 mod reexport_pub {
+    #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+    pub use crate::docs::{DocsItem, DocsPlugin, InherentImplDocs, StructDocs};
     pub use crate::gen::classes::class_macros;
     #[cfg(feature = "trace")]
     pub use crate::meta::trace;
@@ -52,6 +54,8 @@ static CALL_ERRORS: Global<CallErrors> = Global::default();
 static ERROR_PRINT_LEVEL: atomic::AtomicU8 = atomic::AtomicU8::new(2);
 
 sys::plugin_registry!(pub __GODOT_PLUGIN_REGISTRY: ClassPlugin);
+#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+sys::plugin_registry!(pub __GODOT_DOCS_REGISTRY: DocsPlugin);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Call error handling
@@ -142,24 +146,13 @@ pub fn next_class_id() -> u16 {
     NEXT_CLASS_ID.fetch_add(1, atomic::Ordering::Relaxed)
 }
 
-// Don't touch unless you know what you're doing.
-#[doc(hidden)]
-pub fn edit_inherent_impl(class_name: crate::meta::ClassName, f: impl FnOnce(&mut InherentImpl)) {
-    let mut plugins = __GODOT_PLUGIN_REGISTRY.lock().unwrap();
-
-    for elem in plugins.iter_mut().filter(|p| p.class_name == class_name) {
-        match &mut elem.item {
-            PluginItem::InherentImpl(inherent_impl) => {
-                f(inherent_impl);
-                return;
-            }
-            PluginItem::Struct(_) | PluginItem::ITraitImpl(_) | PluginItem::DynTraitImpl(_) => {}
-        }
-    }
-}
-
 pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
     sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
+}
+
+#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+pub(crate) fn iterate_docs_plugins(mut visitor: impl FnMut(&DocsPlugin)) {
+    sys::plugin_foreach!(__GODOT_DOCS_REGISTRY; visitor);
 }
 
 #[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
