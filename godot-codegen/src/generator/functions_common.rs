@@ -142,7 +142,6 @@ pub fn make_function_definition(
         callsig_param_types: param_types,
         callsig_lifetime_args,
         arg_exprs: arg_names,
-        func_general_lifetime: fn_lifetime,
     } = if sig.is_virtual() {
         make_params_exprs_virtual(sig.params().iter(), sig)
     } else {
@@ -175,11 +174,14 @@ pub fn make_function_definition(
         default_structs_code = TokenStream::new();
     };
 
+    let maybe_func_generic_params = sig.return_value().generic_params();
+    let maybe_func_generic_bounds = sig.return_value().where_clause();
+
     let call_sig_decl = {
         let return_ty = &sig.return_value().type_tokens();
 
         quote! {
-            type CallRet = #return_ty;
+            type CallRet #maybe_func_generic_params = #return_ty;
             type CallParams #callsig_lifetime_args = (#(#param_types,)*);
         }
     };
@@ -279,10 +281,12 @@ pub fn make_function_definition(
 
         quote! {
             #maybe_safety_doc
-            #vis #maybe_unsafe fn #primary_fn_name #fn_lifetime (
+            #vis #maybe_unsafe fn #primary_fn_name #maybe_func_generic_params (
                 #receiver_param
                 #( #params, )*
-            ) #return_decl {
+            ) #return_decl
+            #maybe_func_generic_bounds
+            {
                 #call_sig_decl
 
                 let args = (#( #arg_names, )*);
@@ -489,6 +493,7 @@ pub(crate) fn make_param_or_field_type(
             ..
         }
         | RustTy::BuiltinArray { .. }
+        | RustTy::GenericArray
         | RustTy::EngineArray { .. } => {
             let lft = lifetimes.next();
             special_ty = Some(quote! { RefArg<#lft, #ty> });

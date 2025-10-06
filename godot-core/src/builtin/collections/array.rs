@@ -533,12 +533,11 @@ impl<T: ArrayElement> Array<T> {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(false) };
+        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type
+        let duplicate: Self = unsafe { self.as_inner().duplicate(false) };
 
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
-        let result = unsafe { duplicate.assume_type() };
-        result.with_cache(self)
+        // Note: cache is being set while initializing the duplicate as a return value for above call.
+        duplicate
     }
 
     /// Returns a deep copy of the array. All nested arrays and dictionaries are duplicated and
@@ -548,12 +547,11 @@ impl<T: ArrayElement> Array<T> {
     /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(true) };
+        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type
+        let duplicate: Self = unsafe { self.as_inner().duplicate(true) };
 
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
-        let result = unsafe { duplicate.assume_type() };
-        result.with_cache(self)
+        // Note: cache is being set while initializing the duplicate as a return value for above call.
+        duplicate
     }
 
     /// Returns a sub-range `begin..end` as a new `Array`.
@@ -588,13 +586,10 @@ impl<T: ArrayElement> Array<T> {
         let (begin, end) = range.signed();
         let end = end.unwrap_or(i32::MAX as i64);
 
-        // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
-        let subarray: VariantArray =
-            unsafe { self.as_inner().slice(begin, end, step as i64, deep) };
+        // SAFETY: slice() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        let subarray: Self = unsafe { self.as_inner().slice(begin, end, step as i64, deep) };
 
-        // SAFETY: slice() returns a typed array with the same type as Self.
-        let result = unsafe { subarray.assume_type() };
-        result.with_cache(self)
+        subarray
     }
 
     /// Returns an iterator over the elements of the `Array`. Note that this takes the array
@@ -950,8 +945,7 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
-    /// Changes the generic type on this array, without changing its contents. Needed for API
-    /// functions that return a variant array even though we know its type, and for API functions
+    /// Changes the generic type on this array, without changing its contents. Needed for API functions
     /// that take a variant array even though we want to pass a typed one.
     ///
     /// # Safety
@@ -966,13 +960,6 @@ impl<T: ArrayElement> Array<T> {
     /// Note also that any `GodotType` can be written to a `Variant` array.
     ///
     /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
-    unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
-        // The memory layout of `Array<T>` does not depend on `T`.
-        std::mem::transmute::<Array<T>, Array<U>>(self)
-    }
-
-    /// # Safety
-    /// See [`assume_type`](Self::assume_type).
     unsafe fn assume_type_ref<U: ArrayElement>(&self) -> &Array<U> {
         // The memory layout of `Array<T>` does not depend on `T`.
         std::mem::transmute::<&Array<T>, &Array<U>>(self)
