@@ -11,7 +11,7 @@ use quote::{format_ident, quote};
 
 use crate::generator::functions_common;
 use crate::generator::functions_common::{
-    make_arg_expr, make_param_or_field_type, FnArgExpr, FnCode, FnKind, FnParamDecl, FnParamTokens,
+    make_arg_expr, make_param_or_field_type, FnArgExpr, FnCode, FnKind, FnParamDecl,
 };
 use crate::models::domain::{FnParam, FnQualifier, Function, RustTy, TyName};
 use crate::util::{ident, safe_ident};
