@@ -98,7 +98,6 @@ pub struct FnParamTokens {
     /// Generic argument list `<'a0, 'a1, ...>` after `type CallSig`, if available.
     pub callsig_lifetime_args: Option<TokenStream>,
     pub arg_exprs: Vec<TokenStream>,
-    pub func_general_lifetime: Option<TokenStream>,
 }
 
 pub fn make_function_definition(
@@ -361,10 +360,7 @@ pub(crate) enum FnKind {
     /// `call()` forwarding to `try_call()`.
     DelegateTry,
 
-    /// Default extender `new()` associated function -- optional receiver and required parameters.
-    ExBuilderConstructor,
-
-    /// Same as [`ExBuilderConstructor`], but for a builder with an explicit lifetime.
+    /// Default extender `new()` associated function -- optional receiver and required parameters. Has an explicit lifetime.
     ExBuilderConstructorLifetimed,
 
     /// Default extender `new()` associated function -- only default parameters.
@@ -577,7 +573,6 @@ pub(crate) fn make_params_exprs<'a>(
         // Methods relevant in the context of default parameters. Flow in this order.
         // Note that for builder methods of Ex* structs, there's a direct call in default_parameters.rs to the parameter manipulation methods,
         // bypassing this method. So one case is missing here.
-        FnKind::ExBuilderConstructor => (FnParamDecl::FnPublic, FnArgExpr::StoreInField),
         FnKind::ExBuilderConstructorLifetimed => {
             (FnParamDecl::FnPublicLifetime, FnArgExpr::StoreInField)
         }
