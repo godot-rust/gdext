@@ -59,15 +59,6 @@ pub fn make_function_definition_with_defaults(
         &default_fn_params,
     );
 
-    // ExBuilder::new() constructor signature.
-    let FnParamTokens {
-        func_general_lifetime: simple_fn_lifetime,
-        ..
-    } = fns::make_params_exprs(
-        required_fn_params.iter().cloned(),
-        FnKind::ExBuilderConstructor,
-    );
-
     let return_decl = &sig.return_value().decl;
 
     // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
@@ -119,7 +110,7 @@ pub fn make_function_definition_with_defaults(
         // Lifetime is set if any parameter is a reference.
         #[doc = #default_parameter_usage]
         #[inline]
-        #vis fn #simple_fn_name #simple_fn_lifetime (
+        #vis fn #simple_fn_name (
             #simple_receiver_param
             #( #class_method_required_params, )*
         ) #return_decl {
