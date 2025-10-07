@@ -520,7 +520,7 @@ unsafe fn varcall_return<R: EngineToGodot>(
     let ret_variant = ret_val.engine_try_into_variant(call_ctx)?;
 
     unsafe {
-        *(ret as *mut Variant) = ret_variant;
+        *ret.cast::<Variant>() = ret_variant;
         (*err).error = sys::GDEXTENSION_CALL_OK;
     }
 

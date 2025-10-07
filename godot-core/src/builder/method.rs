@@ -87,7 +87,7 @@ macro_rules! impl_code_method {
                 let mut idx = 0;
 
                 $(
-                    let $arg = <$Param as FromVariant::from_variant(&*(*args.offset(idx) as *mut Variant));
+                    let $arg = <$Param as FromVariant::from_variant(&*(*args.offset(idx)).cast::<Variant>());
                     idx += 1;
                 )*
 
@@ -95,7 +95,7 @@ macro_rules! impl_code_method {
                     $arg,
                 )*);
 
-                *(ret as *mut Variant) = Variant::from(ret_val);
+                *ret.cast::<Variant>() = Variant::from(ret_val);
                 (*err).error = sys::GDExtensionCallErrorType_GDEXTENSION_CALL_OK;
             }
 

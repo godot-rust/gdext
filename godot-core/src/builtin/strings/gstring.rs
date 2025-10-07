@@ -131,7 +131,7 @@ impl GString {
                         let ctor = sys::thread_safe().string_new_with_latin1_chars_and_len;
                         ctor(
                             string_ptr,
-                            bytes.as_ptr() as *const std::ffi::c_char,
+                            bytes.as_ptr().cast::<std::ffi::c_char>(),
                             bytes.len() as i64,
                         );
                     })
@@ -359,7 +359,7 @@ impl From<&GString> for String {
 
             (sys::thread_safe().string_to_utf8_chars)(
                 string.string_sys(),
-                buf.as_mut_ptr() as *mut std::ffi::c_char,
+                buf.as_mut_ptr().cast::<std::ffi::c_char>(),
                 len,
             );
 

@@ -198,8 +198,8 @@ where
         interface_fn!(object_set_instance)(base_ptr, class_name.string_sys(), instance_ptr);
         interface_fn!(object_set_instance_binding)(
             base_ptr,
-            sys::get_library() as *mut std::ffi::c_void,
-            instance_ptr as *mut std::ffi::c_void,
+            sys::get_library().cast::<std::ffi::c_void>(),
+            instance_ptr.cast::<std::ffi::c_void>(),
             &binding_data_callbacks,
         );
     }
@@ -417,7 +417,7 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
     list: *const sys::GDExtensionPropertyInfo,
     count: u32,
 ) {
-    let list = list as *mut sys::GDExtensionPropertyInfo;
+    let list = list.cast_mut();
 
     // SAFETY: `list` comes from `get_property_list` above, and `count` also comes from the same function.
     // This means that `list` is a pointer to a `&[sys::GDExtensionPropertyInfo]` slice of length `count`.

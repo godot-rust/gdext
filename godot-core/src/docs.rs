@@ -198,7 +198,7 @@ pub unsafe fn register() {
         // SAFETY: `xml` being String means it's valid UTF-8. It's not null-terminated, but we provide its length.
         unsafe {
             crate::sys::interface_fn!(editor_help_load_xml_from_utf8_chars_and_len)(
-                xml.as_ptr() as *const std::ffi::c_char,
+                xml.as_ptr().cast::<std::ffi::c_char>(),
                 xml.len() as i64,
             );
         }

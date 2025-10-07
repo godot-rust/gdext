@@ -87,7 +87,7 @@ impl StringName {
                     let ctor = sys::thread_safe().string_name_new_with_latin1_chars;
                     ctor(
                         string_ptr,
-                        cstr.as_ptr() as *const std::ffi::c_char,
+                        cstr.as_ptr().cast::<std::ffi::c_char>(),
                         is_static,
                     );
                 })

@@ -52,7 +52,7 @@ impl<'a> StringCache<'a> {
             // There is no _latin_*() variant that takes length, so we have to use _utf8_*() instead.
             string_name_new_with_utf8_chars_and_len(
                 sname_uninit_ptr(sname_ptr),
-                key.as_ptr() as *const std::os::raw::c_char,
+                key.as_ptr().cast::<std::os::raw::c_char>(),
                 key.len() as sys::GDExtensionInt,
             );
         }

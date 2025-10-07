@@ -73,12 +73,12 @@ pub fn unbox<T>(value: Box<T>) -> T {
 ///
 /// The `as` conversion simultaneously doing 10 other things, potentially causing unintended transmutations.
 pub fn force_mut_ptr<T>(ptr: *const T) -> *mut T {
-    ptr as *mut T
+    ptr.cast_mut()
 }
 
 /// Add `const` to a mut ptr.
 pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
-    ptr as *const T
+    ptr.cast_const()
 }
 
 /// If `ptr` is not null, returns `Some(mapper(ptr))`; otherwise `None`.
@@ -104,7 +104,7 @@ pub fn c_str(s: &[u8]) -> *const std::ffi::c_char {
     // Ensure null-terminated
     crate::strict_assert!(!s.is_empty() && s[s.len() - 1] == 0);
 
-    s.as_ptr() as *const std::ffi::c_char
+    s.as_ptr().cast::<std::ffi::c_char>()
 }
 
 /// Returns a C `const char*` for a null-terminated string slice. UTF-8 encoded.

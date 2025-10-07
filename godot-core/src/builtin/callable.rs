@@ -264,7 +264,7 @@ impl Callable {
 
         let info = CallableCustomInfo {
             // We could technically associate an object_id with the custom callable. is_valid_func would then check that for validity.
-            callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
+            callable_userdata: Box::into_raw(Box::new(userdata)).cast::<std::ffi::c_void>(),
             call_func: Some(rust_callable_call_custom::<C>),
             free_func: Some(rust_callable_destroy::<C>),
             hash_func: Some(rust_callable_hash::<C>),
@@ -326,7 +326,7 @@ impl Callable {
 
         let info = CallableCustomInfo {
             object_id,
-            callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
+            callable_userdata: Box::into_raw(Box::new(userdata)).cast::<std::ffi::c_void>(),
             call_func: Some(rust_callable_call_fn::<F, R>),
             free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
             to_string_func: Some(rust_callable_to_string_named),
@@ -621,7 +621,7 @@ mod custom_callable {
         /// Returns an unbounded reference. `void_ptr` must be a valid pointer to a `CallableUserdata`.
         #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
         unsafe fn inner_from_raw<'a>(void_ptr: *mut std::ffi::c_void) -> &'a mut T {
-            let ptr = void_ptr as *mut CallableUserdata<T>;
+            let ptr = void_ptr.cast::<CallableUserdata<T>>();
             &mut (*ptr).inner
         }
     }
@@ -774,7 +774,7 @@ mod custom_callable {
 
     /// `T` here is entire object stored in [`CallableUserdata`], not just the actual [`RustCallable`] or closure instance.
     pub unsafe extern "C" fn rust_callable_destroy<T>(callable_userdata: *mut std::ffi::c_void) {
-        let rust_ptr = callable_userdata as *mut CallableUserdata<T>;
+        let rust_ptr = callable_userdata.cast::<CallableUserdata<T>>();
 
         // SAFETY: pointer was extracted using Box::into_raw().
         let _drop = unsafe { Box::from_raw(rust_ptr) };
