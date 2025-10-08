@@ -677,6 +677,25 @@ func make_array() -> Array[CustomScriptForArrays]:
     assert_eq!(script.get_global_name(), "CustomScriptForArrays".into());
 }
 
+// Test that proper type has been set&cached while creating new Array.
+// https://github.com/godot-rust/gdext/pull/1357
+#[itest]
+fn array_inner_type() {
+    let primary = Array::<Dictionary>::new();
+
+    let secondary = primary.duplicate_shallow();
+    assert_eq!(secondary.element_type(), primary.element_type());
+
+    let secondary = primary.duplicate_deep();
+    assert_eq!(secondary.element_type(), primary.element_type());
+
+    let subarray = primary.subarray_deep(.., None);
+    assert_eq!(subarray.element_type(), primary.element_type());
+
+    let subarray = primary.subarray_shallow(.., None);
+    assert_eq!(subarray.element_type(), primary.element_type());
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Class definitions
 
