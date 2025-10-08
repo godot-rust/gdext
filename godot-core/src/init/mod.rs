@@ -20,6 +20,28 @@ mod reexport_pub {
 }
 pub use reexport_pub::*;
 
+#[repr(C)]
+struct InitUserData {
+    library: sys::GDExtensionClassLibraryPtr,
+    #[cfg(since_api = "4.5")]
+    main_loop_callbacks: sys::GDExtensionMainLoopCallbacks,
+}
+
+#[cfg(since_api = "4.5")]
+unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
+    E::on_main_loop_startup();
+}
+
+#[cfg(since_api = "4.5")]
+unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
+    E::on_main_loop_frame();
+}
+
+#[cfg(since_api = "4.5")]
+unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
+    E::on_main_loop_shutdown();
+}
+
 #[doc(hidden)]
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
@@ -60,10 +82,20 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         // Currently no way to express failure; could be exposed to E if necessary.
         // No early exit, unclear if Godot still requires output parameters to be set.
         let success = true;
+        // Leak the userdata. It will be dropped in core level deinitialization.
+        let userdata = Box::into_raw(Box::new(InitUserData {
+            library,
+            #[cfg(since_api = "4.5")]
+            main_loop_callbacks: sys::GDExtensionMainLoopCallbacks {
+                startup_func: Some(startup_func::<E>),
+                frame_func: Some(frame_func::<E>),
+                shutdown_func: Some(shutdown_func::<E>),
+            },
+        }));
 
         let godot_init_params = sys::GDExtensionInitialization {
             minimum_initialization_level: E::min_level().to_sys(),
-            userdata: std::ptr::null_mut(),
+            userdata: userdata.cast::<std::ffi::c_void>(),
             initialize: Some(ffi_initialize_layer::<E>),
             deinitialize: Some(ffi_deinitialize_layer::<E>),
         };
@@ -88,13 +120,14 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
 static LEVEL_SERVERS_CORE_LOADED: AtomicBool = AtomicBool::new(false);
 
 unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
-    _userdata: *mut std::ffi::c_void,
+    userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
+    let userdata = userdata.cast::<InitUserData>().as_ref().unwrap();
     let level = InitLevel::from_sys(init_level);
     let ctx = || format!("failed to initialize GDExtension level `{level:?}`");
 
-    fn try_load<E: ExtensionLibrary>(level: InitLevel) {
+    fn try_load<E: ExtensionLibrary>(level: InitLevel, userdata: &InitUserData) {
         // Workaround for https://github.com/godot-rust/gdext/issues/629:
         // When using editor plugins, Godot may unload all levels but only reload from Scene upward.
         // Manually run initialization of lower levels.
@@ -102,8 +135,8 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
         // TODO: Remove this workaround once after the upstream issue is resolved.
         if level == InitLevel::Scene {
             if !LEVEL_SERVERS_CORE_LOADED.load(Ordering::Relaxed) {
-                try_load::<E>(InitLevel::Core);
-                try_load::<E>(InitLevel::Servers);
+                try_load::<E>(InitLevel::Core, userdata);
+                try_load::<E>(InitLevel::Servers, userdata);
             }
         } else if level == InitLevel::Core {
             // When it's normal initialization, the `Servers` level is normally initialized.
@@ -112,18 +145,18 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
 
         // SAFETY: Godot will call this from the main thread, after `__gdext_load_library` where the library is initialized,
         // and only once per level.
-        unsafe { gdext_on_level_init(level) };
+        unsafe { gdext_on_level_init(level, userdata) };
         E::on_level_init(level);
     }
 
     // Swallow panics. TODO consider crashing if gdext init fails.
     let _ = crate::private::handle_panic(ctx, || {
-        try_load::<E>(level);
+        try_load::<E>(level, userdata);
     });
 }
 
 unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
-    _userdata: *mut std::ffi::c_void,
+    userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
     let level = InitLevel::from_sys(init_level);
@@ -134,6 +167,9 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
         if level == InitLevel::Core {
             // Once the CORE api is unloaded, reset the flag to initial state.
             LEVEL_SERVERS_CORE_LOADED.store(false, Ordering::Relaxed);
+
+            // Drop the userdata.
+            drop(Box::from_raw(userdata.cast::<InitUserData>()));
         }
 
         E::on_level_deinit(level);
@@ -149,7 +185,7 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
 /// - The interface must have been initialized.
 /// - Must only be called once per level.
 #[deny(unsafe_op_in_unsafe_fn)]
-unsafe fn gdext_on_level_init(level: InitLevel) {
+unsafe fn gdext_on_level_init(level: InitLevel, userdata: &InitUserData) {
     // TODO: in theory, a user could start a thread in one of the early levels, and run concurrent code that messes with the global state
     // (e.g. class registration). This would break the assumption that the load_class_method_table() calls are exclusive.
     // We could maybe protect globals with a mutex until initialization is complete, and then move it to a directly-accessible, read-only static.
@@ -158,6 +194,15 @@ unsafe fn gdext_on_level_init(level: InitLevel) {
     unsafe { sys::load_class_method_table(level) };
 
     match level {
+        InitLevel::Core => {
+            #[cfg(since_api = "4.5")]
+            unsafe {
+                sys::interface_fn!(register_main_loop_callbacks)(
+                    userdata.library,
+                    &raw const userdata.main_loop_callbacks,
+                )
+            };
+        }
         InitLevel::Servers => {
             // SAFETY: called from the main thread, sys::initialized has already been called.
             unsafe { sys::discover_main_thread() };
@@ -173,7 +218,6 @@ unsafe fn gdext_on_level_init(level: InitLevel) {
                 crate::docs::register();
             }
         }
-        _ => (),
     }
 
     crate::registry::class::auto_register_classes(level);
@@ -300,6 +344,26 @@ pub unsafe trait ExtensionLibrary {
     /// If the overridden method panics, an error will be printed, but GDExtension unloading is **not** aborted.
     #[allow(unused_variables)]
     fn on_level_deinit(level: InitLevel) {
+        // Nothing by default.
+    }
+
+    /// Callback that is called after all initialization levels when Godot is fully initialized.
+    #[cfg(since_api = "4.5")]
+    fn on_main_loop_startup() {
+        // Nothing by default.
+    }
+
+    /// Callback that is called for every process frame.
+    ///
+    /// This will run after all `_process()` methods on Node, and before `ScriptServer::frame()`.
+    #[cfg(since_api = "4.5")]
+    fn on_main_loop_frame() {
+        // Nothing by default.
+    }
+
+    /// Callback that is called before Godot is shutdown when it is still fully initialized.
+    #[cfg(since_api = "4.5")]
+    fn on_main_loop_shutdown() {
         // Nothing by default.
     }
 
