@@ -158,10 +158,10 @@ fn class_name_debug() {
 fn class_name_alloc_panic() {
     // ASCII.
     {
-        let _1st = ClassId::__alloc_next_ascii(c"DuplicateTestClass");
+        let _1st = ClassId::__alloc_next_unicode("DuplicateTestClass");
 
         expect_panic("2nd allocation with same ASCII string fails", || {
-            let _2nd = ClassId::__alloc_next_ascii(c"DuplicateTestClass");
+            let _2nd = ClassId::__alloc_next_unicode("DuplicateTestClass");
         });
     }
 

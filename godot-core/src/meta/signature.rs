@@ -470,7 +470,7 @@ impl<'a> CallContext<'a> {
     }
 
     /// Call from Godot into a custom Callable.
-    pub fn custom_callable(function_name: &'a str) -> Self {
+    pub const fn custom_callable(function_name: &'a str) -> Self {
         Self {
             class_name: Cow::Borrowed("<Callable>"),
             function_name,
