@@ -17,6 +17,14 @@ public class Player : Node2D
   code&amp;nbsp;block
 &lt;/div&gt;[/codeblock][br][br][url=https://www.google.com/search?q=2+%2B+2+&lt;+5]Google: 2 + 2 &lt; 5[/url][br][br]connect these[br][br]¹ [url=https://example.org]https://example.org[/url][br]² because the glorb doesn&#39;t flibble.[br]³ This is the third footnote in order of definition.[br]⁴ Fourth footnote in order of definition.[br]⁵ This is the fifth footnote in order of definition.[br]⁶ sixth footnote in order of definition.</description>
 <methods>
+<method name="_init">
+  <return type="Self" />
+  <param index="0" name="base" type="Base &lt; Node &gt;" />
+  <description>
+  initialize this
+  </description>
+</method>
+
 <method name="ye">
   <return type="f32" />
   
@@ -65,11 +73,19 @@ public class Player : Node2D
   </description>
 </method>
 
-<method name="_init">
-  <return type="Self" />
-  <param index="0" name="base" type="Base &lt; Node &gt;" />
+<method name="secondary_but_documented">
+  <return type="()" />
+  <param index="0" name="smth" type="i64" />
   <description>
-  initialize this
+  Documented method in godot_api secondary block
+  </description>
+</method>
+
+<method name="trinary_but_documented">
+  <return type="()" />
+  <param index="0" name="smth" type="i64" />
+  <description>
+  Documented method in other godot_api secondary block
   </description>
 </method>
 </methods>
