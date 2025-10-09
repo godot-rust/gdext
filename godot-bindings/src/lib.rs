@@ -129,7 +129,11 @@ mod depend_on_prebuilt {
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
         watch.record("write_header_h");
 
-        let rs_contents = prebuilt::load_gdextension_header_rs();
+        // CROSS-COMPILATION FIX:
+        // Since godot-bindings is a build-dependency, it and gdextension-api are compiled for the HOST platform.
+        // The #[cfg] attributes in gdextension-api::load_gdextension_header_rs() evaluate for HOST, not TARGET.
+        // We read CARGO_CFG_TARGET_* environment variables to select the correct bindings at runtime.
+        let rs_contents = crate::import::prebuilt_platform::load_gdextension_header_rs_for_target();
         std::fs::write(rs_path, rs_contents.as_ref())
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
         watch.record("write_header_rs");
