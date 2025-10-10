@@ -12,6 +12,7 @@ use quote::{format_ident, ToTokens};
 
 use crate::generator::method_tables::MethodTableKey;
 use crate::generator::notifications;
+use crate::generator::sys::SYS_PARAMS;
 use crate::models::domain::{ArgPassing, GodotTy, RustTy, TyName};
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
@@ -28,6 +29,9 @@ pub struct Context<'a> {
     /// Which interface traits are generated (`false` for "Godot-abstract"/final classes).
     classes_final: HashMap<TyName, bool>,
     cached_rust_types: HashMap<GodotTy, RustTy>,
+    /// Various pointers defined in `gdextension_interface`, for example `GDExtensionInitializationFunction`.
+    /// Used in some APIs that are not exposed to GDScript.
+    sys_types: HashSet<&'a str>,
     notifications_by_class: HashMap<TyName, Vec<(Ident, i32)>>,
     classes_with_signals: HashSet<TyName>,
     notification_enum_names_by_class: HashMap<TyName, NotificationEnum>,
@@ -42,6 +46,8 @@ impl<'a> Context<'a> {
         for class in api.singletons.iter() {
             ctx.singletons.insert(class.name.as_str());
         }
+
+        Self::populate_sys_types(&mut ctx);
 
         ctx.builtin_types.insert("Variant"); // not part of builtin_classes
         for builtin in api.builtin_classes.iter() {
@@ -150,6 +156,14 @@ impl<'a> Context<'a> {
         }
 
         ctx
+    }
+
+    /// Adds Godot pointer types to [`Context`].
+    ///
+    /// Godot pointer types, for example `GDExtensionInitializationFunction`, are defined in `gdextension_interface`
+    /// but aren't described in `extension_api.json` – despite being used as parameters in various APIs.
+    fn populate_sys_types(ctx: &mut Context) {
+        ctx.sys_types.extend(SYS_PARAMS.iter().map(|p| p.type_()));
     }
 
     fn populate_notification_constants(
@@ -291,6 +305,10 @@ impl<'a> Context<'a> {
 
     pub fn is_native_structure(&self, ty_name: &str) -> bool {
         self.native_structures_types.contains(ty_name)
+    }
+
+    pub fn is_sys(&self, ty_name: &str) -> bool {
+        self.sys_types.contains(ty_name)
     }
 
     pub fn is_singleton(&self, class_name: &TyName) -> bool {

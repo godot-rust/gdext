@@ -699,6 +699,9 @@ pub struct GodotTy {
 pub enum RustTy {
     /// `bool`, `Vector3i`, `Array`, `GString`
     BuiltinIdent { ty: Ident, arg_passing: ArgPassing },
+    /// Pointers declared in `gdextension_interface` such as `sys::GDExtensionInitializationFunction`
+    /// used as parameters in some APIs.
+    SysIdent { tokens: TokenStream },
 
     /// `Array<i32>`
     ///
@@ -789,6 +792,7 @@ impl ToTokens for RustTy {
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
+            RustTy::SysIdent { tokens: path } => path.to_tokens(tokens),
         }
     }
 }
