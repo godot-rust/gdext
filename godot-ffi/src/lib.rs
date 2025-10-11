@@ -254,11 +254,23 @@ pub unsafe fn deinitialize() {
     }
 }
 
+fn safety_checks_string() -> &'static str {
+    if cfg!(checks_at_least = "paranoid") {
+        "paranoid"
+    } else if cfg!(checks_at_least = "balanced") {
+        "balanced"
+    } else if cfg!(checks_at_least = "fast-unsafe") {
+        "fast-unsafe"
+    } else {
+        unreachable!();
+    }
+}
+
 fn print_preamble(version: GDExtensionGodotVersion) {
     let api_version: &'static str = GdextBuild::godot_static_version_string();
     let runtime_version = read_version_string(&version);
-
-    println!("Initialize godot-rust (API {api_version}, runtime {runtime_version})");
+    let checks_mode = safety_checks_string();
+    println!("Initialize godot-rust (API {api_version}, runtime {runtime_version}, safety checks {checks_mode})");
 }
 
 /// # Safety

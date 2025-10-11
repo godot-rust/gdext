@@ -360,7 +360,7 @@ impl<T: GodotClass> RawGd<T> {
         debug_assert!(!self.is_null(), "cannot upcast null object refs");
 
         // In Debug builds, go the long path via Godot FFI to verify the results are the same.
-        #[cfg(debug_assertions)]
+        #[cfg(checks_at_least = "paranoid")]
         {
             // SAFETY: we forget the object below and do not leave the function before.
             let ffi_dest = self.ffi_cast::<Base>().expect("failed FFI upcast");
@@ -381,16 +381,22 @@ impl<T: GodotClass> RawGd<T> {
         }
     }
 
-    /// Verify that the object is non-null and alive. In Debug mode, additionally verify that it is of type `T` or derived.
+    /// Verify that the object is non-null and alive. In paranoid mode, additionally verify that it is of type `T` or derived.
     pub(crate) fn check_rtti(&self, method_name: &'static str) {
-        let call_ctx = CallContext::gd::<T>(method_name);
+        #[cfg(checks_at_least = "balanced")]
+        {
+            let call_ctx = CallContext::gd::<T>(method_name);
+            #[cfg(checks_at_least = "paranoid")]
+            self.check_dynamic_type(&call_ctx);
+            let instance_id = unsafe { self.instance_id_unchecked().unwrap_unchecked() };
 
-        let instance_id = self.check_dynamic_type(&call_ctx);
-        classes::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
+            classes::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
+        }
     }
 
     /// Checks only type, not alive-ness. Used in Gd<T> in case of `free()`.
-    pub(crate) fn check_dynamic_type(&self, call_ctx: &CallContext<'static>) -> InstanceId {
+    #[cfg(checks_at_least = "paranoid")]
+    pub(crate) fn check_dynamic_type(&self, call_ctx: &CallContext<'static>) {
         debug_assert!(
             !self.is_null(),
             "{call_ctx}: cannot call method on null object",
@@ -400,7 +406,7 @@ impl<T: GodotClass> RawGd<T> {
 
         // SAFETY: code surrounding RawGd<T> ensures that `self` is non-null; above is just a sanity check against internal bugs.
         let rtti = unsafe { rtti.unwrap_unchecked() };
-        rtti.check_type::<T>()
+        rtti.check_type::<T>();
     }
 
     // Not pub(super) because used by godot::meta::args::ObjectArg.
@@ -509,7 +515,7 @@ where
 
         let ptr: sys::GDExtensionClassInstancePtr = binding.cast();
 
-        #[cfg(debug_assertions)]
+        #[cfg(checks_at_least = "paranoid")]
         crate::classes::ensure_binding_not_null::<T>(ptr);
 
         self.cached_storage_ptr.set(ptr);

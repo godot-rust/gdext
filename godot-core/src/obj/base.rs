@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(debug_assertions)]
+#[cfg(checks_at_least = "paranoid")]
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
@@ -27,7 +27,7 @@ thread_local! {
 }
 
 /// Represents the initialization state of a `Base<T>` object.
-#[cfg(debug_assertions)]
+#[cfg(checks_at_least = "paranoid")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum InitState {
     /// Object is being constructed (inside `I*::init()` or `Gd::from_init_fn()`).
@@ -38,14 +38,14 @@ enum InitState {
     Script,
 }
 
-#[cfg(debug_assertions)]
+#[cfg(checks_at_least = "paranoid")]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj, $state)
     };
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(checks_at_least = "paranoid"))]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj)
@@ -82,7 +82,7 @@ pub struct Base<T: GodotClass> {
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
-    #[cfg(debug_assertions)]
+    #[cfg(checks_at_least = "paranoid")]
     init_state: Rc<Cell<InitState>>,
 }
 
@@ -95,13 +95,14 @@ impl<T: GodotClass> Base<T> {
     /// `base` must be alive at the time of invocation, i.e. user `init()` (which could technically destroy it) must not have run yet.
     /// If `base` is destroyed while the returned `Base<T>` is in use, that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_base(base: &Base<T>) -> Base<T> {
-        debug_assert!(base.obj.is_instance_valid());
+        #[cfg(checks_at_least = "paranoid")]
+        assert!(base.obj.is_instance_valid());
 
         let obj = Gd::from_obj_sys_weak(base.obj.obj_sys());
 
         Self {
             obj: ManuallyDrop::new(obj),
-            #[cfg(debug_assertions)]
+            #[cfg(checks_at_least = "paranoid")]
             init_state: Rc::clone(&base.init_state),
         }
     }
@@ -114,7 +115,8 @@ impl<T: GodotClass> Base<T> {
     /// `gd` must be alive at the time of invocation. If it is destroyed while the returned `Base<T>` is in use, that constitutes a logic
     /// error, not a safety issue.
     pub(crate) unsafe fn from_script_gd(gd: &Gd<T>) -> Self {
-        debug_assert!(gd.is_instance_valid());
+        #[cfg(checks_at_least = "paranoid")]
+        assert!(gd.is_instance_valid());
 
         let obj = Gd::from_obj_sys_weak(gd.obj_sys());
         base_from_obj!(obj, InitState::Script)
@@ -141,7 +143,7 @@ impl<T: GodotClass> Base<T> {
         base_from_obj!(obj, InitState::ObjectConstructing)
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(checks_at_least = "paranoid")]
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -149,7 +151,7 @@ impl<T: GodotClass> Base<T> {
         }
     }
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(checks_at_least = "paranoid"))]
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -176,7 +178,7 @@ impl<T: GodotClass> Base<T> {
     /// # Panics (Debug)
     /// If called outside an initialization function, or for ref-counted objects on a non-main thread.
     pub fn to_init_gd(&self) -> Gd<T> {
-        #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
+        #[cfg(checks_at_least = "paranoid")] // debug_assert! still checks existence of symbols.
         assert!(
             self.is_initializing(),
             "Base::to_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
@@ -248,7 +250,7 @@ impl<T: GodotClass> Base<T> {
 
     /// Finalizes the initialization of this `Base<T>` and returns whether
     pub(crate) fn mark_initialized(&mut self) {
-        #[cfg(debug_assertions)]
+        #[cfg(checks_at_least = "paranoid")]
         {
             assert_eq!(
                 self.init_state.get(),
@@ -265,7 +267,7 @@ impl<T: GodotClass> Base<T> {
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     #[doc(hidden)]
     pub fn __fully_constructed_gd(&self) -> Gd<T> {
-        #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
+        #[cfg(checks_at_least = "paranoid")] // debug_assert! still checks existence of symbols.
         assert!(
             !self.is_initializing(),
             "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
@@ -296,7 +298,7 @@ impl<T: GodotClass> Base<T> {
 
     /// Returns a passive reference to the base object, for use in script contexts only.
     pub(crate) fn to_script_passive(&self) -> PassiveGd<T> {
-        #[cfg(debug_assertions)]
+        #[cfg(checks_at_least = "paranoid")]
         assert_eq!(
             self.init_state.get(),
             InitState::Script,
@@ -308,7 +310,7 @@ impl<T: GodotClass> Base<T> {
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
-    #[cfg(debug_assertions)]
+    #[cfg(checks_at_least = "paranoid")]
     fn is_initializing(&self) -> bool {
         self.init_state.get() == InitState::ObjectConstructing
     }
@@ -316,7 +318,7 @@ impl<T: GodotClass> Base<T> {
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     #[doc(hidden)]
     pub fn __constructed_gd(&self) -> Gd<T> {
-        #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
+        #[cfg(checks_at_least = "paranoid")] // debug_assert! still checks existence of symbols.
         assert!(
             !self.is_initializing(),
             "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
@@ -333,7 +335,7 @@ impl<T: GodotClass> Base<T> {
     /// # Safety
     /// Caller must ensure that the underlying object remains valid for the entire lifetime of the returned `PassiveGd`.
     pub(crate) unsafe fn constructed_passive(&self) -> PassiveGd<T> {
-        #[cfg(debug_assertions)] // debug_assert! still checks existence of symbols.
+        #[cfg(checks_at_least = "paranoid")] // debug_assert! still checks existence of symbols.
         assert!(
             !self.is_initializing(),
             "WithBaseField::base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"

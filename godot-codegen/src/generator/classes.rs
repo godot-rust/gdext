@@ -195,8 +195,9 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         fn __checked_id(&self) -> Option<crate::obj::InstanceId> {
             // SAFETY: only Option due to layout-compatibility with RawGd<T>; it is always Some because stored in Gd<T> which is non-null.
             let rtti = unsafe { self.rtti.as_ref().unwrap_unchecked() };
-            let instance_id = rtti.check_type::<Self>();
-            Some(instance_id)
+            #[cfg(checks_at_least = "paranoid")]
+            rtti.check_type::<Self>();
+            Some(rtti.instance_id())
         }
 
         #[doc(hidden)]
