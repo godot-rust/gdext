@@ -783,7 +783,9 @@ where
         }
 
         // If ref_counted returned None, that means the instance was destroyed
-        if ref_counted != Some(false) || !self.is_instance_valid() {
+        if ref_counted != Some(false)
+            || (cfg!(checks_at_least = "balanced") && !self.is_instance_valid())
+        {
             return error_or_panic("called free() on already destroyed object".to_string());
         }
 
@@ -791,6 +793,7 @@ where
         // static type information to be correct. This is a no-op in Release mode.
         // Skip check during panic unwind; would need to rewrite whole thing to use Result instead. Having BOTH panic-in-panic and bad type is
         // a very unlikely corner case.
+        #[cfg(checks_at_least = "paranoid")]
         if !is_panic_unwind {
             self.raw.check_dynamic_type(&CallContext::gd::<T>("free"));
         }
