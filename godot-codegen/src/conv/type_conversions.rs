@@ -172,6 +172,15 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         // .trim() is necessary here, as Godot places a space between a type and the stars when representing a double pointer.
         // Example: "int*" but "int **".
+        if ctx.is_sys(ty.trim()) {
+            let ty = rustify_ty(&ty);
+            return RustTy::RawPointer {
+                inner: Box::new(RustTy::SysIdent {
+                    tokens: quote! { sys::#ty },
+                }),
+                is_const,
+            };
+        }
         let inner_type = to_rust_type(ty.trim(), None, ctx);
         return RustTy::RawPointer {
             inner: Box::new(inner_type),
