@@ -98,7 +98,6 @@ pub struct FnParamTokens {
     /// Generic argument list `<'a0, 'a1, ...>` after `type CallSig`, if available.
     pub callsig_lifetime_args: Option<TokenStream>,
     pub arg_exprs: Vec<TokenStream>,
-    pub func_general_lifetime: Option<TokenStream>,
 }
 
 pub fn make_function_definition(
@@ -142,7 +141,6 @@ pub fn make_function_definition(
         callsig_param_types: param_types,
         callsig_lifetime_args,
         arg_exprs: arg_names,
-        func_general_lifetime: fn_lifetime,
     } = if sig.is_virtual() {
         make_params_exprs_virtual(sig.params().iter(), sig)
     } else {
@@ -175,11 +173,14 @@ pub fn make_function_definition(
         default_structs_code = TokenStream::new();
     };
 
+    let maybe_func_generic_params = sig.return_value().generic_params();
+    let maybe_func_generic_bounds = sig.return_value().where_clause();
+
     let call_sig_decl = {
         let return_ty = &sig.return_value().type_tokens();
 
         quote! {
-            type CallRet = #return_ty;
+            type CallRet #maybe_func_generic_params = #return_ty;
             type CallParams #callsig_lifetime_args = (#(#param_types,)*);
         }
     };
@@ -279,10 +280,12 @@ pub fn make_function_definition(
 
         quote! {
             #maybe_safety_doc
-            #vis #maybe_unsafe fn #primary_fn_name #fn_lifetime (
+            #vis #maybe_unsafe fn #primary_fn_name #maybe_func_generic_params (
                 #receiver_param
                 #( #params, )*
-            ) #return_decl {
+            ) #return_decl
+            #maybe_func_generic_bounds
+            {
                 #call_sig_decl
 
                 let args = (#( #arg_names, )*);
@@ -357,10 +360,7 @@ pub(crate) enum FnKind {
     /// `call()` forwarding to `try_call()`.
     DelegateTry,
 
-    /// Default extender `new()` associated function -- optional receiver and required parameters.
-    ExBuilderConstructor,
-
-    /// Same as [`ExBuilderConstructor`], but for a builder with an explicit lifetime.
+    /// Default extender `new()` associated function -- optional receiver and required parameters. Has an explicit lifetime.
     ExBuilderConstructorLifetimed,
 
     /// Default extender `new()` associated function -- only default parameters.
@@ -489,6 +489,7 @@ pub(crate) fn make_param_or_field_type(
             ..
         }
         | RustTy::BuiltinArray { .. }
+        | RustTy::GenericArray
         | RustTy::EngineArray { .. } => {
             let lft = lifetimes.next();
             special_ty = Some(quote! { RefArg<#lft, #ty> });
@@ -572,7 +573,6 @@ pub(crate) fn make_params_exprs<'a>(
         // Methods relevant in the context of default parameters. Flow in this order.
         // Note that for builder methods of Ex* structs, there's a direct call in default_parameters.rs to the parameter manipulation methods,
         // bypassing this method. So one case is missing here.
-        FnKind::ExBuilderConstructor => (FnParamDecl::FnPublic, FnArgExpr::StoreInField),
         FnKind::ExBuilderConstructorLifetimed => {
             (FnParamDecl::FnPublicLifetime, FnArgExpr::StoreInField)
         }

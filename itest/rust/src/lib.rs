@@ -27,4 +27,19 @@ unsafe impl ExtensionLibrary for framework::IntegrationTests {
     fn on_level_init(level: InitLevel) {
         object_tests::on_level_init(level);
     }
+
+    #[cfg(since_api = "4.5")]
+    fn on_main_loop_startup() {
+        object_tests::on_main_loop_startup();
+    }
+
+    #[cfg(since_api = "4.5")]
+    fn on_main_loop_frame() {
+        object_tests::on_main_loop_frame();
+    }
+
+    #[cfg(since_api = "4.5")]
+    fn on_main_loop_shutdown() {
+        object_tests::on_main_loop_shutdown();
+    }
 }
