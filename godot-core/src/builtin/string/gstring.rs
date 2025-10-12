@@ -157,7 +157,7 @@ impl GString {
     }
 
     /// Returns a 32-bit integer hash value representing the string.
-    pub fn hash(&self) -> u32 {
+    pub fn hash_u32(&self) -> u32 {
         self.as_inner()
             .hash()
             .try_into()

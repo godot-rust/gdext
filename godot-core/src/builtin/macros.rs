@@ -103,7 +103,7 @@ macro_rules! impl_builtin_traits_inner {
     ( Hash for $Type:ty ) => {
         impl std::hash::Hash for $Type {
             fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-                self.hash().hash(state)
+                self.hash_u32().hash(state)
             }
         }
     };

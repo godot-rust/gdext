@@ -449,8 +449,11 @@ impl Callable {
     /// Returns the 32-bit hash value of this callable's object.
     ///
     /// _Godot equivalent: `hash`_
-    pub fn hash(&self) -> u32 {
-        self.as_inner().hash().try_into().unwrap()
+    pub fn hash_u32(&self) -> u32 {
+        self.as_inner()
+            .hash()
+            .try_into()
+            .expect("Godot hashes are uin32_t")
     }
 
     /// Returns true if this callable is a custom callable.
