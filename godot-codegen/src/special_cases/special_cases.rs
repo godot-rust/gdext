@@ -33,7 +33,7 @@ use proc_macro2::Ident;
 
 use crate::conv::to_enum_type_uncached;
 use crate::models::domain::{
-    ClassCodegenLevel, Enum, EnumReplacements, RustTy, TyName, VirtualMethodPresence,
+    ClassCodegenLevel, Enum, EnumReplacements, FnReturn, RustTy, TyName, VirtualMethodPresence,
 };
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
@@ -776,6 +776,24 @@ pub fn is_class_method_param_required(
 /// True if builtin method is excluded. Does NOT check for type exclusion; use [`is_builtin_type_deleted`] for that.
 pub fn is_builtin_method_deleted(_class_name: &TyName, method: &JsonBuiltinMethod) -> bool {
     codegen_special_cases::is_builtin_method_excluded(method)
+}
+
+/// Returns some generic type – such as `GenericArray` representing `Array<T>` – if method is marked as generic, `None` otherwise.
+///
+/// Usually required to initialize the return value and cache its type (see also https://github.com/godot-rust/gdext/pull/1357).
+pub fn builtin_method_generic_ret(
+    class_name: &TyName,
+    method: &JsonBuiltinMethod,
+) -> Option<FnReturn> {
+    match (
+        class_name.rust_ty.to_string().as_str(),
+        method.name.as_str(),
+    ) {
+        ("Array", "duplicate") | ("Array", "slice") => {
+            Some(FnReturn::with_generic_builtin(RustTy::GenericArray))
+        }
+        _ => None,
+    }
 }
 
 /// True if signal is absent from codegen (only when surrounding class is excluded).

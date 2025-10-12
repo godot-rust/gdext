@@ -11,7 +11,7 @@ use quote::{format_ident, quote};
 
 use crate::generator::functions_common;
 use crate::generator::functions_common::{
-    make_arg_expr, make_param_or_field_type, FnArgExpr, FnCode, FnKind, FnParamDecl, FnParamTokens,
+    make_arg_expr, make_param_or_field_type, FnArgExpr, FnCode, FnKind, FnParamDecl,
 };
 use crate::models::domain::{FnParam, FnQualifier, Function, RustTy, TyName};
 use crate::util::{ident, safe_ident};
@@ -57,15 +57,6 @@ pub fn make_function_definition_with_defaults(
         object_fn_param,
         &required_fn_params,
         &default_fn_params,
-    );
-
-    // ExBuilder::new() constructor signature.
-    let FnParamTokens {
-        func_general_lifetime: simple_fn_lifetime,
-        ..
-    } = fns::make_params_exprs(
-        required_fn_params.iter().cloned(),
-        FnKind::ExBuilderConstructor,
     );
 
     let return_decl = &sig.return_value().decl;
@@ -119,7 +110,7 @@ pub fn make_function_definition_with_defaults(
         // Lifetime is set if any parameter is a reference.
         #[doc = #default_parameter_usage]
         #[inline]
-        #vis fn #simple_fn_name #simple_fn_lifetime (
+        #vis fn #simple_fn_name (
             #simple_receiver_param
             #( #class_method_required_params, )*
         ) #return_decl {
