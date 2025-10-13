@@ -7,8 +7,10 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use godot::builtin::Rid;
+use godot::classes::{Engine, IObject, RenderingServer};
 use godot::init::InitLevel;
-use godot::obj::{NewAlloc, Singleton};
+use godot::obj::{Base, GodotClass, NewAlloc, Singleton};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::Global;
 
@@ -119,4 +121,46 @@ fn on_init_scene() {
 
 pub fn on_init_editor() {
     // Nothing yet.
+}
+
+#[derive(GodotClass)]
+#[class(base=Object)]
+struct MainLoopCallbackSingleton {
+    tex: Rid,
+}
+
+#[godot_api]
+impl IObject for MainLoopCallbackSingleton {
+    fn init(_: Base<Self::Base>) -> Self {
+        Self {
+            tex: RenderingServer::singleton().texture_2d_placeholder_create(),
+        }
+    }
+}
+
+pub fn on_main_loop_startup() {
+    // RenderingServer should be accessible in MainLoop startup and shutdown.
+    let singleton = MainLoopCallbackSingleton::new_alloc();
+    assert!(singleton.bind().tex.is_valid());
+    Engine::singleton().register_singleton(
+        &MainLoopCallbackSingleton::class_id().to_string_name(),
+        &singleton,
+    );
+}
+
+pub fn on_main_loop_frame() {
+    // Nothing yet.
+}
+
+pub fn on_main_loop_shutdown() {
+    let singleton = Engine::singleton()
+        .get_singleton(&MainLoopCallbackSingleton::class_id().to_string_name())
+        .unwrap()
+        .cast::<MainLoopCallbackSingleton>();
+    Engine::singleton()
+        .unregister_singleton(&MainLoopCallbackSingleton::class_id().to_string_name());
+    let tex = singleton.bind().tex;
+    assert!(tex.is_valid());
+    RenderingServer::singleton().free_rid(tex);
+    singleton.free();
 }

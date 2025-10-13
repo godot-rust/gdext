@@ -366,10 +366,17 @@ impl BuiltinMethod {
             return None;
         }
 
-        let return_value = method
-            .return_type
-            .as_deref()
-            .map(JsonMethodReturn::from_type_no_meta);
+        let return_value = if let Some(generic) =
+            special_cases::builtin_method_generic_ret(builtin_name, method)
+        {
+            generic
+        } else {
+            let return_value = &method
+                .return_type
+                .as_deref()
+                .map(JsonMethodReturn::from_type_no_meta);
+            FnReturn::new(return_value, ctx)
+        };
 
         Some(Self {
             common: FunctionCommon {
@@ -381,7 +388,7 @@ impl BuiltinMethod {
                 parameters: FnParam::builder()
                     .no_defaults()
                     .build_many(&method.arguments, ctx),
-                return_value: FnReturn::new(&return_value, ctx),
+                return_value,
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
                 is_virtual_required: false,

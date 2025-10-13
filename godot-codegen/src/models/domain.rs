@@ -300,28 +300,40 @@ pub trait Function: fmt::Display {
     fn name(&self) -> &str {
         &self.common().name
     }
+
     /// Rust name as `Ident`. Might be cached in future.
     fn name_ident(&self) -> Ident {
         safe_ident(self.name())
     }
+
     fn godot_name(&self) -> &str {
         &self.common().godot_name
     }
+
     fn params(&self) -> &[FnParam] {
         &self.common().parameters
     }
+
     fn return_value(&self) -> &FnReturn {
         &self.common().return_value
     }
+
     fn is_vararg(&self) -> bool {
         self.common().is_vararg
     }
+
     fn is_private(&self) -> bool {
         self.common().is_private
     }
+
     fn is_virtual(&self) -> bool {
         matches!(self.direction(), FnDirection::Virtual { .. })
     }
+
+    fn is_generic(&self) -> bool {
+        matches!(self.return_value().type_, Some(RustTy::GenericArray))
+    }
+
     fn direction(&self) -> FnDirection {
         self.common().direction
     }
@@ -621,6 +633,13 @@ impl FnReturn {
         Self::with_enum_replacements(return_value, &[], ctx)
     }
 
+    pub fn with_generic_builtin(generic_type: RustTy) -> Self {
+        Self {
+            decl: generic_type.return_decl(),
+            type_: Some(generic_type),
+        }
+    }
+
     pub fn with_enum_replacements(
         return_value: &Option<JsonMethodReturn>,
         replacements: EnumReplacements,
@@ -669,6 +688,14 @@ impl FnReturn {
         }
     }
 
+    pub fn generic_params(&self) -> Option<TokenStream> {
+        self.type_.as_ref()?.generic_params()
+    }
+
+    pub fn where_clause(&self) -> Option<TokenStream> {
+        self.type_.as_ref()?.where_clause()
+    }
+
     pub fn call_result_decl(&self) -> TokenStream {
         let ret = self.type_tokens();
         quote! { -> Result<#ret, crate::meta::error::CallError> }
@@ -699,11 +726,19 @@ pub struct GodotTy {
 pub enum RustTy {
     /// `bool`, `Vector3i`, `Array`, `GString`
     BuiltinIdent { ty: Ident, arg_passing: ArgPassing },
+    /// Pointers declared in `gdextension_interface` such as `sys::GDExtensionInitializationFunction`
+    /// used as parameters in some APIs.
+    SysIdent { tokens: TokenStream },
 
     /// `Array<i32>`
     ///
     /// Note that untyped arrays are mapped as `BuiltinIdent("Array")`.
     BuiltinArray { elem_type: TokenStream },
+
+    /// Will be included as `Array<T>` in the generated source.
+    ///
+    /// Set by [`builtin_method_generic_ret`](crate::special_cases::builtin_method_generic_ret)
+    GenericArray,
 
     /// C-style raw pointer to a `RustTy`.
     RawPointer { inner: Box<RustTy>, is_const: bool },
@@ -755,7 +790,27 @@ impl RustTy {
     pub fn return_decl(&self) -> TokenStream {
         match self {
             Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
+            Self::GenericArray => quote! { -> Array<Ret> },
             other => quote! { -> #other },
+        }
+    }
+
+    pub fn generic_params(&self) -> Option<TokenStream> {
+        if matches!(self, Self::GenericArray) {
+            Some(quote! { < Ret > })
+        } else {
+            None
+        }
+    }
+
+    pub fn where_clause(&self) -> Option<TokenStream> {
+        if matches!(self, Self::GenericArray) {
+            Some(quote! {
+                where
+                    Ret: crate::meta::ArrayElement,
+            })
+        } else {
+            None
         }
     }
 
@@ -789,6 +844,8 @@ impl ToTokens for RustTy {
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
+            RustTy::GenericArray => quote! { Array<Ret> }.to_tokens(tokens),
+            RustTy::SysIdent { tokens: path } => path.to_tokens(tokens),
         }
     }
 }
