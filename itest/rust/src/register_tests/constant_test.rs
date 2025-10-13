@@ -172,8 +172,6 @@ godot::sys::plugin_add!(
     godot::private::ClassPlugin::new::<HasOtherConstants>(
         godot::private::PluginItem::InherentImpl(
             godot::private::InherentImpl::new::<HasOtherConstants>(
-                #[cfg(feature = "register-docs")]
-                Default::default()
             )
         )
     )

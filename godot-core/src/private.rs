@@ -22,6 +22,8 @@ use crate::{classes, sys};
 // Public re-exports
 
 mod reexport_pub {
+    #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+    pub use crate::docs::{DocsItem, DocsPlugin, InherentImplDocs, StructDocs};
     pub use crate::gen::classes::class_macros;
     #[cfg(feature = "trace")]
     pub use crate::meta::trace;
@@ -52,6 +54,8 @@ static CALL_ERRORS: Global<CallErrors> = Global::default();
 static ERROR_PRINT_LEVEL: atomic::AtomicU8 = atomic::AtomicU8::new(2);
 
 sys::plugin_registry!(pub __GODOT_PLUGIN_REGISTRY: ClassPlugin);
+#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+sys::plugin_registry!(pub __GODOT_DOCS_REGISTRY: DocsPlugin);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Call error handling
@@ -144,6 +148,11 @@ pub fn next_class_id() -> u16 {
 
 pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
     sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
+}
+
+#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+pub(crate) fn iterate_docs_plugins(mut visitor: impl FnMut(&DocsPlugin)) {
+    sys::plugin_foreach!(__GODOT_DOCS_REGISTRY; visitor);
 }
 
 #[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
