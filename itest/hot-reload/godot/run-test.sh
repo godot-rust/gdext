@@ -54,6 +54,11 @@ cargo build -p hot-reload $cargoArgs
 # Wait briefly so artifacts are present on file system.
 sleep 0.5
 
+# ----------------------------------------------------------------
+# Test Case 1: Update Rust source and compile to trigger reload.
+# ----------------------------------------------------------------
+
+echo "[Bash]      Scenario 1: Reload after updating Rust source..."
 $GODOT4_BIN -e --headless --path $rel &
 godotPid=$!
 echo "[Bash]      Wait for Godot ready (PID $godotPid)..."
@@ -70,6 +75,32 @@ echo "[Bash]      Wait for Godot exit..."
 wait $godotPid
 status=$?
 echo "[Bash]      Godot (PID $godotPid) has completed with status $status."
+if [[ $status -ne 0 ]]; then
+  exit $status
+fi
 
+# ----------------------------------------------------------------
+# Test Case 2: Touch the .gdextension file to trigger reload.
+# ----------------------------------------------------------------
+godotPid=0
 
+echo "[Bash]      Scenario 2: Reload after touching rust.gdextension..."
+$GODOT4_BIN -e --headless --path $rel &
+godotPid=$!
+echo "[Bash]      Wait for Godot ready (PID $godotPid)..."
 
+$GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- await
+
+# update timestamp to trigger reload
+touch "$rel/rust.gdextension"
+
+$GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- notify
+
+echo "[Bash]      Wait for Godot exit (dirty scenario)..."
+wait $godotPid
+status=$?
+echo "[Bash]      Godot (PID $godotPid) has completed with status $status."
+if [[ $status -ne 0 ]]; then
+  exit $status
+fi
+godotPid=0
