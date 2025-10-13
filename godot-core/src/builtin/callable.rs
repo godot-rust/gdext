@@ -456,6 +456,11 @@ impl Callable {
             .expect("Godot hashes are uin32_t")
     }
 
+    #[deprecated = "renamed to hash_u32"]
+    pub fn hash(&self) -> u32 {
+        self.as_inner().hash().try_into().unwrap()
+    }
+
     /// Returns true if this callable is a custom callable.
     ///
     /// Custom callables are mainly created from bind or unbind. In GDScript, lambda functions are also

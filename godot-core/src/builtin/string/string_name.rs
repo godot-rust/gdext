@@ -147,6 +147,14 @@ impl StringName {
             .expect("Godot hashes are uint32_t")
     }
 
+    #[deprecated = "renamed to hash_u32"]
+    pub fn hash(&self) -> u32 {
+        self.as_inner()
+            .hash()
+            .try_into()
+            .expect("Godot hashes are uint32_t")
+    }
+
     meta::declare_arg_method! {
         /// Use as argument for an [`impl AsArg<GString|NodePath>`][crate::meta::AsArg] parameter.
         ///

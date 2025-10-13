@@ -291,12 +291,15 @@ impl<T: ArrayElement> Array<T> {
     /// reverse is not true. Returning identical hash values does not imply the arrays are equal,
     /// because different arrays can have identical hash values due to hash collisions.
     pub fn hash_u32(&self) -> u32 {
-        // The GDExtension interface only deals in `i64`, but the engine's own `hash()` function
-        // actually returns `uint32_t`.
         self.as_inner()
             .hash()
             .try_into()
             .expect("Godot hashes are uint32_t")
+    }
+
+    #[deprecated = "renamed to hash_32"]
+    pub fn hash(&self) -> u32 {
+        self.as_inner().hash().try_into().unwrap()
     }
 
     /// Returns the first element in the array, or `None` if the array is empty.

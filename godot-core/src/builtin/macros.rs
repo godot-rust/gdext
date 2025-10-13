@@ -103,6 +103,8 @@ macro_rules! impl_builtin_traits_inner {
     ( Hash for $Type:ty ) => {
         impl std::hash::Hash for $Type {
             fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                // The GDExtension interface only deals in `i64`, but the engine's own `hash()` function
+                // actually returns `uint32_t`.
                 self.hash_u32().hash(state)
             }
         }

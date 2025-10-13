@@ -294,6 +294,12 @@ impl Dictionary {
             .expect("Godot hashes are uint32_t")
     }
 
+    #[deprecated = "renamed to hash_u32"]
+    #[must_use]
+    pub fn hash(&self) -> u32 {
+        self.as_inner().hash().try_into().unwrap()
+    }
+
     /// Creates a new `Array` containing all the keys currently in the dictionary.
     ///
     /// _Godot equivalent: `keys`_
