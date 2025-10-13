@@ -60,8 +60,8 @@ pub use gdextension_api::version_4_5 as prebuilt;
 // ]]
 // [version-sync] [[
 //  [include] current.minor
-//  [line] pub use gdextension_api::version_$snakeVersion as prebuilt;
-pub use gdextension_api::version_4_5 as prebuilt;
+//  [line] pub use gdextension_api as prebuilt;
+pub use gdextension_api as prebuilt;
 // ]]
 
 // Platform-specific header loading for cross-compilation support.
@@ -70,6 +70,7 @@ pub use gdextension_api::version_4_5 as prebuilt;
 #[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
 pub(crate) mod prebuilt_platform {
     use std::borrow::Cow;
+    use std::path::PathBuf;
 
     /// Load platform-specific prebuilt bindings based on the TARGET platform (not HOST).
     ///
@@ -88,71 +89,37 @@ pub(crate) mod prebuilt_platform {
             _ => "linux", // Linux, Android, and other Unix-like systems
         };
 
-        // Read the file from gdextension-api dependency in Cargo cache
-        load_platform_file_from_cache(platform)
+        // Get the Godot version string from prebuilt module
+        let version = super::prebuilt::GODOT_VERSION_STRING;
+
+        // Read the file from gdextension-api dependency
+        load_platform_file(platform, version)
     }
 
     /// Load platform-specific bindings file from the gdextension-api dependency.
-    fn load_platform_file_from_cache(platform: &str) -> Cow<'static, str> {
-        let home = std::env::var("HOME")
-            .or_else(|_| std::env::var("USERPROFILE"))
-            .expect("HOME or USERPROFILE environment variable");
+    ///
+    /// Uses the DEP_GDEXTENSION_API_ROOT environment variable exported by gdextension-api's build script
+    /// to locate the correct platform-specific bindings file.
+    fn load_platform_file(platform: &str, _version: &str) -> Cow<'static, str> {
+        // Get the gdextension-api root directory from the build script
+        let dep_root = std::env::var("DEP_GDEXTENSION_API_ROOT")
+            .expect("DEP_GDEXTENSION_API_ROOT not set. This should be exported by gdextension-api's build script.");
 
-        // Search git checkouts (for git dependencies)
-        if let Some(contents) = try_load_from_git(&home, platform) {
-            return Cow::Owned(contents);
+        // The 4.x branches have files directly in res/, not versions/{version}/res/
+        let file_path = PathBuf::from(dep_root)
+            .join("res")
+            .join(format!("gdextension_interface_{}.rs", platform));
+
+        match std::fs::read_to_string(&file_path) {
+            Ok(contents) => Cow::Owned(contents),
+            Err(e) => panic!(
+                "Failed to load platform-specific bindings for platform '{}'.\n\
+                 Tried to read: {}\n\
+                 Error: {}\n\
+                 \n\
+                 This is likely a cross-compilation issue or the gdextension-api version doesn't support this platform.",
+                platform, file_path.display(), e
+            ),
         }
-
-        // Search registry (for crates.io dependencies)
-        if let Some(contents) = try_load_from_registry(&home, platform) {
-            return Cow::Owned(contents);
-        }
-
-        panic!(
-            "Failed to locate gdextension-api dependency for platform '{}'.\n\
-             The dependency should be in Cargo cache at:\n\
-             - {}/.cargo/git/checkouts/godot4-prebuilt-*\n\
-             - {}/.cargo/registry/src/*/gdextension-api-*",
-            platform, home, home
-        );
-    }
-
-    fn try_load_from_git(home: &str, platform: &str) -> Option<String> {
-        let git_dir = format!("{home}/.cargo/git/checkouts");
-        for entry in std::fs::read_dir(&git_dir).ok()?.flatten() {
-            let path = entry.path();
-            if path.file_name()?.to_str()?.starts_with("godot4-prebuilt-") {
-                // Found godot4-prebuilt checkout, look for the hash subdirectory
-                for subdir in std::fs::read_dir(&path).ok()?.flatten() {
-                    let file_path = subdir.path().join(format!(
-                        "versions/4.5/res/gdextension_interface_{}.rs",
-                        platform
-                    ));
-                    if let Ok(contents) = std::fs::read_to_string(&file_path) {
-                        return Some(contents);
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn try_load_from_registry(home: &str, platform: &str) -> Option<String> {
-        let registry_dir = format!("{home}/.cargo/registry/src");
-        for host_entry in std::fs::read_dir(&registry_dir).ok()?.flatten() {
-            for crate_entry in std::fs::read_dir(host_entry.path()).ok()?.flatten() {
-                let path = crate_entry.path();
-                if path.file_name()?.to_str()?.starts_with("gdextension-api-") {
-                    let file_path = path.join(format!(
-                        "versions/4.5/res/gdextension_interface_{}.rs",
-                        platform
-                    ));
-                    if let Ok(contents) = std::fs::read_to_string(&file_path) {
-                        return Some(contents);
-                    }
-                }
-            }
-        }
-        None
     }
 }
