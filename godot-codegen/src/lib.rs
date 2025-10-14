@@ -167,12 +167,6 @@ pub fn generate_core_files(core_gen_path: &Path) {
     // Deallocate all the JSON models; no longer needed for codegen.
     // drop(json_api);
 
-    generate_core_central_file(&api, &mut ctx, core_gen_path, &mut submit_fn);
-    watch.record("generate_central_file");
-
-    generate_utilities_file(&api, core_gen_path, &mut submit_fn);
-    watch.record("generate_utilities_file");
-
     // Class files -- currently output in godot-core; could maybe be separated cleaner
     // Note: deletes entire generated directory!
     generate_class_files(
@@ -199,6 +193,15 @@ pub fn generate_core_files(core_gen_path: &Path) {
         &mut submit_fn,
     );
     watch.record("generate_native_structures_files");
+
+    // Note – generated at the very end since context could be updated while processing other files.
+    // For example – SysPointerTypes (ones defined in gdextension_interface) are declared only
+    // as parameters for various APIs.
+    generate_core_central_file(&api, &mut ctx, core_gen_path, &mut submit_fn);
+    watch.record("generate_central_file");
+
+    generate_utilities_file(&api, core_gen_path, &mut submit_fn);
+    watch.record("generate_utilities_file");
 
     #[cfg(feature = "codegen-rustfmt")]
     {

@@ -175,7 +175,7 @@ function cmd_test() {
 
 function cmd_itest() {
     findGodot && \
-        run cargo build -p itest "${extraCargoArgs[@]}" && \
+        run cargo build -p itest "${extraCargoArgs[@]}" --features codegen-full,godot/api-custom && \
         run "$godotBin" $GODOT_ARGS --path itest/godot --headless -- "[${extraArgs[@]}]"
 }
 

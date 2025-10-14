@@ -728,7 +728,7 @@ pub enum RustTy {
     BuiltinIdent { ty: Ident, arg_passing: ArgPassing },
     /// Pointers declared in `gdextension_interface` such as `sys::GDExtensionInitializationFunction`
     /// used as parameters in some APIs.
-    SysIdent { tokens: TokenStream },
+    SysPointerType { tokens: TokenStream },
 
     /// `Array<i32>`
     ///
@@ -825,6 +825,13 @@ impl RustTy {
             "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "isize" | "usize"
         )
     }
+
+    pub fn is_sys_pointer(&self) -> bool {
+        let RustTy::RawPointer { inner, .. } = self else {
+            return false;
+        };
+        matches!(**inner, RustTy::SysPointerType { .. })
+    }
 }
 
 impl ToTokens for RustTy {
@@ -845,7 +852,7 @@ impl ToTokens for RustTy {
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
             RustTy::GenericArray => quote! { Array<Ret> }.to_tokens(tokens),
-            RustTy::SysIdent { tokens: path } => path.to_tokens(tokens),
+            RustTy::SysPointerType { tokens: path } => path.to_tokens(tokens),
         }
     }
 }
