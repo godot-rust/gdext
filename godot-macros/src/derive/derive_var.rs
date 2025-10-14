@@ -51,7 +51,7 @@ fn create_property_hint_impl(convert: &GodotConvert) -> TokenStream {
                 <#ty as ::godot::register::property::Var>::var_hint()
             }
         }
-        ConvertType::Enum { variants, via } => {
+        ConvertType::Enum { variants, via, .. } => {
             let hint_string = match via {
                 ViaType::GString { .. } => variants.to_string_hint(),
                 ViaType::Int { .. } => variants.to_int_hint(),

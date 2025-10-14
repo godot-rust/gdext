@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use proc_macro2::{Ident, TokenStream, TokenTree};
 use quote::quote;
 
-use crate::derive::data_models::GodotConvert;
+use crate::derive::data_models::{ConvertType, GodotConvert};
 use crate::derive::{make_fromgodot, make_togodot};
 use crate::ParseResult;
 
@@ -27,6 +27,50 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
     let to_godot_impl = make_togodot(&convert, &mut cache);
     let from_godot_impl = make_fromgodot(&convert, &mut cache);
 
+    // Generate enumerator metadata and registration for enums
+    let enum_extras = match &convert.convert_type {
+        ConvertType::Enum {
+            variants,
+            class,
+            via: _,
+        } => {
+            let enumerator_names = variants.enumerator_names();
+            let enumerator_ords = variants.enumerator_ord_exprs();
+
+            // Convert ordinal expressions to i64 casts for the metadata
+            let enumerator_name_strs: Vec<_> =
+                enumerator_names.iter().map(|n| n.to_string()).collect();
+            let enumerator_values: Vec<_> = enumerator_ords
+                .iter()
+                .map(|ord| quote! { #ord as i64 })
+                .collect();
+
+            // Generate metadata constants
+            let metadata = quote! {
+                impl #name {
+                    #[doc(hidden)]
+                    pub const __GODOT_ENUMERATOR_NAMES: &'static [&'static str] = &[
+                        #( #enumerator_name_strs ),*
+                    ];
+
+                    #[doc(hidden)]
+                    pub const __GODOT_ENUMERATOR_VALUES: &'static [i64] = &[
+                        #( #enumerator_values ),*
+                    ];
+                }
+            };
+
+            // Generate auto-registration code
+            let registration = generate_enum_registration(name, class)?;
+
+            quote! {
+                #metadata
+                #registration
+            }
+        }
+        ConvertType::NewType { .. } => TokenStream::new(),
+    };
+
     Ok(quote! {
         impl ::godot::meta::GodotConvert for #name  {
             type Via = #via_type;
@@ -34,6 +78,7 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
 
         #to_godot_impl
         #from_godot_impl
+        #enum_extras
     })
 }
 
@@ -116,5 +161,107 @@ fn adjust_ord_expr(ord_expr: &TokenStream, int: &Ident) -> Option<TokenStream> {
             Some(stream)
         }
         _ => None,
+    }
+}
+
+/// Generates auto-registration code for enum constants.
+fn generate_enum_registration(
+    enum_name: &Ident,
+    class_type: &Option<venial::TypeExpr>,
+) -> ParseResult<TokenStream> {
+    use quote::ToTokens;
+
+    let enum_name_str = enum_name.to_string();
+    let registration_struct = quote::format_ident!("__EnumRegistration_{}", enum_name);
+
+    if let Some(class_ty) = class_type {
+        // Class-scoped enum: register to the class
+        let class_name = class_ty.to_token_stream();
+
+        Ok(quote! {
+            // Create a GodotClass for registration (internal, not exposed)
+            #[doc(hidden)]
+            #[derive(::godot::prelude::GodotClass)]
+            #[class(no_init, internal)]
+            struct #registration_struct;
+
+            #[::godot::prelude::godot_api]
+            impl #registration_struct {
+                #[func]
+                fn __register_enum_constants() {
+                    use ::godot::register::private::constant::*;
+
+                    let mut enumerators = Vec::new();
+                    for i in 0..#enum_name::__GODOT_ENUMERATOR_NAMES.len() {
+                        enumerators.push(IntegerConstant::new(
+                            #enum_name::__GODOT_ENUMERATOR_NAMES[i],
+                            #enum_name::__GODOT_ENUMERATOR_VALUES[i],
+                        ));
+                    }
+
+                    ExportConstant::new(
+                        <#class_name as ::godot::obj::GodotClass>::class_id(),
+                        ConstantKind::Enum {
+                            name: #enum_name_str.into(),
+                            enumerators,
+                        },
+                    ).register();
+                }
+            }
+
+            // Call the registration during initialization
+            const _: () = {
+                ::godot::sys::plugin_execute_pre_main!({
+                    #registration_struct::__register_enum_constants();
+                });
+            };
+        })
+    } else {
+        // Global enum: register to ClassId::none()
+        Ok(quote! {
+            // Create a GodotClass for registration (internal, not exposed)
+            #[doc(hidden)]
+            #[derive(::godot::prelude::GodotClass)]
+            #[class(no_init, internal)]
+            struct #registration_struct;
+
+            impl ::godot::obj::cap::ImplementsGodotApi for #registration_struct {
+                fn __register_methods() {}
+
+                fn __register_constants() {
+                    use ::godot::register::private::constant::*;
+                    use ::godot::meta::ClassId;
+
+                    let mut enumerators = Vec::new();
+                    for i in 0..#enum_name::__GODOT_ENUMERATOR_NAMES.len() {
+                        enumerators.push(IntegerConstant::new(
+                            #enum_name::__GODOT_ENUMERATOR_NAMES[i],
+                            #enum_name::__GODOT_ENUMERATOR_VALUES[i],
+                        ));
+                    }
+
+                    ExportConstant::new(
+                        ClassId::none(),
+                        ConstantKind::Enum {
+                            name: #enum_name_str.into(),
+                            enumerators,
+                        },
+                    ).register();
+                }
+            }
+
+            // Register using the plugin system (same as manual registration in tests)
+            ::godot::sys::plugin_add!(
+                ::godot::private::__GODOT_PLUGIN_REGISTRY;
+                ::godot::private::ClassPlugin::new::<#registration_struct>(
+                    ::godot::private::PluginItem::InherentImpl(
+                        ::godot::private::InherentImpl::new::<#registration_struct>(
+                            #[cfg(feature = "register-docs")]
+                            Default::default()
+                        )
+                    )
+                )
+            );
+        })
     }
 }

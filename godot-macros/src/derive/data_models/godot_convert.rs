@@ -73,7 +73,12 @@ pub enum ConvertType {
     /// Deriving for a newtype struct.
     NewType { field: NewtypeStruct },
     /// Deriving for an enum.
-    Enum { variants: CStyleEnum, via: ViaType },
+    Enum {
+        variants: CStyleEnum,
+        via: ViaType,
+        /// Optional class to register enum constants to. If None, registers globally.
+        class: Option<venial::TypeExpr>,
+    },
 }
 
 impl ConvertType {
@@ -91,7 +96,12 @@ impl ConvertType {
                 })
             }
             venial::Item::Enum(enum_) => {
-                let GodotAttribute::Via { via_type, .. } = attribute else {
+                let GodotAttribute::Via {
+                    via_type,
+                    class_type,
+                    ..
+                } = attribute
+                else {
                     return bail!(
                         attribute.span(),
                         "#[derive(GodotConvert)] on enums requires #[godot(via = ...)]"
@@ -101,6 +111,7 @@ impl ConvertType {
                 Ok(Self::Enum {
                     variants: CStyleEnum::parse_enum(enum_)?,
                     via: via_type,
+                    class: class_type,
                 })
             }
             _ => unreachable!(), // already checked outside.

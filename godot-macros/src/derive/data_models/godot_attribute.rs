@@ -7,6 +7,7 @@
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
+use venial::TypeExpr;
 
 use crate::util::{bail, KvParser};
 use crate::ParseResult;
@@ -15,8 +16,13 @@ use crate::ParseResult;
 pub enum GodotAttribute {
     /// `#[godot(transparent)]`
     Transparent { span: Span },
-    /// `#[godot(via = via_type)]`
-    Via { span: Span, via_type: ViaType },
+    /// `#[godot(via = via_type)]` or `#[godot(via = via_type, class = ClassName)]`
+    Via {
+        span: Span,
+        via_type: ViaType,
+        /// Optional class to register enum constants to. If None, registers globally.
+        class_type: Option<TypeExpr>,
+    },
 }
 
 impl GodotAttribute {
@@ -36,9 +42,14 @@ impl GodotAttribute {
         }
 
         if let Some(via_type) = parser.handle_ident("via")? {
+            let class_type = parser.handle_expr("class")?.map(|expr| TypeExpr {
+                tokens: expr.into_iter().collect(),
+            });
+
             return Ok(Self::Via {
                 span,
                 via_type: ViaType::parse_ident(via_type)?,
+                class_type,
             });
         }
 

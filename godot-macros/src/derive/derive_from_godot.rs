@@ -27,11 +27,13 @@ pub fn make_fromgodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -
         ConvertType::Enum {
             variants,
             via: ViaType::GString { .. },
+            ..
         } => make_fromgodot_for_gstring_enum(name, variants),
 
         ConvertType::Enum {
             variants,
             via: ViaType::Int { int_ident },
+            ..
         } => make_fromgodot_for_int_enum(name, variants, int_ident, cache),
     }
 }

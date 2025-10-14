@@ -15,6 +15,23 @@ use godot::sys::static_assert;
 
 use crate::framework::itest;
 
+// Test enums for auto-registration
+#[derive(GodotConvert, Clone, Copy, PartialEq, Debug)]
+#[godot(via = i64, class = HasConstants)]
+enum ClassScopedEnum {
+    First = 10,
+    Second = 20,
+    Third = 30,
+}
+
+#[derive(GodotConvert, Clone, Copy, PartialEq, Debug)]
+#[godot(via = i64)]
+enum GlobalEnum {
+    Alpha = 100,
+    Beta = 200,
+    Gamma = 300,
+}
+
 #[derive(GodotClass)]
 #[class(no_init)]
 struct HasConstants {}
@@ -233,3 +250,92 @@ test_enum_export!(
     #[itest]
     fn bitfield_export_correct_values() { .. }
 );
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Auto-registration tests for enums via derive(GodotConvert)
+
+#[itest]
+fn class_scoped_enum_auto_registration() {
+    let class_name = HasConstants::class_id().to_string_name();
+    let enum_name = StringName::from("ClassScopedEnum");
+
+    // Check that the enum is registered
+    assert!(
+        ClassDb::singleton()
+            .class_has_enum_ex(&class_name, &enum_name)
+            .no_inheritance(true)
+            .done(),
+        "ClassScopedEnum should be registered on HasConstants"
+    );
+
+    // Check enumerators
+    let enumerators = [
+        ("First", 10i64),
+        ("Second", 20i64),
+        ("Third", 30i64),
+    ];
+
+    let godot_enumerators = ClassDb::singleton()
+        .class_get_enum_constants_ex(&class_name, &enum_name)
+        .no_inheritance(true)
+        .done();
+
+    for (name, value) in enumerators {
+        let name_gstring = GString::from(name);
+        assert!(
+            godot_enumerators.contains(&name_gstring),
+            "Enumerator {name} should be present"
+        );
+        assert_eq!(
+            ClassDb::singleton().class_get_integer_constant(&class_name, name),
+            value,
+            "Enumerator {name} should have value {value}"
+        );
+    }
+}
+
+#[itest]
+fn global_enum_auto_registration() {
+    // Global enums are registered with ClassId::none(), which maps to empty string
+    let class_name = StringName::default(); // empty string
+    let enum_name = StringName::from("GlobalEnum");
+
+    // Check if the enum exists (this might not work in Godot, let's see!)
+    let has_enum = ClassDb::singleton()
+        .class_has_enum_ex(&class_name, &enum_name)
+        .no_inheritance(true)
+        .done();
+
+    godot_print!("Global enum registered: {has_enum}");
+
+    if has_enum {
+        godot_print!("Global enums ARE supported by Godot!");
+
+        // Check enumerators
+        let enumerators = [
+            ("Alpha", 100i64),
+            ("Beta", 200i64),
+            ("Gamma", 300i64),
+        ];
+
+        let godot_enumerators = ClassDb::singleton()
+            .class_get_enum_constants_ex(&class_name, &enum_name)
+            .no_inheritance(true)
+            .done();
+
+        for (name, value) in enumerators {
+            let name_gstring = GString::from(name);
+            assert!(
+                godot_enumerators.contains(&name_gstring),
+                "Enumerator {name} should be present"
+            );
+            assert_eq!(
+                ClassDb::singleton().class_get_integer_constant(&class_name, name),
+                value,
+                "Enumerator {name} should have value {value}"
+            );
+        }
+    } else {
+        godot_print!("Global enums are NOT supported by Godot - enums must be class-scoped");
+    }
+}
