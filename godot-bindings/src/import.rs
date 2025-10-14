@@ -60,66 +60,55 @@ pub use gdextension_api::version_4_5 as prebuilt;
 // ]]
 // [version-sync] [[
 //  [include] current.minor
-//  [line] pub use gdextension_api as prebuilt;
-pub use gdextension_api as prebuilt;
+//  [line] pub use gdextension_api::version_$snakeVersion as prebuilt;
+pub use gdextension_api::version_4_5 as prebuilt;
 // ]]
 
-// Platform-specific header loading for cross-compilation support.
-// The prebuilt module is compiled for HOST (not TARGET) when used as a build-dependency,
-// so we determine the platform at runtime based on CARGO_CFG_TARGET_* environment variables.
+// Cross-compilation support:
+// Since godot-bindings is a build-dependency, it and the gdextension-api crate are compiled for the HOST platform.
+// The #[cfg] attributes in gdextension-api::load_gdextension_header_rs() evaluate for HOST, not TARGET.
+// We read CARGO_CFG_TARGET_* environment variables to select the correct platform-specific Rust bindings at runtime.
 #[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
 pub(crate) mod prebuilt_platform {
     use std::borrow::Cow;
     use std::path::PathBuf;
 
-    /// Load platform-specific prebuilt bindings based on the TARGET platform (not HOST).
+    /// Load platform-specific Rust bindings (gdextension_interface_{platform}.rs) for the TARGET platform.
     ///
-    /// Since godot-bindings is a build-dependency, it's compiled for HOST, but we need bindings for TARGET.
-    /// We detect the target platform using CARGO_CFG_TARGET_* environment variables available during
-    /// build script execution, then read the corresponding file from the gdextension-api dependency.
+    /// During cross-compilation, godot-bindings runs on the HOST, but needs to generate bindings for the TARGET.
+    /// This function reads CARGO_CFG_TARGET_* environment variables to determine the target platform,
+    /// then loads the appropriate gdextension_interface_{platform}.rs file from the gdextension-api crate's res/ directory.
     pub fn load_gdextension_header_rs_for_target() -> Cow<'static, str> {
-        // Determine TARGET platform from environment variables
         let target_family = std::env::var("CARGO_CFG_TARGET_FAMILY").ok();
         let target_os = std::env::var("CARGO_CFG_TARGET_OS").ok();
 
-        // Select platform suffix matching gdextension-api's file naming
         let platform = match (target_family.as_deref(), target_os.as_deref()) {
             (Some("windows"), _) => "windows",
             (_, Some("macos" | "ios")) => "macos",
             _ => "linux", // Linux, Android, and other Unix-like systems
         };
 
-        // Get the Godot version string from prebuilt module
-        let version = super::prebuilt::GODOT_VERSION_STRING;
-
-        // Read the file from gdextension-api dependency
-        load_platform_file(platform, version)
+        load_platform_file(platform)
     }
 
-    /// Load platform-specific bindings file from the gdextension-api dependency.
-    ///
-    /// Uses the DEP_GDEXTENSION_API_ROOT environment variable exported by gdextension-api's build script
-    /// to locate the correct platform-specific bindings file.
-    fn load_platform_file(platform: &str, _version: &str) -> Cow<'static, str> {
-        // Get the gdextension-api root directory from the build script
+    /// Reads gdextension_interface_{platform}.rs from the gdextension-api crate using DEP_GDEXTENSION_API_ROOT.
+    fn load_platform_file(platform: &str) -> Cow<'static, str> {
         let dep_root = std::env::var("DEP_GDEXTENSION_API_ROOT")
             .expect("DEP_GDEXTENSION_API_ROOT not set. This should be exported by gdextension-api's build script.");
 
-        // The 4.x branches have files directly in res/, not versions/{version}/res/
         let file_path = PathBuf::from(dep_root)
             .join("res")
-            .join(format!("gdextension_interface_{}.rs", platform));
+            .join(format!("gdextension_interface_{platform}.rs"));
 
-        match std::fs::read_to_string(&file_path) {
-            Ok(contents) => Cow::Owned(contents),
-            Err(e) => panic!(
-                "Failed to load platform-specific bindings for platform '{}'.\n\
+        std::fs::read_to_string(&file_path)
+            .map(Cow::Owned)
+            .unwrap_or_else(|e| panic!(
+                "Failed to load platform-specific Rust bindings for '{platform}'.\n\
                  Tried to read: {}\n\
-                 Error: {}\n\
+                 Error: {e}\n\
                  \n\
                  This is likely a cross-compilation issue or the gdextension-api version doesn't support this platform.",
-                platform, file_path.display(), e
-            ),
-        }
+                file_path.display()
+            ))
     }
 }
