@@ -10,7 +10,7 @@
 // It's the only purpose of this build.rs file. If a better solution is found, this file can be removed.
 
 #[rustfmt::skip]
-fn main() {    
+fn main() {
     let mut count = 0;
     if cfg!(feature = "api-custom") { count += 1; }
     if cfg!(feature = "api-custom-json") { count += 1; }
