@@ -453,7 +453,7 @@ impl Callable {
         self.as_inner()
             .hash()
             .try_into()
-            .expect("Godot hashes are uin32_t")
+            .expect("Godot hashes are uint32_t")
     }
 
     #[deprecated = "renamed to hash_u32"]

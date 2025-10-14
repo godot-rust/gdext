@@ -297,7 +297,7 @@ impl<T: ArrayElement> Array<T> {
             .expect("Godot hashes are uint32_t")
     }
 
-    #[deprecated = "renamed to hash_32"]
+    #[deprecated = "renamed to hash_u32"]
     pub fn hash(&self) -> u32 {
         self.as_inner().hash().try_into().unwrap()
     }

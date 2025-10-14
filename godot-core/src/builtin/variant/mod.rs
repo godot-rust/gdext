@@ -319,7 +319,7 @@ impl Variant {
             .expect("Godot hashes are uint32_t")
     }
 
-    #[deprecated = "renamed to hash_32 and type changed to u32"]
+    #[deprecated = "renamed to hash_u32 and type changed to u32"]
     pub fn hash(&self) -> i64 {
         unsafe { interface_fn!(variant_hash)(self.var_sys()) }
     }
