@@ -309,8 +309,17 @@ impl ClassIdCache {
     }
 
     fn clear(&mut self) {
-        self.entries.clear();
+        // There are two types of hot reload:
+        // - dylib reload (dylib mtime newer): the old dylib is unloaded and the new one is loaded
+        // - .gdextension reload (.gdextension mtime newer): the existing dylib is re-initialized without unloading
+        //
+        // .gdextension reload keeps existing ClassIds alive with each id being an index into entries.
+        // To account for this, we preserve the backing data for existing entries, but drop the cached Godot
+        // StringNames and the TypeId lookup so they can be rebuilt.
+        for entry in &mut self.entries {
+            entry.godot_str = OnceCell::new();
+        }
+
         self.type_to_index.clear();
-        self.string_to_index.clear();
     }
 }
