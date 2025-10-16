@@ -156,12 +156,8 @@ impl GString {
         self.as_inner().length().try_into().unwrap()
     }
 
-    /// Returns a 32-bit integer hash value representing the string.
-    pub fn hash_u32(&self) -> u32 {
-        self.as_inner()
-            .hash()
-            .try_into()
-            .expect("Godot hashes are uint32_t")
+    crate::declare_hash_u32_method! {
+        /// Returns a 32-bit integer hash value representing the string.
     }
 
     #[deprecated = "renamed to hash_u32"]

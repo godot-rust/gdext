@@ -446,14 +446,10 @@ impl Callable {
         InstanceId::try_from_i64(id)
     }
 
-    /// Returns the 32-bit hash value of this callable's object.
-    ///
-    /// _Godot equivalent: `hash`_
-    pub fn hash_u32(&self) -> u32 {
-        self.as_inner()
-            .hash()
-            .try_into()
-            .expect("Godot hashes are uint32_t")
+    crate::declare_hash_u32_method! {
+        /// Returns the 32-bit hash value of this callable's object.
+        ///
+        /// _Godot equivalent: `hash`_
     }
 
     #[deprecated = "renamed to hash_u32"]
