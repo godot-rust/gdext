@@ -8,7 +8,41 @@
 use std::collections::HashMap;
 
 use crate::meta::ClassId;
-use crate::registry::plugin::{ITraitImpl, InherentImpl, PluginItem, Struct};
+use crate::obj::GodotClass;
+
+/// Piece of information that is gathered by the self-registration ("plugin") system.
+///
+/// You should not manually construct this struct, but rather use [`DocsPlugin::new()`].
+#[derive(Debug)]
+pub struct DocsPlugin {
+    /// The name of the class to register docs for.
+    class_name: ClassId,
+
+    /// The actual item being registered.
+    item: DocsItem,
+}
+
+impl DocsPlugin {
+    /// Creates a new `DocsPlugin`, automatically setting the `class_name` to the values defined in [`GodotClass`].
+    pub fn new<T: GodotClass>(item: DocsItem) -> Self {
+        Self {
+            class_name: T::class_id(),
+            item,
+        }
+    }
+}
+
+type ITraitImplDocs = &'static str;
+
+#[derive(Debug)]
+pub enum DocsItem {
+    /// Docs for `#[derive(GodotClass)] struct MyClass`.
+    Struct(StructDocs),
+    /// Docs for `#[godot_api] impl MyClass`.
+    InherentImpl(InherentImplDocs),
+    /// Docs for `#[godot_api] impl ITrait for MyClass`.
+    ITraitImpl(ITraitImplDocs),
+}
 
 /// Created for documentation on
 /// ```ignore
@@ -29,7 +63,7 @@ pub struct StructDocs {
     pub members: &'static str,
 }
 
-/// Keeps documentation for inherent `impl` blocks, such as:
+/// Keeps documentation for inherent `impl` blocks (primary and secondary), such as:
 /// ```ignore
 /// #[godot_api]
 /// impl Struct {
@@ -46,18 +80,19 @@ pub struct StructDocs {
 /// }
 /// ```
 /// All fields are XML parts, escaped where necessary.
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct InherentImplDocs {
     pub methods: &'static str,
-    pub signals_block: &'static str,
-    pub constants_block: &'static str,
+    pub signals: &'static str,
+    pub constants: &'static str,
 }
 
 #[derive(Default)]
 struct DocPieces {
     definition: StructDocs,
-    inherent: InherentImplDocs,
-    virtual_methods: &'static str,
+    methods: Vec<&'static str>,
+    signals: Vec<&'static str>,
+    constants: Vec<&'static str>,
 }
 
 /// This function scours the registered plugins to find their documentation pieces,
@@ -76,24 +111,27 @@ struct DocPieces {
 #[doc(hidden)]
 pub fn gather_xml_docs() -> impl Iterator<Item = String> {
     let mut map = HashMap::<ClassId, DocPieces>::new();
-    crate::private::iterate_plugins(|x| {
+    crate::private::iterate_docs_plugins(|x| {
         let class_name = x.class_name;
-
-        match x.item {
-            PluginItem::InherentImpl(InherentImpl { docs, .. }) => {
-                map.entry(class_name).or_default().inherent = docs
+        match &x.item {
+            DocsItem::Struct(s) => {
+                map.entry(class_name).or_default().definition = *s;
             }
-
-            PluginItem::ITraitImpl(ITraitImpl {
-                virtual_method_docs,
-                ..
-            }) => map.entry(class_name).or_default().virtual_methods = virtual_method_docs,
-
-            PluginItem::Struct(Struct { docs, .. }) => {
-                map.entry(class_name).or_default().definition = docs
+            DocsItem::InherentImpl(trait_docs) => {
+                let InherentImplDocs {
+                    methods,
+                    constants,
+                    signals,
+                } = trait_docs;
+                map.entry(class_name).or_default().methods.push(methods);
+                map.entry(class_name)
+                    .and_modify(|pieces| pieces.constants.push(constants));
+                map.entry(class_name)
+                    .and_modify(|pieces| pieces.signals.push(signals));
             }
-
-            _ => (),
+            DocsItem::ITraitImpl(methods) => {
+                map.entry(class_name).or_default().methods.push(methods);
+            }
         }
     });
 
@@ -106,22 +144,31 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
                 members,
             } = pieces.definition;
 
-            let InherentImplDocs {
-                methods,
-                signals_block,
-                constants_block,
-            } = pieces.inherent;
 
-            let virtual_methods = pieces.virtual_methods;
-            let methods_block = (virtual_methods.is_empty() && methods.is_empty())
-                .then(String::new)
-                .unwrap_or_else(|| format!("<methods>{methods}{virtual_methods}</methods>"));
+            let method_docs = String::from_iter(pieces.methods);
+            let signal_docs = String::from_iter(pieces.signals);
+            let constant_docs = String::from_iter(pieces.constants);
 
+            let methods_block = if method_docs.is_empty() {
+                String::new()
+            } else {
+                format!("<methods>{method_docs}</methods>")
+            };
+            let signals_block = if signal_docs.is_empty() {
+                String::new()
+            } else {
+                format!("<signals>{signal_docs}</signals>")
+            };
+            let constants_block = if constant_docs.is_empty() {
+                String::new()
+            } else {
+                format!("<constants>{constant_docs}</constants>")
+            };
             let (brief, description) = match description
                 .split_once("[br]") {
-                    Some((brief, description)) => (brief, description.trim_start_matches("[br]")),
-                    None => (description, ""),
-                };
+                Some((brief, description)) => (brief, description.trim_start_matches("[br]")),
+                None => (description, ""),
+            };
 
             format!(r#"<?xml version="1.0" encoding="UTF-8"?>
 <class name="{class}" inherits="{base}"{deprecated}{experimental} xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
