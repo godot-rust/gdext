@@ -102,7 +102,7 @@ fn array_iter_shared() {
 fn array_hash() {
     let array = array![1, 2];
     // Just testing that it converts successfully from i64 to u32.
-    array.hash();
+    array.hash_u32();
 }
 
 #[itest]

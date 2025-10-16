@@ -72,15 +72,18 @@ fn callable_validity() {
 #[itest]
 fn callable_hash() {
     let obj = CallableTestObj::new_gd();
+    assert_eq!(obj.callable("assign_int"), obj.callable("assign_int")); // sanity check
     assert_eq!(
-        obj.callable("assign_int").hash(),
-        obj.callable("assign_int").hash()
+        obj.callable("assign_int").hash_u32(),
+        obj.callable("assign_int").hash_u32()
     );
+
+    assert_ne!(obj.callable("assign_int"), obj.callable("stringify_int")); // sanity check
 
     // Not guaranteed, but unlikely.
     assert_ne!(
-        obj.callable("assign_int").hash(),
-        obj.callable("stringify_int").hash()
+        obj.callable("assign_int").hash_u32(),
+        obj.callable("stringify_int").hash_u32()
     );
 }
 

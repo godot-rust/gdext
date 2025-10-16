@@ -285,7 +285,11 @@ impl Dictionary {
         old_value
     }
 
-    /// Returns a 32-bit integer hash value representing the dictionary and its contents.
+    crate::declare_hash_u32_method! {
+        /// Returns a 32-bit integer hash value representing the dictionary and its contents.
+    }
+
+    #[deprecated = "renamed to hash_u32"]
     #[must_use]
     pub fn hash(&self) -> u32 {
         self.as_inner().hash().try_into().unwrap()

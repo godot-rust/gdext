@@ -117,7 +117,11 @@ impl NodePath {
         self.get_name_count() + self.get_subname_count()
     }
 
-    /// Returns a 32-bit integer hash value representing the string.
+    crate::declare_hash_u32_method! {
+        /// Returns a 32-bit integer hash value representing the string.
+    }
+
+    #[deprecated = "renamed to hash_u32"]
     pub fn hash(&self) -> u32 {
         self.as_inner()
             .hash()

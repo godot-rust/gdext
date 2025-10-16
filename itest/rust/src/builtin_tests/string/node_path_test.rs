@@ -36,7 +36,9 @@ fn node_path_equality() {
     let different = NodePath::from("some");
 
     assert_eq!(string, second);
+    assert_eq!(string.hash_u32(), second.hash_u32());
     assert_ne!(string, different);
+    assert_ne!(string.hash_u32(), different.hash_u32());
 }
 
 #[itest]
