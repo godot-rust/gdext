@@ -803,9 +803,14 @@ fn validate_enum_replacements(
 
 impl NativeStructure {
     pub fn from_json(json: &JsonNativeStructure) -> Self {
+        // Some native-struct definitions are incorrect in earlier Godot versions; this backports corrections.
+        let format = special_cases::get_native_struct_definition(&json.name)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| json.format.clone());
+
         Self {
             name: json.name.clone(),
-            format: json.format.clone(),
+            format,
         }
     }
 }
