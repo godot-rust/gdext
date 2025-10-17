@@ -97,6 +97,22 @@ pub fn is_native_struct_excluded(ty: &str) -> bool {
     codegen_special_cases::is_native_struct_excluded(ty)
 }
 
+/// Overrides the definition string for native structures, if they have incorrect definitions in the JSON.
+#[rustfmt::skip]
+pub fn get_native_struct_definition(struct_name: &str) -> Option<&'static str> {
+    match struct_name {
+        // Glyph struct definition was corrected in Godot 4.6 to include missing `span_index` field.
+        // See https://github.com/godotengine/godot/pull/108369.
+        #[cfg(before_api = "4.6")]
+        "Glyph" => Some(
+            "int start = -1;int end = -1;uint8_t count = 0;uint8_t repeat = 1;uint16_t flags = 0;float x_off = 0.f;float y_off = 0.f;\
+            float advance = 0.f;RID font_rid;int font_size = 0;int32_t index = 0;int span_index = -1"
+        ),
+
+        _ => None,
+    }
+}
+
 #[rustfmt::skip]
 pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
     // Note: parameter can be a class or builtin name, but also something like "enum::AESContext.Mode".
