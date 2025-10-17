@@ -86,7 +86,6 @@ pub use gen::table_editor_classes::*;
 pub use gen::table_scene_classes::*;
 pub use gen::table_servers_classes::*;
 pub use gen::table_utilities::*;
-pub use gen::virtual_consts as godot_virtual_consts;
 pub use global::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;

@@ -6,12 +6,13 @@
  */
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::context::Context;
+use crate::generator::functions_common::make_virtual_param_type;
 use crate::models::domain::{Class, ClassLike, ExtensionApi, FnDirection, Function};
 
-pub fn make_virtual_consts_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
+pub fn make_virtual_definitions_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
     make_virtual_hashes_for_all_classes(&api.classes, ctx)
 }
 
@@ -21,7 +22,7 @@ fn make_virtual_hashes_for_all_classes(all_classes: &[Class], ctx: &mut Context)
         .map(|class| make_virtual_hashes_for_class(class, ctx));
 
     quote! {
-        #![allow(non_snake_case, non_upper_case_globals, unused_imports)]
+        #![allow(non_snake_case, non_camel_case_types, non_upper_case_globals, unused_imports)]
 
         #( #modules )*
     }
@@ -34,6 +35,12 @@ fn make_virtual_hashes_for_class(class: &Class, ctx: &mut Context) -> TokenStrea
     let use_base_class = if let Some(base_class) = ctx.inheritance_tree().direct_base(class_name) {
         quote! {
             pub use super::#base_class::*;
+
+            // For type references in `Sig_*` signature tuples:
+            pub use crate::builtin::*;
+            pub use crate::classes::native::*;
+            pub use crate::obj::Gd;
+            pub use std::ffi::c_void;
         }
     } else {
         TokenStream::new()
@@ -51,13 +58,27 @@ fn make_virtual_hashes_for_class(class: &Class, ctx: &mut Context) -> TokenStrea
         let rust_name = method.name_ident();
         let godot_name_str = method.godot_name();
 
+        // Generate parameter types, wrapping EngineClass in Option<> just like the trait does
+        let param_types = method
+            .params()
+            .iter()
+            .map(|param| make_virtual_param_type(&param.type_, &param.name, method));
+
+        let rust_sig_name = format_ident!("Sig_{rust_name}");
+        let sig_decl = quote! {
+            // Pub to allow "inheritance" from other modules.
+            pub type #rust_sig_name = ( #(#param_types,)* );
+        };
+
         #[cfg(since_api = "4.4")]
         let constant = quote! {
-            pub const #rust_name: (&'static str, u32) = (#godot_name_str, #hash);
+            pub const #rust_name: (&str, u32) = (#godot_name_str, #hash);
+            #sig_decl
         };
         #[cfg(before_api = "4.4")]
         let constant = quote! {
-            pub const #rust_name: &'static str = #godot_name_str;
+            pub const #rust_name: &str = #godot_name_str;
+            #sig_decl
         };
 
         Some(constant)
