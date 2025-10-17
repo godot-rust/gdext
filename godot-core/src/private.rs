@@ -25,6 +25,7 @@ mod reexport_pub {
     #[cfg(all(since_api = "4.3", feature = "register-docs"))]
     pub use crate::docs::{DocsItem, DocsPlugin, InherentImplDocs, StructDocs};
     pub use crate::gen::classes::class_macros;
+    pub use crate::gen::virtuals; // virtual fn names, hashes, signatures
     #[cfg(feature = "trace")]
     pub use crate::meta::trace;
     pub use crate::obj::rtti::ObjectRtti;

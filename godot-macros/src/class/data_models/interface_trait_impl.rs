@@ -178,7 +178,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
     let virtual_match_arms = decls
         .overridden_virtuals
         .iter()
-        .map(|v| v.make_match_arm(&class_name));
+        .map(|v| v.make_match_arm(&class_name, &trait_base_class));
 
     let mut result = quote! {
         // #original_impl and gd_self_impls are inserted below.
@@ -719,13 +719,14 @@ struct OverriddenVirtualFn<'a> {
 }
 
 impl OverriddenVirtualFn<'_> {
-    fn make_match_arm(&self, class_name: &Ident) -> TokenStream {
+    fn make_match_arm(&self, class_name: &Ident, trait_base_class: &Ident) -> TokenStream {
         let cfg_attrs = self.cfg_attrs.iter();
         let godot_name_hash_constant = &self.godot_name_hash_constant;
 
         // Lazily generate code for the actual work (calling user function).
         let method_callback = make_virtual_callback(
             class_name,
+            trait_base_class,
             &self.signature_info,
             self.before_kind,
             self.interface_trait.as_ref(),

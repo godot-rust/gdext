@@ -9,7 +9,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
 use crate::context::Context;
-use crate::models::domain::{Class, ExtensionApi, FnDirection};
+use crate::generator::functions_common::make_virtual_param_type;
+use crate::models::domain::{Class, ClassLike, ExtensionApi, FnDirection, Function};
 
 pub fn make_virtual_definitions_file(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
     make_virtual_hashes_for_all_classes(&api.classes, ctx)
@@ -56,21 +57,27 @@ fn make_virtual_hashes_for_class(class: &Class, ctx: &mut Context) -> TokenStrea
 
         let rust_name = method.name_ident();
         let godot_name_str = method.godot_name();
-        let param_types = method.params().iter().map(|p| &p.type_);
+
+        // Generate parameter types, wrapping EngineClass in Option<> just like the trait does
+        let param_types = method
+            .params()
+            .iter()
+            .map(|param| make_virtual_param_type(&param.type_, &param.name, method));
 
         let rust_sig_name = format_ident!("Sig_{rust_name}");
         let sig_decl = quote! {
-            type #rust_sig_name = ( #(#param_types,)* );
+            // Pub to allow "inheritance" from other modules.
+            pub type #rust_sig_name = ( #(#param_types,)* );
         };
 
         #[cfg(since_api = "4.4")]
         let constant = quote! {
-            pub const #rust_name: (&'static str, u32) = (#godot_name_str, #hash);
+            pub const #rust_name: (&str, u32) = (#godot_name_str, #hash);
             #sig_decl
         };
         #[cfg(before_api = "4.4")]
         let constant = quote! {
-            pub const #rust_name: &'static str = #godot_name_str;
+            pub const #rust_name: &str = #godot_name_str;
             #sig_decl
         };
 
