@@ -139,7 +139,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             cfg_attrs: vec![],
             rust_method_name: "_ready".to_string(),
             // Can't use `virtuals::ready` here, as the base class might not be `Node` (see above why such a branch is still added).
-            godot_name_hash_constant: quote! { ::godot::sys::godot_virtual_consts::Node::ready },
+            godot_name_hash_constant: quote! { ::godot::private::virtuals::Node::ready },
             signature_info: SignatureInfo::fn_ready(),
             before_kind: BeforeKind::OnlyBefore,
             interface_trait: None,
@@ -178,7 +178,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
     let virtual_match_arms = decls
         .overridden_virtuals
         .iter()
-        .map(|v| v.make_match_arm(&class_name));
+        .map(|v| v.make_match_arm(&class_name, &trait_base_class));
 
     let mut result = quote! {
         // #original_impl and gd_self_impls are inserted below.
@@ -190,7 +190,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             fn __virtual_call(name: &str, #hash_param) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
                 use ::godot::obj::UserClass as _;
-                use ::godot::sys::godot_virtual_consts::#trait_base_class as virtuals;
+                use ::godot::private::virtuals::#trait_base_class as virtuals;
                 #tool_check
 
                 match #match_expr {
@@ -610,7 +610,7 @@ fn handle_regular_virtual_fn<'a>(
         cfg_attrs,
         rust_method_name: virtual_method_name,
         // If ever the `I*` verbatim validation is relaxed (it won't work with use-renames or other weird edge cases), the approach
-        // with godot_virtual_consts module could be changed to something like the following (GodotBase = nearest Godot base class):
+        // with godot::private::virtuals module could be changed to something like the following (GodotBase = nearest Godot base class):
         // __get_virtual_hash::<Self::GodotBase>("method")
         godot_name_hash_constant: quote! { virtuals::#method_name_ident },
         signature_info,
@@ -719,13 +719,14 @@ struct OverriddenVirtualFn<'a> {
 }
 
 impl OverriddenVirtualFn<'_> {
-    fn make_match_arm(&self, class_name: &Ident) -> TokenStream {
+    fn make_match_arm(&self, class_name: &Ident, trait_base_class: &Ident) -> TokenStream {
         let cfg_attrs = self.cfg_attrs.iter();
         let godot_name_hash_constant = &self.godot_name_hash_constant;
 
         // Lazily generate code for the actual work (calling user function).
         let method_callback = make_virtual_callback(
             class_name,
+            trait_base_class,
             &self.signature_info,
             self.before_kind,
             self.interface_trait.as_ref(),

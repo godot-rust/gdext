@@ -603,6 +603,32 @@ pub(crate) fn make_params_exprs<'a>(
     ret
 }
 
+/// Returns the type for a virtual method parameter.
+///
+/// Generates `Option<Gd<T>>` instead of `Gd<T>` for object parameters (which are currently all nullable).
+///
+/// Used for consistency between virtual trait definitions and `type Sig = ...` type-safety declarations
+/// (which are used to improve compile-time errors on mismatch).
+pub(crate) fn make_virtual_param_type(
+    param_ty: &RustTy,
+    param_name: &Ident,
+    function_sig: &dyn Function,
+) -> TokenStream {
+    match param_ty {
+        // Virtual methods accept Option<Gd<T>>, since we don't know whether objects are nullable or required.
+        RustTy::EngineClass { .. }
+            if !special_cases::is_class_method_param_required(
+                function_sig.surrounding_class().unwrap(),
+                function_sig.godot_name(),
+                param_name,
+            ) =>
+        {
+            quote! { Option<#param_ty> }
+        }
+        _ => quote! { #param_ty },
+    }
+}
+
 /// For virtual functions, returns the parameter declarations, type tokens, and names.
 pub(crate) fn make_params_exprs_virtual<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
@@ -614,30 +640,13 @@ pub(crate) fn make_params_exprs_virtual<'a>(
         let param_name = &param.name;
         let param_ty = &param.type_;
 
-        match &param.type_ {
-            // Virtual methods accept Option<Gd<T>>, since we don't know whether objects are nullable or required.
-            RustTy::EngineClass { .. }
-                if !special_cases::is_class_method_param_required(
-                    function_sig.surrounding_class().unwrap(),
-                    function_sig.godot_name(),
-                    param_name,
-                ) =>
-            {
-                ret.param_decls
-                    .push(quote! { #param_name: Option<#param_ty> });
-                ret.arg_exprs.push(quote! { #param_name });
-                ret.callsig_param_types.push(quote! { #param_ty });
-            }
+        // Map parameter types (e.g. virtual functions need Option<Gd> instead of Gd).
+        let param_ty_tokens = make_virtual_param_type(param_ty, param_name, function_sig);
 
-            // All other methods and parameter types: standard handling.
-            // For now, virtual methods always receive their parameter by value.
-            //_ => ret.push_regular(param_name, param_ty, true, false, false),
-            _ => {
-                ret.param_decls.push(quote! { #param_name: #param_ty });
-                ret.arg_exprs.push(quote! { #param_name });
-                ret.callsig_param_types.push(quote! { #param_ty });
-            }
-        }
+        ret.param_decls
+            .push(quote! { #param_name: #param_ty_tokens });
+        ret.arg_exprs.push(quote! { #param_name });
+        ret.callsig_param_types.push(quote! { #param_ty });
     }
 
     ret
