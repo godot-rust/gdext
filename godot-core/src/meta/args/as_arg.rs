@@ -9,7 +9,7 @@ use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::{GodotFfiVariant, GodotNullableFfi};
 use crate::meta::{CowArg, FfiArg, GodotType, ObjectArg, ToGodot};
-use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass, Inherits};
+use crate::obj::{DynGd, Gd, GodotClass, Inherits};
 
 /// Implicit conversions for arguments passed to Godot APIs.
 ///
@@ -263,7 +263,7 @@ where
 impl<T, Base> AsArg<Option<Gd<Base>>> for &Gd<T>
 where
     T: Inherits<Base>,
-    Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    Base: GodotClass,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
     where
@@ -286,7 +286,7 @@ where
 impl<T, Base> AsArg<Option<Gd<Base>>> for Option<&Gd<T>>
 where
     T: Inherits<Base>,
-    Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    Base: GodotClass,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
     where
@@ -313,7 +313,7 @@ impl<T, D, Base> AsArg<Option<DynGd<Base, D>>> for &DynGd<T, D>
 where
     T: Inherits<Base>,
     D: ?Sized,
-    Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    Base: GodotClass,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, Option<DynGd<Base, D>>>
     where
@@ -337,7 +337,7 @@ impl<T, D, Base> AsArg<Option<Gd<Base>>> for &DynGd<T, D>
 where
     T: Inherits<Base>,
     D: ?Sized,
-    Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    Base: GodotClass,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, Option<Gd<Base>>>
     where
@@ -361,7 +361,7 @@ impl<T, D, Base> AsArg<Option<DynGd<Base, D>>> for Option<&DynGd<T, D>>
 where
     T: Inherits<Base>,
     D: ?Sized,
-    Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    Base: GodotClass,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, Option<DynGd<Base, D>>>
     where
@@ -764,3 +764,35 @@ where
 
 #[doc(hidden)] // Easier for internal use.
 pub type ToArg<'r, Via, Pass> = <Pass as ArgPassing>::Output<'r, Via>;
+
+/// This type exists only as a place to add doctests for `AsArg`, which do not need to be in the public documentation.
+///
+/// `AsArg<Option<Gd<UserClass>>` can be used with signals correctly:
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct MyClass {
+///     base: Base<Node>
+/// }
+///
+/// #[godot_api]
+/// impl MyClass {
+///     #[signal]
+///     fn signal_optional_user_obj(arg1: Option<Gd<MyClass>>);
+///
+///     fn foo(&mut self) {
+///         let arg = self.to_gd();
+///         // Directly:
+///         self.signals().signal_optional_user_obj().emit(&arg);
+///         // Via Some:
+///         self.signals().signal_optional_user_obj().emit(Some(&arg));
+///         // With None (Note: Gd::null_arg() is restricted to engine classes):
+///         self.signals().signal_optional_user_obj().emit(None::<Gd<MyClass>>.as_ref());
+///     }
+/// }
+/// ```
+///
+#[allow(dead_code)]
+struct PhantomAsArgDoctests;
