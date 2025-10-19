@@ -269,6 +269,16 @@ pub fn is_cfg_or_cfg_attr(attr: &venial::Attribute) -> bool {
     false
 }
 
+/// Returns group representing properly spanned tuple (e.g. `(arg1, arg2, arg3)`).
+///
+/// Use it to preserve span in case if tuple in question is empty (will create properly spanned `()` in such a case).
+pub fn to_spanned_tuple(items: &[impl ToTokens], span: Span) -> Group {
+    let mut group = Group::new(Delimiter::Parenthesis, quote! { #(#items,)* });
+    group.set_span(span);
+
+    group
+}
+
 pub(crate) fn extract_cfg_attrs(
     attrs: &[venial::Attribute],
 ) -> impl IntoIterator<Item = &venial::Attribute> {
