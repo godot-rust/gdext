@@ -5,11 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Group, Ident, TokenStream, TokenTree};
+use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 
 use crate::class::RpcAttr;
-use crate::util::{bail, bail_fn, ident, safe_ident};
+use crate::util::{bail, bail_fn, ident, safe_ident, to_spanned_tuple};
 use crate::{util, ParseResult};
 
 /// Information used for registering a Rust function with Godot.
@@ -198,6 +198,7 @@ pub enum ReceiverType {
 pub struct SignatureInfo {
     pub method_name: Ident,
     pub receiver_type: ReceiverType,
+    pub params_span: Span,
     pub param_idents: Vec<Ident>,
     /// Parameter types *without* receiver.
     pub param_types: Vec<venial::TypeExpr>,
@@ -214,6 +215,7 @@ impl SignatureInfo {
         Self {
             method_name: ident("ready"),
             receiver_type: ReceiverType::Mut,
+            params_span: Span::call_site(),
             param_idents: vec![],
             param_types: vec![],
             return_type: quote! { () },
@@ -221,9 +223,14 @@ impl SignatureInfo {
         }
     }
 
-    pub fn params_type(&self) -> TokenStream {
-        let param_types = &self.param_types;
-        quote! { (#(#param_types,)*) }
+    /// Returns params (e.g. `(v1, v2, v3...)`) of this signature as a properly spanned group.
+    pub fn params_tuple(&self) -> Group {
+        to_spanned_tuple(&self.param_idents, self.params_span)
+    }
+
+    /// Returns param types (e.g. `(f32, f64, GString...)`) of this signature as a properly spanned group.
+    pub fn params_type(&self) -> Group {
+        to_spanned_tuple(&self.param_types, self.params_span)
     }
 }
 
@@ -249,6 +256,8 @@ fn make_forwarding_closure(
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
     let params = &signature_info.param_idents;
+    let params_tuple = signature_info.params_tuple();
+    let param_ident = Ident::new("params", signature_info.params_span);
 
     let instance_decl = match &signature_info.receiver_type {
         ReceiverType::Ref => quote! {
@@ -298,8 +307,18 @@ fn make_forwarding_closure(
                 sig_tuple_annotation = quote! {
                     : ::godot::private::virtuals::#trait_base_class::#rust_sig_name
                 };
+
+                let method_invocation = TokenStream::from_iter(
+                    quote! {<#class_name as #interface_trait>::#method_name}
+                        .into_iter()
+                        .map(|mut token| {
+                            token.set_span(signature_info.params_span);
+                            token
+                        }),
+                );
+
                 method_call = quote! {
-                    <#class_name as #interface_trait>::#method_name( #instance_ref, #(#params),* )
+                    #method_invocation( #instance_ref, #(#params),* )
                 };
             } else {
                 // impl Class {...}
@@ -313,7 +332,7 @@ fn make_forwarding_closure(
 
             quote! {
                 |instance_ptr, params| {
-                    let ( #(#params,)* ) #sig_tuple_annotation = params;
+                    let #params_tuple #sig_tuple_annotation = #param_ident;
 
                     let storage =
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
@@ -329,8 +348,8 @@ fn make_forwarding_closure(
             // (Absent method is only used in the case of a generated default virtual method, e.g. for ready()).
             quote! {
                 |instance_ptr, params| {
-                    // Not using `virtual_sig`, because right now, #[func(gd_self)] is only possible for non-virtual methods.
-                    let ( #(#params,)* ) = params;
+                    // Not using `virtual_sig`, since virtual methods with `#[func(gd_self)]` are being moved out of the trait to inherent impl.
+                    let #params_tuple = #param_ident;
 
                     let storage =
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
@@ -344,7 +363,7 @@ fn make_forwarding_closure(
             // No before-call needed, since static methods are not virtual.
             quote! {
                 |_, params| {
-                    let ( #(#params,)* ) = params;
+                    let #params_tuple = #param_ident;
                     #class_name::#method_name(#(#params),*)
                 }
             }
@@ -388,6 +407,7 @@ pub(crate) fn into_signature_info(
     };
 
     let num_params = signature.params.inner.len();
+    let params_span = signature.span();
     let mut param_idents = Vec::with_capacity(num_params);
     let mut param_types = Vec::with_capacity(num_params);
     let ret_type = match signature.return_ty {
@@ -443,6 +463,7 @@ pub(crate) fn into_signature_info(
     SignatureInfo {
         method_name,
         receiver_type,
+        params_span,
         param_idents,
         param_types,
         return_type: ret_type,
