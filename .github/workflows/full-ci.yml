@@ -101,7 +101,8 @@ jobs:
       - name: "Install Rust"
         uses: ./.github/composite/rust
         with:
-          components: clippy
+          # Rustfmt is needed to format generated code in itest.
+          components: clippy,rustfmt
 
       # Note: could use `-- --no-deps` to not lint dependencies, however it doesn't really speed up and also skips deps in workspace.
       - name: "Check clippy"

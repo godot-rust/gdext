@@ -94,7 +94,8 @@ jobs:
       - name: "Install Rust"
         uses: ./.github/composite/rust
         with:
-          components: clippy
+          # Rustfmt is needed to format generated code in itest.
+          components: clippy,rustfmt
 
       - name: "Check clippy"
         run: |
