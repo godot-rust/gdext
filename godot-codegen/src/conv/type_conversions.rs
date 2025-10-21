@@ -170,17 +170,20 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             ty = ty.replace("const ", "");
         }
 
-        // .trim() is necessary here, as Godot places a space between a type and the stars when representing a double pointer.
-        // Example: "int*" but "int **".
-        if ctx.is_sys(ty.trim()) {
+        // Sys pointer type defined in `gdextension_interface` and used as param for given method, e.g. `GDExtensionInitializationFunction`.
+        // Note: we branch here to avoid clashes with actual GDExtension classes.
+        if ty.starts_with("GDExtension") {
             let ty = rustify_ty(&ty);
             return RustTy::RawPointer {
-                inner: Box::new(RustTy::SysIdent {
+                inner: Box::new(RustTy::SysPointerType {
                     tokens: quote! { sys::#ty },
                 }),
                 is_const,
             };
         }
+
+        // .trim() is necessary here, as Godot places a space between a type and the stars when representing a double pointer.
+        // Example: "int*" but "int **".
         let inner_type = to_rust_type(ty.trim(), None, ctx);
         return RustTy::RawPointer {
             inner: Box::new(inner_type),
