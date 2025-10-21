@@ -283,7 +283,15 @@ pub unsafe fn initialize(
 /// # Safety
 /// See [`initialize`].
 pub unsafe fn deinitialize() {
-    deinitialize_binding()
+    deinitialize_binding();
+
+    // MACOS-PARTIAL-RELOAD: Clear the main thread ID to allow re-initialization during hot reload.
+    #[cfg(not(wasm_nothreads))]
+    {
+        if MAIN_THREAD_ID.is_initialized() {
+            MAIN_THREAD_ID.clear();
+        }
+    }
 }
 
 fn print_preamble(version: GDExtensionGodotVersion) {

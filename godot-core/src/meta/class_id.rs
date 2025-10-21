@@ -309,8 +309,20 @@ impl ClassIdCache {
     }
 
     fn clear(&mut self) {
-        self.entries.clear();
+        // MACOS-PARTIAL-RELOAD: Previous implementation for when upstream fixes `.gdextension` reload.
+        // self.entries.clear();
+        // self.type_to_index.clear();
+        // self.string_to_index.clear();
+
+        // MACOS-PARTIAL-RELOAD: Preserve existing `ClassId` entries when only the `.gdextension` reloads so indices stay valid.
+        // There are two types of hot reload: `dylib` reload (`dylib` `mtime` newer) unloads and reloads the library, whereas
+        // `.gdextension` reload (`.gdextension` `mtime` newer) re-initializes the existing `dylib` without unloading it. To handle
+        // `.gdextension` reload, keep the backing entries (and thus the `string_to_index` map) but drop cached Godot `StringNames`
+        // and the `TypeId` lookup so they can be rebuilt.
+        for entry in &mut self.entries {
+            entry.godot_str = OnceCell::new();
+        }
+
         self.type_to_index.clear();
-        self.string_to_index.clear();
     }
 }
