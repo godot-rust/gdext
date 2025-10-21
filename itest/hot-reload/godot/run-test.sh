@@ -37,6 +37,39 @@ cleanup() {
 set -euo pipefail
 trap cleanup EXIT
 
+godotAwait() {
+  if [[ $godotPid -ne 0 ]]; then
+    echo "[Bash]      Error: godotAwait called while Godot (PID $godotPid) is still running."
+    exit 1
+  fi
+
+  $GODOT4_BIN -e --headless --path $rel &
+  godotPid=$!
+  echo "[Bash]      Wait for Godot ready (PID $godotPid)..."
+
+  $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- await
+}
+
+godotNotify() {
+  if [[ $godotPid -eq 0 ]]; then
+    echo "[Bash]      Error: godotNotify called but Godot is not running."
+    exit 1
+  fi
+
+  $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- notify
+
+  echo "[Bash]      Wait for Godot exit..."
+  local status=0
+  wait $godotPid
+  status=$?
+  echo "[Bash]      Godot (PID $godotPid) has completed with status $status."
+  godotPid=0
+
+  if [[ $status -ne 0 ]]; then
+    exit $status
+  fi
+}
+
 echo "[Bash]      Start hot-reload integration test..."
 
 # Restore un-reloaded file (for local testing).
@@ -54,22 +87,25 @@ cargo build -p hot-reload $cargoArgs
 # Wait briefly so artifacts are present on file system.
 sleep 0.5
 
-$GODOT4_BIN -e --headless --path $rel &
-godotPid=$!
-echo "[Bash]      Wait for Godot ready (PID $godotPid)..."
+# ----------------------------------------------------------------
+# Test Case 1: Update Rust source and compile to trigger reload.
+# ----------------------------------------------------------------
 
-$GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- await
+echo "[Bash]      Scenario 1: Reload after updating Rust source..."
+
+godotAwait
 $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- replace
-
 # Compile updated Rust source.
 cargo build -p hot-reload $cargoArgs
+godotNotify
 
-$GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- notify
+# ----------------------------------------------------------------
+# Test Case 2: Touch the .gdextension file to trigger reload.
+# ----------------------------------------------------------------
 
-echo "[Bash]      Wait for Godot exit..."
-wait $godotPid
-status=$?
-echo "[Bash]      Godot (PID $godotPid) has completed with status $status."
+echo "[Bash]      Scenario 2: Reload after touching rust.gdextension..."
 
-
-
+godotAwait
+# Update timestamp to trigger reload.
+touch "$rel/rust.gdextension"
+godotNotify
