@@ -126,15 +126,22 @@ fn dictionary_hash() {
         "bar": true,
     };
 
-    assert_eq!(a.hash(), b.hash(), "equal dictionaries have same hash");
+    assert_eq!(
+        a.hash_u32(),
+        b.hash_u32(),
+        "equal dictionaries have same hash"
+    );
     assert_ne!(
-        a.hash(),
-        c.hash(),
+        a.hash_u32(),
+        c.hash_u32(),
         "dictionaries with reordered content have different hash"
     );
 
     // NaNs are not equal (since Godot 4.2) but share same hash.
-    assert_eq!(vdict! {772: f32::NAN}.hash(), vdict! {772: f32::NAN}.hash());
+    assert_eq!(
+        vdict! {772: f32::NAN}.hash_u32(),
+        vdict! {772: f32::NAN}.hash_u32()
+    );
 }
 
 #[itest]

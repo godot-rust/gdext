@@ -285,14 +285,16 @@ impl<T: ArrayElement> Array<T> {
         self.as_inner().is_empty()
     }
 
-    /// Returns a 32-bit integer hash value representing the array and its contents.
-    ///
-    /// Note: Arrays with equal content will always produce identical hash values. However, the
-    /// reverse is not true. Returning identical hash values does not imply the arrays are equal,
-    /// because different arrays can have identical hash values due to hash collisions.
+    crate::declare_hash_u32_method! {
+        /// Returns a 32-bit integer hash value representing the array and its contents.
+        ///
+        /// Note: Arrays with equal content will always produce identical hash values. However, the
+        /// reverse is not true. Returning identical hash values does not imply the arrays are equal,
+        /// because different arrays can have identical hash values due to hash collisions.
+    }
+
+    #[deprecated = "renamed to hash_u32"]
     pub fn hash(&self) -> u32 {
-        // The GDExtension interface only deals in `i64`, but the engine's own `hash()` function
-        // actually returns `uint32_t`.
         self.as_inner().hash().try_into().unwrap()
     }
 
