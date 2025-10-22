@@ -13,7 +13,7 @@ pub use super::classes::{
 pub use super::global::{
     godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,
 };
-pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
+pub use super::init::{gdextension, ExtensionLibrary, InitLevel, InitStage};
 pub use super::meta::error::{ConvertError, IoError};
 pub use super::meta::{FromGodot, GodotConvert, ToGodot};
 pub use super::obj::{

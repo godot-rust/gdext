@@ -11,12 +11,12 @@ struct HotReload;
 
 #[gdextension]
 unsafe impl ExtensionLibrary for HotReload {
-    fn on_level_init(level: InitLevel) {
-        println!("[Rust]      Init level {level:?}");
+    fn on_stage_init(stage: InitStage) {
+        println!("[Rust]      Init stage {stage:?}");
     }
 
-    fn on_level_deinit(level: InitLevel) {
-        println!("[Rust]      Deinit level {level:?}");
+    fn on_stage_deinit(stage: InitStage) {
+        println!("[Rust]      Deinit stage {stage:?}");
     }
 }
 

@@ -151,7 +151,43 @@ impl InitLevel {
             Self::Editor => crate::GDEXTENSION_INITIALIZATION_EDITOR,
         }
     }
+
+    /// Convert this initialization level to an initialization stage.
+    pub fn to_stage(self) -> InitStage {
+        match self {
+            Self::Core => InitStage::Core,
+            Self::Servers => InitStage::Servers,
+            Self::Scene => InitStage::Scene,
+            Self::Editor => InitStage::Editor,
+        }
+    }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub enum InitStage {
+    Core,
+    Servers,
+    Scene,
+    Editor,
+    #[cfg(since_api = "4.5")]
+    MainLoop,
+}
+
+impl InitStage {
+    pub fn try_to_level(self) -> Option<InitLevel> {
+        match self {
+            Self::Core => Some(InitLevel::Core),
+            Self::Servers => Some(InitLevel::Servers),
+            Self::Scene => Some(InitLevel::Scene),
+            Self::Editor => Some(InitLevel::Editor),
+            #[cfg(since_api = "4.5")]
+            Self::MainLoop => None,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct GdextRuntimeMetadata {
     godot_version: GDExtensionGodotVersion,
