@@ -39,7 +39,7 @@ which = "7"
 # * quote: 1.0.37 allows tokenizing CStr.
 # * venial: 0.6.1 contains some bugfixes.
 heck = "0.5"
-litrs = "0.4"
+litrs = { version = "1.0", features = ["proc-macro2"] }
 markdown = "=1.0.0-alpha.23"
 nanoserde = "0.2"
 proc-macro2 = "1.0.80"
