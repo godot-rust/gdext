@@ -531,11 +531,12 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
             is_tool = true;
         }
 
-        // Deprecated #[class(editor_plugin)]
-        if let Some(_attr_key) = parser.handle_alone_with_span("editor_plugin")? {
-            deprecations.push(quote_spanned! { _attr_key.span()=>
-                ::godot::__deprecated::emit_deprecated_warning!(class_editor_plugin);
-            });
+        // Removed #[class(editor_plugin)]
+        if let Some(key) = parser.handle_alone_with_span("editor_plugin")? {
+            return bail!(
+                key,
+                "#[class(editor_plugin)] has been removed in favor of #[class(tool, base=EditorPlugin)]",
+            );
         }
 
         // #[class(rename = NewName)]
@@ -556,20 +557,19 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
             }
         }
 
-        // Deprecated #[class(hidden)]
-        if let Some(ident) = parser.handle_alone_with_span("hidden")? {
-            is_internal = true;
-
-            deprecations.push(quote_spanned! { ident.span()=>
-                ::godot::__deprecated::emit_deprecated_warning!(class_hidden);
-            });
+        // Removed #[class(hidden)]
+        if let Some(key) = parser.handle_alone_with_span("hidden")? {
+            return bail!(
+                key,
+                "#[class(hidden)] has been renamed to #[class(internal)]",
+            );
         }
 
         parser.finish()?;
     }
 
     // Deprecated: #[class(no_init)] with base=EditorPlugin
-    if init_strategy == InitStrategy::Absent && base_ty == "EditorPlugin" {
+    if matches!(init_strategy, InitStrategy::Absent) && base_ty == ident("EditorPlugin") {
         deprecations.push(quote! {
             ::godot::__deprecated::emit_deprecated_warning!(class_no_init_editor_plugin);
         });
@@ -594,6 +594,7 @@ fn parse_fields(
 ) -> ParseResult<Fields> {
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
+    #[allow(unused_mut)] // Less chore when adding/removing deprecations.
     let mut deprecations = vec![];
     let mut errors = vec![];
 
@@ -640,21 +641,12 @@ fn parse_fields(
                 });
             }
 
-            // Deprecated #[init(default = expr)]
-            if let Some((key, default)) = parser.handle_expr_with_key("default")? {
-                if field.default_val.is_some() {
-                    return bail!(
-                        key,
-                        "Cannot use both `val` and `default` keys in #[init]; prefer using `val`"
-                    );
-                }
-                field.default_val = Some(FieldDefault {
-                    default_val: default,
-                    span: parser.span(),
-                });
-                deprecations.push(quote_spanned! { parser.span()=>
-                    ::godot::__deprecated::emit_deprecated_warning!(init_default);
-                })
+            // Removed #[init(default = ...)]
+            if let Some((key, _default)) = parser.handle_expr_with_key("default")? {
+                return bail!(
+                    key,
+                    "#[init(default = ...)] has been renamed to #[init(val = ...)]",
+                );
             }
 
             // #[init(node = "PATH")]
