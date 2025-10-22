@@ -16,6 +16,7 @@ use quote::{format_ident, quote};
 use crate::context::Context;
 use crate::conv;
 use crate::models::domain::{Class, ClassLike, ClassSignal, FnParam, ModName, RustTy, TyName};
+use crate::special_cases;
 use crate::util::{ident, safe_ident};
 
 pub struct SignalCodegen {
@@ -58,7 +59,24 @@ pub fn make_class_signals(
     let signal_types = signals
         .iter()
         .zip(all_params.iter())
-        .map(|(signal, params)| make_signal_individual_struct(signal, params));
+        .flat_map(|(signal, params)| {
+            let mut structs = vec![make_signal_individual_struct(signal, params, false)];
+
+            // If this signal has nullable parameters, also generate the nullable variant.
+            if let Some(nullable_indices) =
+                special_cases::get_signal_nullable_params(class_name, &signal.name)
+            {
+                let nullable_params =
+                    SignalParams::with_nullable_params(&signal.parameters, &nullable_indices);
+                structs.push(make_signal_individual_struct(
+                    signal,
+                    &nullable_params,
+                    true,
+                ));
+            }
+
+            structs
+        });
 
     let with_signals_impl =
         make_with_signals_impl(class_name, &nearest_collection_name, nearest_class.as_ref());
@@ -148,20 +166,58 @@ fn make_signal_collection(
     let class_name = class.name();
     let collection_struct_name = make_collection_name(class_name);
 
-    let provider_methods = signals.iter().zip(params).map(|(sig, params)| {
+    let provider_methods = signals.iter().zip(params).flat_map(|(sig, params)| {
         let signal_name_str = &sig.name;
         let signal_name = ident(&sig.name);
         let individual_struct_name = make_individual_struct_name(&sig.name);
         let provider_docs = format!("Signature: `({})`", params.formatted_types);
 
-        quote! {
-            // Important to return lifetime 'c here, not '_.
-            #[doc = #provider_docs]
-            pub fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
-                #individual_struct_name {
-                    typed: TypedSignal::extract(&mut self.__internal_obj, #signal_name_str)
+        // Check if this signal has nullable parameters.
+        let nullable_indices = special_cases::get_signal_nullable_params(class_name, &sig.name);
+
+        if let Some(ref indices) = nullable_indices {
+            // Generate both original (deprecated) and nullable methods.
+            let nullable_params = SignalParams::with_nullable_params(&sig.parameters, indices);
+            let nullable_signal_name = format_ident!("{}_nullable", signal_name);
+            let nullable_struct_name = format_ident!("{}Nullable", individual_struct_name);
+            let nullable_docs = format!("Signature: `({})`", nullable_params.formatted_types);
+            let deprecation_msg = format!(
+                "Use `{}_nullable` instead, as parameters can be null",
+                signal_name
+            );
+
+            vec![
+                // Original method (deprecated).
+                quote! {
+                    #[doc = #provider_docs]
+                    #[deprecated = #deprecation_msg]
+                    pub fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
+                        #individual_struct_name {
+                            typed: TypedSignal::extract(&mut self.__internal_obj, #signal_name_str)
+                        }
+                    }
+                },
+                // Nullable method.
+                quote! {
+                    #[doc = #nullable_docs]
+                    pub fn #nullable_signal_name(&mut self) -> #nullable_struct_name<'c, C> {
+                        #nullable_struct_name {
+                            typed: TypedSignal::extract(&mut self.__internal_obj, #signal_name_str)
+                        }
+                    }
+                },
+            ]
+        } else {
+            // No nullable overload needed, generate only the original method.
+            vec![quote! {
+                // Important to return lifetime 'c here, not '_.
+                #[doc = #provider_docs]
+                pub fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
+                    #individual_struct_name {
+                        typed: TypedSignal::extract(&mut self.__internal_obj, #signal_name_str)
+                    }
                 }
-            }
+            }]
         }
     });
 
@@ -216,8 +272,17 @@ fn make_upcast_deref_impl(class_name: &TyName, collection_struct_name: &Ident) -
     }
 }
 
-fn make_signal_individual_struct(signal: &ClassSignal, params: &SignalParams) -> TokenStream {
-    let individual_struct_name = make_individual_struct_name(&signal.name);
+fn make_signal_individual_struct(
+    signal: &ClassSignal,
+    params: &SignalParams,
+    is_nullable: bool,
+) -> TokenStream {
+    let base_struct_name = make_individual_struct_name(&signal.name);
+    let individual_struct_name = if is_nullable {
+        format_ident!("{}Nullable", base_struct_name)
+    } else {
+        base_struct_name.clone()
+    };
 
     let SignalParams {
         param_list,
@@ -280,6 +345,20 @@ struct SignalParams {
 
 impl SignalParams {
     fn new(params: &[FnParam]) -> Self {
+        Self::new_impl(params, &[])
+    }
+
+    /// Creates signal parameters where specified indices are wrapped in `Option<>`.
+    ///
+    /// This is used for nullable signal overloads where certain object parameters can be null.
+    fn with_nullable_params(params: &[FnParam], nullable_indices: &[usize]) -> Self {
+        Self::new_impl(params, nullable_indices)
+    }
+
+    /// Internal implementation for creating signal parameters.
+    ///
+    /// If `nullable_indices` contains a parameter index, that parameter will be wrapped in `Option<>`.
+    fn new_impl(params: &[FnParam], nullable_indices: &[usize]) -> Self {
         use std::fmt::Write;
 
         let mut param_list = TokenStream::new();
@@ -288,18 +367,41 @@ impl SignalParams {
         let mut formatted_types = String::new();
         let mut first = true;
 
-        for param in params.iter() {
+        for (idx, param) in params.iter().enumerate() {
             let param_name = safe_ident(&param.name.to_string());
             let param_ty = &param.type_;
 
-            param_list.extend(quote! { #param_name: #param_ty, });
-            type_list.extend(quote! { #param_ty, });
-            name_list.extend(quote! { #param_name, });
+            // Check if this parameter should be nullable.
+            let is_nullable = nullable_indices.contains(&idx);
 
-            let formatted_ty = match param_ty {
-                RustTy::EngineClass { inner_class, .. } => format!("Gd<{inner_class}>"),
-                other => other.to_string(),
+            let (actual_param_ty, formatted_ty) = if is_nullable {
+                // Wrap the type in Option.
+                match param_ty {
+                    RustTy::EngineClass { inner_class, .. } => {
+                        let qualified_class = quote! { crate::classes::#inner_class };
+                        let option_ty = quote! { Option<Gd<#qualified_class>> };
+                        let formatted = format!("Option<Gd<{inner_class}>>");
+                        (option_ty, formatted)
+                    }
+                    _ => {
+                        // Non-engine-class types shouldn't be in nullable_indices, but handle gracefully.
+                        let option_ty = quote! { Option<#param_ty> };
+                        let formatted = format!("Option<{}>", param_ty);
+                        (option_ty, formatted)
+                    }
+                }
+            } else {
+                // Use the original type.
+                let formatted = match param_ty {
+                    RustTy::EngineClass { inner_class, .. } => format!("Gd<{inner_class}>"),
+                    other => other.to_string(),
+                };
+                (quote! { #param_ty }, formatted)
             };
+
+            param_list.extend(quote! { #param_name: #actual_param_ty, });
+            type_list.extend(quote! { #actual_param_ty, });
+            name_list.extend(quote! { #param_name, });
 
             if first {
                 first = false;

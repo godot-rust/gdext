@@ -1195,6 +1195,22 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
     Some(level)
 }
 
+/// Returns indices of signal parameters that can be null and should have a `_nullable` overload.
+///
+/// Returns `Some(vec![param_indices])` for parameters that can be null, or `None` if no nullable overload is needed.
+///
+/// Example: `("EditorPlugin", "scene_changed")` returns `Some(vec![0])` because the first parameter (scene) can be null.
+#[rustfmt::skip]
+pub fn get_signal_nullable_params(class_name: &TyName, signal_name: &str) -> Option<Vec<usize>> {
+    match (class_name.godot_ty.as_str(), signal_name) {
+        // EditorPlugin signals that can receive null object parameters.
+        | ("EditorPlugin", "scene_changed") => Some(vec![0]),  // scene_root: Option<Gd<Node>>
+        | ("EditorPlugin", "resource_saved") => Some(vec![0]), // resource: Option<Gd<Resource>>
+
+        _ => None,
+    }
+}
+
 /// Whether a generated enum is `pub(crate)`; useful for manual re-exports.
 #[rustfmt::skip]
 pub fn is_enum_private(class_name: Option<&TyName>, enum_name: &str) -> bool {
