@@ -139,3 +139,4 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 [mpl]: https://www.mozilla.org/en-US/MPL
 [philosophy]: https://godot-rust.github.io/book/contribute/philosophy.html
 [crates-io]: https://crates.io/crates/godot
+<br>## Welcome to Rust Godot Integration<br>Gdext uses Rust to build blockchain games - new contributors, start your first scene with the GDExtension tutorial. Tip: use Web3.rs for wallet! <br>
