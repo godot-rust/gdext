@@ -63,11 +63,13 @@ pub fn make_class_signals(
             let mut structs = vec![make_signal_individual_struct(signal, params, false)];
 
             // If this signal has nullable parameters, also generate the nullable variant.
-            if let Some(nullable_indices) =
-                special_cases::get_signal_nullable_params(class_name, &signal.name)
-            {
+            let nullable_param_names =
+                special_cases::get_signal_nullable_params(class_name, &signal.name);
+
+            if !nullable_param_names.is_empty() {
                 let nullable_params =
-                    SignalParams::with_nullable_params(&signal.parameters, &nullable_indices);
+                    SignalParams::with_nullable(&signal.parameters, nullable_param_names);
+
                 structs.push(make_signal_individual_struct(
                     signal,
                     &nullable_params,
@@ -173,11 +175,12 @@ fn make_signal_collection(
         let provider_docs = format!("Signature: `({})`", params.formatted_types);
 
         // Check if this signal has nullable parameters.
-        let nullable_indices = special_cases::get_signal_nullable_params(class_name, &sig.name);
+        let nullable_param_names = special_cases::get_signal_nullable_params(class_name, &sig.name);
 
-        if let Some(ref indices) = nullable_indices {
+        if !nullable_param_names.is_empty() {
             // Generate both original (deprecated) and nullable methods.
-            let nullable_params = SignalParams::with_nullable_params(&sig.parameters, indices);
+            let nullable_params =
+                SignalParams::with_nullable(&sig.parameters, nullable_param_names);
             let nullable_signal_name = format_ident!("{}_nullable", signal_name);
             let nullable_struct_name = format_ident!("{}Nullable", individual_struct_name);
             let nullable_docs = format!("Signature: `({})`", nullable_params.formatted_types);
@@ -348,17 +351,17 @@ impl SignalParams {
         Self::new_impl(params, &[])
     }
 
-    /// Creates signal parameters where specified indices are wrapped in `Option<>`.
+    /// Creates signal parameters where specified parameter names are wrapped in `Option<>`.
     ///
     /// This is used for nullable signal overloads where certain object parameters can be null.
-    fn with_nullable_params(params: &[FnParam], nullable_indices: &[usize]) -> Self {
-        Self::new_impl(params, nullable_indices)
+    fn with_nullable(params: &[FnParam], nullable_param_names: &[&str]) -> Self {
+        Self::new_impl(params, nullable_param_names)
     }
 
     /// Internal implementation for creating signal parameters.
     ///
-    /// If `nullable_indices` contains a parameter index, that parameter will be wrapped in `Option<>`.
-    fn new_impl(params: &[FnParam], nullable_indices: &[usize]) -> Self {
+    /// If `nullable_param_names` contains a parameter name, that parameter will be wrapped in `Option<>`.
+    fn new_impl(params: &[FnParam], nullable_param_names: &[&str]) -> Self {
         use std::fmt::Write;
 
         let mut param_list = TokenStream::new();
@@ -367,35 +370,21 @@ impl SignalParams {
         let mut formatted_types = String::new();
         let mut first = true;
 
-        for (idx, param) in params.iter().enumerate() {
+        for param in params.iter() {
             let param_name = safe_ident(&param.name.to_string());
             let param_ty = &param.type_;
 
             // Check if this parameter should be nullable.
-            let is_nullable = nullable_indices.contains(&idx);
+            let param_name_str = param.name.to_string();
+            let is_nullable = nullable_param_names.contains(&param_name_str.as_str());
 
             let (actual_param_ty, formatted_ty) = if is_nullable {
                 // Wrap the type in Option.
-                match param_ty {
-                    RustTy::EngineClass { inner_class, .. } => {
-                        let qualified_class = quote! { crate::classes::#inner_class };
-                        let option_ty = quote! { Option<Gd<#qualified_class>> };
-                        let formatted = format!("Option<Gd<{inner_class}>>");
-                        (option_ty, formatted)
-                    }
-                    _ => {
-                        // Non-engine-class types shouldn't be in nullable_indices, but handle gracefully.
-                        let option_ty = quote! { Option<#param_ty> };
-                        let formatted = format!("Option<{}>", param_ty);
-                        (option_ty, formatted)
-                    }
-                }
+                let (option_ty, formatted) = Self::format_type_as_optional(param_ty);
+                (option_ty, formatted)
             } else {
                 // Use the original type.
-                let formatted = match param_ty {
-                    RustTy::EngineClass { inner_class, .. } => format!("Gd<{inner_class}>"),
-                    other => other.to_string(),
-                };
+                let formatted = Self::format_type(param_ty);
                 (quote! { #param_ty }, formatted)
             };
 
@@ -417,6 +406,32 @@ impl SignalParams {
             type_list,
             name_list,
             formatted_types,
+        }
+    }
+
+    /// Formats a type for display (e.g., in documentation).
+    fn format_type(param_ty: &RustTy) -> String {
+        match param_ty {
+            RustTy::EngineClass { inner_class, .. } => format!("Gd<{inner_class}>"),
+            other => other.to_string(),
+        }
+    }
+
+    /// Formats a type as optional and returns both the token stream and formatted string.
+    fn format_type_as_optional(param_ty: &RustTy) -> (TokenStream, String) {
+        match param_ty {
+            RustTy::EngineClass { inner_class, .. } => {
+                let qualified_class = quote! { crate::classes::#inner_class };
+                let option_ty = quote! { Option<Gd<#qualified_class>> };
+                let formatted = format!("Option<Gd<{inner_class}>>");
+                (option_ty, formatted)
+            }
+            _ => {
+                // Non-engine-class types shouldn't typically be nullable, but handle gracefully.
+                let option_ty = quote! { Option<#param_ty> };
+                let formatted = format!("Option<{param_ty}>");
+                (option_ty, formatted)
+            }
         }
     }
 }
