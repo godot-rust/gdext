@@ -9,11 +9,11 @@ extends Node
 class_name GDScriptTestRunner
 
 func _ready():
-	# Check that tests are invoked from the command line. Loading the editor may break some parts (e.g. generated test code).
-	# Both checks are needed (it's possible to invoke `godot -e --headless`).
-	if Engine.is_editor_hint() || DisplayServer.get_name() != 'headless':
-		push_error("Integration tests must be run in headless mode (without editor).")
-		get_tree().quit(2)
+	# Don't run tests when opened in the editor.
+	if Engine.is_editor_hint():
+		if DisplayServer.get_name() == 'headless':
+			push_error("Opening itest in editor in headless mode is not supported.")
+			get_tree().quit(2)
 		return
 
 	# Ensure physics is initialized, for tests that require it.
