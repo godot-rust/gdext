@@ -738,7 +738,7 @@ impl GetSetTest {
 // There isn't a good way to test editor plugins, but we can at least declare one to ensure that the macro
 // compiles.
 #[derive(GodotClass)]
-#[class(no_init, base = EditorPlugin, tool)]
+#[class(init, base = EditorPlugin, tool)]
 struct CustomEditorPlugin;
 
 // Just override EditorPlugin::edit() to verify method is declared with Option<T>.

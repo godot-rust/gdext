@@ -290,7 +290,7 @@ pub fn make_existence_check(ident: &Ident) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 enum InitStrategy {
     Generated,
     UserDefined,
@@ -566,6 +566,13 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         }
 
         parser.finish()?;
+    }
+
+    // Deprecated: #[class(no_init)] with base=EditorPlugin
+    if init_strategy == InitStrategy::Absent && base_ty == "EditorPlugin" {
+        deprecations.push(quote! {
+            ::godot::__deprecated::emit_deprecated_warning!(class_no_init_editor_plugin);
+        });
     }
 
     post_validate(&base_ty, is_tool)?;
