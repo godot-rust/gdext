@@ -115,9 +115,8 @@ fn extract_docs_from_attributes(doc: &[venial::Attribute]) -> impl Iterator<Item
         })
         .flat_map(|doc| {
             doc.iter().map(|token_tree| {
-                let str = token_tree.to_string();
-                litrs::StringLit::parse(str.clone())
-                    .map_or(str, |parsed| parsed.value().to_string())
+                litrs::StringLit::try_from(token_tree)
+                    .map_or_else(|_| token_tree.to_string(), |parsed| parsed.into_value())
             })
         })
 }
