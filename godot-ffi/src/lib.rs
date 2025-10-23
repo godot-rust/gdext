@@ -87,6 +87,7 @@ pub use gen::table_scene_classes::*;
 pub use gen::table_servers_classes::*;
 pub use gen::table_utilities::*;
 pub use global::*;
+pub use init_level::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;
 
@@ -98,6 +99,7 @@ pub use crate::godot_ffi::{
 // API to access Godot via FFI
 
 mod binding;
+mod init_level;
 
 pub use binding::*;
 use binding::{
@@ -108,92 +110,6 @@ use binding::{
 
 #[cfg(not(wasm_nothreads))]
 static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::new();
-
-/// Stage of the Godot initialization process.
-///
-/// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
-/// a different amount of engine functionality is available. Deinitialization happens in reverse order.
-///
-/// See also:
-// Explicit HTML links because this is re-exported in godot::init, and we can't document a `use` statement.
-/// - [`InitStage`](enum.InitStage.html): all levels + main loop.
-/// - [`ExtensionLibrary::on_stage_init()`](trait.ExtensionLibrary.html#method.on_stage_init)
-/// - [`ExtensionLibrary::on_stage_deinit()`](trait.ExtensionLibrary.html#method.on_stage_deinit)
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum InitLevel {
-    /// First level loaded by Godot. Builtin types are available, classes are not.
-    Core,
-
-    /// Second level loaded by Godot. Only server classes and builtins are available.
-    Servers,
-
-    /// Third level loaded by Godot. Most classes are available.
-    Scene,
-
-    /// Fourth level loaded by Godot, only in the editor. All classes are available.
-    Editor,
-}
-
-impl InitLevel {
-    #[doc(hidden)]
-    pub fn from_sys(level: crate::GDExtensionInitializationLevel) -> Self {
-        match level {
-            crate::GDEXTENSION_INITIALIZATION_CORE => Self::Core,
-            crate::GDEXTENSION_INITIALIZATION_SERVERS => Self::Servers,
-            crate::GDEXTENSION_INITIALIZATION_SCENE => Self::Scene,
-            crate::GDEXTENSION_INITIALIZATION_EDITOR => Self::Editor,
-            _ => {
-                eprintln!("WARNING: unknown initialization level {level}");
-                Self::Scene
-            }
-        }
-    }
-    #[doc(hidden)]
-    pub fn to_sys(self) -> crate::GDExtensionInitializationLevel {
-        match self {
-            Self::Core => crate::GDEXTENSION_INITIALIZATION_CORE,
-            Self::Servers => crate::GDEXTENSION_INITIALIZATION_SERVERS,
-            Self::Scene => crate::GDEXTENSION_INITIALIZATION_SCENE,
-            Self::Editor => crate::GDEXTENSION_INITIALIZATION_EDITOR,
-        }
-    }
-
-    /// Convert this initialization level to an initialization stage.
-    pub fn to_stage(self) -> InitStage {
-        match self {
-            Self::Core => InitStage::Core,
-            Self::Servers => InitStage::Servers,
-            Self::Scene => InitStage::Scene,
-            Self::Editor => InitStage::Editor,
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-#[non_exhaustive]
-pub enum InitStage {
-    Core,
-    Servers,
-    Scene,
-    Editor,
-    #[cfg(since_api = "4.5")]
-    MainLoop,
-}
-
-impl InitStage {
-    pub fn try_to_level(self) -> Option<InitLevel> {
-        match self {
-            Self::Core => Some(InitLevel::Core),
-            Self::Servers => Some(InitLevel::Servers),
-            Self::Scene => Some(InitLevel::Scene),
-            Self::Editor => Some(InitLevel::Editor),
-            #[cfg(since_api = "4.5")]
-            Self::MainLoop => None,
-        }
-    }
-}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
