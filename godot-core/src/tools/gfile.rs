@@ -334,7 +334,7 @@ impl GFile {
     /// [`FileAccess::get_as_text`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-as-text).
     // For Godot versions before `skip_cr` has been removed, see: https://github.com/godotengine/godot/pull/110867.
     #[doc(alias = "get_as_text")]
-    #[cfg(before_api = "4.6")]
+    #[cfg(before_api = "4.6")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.6")))]
     pub fn read_as_gstring_entire(&mut self, skip_cr: bool) -> std::io::Result<GString> {
         let val = self.fa.get_as_text_ex().skip_cr(skip_cr).done();
         self.check_error()?;
@@ -349,7 +349,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_as_text`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-as-text).
     #[doc(alias = "get_as_text")]
-    #[cfg(since_api = "4.6")]
+    #[cfg(since_api = "4.6")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.6")))]
     pub fn read_as_gstring_entire(&mut self) -> std::io::Result<GString> {
         let val = self.fa.get_as_text();
         self.check_error()?;
@@ -414,10 +414,10 @@ impl GFile {
     /// </div>
     #[doc(alias = "get_real")]
     pub fn read_real(&mut self) -> std::io::Result<real> {
-        #[cfg(feature = "double-precision")]
+        #[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
         let val = self.fa.get_double();
 
-        #[cfg(not(feature = "double-precision"))]
+        #[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
         let val = self.fa.get_float();
 
         self.check_error()?;
@@ -533,10 +533,10 @@ impl GFile {
     pub fn write_real(&mut self, value: real) -> std::io::Result<()> {
         // FileAccess::store_real() does not accept an actual real_t; work around this.
 
-        #[cfg(feature = "double-precision")]
+        #[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
         self.fa.store_double(value);
 
-        #[cfg(not(feature = "double-precision"))]
+        #[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
         self.fa.store_float(value);
 
         self.clear_file_length();

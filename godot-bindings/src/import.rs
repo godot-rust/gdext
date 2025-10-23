@@ -27,17 +27,17 @@ pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
 
 // [version-sync] [[
 //  [line] #[cfg(feature = "api-$kebabVersion")]\npub use gdextension_api::version_$snakeVersion as prebuilt;
-#[cfg(feature = "api-4-2")]
+#[cfg(feature = "api-4-2")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-2")))]
 pub use gdextension_api::version_4_2 as prebuilt;
-#[cfg(feature = "api-4-2-1")]
+#[cfg(feature = "api-4-2-1")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-2-1")))]
 pub use gdextension_api::version_4_2_1 as prebuilt;
-#[cfg(feature = "api-4-2-2")]
+#[cfg(feature = "api-4-2-2")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-2-2")))]
 pub use gdextension_api::version_4_2_2 as prebuilt;
-#[cfg(feature = "api-4-3")]
+#[cfg(feature = "api-4-3")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-3")))]
 pub use gdextension_api::version_4_3 as prebuilt;
-#[cfg(feature = "api-4-4")]
+#[cfg(feature = "api-4-4")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-4")))]
 pub use gdextension_api::version_4_4 as prebuilt;
-#[cfg(feature = "api-4-5")]
+#[cfg(feature = "api-4-5")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-5")))]
 pub use gdextension_api::version_4_5 as prebuilt;
 // ]]
 

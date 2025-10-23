@@ -21,13 +21,13 @@ pub use futures::{
 };
 
 // For use in integration tests.
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 mod reexport_test {
     pub use super::async_runtime::has_godot_task_panicked;
     pub use super::futures::{create_test_signal_future_resolver, SignalFutureResolver};
 }
 
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub use reexport_test::*;
 
 // Crate-local re-exports.

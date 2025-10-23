@@ -8,10 +8,10 @@
 //! Runtime checks and inspection of Godot classes.
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 use crate::meta::ClassId;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd, Singleton};
 use crate::sys;
@@ -29,7 +29,7 @@ pub(crate) fn debug_string<T: GodotClass>(
     }
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub(crate) fn debug_string_variant(
     obj: &Variant,
     f: &mut std::fmt::Formatter<'_>,
@@ -64,7 +64,7 @@ pub(crate) fn debug_string_variant(
 }
 
 // Polyfill for Godot < 4.4, where Variant::object_id_unchecked() is not available.
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub(crate) fn debug_string_variant(
     obj: &Variant,
     f: &mut std::fmt::Formatter<'_>,
@@ -174,7 +174,7 @@ where
         let object_ptr = sys::classdb_construct_object(T::class_id().string_sys());
         Gd::<T>::from_obj_sys(object_ptr)
     };
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     obj.upcast_object_mut()
         .notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
 
@@ -211,7 +211,7 @@ pub(crate) fn ensure_object_alive(
     );
 }
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_id: InstanceId) {
     if derived == base
         || base == Object::class_id() // for Object base, anything inherits by definition
@@ -226,7 +226,7 @@ pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_i
     )
 }
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 pub(crate) fn ensure_binding_not_null<T>(binding: sys::GDExtensionClassInstancePtr)
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
@@ -254,7 +254,7 @@ where
 // Implementation of this file
 
 /// Checks if `derived` inherits from `base`, using a cache for _successful_ queries.
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 fn is_derived_base_cached(derived: ClassId, base: ClassId) -> bool {
     use std::collections::HashSet;
 

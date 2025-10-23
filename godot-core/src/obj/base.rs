@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
@@ -27,7 +27,7 @@ thread_local! {
 }
 
 /// Represents the initialization state of a `Base<T>` object.
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum InitState {
     /// Object is being constructed (inside `I*::init()` or `Gd::from_init_fn()`).
@@ -38,14 +38,14 @@ enum InitState {
     Script,
 }
 
-#[cfg(debug_assertions)]
+#[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj, $state)
     };
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj)
@@ -82,7 +82,7 @@ pub struct Base<T: GodotClass> {
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     init_state: Rc<Cell<InitState>>,
 }
 
@@ -101,7 +101,7 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
-            #[cfg(debug_assertions)]
+            #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
             init_state: Rc::clone(&base.init_state),
         }
     }
@@ -141,7 +141,7 @@ impl<T: GodotClass> Base<T> {
         base_from_obj!(obj, InitState::ObjectConstructing)
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -149,7 +149,7 @@ impl<T: GodotClass> Base<T> {
         }
     }
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -289,14 +289,14 @@ impl<T: GodotClass> Base<T> {
     }
 
     // Internal use only, do not make public.
-    #[cfg(feature = "debug-log")]
+    #[cfg(feature = "debug-log")] #[cfg_attr(published_docs, doc(cfg(feature = "debug-log")))]
     pub(crate) fn debug_instance_id(&self) -> crate::obj::InstanceId {
         self.obj.instance_id()
     }
 
     /// Returns a passive reference to the base object, for use in script contexts only.
     pub(crate) fn to_script_passive(&self) -> PassiveGd<T> {
-        #[cfg(debug_assertions)]
+        #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
         assert_eq!(
             self.init_state.get(),
             InitState::Script,
@@ -308,7 +308,7 @@ impl<T: GodotClass> Base<T> {
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     fn is_initializing(&self) -> bool {
         self.init_state.get() == InitState::ObjectConstructing
     }
