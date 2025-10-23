@@ -339,11 +339,16 @@ pub unsafe trait ExtensionLibrary {
     /// # Panics
     /// If the overridden method panics, an error will be printed, but GDExtension loading is **not** aborted.
     #[allow(unused_variables)]
+    #[expect(deprecated)] // Fall back to older API.
     fn on_stage_init(stage: InitStage) {
-        #[expect(deprecated)] // Fall back to older API.
         stage
             .try_to_level()
             .inspect(|&level| Self::on_level_init(level));
+
+        #[cfg(since_api = "4.5")] // Compat layer.
+        if stage == InitStage::MainLoop {
+            Self::on_main_loop_startup();
+        }
     }
 
     /// Custom logic when a certain initialization stage is unloaded.
@@ -356,8 +361,13 @@ pub unsafe trait ExtensionLibrary {
     /// # Panics
     /// If the overridden method panics, an error will be printed, but GDExtension unloading is **not** aborted.
     #[allow(unused_variables)]
+    #[expect(deprecated)] // Fall back to older API.
     fn on_stage_deinit(stage: InitStage) {
-        #[expect(deprecated)] // Fall back to older API.
+        #[cfg(since_api = "4.5")] // Compat layer.
+        if stage == InitStage::MainLoop {
+            Self::on_main_loop_shutdown();
+        }
+
         stage
             .try_to_level()
             .inspect(|&level| Self::on_level_deinit(level));
@@ -374,6 +384,20 @@ pub unsafe trait ExtensionLibrary {
     #[deprecated = "Use `on_stage_deinit()` instead, which also includes the MainLoop stage."]
     #[allow(unused_variables)]
     fn on_level_deinit(level: InitLevel) {
+        // Nothing by default.
+    }
+
+    #[cfg(since_api = "4.5")]
+    #[deprecated = "Use `on_stage_init(InitStage::MainLoop)` instead."]
+    #[doc(hidden)] // Added by mistake -- works but don't advertise.
+    fn on_main_loop_startup() {
+        // Nothing by default.
+    }
+
+    #[cfg(since_api = "4.5")]
+    #[deprecated = "Use `on_stage_deinit(InitStage::MainLoop)` instead."]
+    #[doc(hidden)] // Added by mistake -- works but don't advertise.
+    fn on_main_loop_shutdown() {
         // Nothing by default.
     }
 
