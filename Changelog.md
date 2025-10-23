@@ -10,10 +10,44 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.4.0](#v040)
+- [v0.4.0](#v040), [v0.4.1](#v041)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.4.1](https://docs.rs/godot/0.4.1)
+
+_23 October 2025_
+
+### 🌻 Features
+
+- Add main loop callbacks to `ExtensionLibrary` ([#1313](https://github.com/godot-rust/gdext/pull/1313), [#1380](https://github.com/godot-rust/gdext/pull/1380))
+- Class Docs – register docs in `#[godot_api(secondary)]`, simplify docs registration logic ([#1355](https://github.com/godot-rust/gdext/pull/1355))
+- Codegen: support sys types in engine APIs ([#1363](https://github.com/godot-rust/gdext/pull/1363), [#1365](https://github.com/godot-rust/gdext/pull/1365))
+
+### 📈 Performance
+
+- Use Rust `str` instead of `CStr` in `ClassIdSource` ([#1334](https://github.com/godot-rust/gdext/pull/1334))
+
+### 🧹 Quality of life
+
+- Preserve doc comments for signal ([#1353](https://github.com/godot-rust/gdext/pull/1353))
+- Provide error context for typed array clone check ([#1348](https://github.com/godot-rust/gdext/pull/1348))
+- Improve spans; use tuple type for virtual signatures ([#1370](https://github.com/godot-rust/gdext/pull/1370))
+- Preserve span of arguments for better compile errors ([#1373](https://github.com/godot-rust/gdext/pull/1373))
+- Update to litrs 1.0 ([#1377](https://github.com/godot-rust/gdext/pull/1377))
+- Allow opening itests in editor ([#1379](https://github.com/godot-rust/gdext/pull/1379))
+
+### 🛠️ Bugfixes
+
+- Ease `AsArg<Option<Gd<T>>>` bounds to make it usable with signals ([#1371](https://github.com/godot-rust/gdext/pull/1371))
+- Handle panic in OnReady `auto_init` ([#1351](https://github.com/godot-rust/gdext/pull/1351))
+- Update `GFile::read_as_gstring_entire()` after Godot removes `skip_cr` parameter ([#1349](https://github.com/godot-rust/gdext/pull/1349))
+- Fix `Callable::from_sync_fn` doc example using deprecated `Result<T>` return ([#1347](https://github.com/godot-rust/gdext/pull/1347))
+- Deprecate `#[class(no_init)]` for editor plugins ([#1378](https://github.com/godot-rust/gdext/pull/1378))
+- Initialize and cache proper return value for generic, typed array ([#1357](https://github.com/godot-rust/gdext/pull/1357))
+- Fix hot-reload crashes on macOS when the `.gdextension` file changes ([#1367](https://github.com/godot-rust/gdext/pull/1367))
 
 
 ## [v0.4.0](https://docs.rs/godot/0.4.0)
