@@ -113,6 +113,12 @@ static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::n
 ///
 /// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
 /// a different amount of engine functionality is available. Deinitialization happens in reverse order.
+///
+/// See also:
+// Explicit HTML links because this is re-exported in godot::init, and we can't document a `use` statement.
+/// - [`InitStage`](enum.InitStage.html): all levels + main loop.
+/// - [`ExtensionLibrary::on_stage_init()`](trait.ExtensionLibrary.html#method.on_stage_init)
+/// - [`ExtensionLibrary::on_stage_deinit()`](trait.ExtensionLibrary.html#method.on_stage_deinit)
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum InitLevel {
     /// First level loaded by Godot. Builtin types are available, classes are not.
@@ -165,6 +171,8 @@ impl InitLevel {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[non_exhaustive]
 pub enum InitStage {
     Core,
     Servers,

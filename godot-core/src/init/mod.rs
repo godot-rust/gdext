@@ -445,7 +445,7 @@ pub unsafe trait ExtensionLibrary {
     ///         #[cfg(feature = "nothreads")]
     ///         return None;
     ///
-    ///         // Tell gdext we add a custom suffix to the binary with thread support.
+    ///         // Tell godot-rust we add a custom suffix to the binary with thread support.
     ///         // Please note that this is not needed if "mycrate.threads.wasm" is used.
     ///         // (You could return `None` as well in that particular case.)
     ///         #[cfg(not(feature = "nothreads"))]
@@ -489,17 +489,7 @@ pub enum EditorRunBehavior {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Stage of the Godot initialization process.
-///
-/// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
-/// a different amount of engine functionality is available. Deinitialization happens in reverse order.
-///
-/// See also:
-/// - [`InitStage`] - Extended initialization stage that includes the main loop.
-/// - [`ExtensionLibrary::on_stage_init()`]
-/// - [`ExtensionLibrary::on_stage_deinit()`]
-/// - [`ExtensionLibrary::on_main_loop_frame()`]
-pub type InitLevel = sys::InitLevel;
+pub use sys::InitLevel;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
