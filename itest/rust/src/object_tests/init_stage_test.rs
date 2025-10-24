@@ -5,19 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
-use godot::builtin::Rid;
+use godot::builtin::{Rid, Variant};
 use godot::classes::{Engine, IObject, RenderingServer};
-use godot::init::InitLevel;
+use godot::init::InitStage;
 use godot::obj::{Base, GodotClass, NewAlloc, Singleton};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::Global;
 
 use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
 
-static OBJECT_CALL_HAS_RUN: AtomicBool = AtomicBool::new(false);
-static LEVELS_SEEN: Global<Vec<InitLevel>> = Global::default();
+static STAGES_SEEN: Global<Vec<InitStage>> = Global::default();
 
 #[derive(GodotClass)]
 #[class(base = Object, init)]
@@ -26,57 +23,53 @@ struct SomeObject {}
 #[godot_api]
 impl SomeObject {
     #[func]
-    pub fn set_has_run_true(&self) {
-        OBJECT_CALL_HAS_RUN.store(true, Ordering::Release);
+    pub fn method(&self) -> i32 {
+        356
     }
 
     pub fn test() {
-        assert!(!OBJECT_CALL_HAS_RUN.load(Ordering::Acquire));
         let mut some_object = SomeObject::new_alloc();
         // Need to go through Godot here as otherwise we bypass the failure.
-        some_object.call("set_has_run_true", &[]);
+        let result = some_object.call("method", &[]);
+        assert_eq!(result, Variant::from(356));
+
         some_object.free();
     }
-}
-
-// Ensure that the above function has actually run and succeeded.
-#[itest]
-fn init_level_all_initialized() {
-    assert!(
-        OBJECT_CALL_HAS_RUN.load(Ordering::Relaxed),
-        "Object call function did not run during Core init level"
-    );
 }
 
 // Ensure that we saw all the init levels expected.
 #[itest]
 fn init_level_observed_all() {
-    let levels_seen = LEVELS_SEEN.lock().clone();
+    let actual_stages = STAGES_SEEN.lock().clone();
 
-    assert_eq!(levels_seen[0], InitLevel::Core);
-    assert_eq!(levels_seen[1], InitLevel::Servers);
-    assert_eq!(levels_seen[2], InitLevel::Scene);
+    let mut expected_stages = vec![InitStage::Core, InitStage::Servers, InitStage::Scene];
 
     // In Debug/Editor builds, Editor level is loaded; otherwise not.
-    let level_3 = levels_seen.get(3);
-    if runs_release() {
-        assert_eq!(level_3, None);
-    } else {
-        assert_eq!(level_3, Some(&InitLevel::Editor));
+    if !runs_release() {
+        expected_stages.push(InitStage::Editor);
     }
+
+    // From Godot 4.5, MainLoop level is added.
+    #[cfg(since_api = "4.5")]
+    expected_stages.push(InitStage::MainLoop);
+
+    assert_eq!(actual_stages, expected_stages);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Level-specific callbacks
+// Stage-specific callbacks
 
-pub fn on_level_init(level: InitLevel) {
-    LEVELS_SEEN.lock().push(level);
+pub fn on_stage_init(stage: InitStage) {
+    STAGES_SEEN.lock().push(stage);
 
-    match level {
-        InitLevel::Core => on_init_core(),
-        InitLevel::Servers => on_init_servers(),
-        InitLevel::Scene => on_init_scene(),
-        InitLevel::Editor => on_init_editor(),
+    match stage {
+        InitStage::Core => on_init_core(),
+        InitStage::Servers => on_init_servers(),
+        InitStage::Scene => on_init_scene(),
+        InitStage::Editor => on_init_editor(),
+        #[cfg(since_api = "4.5")]
+        InitStage::MainLoop => on_init_main_loop(),
+        _ => { /* Needed due to #[non_exhaustive] */ }
     }
 }
 
@@ -138,8 +131,9 @@ impl IObject for MainLoopCallbackSingleton {
     }
 }
 
-pub fn on_main_loop_startup() {
-    // RenderingServer should be accessible in MainLoop startup and shutdown.
+#[cfg(since_api = "4.5")]
+fn on_init_main_loop() {
+    // RenderingServer should be accessible in MainLoop init and deinit.
     let singleton = MainLoopCallbackSingleton::new_alloc();
     assert!(singleton.bind().tex.is_valid());
     Engine::singleton().register_singleton(
@@ -148,11 +142,23 @@ pub fn on_main_loop_startup() {
     );
 }
 
-pub fn on_main_loop_frame() {
-    // Nothing yet.
+#[cfg(not(since_api = "4.5"))]
+fn on_init_main_loop() {
+    // Nothing on older API versions.
 }
 
-pub fn on_main_loop_shutdown() {
+pub fn on_stage_deinit(stage: InitStage) {
+    match stage {
+        #[cfg(since_api = "4.5")]
+        InitStage::MainLoop => on_deinit_main_loop(),
+        _ => {
+            // Nothing for other stages yet.
+        }
+    }
+}
+
+#[cfg(since_api = "4.5")]
+fn on_deinit_main_loop() {
     let singleton = Engine::singleton()
         .get_singleton(&MainLoopCallbackSingleton::class_id().to_string_name())
         .unwrap()
@@ -163,4 +169,19 @@ pub fn on_main_loop_shutdown() {
     assert!(tex.is_valid());
     RenderingServer::singleton().free_rid(tex);
     singleton.free();
+}
+
+#[cfg(not(since_api = "4.5"))]
+fn on_deinit_main_loop() {
+    // Nothing on older API versions.
+}
+
+#[cfg(since_api = "4.5")]
+pub fn on_main_loop_frame() {
+    // Nothing yet.
+}
+
+#[cfg(not(since_api = "4.5"))]
+pub fn on_main_loop_frame() {
+    // Nothing on older API versions.
 }

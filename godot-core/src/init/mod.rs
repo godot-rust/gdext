@@ -16,7 +16,7 @@ use crate::out;
 mod reexport_pub {
     #[cfg(not(wasm_nothreads))]
     pub use super::sys::main_thread_id;
-    pub use super::sys::{is_main_thread, GdextBuild};
+    pub use super::sys::{is_main_thread, GdextBuild, InitStage};
 }
 pub use reexport_pub::*;
 
@@ -29,7 +29,7 @@ struct InitUserData {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
-    E::on_main_loop_startup();
+    E::on_stage_init(InitStage::MainLoop);
 }
 
 #[cfg(since_api = "4.5")]
@@ -39,7 +39,7 @@ unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
-    E::on_main_loop_shutdown();
+    E::on_stage_deinit(InitStage::MainLoop);
 }
 
 #[doc(hidden)]
@@ -146,7 +146,7 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
         // SAFETY: Godot will call this from the main thread, after `__gdext_load_library` where the library is initialized,
         // and only once per level.
         unsafe { gdext_on_level_init(level, userdata) };
-        E::on_level_init(level);
+        E::on_stage_init(level.to_stage());
     }
 
     // Swallow panics. TODO consider crashing if gdext init fails.
@@ -172,7 +172,7 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
             drop(Box::from_raw(userdata.cast::<InitUserData>()));
         }
 
-        E::on_level_deinit(level);
+        E::on_stage_deinit(level.to_stage());
         gdext_on_level_deinit(level);
     });
 }
@@ -327,43 +327,118 @@ pub unsafe trait ExtensionLibrary {
         InitLevel::Scene
     }
 
-    /// Custom logic when a certain init-level of Godot is loaded.
+    /// Custom logic when a certain initialization stage is loaded.
     ///
-    /// This will only be invoked for levels >= [`Self::min_level()`], in ascending order. Use `if` or `match` to hook to specific levels.
+    /// This will be invoked for stages >= [`Self::min_level()`], in ascending order. Use `if` or `match` to hook to specific stages.
     ///
+    /// The stages are loaded in order: `Core` → `Servers` → `Scene` → `Editor` (if in editor) → `MainLoop` (4.5+).  \
+    /// The `MainLoop` stage represents the fully initialized state of Godot, after all initialization levels and classes have been loaded.
+    ///
+    /// See also [`on_main_loop_frame()`][Self::on_main_loop_frame] for per-frame processing.
+    ///
+    /// # Panics
     /// If the overridden method panics, an error will be printed, but GDExtension loading is **not** aborted.
+    #[allow(unused_variables)]
+    #[expect(deprecated)] // Fall back to older API.
+    fn on_stage_init(stage: InitStage) {
+        stage
+            .try_to_level()
+            .inspect(|&level| Self::on_level_init(level));
+
+        #[cfg(since_api = "4.5")] // Compat layer.
+        if stage == InitStage::MainLoop {
+            Self::on_main_loop_startup();
+        }
+    }
+
+    /// Custom logic when a certain initialization stage is unloaded.
+    ///
+    /// This will be invoked for stages >= [`Self::min_level()`], in descending order. Use `if` or `match` to hook to specific stages.
+    ///
+    /// The stages are unloaded in reverse order: `MainLoop` (4.5+) → `Editor` (if in editor) → `Scene` → `Servers` → `Core`.  \
+    /// At the time `MainLoop` is deinitialized, all classes are still available.
+    ///
+    /// # Panics
+    /// If the overridden method panics, an error will be printed, but GDExtension unloading is **not** aborted.
+    #[allow(unused_variables)]
+    #[expect(deprecated)] // Fall back to older API.
+    fn on_stage_deinit(stage: InitStage) {
+        #[cfg(since_api = "4.5")] // Compat layer.
+        if stage == InitStage::MainLoop {
+            Self::on_main_loop_shutdown();
+        }
+
+        stage
+            .try_to_level()
+            .inspect(|&level| Self::on_level_deinit(level));
+    }
+
+    /// Old callback before [`on_stage_init()`][Self::on_stage_deinit] was added. Does not support `MainLoop` stage.
+    #[deprecated = "Use `on_stage_init()` instead, which also includes the MainLoop stage."]
     #[allow(unused_variables)]
     fn on_level_init(level: InitLevel) {
         // Nothing by default.
     }
 
-    /// Custom logic when a certain init-level of Godot is unloaded.
-    ///
-    /// This will only be invoked for levels >= [`Self::min_level()`], in descending order. Use `if` or `match` to hook to specific levels.
-    ///
-    /// If the overridden method panics, an error will be printed, but GDExtension unloading is **not** aborted.
+    /// Old callback before [`on_stage_deinit()`][Self::on_stage_deinit] was added. Does not support `MainLoop` stage.
+    #[deprecated = "Use `on_stage_deinit()` instead, which also includes the MainLoop stage."]
     #[allow(unused_variables)]
     fn on_level_deinit(level: InitLevel) {
         // Nothing by default.
     }
 
-    /// Callback that is called after all initialization levels when Godot is fully initialized.
     #[cfg(since_api = "4.5")]
+    #[deprecated = "Use `on_stage_init(InitStage::MainLoop)` instead."]
+    #[doc(hidden)] // Added by mistake -- works but don't advertise.
     fn on_main_loop_startup() {
         // Nothing by default.
     }
 
-    /// Callback that is called for every process frame.
-    ///
-    /// This will run after all `_process()` methods on Node, and before `ScriptServer::frame()`.
     #[cfg(since_api = "4.5")]
-    fn on_main_loop_frame() {
+    #[deprecated = "Use `on_stage_deinit(InitStage::MainLoop)` instead."]
+    #[doc(hidden)] // Added by mistake -- works but don't advertise.
+    fn on_main_loop_shutdown() {
         // Nothing by default.
     }
 
-    /// Callback that is called before Godot is shutdown when it is still fully initialized.
+    /// Callback invoked for every process frame.
+    ///
+    /// This is called during the main loop, after Godot is fully initialized. It runs after all
+    /// [`process()`][crate::classes::INode::process] methods on Node, and before the Godot-internal `ScriptServer::frame()`.
+    /// This is intended to be the equivalent of [`IScriptLanguageExtension::frame()`][`crate::classes::IScriptLanguageExtension::frame()`]
+    /// for GDExtension language bindings that don't use the script API.
+    ///
+    /// # Example
+    /// To hook into startup/shutdown of the main loop, use [`on_stage_init()`][Self::on_stage_init] and
+    /// [`on_stage_deinit()`][Self::on_stage_deinit] and watch for [`InitStage::MainLoop`].
+    ///
+    /// ```no_run
+    /// # use godot::init::*;
+    /// # struct MyExtension;
+    /// #[gdextension]
+    /// unsafe impl ExtensionLibrary for MyExtension {
+    ///     fn on_stage_init(stage: InitStage) {
+    ///         if stage == InitStage::MainLoop {
+    ///             // Startup code after fully initialized.
+    ///         }
+    ///     }
+    ///
+    ///     fn on_main_loop_frame() {
+    ///         // Per-frame logic.
+    ///     }
+    ///
+    ///     fn on_stage_deinit(stage: InitStage) {
+    ///         if stage == InitStage::MainLoop {
+    ///             // Cleanup code before shutdown.
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Panics
+    /// If the overridden method panics, an error will be printed, but execution continues.
     #[cfg(since_api = "4.5")]
-    fn on_main_loop_shutdown() {
+    fn on_main_loop_frame() {
         // Nothing by default.
     }
 
@@ -394,7 +469,7 @@ pub unsafe trait ExtensionLibrary {
     ///         #[cfg(feature = "nothreads")]
     ///         return None;
     ///
-    ///         // Tell gdext we add a custom suffix to the binary with thread support.
+    ///         // Tell godot-rust we add a custom suffix to the binary with thread support.
     ///         // Please note that this is not needed if "mycrate.threads.wasm" is used.
     ///         // (You could return `None` as well in that particular case.)
     ///         #[cfg(not(feature = "nothreads"))]
@@ -438,15 +513,7 @@ pub enum EditorRunBehavior {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Stage of the Godot initialization process.
-///
-/// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
-/// a different amount of engine functionality is available. Deinitialization happens in reverse order.
-///
-/// See also:
-/// - [`ExtensionLibrary::on_level_init()`]
-/// - [`ExtensionLibrary::on_level_deinit()`]
-pub type InitLevel = sys::InitLevel;
+pub use sys::InitLevel;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

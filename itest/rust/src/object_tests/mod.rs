@@ -15,7 +15,7 @@ mod enum_test;
 // `get_property_list` is only supported in Godot 4.3+
 #[cfg(since_api = "4.3")]
 mod get_property_list_test;
-mod init_level_test;
+mod init_stage_test;
 mod object_arg_test;
 mod object_swap_test;
 mod object_test;
@@ -33,4 +33,4 @@ mod virtual_methods_niche_test;
 mod virtual_methods_test;
 
 // Need to test this in the init level method.
-pub use init_level_test::*;
+pub use init_stage_test::*;
