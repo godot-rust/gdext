@@ -171,7 +171,10 @@ impl fmt::Display for ErrorKind {
             Self::FromGodot(from_godot) => write!(f, "{from_godot}"),
             Self::FromVariant(from_variant) => write!(f, "{from_variant}"),
             Self::FromFfi(from_ffi) => write!(f, "{from_ffi}"),
-            Self::Custom(cause) => write!(f, "{cause:?}"),
+            Self::Custom(cause) => match cause {
+                Some(c) => write!(f, "{c}"),
+                None => write!(f, "custom error"),
+            },
         }
     }
 }
