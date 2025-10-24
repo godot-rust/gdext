@@ -116,6 +116,16 @@ pub mod inner {
     pub use crate::gen::builtin_classes::*;
 }
 
+#[macro_export]
+macro_rules! declare_hash_u32_method {
+    ($ ($docs:tt)+ ) => {
+        $( $docs )+
+        pub fn hash_u32(&self) -> u32 {
+            self.as_inner().hash().try_into().expect("Godot hashes are uint32_t")
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion functions
 

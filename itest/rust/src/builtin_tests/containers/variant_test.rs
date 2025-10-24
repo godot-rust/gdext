@@ -713,13 +713,13 @@ fn variant_hash() {
     ];
 
     for variant in hash_is_not_0 {
-        assert_ne!(variant.hash(), 0)
+        assert_ne!(variant.hash_u32(), 0)
     }
     for variant in self_equal {
-        assert_eq!(variant.hash(), variant.hash())
+        assert_eq!(variant.hash_u32(), variant.hash_u32())
     }
 
-    assert_eq!(Variant::nil().hash(), 0);
+    assert_eq!(Variant::nil().hash_u32(), 0);
 
     // It's not guaranteed that different object will have different hash, but it is
     // extremely unlikely for a collision to happen.
