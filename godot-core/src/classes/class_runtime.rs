@@ -8,10 +8,10 @@
 //! Runtime checks and inspection of Godot classes.
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
-#[cfg(safeguards_at_least = "strict")]
+#[cfg(safeguards_strict)]
 use crate::classes::{ClassDb, Object};
 use crate::meta::CallContext;
-#[cfg(safeguards_at_least = "strict")]
+#[cfg(safeguards_strict)]
 use crate::meta::ClassId;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd, Singleton};
 use crate::sys;
@@ -191,7 +191,7 @@ where
     Gd::<T>::from_obj_sys(object_ptr)
 }
 
-#[cfg(safeguards_at_least = "balanced")]
+#[cfg(safeguards_balanced)]
 pub(crate) fn ensure_object_alive(
     instance_id: InstanceId,
     old_object_ptr: sys::GDExtensionObjectPtr,
@@ -212,7 +212,7 @@ pub(crate) fn ensure_object_alive(
     );
 }
 
-#[cfg(safeguards_at_least = "strict")]
+#[cfg(safeguards_strict)]
 pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_id: InstanceId) {
     if derived == base
         || base == Object::class_id() // for Object base, anything inherits by definition
@@ -227,7 +227,7 @@ pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_i
     )
 }
 
-#[cfg(safeguards_at_least = "strict")]
+#[cfg(safeguards_strict)]
 pub(crate) fn ensure_binding_not_null<T>(binding: sys::GDExtensionClassInstancePtr)
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
@@ -255,7 +255,7 @@ where
 // Implementation of this file
 
 /// Checks if `derived` inherits from `base`, using a cache for _successful_ queries.
-#[cfg(safeguards_at_least = "strict")]
+#[cfg(safeguards_strict)]
 fn is_derived_base_cached(derived: ClassId, base: ClassId) -> bool {
     use std::collections::HashSet;
 
