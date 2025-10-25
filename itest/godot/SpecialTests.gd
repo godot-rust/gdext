@@ -57,3 +57,17 @@ func test_collision_object_2d_input_event():
 
 	window.queue_free()
 
+func test_autoload():
+	var fetched = Engine.get_main_loop().get_root().get_node_or_null("/root/MyAutoload")
+	assert_that(fetched != null, "MyAutoload should be loaded")
+
+	var by_class: AutoloadClass = fetched
+	assert_eq(by_class.verify_works(), 787, "Autoload typed by class")
+
+	var by_class_symbol: AutoloadClass = MyAutoload
+	assert_eq(by_class_symbol.verify_works(), 787, "Autoload typed by class")
+
+	# Autoload in GDScript can be referenced by class name or autoload name, however autoload as a type is only available in Godot 4.3+.
+	# See https://github.com/godot-rust/gdext/pull/1381#issuecomment-3446111511.
+	# var by_name: MyAutoload = fetched
+	# assert_eq(by_name.verify_works(), 787, "Autoload typed by name")

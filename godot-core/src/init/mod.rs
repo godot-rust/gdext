@@ -232,6 +232,7 @@ fn gdext_on_level_deinit(level: InitLevel) {
         // No business logic by itself, but ensures consistency if re-initialization (hot-reload on Linux) occurs.
 
         crate::task::cleanup();
+        crate::tools::cleanup();
 
         // Garbage-collect various statics.
         // SAFETY: this is the last time meta APIs are used.

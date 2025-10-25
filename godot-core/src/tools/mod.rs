@@ -10,10 +10,18 @@
 //! Contains functionality that extends existing Godot classes and functions, to make them more versatile
 //! or better integrated with Rust.
 
+mod autoload;
 mod gfile;
 mod save_load;
 mod translate;
 
+pub use autoload::*;
 pub use gfile::*;
 pub use save_load::*;
 pub use translate::*;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub(crate) fn cleanup() {
+    clear_autoload_cache();
+}
