@@ -65,6 +65,7 @@ fn base_init_extracted_gd() {
 
 // Checks bad practice of rug-pulling the base pointer.
 #[itest]
+#[cfg(safeguards_balanced)]
 fn base_init_freed_gd() {
     let mut free_executed = false;
 
@@ -144,27 +145,27 @@ fn verify_complex_init((obj, base): (Gd<RefcBased>, Gd<RefCounted>)) -> Instance
     id
 }
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 #[itest]
 fn base_init_outside_init() {
     let mut obj = Based::new_alloc();
 
     expect_panic("to_init_gd() outside init() function", || {
         let guard = obj.bind_mut();
-        let _gd = guard.base.to_init_gd(); // Panics in Debug builds.
+        let _gd = guard.base.to_init_gd(); // Panics in strict safeguard mode.
     });
 
     obj.free();
 }
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 #[itest]
 fn base_init_to_gd() {
     expect_panic("WithBaseField::to_gd() inside init() function", || {
         let _obj = Gd::<Based>::from_init_fn(|base| {
             let temp_obj = Based { base, i: 999 };
 
-            // Call to self.to_gd() during initialization should panic in Debug builds.
+            // Call to self.to_gd() during initialization should panic in strict safeguard mode.
             let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
 
             temp_obj
