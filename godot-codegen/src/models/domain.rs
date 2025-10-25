@@ -676,15 +676,8 @@ impl FnReturn {
 
     pub fn type_tokens(&self) -> TokenStream {
         match &self.type_ {
-            Some(RustTy::EngineClass { tokens, .. }) => {
-                quote! { Option<#tokens> }
-            }
-            Some(ty) => {
-                quote! { #ty }
-            }
-            _ => {
-                quote! { () }
-            }
+            Some(ty) => ty.to_token_stream(),
+            _ => quote! { () },
         }
     }
 
@@ -726,6 +719,7 @@ pub struct GodotTy {
 pub enum RustTy {
     /// `bool`, `Vector3i`, `Array`, `GString`
     BuiltinIdent { ty: Ident, arg_passing: ArgPassing },
+
     /// Pointers declared in `gdextension_interface` such as `sys::GDExtensionInitializationFunction`
     /// used as parameters in some APIs.
     SysPointerType { tokens: TokenStream },
@@ -761,16 +755,19 @@ pub enum RustTy {
 
     /// `Gd<Node>`
     EngineClass {
-        /// Tokens with full `Gd<T>` (e.g. used in return type position).
-        tokens: TokenStream,
+        /// Tokens with full `Gd<T>`, never `Option<Gd<T>>`.
+        gd_tokens: TokenStream,
 
-        /// Signature declaration with `impl AsArg<Gd<T>>`.
+        /// Signature declaration with `impl AsArg<Gd<T>>` or `impl AsArg<Option<Gd<T>>>`.
         impl_as_object_arg: TokenStream,
 
-        /// only inner `T`
-        #[allow(dead_code)]
-        // only read in minimal config + RustTy::default_extender_field_decl()
+        /// Only inner `Node`.
         inner_class: Ident,
+
+        /// Whether this object parameter/return is nullable in the GDExtension API.
+        ///
+        /// Defaults to true (nullable). Only false when meta="required".
+        is_nullable: bool,
     },
 
     /// Receiver type of default parameters extender constructor.
@@ -789,9 +786,20 @@ impl RustTy {
 
     pub fn return_decl(&self) -> TokenStream {
         match self {
-            Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
             Self::GenericArray => quote! { -> Array<Ret> },
-            other => quote! { -> #other },
+            _ => quote! { -> #self },
+        }
+    }
+
+    /// Returns tokens without `Option<T>` wrapper, even for nullable engine classes.
+    ///
+    /// For `EngineClass`, always returns `Gd<T>` regardless of nullability. For other types, behaves the same as `ToTokens`.
+    // TODO(v0.5): only used for signal params, which is a bug. Those should conservatively be Option<Gd<T>> as well.
+    // Might also be useful to directly extract inner `gd_tokens` field.
+    pub fn tokens_non_null(&self) -> TokenStream {
+        match self {
+            Self::EngineClass { gd_tokens, .. } => gd_tokens.clone(),
+            other => other.to_token_stream(),
         }
     }
 
@@ -849,7 +857,18 @@ impl ToTokens for RustTy {
             } => quote! { *mut #inner }.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::EngineClass {
+                is_nullable,
+                gd_tokens: path,
+                ..
+            } => {
+                // Return nullable-aware type: Option<Gd<T>> if nullable, else Gd<T>.
+                if *is_nullable {
+                    quote! { Option<#path> }.to_tokens(tokens)
+                } else {
+                    path.to_tokens(tokens)
+                }
+            }
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
             RustTy::GenericArray => quote! { Array<Ret> }.to_tokens(tokens),
             RustTy::SysPointerType { tokens: path } => path.to_tokens(tokens),

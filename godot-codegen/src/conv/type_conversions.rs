@@ -67,7 +67,11 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         ("real_t", None) => "real",
         ("void", None) => "c_void",
 
-        (ty, Some(meta)) => panic!("unhandled type {ty:?} with meta {meta:?}"),
+        // meta="required" is a special case of non-null object parameters/return types.
+        // Other metas are unrecognized.
+        (ty, Some(meta)) if meta != "required" => {
+            panic!("unhandled type {ty:?} with meta {meta:?}")
+        }
 
         _ => return None,
     };
@@ -244,13 +248,30 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             arg_passing: ctx.get_builtin_arg_passing(full_ty),
         }
     } else {
-        let ty = rustify_ty(ty);
-        let qualified_class = quote! { crate::classes::#ty };
+        let is_nullable = if cfg!(feature = "experimental-required-objs") {
+            full_ty.meta.as_ref().is_none_or(|m| m != "required")
+        } else {
+            true
+        };
+
+        let inner_class = rustify_ty(ty);
+        let qualified_class = quote! { crate::classes::#inner_class };
+
+        // Stores unwrapped Gd<T> directly in `gd_tokens`.
+        let gd_tokens = quote! { Gd<#qualified_class> };
+
+        // Use Option for `impl_as_object_arg` if nullable.
+        let impl_as_object_arg = if is_nullable {
+            quote! { impl AsArg<Option<Gd<#qualified_class>>> }
+        } else {
+            quote! { impl AsArg<Gd<#qualified_class>> }
+        };
 
         RustTy::EngineClass {
-            tokens: quote! { Gd<#qualified_class> },
-            impl_as_object_arg: quote! { impl AsArg<Option<Gd<#qualified_class>>> },
-            inner_class: ty,
+            gd_tokens,
+            impl_as_object_arg,
+            inner_class,
+            is_nullable,
         }
     }
 }
