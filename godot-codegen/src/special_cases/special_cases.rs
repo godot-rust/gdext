@@ -1210,6 +1210,18 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
     Some(level)
 }
 
+/// Returns names of signal parameters that can be null and should have a `*_nullable` overload.
+#[rustfmt::skip]
+pub fn get_signal_nullable_params(class_name: &TyName, signal_name: &str) -> &'static [&'static str] {
+    match (class_name.godot_ty.as_str(), signal_name) {
+        // EditorPlugin signals that can receive null object parameters.
+        | ("EditorPlugin", "scene_changed") => &["scene_root"],
+        | ("EditorPlugin", "resource_saved") => &["resource"],
+
+        _ => &[],
+    }
+}
+
 /// Whether a generated enum is `pub(crate)`; useful for manual re-exports.
 #[rustfmt::skip]
 pub fn is_enum_private(class_name: Option<&TyName>, enum_name: &str) -> bool {
