@@ -269,8 +269,10 @@ pub fn since_api(major_minor: &str) -> bool {
 }
 
 pub fn emit_safeguard_levels() {
-    let safeguard_modes = ["disengaged", "balanced", "strict"];
+    // Levels: disengaged (0), balanced (1), strict (2)
     let mut safeguards_level = if cfg!(debug_assertions) { 2 } else { 1 };
+
+    // Override default level with Cargo feature, in dev/release profiles.
     #[cfg(debug_assertions)]
     if cfg!(feature = "safeguards-dev-balanced") {
         safeguards_level = 1;
@@ -280,10 +282,14 @@ pub fn emit_safeguard_levels() {
         safeguards_level = 0;
     }
 
-    for mode in safeguard_modes.iter() {
-        println!(r#"cargo:rustc-check-cfg=cfg(safeguards_at_least, values("{mode}"))"#);
+    println!(r#"cargo:rustc-check-cfg=cfg(safeguards_balanced)"#);
+    println!(r#"cargo:rustc-check-cfg=cfg(safeguards_strict)"#);
+
+    // Emit #[cfg]s cumulatively: strict builds get both balanced and strict.
+    if safeguards_level >= 1 {
+        println!(r#"cargo:rustc-cfg=safeguards_balanced"#);
     }
-    for mode in safeguard_modes.iter().take(safeguards_level + 1) {
-        println!(r#"cargo:rustc-cfg=safeguards_at_least="{mode}""#);
+    if safeguards_level >= 2 {
+        println!(r#"cargo:rustc-cfg=safeguards_strict"#);
     }
 }

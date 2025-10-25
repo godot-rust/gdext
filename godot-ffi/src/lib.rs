@@ -255,14 +255,12 @@ pub unsafe fn deinitialize() {
 }
 
 fn safeguards_level_string() -> &'static str {
-    if cfg!(safeguards_at_least = "strict") {
+    if cfg!(safeguards_strict) {
         "strict"
-    } else if cfg!(safeguards_at_least = "balanced") {
+    } else if cfg!(safeguards_balanced) {
         "balanced"
-    } else if cfg!(safeguards_at_least = "disengaged") {
-        "disengaged"
     } else {
-        unreachable!();
+        "disengaged"
     }
 }
 

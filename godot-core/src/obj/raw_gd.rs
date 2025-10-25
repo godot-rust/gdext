@@ -360,7 +360,7 @@ impl<T: GodotClass> RawGd<T> {
         debug_assert!(!self.is_null(), "cannot upcast null object refs");
 
         // In Debug builds, go the long path via Godot FFI to verify the results are the same.
-        #[cfg(safeguards_at_least = "strict")]
+        #[cfg(safeguards_strict)]
         {
             // SAFETY: we forget the object below and do not leave the function before.
             let ffi_dest = self.ffi_cast::<Base>().expect("failed FFI upcast");
@@ -383,10 +383,10 @@ impl<T: GodotClass> RawGd<T> {
 
     /// Verify that the object is non-null and alive. In paranoid mode, additionally verify that it is of type `T` or derived.
     pub(crate) fn check_rtti(&self, method_name: &'static str) {
-        #[cfg(safeguards_at_least = "balanced")]
+        #[cfg(safeguards_balanced)]
         {
             let call_ctx = CallContext::gd::<T>(method_name);
-            #[cfg(safeguards_at_least = "strict")]
+            #[cfg(safeguards_strict)]
             self.check_dynamic_type(&call_ctx);
             let instance_id = unsafe { self.instance_id_unchecked().unwrap_unchecked() };
 
@@ -395,7 +395,7 @@ impl<T: GodotClass> RawGd<T> {
     }
 
     /// Checks only type, not alive-ness. Used in Gd<T> in case of `free()`.
-    #[cfg(safeguards_at_least = "strict")]
+    #[cfg(safeguards_strict)]
     pub(crate) fn check_dynamic_type(&self, call_ctx: &CallContext<'static>) {
         debug_assert!(
             !self.is_null(),
@@ -515,7 +515,7 @@ where
 
         let ptr: sys::GDExtensionClassInstancePtr = binding.cast();
 
-        #[cfg(safeguards_at_least = "strict")]
+        #[cfg(safeguards_strict)]
         crate::classes::ensure_binding_not_null::<T>(ptr);
 
         self.cached_storage_ptr.set(ptr);

@@ -535,14 +535,12 @@ unsafe fn ensure_godot_features_compatible() {
     out!("Check Godot precision setting...");
 
     #[cfg(feature = "debug-log")] // Display safeguards level in debug log.
-    let safeguards_level = if cfg!(safeguards_at_least = "strict") {
+    let safeguards_level = if cfg!(safeguards_strict) {
         "strict"
-    } else if cfg!(safeguards_at_least = "balanced") {
+    } else if cfg!(safeguards_balanced) {
         "balanced"
-    } else if cfg!(safeguards_at_least = "disengaged") {
-        "disengaged"
     } else {
-        "unknown"
+        "disengaged"
     };
     out!("Safeguards: {safeguards_level}");
 

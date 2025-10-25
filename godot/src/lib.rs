@@ -179,7 +179,7 @@
 //!
 //! _Safeguards:_
 //!
-//! See [Safeguard levels](#safeguard-levels). Levels can only be downgraded by 1 at the moment.
+//! See [Safeguard levels](#safeguard-levels).
 //!
 //! * **`safeguards-dev-balanced`**
 //!
