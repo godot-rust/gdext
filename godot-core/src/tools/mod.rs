@@ -19,3 +19,9 @@ pub use autoload::*;
 pub use gfile::*;
 pub use save_load::*;
 pub use translate::*;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub(crate) fn cleanup() {
+    clear_autoload_cache();
+}

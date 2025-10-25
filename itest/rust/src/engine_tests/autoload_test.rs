@@ -9,7 +9,7 @@ use godot::classes::Node;
 use godot::prelude::*;
 use godot::tools::{get_autoload_by_name, try_get_autoload_by_name};
 
-use crate::framework::itest;
+use crate::framework::{itest, quick_thread};
 
 #[derive(GodotClass)]
 #[class(init, base=Node)]
@@ -64,4 +64,29 @@ fn autoload_try_get_named_inexistent() {
 fn autoload_try_get_named_bad_type() {
     let result = try_get_autoload_by_name::<Node2D>("MyAutoload");
     result.expect_err("autoload of incompatible node type");
+}
+
+#[itest]
+fn autoload_from_other_thread() {
+    use std::sync::{Arc, Mutex};
+
+    // We can't return the Result from the thread because Gd<T> is not Send, so we extract the error message instead.
+    let outer_error = Arc::new(Mutex::new(String::new()));
+    let inner_error = Arc::clone(&outer_error);
+
+    quick_thread(move || {
+        let result = try_get_autoload_by_name::<AutoloadClass>("MyAutoload");
+        match result {
+            Ok(_) => panic!("autoload access from non-main thread should fail"),
+            Err(err) => {
+                *inner_error.lock().unwrap() = err.to_string();
+            }
+        }
+    });
+
+    let msg = outer_error.lock().unwrap();
+    assert_eq!(
+        *msg,
+        "Autoloads must be fetched from main thread, as Gd<T> is not thread-safe"
+    );
 }
