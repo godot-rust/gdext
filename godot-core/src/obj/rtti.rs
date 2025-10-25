@@ -21,7 +21,7 @@ pub struct ObjectRtti {
     instance_id: InstanceId,
 
     /// Only in Debug mode: dynamic class.
-    #[cfg(checks_at_least = "paranoid")]
+    #[cfg(safeguards_at_least = "strict")]
     class_name: crate::meta::ClassId,
     //
     // TODO(bromeon): class_id is not always most-derived class; ObjectRtti is sometimes constructed from a base class, via RawGd::from_obj_sys_weak().
@@ -36,7 +36,7 @@ impl ObjectRtti {
         Self {
             instance_id,
 
-            #[cfg(checks_at_least = "paranoid")]
+            #[cfg(safeguards_at_least = "strict")]
             class_name: T::class_id(),
         }
     }
@@ -45,7 +45,7 @@ impl ObjectRtti {
     ///
     /// # Panics
     /// In paranoid mode, if the object is not of type `T` or derived.
-    #[cfg(checks_at_least = "paranoid")]
+    #[cfg(safeguards_at_least = "strict")]
     #[inline]
     pub fn check_type<T: GodotClass>(&self) {
         crate::classes::ensure_object_inherits(self.class_name, T::class_id(), self.instance_id);

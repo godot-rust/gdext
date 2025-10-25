@@ -58,6 +58,47 @@
 //! <br><br>
 //!
 //!
+//! ## Safeguard levels
+//!
+//! godot-rust uses three tiers that differ in the amount of runtime checks and validations that are performed.  \
+//! They can be configured via [Cargo features](#cargo-features).
+//!
+//! - 🛡️ **Strict** (default for dev builds)
+//!
+//!   Lots of additional, sometimes expensive checks. Detects many bugs during development.
+//!   - `Gd::bind/bind_mut()` provides extensive diagnostics to locate runtime borrow errors.
+//!   - `Array` safe conversion checks (for types like `Array<i8>`).
+//!   - RTTI checks on object access (protect against type mismatch edge cases).
+//!   - Geometric invariants (e.g. normalized quaternions).
+//!   - Access to engine APIs outside valid scope.<br><br>
+//!
+//! - ⚖️ **Balanced** (default for release builds)
+//!
+//!   Basic validity and invariant checks, reasonably fast. Within this level, you should not be able to encounter undefined behavior (UB)
+//!   in safe Rust code. Invariant violations may however cause panics and logic errors.
+//!   - Object liveness checks.
+//!   - `Gd::bind/bind_mut()` cause panics on borrow errors.<br><br>
+//!
+//! - ☣️ **Disengaged**
+//!
+//!   Most checks disabled, sacrifices safety for raw speed. This renders a large part of the godot-rust API `unsafe` without polluting the
+//!   code; you opt in via `unsafe impl ExtensionLibrary`.
+//!
+//!   Before using this, measure to ensure you truly need the last bit of performance (balanced should be fast enough for most cases; if not,
+//!   consider bringing it up). Also test your code thoroughly using the other levels first. Undefined behavior and crashes arising
+//!   from using this level are your full responsibility. When reporting a bug, make sure you can reproduce it under the balanced level.
+//!   - Unchecked object access -> instant UB if an object is dead.
+//!   - `Gd::bind/bind_mut()` are unchecked -> UB if mutable aliasing occurs.
+//!
+//! <div class="warning">
+//! <p>Safeguards are a recent addition to godot-rust and need calibrating over time. If you are unhappy with how the <i>balanced</i> level
+//! performs in basic operations, consider bringing it up for discussion. We'd like to offer the <i>disengaged</i> level for power users who
+//! really need it, but it shouldn't be the only choice for decent runtime performance, as it comes with heavy trade-offs.</p>
+//!
+//! <p>As of v0.4, the above checks are not fully implemented yet. Neither are they guarantees; categorization may change over time.</p>
+//! </div>
+//!
+//!
 //! ## Cargo features
 //!
 //! The following features can be enabled for this crate. All of them are off by default.
@@ -114,9 +155,9 @@
 //!
 //!   By default, Wasm threads are enabled and require the flag `"-C", "link-args=-pthread"` in the `wasm32-unknown-unknown` target.
 //!   This must be kept in sync with Godot's Web export settings (threading support enabled). To disable it, use **additionally* the feature
-//!   `experimental-wasm-nothreads`.<br><br>
+//!   `experimental-wasm-nothreads`.
 //!
-//!   It is recommended to use this feature in combination with `lazy-function-tables` to reduce the size of the generated Wasm binary.
+//!   It is recommended to use this feature in combination with `lazy-function-tables` to reduce the size of the generated Wasm binary.<br><br>
 //!
 //! * **`experimental-wasm-nothreads`**
 //!
@@ -136,7 +177,19 @@
 //!   This feature requires at least Godot 4.3.
 //!   See also: [`#[derive(GodotClass)]`](register/derive.GodotClass.html#documentation)
 //!
-//! _Integrations:_
+//! _Safeguards:_
+//!
+//! See [Safeguard levels](#safeguard-levels). Levels can only be downgraded by 1 at the moment.
+//!
+//! * **`safeguards-dev-balanced`**
+//!
+//!   For the `dev` Cargo profile, use the **balanced** safeguard level instead of the default strict level.<br><br>
+//!
+//! * **`safeguards-release-disengaged`**
+//!
+//!   For the `release` Cargo profile, use the **disengaged** safeguard level instead of the default balanced level.
+//!
+//! _Third-party integrations:_
 //!
 //! * **`serde`**
 //!

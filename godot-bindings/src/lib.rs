@@ -268,22 +268,22 @@ pub fn since_api(major_minor: &str) -> bool {
     !before_api(major_minor)
 }
 
-pub fn emit_checks_mode() {
-    let check_modes = ["fast-unsafe", "balanced", "paranoid"];
-    let mut checks_level = if cfg!(debug_assertions) { 2 } else { 1 };
+pub fn emit_safeguard_levels() {
+    let safeguard_modes = ["disengaged", "balanced", "strict"];
+    let mut safeguards_level = if cfg!(debug_assertions) { 2 } else { 1 };
     #[cfg(debug_assertions)]
-    if cfg!(feature = "debug-checks-balanced") {
-        checks_level = 1;
+    if cfg!(feature = "safeguards-dev-balanced") {
+        safeguards_level = 1;
     }
     #[cfg(not(debug_assertions))]
-    if cfg!(feature = "release-checks-fast-unsafe") {
-        checks_level = 0;
+    if cfg!(feature = "safeguards-release-disengaged") {
+        safeguards_level = 0;
     }
 
-    for mode in check_modes.iter() {
-        println!(r#"cargo:rustc-check-cfg=cfg(checks_at_least, values("{mode}"))"#);
+    for mode in safeguard_modes.iter() {
+        println!(r#"cargo:rustc-check-cfg=cfg(safeguards_at_least, values("{mode}"))"#);
     }
-    for mode in check_modes.iter().take(checks_level + 1) {
-        println!(r#"cargo:rustc-cfg=checks_at_least="{mode}""#);
+    for mode in safeguard_modes.iter().take(safeguards_level + 1) {
+        println!(r#"cargo:rustc-cfg=safeguards_at_least="{mode}""#);
     }
 }

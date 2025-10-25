@@ -189,7 +189,7 @@ pub(crate) enum FromGodotError {
     },
 
     /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
-    #[cfg(checks_at_least = "paranoid")]
+    #[cfg(safeguards_at_least = "strict")]
     BadArrayTypeInt {
         expected_int_type: &'static str,
         value: i64,
@@ -234,7 +234,7 @@ impl fmt::Display for FromGodotError {
 
                 write!(f, "expected array of type {exp_class}, got {act_class}")
             }
-            #[cfg(checks_at_least = "paranoid")]
+            #[cfg(safeguards_at_least = "strict")]
             Self::BadArrayTypeInt {
                 expected_int_type,
                 value,

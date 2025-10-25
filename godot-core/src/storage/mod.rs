@@ -123,14 +123,14 @@ mod log_inactive {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tracking borrows in Debug mode
 
-#[cfg(checks_at_least = "paranoid")]
+#[cfg(safeguards_at_least = "strict")]
 use borrow_info::DebugBorrowTracker;
-#[cfg(not(checks_at_least = "paranoid"))]
+#[cfg(not(safeguards_at_least = "strict"))]
 use borrow_info_noop::DebugBorrowTracker;
 
 use crate::obj::{Base, GodotClass};
 
-#[cfg(checks_at_least = "paranoid")]
+#[cfg(safeguards_at_least = "strict")]
 mod borrow_info {
     use std::backtrace::Backtrace;
     use std::fmt;
@@ -195,7 +195,7 @@ mod borrow_info {
     }
 }
 
-#[cfg(not(checks_at_least = "paranoid"))]
+#[cfg(not(safeguards_at_least = "strict"))]
 mod borrow_info_noop {
     use std::fmt;
 

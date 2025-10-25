@@ -311,8 +311,12 @@ fn gdext_on_level_deinit(level: InitLevel) {
 /// responsible to uphold them: namely in GDScript code or other GDExtension bindings loaded by the engine.
 /// Violating this may cause undefined behavior, even when invoking _safe_ functions.
 ///
+/// If you use the `disengaged` [safeguard level], you accept that UB becomes possible even **in safe Rust APIs**, if you use them wrong
+/// (e.g. accessing a destroyed object).
+///
 /// [gdextension]: attr.gdextension.html
 /// [safety]: https://godot-rust.github.io/book/gdext/advanced/safety.html
+/// [safeguard level]: ../index.html#safeguard-levels
 // FIXME intra-doc link
 #[doc(alias = "entry_symbol", alias = "entry_point")]
 pub unsafe trait ExtensionLibrary {
@@ -529,6 +533,18 @@ unsafe fn ensure_godot_features_compatible() {
     // later, and godot-core would only depend on godot-sys. This makes future migrations easier. We still have access to builtins though.
 
     out!("Check Godot precision setting...");
+
+    #[cfg(feature = "debug-log")] // Display safeguards level in debug log.
+    let safeguards_level = if cfg!(safeguards_at_least = "strict") {
+        "strict"
+    } else if cfg!(safeguards_at_least = "balanced") {
+        "balanced"
+    } else if cfg!(safeguards_at_least = "disengaged") {
+        "disengaged"
+    } else {
+        "unknown"
+    };
+    out!("Safeguards: {safeguards_level}");
 
     let os_class = StringName::from("OS");
     let single = GString::from("single");

@@ -33,8 +33,9 @@ api-custom = ["dep:bindgen", "dep:regex", "dep:which"]
 api-custom-json = ["dep:nanoserde", "dep:bindgen", "dep:regex", "dep:which"]
 api-custom-extheader = []
 
-debug-checks-balanced = []
-release-checks-fast-unsafe = []
+# Safeguard levels (see godot/lib.rs for detailed documentation).
+safeguards-dev-balanced = []
+safeguards-release-disengaged = []
 
 [dependencies]
 gdextension-api = { workspace = true }

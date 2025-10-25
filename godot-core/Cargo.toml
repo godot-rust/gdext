@@ -38,8 +38,9 @@ api-4-4 = ["godot-ffi/api-4-4"]
 api-4-5 = ["godot-ffi/api-4-5"]
 # ]]
 
-debug-checks-balanced = ["godot-ffi/debug-checks-balanced"]
-release-checks-fast-unsafe = ["godot-ffi/release-checks-fast-unsafe"]
+# Safeguard levels (see godot/lib.rs for detailed documentation).
+safeguards-dev-balanced = ["godot-ffi/safeguards-dev-balanced"]
+safeguards-release-disengaged = ["godot-ffi/safeguards-release-disengaged"]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi", version = "=0.4.1" }
