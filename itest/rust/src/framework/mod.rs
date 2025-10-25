@@ -200,6 +200,14 @@ pub fn expect_panic(context: &str, code: impl FnOnce()) {
     );
 }
 
+/// Run for code that panics in *strict* and *balanced* safeguard levels, but cause UB in *disengaged* level.
+///
+/// The code is not executed for the latter.
+pub fn expect_panic_or_ub(_context: &str, _code: impl FnOnce()) {
+    #[cfg(safeguards_balanced)]
+    expect_panic(_context, _code);
+}
+
 pin_project_lite::pin_project! {
     pub struct ExpectPanicFuture<T: std::future::Future> {
         context: &'static str,

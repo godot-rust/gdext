@@ -10,7 +10,7 @@ use godot::builtin::Vector2;
 use godot::classes::notify::ObjectNotification;
 use godot::classes::{ClassDb, IRefCounted, RefCounted};
 use godot::meta::ToGodot;
-use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, Singleton, WithBaseField};
+use godot::obj::{Base, Gd, InstanceId, NewGd, Singleton, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::task::TaskHandle;
 
@@ -65,13 +65,14 @@ fn base_init_extracted_gd() {
 
 // Checks bad practice of rug-pulling the base pointer.
 #[itest]
+#[cfg(safeguards_balanced)]
 fn base_init_freed_gd() {
     let mut free_executed = false;
 
     expect_panic("base object is destroyed", || {
         let _obj = Gd::<Based>::from_init_fn(|base| {
             let obj = base.to_init_gd();
-            obj.free(); // Causes the problem, but doesn't panic yet.
+            obj.free(); // Causes the problem, but doesn't panic yet. UB in safeguards-disengaged.
             free_executed = true;
 
             Based { base, i: 456 }
@@ -144,27 +145,28 @@ fn verify_complex_init((obj, base): (Gd<RefcBased>, Gd<RefCounted>)) -> Instance
     id
 }
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 #[itest]
 fn base_init_outside_init() {
+    use godot::obj::NewAlloc;
     let mut obj = Based::new_alloc();
 
     expect_panic("to_init_gd() outside init() function", || {
         let guard = obj.bind_mut();
-        let _gd = guard.base.to_init_gd(); // Panics in Debug builds.
+        let _gd = guard.base.to_init_gd(); // Panics in strict safeguard mode.
     });
 
     obj.free();
 }
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 #[itest]
 fn base_init_to_gd() {
     expect_panic("WithBaseField::to_gd() inside init() function", || {
         let _obj = Gd::<Based>::from_init_fn(|base| {
             let temp_obj = Based { base, i: 999 };
 
-            // Call to self.to_gd() during initialization should panic in Debug builds.
+            // Call to self.to_gd() during initialization should panic in strict safeguard mode.
             let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
 
             temp_obj

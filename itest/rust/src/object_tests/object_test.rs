@@ -22,7 +22,7 @@ use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singlet
 use godot::register::{godot_api, GodotClass};
 use godot::sys::{self, interface_fn, GodotFfi};
 
-use crate::framework::{expect_panic, itest, TestContext};
+use crate::framework::{expect_panic, expect_panic_or_ub, itest, TestContext};
 
 // TODO:
 // * make sure that ptrcalls are used when possible (i.e. when type info available; maybe GDScript integration test)
@@ -171,7 +171,7 @@ fn object_instance_id_when_freed() {
     node.clone().free(); // destroys object without moving out of reference
     assert!(!node.is_instance_valid());
 
-    expect_panic("instance_id() on dead object", move || {
+    expect_panic_or_ub("instance_id() on dead object", move || {
         node.instance_id();
     });
 }
@@ -235,7 +235,7 @@ fn object_user_bind_after_free() {
     let copy = obj.clone();
     obj.free();
 
-    expect_panic("bind() on dead user object", move || {
+    expect_panic_or_ub("bind() on dead user object", move || {
         let _ = copy.bind();
     });
 }
@@ -247,7 +247,7 @@ fn object_user_free_during_bind() {
 
     let copy = obj.clone(); // TODO clone allowed while bound?
 
-    expect_panic("direct free() on user while it's bound", move || {
+    expect_panic_or_ub("direct free() on user while it's bound", move || {
         copy.free();
     });
 
@@ -275,7 +275,7 @@ fn object_engine_freed_argument_passing(ctx: &TestContext) {
 
     // Destroy object and then pass it to a Godot engine API.
     node.free();
-    expect_panic("pass freed Gd<T> to Godot engine API (T=Node)", || {
+    expect_panic_or_ub("pass freed Gd<T> to Godot engine API (T=Node)", || {
         tree.add_child(&node2);
     });
 }
@@ -288,10 +288,10 @@ fn object_user_freed_casts() {
 
     // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
     obj.free();
-    expect_panic("Gd<T>::upcast() on dead object (T=user)", || {
+    expect_panic_or_ub("Gd<T>::upcast() on dead object (T=user)", || {
         let _ = obj2.upcast::<Object>();
     });
-    expect_panic("Gd<T>::cast() on dead object (T=user)", || {
+    expect_panic_or_ub("Gd<T>::cast() on dead object (T=user)", || {
         let _ = base_obj.cast::<ObjPayload>();
     });
 }
@@ -306,7 +306,7 @@ fn object_user_freed_argument_passing() {
 
     // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
     obj.free();
-    expect_panic("pass freed Gd<T> to Godot engine API (T=user)", || {
+    expect_panic_or_ub("pass freed Gd<T> to Godot engine API (T=user)", || {
         engine.register_singleton("NeverRegistered", &obj2);
     });
 }
@@ -344,7 +344,7 @@ fn object_user_call_after_free() {
     let mut copy = obj.clone();
     obj.free();
 
-    expect_panic("call() on dead user object", move || {
+    expect_panic_or_ub("call() on dead user object", move || {
         let _ = copy.call("get_instance_id", &[]);
     });
 }
@@ -355,7 +355,7 @@ fn object_engine_use_after_free() {
     let copy = node.clone();
     node.free();
 
-    expect_panic("call method on dead engine object", move || {
+    expect_panic_or_ub("call method on dead engine object", move || {
         copy.get_position();
     });
 }
@@ -366,7 +366,7 @@ fn object_engine_use_after_free_varcall() {
     let mut copy = node.clone();
     node.free();
 
-    expect_panic("call method on dead engine object", move || {
+    expect_panic_or_ub("call method on dead engine object", move || {
         copy.call_deferred("get_position", &[]);
     });
 }
@@ -411,13 +411,13 @@ fn object_dead_eq() {
 
     {
         let lhs = a.clone();
-        expect_panic("Gd::eq() panics when one operand is dead", move || {
+        expect_panic_or_ub("Gd::eq() panics when one operand is dead", move || {
             let _ = lhs == b;
         });
     }
     {
         let rhs = a.clone();
-        expect_panic("Gd::ne() panics when one operand is dead", move || {
+        expect_panic_or_ub("Gd::ne() panics when one operand is dead", move || {
             let _ = b2 != rhs;
         });
     }
@@ -826,7 +826,7 @@ fn object_engine_manual_double_free() {
     let node2 = node.clone();
     node.free();
 
-    expect_panic("double free()", move || {
+    expect_panic_or_ub("double free()", move || {
         node2.free();
     });
 }
@@ -845,7 +845,7 @@ fn object_user_double_free() {
     let obj2 = obj.clone();
     obj.call("free", &[]);
 
-    expect_panic("double free()", move || {
+    expect_panic_or_ub("double free()", move || {
         obj2.free();
     });
 }

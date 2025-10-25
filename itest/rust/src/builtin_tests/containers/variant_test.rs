@@ -21,7 +21,7 @@ use godot::obj::{Gd, InstanceId, NewAlloc, NewGd};
 use godot::sys::GodotFfi;
 
 use crate::common::roundtrip;
-use crate::framework::{expect_panic, itest, runs_release};
+use crate::framework::{expect_panic, expect_panic_or_ub, itest, runs_release};
 
 const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(1.0, 2.0, 3.0),
@@ -272,7 +272,7 @@ fn variant_dead_object_conversions() {
     );
 
     // Variant::to().
-    expect_panic("Variant::to() with dead object should panic", || {
+    expect_panic_or_ub("Variant::to() with dead object should panic", || {
         let _: Gd<Node> = variant.to();
     });
 
@@ -361,15 +361,15 @@ fn variant_array_from_untyped_conversions() {
     )
 }
 
-// Same builtin type INT, but incompatible integers (Debug-only).
+// Same builtin type INT, but incompatible integers (strict-safeguards only).
 #[itest]
 fn variant_array_bad_integer_conversions() {
     let i32_array: Array<i32> = array![1, 2, 160, -40];
     let i32_variant = i32_array.to_variant();
     let i8_back = i32_variant.try_to::<Array<i8>>();
 
-    // In Debug mode, we expect an error upon conversion.
-    #[cfg(debug_assertions)]
+    // In strict safeguard mode, we expect an error upon conversion.
+    #[cfg(safeguards_strict)]
     {
         let err = i8_back.expect_err("Array<i32> -> Array<i8> conversion should fail");
         assert_eq!(
@@ -378,8 +378,8 @@ fn variant_array_bad_integer_conversions() {
         )
     }
 
-    // In Release mode, we expect the conversion to succeed, but a panic to occur on element access.
-    #[cfg(not(debug_assertions))]
+    // In balanced/disengaged modes, we expect the conversion to succeed, but a panic to occur on element access.
+    #[cfg(not(safeguards_strict))]
     {
         let i8_array = i8_back.expect("Array<i32> -> Array<i8> conversion should succeed");
         expect_panic("accessing element 160 as i8 should panic", || {
