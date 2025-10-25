@@ -291,9 +291,10 @@ impl SignalParams {
         for param in params.iter() {
             let param_name = safe_ident(&param.name.to_string());
             let param_ty = &param.type_;
+            let param_ty_tokens = param_ty.tokens_non_null();
 
-            param_list.extend(quote! { #param_name: #param_ty, });
-            type_list.extend(quote! { #param_ty, });
+            param_list.extend(quote! { #param_name: #param_ty_tokens, });
+            type_list.extend(quote! { #param_ty_tokens, });
             name_list.extend(quote! { #param_name, });
 
             let formatted_ty = match param_ty {
