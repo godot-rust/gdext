@@ -163,6 +163,8 @@ runs:
         # Instead of modifying .gdextension, rename the output directory.
         if [[ -n "$TARGET" ]]; then
           rm -rf target/debug target/release
+          echo "ls -la target/$TARGET:"
+          ls -la target/$TARGET
           mv target/$TARGET/debug target || mv target/$TARGET/release target
         fi
       shell: bash
