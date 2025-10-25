@@ -238,6 +238,7 @@ pub struct JsonMethodArg {
     pub name: String,
     #[nserde(rename = "type")]
     pub type_: String,
+    /// Extra information about the type (e.g. which integer). Value "required" indicates non-nullable class types (Godot 4.6+).
     pub meta: Option<String>,
     pub default_value: Option<String>,
 }
@@ -247,6 +248,7 @@ pub struct JsonMethodArg {
 pub struct JsonMethodReturn {
     #[nserde(rename = "type")]
     pub type_: String,
+    /// Extra information about the type (e.g. which integer). Value "required" indicates non-nullable class types (Godot 4.6+).
     pub meta: Option<String>,
 }
 
