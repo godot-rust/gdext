@@ -272,6 +272,7 @@ fn main() {
     rustfmt_if_needed(vec![rust_file]);
 
     godot_bindings::emit_godot_version_cfg();
+    godot_bindings::emit_safeguard_levels();
 
     // The godot crate has a __codegen-full default feature that enables the godot-codegen/codegen-full feature. When compiling the entire
     // workspace itest also gets compiled with full codegen due to feature unification. This causes compiler errors since the
