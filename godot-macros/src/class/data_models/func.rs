@@ -302,11 +302,7 @@ fn make_forwarding_closure(
                     _ => unreachable!("unexpected receiver type"), // checked above.
                 };
 
-                let rust_sig_name = format_ident!("Sig_{method_name}");
-
-                sig_tuple_annotation = quote! {
-                    : ::godot::private::virtuals::#trait_base_class::#rust_sig_name
-                };
+                sig_tuple_annotation = make_sig_tuple_annotation(trait_base_class, method_name);
 
                 let method_invocation = TokenStream::from_iter(
                     quote! {<#class_name as #interface_trait>::#method_name}
@@ -346,10 +342,17 @@ fn make_forwarding_closure(
         ReceiverType::GdSelf => {
             // Method call is always present, since GdSelf implies that the user declares the method.
             // (Absent method is only used in the case of a generated default virtual method, e.g. for ready()).
+
+            let sig_tuple_annotation = if interface_trait.is_some() {
+                make_sig_tuple_annotation(trait_base_class, method_name)
+            } else {
+                TokenStream::new()
+            };
+
             quote! {
                 |instance_ptr, params| {
                     // Not using `virtual_sig`, since virtual methods with `#[func(gd_self)]` are being moved out of the trait to inherent impl.
-                    let #params_tuple = #param_ident;
+                    let #params_tuple #sig_tuple_annotation = #param_ident;
 
                     let storage =
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
@@ -634,6 +637,19 @@ fn make_varcall_invocation(wrapped_method: &TokenStream) -> TokenStream {
 fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream {
     quote! {
         ::godot::meta::CallContext::func(#class_name_str, #method_name_str)
+    }
+}
+
+/// Returns a type annotation for the tuple corresponding to the signature declared on given ITrait method,
+/// allowing to validate params for a generated method call at compile time.
+///
+/// For example `::godot::private::virtuals::Node::Sig_physics_process` is `(f64, )`,
+/// thus `let params: ::godot::private::virtuals::Node::Sig_physics_process = ();`
+/// will not compile.
+fn make_sig_tuple_annotation(trait_base_class: &Ident, method_name: &Ident) -> TokenStream {
+    let rust_sig_name = format_ident!("Sig_{method_name}");
+    quote! {
+        : ::godot::private::virtuals::#trait_base_class::#rust_sig_name
     }
 }
 
