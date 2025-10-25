@@ -15,6 +15,10 @@ run/main_scene="res://TestRunner.tscn"
 config/features=PackedStringArray("4.2")
 run/flush_stdout_on_print=true
 
+[autoload]
+
+MyAutoload="*res://gdscript_tests/AutoloadScene.tscn"
+
 [debug]
 
 gdscript/warnings/shadowed_variable=0

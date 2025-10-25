@@ -6,6 +6,7 @@
  */
 
 mod async_test;
+mod autoload_test;
 mod codegen_enums_test;
 mod codegen_test;
 mod engine_enum_test;
