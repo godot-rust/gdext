@@ -162,8 +162,8 @@ runs:
         
         # Instead of modifying .gdextension, rename the output directory.
         if [[ -n "$TARGET" ]]; then
-          rm -rf target/debug
-          mv target/$TARGET/debug target
+          rm -rf target/debug target/release
+          mv target/$TARGET/debug target || mv target/$TARGET/release target
         fi
       shell: bash
 

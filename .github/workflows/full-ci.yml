@@ -326,7 +326,7 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             # Important to keep both experimental-threads and codegen-full. Some itests (native_st_audio) require both.
-            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs,godot/safeguards-dev-balanced
+            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
 
           # Compiles godot-rust with `api-custom-json` feature against the JSON file generated via `--dump-extension-api`.
           # Uses latest 4.x headers, while `extension_api.json` comes from the latest Godot binary.
@@ -345,13 +345,6 @@ jobs:
             # If the experimental part causes problems, downgrade to `codegen-full`.
             rust-extra-args: --release --features itest/codegen-full-experimental
             rust-cache-key: release
-
-          - name: linux-release-disengaged
-            os: ubuntu-22.04
-            artifact-name: linux-release-nightly
-            godot-binary: godot.linuxbsd.template_release.x86_64
-            rust-extra-args: --release --features itest/codegen-full-experimental,godot/safeguards-release-disengaged
-            rust-cache-key: release-disengaged
 
           # Linux compat:
           # No hot-reload before 4.4, as the Godot project is 4.4+.
@@ -400,6 +393,27 @@ jobs:
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             rust-extra-args: --features godot/api-custom
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
+
+          # To enable, this needs to rewrite .gdextension `debug` entry to the `release` dylib, otherwise we get error:
+          # mv: cannot stat 'target/x86_64-unknown-linux-gnu/debug': No such file or directory
+          #
+          - name: linux-memcheck-release-disengaged
+            os: ubuntu-22.04
+            artifact-name: linux-memcheck-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            rust-extra-args: --release --features itest/codegen-full-experimental,godot/safeguards-release-disengaged
+            rust-target: x86_64-unknown-linux-gnu
+
+          - name: linux-memcheck-dev-balanced
+            os: ubuntu-22.04
+            artifact-name: linux-memcheck-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            rust-extra-args: --features itest/codegen-full-experimental,godot/safeguards-dev-balanced
             rust-target: x86_64-unknown-linux-gnu
 
           - name: linux-memcheck-4.2
