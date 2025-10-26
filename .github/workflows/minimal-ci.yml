@@ -210,9 +210,9 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.2.2'
 
-          # Memory checkers
+          # Memory checkers (always Linux).
 
-          - name: linux-memcheck
+          - name: memcheck
             os: ubuntu-22.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
@@ -220,6 +220,27 @@ jobs:
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             rust-extra-args: --features godot/api-custom
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
+
+          - name: memcheck-release-disengaged
+            os: ubuntu-22.04
+            artifact-name: linux-memcheck-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            # Currently without itest/codegen-full-experimental.
+            rust-extra-args: --release --features godot/safeguards-release-disengaged
+            rust-target: x86_64-unknown-linux-gnu
+            rust-target-dir: release # We're running Godot debug build with Rust release dylib.
+
+          - name: memcheck-dev-balanced
+            os: ubuntu-22.04
+            artifact-name: linux-memcheck-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            # Currently without itest/codegen-full-experimental.
+            rust-extra-args: --features godot/safeguards-dev-balanced
             rust-target: x86_64-unknown-linux-gnu
 
     steps:
@@ -236,6 +257,7 @@ jobs:
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
           rust-target: ${{ matrix.rust-target }}
+          rust-target-dir: ${{ matrix.rust-target-dir }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
           godot-indirect-json: ${{ matrix.godot-indirect-json }}

@@ -56,6 +56,11 @@ inputs:
     default: ''
     description: "If provided, acts as an argument for '--target', and results in output files written to ./target/{target}"
 
+  rust-target-dir:
+    required: false
+    default: ''
+    description: "If provided, determines where to find the generated dylib. Example: 'release' if Godot editor build would look for debug otherwise."
+
   rust-cache-key:
     required: false
     default: ''
@@ -151,6 +156,7 @@ runs:
       env:
         RUSTFLAGS: ${{ inputs.rust-env-rustflags }}
         TARGET: ${{ inputs.rust-target }}
+        OUTPUT_DIR: ${{ inputs.rust-target-dir || 'debug' }}
       run: |
         targetArgs=""
         if [[ -n "$TARGET" ]]; then
@@ -162,8 +168,23 @@ runs:
         
         # Instead of modifying .gdextension, rename the output directory.
         if [[ -n "$TARGET" ]]; then
-          rm -rf target/debug
-          mv target/$TARGET/debug target
+          rm -rf target/debug target/release
+          echo "Build output (tree -L 2 target/$TARGET/$OUTPUT_DIR):"
+          tree -L 2 target/$TARGET/$OUTPUT_DIR || echo "(tree not installed)"
+          mv target/$TARGET/$OUTPUT_DIR target/ || {
+            echo "::error::Output dir $TARGET/$OUTPUT_DIR not found"
+            exit 1
+          }
+        #  echo "Intermediate dir (tree -L 2 target):"
+        #  tree -L 2 target || echo "(tree not installed)"
+          if [[ "$OUTPUT_DIR" != "debug" ]]; then
+            mv target/$OUTPUT_DIR target/debug
+          fi
+          echo "Resulting dir (tree -L 2 target):"
+          tree -L 2 target || echo "(tree not installed)"
+        #  echo "itest.gdextension contents:"
+        #  cat itest/godot/itest.gdextension
+        #  echo "----------------------------------------------------"
         fi
       shell: bash
 
