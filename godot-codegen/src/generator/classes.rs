@@ -192,12 +192,14 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let (assoc_memory, assoc_dyn_memory, is_exportable) = make_bounds(class, ctx);
 
     let internal_methods = quote! {
-        fn __checked_id(&self) -> Option<crate::obj::InstanceId> {
-            // SAFETY: only Option due to layout-compatibility with RawGd<T>; it is always Some because stored in Gd<T> which is non-null.
-            let rtti = unsafe { self.rtti.as_ref().unwrap_unchecked() };
-            #[cfg(safeguards_strict)]
-            rtti.check_type::<Self>();
-            Some(rtti.instance_id())
+        /// Creates a validated object for FFI boundary crossing.
+        ///
+        /// Low-level internal method. Validation (liveness/type checks) depend on safeguard level.
+        fn __validated_obj(&self) -> crate::obj::ValidatedObject {
+            // SAFETY: Self has the same layout as RawGd<Self> (object_ptr + rtti fields in same order).
+            let raw_gd = unsafe { std::mem::transmute::<&Self, &crate::obj::RawGd<Self>>(self) };
+
+            raw_gd.validated_object()
         }
 
         #[doc(hidden)]
@@ -580,10 +582,10 @@ fn make_class_method_definition(
 
     let table_index = ctx.get_table_index(&MethodTableKey::from_class(class, method));
 
-    let maybe_instance_id = if method.qualifier() == FnQualifier::Static {
+    let validated_obj = if method.qualifier() == FnQualifier::Static {
         quote! { None }
     } else {
-        quote! { self.__checked_id() }
+        quote! { Some(self.__validated_obj()) }
     };
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
@@ -599,7 +601,6 @@ fn make_class_method_definition(
         quote! { fptr_by_index(#table_index) }
     };
 
-    let object_ptr = &receiver.ffi_arg;
     let ptrcall_invocation = quote! {
         let method_bind = sys::#get_method_table().#fptr_access;
 
@@ -607,8 +608,7 @@ fn make_class_method_definition(
             method_bind,
             #rust_class_name,
             #rust_method_name,
-            #object_ptr,
-            #maybe_instance_id,
+            #validated_obj,
             args,
         )
     };
@@ -620,8 +620,7 @@ fn make_class_method_definition(
             method_bind,
             #rust_class_name,
             #rust_method_name,
-            #object_ptr,
-            #maybe_instance_id,
+            #validated_obj,
             args,
             varargs
         )

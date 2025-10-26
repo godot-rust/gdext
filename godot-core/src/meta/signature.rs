@@ -17,7 +17,7 @@ use crate::meta::{
     FromGodot, GodotConvert, GodotType, InParamTuple, MethodParamOrReturnInfo, OutParamTuple,
     ParamTuple, ToGodot,
 };
-use crate::obj::{GodotClass, InstanceId};
+use crate::obj::{GodotClass, ValidatedObject};
 
 pub(super) type CallResult<R> = Result<R, CallError>;
 
@@ -62,7 +62,6 @@ where
     /// Receive a varcall from Godot, and return the value in `ret` as a variant pointer.
     ///
     /// # Safety
-    ///
     /// A call to this function must be caused by Godot making a varcall with parameters `Params` and return type `Ret`.
     #[inline]
     pub unsafe fn in_varcall(
@@ -126,8 +125,6 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
     /// Make a varcall to the Godot engine for a class method.
     ///
     /// # Safety
-    ///
-    /// - `object_ptr` must be a live instance of a class with the type expected by `method_bind`
     /// - `method_bind` must expect explicit args `args`, varargs `varargs`, and return a value of type `Ret`
     #[inline]
     pub unsafe fn out_class_varcall(
@@ -135,20 +132,12 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         // Separate parameters to reduce tokens in generated class API.
         class_name: &'static str,
         method_name: &'static str,
-        object_ptr: sys::GDExtensionObjectPtr,
-        maybe_instance_id: Option<InstanceId>, // if not static
+        validated_obj: Option<ValidatedObject>,
         args: Params,
         varargs: &[Variant],
     ) -> CallResult<Ret> {
         let call_ctx = CallContext::outbound(class_name, method_name);
         //$crate::out!("out_class_varcall: {call_ctx}");
-
-        // Note: varcalls are not safe from failing, if they happen through an object pointer -> validity check necessary.
-        // paranoid since we already check the validity in check_rtti, this is unlikely to happen.
-        #[cfg(safeguards_strict)]
-        if let Some(instance_id) = maybe_instance_id {
-            crate::classes::ensure_object_alive(instance_id, object_ptr, &call_ctx);
-        }
 
         let class_fn = sys::interface_fn!(object_method_bind_call);
 
@@ -162,7 +151,7 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
                     let mut err = sys::default_call_error();
                     class_fn(
                         method_bind.0,
-                        object_ptr,
+                        ValidatedObject::object_ptr(validated_obj.as_ref()),
                         variant_ptrs.as_ptr(),
                         variant_ptrs.len() as i64,
                         return_ptr,
@@ -290,8 +279,6 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
     /// Make a ptrcall to the Godot engine for a class method.
     ///
     /// # Safety
-    ///
-    /// - `object_ptr` must be a live instance of a class with the type expected by `method_bind`
     /// - `method_bind` must expect explicit args `args`, and return a value of type `Ret`
     #[inline]
     pub unsafe fn out_class_ptrcall(
@@ -299,18 +286,11 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         // Separate parameters to reduce tokens in generated class API.
         class_name: &'static str,
         method_name: &'static str,
-        object_ptr: sys::GDExtensionObjectPtr,
-        maybe_instance_id: Option<InstanceId>, // if not static
+        validated_obj: Option<ValidatedObject>,
         args: Params,
     ) -> Ret {
         let call_ctx = CallContext::outbound(class_name, method_name);
         // $crate::out!("out_class_ptrcall: {call_ctx}");
-
-        // paranoid since we already check the validity in check_rtti, this is unlikely to happen.
-        #[cfg(safeguards_strict)]
-        if let Some(instance_id) = maybe_instance_id {
-            crate::classes::ensure_object_alive(instance_id, object_ptr, &call_ctx);
-        }
 
         let class_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
@@ -318,7 +298,7 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
             Self::raw_ptrcall(args, &call_ctx, |explicit_args, return_ptr| {
                 class_fn(
                     method_bind.0,
-                    object_ptr,
+                    ValidatedObject::object_ptr(validated_obj.as_ref()),
                     explicit_args.as_ptr(),
                     return_ptr,
                 );

@@ -10,10 +10,13 @@
 use crate::builtin::{GString, StringName, Variant, VariantType};
 #[cfg(safeguards_strict)]
 use crate::classes::{ClassDb, Object};
+#[cfg(safeguards_balanced)]
 use crate::meta::CallContext;
 #[cfg(safeguards_strict)]
 use crate::meta::ClassId;
-use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd, Singleton};
+#[cfg(safeguards_strict)]
+use crate::obj::Singleton;
+use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
 use crate::sys;
 
 pub(crate) fn debug_string<T: GodotClass>(
@@ -191,6 +194,12 @@ where
     Gd::<T>::from_obj_sys(object_ptr)
 }
 
+/// Checks that the object with the given instance ID is still alive and that the pointer is valid.
+///
+/// This does **not** perform type checking — use `ensure_object_type()` for that.
+///
+/// # Panics (balanced+strict safeguards)
+/// If the object has been freed or the instance ID points to a different object.
 #[cfg(safeguards_balanced)]
 pub(crate) fn ensure_object_alive(
     instance_id: InstanceId,

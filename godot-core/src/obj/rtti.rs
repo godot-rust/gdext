@@ -41,10 +41,15 @@ impl ObjectRtti {
         }
     }
 
-    /// Checks that the object is of type `T` or derived.
+    /// Validates that the object's stored type matches or inherits from `T`.
     ///
-    /// # Panics
-    /// In paranoid mode, if the object is not of type `T` or derived.
+    /// Used internally by `RawGd::check_rtti()` for type validation in strict mode.
+    ///
+    /// Only checks the cached type from RTTI construction time.
+    /// This may not reflect runtime type changes (which shouldn't happen).
+    ///
+    /// # Panics (strict safeguards)
+    /// If the stored type does not inherit from `T`.
     #[cfg(safeguards_strict)]
     #[inline]
     pub fn check_type<T: GodotClass>(&self) {
@@ -53,6 +58,7 @@ impl ObjectRtti {
 
     #[inline]
     pub fn instance_id(&self) -> InstanceId {
+        // Do not add logic or validations here, this is passed in every FFI call.
         self.instance_id
     }
 }
