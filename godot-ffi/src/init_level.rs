@@ -99,7 +99,7 @@ pub enum InitStage {
     /// The main loop stage, representing the fully initialized state of Godot.
     ///
     /// This variant is only available in Godot 4.5+. In earlier versions, it will never be passed to callbacks.
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     MainLoop,
 }
 
@@ -113,7 +113,7 @@ impl InitStage {
             Self::Servers => Some(InitLevel::Servers),
             Self::Scene => Some(InitLevel::Scene),
             Self::Editor => Some(InitLevel::Editor),
-            #[cfg(since_api = "4.5")]
+            #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
             Self::MainLoop => None,
         }
     }

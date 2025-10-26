@@ -130,7 +130,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             is_instantiable = false;
 
             // Workaround for https://github.com/godot-rust/gdext/issues/874 before Godot 4.5.
-            #[cfg(before_api = "4.5")]
+            #[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
             modifiers.push(quote! { with_generated_no_default::<#class_name> });
         }
     };
@@ -423,10 +423,10 @@ fn make_user_class_impl(
     is_tool: bool,
     all_fields: &[Field],
 ) -> (TokenStream, bool) {
-    #[cfg(feature = "codegen-full")]
+    #[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
     let rpc_registrations =
         quote! { ::godot::register::private::auto_register_rpcs::<#class_name>(self); };
-    #[cfg(not(feature = "codegen-full"))]
+    #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
     let rpc_registrations = TokenStream::new();
 
     let onready_inits = make_onready_init(all_fields);

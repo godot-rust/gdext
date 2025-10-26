@@ -48,7 +48,7 @@ impl<T: GodotClass, U: GodotClass> CastSuccess<T, U> {
     }
 
     /// Access shared reference to destination, without consuming object.
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     pub fn as_dest_ref(&self) -> &RawGd<U> {
         self.check_validity();
         &self.dest

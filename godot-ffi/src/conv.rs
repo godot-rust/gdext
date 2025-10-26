@@ -45,7 +45,7 @@ pub fn bool_from_sys(value: sys::GDExtensionBool) -> bool {
 /// Convert a list into a pointer + length pair. Should be used together with [`ptr_list_from_sys`].
 ///
 /// If `list_from_sys` is not called on this list then that will cause a memory leak.
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub fn ptr_list_into_sys<T>(list: Vec<T>) -> (*const T, u32) {
     let len: u32 = list
         .len()
@@ -61,7 +61,7 @@ pub fn ptr_list_into_sys<T>(list: Vec<T>) -> (*const T, u32) {
 /// # Safety
 /// - `ptr` must have been returned from a call to `list_into_sys`.
 /// - `ptr` must be passed to this function exactly once and not used in any other context.
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe fn ptr_list_from_sys<T>(ptr: *const T, len: u32) -> Box<[T]> {
     let ptr: *mut T = ptr.cast_mut();
@@ -78,7 +78,7 @@ pub unsafe fn ptr_list_from_sys<T>(ptr: *const T, len: u32) -> Box<[T]> {
 pub const SYS_TRUE: sys::GDExtensionBool = bool_to_sys(true);
 pub const SYS_FALSE: sys::GDExtensionBool = bool_to_sys(false);
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use crate::conv::{bool_to_sys, u32_to_usize, SYS_FALSE, SYS_TRUE};
 

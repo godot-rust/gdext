@@ -89,7 +89,7 @@ impl<R: IntoDynamicSend> Clone for SignalFutureResolver<R> {
 }
 
 /// For itest to construct and test a resolver.
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub fn create_test_signal_future_resolver<R: IntoDynamicSend>() -> SignalFutureResolver<R> {
     SignalFutureResolver {
         data: Arc::new(Mutex::new(SignalFutureData::default())),
@@ -519,7 +519,7 @@ macro_rules! impl_dynamic_send {
     };
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;

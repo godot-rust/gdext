@@ -211,7 +211,7 @@ impl Variant {
     ///
     /// If the object is dead, the instance ID is still returned, similar to [`Gd::instance_id_unchecked()`][crate::obj::Gd::instance_id_unchecked].
     /// Unless you have a very good reason to use this, we recommend using [`object_id()`][Self::object_id] instead.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub fn object_id_unchecked(&self) -> Option<crate::obj::InstanceId> {
         // SAFETY: safe to call for non-object variants (returns 0).
         let raw_id: u64 = unsafe { interface_fn!(variant_get_object_instance_id)(self.var_sys()) };

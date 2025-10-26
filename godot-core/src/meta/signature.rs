@@ -77,7 +77,7 @@ where
         //$crate::out!("in_varcall: {call_ctx}");
         CallError::check_arg_count(call_ctx, arg_count as usize, Params::LEN)?;
 
-        #[cfg(feature = "trace")]
+        #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
         trace::push(true, false, call_ctx);
 
         // SAFETY: TODO.
@@ -105,7 +105,7 @@ where
     ) {
         // $crate::out!("in_ptrcall: {call_ctx}");
 
-        #[cfg(feature = "trace")]
+        #[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
         trace::push(true, true, call_ctx);
 
         // SAFETY: TODO.
@@ -184,7 +184,7 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
     ///
     /// - `object_ptr` must be a live instance of a class with a method named `method_sname_ptr`
     /// - The method must expect args `args`, and return a value of type `Ret`
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     #[inline]
     pub unsafe fn out_script_virtual_call(
         // Separate parameters to reduce tokens in macro-generated API.
@@ -500,7 +500,7 @@ impl fmt::Display for CallContext<'_> {
     }
 }
 
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub mod trace {
     use std::cell::Cell;
 
