@@ -11,12 +11,11 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use godot::builtin::{GString, StringName, Variant, Vector3};
+use godot::builtin::{Array, GString, StringName, Variant, Vector3};
 use godot::classes::{
     file_access, Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted,
 };
 use godot::global::godot_str;
-#[allow(deprecated)]
 use godot::meta::{FromGodot, GodotType, ToGodot};
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton};
 use godot::register::{godot_api, GodotClass};
@@ -878,6 +877,10 @@ fn object_get_scene_tree(ctx: &TestContext) {
 
     let count = tree.get_child_count();
     assert_eq!(count, 1);
+
+    // Explicit type as regression test: https://github.com/godot-rust/gdext/pull/1385
+    let nodes: Array<Gd<Node>> = tree.get_children();
+    assert_eq!(nodes.len(), 1);
 } // implicitly tested: node does not leak
 
 #[itest]
