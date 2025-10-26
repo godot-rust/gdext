@@ -232,8 +232,11 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
                 elem_type: quote! { Array<#rust_elem_ty> },
             }
         } else {
+            // In Array, store Gd and not Option<Gd> elements.
+            let without_option = rust_elem_ty.tokens_non_null();
+
             RustTy::EngineArray {
-                tokens: quote! { Array<#rust_elem_ty> },
+                tokens: quote! { Array<#without_option> },
                 elem_class: elem_ty.to_string(),
             }
         };
