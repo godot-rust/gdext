@@ -143,7 +143,7 @@ impl StringName {
         /// Returns a 32-bit integer hash value representing the string.
     }
 
-    #[deprecated = "renamed to hash_u32"]
+    #[deprecated = "renamed to `hash_u32`"]
     pub fn hash(&self) -> u32 {
         self.as_inner()
             .hash()

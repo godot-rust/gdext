@@ -10,6 +10,8 @@
 // for these signals, and integration is slightly different due to lack of WithBaseField trait. Nonetheless, some parts could potentially
 // be extracted into a future crate shared by godot-codegen and godot-macros.
 
+// TODO(v0.5): signal parameters are Gd<T> instead of conservatively Option<Gd<T>>, which is a bug.
+
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
