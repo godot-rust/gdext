@@ -758,6 +758,10 @@ pub fn is_class_method_param_required(
     godot_method_name: &str,
     param: &Ident, // Don't use `&str` to avoid to_string() allocations for each check on call-site.
 ) -> bool {
+    // TODO(v0.5): this overlaps now slightly with Godot's own "required" meta in extension_api.json.
+    // Having an override list can always be useful, but possibly the two inputs (here + JSON) should be evaluated at the same time,
+    // during JSON->Domain mapping.
+
     // Note: magically, it's enough if a base class method is declared here; it will be picked up by derived classes.
 
     match (class_name.godot_ty.as_str(), godot_method_name) {

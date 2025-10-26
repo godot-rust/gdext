@@ -51,6 +51,17 @@ pub const IS_CODEGEN_FULL: bool = false;
 #[cfg(feature = "codegen-full")]
 pub const IS_CODEGEN_FULL: bool = true;
 
+#[cfg(all(feature = "experimental-required-objs", before_api = "4.6"))]
+fn __feature_warning() {
+    // Not a hard error, it's experimental anyway and allows more flexibility like this.
+    #[must_use = "The `experimental-required-objs` feature needs at least Godot 4.6-dev version"]
+    fn feature_has_no_effect() -> i32 {
+        1
+    }
+
+    feature_has_no_effect();
+}
+
 fn write_file(path: &Path, contents: String) {
     let dir = path.parent().unwrap();
     let _ = std::fs::create_dir_all(dir);

@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 # Default feature MUST be empty for workflow reasons, even if it differs from the default feature set in upstream `godot` crate.
 default = []
 codegen-full = ["godot/__codegen-full"]
-codegen-full-experimental = ["codegen-full", "godot/experimental-godot-api"]
+codegen-full-experimental = ["codegen-full", "godot/experimental-godot-api", "godot/experimental-required-objs"]
 experimental-threads = ["godot/experimental-threads"]
 register-docs = ["godot/register-docs"]
 serde = ["dep:serde", "dep:serde_json", "godot/serde"]

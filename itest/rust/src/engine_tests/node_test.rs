@@ -74,3 +74,27 @@ fn node_call_group(ctx: &TestContext) {
     tree.call_group("group", "remove_meta", vslice!["something"]);
     assert!(!node.has_meta("something"));
 }
+
+// Experimental required parameter/return value.
+/* TODO(v0.5): enable once https://github.com/godot-rust/gdext/pull/1383 is merged.
+#[cfg(all(feature = "codegen-full-experimental", since_api = "4.6"))]
+#[itest]
+fn node_required_param_return() {
+    use godot::classes::Tween;
+    use godot::obj::Gd;
+
+    let mut parent = Node::new_alloc();
+    let child = Node::new_alloc();
+
+    // add_child() takes required arg, so this still works.
+    // (Test for Option *not* working anymore is in godot > no_compile_tests.)
+    parent.add_child(&child);
+
+    // create_tween() returns now non-null instance.
+    let tween: Gd<Tween> = parent.create_tween();
+    assert!(tween.is_instance_valid());
+    assert!(tween.to_string().contains("Tween"));
+
+    parent.free();
+}
+*/

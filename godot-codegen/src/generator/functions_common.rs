@@ -446,23 +446,23 @@ pub(crate) fn make_param_or_field_type(
     let mut special_ty = None;
 
     let param_ty = match ty {
-        // Objects: impl AsArg<Gd<T>>
+        // Objects: impl AsArg<Gd<T>> or impl AsArg<Option<Gd<T>>>.
         RustTy::EngineClass {
-            impl_as_object_arg,
-            inner_class,
-            ..
+            impl_as_object_arg, ..
         } => {
             let lft = lifetimes.next();
-            special_ty = Some(quote! { CowArg<#lft, Option<Gd<crate::classes::#inner_class>>> });
+
+            // #ty is already Gd<...> or Option<Gd<...>> depending on nullability.
+            special_ty = Some(quote! { CowArg<#lft, #ty> });
 
             match decl {
                 FnParamDecl::FnPublic => quote! { #impl_as_object_arg },
                 FnParamDecl::FnPublicLifetime => quote! { #impl_as_object_arg + 'a },
                 FnParamDecl::FnInternal => {
-                    quote! { CowArg<Option<Gd<crate::classes::#inner_class>>> }
+                    quote! { CowArg<#ty> }
                 }
                 FnParamDecl::Field => {
-                    quote! { CowArg<'a, Option<Gd<crate::classes::#inner_class>>> }
+                    quote! { CowArg<'a, #ty> }
                 }
             }
         }
@@ -615,16 +615,20 @@ pub(crate) fn make_virtual_param_type(
     function_sig: &dyn Function,
 ) -> TokenStream {
     match param_ty {
-        // Virtual methods accept Option<Gd<T>>, since we don't know whether objects are nullable or required.
-        RustTy::EngineClass { .. }
-            if !special_cases::is_class_method_param_required(
+        RustTy::EngineClass { gd_tokens, .. } => {
+            if special_cases::is_class_method_param_required(
                 function_sig.surrounding_class().unwrap(),
                 function_sig.godot_name(),
                 param_name,
-            ) =>
-        {
-            quote! { Option<#param_ty> }
+            ) {
+                // For special-cased EngineClass params, use Gd<T> without Option.
+                gd_tokens.clone()
+            } else {
+                // In general, virtual methods accept Option<Gd<T>>, since we don't know whether objects are nullable or required.
+                quote! { Option<#gd_tokens> }
+            }
         }
+
         _ => quote! { #param_ty },
     }
 }
