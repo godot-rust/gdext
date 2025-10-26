@@ -96,8 +96,11 @@ impl<T: GodotClass> Base<T> {
     /// `base` must be alive at the time of invocation, i.e. user `init()` (which could technically destroy it) must not have run yet.
     /// If `base` is destroyed while the returned `Base<T>` is in use, that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_base(base: &Base<T>) -> Base<T> {
-        #[cfg(safeguards_strict)]
-        assert!(base.obj.is_instance_valid());
+        #[cfg(safeguards_balanced)]
+        assert!(
+            base.obj.is_instance_valid(),
+            "Cannot construct Base; was object freed during initialization?"
+        );
 
         let obj = Gd::from_obj_sys_weak(base.obj.obj_sys());
 
