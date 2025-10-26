@@ -31,12 +31,18 @@ pub fn make_class_signals(
     signals: &[ClassSignal],
     ctx: &mut Context,
 ) -> SignalCodegen {
+    let class_name = class.name();
+
     let all_params: Vec<SignalParams> = signals
         .iter()
         .map(|s| SignalParams::new(&s.parameters))
         .collect();
 
-    let class_name = class.name();
+    // Precompute nullable params once, to be used both for collection methods and individual structs.
+    let all_nullable_params: Vec<Option<SignalParams>> = signals
+        .iter()
+        .map(|s| get_nullable_params(class_name, s))
+        .collect();
 
     // If no signals are defined in current class, walk up until we find some.
     let (own_collection_struct, nearest_collection_name, nearest_class, has_own_signals);
@@ -50,7 +56,8 @@ pub fn make_class_signals(
         nearest_class = Some(nearest);
         has_own_signals = false;
     } else {
-        let (code, name) = make_signal_collection(class, signals, &all_params);
+        let (code, name) =
+            make_signal_collection(class, signals, &all_params, &all_nullable_params);
 
         own_collection_struct = code;
         nearest_collection_name = name;
@@ -59,16 +66,14 @@ pub fn make_class_signals(
     };
 
     let mut signal_types = vec![];
-    for (signal, params) in signals.iter().zip(all_params.iter()) {
+    for ((signal, params), nullable_params_opt) in
+        signals.iter().zip(&all_params).zip(&all_nullable_params)
+    {
         signal_types.push(make_signal_individual_struct(signal, params, false));
 
         // If this signal has nullable parameters, also generate the nullable variant.
-        let nullable_param_names =
-            special_cases::get_signal_nullable_params(class_name, &signal.name);
-
-        if !nullable_param_names.is_empty() {
-            let params = SignalParams::with_nullable(&signal.parameters, nullable_param_names);
-            signal_types.push(make_signal_individual_struct(signal, &params, true));
+        if let Some(nullable_params) = nullable_params_opt {
+            signal_types.push(make_signal_individual_struct(signal, nullable_params, true));
         }
     }
 
@@ -150,29 +155,38 @@ fn make_individual_struct_name(signal_name: &str) -> Ident {
     format_ident!("Sig{}", signal_pascal_name)
 }
 
+/// Returns nullable params if this signal has known nullable parameters, otherwise None.
+fn get_nullable_params(class_name: &TyName, signal: &ClassSignal) -> Option<SignalParams> {
+    let nullable_param_names = special_cases::get_signal_nullable_params(class_name, &signal.name);
+    if !nullable_param_names.is_empty() {
+        Some(SignalParams::with_nullable(
+            &signal.parameters,
+            nullable_param_names,
+        ))
+    } else {
+        None
+    }
+}
+
 fn make_signal_collection(
     class: &Class,
     signals: &[ClassSignal],
     params: &[SignalParams],
+    nullable_params: &[Option<SignalParams>],
 ) -> (TokenStream, Ident) {
     debug_assert!(!signals.is_empty()); // checked outside
 
     let class_name = class.name();
     let collection_struct_name = make_collection_name(class_name);
 
-    let provider_methods = signals.iter().zip(params).flat_map(|(sig, params)| {
+    let provider_methods = signals.iter().zip(params).zip(nullable_params).flat_map(|((sig, params), nullable_params_opt)| {
         let signal_name_str = &sig.name;
         let signal_name = ident(&sig.name);
         let individual_struct_name = make_individual_struct_name(&sig.name);
         let provider_docs = format!("Signature: `({})`", params.formatted_types);
 
-        // Check if this signal has nullable parameters.
-        let nullable_param_names = special_cases::get_signal_nullable_params(class_name, &sig.name);
-
-        if !nullable_param_names.is_empty() {
+        if let Some(nullable_params) = nullable_params_opt {
             // Generate both original (deprecated) and nullable methods.
-            let nullable_params =
-                SignalParams::with_nullable(&sig.parameters, nullable_param_names);
             let nullable_signal_name = format_ident!("{}_nullable", signal_name);
             let nullable_struct_name = format_ident!("{}Nullable", individual_struct_name);
             let nullable_docs = format!("Signature: `({})`", nullable_params.formatted_types);
