@@ -10,10 +10,31 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.4.0](#v040), [v0.4.1](#v041)
+- [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.4.2](https://docs.rs/godot/0.4.2)
+
+_26 October 2025_
+
+### 🌻 Features
+
+- Simple API to fetch autoloads ([#1381](https://github.com/godot-rust/gdext/pull/1381))
+- Experimental support for required parameters/returns in Godot APIs ([#1383](https://github.com/godot-rust/gdext/pull/1383))
+
+### 🧹 Quality of life
+
+- `ExtensionLibrary::on_main_loop_*`: merge into new `on_stage_init/deinit` API ([#1380](https://github.com/godot-rust/gdext/pull/1380))
+- Rename builtin `hash()` -> `hash_u32()`; add tests ([#1366](https://github.com/godot-rust/gdext/pull/1366))
+
+### 🛠️ Bugfixes
+
+- Backport Godot fix for incorrect `Glyph` native-struct ([#1369](https://github.com/godot-rust/gdext/pull/1369))
+- Validate call params for `gd_self` virtual methods ([#1382](https://github.com/godot-rust/gdext/pull/1382))
+- Fix codegen regression: `Array<Option<Gd>>` -> `Array<Gd>` ([#1385](https://github.com/godot-rust/gdext/pull/1385))
 
 
 ## [v0.4.1](https://docs.rs/godot/0.4.1)
