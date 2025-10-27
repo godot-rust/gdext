@@ -123,14 +123,14 @@ mod log_inactive {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tracking borrows in Debug mode
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 use borrow_info::DebugBorrowTracker;
-#[cfg(not(debug_assertions))]
+#[cfg(not(safeguards_strict))]
 use borrow_info_noop::DebugBorrowTracker;
 
 use crate::obj::{Base, GodotClass};
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 mod borrow_info {
     use std::backtrace::Backtrace;
     use std::fmt;
@@ -195,7 +195,7 @@ mod borrow_info {
     }
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(safeguards_strict))]
 mod borrow_info_noop {
     use std::fmt;
 

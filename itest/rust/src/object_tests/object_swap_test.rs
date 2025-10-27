@@ -10,8 +10,8 @@
 // A lot these tests also exist in the `object_test` module, where they test object lifetime rather than type swapping.
 // TODO consolidate them, so that it's less likely to forget edge cases.
 
-// Disabled in Release mode, since we don't perform the subtype check there.
-#![cfg(debug_assertions)]
+// Disabled in balanced/disengaged levels, since we don't perform the subtype check there.
+#![cfg(safeguards_strict)]
 
 use godot::builtin::GString;
 use godot::classes::{Node, Node3D, Object};

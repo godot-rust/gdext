@@ -18,4 +18,5 @@ fn main() {
 
     godot_bindings::emit_godot_version_cfg();
     godot_bindings::emit_wasm_nothreads_cfg();
+    godot_bindings::emit_safeguard_levels();
 }

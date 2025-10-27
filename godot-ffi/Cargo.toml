@@ -30,6 +30,10 @@ api-4-4 = ["godot-bindings/api-4-4"]
 api-4-5 = ["godot-bindings/api-4-5"]
 # ]]
 
+# Safeguard levels (see godot/lib.rs for detailed documentation).
+safeguards-dev-balanced = ["godot-bindings/safeguards-dev-balanced"]
+safeguards-release-disengaged = ["godot-bindings/safeguards-release-disengaged"]
+
 [dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]

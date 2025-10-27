@@ -267,3 +267,29 @@ pub fn before_api(major_minor: &str) -> bool {
 pub fn since_api(major_minor: &str) -> bool {
     !before_api(major_minor)
 }
+
+pub fn emit_safeguard_levels() {
+    // Levels: disengaged (0), balanced (1), strict (2)
+    let mut safeguards_level = if cfg!(debug_assertions) { 2 } else { 1 };
+
+    // Override default level with Cargo feature, in dev/release profiles.
+    #[cfg(debug_assertions)]
+    if cfg!(feature = "safeguards-dev-balanced") {
+        safeguards_level = 1;
+    }
+    #[cfg(not(debug_assertions))]
+    if cfg!(feature = "safeguards-release-disengaged") {
+        safeguards_level = 0;
+    }
+
+    println!(r#"cargo:rustc-check-cfg=cfg(safeguards_balanced)"#);
+    println!(r#"cargo:rustc-check-cfg=cfg(safeguards_strict)"#);
+
+    // Emit #[cfg]s cumulatively: strict builds get both balanced and strict.
+    if safeguards_level >= 1 {
+        println!(r#"cargo:rustc-cfg=safeguards_balanced"#);
+    }
+    if safeguards_level >= 2 {
+        println!(r#"cargo:rustc-cfg=safeguards_strict"#);
+    }
+}

@@ -7,7 +7,7 @@
 
 use godot::prelude::*;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::{expect_panic_or_ub, itest};
 
 #[itest(skip)]
 fn base_test_is_weak() {
@@ -82,6 +82,8 @@ fn base_gd_self() {
 }
 
 // Hardening against https://github.com/godot-rust/gdext/issues/711.
+// Furthermore, this now keeps expect_panic_or_ub() instead of expect_panic(), although it's questionable if much remains with all these checks
+// disabled. There is still some logic remaining, and an alternative would be to #[cfg(safeguards_balanced)] this.
 #[itest]
 fn base_smuggling() {
     let (mut obj, extracted_base) = create_object_with_extracted_base();
@@ -98,19 +100,19 @@ fn base_smuggling() {
     extracted_base_obj.free();
 
     // Access to object should now fail.
-    expect_panic("object with dead base: calling base methods", || {
+    expect_panic_or_ub("object with dead base: calling base methods", || {
         obj.get_position();
     });
-    expect_panic("object with dead base: bind()", || {
+    expect_panic_or_ub("object with dead base: bind()", || {
         obj.bind();
     });
-    expect_panic("object with dead base: instance_id()", || {
+    expect_panic_or_ub("object with dead base: instance_id()", || {
         obj.instance_id();
     });
-    expect_panic("object with dead base: clone()", || {
+    expect_panic_or_ub("object with dead base: clone()", || {
         let _ = obj.clone();
     });
-    expect_panic("object with dead base: upcast()", || {
+    expect_panic_or_ub("object with dead base: upcast()", || {
         obj.upcast::<Object>();
     });
 
@@ -118,7 +120,7 @@ fn base_smuggling() {
     let (obj, extracted_base) = create_object_with_extracted_base();
     obj.free();
 
-    expect_panic("accessing extracted base of dead object", || {
+    expect_panic_or_ub("accessing extracted base of dead object", || {
         extracted_base.__constructed_gd().get_position();
     });
 }

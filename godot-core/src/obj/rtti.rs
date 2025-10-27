@@ -21,7 +21,7 @@ pub struct ObjectRtti {
     instance_id: InstanceId,
 
     /// Only in Debug mode: dynamic class.
-    #[cfg(debug_assertions)]
+    #[cfg(safeguards_strict)]
     class_name: crate::meta::ClassId,
     //
     // TODO(bromeon): class_id is not always most-derived class; ObjectRtti is sometimes constructed from a base class, via RawGd::from_obj_sys_weak().
@@ -36,25 +36,29 @@ impl ObjectRtti {
         Self {
             instance_id,
 
-            #[cfg(debug_assertions)]
+            #[cfg(safeguards_strict)]
             class_name: T::class_id(),
         }
     }
 
-    /// Checks that the object is of type `T` or derived. Returns instance ID.
+    /// Validates that the object's stored type matches or inherits from `T`.
     ///
-    /// # Panics
-    /// In Debug mode, if the object is not of type `T` or derived.
+    /// Used internally by `RawGd::check_rtti()` for type validation in strict mode.
+    ///
+    /// Only checks the cached type from RTTI construction time.
+    /// This may not reflect runtime type changes (which shouldn't happen).
+    ///
+    /// # Panics (strict safeguards)
+    /// If the stored type does not inherit from `T`.
+    #[cfg(safeguards_strict)]
     #[inline]
-    pub fn check_type<T: GodotClass>(&self) -> InstanceId {
-        #[cfg(debug_assertions)]
+    pub fn check_type<T: GodotClass>(&self) {
         crate::classes::ensure_object_inherits(self.class_name, T::class_id(), self.instance_id);
-
-        self.instance_id
     }
 
     #[inline]
     pub fn instance_id(&self) -> InstanceId {
+        // Do not add logic or validations here, this is passed in every FFI call.
         self.instance_id
     }
 }

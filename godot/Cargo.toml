@@ -40,6 +40,10 @@ api-4-4 = ["godot-core/api-4-4"]
 api-4-5 = ["godot-core/api-4-5"]
 # ]]
 
+# Safeguard levels (see godot/lib.rs for detailed documentation).
+safeguards-dev-balanced = ["godot-core/safeguards-dev-balanced"]
+safeguards-release-disengaged = ["godot-core/safeguards-release-disengaged"]
+
 default = ["__codegen-full"]
 
 # Private features, they are under no stability guarantee

@@ -378,14 +378,14 @@ jobs:
             godot-prebuilt-patch: '4.2.2'
             hot-reload: api-4-2
 
-          # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
+          # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks. Always Linux.
           # See also https://rustc-dev-guide.rust-lang.org/sanitizers.html.
           #
           # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
           # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
           #
           # There is also a gcc variant besides clang, which is currently not used.
-          - name: linux-memcheck-nightly
+          - name: memcheck-nightly
             os: ubuntu-22.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
@@ -395,7 +395,28 @@ jobs:
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
             rust-target: x86_64-unknown-linux-gnu
 
-          - name: linux-memcheck-4.2
+          - name: memcheck-release-disengaged
+            os: ubuntu-22.04
+            artifact-name: linux-memcheck-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            # Currently without itest/codegen-full-experimental.
+            rust-extra-args: --release --features godot/safeguards-release-disengaged
+            rust-target: x86_64-unknown-linux-gnu
+            rust-target-dir: release # We're running Godot debug build with Rust release dylib.
+
+          - name: memcheck-dev-balanced
+            os: ubuntu-22.04
+            artifact-name: linux-memcheck-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            # Currently without itest/codegen-full-experimental.
+            rust-extra-args: --features godot/safeguards-dev-balanced
+            rust-target: x86_64-unknown-linux-gnu
+
+          - name: memcheck-4.2
             os: ubuntu-22.04
             artifact-name: linux-memcheck-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
@@ -419,6 +440,7 @@ jobs:
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
           rust-target: ${{ matrix.rust-target }}
+          rust-target-dir: ${{ matrix.rust-target-dir }}
           rust-cache-key: ${{ matrix.rust-cache-key }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
@@ -500,7 +522,7 @@ jobs:
       - name: "Determine success or failure"
         run: |
           DEPENDENCIES='${{ toJson(needs) }}'
-          
+
           echo "Dependency jobs:"
           all_success=true
           for job in $(echo "$DEPENDENCIES" | jq -r 'keys[]'); do
@@ -510,7 +532,7 @@ jobs:
                   all_success=false
               fi
           done
-          
+
           if [[ "$all_success" == "false" ]]; then
               echo "One or more dependency jobs failed or were cancelled."
               exit 1

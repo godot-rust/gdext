@@ -254,11 +254,21 @@ pub unsafe fn deinitialize() {
     }
 }
 
+fn safeguards_level_string() -> &'static str {
+    if cfg!(safeguards_strict) {
+        "strict"
+    } else if cfg!(safeguards_balanced) {
+        "balanced"
+    } else {
+        "disengaged"
+    }
+}
+
 fn print_preamble(version: GDExtensionGodotVersion) {
     let api_version: &'static str = GdextBuild::godot_static_version_string();
     let runtime_version = read_version_string(&version);
-
-    println!("Initialize godot-rust (API {api_version}, runtime {runtime_version})");
+    let safeguards_level = safeguards_level_string();
+    println!("Initialize godot-rust (API {api_version}, runtime {runtime_version}, safeguards {safeguards_level})");
 }
 
 /// # Safety
