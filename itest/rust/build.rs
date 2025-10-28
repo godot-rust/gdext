@@ -320,12 +320,14 @@ fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
                 ..
             } = input;
 
-            let return_method = format_ident!("return_{}", ident);
-            let accept_method = format_ident!("accept_{}", ident);
-            let mirror_method = format_ident!("mirror_{}", ident);
-            let return_static_method = format_ident!("return_static_{}", ident);
-            let accept_static_method = format_ident!("accept_static_{}", ident);
-            let mirror_static_method = format_ident!("mirror_static_{}", ident);
+            let return_method = format_ident!("return_{ident}");
+            let accept_method = format_ident!("accept_{ident}");
+            let mirror_method = format_ident!("mirror_{ident}");
+            let panic_method = format_ident!("panic_{ident}");
+
+            let return_static_method = format_ident!("return_static_{ident}");
+            let accept_static_method = format_ident!("accept_static_{ident}");
+            let mirror_static_method = format_ident!("mirror_static_{ident}");
 
             quote! {
                 #[func]
@@ -341,6 +343,11 @@ fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
                 #[func]
                 fn #mirror_method(&self, i: #rust_ty) -> #rust_ty {
                     i
+                }
+
+                #[func]
+                fn #panic_method(&self) -> #rust_ty {
+                    panic!("intentional panic in `{}`", stringify!(#panic_method));
                 }
 
                 #[func]
