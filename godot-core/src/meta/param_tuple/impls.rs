@@ -14,10 +14,10 @@ use godot_ffi as sys;
 use sys::GodotFfi;
 
 use crate::builtin::Variant;
-use crate::meta::error::{CallError, ConvertError};
+use crate::meta::error::{CallError, CallResult};
 use crate::meta::{
-    signature, ArgPassing, CallContext, FromGodot, GodotConvert, GodotType, InParamTuple,
-    OutParamTuple, ParamTuple, ToGodot,
+    ArgPassing, CallContext, FromGodot, GodotConvert, GodotType, InParamTuple, OutParamTuple,
+    ParamTuple, ToGodot,
 };
 
 macro_rules! count_idents {
@@ -57,7 +57,7 @@ macro_rules! unsafe_impl_param_tuple {
             unsafe fn from_varcall_args(
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 call_ctx: &crate::meta::CallContext,
-            ) -> signature::CallResult<Self> {
+            ) -> CallResult<Self> {
                 let args = (
                     $(
                         // SAFETY: `args_ptr` is an array with length `Self::LEN` and each element is a valid pointer, since they
@@ -80,14 +80,16 @@ macro_rules! unsafe_impl_param_tuple {
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 call_type: sys::PtrcallType,
                 call_ctx: &crate::meta::CallContext,
-            ) -> Self {
-                (
+            ) -> CallResult<Self> {
+                let tuple = (
                     $(
                         // SAFETY: `args_ptr` has length `Self::LEN` and `$n` is less than `Self::LEN`, and `args_ptr` must be an array whose
                         // `$n`-th element is of type `$P`.
-                        unsafe { ptrcall_arg::<$P, $n>(args_ptr, call_ctx, call_type) },
+                        unsafe { ptrcall_arg::<$P, $n>(args_ptr, call_ctx, call_type)? },
                     )*
-                )
+                );
+
+                Ok(tuple) // If none of the `?` above were hit.
             }
 
             fn from_variant_array(array: &[&Variant]) -> Self {
@@ -196,7 +198,7 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
     args_ptr: *const sys::GDExtensionConstTypePtr,
     call_ctx: &CallContext,
     call_type: sys::PtrcallType,
-) -> P {
+) -> CallResult<P> {
     // SAFETY: It is safe to dereference `args_ptr` at `N`.
     let offset_ptr = unsafe { *args_ptr.offset(N) };
 
@@ -207,7 +209,7 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
 
     <P::Via as GodotType>::try_from_ffi(ffi)
         .and_then(P::try_from_godot)
-        .unwrap_or_else(|err| param_error::<P>(call_ctx, N as i32, err))
+        .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, N, err))
 }
 
 /// Converts `arg` into a value of type `P`.
@@ -219,18 +221,13 @@ pub(super) unsafe fn varcall_arg<P: FromGodot>(
     arg: sys::GDExtensionConstVariantPtr,
     call_ctx: &CallContext,
     param_index: isize,
-) -> Result<P, CallError> {
+) -> CallResult<P> {
     // SAFETY: It is safe to dereference `args_ptr` at `N` as a `Variant`.
     let variant_ref = unsafe { Variant::borrow_var_sys(arg) };
 
     variant_ref
         .try_to_relaxed::<P>()
         .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, param_index, err))
-}
-
-fn param_error<P>(call_ctx: &CallContext, index: i32, err: ConvertError) -> ! {
-    let param_ty = std::any::type_name::<P>();
-    panic!("in function `{call_ctx}` at parameter [{index}] of type {param_ty}: {err}");
 }
 
 fn assert_array_length<P: ParamTuple>(array: &[&Variant]) {

@@ -13,7 +13,7 @@ use std::sync::atomic;
 use sys::Global;
 
 use crate::global::godot_error;
-use crate::meta::error::CallError;
+use crate::meta::error::{CallError, CallResult};
 use crate::meta::CallContext;
 use crate::obj::Gd;
 use crate::{classes, sys};
@@ -417,7 +417,7 @@ impl PanicPayload {
 ///
 /// Returns `Err(message)` if a panic occurred, and `Ok(result)` with the result of `code` otherwise.
 ///
-/// In contrast to [`handle_varcall_panic`] and [`handle_ptrcall_panic`], this function is not intended for use in `try_` functions,
+/// In contrast to [`handle_fallible_varcall`] and [`handle_fallible_ptrcall`], this function is not intended for use in `try_` functions,
 /// where the error is propagated as a `CallError` in a global variable.
 pub fn handle_panic<E, F, R>(error_context: E, code: F) -> Result<R, PanicPayload>
 where
@@ -440,59 +440,57 @@ where
     result
 }
 
-// TODO(bromeon): make call_ctx lazy-evaluated (like error_ctx) everywhere;
-// or make it eager everywhere and ensure it's cheaply constructed in the call sites.
-pub fn handle_varcall_panic<F, R>(
+/// Invokes a function with the _varcall_ calling convention, handling both expected errors and user panics.
+pub fn handle_fallible_varcall<F, R>(
     call_ctx: &CallContext,
     out_err: &mut sys::GDExtensionCallError,
     code: F,
 ) where
-    F: FnOnce() -> Result<R, CallError> + std::panic::UnwindSafe,
+    F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
 {
-    let outcome: Result<Result<R, CallError>, PanicPayload> =
-        handle_panic(|| call_ctx.to_string(), code);
-
-    let call_error = match outcome {
-        // All good.
-        Ok(Ok(_result)) => return,
-
-        // Call error signalled by Godot's or gdext's validation.
-        Ok(Err(err)) => err,
-
-        // Panic occurred (typically through user): forward message.
-        Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
-    };
-
-    let error_id = report_call_error(call_error, true);
-
-    // Abuse 'argument' field to store our ID.
-    *out_err = sys::GDExtensionCallError {
-        error: sys::GODOT_RUST_CUSTOM_CALL_ERROR,
-        argument: error_id,
-        expected: 0,
+    if let Some(error_id) = handle_fallible_call(call_ctx, code, true) {
+        // Abuse 'argument' field to store our ID.
+        *out_err = sys::GDExtensionCallError {
+            error: sys::GODOT_RUST_CUSTOM_CALL_ERROR,
+            argument: error_id,
+            expected: 0,
+        };
     };
 
     //sys::interface_fn!(variant_new_nil)(sys::AsUninit::as_uninit(ret));
 }
 
-pub fn handle_ptrcall_panic<F, R>(call_ctx: &CallContext, code: F)
+/// Invokes a function with the _ptrcall_ calling convention, handling both expected errors and user panics.
+pub fn handle_fallible_ptrcall<F>(call_ctx: &CallContext, code: F)
 where
-    F: FnOnce() -> R + std::panic::UnwindSafe,
+    F: FnOnce() -> CallResult<()> + std::panic::UnwindSafe,
 {
-    let outcome: Result<R, PanicPayload> = handle_panic(|| call_ctx.to_string(), code);
+    handle_fallible_call(call_ctx, code, false);
+}
+
+/// Common error handling for fallible calls, handling detectable errors and user panics.
+///
+/// Returns `None` if the call succeeded, or `Some(error_id)` if it failed.
+///
+/// `track_globally` indicates whether the error should be stored as an index in the global error database (for varcall calls), to convey
+/// out-of-band, godot-rust specific error information to the caller.
+fn handle_fallible_call<F, R>(call_ctx: &CallContext, code: F, track_globally: bool) -> Option<i32>
+where
+    F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
+{
+    let outcome: Result<CallResult<R>, PanicPayload> = handle_panic(|| call_ctx.to_string(), code);
 
     let call_error = match outcome {
         // All good.
-        Ok(_result) => return,
+        Ok(Ok(_result)) => return None,
 
-        // Panic occurred (typically through user): forward message.
-        Err(payload) => CallError::failed_by_user_panic(call_ctx, payload),
+        // Error from Godot or godot-rust validation (e.g. parameter conversion).
+        Ok(Err(err)) => err,
+
+        // User panic occurred: forward message.
+        Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
-    let _id = report_call_error(call_error, false);
-}
-
-fn report_call_error(call_error: CallError, track_globally: bool) -> i32 {
     // Print failed calls to Godot's console.
     // TODO Level 1 is not yet set, so this will always print if level != 0. Needs better logic to recognize try_* calls and avoid printing.
     // But a bit tricky with multiple threads and re-entrancy; maybe pass in info in error struct.
@@ -501,11 +499,13 @@ fn report_call_error(call_error: CallError, track_globally: bool) -> i32 {
     }
 
     // Once there is a way to auto-remove added errors, this could be always true.
-    if track_globally {
+    let error_id = if track_globally {
         call_error_insert(call_error)
     } else {
         0
-    }
+    };
+
+    Some(error_id)
 }
 
 // Currently unused; implemented due to temporary need and may come in handy.

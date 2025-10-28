@@ -16,6 +16,9 @@ use crate::meta::{CallContext, ToGodot};
 use crate::private::PanicPayload;
 use crate::sys;
 
+/// Result type for function calls that can fail.
+pub(crate) type CallResult<R> = Result<R, CallError>;
+
 /// Error capable of representing failed function calls.
 ///
 /// This type is returned from _varcall_ functions in the Godot API that begin with `try_` prefixes,
