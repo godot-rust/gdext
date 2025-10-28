@@ -86,7 +86,7 @@ pub fn make_virtual_callback(
                 ret: sys::GDExtensionTypePtr,
             ) {
                 let call_ctx = #call_ctx;
-                let _success = ::godot::private::handle_ptrcall_panic(
+                ::godot::private::handle_fallible_ptrcall(
                     &call_ctx,
                     || #invocation
                 );
@@ -566,7 +566,7 @@ fn make_varcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> Toke
             err: *mut sys::GDExtensionCallError,
         ) {
             let call_ctx = #call_ctx;
-            ::godot::private::handle_varcall_panic(
+            ::godot::private::handle_fallible_varcall(
                 &call_ctx,
                 &mut *err,
                 || #invocation
@@ -587,14 +587,10 @@ fn make_ptrcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> Toke
             ret: sys::GDExtensionTypePtr,
         ) {
             let call_ctx = #call_ctx;
-            let _success = ::godot::private::handle_panic(
-                || format!("{call_ctx}"),
+            ::godot::private::handle_fallible_ptrcall(
+                &call_ctx,
                 || #invocation
             );
-
-            // if success.is_err() {
-            //     // TODO set return value to T::default()?
-            // }
         }
     }
 }

@@ -67,6 +67,21 @@ func test_ptrcall_IDENT():
 	mark_test_succeeded()
 #)
 
+# Functions that are invoked via ptrcall do not have an API to propagate the error back to the caller, but Godot pre-initializes their
+# return value to the default value of that type. This test verifies that in case of panic, the default value (per Godot) is returned.
+#(
+func test_ptrcall_panic_IDENT():
+	mark_test_pending()
+	var ffi := GenFfi.new()
+
+	var from_rust: TYPE = ffi.panic_IDENT()
+	_check_callconv("panic_IDENT", "ptrcall")
+
+	var expected_default: TYPE # initialize to default (null for objects)
+	assert_eq(from_rust, expected_default, "return value from panicked ptrcall fn == default value")
+	mark_test_succeeded()
+#)
+
 #(
 func test_ptrcall_static_IDENT():
 	mark_test_pending()

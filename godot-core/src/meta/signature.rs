@@ -9,17 +9,16 @@ use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 
-use godot_ffi::{self as sys, GodotFfi};
+use godot_ffi as sys;
+use sys::GodotFfi;
 
 use crate::builtin::Variant;
-use crate::meta::error::{CallError, ConvertError};
+use crate::meta::error::{CallError, CallResult, ConvertError};
 use crate::meta::{
     FromGodot, GodotConvert, GodotType, InParamTuple, MethodParamOrReturnInfo, OutParamTuple,
     ParamTuple, ToGodot,
 };
 use crate::obj::{GodotClass, ValidatedObject};
-
-pub(super) type CallResult<R> = Result<R, CallError>;
 
 /// A full signature for a function.
 ///
@@ -101,19 +100,21 @@ where
         ret: sys::GDExtensionTypePtr,
         func: fn(sys::GDExtensionClassInstancePtr, Params) -> Ret,
         call_type: sys::PtrcallType,
-    ) {
+    ) -> CallResult<()> {
         // $crate::out!("in_ptrcall: {call_ctx}");
 
         #[cfg(feature = "trace")]
         trace::push(true, true, call_ctx);
 
         // SAFETY: TODO.
-        let args = unsafe { Params::from_ptrcall_args(args_ptr, call_type, call_ctx) };
+        let args = unsafe { Params::from_ptrcall_args(args_ptr, call_type, call_ctx)? };
 
         // SAFETY:
         // `ret` is always a pointer to an initialized value of type $R
         // TODO: double-check the above
-        unsafe { ptrcall_return::<Ret>(func(instance_ptr, args), ret, call_ctx, call_type) }
+        unsafe { ptrcall_return::<Ret>(func(instance_ptr, args), ret, call_ctx, call_type) };
+
+        Ok(())
     }
 }
 

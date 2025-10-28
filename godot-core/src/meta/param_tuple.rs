@@ -7,8 +7,9 @@
 
 use godot_ffi as sys;
 
-use super::{CallContext, CallResult, PropertyInfo};
 use crate::builtin::Variant;
+use crate::meta::error::CallResult;
+use crate::meta::{CallContext, PropertyInfo};
 
 mod impls;
 
@@ -64,7 +65,7 @@ pub trait InParamTuple: ParamTuple {
         args_ptr: *const sys::GDExtensionConstTypePtr,
         call_type: sys::PtrcallType,
         call_ctx: &CallContext,
-    ) -> Self;
+    ) -> CallResult<Self>;
 
     /// Converts `array` to `Self` by calling [`from_variant`](crate::meta::FromGodot::from_variant) on each argument.
     fn from_variant_array(array: &[&Variant]) -> Self;

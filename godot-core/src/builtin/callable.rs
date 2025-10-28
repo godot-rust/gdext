@@ -677,7 +677,7 @@ mod custom_callable {
         let name = "<optimized out>";
         let ctx = meta::CallContext::custom_callable(name);
 
-        crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
+        crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
             // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
             let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
             let result = c.invoke(arg_refs);
@@ -707,7 +707,7 @@ mod custom_callable {
         let name = "<optimized out>";
         let ctx = meta::CallContext::custom_callable(name);
 
-        crate::private::handle_varcall_panic(&ctx, &mut *r_error, move || {
+        crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
             // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
             let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
