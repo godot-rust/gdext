@@ -53,6 +53,9 @@ struct HasProperty {
 
     #[var]
     packed_int_array: PackedInt32Array,
+
+    #[var(rename = renamed_variable)]
+    unused_name: GString,
 }
 
 #[godot_api]
@@ -147,8 +150,46 @@ impl INode for HasProperty {
             texture_val: OnEditor::default(),
             texture_val_rw: None,
             packed_int_array: PackedInt32Array::new(),
+            unused_name: GString::new(),
         }
     }
+}
+
+#[itest]
+fn test_renamed_var() {
+    let mut obj = HasProperty::new_alloc();
+
+    let prop_list = obj.get_property_list();
+    assert!(prop_list
+        .iter_shared()
+        .any(|d| d.get("name") == Some("renamed_variable".to_variant())));
+    assert!(!prop_list
+        .iter_shared()
+        .any(|d| d.get("name") == Some("unused_name".to_variant())));
+
+    assert_eq!(obj.get("renamed_variable"), GString::new().to_variant());
+    assert_eq!(obj.get("unused_name"), Variant::nil());
+
+    let new_value = "variable changed".to_variant();
+    obj.set("renamed_variable", &new_value);
+    obj.set("unused_name", &"something different".to_variant());
+    assert_eq!(obj.get("renamed_variable"), new_value);
+    assert_eq!(obj.get("unused_name"), Variant::nil());
+
+    obj.free();
+}
+
+#[itest]
+fn test_renamed_var_getter_setter() {
+    let obj = HasProperty::new_alloc();
+
+    assert!(obj.has_method("get_renamed_variable"));
+    assert!(obj.has_method("set_renamed_variable"));
+    assert!(!obj.has_method("get_unused_name"));
+    assert!(!obj.has_method("get_unused_name"));
+    assert_eq!(obj.bind().get_renamed_variable(), GString::new());
+
+    obj.free();
 }
 
 #[derive(Default, Copy, Clone)]
