@@ -76,16 +76,16 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         };
 
         make_groups_registrations(group, subgroup, &mut export_tokens, class_name);
-
-        let field_name = field_ident.to_string();
-
         let FieldVar {
+            rename,
             getter,
             setter,
             hint,
             mut usage_flags,
             ..
         } = var;
+
+        let field_name = rename.as_ref().unwrap_or(field_ident).to_string();
 
         let export_hint;
         let registration_fn;
@@ -151,14 +151,14 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         // Note: {getter,setter}_tokens can be either a path `Class_Functions::constant_name` or an empty string `""`.
 
         let getter_tokens = make_getter_setter(
-            getter.to_impl(class_name, GetSet::Get, field),
+            getter.to_impl(class_name, GetSet::Get, field, &rename),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,
             class_name,
         );
         let setter_tokens = make_getter_setter(
-            setter.to_impl(class_name, GetSet::Set, field),
+            setter.to_impl(class_name, GetSet::Set, field, &rename),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,

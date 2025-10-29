@@ -18,6 +18,8 @@ use crate::{util, ParseResult};
 /// Store info from `#[var]` attribute.
 #[derive(Clone, Debug)]
 pub struct FieldVar {
+    /// What name this variable should have in Godot, if `None` then the Rust name should be used.
+    pub rename: Option<Ident>,
     pub getter: GetterSetter,
     pub setter: GetterSetter,
     pub hint: FieldHint,
@@ -29,6 +31,7 @@ impl FieldVar {
     /// Parse a `#[var]` attribute to a `FieldVar` struct.
     ///
     /// Possible keys:
+    /// - `rename = ident`
     /// - `get = expr`
     /// - `set = expr`
     /// - `hint = ident`
@@ -36,6 +39,7 @@ impl FieldVar {
     /// - `usage_flags =
     pub(crate) fn new_from_kv(parser: &mut KvParser) -> ParseResult<Self> {
         let span = parser.span();
+        let rename = parser.handle_ident("rename")?;
         let getter = GetterSetter::parse(parser, "get")?;
         let setter = GetterSetter::parse(parser, "set")?;
 
@@ -64,6 +68,7 @@ impl FieldVar {
         };
 
         Ok(FieldVar {
+            rename,
             getter,
             setter,
             hint,
@@ -84,6 +89,7 @@ impl FieldVar {
 impl Default for FieldVar {
     fn default() -> Self {
         Self {
+            rename: Default::default(),
             getter: Default::default(),
             setter: Default::default(),
             hint: Default::default(),
@@ -131,11 +137,12 @@ impl GetterSetter {
         class_name: &Ident,
         kind: GetSet,
         field: &Field,
+        rename: &Option<Ident>,
     ) -> Option<GetterSetterImpl> {
         match self {
             GetterSetter::Omitted => None,
             GetterSetter::Generated => Some(GetterSetterImpl::from_generated_impl(
-                class_name, kind, field,
+                class_name, kind, field, rename,
             )),
             GetterSetter::Custom(function_name) => {
                 Some(GetterSetterImpl::from_custom_impl(function_name))
@@ -173,14 +180,21 @@ pub struct GetterSetterImpl {
 }
 
 impl GetterSetterImpl {
-    fn from_generated_impl(class_name: &Ident, kind: GetSet, field: &Field) -> Self {
+    fn from_generated_impl(
+        class_name: &Ident,
+        kind: GetSet,
+        field: &Field,
+        rename: &Option<Ident>,
+    ) -> Self {
         let Field {
             name: field_name,
             ty: field_type,
             ..
         } = field;
 
-        let function_name = format_ident!("{}{field_name}", kind.prefix());
+        let var_name = rename.as_ref().unwrap_or(field_name);
+
+        let function_name = format_ident!("{}{var_name}", kind.prefix());
 
         let signature;
         let function_body;
