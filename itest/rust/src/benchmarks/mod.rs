@@ -16,7 +16,7 @@ use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
 use godot::prelude::{varray, Callable, RustCallable, Variant};
 use godot::register::GodotClass;
 
-use crate::framework::bench;
+use crate::framework::{bench, bench_measure, BenchResult};
 
 mod color;
 
@@ -114,16 +114,18 @@ fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
     }))
 }
 
-#[bench(repeat = 25)]
-fn call_callv_rust_fn() -> Variant {
+#[bench(manual)]
+fn call_callv_rust_fn() -> BenchResult {
     let callable = Callable::from_fn("RustFunction", |_| ());
-    callable.callv(&varray![])
+
+    bench_measure(25, || callable.callv(&varray![]))
 }
 
-#[bench(repeat = 25)]
-fn call_callv_custom() -> Variant {
+#[bench(manual)]
+fn call_callv_custom() -> BenchResult {
     let callable = Callable::from_custom(MyRustCallable {});
-    callable.callv(&varray![])
+
+    bench_measure(25, || callable.callv(&varray![]))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
