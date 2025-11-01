@@ -6,6 +6,7 @@
  */
 
 mod array;
+mod array_functional_ops;
 mod dictionary;
 mod extend_buffer;
 mod packed_array;
@@ -21,6 +22,7 @@ pub(crate) mod containers {
 // Re-export in godot::builtin::iter.
 #[rustfmt::skip] // Individual lines.
 pub(crate) mod iterators {
+    pub use super::array_functional_ops::ArrayFunctionalOps;
     pub use super::array::Iter as ArrayIter;
     pub use super::dictionary::Iter as DictIter;
     pub use super::dictionary::Keys as DictKeys;

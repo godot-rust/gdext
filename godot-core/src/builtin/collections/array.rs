@@ -12,6 +12,7 @@ use std::{cmp, fmt};
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
+use crate::builtin::iter::ArrayFunctionalOps;
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
@@ -178,7 +179,7 @@ pub struct Array<T: ArrayElement> {
 }
 
 /// Guard that can only call immutable methods on the array.
-struct ImmutableInnerArray<'a> {
+pub(super) struct ImmutableInnerArray<'a> {
     inner: inner::InnerArray<'a>,
 }
 
@@ -608,6 +609,13 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
+    /// Access to Godot's functional-programming APIs based on callables.
+    ///
+    /// Exposes Godot array methods such as `filter()`, `map()`, `reduce()` and many more. See return type docs.
+    pub fn functional_ops(&self) -> ArrayFunctionalOps<'_, T> {
+        ArrayFunctionalOps::new(self)
+    }
+
     /// Returns the minimum value contained in the array if all elements are of comparable types.
     ///
     /// If the elements can't be compared or the array is empty, `None` is returned.
@@ -672,6 +680,8 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Calling `bsearch` on an unsorted array results in unspecified behavior. Consider using `sort()` to ensure the sorting
     /// order is compatible with your callable's ordering.
+    ///
+    /// See also: [`bsearch_by()`][Self::bsearch_by], [`functional_ops().bsearch_custom()`][ArrayFunctionalOps::bsearch_custom].
     pub fn bsearch(&self, value: impl AsArg<T>) -> usize {
         meta::arg_into_ref!(value: T);
 
@@ -682,13 +692,15 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// The comparator function should return an ordering that indicates whether its argument is `Less`, `Equal` or `Greater` the desired value.
     /// For example, for an ascending-ordered array, a simple predicate searching for a constant value would be `|elem| elem.cmp(&4)`.
-    /// See also [`slice::binary_search_by()`].
+    /// This follows the design of [`slice::binary_search_by()`].
     ///
     /// If the value is found, returns `Ok(index)` with its index. Otherwise, returns `Err(index)`, where `index` is the insertion index
     /// that would maintain sorting order.
     ///
-    /// Calling `bsearch_by` on an unsorted array results in unspecified behavior. Consider using [`sort_by()`] to ensure
-    /// the sorting order is compatible with your callable's ordering.
+    /// Calling `bsearch_by` on an unsorted array results in unspecified behavior. Consider using [`sort_unstable_by()`][Self::sort_unstable_by]
+    /// to ensure the sorting order is compatible with your callable's ordering.
+    ///
+    /// See also: [`bsearch()`][Self::bsearch], [`functional_ops().bsearch_custom()`][ArrayFunctionalOps::bsearch_custom].
     pub fn bsearch_by<F>(&self, mut func: F) -> Result<usize, usize>
     where
         F: FnMut(&T) -> cmp::Ordering + 'static,
@@ -712,7 +724,7 @@ impl<T: ArrayElement> Array<T> {
 
         let debug_name = std::any::type_name::<F>();
         let index = Callable::with_scoped_fn(debug_name, godot_comparator, |pred| {
-            self.bsearch_custom(ignored_value, pred)
+            self.functional_ops().bsearch_custom(ignored_value, pred)
         });
 
         if let Some(value_at_index) = self.get(index) {
@@ -724,22 +736,9 @@ impl<T: ArrayElement> Array<T> {
         Err(index)
     }
 
-    /// Finds the index of a value in a sorted array using binary search, with `Callable` custom predicate.
-    ///
-    /// The callable `pred` takes two elements `(a, b)` and should return if `a < b` (strictly less).
-    /// For a type-safe version, check out [`bsearch_by()`][Self::bsearch_by].
-    ///
-    /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
-    ///
-    /// Calling `bsearch_custom` on an unsorted array results in unspecified behavior. Consider using `sort_custom()` to ensure
-    /// the sorting order is compatible with your callable's ordering.
+    #[deprecated = "Moved to `functional_ops().bsearch_custom()`"]
     pub fn bsearch_custom(&self, value: impl AsArg<T>, pred: &Callable) -> usize {
-        meta::arg_into_ref!(value: T);
-
-        to_usize(
-            self.as_inner()
-                .bsearch_custom(&value.to_variant(), pred, true),
-        )
+        self.functional_ops().bsearch_custom(value, pred)
     }
 
     /// Reverses the order of the elements in the array.
@@ -753,8 +752,10 @@ impl<T: ArrayElement> Array<T> {
     /// Sorts the array.
     ///
     /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
-    /// This means that values considered equal may have their order changed when using `sort_unstable`. For most variant types,
+    /// This means that values considered equal may have their order changed when using `sort_unstable()`. For most variant types,
     /// this distinction should not matter though.
+    ///
+    /// See also: [`sort_unstable_by()`][Self::sort_unstable_by], [`sort_unstable_custom()`][Self::sort_unstable_custom].
     ///
     /// _Godot equivalent: `Array.sort()`_
     #[doc(alias = "sort")]
@@ -771,8 +772,10 @@ impl<T: ArrayElement> Array<T> {
     /// elements themselves would be achieved with `|a, b| a.cmp(b)`.
     ///
     /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
-    /// This means that values considered equal may have their order changed when using `sort_unstable_by`. For most variant types,
+    /// This means that values considered equal may have their order changed when using `sort_unstable_by()`. For most variant types,
     /// this distinction should not matter though.
+    ///
+    /// See also: [`sort_unstable()`][Self::sort_unstable], [`sort_unstable_custom()`][Self::sort_unstable_custom].
     pub fn sort_unstable_by<F>(&mut self, mut func: F)
     where
         F: FnMut(&T, &T) -> cmp::Ordering,
@@ -795,13 +798,13 @@ impl<T: ArrayElement> Array<T> {
 
     /// Sorts the array, using type-unsafe `Callable` comparator.
     ///
-    /// For a type-safe variant of this method, use [`sort_unstable_by()`][Self::sort_unstable_by].
-    ///
     /// The callable expects two parameters `(lhs, rhs)` and should return a bool `lhs < rhs`.
     ///
     /// The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
-    /// This means that values considered equal may have their order changed when using `sort_unstable_custom`.For most variant types,
+    /// This means that values considered equal may have their order changed when using `sort_unstable_custom()`. For most variant types,
     /// this distinction should not matter though.
+    ///
+    /// Type-safe alternatives: [`sort_unstable()`][Self::sort_unstable] , [`sort_unstable_by()`][Self::sort_unstable_by].
     ///
     /// _Godot equivalent: `Array.sort_custom()`_
     #[doc(alias = "sort_custom")]
@@ -940,7 +943,7 @@ impl<T: ArrayElement> Array<T> {
         inner::InnerArray::from_outer_typed(self)
     }
 
-    fn as_inner(&self) -> ImmutableInnerArray<'_> {
+    pub(super) fn as_inner(&self) -> ImmutableInnerArray<'_> {
         ImmutableInnerArray {
             // SAFETY: We can only read from the array.
             inner: unsafe { self.as_inner_mut() },
@@ -1634,21 +1637,25 @@ macro_rules! varray {
 /// This macro creates a [slice](https://doc.rust-lang.org/std/primitive.slice.html) of `Variant` values.
 ///
 /// # Examples
-/// Variable number of arguments:
+/// ## Variable number of arguments
 /// ```no_run
 /// # use godot::prelude::*;
 /// let slice: &[Variant] = vslice![42, "hello", true];
-///
 /// let concat: GString = godot::global::str(slice);
 /// ```
-/// _(In practice, you might want to use [`godot_str!`][crate::global::godot_str] instead of `str()`.)_
+/// _In practice, you might want to use [`godot_str!`][crate::global::godot_str] instead of `str()`._
 ///
-/// Dynamic function call via reflection. NIL can still be passed inside `vslice!`, just use `Variant::nil()`.
+/// ## Dynamic function call via reflection
+/// NIL can still be passed inside `vslice!`, just use `Variant::nil()`.
 /// ```no_run
 /// # use godot::prelude::*;
 /// # fn some_object() -> Gd<Object> { unimplemented!() }
 /// let mut obj: Gd<Object> = some_object();
-/// obj.call("some_method", vslice![Vector2i::new(1, 2), Variant::nil()]);
+///
+/// obj.call("some_method", vslice![
+///     Vector2i::new(1, 2),
+///     Variant::nil(),
+/// ]);
 /// ```
 ///
 /// # See also

@@ -66,25 +66,13 @@ pub enum Encoding {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Utilities
 
 fn populated_or_none(s: GString) -> Option<GString> {
     if s.is_empty() {
         None
     } else {
         Some(s)
-    }
-}
-
-fn found_to_option(index: i64) -> Option<usize> {
-    if index == -1 {
-        None
-    } else {
-        // If this fails, then likely because we overlooked a negative value.
-        let index_usize = index
-            .try_into()
-            .unwrap_or_else(|_| panic!("unexpected index {index} returned from Godot function"));
-
-        Some(index_usize)
     }
 }
 

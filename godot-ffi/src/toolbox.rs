@@ -195,6 +195,20 @@ pub fn i64_to_ordering(value: i64) -> std::cmp::Ordering {
     }
 }
 
+/// Converts a Godot "found" index `Option<usize>`, where -1 is mapped to `None`.
+pub fn found_to_option(index: i64) -> Option<usize> {
+    if index == -1 {
+        None
+    } else {
+        // If this fails, then likely because we overlooked a negative value.
+        let index_usize = index
+            .try_into()
+            .unwrap_or_else(|_| panic!("unexpected index {index} returned from Godot function"));
+
+        Some(index_usize)
+    }
+}
+
 /*
 pub fn unqualified_type_name<T>() -> &'static str {
     let type_name = std::any::type_name::<T>();
