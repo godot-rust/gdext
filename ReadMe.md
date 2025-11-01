@@ -4,7 +4,7 @@
 
 _**[Website]** | **[Book][book]** | **[API Docs]** | [Discord] | [BlueSky] | [Mastodon] | [Twitter] | [Sponsor]_
 
-**godot-rust** is a library to integrate the Rust language with Godot 4.
+**godot-rust** is a library to integrate the Rust language with Godot 4 (Currently 4.5).
 
 [Godot] is an open-source game engine, focusing on a productive and batteries-included 2D and 3D experience.  
 Its _GDExtension_ API allows integrating third-party languages and libraries.
