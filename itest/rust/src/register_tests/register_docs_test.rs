@@ -321,13 +321,44 @@ impl FairlyDocumented {
 
 #[itest]
 fn test_register_docs() {
-    let xml = find_class_docs("FairlyDocumented");
+    let actual_xml = find_class_docs("FairlyDocumented");
 
     // Uncomment if implementation changes and expected output file should be rewritten.
     // std::fs::write("../rust/src/register_tests/res/registered_docs.xml", &xml)
     //     .expect("failed to write docs XML file");
 
-    assert_eq!(include_str!("res/registered_docs.xml"), xml);
+    let expected_xml = include_str!("res/registered_docs.xml");
+
+    if actual_xml == expected_xml {
+        return; // All good.
+    }
+
+    // In GitHub Actions, print output of expected vs. actual.
+    if crate::framework::runs_github_ci() {
+        panic!(
+            "Registered docs XML does not match expected output.\
+            \n============================================================\
+            \nExpected:\n\n{expected_xml}\n\
+            \n------------------------------------------------------------\
+            \nActual:\n\n{actual_xml}\n\
+            \n============================================================\n"
+        );
+    }
+
+    // Locally, write to a file for manual inspection/diffing.
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("register_tests")
+        .join("res")
+        .join("actual_registered_docs.xml");
+
+    std::fs::write(&path, &actual_xml).expect("write `actual_registered_docs.xml` failed");
+
+    panic!(
+        "Registered docs XML does not match expected output.\n\
+        Actual output has been written to following file:\n  {path}\n",
+        path = path.display()
+    );
 }
 
 fn find_class_docs(class_name: &str) -> String {

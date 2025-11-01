@@ -29,3 +29,6 @@ exp.rs
 
 # Windows specific
 desktop.ini
+
+# Test outputs
+/itest/rust/src/register_tests/res/actual_registered_docs.xml

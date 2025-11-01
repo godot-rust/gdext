@@ -321,6 +321,13 @@ pub fn runs_release() -> bool {
     !Os::singleton().is_debug_build()
 }
 
+/// Whether we are running in GitHub Actions CI.
+///
+/// Must not be used to influence test logic. Only for logging and diagnostics.
+pub fn runs_github_ci() -> bool {
+    std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true")
+}
+
 /// Create a `GDScript` script from code, compiles and returns it.
 pub fn create_gdscript(code: &str) -> Gd<GDScript> {
     let mut script = GDScript::new_gd();
