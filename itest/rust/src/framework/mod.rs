@@ -158,8 +158,7 @@ pub struct RustBenchmark {
     pub file: &'static str,
     #[allow(dead_code)]
     pub line: u32,
-    pub function: fn(),
-    pub repetitions: usize,
+    pub function: fn() -> BenchResult,
 }
 
 pub fn passes_filter(filters: &[String], test_name: &str) -> bool {

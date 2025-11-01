@@ -376,7 +376,7 @@ impl IntegrationTests {
             print_bench_pre(bench.name, bench.file, last_file.as_deref());
             last_file = Some(bench.file.to_string());
 
-            let result = bencher::run_benchmark(bench.function, bench.repetitions);
+            let result = (bench.function)();
             print_bench_post(result);
         }
     }
@@ -546,9 +546,17 @@ fn print_bench_pre(benchmark: &str, bench_file: &str, last_file: Option<&str>) {
 }
 
 fn print_bench_post(result: BenchResult) {
-    for stat in result.stats.iter() {
-        print!(" {:>10.3}μs", stat.as_nanos() as f64 / 1000.0);
+    match result {
+        Ok(measured) => {
+            for stat in measured.stats.iter() {
+                print!(" {:>10.3}μs", stat.as_nanos() as f64 / 1000.0);
+            }
+        }
+        Err(msg) => {
+            print!("   {FMT_RED}ERROR: {msg}{FMT_END}");
+        }
     }
+
     println!();
 }
 
