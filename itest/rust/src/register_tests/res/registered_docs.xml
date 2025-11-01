@@ -25,6 +25,22 @@ public class Player : Node2D
   </description>
 </method>
 
+<method name="secondary_but_documented">
+  <return type="()" />
+  <param index="0" name="smth" type="i64" />
+  <description>
+  Documented method in godot_api secondary block
+  </description>
+</method>
+
+<method name="tertiary_but_documented">
+  <return type="()" />
+  <param index="0" name="smth" type="i64" />
+  <description>
+  Documented method in other godot_api secondary block
+  </description>
+</method>
+
 <method name="ye">
   <return type="f32" />
   
@@ -70,22 +86,6 @@ public class Player : Node2D
   
   <description>
   ????? probably
-  </description>
-</method>
-
-<method name="secondary_but_documented">
-  <return type="()" />
-  <param index="0" name="smth" type="i64" />
-  <description>
-  Documented method in godot_api secondary block
-  </description>
-</method>
-
-<method name="trinary_but_documented">
-  <return type="()" />
-  <param index="0" name="smth" type="i64" />
-  <description>
-  Documented method in other godot_api secondary block
   </description>
 </method>
 </methods>

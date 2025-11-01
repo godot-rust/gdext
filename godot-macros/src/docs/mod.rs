@@ -51,11 +51,11 @@ mod docs_generators {
 
         quote! {
             ::godot::sys::plugin_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsPlugin::new::<#class_name>(
-                    #prv::DocsItem::InherentImpl(#prv::InherentImplDocs {
-                        methods: #method_xml_elems,
-                        signals: #signal_xml_elems,
-                        constants: #constant_xml_elems
-                    })
+                #prv::DocsItem::InherentImpl(#prv::InherentImplDocs {
+                    methods_xml: #method_xml_elems,
+                    signals_xml: #signal_xml_elems,
+                    constants_xml: #constant_xml_elems
+                })
             ));
         }
     }
@@ -69,7 +69,7 @@ mod docs_generators {
 
         quote! {
             ::godot::sys::plugin_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsPlugin::new::<#class_name>(
-                    #prv::DocsItem::ITraitImpl(#virtual_methods)
+                #prv::DocsItem::ITraitImpl(#virtual_methods)
             ));
         }
     }
