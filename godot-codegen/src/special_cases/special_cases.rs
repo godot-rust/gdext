@@ -801,6 +801,7 @@ pub fn is_builtin_method_deleted(_class_name: &TyName, method: &JsonBuiltinMetho
 /// Returns some generic type – such as `GenericArray` representing `Array<T>` – if method is marked as generic, `None` otherwise.
 ///
 /// Usually required to initialize the return value and cache its type (see also https://github.com/godot-rust/gdext/pull/1357).
+#[rustfmt::skip]
 pub fn builtin_method_generic_ret(
     class_name: &TyName,
     method: &JsonBuiltinMethod,
@@ -809,9 +810,11 @@ pub fn builtin_method_generic_ret(
         class_name.rust_ty.to_string().as_str(),
         method.name.as_str(),
     ) {
-        ("Array", "duplicate") | ("Array", "slice") => {
-            Some(FnReturn::with_generic_builtin(RustTy::GenericArray))
-        }
+        | ("Array", "duplicate")
+        | ("Array", "slice")
+        | ("Array", "filter")
+
+        => Some(FnReturn::with_generic_builtin(RustTy::GenericArray)),
         _ => None,
     }
 }
