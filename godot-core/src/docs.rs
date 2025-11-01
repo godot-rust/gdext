@@ -174,7 +174,11 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
     })
 }
 
-fn wrap_in_xml_block(tag: &str, blocks: Vec<&'static str>) -> String {
+fn wrap_in_xml_block(tag: &str, mut blocks: Vec<&'static str>) -> String {
+    // We sort the blocks for deterministic output. No need to sort individual methods/signals/constants, this is already done by Godot.
+    // See https://github.com/godot-rust/gdext/pull/1391 for more information.
+    blocks.sort();
+
     let content = String::from_iter(blocks);
 
     if content.is_empty() {
