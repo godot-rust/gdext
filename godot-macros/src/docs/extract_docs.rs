@@ -34,27 +34,28 @@ pub fn document_struct(
     description: &[venial::Attribute],
     fields: &[Field],
 ) -> TokenStream {
-    let base_escaped = xml_escape(base);
     let XmlParagraphs {
         description_content,
         deprecated_attr,
         experimental_attr,
     } = attribute_docs_to_xml_paragraphs(description).unwrap_or_default();
 
-    let members = fields
+    let properties = fields
         .iter()
         .filter(|field| field.var.is_some() || field.export.is_some())
         .filter_map(format_member_xml)
         .collect::<String>();
 
+    let base_escaped = xml_escape(base);
+
     quote! {
-            ::godot::docs::StructDocs {
-                base: #base_escaped,
-                description: #description_content,
-                experimental: #experimental_attr,
-                deprecated: #deprecated_attr,
-                members: #members,
-            }
+        ::godot::docs::StructDocs {
+            base: #base_escaped,
+            description: #description_content,
+            experimental: #experimental_attr,
+            deprecated: #deprecated_attr,
+            properties: #properties,
+        }
     }
 }
 

@@ -324,6 +324,7 @@ pub fn runs_release() -> bool {
 /// Whether we are running in GitHub Actions CI.
 ///
 /// Must not be used to influence test logic. Only for logging and diagnostics.
+#[allow(dead_code)]
 pub fn runs_github_ci() -> bool {
     std::env::var("GITHUB_ACTIONS").as_deref() == Ok("true")
 }

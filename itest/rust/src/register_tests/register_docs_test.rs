@@ -316,7 +316,7 @@ impl FairlyDocumented {
 impl FairlyDocumented {
     /// Documented method in other godot_api secondary block
     #[func]
-    fn trinary_but_documented(&self, _smth: i64) {}
+    fn tertiary_but_documented(&self, _smth: i64) {}
 }
 
 #[itest]
