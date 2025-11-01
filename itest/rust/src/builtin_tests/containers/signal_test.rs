@@ -15,7 +15,6 @@ use godot::meta::{FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
 use godot::prelude::ConvertError;
 use godot::register::{godot_api, GodotClass};
-use godot::sys;
 use godot::sys::Global;
 
 use crate::framework::itest;

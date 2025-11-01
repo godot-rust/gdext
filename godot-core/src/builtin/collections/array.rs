@@ -293,7 +293,7 @@ impl<T: ArrayElement> Array<T> {
         /// because different arrays can have identical hash values due to hash collisions.
     }
 
-    #[deprecated = "renamed to hash_u32"]
+    #[deprecated = "renamed to `hash_u32`"]
     pub fn hash(&self) -> u32 {
         self.as_inner().hash().try_into().unwrap()
     }

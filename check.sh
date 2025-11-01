@@ -142,7 +142,13 @@ function findGodot() {
 # builtins like `test`.
 
 function cmd_fmt() {
-    run cargo fmt --all -- --check
+    # Run rustfmt in nightly toolchain if available.
+    if [[ $(rustup toolchain list) =~ nightly ]]; then
+        run cargo +nightly fmt --all -- --check
+    else
+        log -e "${YELLOW}Warning: nightly toolchain not found; stable rustfmt might not pass CI.${END}"
+        run cargo fmt --all -- --check
+    fi
 }
 
 function cmd_clippy() {

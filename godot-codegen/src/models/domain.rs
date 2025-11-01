@@ -737,19 +737,22 @@ pub enum RustTy {
     /// C-style raw pointer to a `RustTy`.
     RawPointer { inner: Box<RustTy>, is_const: bool },
 
-    /// `Array<Gd<PhysicsBody3D>>`
+    /// `Array<Gd<PhysicsBody3D>>`. Never contains `Option` elements.
     EngineArray {
         tokens: TokenStream,
-        #[allow(dead_code)] // only read in minimal config
+
+        #[allow(dead_code)] // Only read in minimal config.
         elem_class: String,
     },
 
     /// `module::Enum` or `module::Bitfield`
     EngineEnum {
         tokens: TokenStream,
-        /// `None` for globals
-        #[allow(dead_code)] // only read in minimal config
+
+        /// `None` for globals.
+        #[allow(dead_code)] // Only read in minimal config.
         surrounding_class: Option<String>,
+
         is_bitfield: bool,
     },
 
@@ -794,7 +797,6 @@ impl RustTy {
     /// Returns tokens without `Option<T>` wrapper, even for nullable engine classes.
     ///
     /// For `EngineClass`, always returns `Gd<T>` regardless of nullability. For other types, behaves the same as `ToTokens`.
-    // TODO(v0.5): only used for signal params, which is a bug. Those should conservatively be Option<Gd<T>> as well.
     // Might also be useful to directly extract inner `gd_tokens` field.
     pub fn tokens_non_null(&self) -> TokenStream {
         match self {

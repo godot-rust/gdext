@@ -703,22 +703,22 @@ mod test {
             Basis::from_euler(EulerOrder::XYZ, euler_xyz_from_rotation);
 
         let res = to_rotation.inverse() * rotation_from_xyz_computed_euler;
+        let col_a = res.col_a();
+        let col_b = res.col_b();
+        let col_c = res.col_c();
 
         assert!(
-        (res.col_a() - Vector3::new(1.0, 0.0, 0.0)).length() <= 0.1,
-        "Double check with XYZ rot order failed, due to X {} with {deg_original_euler} using {rot_order:?}",
-        res.col_a(),
-    );
+            (col_a - Vector3::new(1.0, 0.0, 0.0)).length() <= 0.1,
+            "Double check with XYZ rot order failed, due to A {col_a} with {deg_original_euler} using {rot_order:?}",
+        );
         assert!(
-        (res.col_b() - Vector3::new(0.0, 1.0, 0.0)).length() <= 0.1,
-        "Double check with XYZ rot order failed, due to Y {} with {deg_original_euler} using {rot_order:?}",
-        res.col_b(),
-    );
+            (col_b - Vector3::new(0.0, 1.0, 0.0)).length() <= 0.1,
+            "Double check with XYZ rot order failed, due to B {col_b} with {deg_original_euler} using {rot_order:?}",
+        );
         assert!(
-        (res.col_c() - Vector3::new(0.0, 0.0, 1.0)).length() <= 0.1,
-        "Double check with XYZ rot order failed, due to Z {} with {deg_original_euler} using {rot_order:?}",
-        res.col_c(),
-    );
+            (col_c - Vector3::new(0.0, 0.0, 1.0)).length() <= 0.1,
+            "Double check with XYZ rot order failed, due to C {col_c} with {deg_original_euler} using {rot_order:?}",
+        );
     }
 
     #[test]

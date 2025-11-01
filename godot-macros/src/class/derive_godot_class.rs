@@ -52,7 +52,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class_name = &class.name;
     let class_name_str: String = struct_cfg
         .rename
-        .map_or_else(|| class.name.clone(), |rename| rename)
+        .unwrap_or_else(|| class.name.clone())
         .to_string();
 
     let class_name_allocation = quote! { ClassId::__alloc_next_unicode(#class_name_str) };

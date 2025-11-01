@@ -425,7 +425,11 @@ fn add_virtual_script_call(
     rename: &Option<String>,
     gd_self_parameter: Option<Ident>,
 ) -> String {
-    assert!(cfg!(since_api = "4.3"));
+    #[allow(clippy::assertions_on_constants)]
+    {
+        // Without braces, clippy removes the #[allow] for some reason...
+        assert!(cfg!(since_api = "4.3"));
+    }
 
     // Update parameter names, so they can be forwarded (e.g. a "_" declared by the user cannot).
     let is_params = function.params.iter_mut().skip(1); // skip receiver.

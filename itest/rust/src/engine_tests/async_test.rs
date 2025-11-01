@@ -11,7 +11,6 @@ use godot::builtin::{array, vslice, Array, Callable, Signal};
 use godot::classes::{Object, RefCounted};
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::prelude::{godot_api, GodotClass};
-use godot::sys;
 use godot::task::{self, create_test_signal_future_resolver, SignalFuture, TaskHandle};
 
 use crate::framework::{expect_async_panic, itest, TestContext};
@@ -132,6 +131,8 @@ fn async_task_signal_future_panic() -> TaskHandle {
 #[cfg(feature = "experimental-threads")]
 #[itest(async)]
 fn signal_future_non_send_arg_panic() -> TaskHandle {
+    use godot::sys;
+
     use crate::framework::ThreadCrosser;
 
     let mut object = RefCounted::new_gd();
