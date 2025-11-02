@@ -182,7 +182,7 @@ impl CallError {
     /// Returns an error for a failed parameter conversion.
     pub(crate) fn failed_param_conversion<P>(
         call_ctx: &CallContext,
-        param_index: isize,
+        param_index: usize,
         convert_error: ConvertError,
     ) -> Self {
         let param_ty = std::any::type_name::<P>();

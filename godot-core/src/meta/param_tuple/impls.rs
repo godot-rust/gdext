@@ -64,7 +64,7 @@ macro_rules! unsafe_impl_param_tuple {
                 if arg_count == Self::LEN {
                     let param_tuple = (
                         $(
-                            unsafe { varcall_arg::<$P>(*args_ptr.offset($n), call_ctx, $n as isize)? },
+                            unsafe { varcall_arg::<$P>(*args_ptr.add($n), call_ctx, $n)? },
                         )*
                     );
                     return Ok(param_tuple);
@@ -75,7 +75,7 @@ macro_rules! unsafe_impl_param_tuple {
 
                 // Copy all provided args.
                 for i in 0..arg_count {
-                    all_args.push(unsafe { *args_ptr.offset(i as isize) });
+                    all_args.push(unsafe { *args_ptr.add(i) });
                 }
 
                 // Fill remaining parameters with default values.
@@ -89,7 +89,7 @@ macro_rules! unsafe_impl_param_tuple {
                 let param_tuple = (
                     $(
                         // SAFETY: Each pointer in `args_ptr` is borrowable as a &Variant for the duration of this call.
-                        unsafe { varcall_arg::<$P>(all_args[$n], call_ctx, $n as isize)? },
+                        unsafe { varcall_arg::<$P>(all_args[$n], call_ctx, $n)? },
                     )*
                 );
 
@@ -211,16 +211,16 @@ unsafe_impl_param_tuple!((p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4
 /// Convert the `N`th argument of `args_ptr` into a value of type `P`.
 ///
 /// # Safety
-/// - It must be safe to dereference the address at `args_ptr.offset(N)`.
-/// - The pointer at `args_ptr.offset(N)` must follow the safety requirements as laid out in
+/// - It must be safe to dereference the address at `args_ptr.add(N)`.
+/// - The pointer at `args_ptr.add(N)` must follow the safety requirements as laid out in
 ///   [`GodotFfi::from_arg_ptr`].
-pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
+pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: usize>(
     args_ptr: *const sys::GDExtensionConstTypePtr,
     call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) -> CallResult<P> {
     // SAFETY: It is safe to dereference `args_ptr` at `N`.
-    let offset_ptr = unsafe { *args_ptr.offset(N) };
+    let offset_ptr = unsafe { *args_ptr.add(N) };
 
     // SAFETY: The pointer follows the safety requirements from `GodotFfi::from_arg_ptr`.
     let ffi = unsafe {
@@ -240,7 +240,7 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
 pub(super) unsafe fn varcall_arg<P: FromGodot>(
     arg: sys::GDExtensionConstVariantPtr,
     call_ctx: &CallContext,
-    param_index: isize,
+    param_index: usize,
 ) -> CallResult<P> {
     // SAFETY: It is safe to dereference `args_ptr` at `N` as a `Variant`.
     let variant_ref = unsafe { Variant::borrow_var_sys(arg) };
