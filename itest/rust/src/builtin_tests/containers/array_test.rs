@@ -554,18 +554,11 @@ fn array_bsearch_by() {
 }
 
 #[itest]
-fn array_bsearch_custom() {
+fn array_fops_bsearch_custom() {
     let a = array![5, 4, 2, 1];
     let func = backwards_sort_callable();
-    assert_eq!(a.bsearch_custom(1, &func), 3);
-    assert_eq!(a.bsearch_custom(3, &func), 2);
-}
-
-fn backwards_sort_callable() -> Callable {
-    // No &[&Variant] explicit type in arguments.
-    Callable::from_fn("sort backwards", |args| {
-        args[0].to::<i32>() > args[1].to::<i32>()
-    })
+    assert_eq!(a.functional_ops().bsearch_custom(1, &func), 3);
+    assert_eq!(a.functional_ops().bsearch_custom(3, &func), 2);
 }
 
 #[itest]
@@ -694,6 +687,88 @@ fn array_inner_type() {
 
     let subarray = primary.subarray_shallow(.., None);
     assert_eq!(subarray.element_type(), primary.element_type());
+}
+
+#[itest]
+fn array_fops_filter() {
+    let is_even = is_even_callable();
+
+    let array = array![1, 2, 3, 4, 5, 6];
+    assert_eq!(array.functional_ops().filter(&is_even), array![2, 4, 6]);
+}
+
+#[itest]
+fn array_fops_map() {
+    let f = Callable::from_fn("round", |args| args[0].to::<f64>().round() as i64);
+
+    let array = array![0.7, 1.0, 1.3, 1.6];
+    let result = array.functional_ops().map(&f);
+
+    assert_eq!(result, varray![1, 1, 1, 2]);
+}
+
+#[itest]
+fn array_fops_reduce() {
+    let f = Callable::from_fn("sum", |args| args[0].to::<i64>() + args[1].to::<i64>());
+
+    let array = array![1, 2, 3, 4];
+    let result = array.functional_ops().reduce(&f, &0.to_variant());
+
+    assert_eq!(result.to::<i64>(), 10);
+}
+
+#[itest]
+fn array_fops_any() {
+    let is_even = is_even_callable();
+
+    assert!(array![1, 2, 3].functional_ops().any(&is_even));
+    assert!(!array![1, 3, 5].functional_ops().any(&is_even));
+}
+
+#[itest]
+fn array_fops_all() {
+    let is_even = is_even_callable();
+
+    assert!(!array![1, 2, 3].functional_ops().all(&is_even));
+    assert!(array![2, 4, 6].functional_ops().all(&is_even));
+}
+
+#[itest]
+#[cfg(since_api = "4.4")]
+fn array_fops_find_custom() {
+    let is_even = is_even_callable();
+
+    let array = array![1, 2, 3, 4, 5];
+    assert_eq!(array.functional_ops().find_custom(&is_even, None), Some(1));
+
+    let array = array![1, 3, 5];
+    assert_eq!(array.functional_ops().find_custom(&is_even, None), None);
+}
+
+#[itest]
+#[cfg(since_api = "4.4")]
+fn array_fops_rfind_custom() {
+    let is_even = is_even_callable();
+
+    let array = array![1, 2, 3, 4, 5];
+    assert_eq!(array.functional_ops().rfind_custom(&is_even, None), Some(3));
+
+    let array = array![1, 3, 5];
+    assert_eq!(array.functional_ops().rfind_custom(&is_even, None), None);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helper functions for creating callables.
+
+fn backwards_sort_callable() -> Callable {
+    // No &[&Variant] explicit type in arguments.
+    Callable::from_fn("sort backwards", |args| {
+        args[0].to::<i32>() > args[1].to::<i32>()
+    })
+}
+
+fn is_even_callable() -> Callable {
+    Callable::from_fn("is even", |args| args[0].to::<i64>() % 2 == 0)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

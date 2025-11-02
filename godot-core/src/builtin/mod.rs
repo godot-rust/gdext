@@ -65,6 +65,7 @@ pub use __prelude_reexport::*;
 pub mod math;
 
 /// Iterator types for arrays and dictionaries.
+// Might rename this to `collections` or so.
 pub mod iter {
     pub use super::collections::iterators::*;
 }

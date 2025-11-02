@@ -399,7 +399,7 @@ macro_rules! impl_shared_string_api {
                     }
                 };
 
-                super::found_to_option(godot_found)
+                sys::found_to_option(godot_found)
             }
         }
 
