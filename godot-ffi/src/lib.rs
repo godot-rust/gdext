@@ -50,6 +50,7 @@ pub(crate) mod gen {
 
 pub mod conv;
 
+mod assertions;
 mod extras;
 mod global;
 mod godot_ffi;
