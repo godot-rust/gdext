@@ -34,6 +34,8 @@ pub struct ClassMethodInfo {
     method_flags: MethodFlags,
     return_value: Option<MethodParamOrReturnInfo>,
     arguments: Vec<MethodParamOrReturnInfo>,
+    /// Whether default arguments are real "arguments" is controversial. From the function PoV they are, but for the caller,
+    /// they are just pre-set values to fill in for missing arguments.
     default_arguments: Vec<Variant>,
 }
 

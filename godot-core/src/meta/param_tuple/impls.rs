@@ -56,20 +56,40 @@ macro_rules! unsafe_impl_param_tuple {
         impl<$($P),*> InParamTuple for ($($P,)*) where $($P: FromGodot + fmt::Debug),* {
             unsafe fn from_varcall_args(
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
+                arg_count: usize,
+                default_values: &[Variant],
                 call_ctx: &crate::meta::CallContext,
             ) -> CallResult<Self> {
-                let args = (
-                    $(
-                        // SAFETY: `args_ptr` is an array with length `Self::LEN` and each element is a valid pointer, since they
-                        // are all reborrowable as references.
-                        unsafe { *args_ptr.offset($n) },
-                    )*
-                );
+                // Fast path: all args provided, no defaults needed (zero allocations).
+                if arg_count == Self::LEN {
+                    let param_tuple = (
+                        $(
+                            unsafe { varcall_arg::<$P>(*args_ptr.offset($n), call_ctx, $n as isize)? },
+                        )*
+                    );
+                    return Ok(param_tuple);
+                }
 
+                // Slow path: merge provided args with defaults (requires allocation).
+                let mut all_args = Vec::with_capacity(Self::LEN);
+
+                // Copy all provided args.
+                for i in 0..arg_count {
+                    all_args.push(unsafe { *args_ptr.offset(i as isize) });
+                }
+
+                // Fill remaining parameters with default values.
+                let required_param_count = Self::LEN - default_values.len();
+                let first_missing_index = arg_count - required_param_count;
+                for i in first_missing_index..default_values.len() {
+                    all_args.push(default_values[i].var_sys());
+                }
+
+                // Convert all args to the tuple.
                 let param_tuple = (
                     $(
-                        // SAFETY: Each pointer in `args_ptr` is reborrowable as a `&Variant` for the duration of this call.
-                        unsafe { varcall_arg::<$P>(args.$n, call_ctx, $n)? },
+                        // SAFETY: Each pointer in `args_ptr` is borrowable as a &Variant for the duration of this call.
+                        unsafe { varcall_arg::<$P>(all_args[$n], call_ctx, $n as isize)? },
                     )*
                 );
 
