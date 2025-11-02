@@ -111,10 +111,28 @@ use binding::{
 #[cfg(not(wasm_nothreads))]
 static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::new();
 
+#[cfg(before_api = "4.5")]
+mod version_symbols {
+
+    pub type GodotSysVersion = super::GDExtensionGodotVersion;
+    pub type GetGodotSysVersion = super::GDExtensionInterfaceGetGodotVersion;
+    pub const GET_GODOT_VERSION_SYS_STR: &[u8] = b"get_godot_version\0";
+}
+
+#[cfg(since_api = "4.5")]
+mod version_symbols {
+    pub type GodotSysVersion = super::GDExtensionGodotVersion2;
+
+    pub type GetGodotSysVersion = super::GDExtensionInterfaceGetGodotVersion2;
+    pub const GET_GODOT_VERSION_SYS_STR: &[u8] = b"get_godot_version2\0";
+}
+
+use version_symbols::*;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct GdextRuntimeMetadata {
-    godot_version: GDExtensionGodotVersion,
+    godot_version: GodotSysVersion,
 }
 
 impl GdextRuntimeMetadata {
@@ -122,7 +140,7 @@ impl GdextRuntimeMetadata {
     ///
     /// - The `string` field of `godot_version` must not be written to while this struct exists.
     /// - The `string` field of `godot_version` must be safe to read from while this struct exists.
-    pub unsafe fn new(godot_version: GDExtensionGodotVersion) -> Self {
+    pub unsafe fn new(godot_version: GodotSysVersion) -> Self {
         Self { godot_version }
     }
 }
@@ -264,7 +282,7 @@ fn safeguards_level_string() -> &'static str {
     }
 }
 
-fn print_preamble(version: GDExtensionGodotVersion) {
+fn print_preamble(version: GodotSysVersion) {
     let api_version: &'static str = GdextBuild::godot_static_version_string();
     let runtime_version = read_version_string(&version);
     let safeguards_level = safeguards_level_string();

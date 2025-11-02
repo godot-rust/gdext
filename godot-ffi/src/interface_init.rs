@@ -71,7 +71,7 @@ pub fn ensure_static_runtime_compatibility(
         let minor = unsafe { data_ptr.offset(1).read() };
         if minor == 0 {
             // SAFETY: at this point it's reasonably safe to say that we are indeed dealing with that version struct; read the whole.
-            let data_ptr = get_proc_address as *const sys::GDExtensionGodotVersion;
+            let data_ptr = get_proc_address as *const sys::GodotSysVersion;
             let runtime_version_str = unsafe { read_version_string(&data_ptr.read()) };
 
             panic!(
@@ -114,7 +114,7 @@ pub fn ensure_static_runtime_compatibility(
 
 pub unsafe fn runtime_version(
     get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
-) -> sys::GDExtensionGodotVersion {
+) -> sys::GodotSysVersion {
     let get_proc_address = get_proc_address.expect("get_proc_address unexpectedly null");
 
     runtime_version_inner(get_proc_address)
@@ -125,17 +125,17 @@ unsafe fn runtime_version_inner(
     get_proc_address: unsafe extern "C" fn(
         *const std::ffi::c_char,
     ) -> sys::GDExtensionInterfaceFunctionPtr,
-) -> sys::GDExtensionGodotVersion {
+) -> sys::GodotSysVersion {
     // SAFETY: `self.0` is a valid `get_proc_address` pointer.
-    let get_godot_version = unsafe { get_proc_address(sys::c_str(b"get_godot_version\0")) }; //.expect("get_godot_version unexpectedly null");
+    let get_godot_version = unsafe { get_proc_address(sys::c_str(sys::GET_GODOT_VERSION_SYS_STR)) }; //.expect("get_godot_version unexpectedly null");
 
-    // SAFETY: `sys::GDExtensionInterfaceGetGodotVersion` is an `Option` of an `unsafe extern "C"` function pointer.
+    // SAFETY: `GDExtensionInterfaceGetGodotVersion` is an `Option` of an `unsafe extern "C"` function pointer.
     let get_godot_version =
-        crate::unsafe_cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
+        crate::unsafe_cast_fn_ptr!(get_godot_version as sys::GetGodotSysVersion);
 
-    let mut version = std::mem::MaybeUninit::<sys::GDExtensionGodotVersion>::zeroed();
+    let mut version = std::mem::MaybeUninit::<sys::GodotSysVersion>::zeroed();
 
-    // SAFETY: `get_proc_address` with "get_godot_version" does return a valid `sys::GDExtensionInterfaceGetGodotVersion` pointer, and since we have a valid
+    // SAFETY: `get_proc_address` with "get_godot_version" does return a valid `GDExtensionInterfaceGetGodotVersion` pointer, and since we have a valid
     // `get_proc_address` pointer then it must be callable.
     unsafe { get_godot_version(version.as_mut_ptr()) };
 

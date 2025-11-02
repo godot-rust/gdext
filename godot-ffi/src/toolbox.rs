@@ -416,7 +416,7 @@ pub(crate) fn load_utility_function(
     })
 }
 
-pub(crate) fn read_version_string(version_ptr: &sys::GDExtensionGodotVersion) -> String {
+pub(crate) fn read_version_string(version_ptr: &sys::GodotSysVersion) -> String {
     let char_ptr = version_ptr.string;
 
     // SAFETY: GDExtensionGodotVersion has the (manually upheld) invariant of a valid string field.
