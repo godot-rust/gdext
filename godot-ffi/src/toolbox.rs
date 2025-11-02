@@ -99,7 +99,7 @@ where
 #[inline]
 pub fn c_str(s: &[u8]) -> *const std::ffi::c_char {
     // Ensure null-terminated
-    debug_assert!(!s.is_empty() && s[s.len() - 1] == 0);
+    crate::strict_assert!(!s.is_empty() && s[s.len() - 1] == 0);
 
     s.as_ptr() as *const std::ffi::c_char
 }

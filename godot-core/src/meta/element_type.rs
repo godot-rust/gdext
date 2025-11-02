@@ -131,8 +131,8 @@ impl ElementType {
             }
         });
 
-        // Debug validation for cached Untyped values.
-        #[cfg(debug_assertions)]
+        // Consistency validation for cached Untyped values.
+        #[cfg(safeguards_strict)]
         if matches!(cached, ElementType::Untyped) {
             let sys_variant_type = get_builtin_type();
             let variant_type =

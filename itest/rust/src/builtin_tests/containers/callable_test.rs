@@ -414,14 +414,12 @@ pub mod custom_callable {
         let crosser = ThreadCrosser::new(callable);
 
         // Create separate thread and ensure calling fails.
-        // Why expect_panic for (single-threaded && Debug) but not (multi-threaded || Release) mode:
-        // - Check is only enabled in Debug, not Release.
-        // - We currently can't catch panics from Callable invocations, see above. True for both single/multi-threaded.
-        // - In single-threaded mode, there's an FFI access check which panics as soon as another thread is invoked. *This* panics.
-        // - In multi-threaded, we need to observe the effect instead (see below).
-
-        if !cfg!(feature = "experimental-threads") && cfg!(debug_assertions) {
-            // Single-threaded and Debug.
+        // Why expect_panic for (safeguards_balanced && single-threaded) but not otherwise:
+        // - In single-threaded mode with balanced safeguards, there's an FFI access check which panics when another thread is invoked.
+        // - In multi-threaded mode OR with safeguards disengaged, the callable may or may not execute, but won't panic at the FFI level.
+        // - We can't catch panics from Callable invocations yet (see above), only the FFI access panics.
+        if cfg!(safeguards_balanced) && !cfg!(feature = "experimental-threads") {
+            // Single-threaded with balanced safeguards: FFI access check will panic.
             crate::framework::expect_panic(
                 "Callable created with from_fn() must panic when invoked on other thread",
                 || {
@@ -432,18 +430,17 @@ pub mod custom_callable {
                 },
             );
         } else {
-            // Multi-threaded OR Release.
+            // Multi-threaded OR safeguards disengaged: No FFI panic, but callable may or may not execute.
             quick_thread(|| {
                 let callable = unsafe { crosser.extract() };
                 callable.callv(&varray![5]);
             });
         }
 
-        assert_eq!(
-            *GLOBAL.lock(),
-            0,
-            "Callable created with from_fn() must not run when invoked on other thread"
-        );
+        // Expected value depends on whether thread checks are enforced.
+        // 777: callable *is* executed on other thread.
+        let expected = if cfg!(safeguards_balanced) { 0 } else { 777 };
+        assert_eq!(*GLOBAL.lock(), expected);
     }
 
     #[itest]

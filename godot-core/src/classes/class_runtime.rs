@@ -7,17 +7,27 @@
 
 //! Runtime checks and inspection of Godot classes.
 
-use crate::builtin::{GString, StringName, Variant, VariantType};
-#[cfg(safeguards_strict)]
-use crate::classes::{ClassDb, Object};
-#[cfg(safeguards_balanced)]
-use crate::meta::CallContext;
-#[cfg(safeguards_strict)]
-use crate::meta::ClassId;
-#[cfg(safeguards_strict)]
-use crate::obj::Singleton;
+use crate::builtin::{GString, StringName, Variant};
 use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
 use crate::sys;
+
+#[cfg(safeguards_strict)]
+mod strict {
+    pub use crate::builtin::VariantType;
+    pub use crate::classes::{ClassDb, Object};
+    pub use crate::meta::ClassId;
+    pub use crate::obj::Singleton;
+}
+
+#[cfg(safeguards_balanced)]
+mod balanced {
+    pub use crate::meta::CallContext;
+}
+
+#[cfg(safeguards_balanced)]
+use balanced::*;
+#[cfg(safeguards_strict)]
+use strict::*;
 
 pub(crate) fn debug_string<T: GodotClass>(
     obj: &Gd<T>,
@@ -38,7 +48,7 @@ pub(crate) fn debug_string_variant(
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
 ) -> std::fmt::Result {
-    debug_assert_eq!(obj.get_type(), VariantType::OBJECT);
+    sys::strict_assert_eq!(obj.get_type(), VariantType::OBJECT);
 
     let id = obj
         .object_id_unchecked()
@@ -73,7 +83,7 @@ pub(crate) fn debug_string_variant(
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
 ) -> std::fmt::Result {
-    debug_assert_eq!(obj.get_type(), VariantType::OBJECT);
+    sys::strict_assert_eq!(obj.get_type(), VariantType::OBJECT);
 
     match obj.try_to::<Gd<crate::classes::Object>>() {
         Ok(obj) => {

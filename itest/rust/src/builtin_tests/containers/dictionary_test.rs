@@ -12,7 +12,9 @@ use godot::classes::RefCounted;
 use godot::meta::{ElementType, FromGodot, ToGodot};
 use godot::obj::NewGd;
 
-use crate::framework::{assert_match, create_gdscript, expect_panic, itest};
+use crate::framework::{
+    assert_match, create_gdscript, expect_panic, expect_panic_or_nothing, itest,
+};
 
 #[itest]
 fn dictionary_default() {
@@ -279,13 +281,13 @@ fn dictionary_set() {
 fn dictionary_set_readonly() {
     let mut dictionary = vdict! { "zero": 0, "one": 1 }.into_read_only();
 
-    #[cfg(debug_assertions)]
-    expect_panic("Mutating read-only dictionary in Debug mode", || {
-        dictionary.set("zero", 2);
-    });
-
-    #[cfg(not(debug_assertions))]
-    dictionary.set("zero", 2); // silently fails.
+    // Fails silently in safeguards-disengaged (no UB).
+    expect_panic_or_nothing(
+        "Mutating read-only dictionary (safeguards-balanced)",
+        || {
+            dictionary.set("zero", 2);
+        },
+    );
 
     assert_eq!(dictionary.at("zero"), 0.to_variant());
 }

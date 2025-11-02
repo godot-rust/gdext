@@ -309,22 +309,19 @@ impl Callable {
         _name: S,
         rust_function: F,
         thread_id: Option<ThreadId>,
-        linked_obj_id: Option<InstanceId>,
+        linked_object_id: Option<InstanceId>,
     ) -> Self
     where
         F: FnMut(&[&Variant]) -> R,
         R: ToGodot,
         S: meta::AsArg<GString>,
     {
-        #[cfg(safeguards_balanced)]
-        meta::arg_into_owned!(_name);
-
         let wrapper = FnWrapper {
             rust_function,
             #[cfg(safeguards_balanced)]
-            name: _name,
+            name: { _name.into_arg().cow_into_owned() },
             thread_id,
-            linked_obj_id,
+            linked_object_id,
         };
 
         let object_id = wrapper.linked_object_id();
@@ -610,13 +607,26 @@ mod custom_callable {
         /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
         pub(super) thread_id: Option<ThreadId>,
         /// `None` if callable is not linked with any object.
-        pub(super) linked_obj_id: Option<InstanceId>,
+        pub(super) linked_object_id: Option<InstanceId>,
     }
 
     impl<F> FnWrapper<F> {
         pub(crate) fn linked_object_id(&self) -> GDObjectInstanceID {
-            self.linked_obj_id.map(InstanceId::to_u64).unwrap_or(0)
+            self.linked_object_id.map(InstanceId::to_u64).unwrap_or(0)
         }
+    }
+
+    /// Returns the name for safeguard-enabled builds, or `"<optimized out>"` otherwise.
+    macro_rules! name_or_optimized {
+        ($($code:tt)*) => {
+            {
+                #[cfg(safeguards_balanced)]
+                { $($code)* }
+
+                #[cfg(not(safeguards_balanced))]
+                { "<optimized out>" }
+            }
+        };
     }
 
     /// Represents a custom callable object defined in Rust.
@@ -655,14 +665,11 @@ mod custom_callable {
     ) {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        #[cfg(safeguards_balanced)]
-        let name = &{
+        let name = name_or_optimized! {
             let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
             c.to_string()
         };
-        #[cfg(not(safeguards_balanced))]
-        let name = "<optimized out>";
-        let ctx = meta::CallContext::custom_callable(name);
+        let ctx = meta::CallContext::custom_callable(&name);
 
         crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
             // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
@@ -685,23 +692,17 @@ mod custom_callable {
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        #[cfg(safeguards_balanced)]
-        let name = &{
+        let name = name_or_optimized! {
             let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
             w.name.to_string()
         };
-        #[cfg(not(safeguards_balanced))]
-        let name = "<optimized out>";
-        let ctx = meta::CallContext::custom_callable(name);
+        let ctx = meta::CallContext::custom_callable(&name);
 
         crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
             // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
             let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
-            #[cfg(safeguards_balanced)]
-            let name = &w.name;
-            #[cfg(not(safeguards_balanced))]
-            let name = "<optimized out>";
+            let name = name_or_optimized!(w.name.to_string());
 
             // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
             // See comments in itest callable_call() for details.

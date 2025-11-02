@@ -54,13 +54,14 @@ impl NodePath {
     /// godot_print!("{}", path.get_name(2)); // "Sprite"
     /// ```
     ///
-    /// # Panics
-    /// In Debug mode, if `index` is out of bounds. In Release, a Godot error is generated and the result is unspecified (but safe).
+    /// # Panics (safeguards-balanced)
+    /// If `index` is out of bounds. In safeguards-disengaged level, a Godot error is generated and the result is unspecified (but safe).
     pub fn get_name(&self, index: usize) -> StringName {
         let inner = self.as_inner();
         let index = index as i64;
 
-        debug_assert!(
+        // Not safety-critical, Godot will do another check. But better error message.
+        sys::balanced_assert!(
             index < inner.get_name_count(),
             "NodePath '{self}': name at index {index} is out of bounds"
         );
@@ -80,13 +81,13 @@ impl NodePath {
     /// godot_print!("{}", path.get_subname(1)); // "resource_name"
     /// ```
     ///
-    /// # Panics
-    /// In Debug mode, if `index` is out of bounds. In Release, a Godot error is generated and the result is unspecified (but safe).
+    /// # Panics (safeguards-balanced)
+    /// If `index` is out of bounds. In safeguards-disengaged level, a Godot error is generated and the result is unspecified (but safe).
     pub fn get_subname(&self, index: usize) -> StringName {
         let inner = self.as_inner();
         let index = index as i64;
 
-        debug_assert!(
+        sys::balanced_assert!(
             index < inner.get_subname_count(),
             "NodePath '{self}': subname at index {index} is out of bounds"
         );

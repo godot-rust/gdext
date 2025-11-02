@@ -5,14 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_balanced)]
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_balanced)]
 use std::rc::Rc;
 
 use crate::builtin::Callable;
@@ -28,7 +28,7 @@ thread_local! {
 }
 
 /// Represents the initialization state of a `Base<T>` object.
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_balanced)] // TODO(v0.5 or v0.6): relax to strict state, once people are used to checks.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum InitState {
     /// Object is being constructed (inside `I*::init()` or `Gd::from_init_fn()`).
@@ -39,14 +39,14 @@ enum InitState {
     Script,
 }
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_balanced)]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj, $state)
     };
 }
 
-#[cfg(not(safeguards_strict))]
+#[cfg(not(safeguards_balanced))]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj)
@@ -83,7 +83,7 @@ pub struct Base<T: GodotClass> {
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_balanced)]
     init_state: Rc<Cell<InitState>>,
 }
 
@@ -96,8 +96,7 @@ impl<T: GodotClass> Base<T> {
     /// `base` must be alive at the time of invocation, i.e. user `init()` (which could technically destroy it) must not have run yet.
     /// If `base` is destroyed while the returned `Base<T>` is in use, that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_base(base: &Base<T>) -> Base<T> {
-        #[cfg(safeguards_balanced)]
-        assert!(
+        sys::balanced_assert!(
             base.obj.is_instance_valid(),
             "Cannot construct Base; was object freed during initialization?"
         );
@@ -106,7 +105,7 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
-            #[cfg(safeguards_strict)]
+            #[cfg(safeguards_balanced)]
             init_state: Rc::clone(&base.init_state),
         }
     }
@@ -119,8 +118,7 @@ impl<T: GodotClass> Base<T> {
     /// `gd` must be alive at the time of invocation. If it is destroyed while the returned `Base<T>` is in use, that constitutes a logic
     /// error, not a safety issue.
     pub(crate) unsafe fn from_script_gd(gd: &Gd<T>) -> Self {
-        #[cfg(safeguards_strict)]
-        assert!(gd.is_instance_valid());
+        sys::balanced_assert!(gd.is_instance_valid());
 
         let obj = Gd::from_obj_sys_weak(gd.obj_sys());
         base_from_obj!(obj, InitState::Script)
@@ -134,7 +132,7 @@ impl<T: GodotClass> Base<T> {
     /// `base_ptr` must point to a valid, live object at the time of invocation. If it is destroyed while the returned `Base<T>` is in use,
     /// that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_sys(base_ptr: sys::GDExtensionObjectPtr) -> Self {
-        assert!(!base_ptr.is_null(), "instance base is null pointer");
+        sys::balanced_assert!(!base_ptr.is_null(), "instance base is null pointer");
 
         // Initialize only as weak pointer (don't increment reference count).
         let obj = Gd::from_obj_sys_weak(base_ptr);
@@ -147,7 +145,7 @@ impl<T: GodotClass> Base<T> {
         base_from_obj!(obj, InitState::ObjectConstructing)
     }
 
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_balanced)]
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -155,7 +153,7 @@ impl<T: GodotClass> Base<T> {
         }
     }
 
-    #[cfg(not(safeguards_strict))]
+    #[cfg(not(safeguards_balanced))]
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -182,8 +180,7 @@ impl<T: GodotClass> Base<T> {
     /// # Panics (Debug)
     /// If called outside an initialization function, or for ref-counted objects on a non-main thread.
     pub fn to_init_gd(&self) -> Gd<T> {
-        #[cfg(safeguards_strict)] // debug_assert! still checks existence of symbols.
-        assert!(
+        sys::balanced_assert!(
             self.is_initializing(),
             "Base::to_init_gd() can only be called during object initialization, inside I*::init() or Gd::from_init_fn()"
         );
@@ -194,7 +191,7 @@ impl<T: GodotClass> Base<T> {
             return Gd::clone(&self.obj);
         }
 
-        debug_assert!(
+        sys::balanced_assert!(
             sys::is_main_thread(),
             "Base::to_init_gd() can only be called on the main thread for ref-counted objects (for now)"
         );
@@ -236,7 +233,7 @@ impl<T: GodotClass> Base<T> {
         PENDING_STRONG_REFS.with(|refs| {
             let mut pending_refs = refs.borrow_mut();
             let strong_ref = pending_refs.remove(&instance_id);
-            assert!(
+            sys::strict_assert!(
                 strong_ref.is_some(),
                 "Base unexpectedly had its strong ref rug-pulled"
             );
@@ -254,7 +251,7 @@ impl<T: GodotClass> Base<T> {
 
     /// Finalizes the initialization of this `Base<T>` and returns whether
     pub(crate) fn mark_initialized(&mut self) {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_balanced)]
         {
             assert_eq!(
                 self.init_state.get(),
@@ -266,18 +263,6 @@ impl<T: GodotClass> Base<T> {
         }
 
         // May return whether there is a "surplus" strong ref in the future, as self.extra_strong_ref.borrow().is_some().
-    }
-
-    /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
-    #[doc(hidden)]
-    pub fn __fully_constructed_gd(&self) -> Gd<T> {
-        #[cfg(safeguards_strict)] // debug_assert! still checks existence of symbols.
-        assert!(
-            !self.is_initializing(),
-            "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
-        );
-
-        (*self.obj).clone()
     }
 
     /// Returns a [`Gd`] referencing the base object, for use in script contexts only.
@@ -302,7 +287,7 @@ impl<T: GodotClass> Base<T> {
 
     /// Returns a passive reference to the base object, for use in script contexts only.
     pub(crate) fn to_script_passive(&self) -> PassiveGd<T> {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_balanced)]
         assert_eq!(
             self.init_state.get(),
             InitState::Script,
@@ -314,16 +299,21 @@ impl<T: GodotClass> Base<T> {
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_balanced)]
     fn is_initializing(&self) -> bool {
         self.init_state.get() == InitState::ObjectConstructing
+    }
+
+    /// Always returns `false` when balanced safeguards are disabled.
+    #[cfg(not(safeguards_balanced))]
+    fn is_initializing(&self) -> bool {
+        false
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     #[doc(hidden)]
     pub fn __constructed_gd(&self) -> Gd<T> {
-        #[cfg(safeguards_strict)] // debug_assert! still checks existence of symbols.
-        assert!(
+        sys::balanced_assert!(
             !self.is_initializing(),
             "WithBaseField::to_gd(), base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
         );
@@ -339,8 +329,7 @@ impl<T: GodotClass> Base<T> {
     /// # Safety
     /// Caller must ensure that the underlying object remains valid for the entire lifetime of the returned `PassiveGd`.
     pub(crate) unsafe fn constructed_passive(&self) -> PassiveGd<T> {
-        #[cfg(safeguards_strict)] // debug_assert! still checks existence of symbols.
-        assert!(
+        sys::balanced_assert!(
             !self.is_initializing(),
             "WithBaseField::base(), base_mut() can only be called on fully-constructed objects, after I*::init() or Gd::from_init_fn()"
         );

@@ -19,12 +19,12 @@ macro_rules! impl_shared_string_api {
         impl $Builtin {
             /// Returns the Unicode code point ("character") at position `index`.
             ///
-            /// # Panics
-            /// In debug builds, if `index` is out of bounds. In Release builds, `0` is returned instead.
+            /// # Panics (safeguards-balanced)
+            /// If `index` is out of bounds. In disengaged level, `0` is returned instead.
             // Unicode conversion panic is not documented because we rely on Godot strings having valid Unicode.
             // TODO implement Index/IndexMut (for GString; StringName may have varying reprs).
             pub fn unicode_at(&self, index: usize) -> char {
-                debug_assert!(index < self.len(), "unicode_at: index {} out of bounds (len {})", index, self.len());
+                sys::balanced_assert!(index < self.len(), "unicode_at: index {} out of bounds (len {})", index, self.len());
 
                 let char_i64 = self.as_inner().unicode_at(index as i64);
 

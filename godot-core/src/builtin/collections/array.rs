@@ -319,7 +319,7 @@ impl<T: ArrayElement> Array<T> {
 
     /// Clears the array, removing all elements.
     pub fn clear(&mut self) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         // SAFETY: No new values are written to the array, we only remove values from the array.
         unsafe { self.as_inner_mut() }.clear();
@@ -331,7 +331,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If `index` is out of bounds.
     pub fn set(&mut self, index: usize, value: impl AsArg<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let ptr_mut = self.ptr_mut(index);
 
@@ -348,7 +348,7 @@ impl<T: ArrayElement> Array<T> {
     #[doc(alias = "append")]
     #[doc(alias = "push_back")]
     pub fn push(&mut self, value: impl AsArg<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         meta::arg_into_ref!(value: T);
 
@@ -362,7 +362,7 @@ impl<T: ArrayElement> Array<T> {
     /// On large arrays, this method is much slower than [`push()`][Self::push], as it will move all the array's elements.
     /// The larger the array, the slower `push_front()` will be.
     pub fn push_front(&mut self, value: impl AsArg<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         meta::arg_into_ref!(value: T);
 
@@ -376,7 +376,7 @@ impl<T: ArrayElement> Array<T> {
     /// _Godot equivalent: `pop_back`_
     #[doc(alias = "pop_back")]
     pub fn pop(&mut self) -> Option<T> {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         (!self.is_empty()).then(|| {
             // SAFETY: We do not write any values to the array, we just remove one.
@@ -390,7 +390,7 @@ impl<T: ArrayElement> Array<T> {
     /// Note: On large arrays, this method is much slower than `pop()` as it will move all the
     /// array's elements. The larger the array, the slower `pop_front()` will be.
     pub fn pop_front(&mut self) -> Option<T> {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         (!self.is_empty()).then(|| {
             // SAFETY: We do not write any values to the array, we just remove one.
@@ -407,7 +407,7 @@ impl<T: ArrayElement> Array<T> {
     /// # Panics
     /// If `index > len()`.
     pub fn insert(&mut self, index: usize, value: impl AsArg<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let len = self.len();
         assert!(
@@ -431,8 +431,7 @@ impl<T: ArrayElement> Array<T> {
     /// If `index` is out of bounds.
     #[doc(alias = "pop_at")]
     pub fn remove(&mut self, index: usize) -> T {
-        self.debug_ensure_mutable();
-
+        self.balanced_ensure_mutable();
         self.check_bounds(index);
 
         // SAFETY: We do not write any values to the array, we just remove one.
@@ -447,7 +446,7 @@ impl<T: ArrayElement> Array<T> {
     /// On large arrays, this method is much slower than [`pop()`][Self::pop], as it will move all the array's
     /// elements after the removed element.
     pub fn erase(&mut self, value: impl AsArg<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         meta::arg_into_ref!(value: T);
 
@@ -458,7 +457,7 @@ impl<T: ArrayElement> Array<T> {
     /// Assigns the given value to all elements in the array. This can be used together with
     /// `resize` to create an array with a given size and initialized elements.
     pub fn fill(&mut self, value: impl AsArg<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         meta::arg_into_ref!(value: T);
 
@@ -473,7 +472,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`](Array::shrink) instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let original_size = self.len();
 
@@ -505,7 +504,7 @@ impl<T: ArrayElement> Array<T> {
     /// If you want to increase the size of the array, use [`resize`](Array::resize) instead.
     #[doc(alias = "resize")]
     pub fn shrink(&mut self, new_size: usize) -> bool {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         if new_size >= self.len() {
             return false;
@@ -519,7 +518,7 @@ impl<T: ArrayElement> Array<T> {
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
     pub fn extend_array(&mut self, other: &Array<T>) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
         let other: &VariantArray = unsafe { other.assume_type_ref::<Variant>() };
@@ -743,7 +742,7 @@ impl<T: ArrayElement> Array<T> {
 
     /// Reverses the order of the elements in the array.
     pub fn reverse(&mut self) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.reverse();
@@ -760,7 +759,7 @@ impl<T: ArrayElement> Array<T> {
     /// _Godot equivalent: `Array.sort()`_
     #[doc(alias = "sort")]
     pub fn sort_unstable(&mut self) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort();
@@ -780,7 +779,7 @@ impl<T: ArrayElement> Array<T> {
     where
         F: FnMut(&T, &T) -> cmp::Ordering,
     {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let godot_comparator = |args: &[&Variant]| {
             let lhs = T::from_variant(args[0]);
@@ -809,7 +808,7 @@ impl<T: ArrayElement> Array<T> {
     /// _Godot equivalent: `Array.sort_custom()`_
     #[doc(alias = "sort_custom")]
     pub fn sort_unstable_custom(&mut self, func: &Callable) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort_custom(func);
@@ -819,7 +818,7 @@ impl<T: ArrayElement> Array<T> {
     /// global random number generator common to methods such as `randi`. Call `randomize` to
     /// ensure that a new seed will be used each time if you want non-reproducible shuffling.
     pub fn shuffle(&mut self) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.shuffle();
@@ -859,10 +858,10 @@ impl<T: ArrayElement> Array<T> {
 
     /// Best-effort mutability check.
     ///
-    /// # Panics
-    /// In Debug mode, if the array is marked as read-only.
-    fn debug_ensure_mutable(&self) {
-        debug_assert!(
+    /// # Panics (safeguards-balanced)
+    /// If the array is marked as read-only.
+    fn balanced_ensure_mutable(&self) {
+        sys::balanced_assert!(
             !self.is_read_only(),
             "mutating operation on read-only array"
         );
@@ -873,6 +872,7 @@ impl<T: ArrayElement> Array<T> {
     /// # Panics
     /// If `index` is out of bounds.
     fn check_bounds(&self, index: usize) {
+        // Safety-relevant; explicitly *don't* use safeguards-dependent validation.
         let len = self.len();
         assert!(
             index < len,
@@ -1049,8 +1049,8 @@ impl<T: ArrayElement> Array<T> {
     /// # Safety
     /// Must only be called once, directly after creation.
     unsafe fn init_inner_type(&mut self) {
-        debug_assert!(self.is_empty());
-        debug_assert!(
+        sys::strict_assert!(self.is_empty());
+        sys::strict_assert!(
             self.cached_element_type.get().is_none(),
             "init_inner_type() called twice"
         );

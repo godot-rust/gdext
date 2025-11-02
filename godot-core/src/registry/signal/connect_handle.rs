@@ -10,6 +10,7 @@ use std::borrow::Cow;
 use crate::builtin::Callable;
 use crate::classes::Object;
 use crate::obj::Gd;
+use crate::sys;
 
 /// Handle representing a typed signal connection to a receiver.
 ///
@@ -39,10 +40,10 @@ impl ConnectHandle {
 
     /// Disconnects the signal from the connected callable.
     ///
-    /// Panics (Debug)
+    /// # Panics (safeguards-balanced)
     /// If the connection does not exist. Use [`is_connected()`][Self::is_connected] to make sure the connection exists.
     pub fn disconnect(mut self) {
-        debug_assert!(self.is_connected());
+        sys::balanced_assert!(self.is_connected());
 
         self.receiver_object
             .disconnect(&*self.signal_name, &self.callable);

@@ -8,6 +8,8 @@
 use std::mem::MaybeUninit;
 use std::ptr;
 
+use crate::sys;
+
 /// A fixed-size buffer that does not do any allocations, and can hold up to `N` elements of type `T`.
 ///
 /// This is used to implement [`PackedArray::extend()`][crate::builtin::PackedArray::extend] in an efficient way, because it forms a middle
@@ -55,7 +57,7 @@ impl<T, const N: usize> ExtendBufferTrait<T> for ExtendBuffer<T, N> {
         if N == 0 {
             return &mut [];
         }
-        debug_assert!(self.len <= N);
+        sys::strict_assert!(self.len <= N);
 
         let len = self.len;
         self.len = 0;
@@ -77,7 +79,7 @@ impl<T, const N: usize> Drop for ExtendBuffer<T, N> {
         if N == 0 {
             return;
         }
-        debug_assert!(self.len <= N);
+        sys::strict_assert!(self.len <= N);
 
         // SAFETY: `slice_from_raw_parts_mut` by itself is not unsafe, but to make the resulting slice safe to use:
         // - `self.buf[0]` is a valid pointer, exactly `self.len` elements are initialized.

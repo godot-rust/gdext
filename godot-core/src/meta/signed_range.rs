@@ -94,12 +94,12 @@ where
 
 /// Returns a tuple of `(from, to)` from a Rust range.
 ///
-/// # Panics
-/// In debug mode, when from > to.
+/// # Panics (safeguards-strict)
+/// When `from` > `to`.
 pub(crate) fn to_godot_range_fromto(range: impl SignedRange) -> (i64, i64) {
     match range.signed() {
         (from, Some(to)) => {
-            debug_assert!(from <= to, "range: start ({from}) > end ({to})");
+            crate::sys::strict_assert!(from <= to, "range: start ({from}) > end ({to})");
             (from, to)
         }
         (from, None) => (from, 0),
@@ -113,7 +113,7 @@ pub(crate) fn to_godot_range_fromto(range: impl SignedRange) -> (i64, i64) {
 pub(crate) fn to_godot_range_fromlen(range: impl SignedRange, unbounded: i64) -> (i64, i64) {
     match range.signed() {
         (from, Some(to)) => {
-            debug_assert!(from <= to, "range: start ({from}) > end ({to})");
+            crate::sys::strict_assert!(from <= to, "range: start ({from}) > end ({to})");
             (from, to - from)
         }
         (from, None) => (from, unbounded),

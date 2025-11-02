@@ -366,7 +366,7 @@ impl Aabb {
     // Credits: https://tavianator.com/2011/ray_box.html
     fn compute_ray_tnear_tfar(self, ray_from: Vector3, ray_dir: Vector3) -> (real, real) {
         self.assert_nonnegative();
-        debug_assert!(
+        sys::balanced_assert!(
             ray_dir != Vector3::ZERO,
             "ray direction must not be zero; use contains_point() for point checks"
         );
@@ -763,9 +763,8 @@ mod test {
         );
     }
 
-    #[test]
-    #[should_panic]
-    #[cfg(debug_assertions)]
+    #[test] // cfg_attr: no panic in disengaged level (although current CI doesn't run unit-tests).
+    #[cfg_attr(safeguards_balanced, should_panic)]
     fn test_intersect_ray_zero_dir_inside() {
         let aabb = Aabb {
             position: Vector3::new(-1.5, 2.0, -2.5),
@@ -776,8 +775,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic]
-    #[cfg(debug_assertions)]
+    #[cfg_attr(safeguards_balanced, should_panic)]
     fn test_intersect_ray_zero_dir_outside() {
         let aabb = Aabb {
             position: Vector3::new(-1.5, 2.0, -2.5),

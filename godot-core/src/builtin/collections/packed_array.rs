@@ -409,9 +409,11 @@ impl<T: PackedArrayElement> PackedArray<T> {
     /// * Source data must not be dropped later.
     unsafe fn move_from_slice(&mut self, src: *const T, dst: usize, len: usize) {
         let ptr = self.ptr_mut(dst);
-        debug_assert_eq!(len, self.len() - dst, "length precondition violated");
+        sys::strict_assert_eq!(len, self.len() - dst, "length precondition violated");
+
         // Drops all elements in place. Drop impl must not panic.
         ptr::drop_in_place(ptr::slice_from_raw_parts_mut(ptr, len));
+
         // Copy is okay since all elements are dropped.
         ptr.copy_from_nonoverlapping(src, len);
     }
@@ -958,7 +960,7 @@ impl PackedByteArray {
         let size: i64 = self
             .as_inner()
             .decode_var_size(byte_offset as i64, allow_objects);
-        debug_assert_ne!(size, -1); // must not happen if we just decoded variant.
+        sys::strict_assert_ne!(size, -1); // must not happen if we just decoded variant.
 
         Ok((variant, size as usize))
     }

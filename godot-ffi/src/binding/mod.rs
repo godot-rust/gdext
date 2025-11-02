@@ -86,10 +86,10 @@ unsafe impl Send for ClassLibraryPtr {}
 
 /// # Safety
 /// The table must not have been initialized yet.
-unsafe fn initialize_table<T>(table: &ManualInitCell<T>, value: T, what: &str) {
-    debug_assert!(
+unsafe fn initialize_table<T>(table: &ManualInitCell<T>, value: T, _what: &str) {
+    crate::strict_assert!(
         !table.is_initialized(),
-        "method table for {what} should only be initialized once"
+        "method table for {_what} should only be initialized once"
     );
 
     table.set(value)
@@ -97,8 +97,8 @@ unsafe fn initialize_table<T>(table: &ManualInitCell<T>, value: T, what: &str) {
 
 /// # Safety
 /// The table must have been initialized.
-unsafe fn get_table<T>(table: &'static ManualInitCell<T>, msg: &str) -> &'static T {
-    debug_assert!(table.is_initialized(), "{msg}");
+unsafe fn get_table<T>(table: &'static ManualInitCell<T>, _msg: &str) -> &'static T {
+    crate::strict_assert!(table.is_initialized(), "{_msg}");
 
     table.get_unchecked()
 }

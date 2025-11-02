@@ -254,7 +254,7 @@ impl CallError {
         // This specializes on reflection-style calls, e.g. call(), rpc() etc.
         // In these cases, varargs are the _actual_ arguments, with required args being metadata such as method name.
 
-        debug_assert_ne!(err.error, sys::GDEXTENSION_CALL_OK); // already checked outside
+        sys::strict_assert_ne!(err.error, sys::GDEXTENSION_CALL_OK); // already checked outside
 
         let sys::GDExtensionCallError {
             error,

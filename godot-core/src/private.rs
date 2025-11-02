@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 use std::cell::RefCell;
 use std::io::Write;
 use std::sync::atomic;
@@ -254,7 +254,7 @@ pub fn extract_panic_message(err: &(dyn Send + std::any::Any)) -> String {
 pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
     let mut msg = extract_panic_message(panic_info.payload());
 
-    if let Some(context) = get_gdext_panic_context() {
+    if let Some(context) = fetch_last_panic_context() {
         msg = format!("{msg}\nContext: {context}");
     }
 
@@ -276,7 +276,7 @@ pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
 }
 
 // Macro instead of function, to avoid 1 extra frame in backtrace.
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 #[macro_export]
 macro_rules! format_backtrace {
     ($prefix:expr, $backtrace:expr) => {{
@@ -302,7 +302,7 @@ macro_rules! format_backtrace {
     };
 }
 
-#[cfg(not(debug_assertions))]
+#[cfg(not(safeguards_strict))]
 #[macro_export]
 macro_rules! format_backtrace {
     ($prefix:expr $(, $backtrace:expr)? ) => {
@@ -344,13 +344,13 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
 
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
 /// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
-/// probably shouldn't be used directly; use ['get_gdext_panic_context()'](get_gdext_panic_context) instead.
-#[cfg(debug_assertions)]
+/// probably shouldn't be used directly; use ['get_gdext_panic_context()'](fetch_last_panic_context) instead.
+#[cfg(safeguards_strict)]
 struct ScopedFunctionStack {
     functions: Vec<*const dyn Fn() -> String>,
 }
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 impl ScopedFunctionStack {
     /// # Safety
     /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
@@ -375,7 +375,7 @@ impl ScopedFunctionStack {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_strict)]
 thread_local! {
     static ERROR_CONTEXT_STACK: RefCell<ScopedFunctionStack> = const {
         RefCell::new(ScopedFunctionStack { functions: Vec::new() })
@@ -383,11 +383,11 @@ thread_local! {
 }
 
 // Value may return `None`, even from panic hook, if called from a non-Godot thread.
-pub fn get_gdext_panic_context() -> Option<String> {
-    #[cfg(debug_assertions)]
+pub fn fetch_last_panic_context() -> Option<String> {
+    #[cfg(safeguards_strict)]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(safeguards_strict))]
     None
 }
 
@@ -424,10 +424,10 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(safeguards_strict))]
     let _ = error_context; // Unused in Release.
 
-    #[cfg(debug_assertions)]
+    #[cfg(safeguards_strict)]
     ERROR_CONTEXT_STACK.with(|cell| unsafe {
         // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
         cell.borrow_mut().push_function(&error_context)
@@ -435,7 +435,7 @@ where
 
     let result = std::panic::catch_unwind(code).map_err(PanicPayload::new);
 
-    #[cfg(debug_assertions)]
+    #[cfg(safeguards_strict)]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
     result
 }

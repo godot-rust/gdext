@@ -705,7 +705,6 @@ pub mod cap {
     use super::*;
     use crate::builtin::{StringName, Variant};
     use crate::meta::PropertyInfo;
-    use crate::obj::{Base, Bounds, Gd};
     use crate::storage::{IntoVirtualMethodReceiver, VirtualMethodReceiver};
 
     /// Trait for all classes that are default-constructible from the Godot engine.
@@ -741,7 +740,7 @@ pub mod cap {
             // 1. Separate trait `GodotUserDefault` for user classes, which then proliferates through all APIs and makes abstraction harder.
             // 2. Repeatedly implementing __godot_default() that forwards to something like Gd::default_user_instance(). Possible, but this
             //    will make the step toward builder APIs more difficult, as users would need to re-implement this as well.
-            debug_assert_eq!(
+            sys::strict_assert_eq!(
                 std::any::TypeId::of::<<Self as Bounds>::Declarer>(),
                 std::any::TypeId::of::<bounds::DeclUser>(),
                 "__godot_default() called on engine class; must be overridden for engine classes"

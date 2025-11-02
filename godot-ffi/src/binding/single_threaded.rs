@@ -121,28 +121,7 @@ impl BindingStorage {
         // and this function is called from the main thread.
         let storage = unsafe { Self::storage() };
 
-        // We only check if we are in the main thread in debug builds if we aren't building for a non-threaded Godot build,
-        // since we could otherwise assume there won't be multi-threading.
-        #[cfg(all(debug_assertions, not(wasm_nothreads)))]
-        {
-            if !crate::is_main_thread() {
-                // If a binding is accessed the first time, this will panic and start unwinding. It can then happen that during unwinding,
-                // another FFI call happens (e.g. Godot destructor), which would cause immediate abort, swallowing the error message.
-                // Thus check if a panic is already in progress.
-
-                if std::thread::panicking() {
-                    eprintln!(
-                        "ERROR: Attempted to access binding from different thread than main thread; this is UB.\n\
-                        Cannot panic because panic unwind is already in progress. Please check surrounding messages to fix the bug."
-                    );
-                } else {
-                    panic!(
-                        "attempted to access binding from different thread than main thread; \
-                        this is UB - use the \"experimental-threads\" feature."
-                    )
-                };
-            }
-        }
+        Self::ensure_main_thread();
 
         // SAFETY: This function can only be called when the binding is initialized and from the main thread, so we know that it's initialized.
         unsafe { storage.binding.get_unchecked() }
@@ -154,12 +133,37 @@ impl BindingStorage {
 
         storage.initialized()
     }
+
+    fn ensure_main_thread() {
+        // Check that we're on the main thread. Only enabled with balanced+ safeguards and, for Wasm, in threaded builds.
+        // In wasm_nothreads, there's only one thread, so no check is needed.
+        #[cfg(all(safeguards_balanced, not(wasm_nothreads)))]
+        if !crate::is_main_thread() {
+            // If a binding is accessed the first time, this will panic and start unwinding. It can then happen that during unwinding,
+            // another FFI call happens (e.g. Godot destructor), which would cause immediate abort, swallowing the error message.
+            // Thus check if a panic is already in progress.
+
+            if std::thread::panicking() {
+                eprintln!(
+                    "ERROR: Attempted to access binding from different thread than main thread; this is UB.\n\
+                    Cannot panic because panic unwind is already in progress. Please check surrounding messages to fix the bug."
+                );
+            } else {
+                panic!(
+                    "attempted to access binding from different thread than main thread; \
+                    this is UB - use the \"experimental-threads\" feature."
+                )
+            };
+        }
+    }
 }
 
 // SAFETY: We ensure that `binding` is only ever accessed from the same thread that initialized it.
 unsafe impl Sync for BindingStorage {}
 // SAFETY: We ensure that `binding` is only ever accessed from the same thread that initialized it.
 unsafe impl Send for BindingStorage {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct GdextConfig {
     pub tool_only_in_editor: bool,
