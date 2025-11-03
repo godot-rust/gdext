@@ -253,7 +253,7 @@ impl ClassIdCache {
     ///
     /// Returns the `ClassId` for the given name.
     ///
-    /// # Panics (Debug)
+    /// # Panics (safeguards-balanced)
     /// If `expect_first` is true and the string is already present in the cache.
     fn insert_class_id(
         &mut self,
@@ -263,8 +263,7 @@ impl ClassIdCache {
     ) -> ClassId {
         if expect_first {
             // Debug verification that we're indeed the first to register this string.
-            #[cfg(debug_assertions)]
-            assert!(
+            sys::balanced_assert!(
                 !self.string_to_index.contains_key(source.as_ref()),
                 "insert_class_name() called for already-existing string: {}",
                 source

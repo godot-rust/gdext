@@ -343,7 +343,7 @@ impl Variant {
     ///
     /// Does not check again that the variant has type `OBJECT`.
     pub(crate) fn is_object_alive(&self) -> bool {
-        debug_assert_eq!(self.get_type(), VariantType::OBJECT);
+        sys::strict_assert_eq!(self.get_type(), VariantType::OBJECT);
 
         crate::global::is_instance_valid(self)
 
@@ -425,12 +425,10 @@ impl Variant {
         length: usize,
     ) -> &'a [&'a Variant] {
         sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
+
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_ptr_array.is_null() {
-            debug_assert_eq!(
-                length, 0,
-                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
-            );
+            Self::strict_ensure_zero_length(length);
             return &[];
         }
 
@@ -456,10 +454,7 @@ impl Variant {
 
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_array.is_null() {
-            debug_assert_eq!(
-                length, 0,
-                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
-            );
+            Self::strict_ensure_zero_length(length);
             return &[];
         }
 
@@ -483,10 +478,7 @@ impl Variant {
 
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_array.is_null() {
-            debug_assert_eq!(
-                length, 0,
-                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
-            );
+            Self::strict_ensure_zero_length(length);
             return &mut [];
         }
 
@@ -494,6 +486,14 @@ impl Variant {
 
         // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts_mut` on the pointer cast to `*mut Variant`.
         unsafe { std::slice::from_raw_parts_mut(variant_array, length) }
+    }
+
+    fn strict_ensure_zero_length(_length: usize) {
+        sys::strict_assert_eq!(
+            _length,
+            0,
+            "Variant::borrow_slice*(): pointer is null but length is not 0"
+        );
     }
 
     /// Consumes self and turns it into a sys-ptr, should be used together with [`from_owned_var_sys`](Self::from_owned_var_sys).

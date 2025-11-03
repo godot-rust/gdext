@@ -11,6 +11,7 @@ use std::mem::ManuallyDrop;
 use godot_ffi::GodotNullableFfi;
 
 use crate::obj::{GodotClass, RawGd};
+use crate::sys;
 
 /// Represents a successful low-level cast from `T` to `U`.
 ///
@@ -66,7 +67,7 @@ impl<T: GodotClass, U: GodotClass> CastSuccess<T, U> {
     /// This trade is needed because the result is a weak pointer (no ref-count increment). By submitting a strong pointer in its place,
     /// we can retain the overall ref-count balance.
     pub fn into_dest(self, traded_source: RawGd<T>) -> RawGd<U> {
-        debug_assert_eq!(
+        sys::strict_assert_eq!(
             traded_source.instance_id_unchecked(),
             self.dest.instance_id_unchecked(),
             "traded_source must point to the same object as the destination"

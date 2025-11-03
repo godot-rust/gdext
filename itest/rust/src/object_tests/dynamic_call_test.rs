@@ -152,7 +152,7 @@ fn dynamic_call_with_panic() {
     std::panic::set_hook(Box::new(move |panic_info| {
         let error_message = godot::private::format_panic_message(panic_info);
         *panic_message_clone.lock().unwrap() =
-            Some((error_message, godot::private::get_gdext_panic_context()));
+            Some((error_message, godot::private::fetch_last_panic_context()));
     }));
 
     let mut obj = ObjPayload::new_alloc();
@@ -187,9 +187,9 @@ fn dynamic_call_with_panic() {
         .map(|context| format!("\n  Context: {context}"))
         .unwrap_or_default();
 
-    // In Debug, there is a context -> message is multi-line -> '\n' is inserted after [panic ...].
-    // In Release, simpler message -> single line -> no '\n'.
-    let expected_panic_message = if cfg!(debug_assertions) {
+    // In strict level, there is a context -> message is multi-line -> '\n' is inserted after [panic ...].
+    // In balanced+disengaged level, simpler message -> single line -> no '\n'.
+    let expected_panic_message = if cfg!(safeguards_strict) {
         format!("[panic {path}:{line}]\n  do_panic exploded 💥{context}")
     } else {
         format!("[panic {path}:{line}]  do_panic exploded 💥")

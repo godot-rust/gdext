@@ -127,7 +127,7 @@ mod global_guard {
         ///
         /// The value must be initialized.
         pub(super) unsafe fn new_unchecked(mutex_guard: MutexGuard<'a, OnceCell<T>>) -> Self {
-            debug_assert!(
+            crate::strict_assert!(
                 mutex_guard.get().is_some(),
                 "safety precondition violated: cell not initialized"
             );

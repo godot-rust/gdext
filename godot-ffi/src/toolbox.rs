@@ -14,36 +14,6 @@ use crate as sys;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros
 
-/// Verifies a condition at compile time.
-// https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html#panic-in-const-contexts
-#[macro_export]
-macro_rules! static_assert {
-    ($cond:expr) => {
-        const _: () = assert!($cond);
-    };
-    ($cond:expr, $msg:literal) => {
-        const _: () = assert!($cond, $msg);
-    };
-}
-
-/// Verifies at compile time that two types `T` and `U` have the same size and alignment.
-#[macro_export]
-macro_rules! static_assert_eq_size_align {
-    ($T:ty, $U:ty) => {
-        godot_ffi::static_assert!(
-            std::mem::size_of::<$T>() == std::mem::size_of::<$U>()
-                && std::mem::align_of::<$T>() == std::mem::align_of::<$U>()
-        );
-    };
-    ($T:ty, $U:ty, $msg:literal) => {
-        godot_ffi::static_assert!(
-            std::mem::size_of::<$T>() == std::mem::size_of::<$U>()
-                && std::mem::align_of::<$T>() == std::mem::align_of::<$U>(),
-            $msg
-        );
-    };
-}
-
 /// Trace output.
 #[cfg(feature = "debug-log")]
 #[macro_export]
@@ -129,7 +99,7 @@ where
 #[inline]
 pub fn c_str(s: &[u8]) -> *const std::ffi::c_char {
     // Ensure null-terminated
-    debug_assert!(!s.is_empty() && s[s.len() - 1] == 0);
+    crate::strict_assert!(!s.is_empty() && s[s.len() - 1] == 0);
 
     s.as_ptr() as *const std::ffi::c_char
 }

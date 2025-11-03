@@ -33,7 +33,7 @@ pub mod tools;
 mod storage;
 pub use godot_ffi as sys;
 
-pub use crate::private::{get_gdext_panic_context, set_gdext_hook};
+pub use crate::private::{fetch_last_panic_context, set_gdext_hook};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Validations (see also godot/lib.rs)

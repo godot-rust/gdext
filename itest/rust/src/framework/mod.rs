@@ -199,12 +199,23 @@ pub fn expect_panic(context: &str, code: impl FnOnce()) {
     );
 }
 
-/// Run for code that panics in *strict* and *balanced* safeguard levels, but cause UB in *disengaged* level.
+/// Run for code that should panic in *strict* and *balanced* safeguard levels, but cause UB in *disengaged* level.
 ///
 /// The code is not executed for the latter.
 pub fn expect_panic_or_ub(_context: &str, _code: impl FnOnce()) {
     #[cfg(safeguards_balanced)]
     expect_panic(_context, _code);
+}
+
+/// Run for code that should panic in *strict* and *balanced* safeguard levels, but do nothing in *disengaged* level.
+///
+/// The code is executed either way, and must not cause UB.
+pub fn expect_panic_or_nothing(_context: &str, code: impl FnOnce()) {
+    #[cfg(safeguards_balanced)]
+    expect_panic(_context, code);
+
+    #[cfg(not(safeguards_balanced))]
+    code()
 }
 
 pin_project_lite::pin_project! {
@@ -248,14 +259,6 @@ pub fn expect_async_panic<T: std::future::Future>(
     future: T,
 ) -> ExpectPanicFuture<T> {
     ExpectPanicFuture { context, future }
-}
-
-pub fn expect_debug_panic_or_release_ok(_context: &str, code: impl FnOnce()) {
-    #[cfg(debug_assertions)]
-    expect_panic(_context, code);
-
-    #[cfg(not(debug_assertions))]
-    code()
 }
 
 /// Run code asynchronously, at the very start of the next _process_ frame (before `INode::process()`).

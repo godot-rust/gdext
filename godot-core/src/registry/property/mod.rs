@@ -236,6 +236,7 @@ pub mod export_info_functions {
     use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
     use crate::obj::EngineEnum;
     use crate::registry::property::Export;
+    use crate::sys;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
@@ -426,7 +427,7 @@ pub mod export_info_functions {
     ) -> PropertyHintInfo {
         let field_ty = T::Via::property_info("");
         let filter = filter.as_ref();
-        debug_assert!(is_file || filter.is_empty()); // Dir never has filter.
+        sys::strict_assert!(is_file || filter.is_empty()); // Dir never has filter.
 
         export_file_or_dir_inner(&field_ty, is_file, is_global, filter)
     }

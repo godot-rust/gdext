@@ -12,9 +12,9 @@ use sys::{interface_fn, ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType}
 
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::{ConvertError, FromVariantError};
-use crate::meta::{
-    CallContext, ClassId, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot,
-};
+#[cfg(safeguards_balanced)]
+use crate::meta::CallContext;
+use crate::meta::{ClassId, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
 use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::casts::CastSuccess;
 use crate::obj::rtti::ObjectRtti;
@@ -242,7 +242,7 @@ impl<T: GodotClass> RawGd<T> {
     /// # Safety
     /// `self` must not be null.
     pub(crate) unsafe fn as_non_null(&self) -> &Gd<T> {
-        debug_assert!(
+        sys::strict_assert!(
             !self.is_null(),
             "RawGd::as_non_null() called on null pointer; this is UB"
         );
@@ -357,7 +357,7 @@ impl<T: GodotClass> RawGd<T> {
     {
         // Validation object identity.
         self.check_rtti("upcast_ref");
-        debug_assert!(!self.is_null(), "cannot upcast null object refs");
+        sys::balanced_assert!(!self.is_null(), "cannot upcast null object refs");
 
         // In Debug builds, go the long path via Godot FFI to verify the results are the same.
         #[cfg(safeguards_strict)]

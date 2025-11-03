@@ -163,7 +163,7 @@ impl Dictionary {
     /// _Godot equivalent: `get_or_add`_
     #[doc(alias = "get_or_add")]
     pub fn get_or_insert<K: ToGodot, V: ToGodot>(&mut self, key: K, default: V) -> Variant {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let key_variant = key.to_variant();
         let default_variant = default.to_variant();
@@ -237,7 +237,7 @@ impl Dictionary {
 
     /// Removes all key-value pairs from the dictionary.
     pub fn clear(&mut self) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         self.as_inner().clear()
     }
@@ -248,7 +248,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict[key] = value`_
     pub fn set<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let key = key.to_variant();
 
@@ -263,7 +263,7 @@ impl Dictionary {
     /// If you don't need the previous value, use [`set()`][Self::set] instead.
     #[must_use]
     pub fn insert<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) -> Option<Variant> {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let key = key.to_variant();
         let old_value = self.get(key.clone());
@@ -277,7 +277,7 @@ impl Dictionary {
     /// _Godot equivalent: `erase`_
     #[doc(alias = "erase")]
     pub fn remove<K: ToGodot>(&mut self, key: K) -> Option<Variant> {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         let key = key.to_variant();
         let old_value = self.get(key.clone());
@@ -318,7 +318,7 @@ impl Dictionary {
     /// _Godot equivalent: `merge`_
     #[doc(alias = "merge")]
     pub fn extend_dictionary(&mut self, other: &Self, overwrite: bool) {
-        self.debug_ensure_mutable();
+        self.balanced_ensure_mutable();
 
         self.as_inner().merge(other, overwrite)
     }
@@ -408,10 +408,10 @@ impl Dictionary {
 
     /// Best-effort mutability check.
     ///
-    /// # Panics
-    /// In Debug mode, if the array is marked as read-only.
-    fn debug_ensure_mutable(&self) {
-        debug_assert!(
+    /// # Panics (safeguards-balanced)
+    /// If the dictionary is marked as read-only.
+    fn balanced_ensure_mutable(&self) {
+        sys::balanced_assert!(
             !self.is_read_only(),
             "mutating operation on read-only dictionary"
         );

@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::thread::ThreadId;
 use std::{fmt, ptr};
 
 use godot_ffi as sys;
@@ -162,16 +163,7 @@ impl Callable {
         F: 'static + FnMut(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
-        #[cfg(debug_assertions)]
-        meta::arg_into_owned!(name);
-
-        Self::from_fn_wrapper::<F, R>(FnWrapper {
-            rust_function,
-            #[cfg(debug_assertions)]
-            name,
-            thread_id: Some(std::thread::current().id()),
-            linked_obj_id: None,
-        })
+        Self::from_fn_wrapper(name, rust_function, Some(std::thread::current().id()), None)
     }
 
     /// Creates a new callable linked to the given object from **single-threaded** Rust function or closure.
@@ -189,16 +181,12 @@ impl Callable {
         F: 'static + FnMut(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
-        #[cfg(debug_assertions)]
-        meta::arg_into_owned!(name);
-
-        Self::from_fn_wrapper::<F, R>(FnWrapper {
-            rust_function,
-            #[cfg(debug_assertions)]
+        Self::from_fn_wrapper(
             name,
-            thread_id: Some(std::thread::current().id()),
-            linked_obj_id: Some(linked_object.instance_id()),
-        })
+            rust_function,
+            Some(std::thread::current().id()),
+            Some(linked_object.instance_id()),
+        )
     }
 
     /// This constructor is being phased out in favor of [`from_fn()`][Self::from_fn], but kept through v0.4 for smoother migration.
@@ -258,16 +246,8 @@ impl Callable {
         F: FnMut(&[&Variant]) -> Variant,
         Fc: FnOnce(&Callable) -> R,
     {
-        #[cfg(debug_assertions)]
-        meta::arg_into_owned!(name);
-
-        let callable = Self::from_fn_wrapper::<F, Variant>(FnWrapper {
-            rust_function,
-            #[cfg(debug_assertions)]
-            name,
-            thread_id: Some(std::thread::current().id()),
-            linked_obj_id: None,
-        });
+        let callable =
+            Self::from_fn_wrapper(name, rust_function, Some(std::thread::current().id()), None);
 
         callable_usage(&callable)
     }
@@ -298,16 +278,7 @@ impl Callable {
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> R,
         S: meta::AsArg<GString>,
     {
-        #[cfg(debug_assertions)]
-        meta::arg_into_owned!(name);
-
-        Self::from_fn_wrapper::<F, R>(FnWrapper {
-            rust_function,
-            #[cfg(debug_assertions)]
-            name,
-            thread_id: None,
-            linked_obj_id: None,
-        })
+        Self::from_fn_wrapper(name, rust_function, None, None)
     }
 
     /// Create a highly configurable callable from Rust.
@@ -334,21 +305,34 @@ impl Callable {
         Self::from_custom_info(info)
     }
 
-    fn from_fn_wrapper<F, R>(inner: FnWrapper<F>) -> Self
+    fn from_fn_wrapper<F, R, S>(
+        _name: S,
+        rust_function: F,
+        thread_id: Option<ThreadId>,
+        linked_object_id: Option<InstanceId>,
+    ) -> Self
     where
         F: FnMut(&[&Variant]) -> R,
         R: ToGodot,
+        S: meta::AsArg<GString>,
     {
-        let object_id = inner.linked_object_id();
+        let wrapper = FnWrapper {
+            rust_function,
+            #[cfg(safeguards_balanced)]
+            name: { _name.into_arg().cow_into_owned() },
+            thread_id,
+            linked_object_id,
+        };
 
-        let userdata = CallableUserdata { inner };
+        let object_id = wrapper.linked_object_id();
+        let userdata = CallableUserdata { inner: wrapper };
 
         let info = CallableCustomInfo {
             object_id,
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
             call_func: Some(rust_callable_call_fn::<F, R>),
             free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
-            #[cfg(debug_assertions)]
+            #[cfg(safeguards_balanced)]
             to_string_func: Some(rust_callable_to_string_named::<F>),
             is_valid_func: Some(rust_callable_is_valid),
             ..Self::default_callable_custom_info()
@@ -617,19 +601,32 @@ mod custom_callable {
 
     pub(crate) struct FnWrapper<F> {
         pub(super) rust_function: F,
-        #[cfg(debug_assertions)]
+        #[cfg(safeguards_balanced)]
         pub(super) name: GString,
 
         /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
         pub(super) thread_id: Option<ThreadId>,
         /// `None` if callable is not linked with any object.
-        pub(super) linked_obj_id: Option<InstanceId>,
+        pub(super) linked_object_id: Option<InstanceId>,
     }
 
     impl<F> FnWrapper<F> {
         pub(crate) fn linked_object_id(&self) -> GDObjectInstanceID {
-            self.linked_obj_id.map(InstanceId::to_u64).unwrap_or(0)
+            self.linked_object_id.map(InstanceId::to_u64).unwrap_or(0)
         }
+    }
+
+    /// Returns the name for safeguard-enabled builds, or `"<optimized out>"` otherwise.
+    macro_rules! name_or_optimized {
+        ($($code:tt)*) => {
+            {
+                #[cfg(safeguards_balanced)]
+                { $($code)* }
+
+                #[cfg(not(safeguards_balanced))]
+                { "<optimized out>" }
+            }
+        };
     }
 
     /// Represents a custom callable object defined in Rust.
@@ -668,14 +665,11 @@ mod custom_callable {
     ) {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        #[cfg(debug_assertions)]
-        let name = &{
+        let name = name_or_optimized! {
             let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
             c.to_string()
         };
-        #[cfg(not(debug_assertions))]
-        let name = "<optimized out>";
-        let ctx = meta::CallContext::custom_callable(name);
+        let ctx = meta::CallContext::custom_callable(&name);
 
         crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
             // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
@@ -698,34 +692,25 @@ mod custom_callable {
     {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        #[cfg(debug_assertions)]
-        let name = &{
+        let name = name_or_optimized! {
             let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
             w.name.to_string()
         };
-        #[cfg(not(debug_assertions))]
-        let name = "<optimized out>";
-        let ctx = meta::CallContext::custom_callable(name);
+        let ctx = meta::CallContext::custom_callable(&name);
 
         crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
             // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
             let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
-            if w.thread_id
-                .is_some_and(|tid| tid != std::thread::current().id())
-            {
-                #[cfg(debug_assertions)]
-                let name = &w.name;
-                #[cfg(not(debug_assertions))]
-                let name = "<optimized out>";
-                // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
-                // See comments in itest callable_call() for details.
-                panic!(
-                    "Callable '{}' created with from_fn() must be called from the same thread it was created in.\n\
-                    If you need to call it from any thread, use from_sync_fn() instead (requires `experimental-threads` feature).",
-                    name
-                );
-            }
+            let name = name_or_optimized!(w.name.to_string());
+
+            // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
+            // See comments in itest callable_call() for details.
+            sys::balanced_assert!(
+                w.thread_id.is_none() || w.thread_id == Some(std::thread::current().id()),
+                "Callable '{name}' created with from_fn() must be called from the same thread it was created in.\n\
+                If you need to call it from any thread, use from_sync_fn() instead (requires `experimental-threads` feature)."
+            );
 
             let result = (w.rust_function)(arg_refs).to_variant();
             meta::varcall_return_checked(Ok(result), r_return, r_error);
@@ -769,7 +754,7 @@ mod custom_callable {
         *r_is_valid = sys::conv::SYS_TRUE;
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(safeguards_balanced)]
     pub unsafe extern "C" fn rust_callable_to_string_named<F>(
         callable_userdata: *mut std::ffi::c_void,
         r_is_valid: *mut sys::GDExtensionBool,

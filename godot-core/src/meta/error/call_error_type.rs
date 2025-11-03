@@ -64,7 +64,7 @@ impl CallErrorType {
             sys::GDEXTENSION_CALL_ERROR_INSTANCE_IS_NULL => Err(Self::InstanceIsNull),
             sys::GDEXTENSION_CALL_ERROR_METHOD_NOT_CONST => Err(Self::MethodNotConst),
             _ => {
-                debug_assert!(false, "Unknown GDExtensionCallErrorType value: {value}");
+                sys::strict_assert!(false, "Unknown GDExtensionCallErrorType value: {value}");
                 Err(Self::InvalidMethod) // in Release builds, return known error.
             }
         }

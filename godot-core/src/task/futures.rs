@@ -15,11 +15,12 @@ use std::thread::ThreadId;
 
 use crate::builtin::{Callable, RustCallable, Signal, Variant};
 use crate::classes::object::ConnectFlags;
-use crate::godot_error;
+use crate::global::godot_error;
 use crate::meta::sealed::Sealed;
 use crate::meta::InParamTuple;
 use crate::obj::{Gd, GodotClass, WithSignals};
 use crate::registry::signal::TypedSignal;
+use crate::sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Internal re-exports
@@ -197,9 +198,11 @@ pub struct FallibleSignalFuture<R: InParamTuple + IntoDynamicSend> {
 
 impl<R: InParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
     fn new(signal: Signal) -> Self {
-        debug_assert!(
+        sys::strict_assert!(
             !signal.is_null(),
-            "Failed to create a future for an invalid Signal!\nEither the signal object was already freed or the signal was not registered in the object before using it.",
+            "Failed to create future for invalid signal:\n\
+            Either the signal object was already freed, or it\n\
+            was not registered in the object before being used.",
         );
 
         let data = Arc::new(Mutex::new(SignalFutureData::default()));

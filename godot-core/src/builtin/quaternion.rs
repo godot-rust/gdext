@@ -77,11 +77,11 @@ impl Quaternion {
     ///
     /// *Godot equivalent: `Quaternion(arc_from: Vector3, arc_to: Vector3)`*
     pub fn from_rotation_arc(arc_from: Vector3, arc_to: Vector3) -> Self {
-        debug_assert!(
+        sys::balanced_assert!(
             arc_from.is_normalized(),
             "input 1 (`arc_from`) in `Quaternion::from_rotation_arc` must be a unit vector"
         );
-        debug_assert!(
+        sys::balanced_assert!(
             arc_to.is_normalized(),
             "input 2 (`arc_to`) in `Quaternion::from_rotation_arc` must be a unit vector"
         );

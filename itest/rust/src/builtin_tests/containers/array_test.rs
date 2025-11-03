@@ -290,12 +290,12 @@ fn array_set() {
 fn array_set_readonly() {
     let mut array = array![1, 2].into_read_only();
 
-    #[cfg(debug_assertions)]
-    expect_panic("Mutating read-only array in Debug mode", || {
+    #[cfg(safeguards_balanced)]
+    expect_panic("Mutating read-only array with balanced safeguards", || {
         array.set(0, 3);
     });
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(safeguards_balanced))]
     array.set(0, 3); // silently fails.
 
     assert_eq!(array.at(0), 1);

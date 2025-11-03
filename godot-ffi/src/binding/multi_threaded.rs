@@ -72,7 +72,7 @@ impl BindingStorage {
     pub unsafe fn get_binding_unchecked() -> &'static GodotBinding {
         let storage = Self::storage();
 
-        debug_assert!(
+        crate::strict_assert!(
             storage.binding.is_initialized(),
             "Godot engine not available; make sure you are not calling it from unit/doc tests"
         );

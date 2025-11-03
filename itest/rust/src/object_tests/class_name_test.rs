@@ -153,7 +153,7 @@ fn class_name_debug() {
     assert_eq!(format!("{static_name:?}"), "ClassId(\"MyStaticClass\")");
 }
 
-#[cfg(debug_assertions)]
+#[cfg(safeguards_balanced)]
 #[itest]
 fn class_name_alloc_panic() {
     // ASCII.

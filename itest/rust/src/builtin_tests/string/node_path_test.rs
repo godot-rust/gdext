@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use godot::builtin::{GString, NodePath};
 use godot::meta::wrapped;
 
-use crate::framework::{expect_debug_panic_or_release_ok, itest};
+use crate::framework::{expect_panic_or_nothing, itest};
 
 #[itest]
 fn node_path_default() {
@@ -113,7 +113,7 @@ fn node_path_get_name() {
     assert_eq!(path.get_name(1), "RigidBody2D".into());
     assert_eq!(path.get_name(2), "Sprite2D".into());
 
-    expect_debug_panic_or_release_ok("NodePath::get_name() out of bounds", || {
+    expect_panic_or_nothing("NodePath::get_name() out of bounds", || {
         assert_eq!(path.get_name(3), "".into());
     })
 }
@@ -124,7 +124,7 @@ fn node_path_get_subname() {
     assert_eq!(path.get_subname(0), "texture".into());
     assert_eq!(path.get_subname(1), "resource_name".into());
 
-    expect_debug_panic_or_release_ok("NodePath::get_subname() out of bounds", || {
+    expect_panic_or_nothing("NodePath::get_subname() out of bounds", || {
         assert_eq!(path.get_subname(2), "".into());
     })
 }
