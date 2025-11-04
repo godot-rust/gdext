@@ -56,20 +56,40 @@ macro_rules! unsafe_impl_param_tuple {
         impl<$($P),*> InParamTuple for ($($P,)*) where $($P: FromGodot + fmt::Debug),* {
             unsafe fn from_varcall_args(
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
+                arg_count: usize,
+                default_values: &[Variant],
                 call_ctx: &crate::meta::CallContext,
             ) -> CallResult<Self> {
-                let args = (
-                    $(
-                        // SAFETY: `args_ptr` is an array with length `Self::LEN` and each element is a valid pointer, since they
-                        // are all reborrowable as references.
-                        unsafe { *args_ptr.offset($n) },
-                    )*
-                );
+                // Fast path: all args provided, no defaults needed (zero allocations).
+                if arg_count == Self::LEN {
+                    let param_tuple = (
+                        $(
+                            unsafe { varcall_arg::<$P>(*args_ptr.add($n), call_ctx, $n)? },
+                        )*
+                    );
+                    return Ok(param_tuple);
+                }
 
+                // Slow path: merge provided args with defaults (requires allocation).
+                let mut all_args = Vec::with_capacity(Self::LEN);
+
+                // Copy all provided args.
+                for i in 0..arg_count {
+                    all_args.push(unsafe { *args_ptr.add(i) });
+                }
+
+                // Fill remaining parameters with default values.
+                let required_param_count = Self::LEN - default_values.len();
+                let first_missing_index = arg_count - required_param_count;
+                for i in first_missing_index..default_values.len() {
+                    all_args.push(default_values[i].var_sys());
+                }
+
+                // Convert all args to the tuple.
                 let param_tuple = (
                     $(
-                        // SAFETY: Each pointer in `args_ptr` is reborrowable as a `&Variant` for the duration of this call.
-                        unsafe { varcall_arg::<$P>(args.$n, call_ctx, $n)? },
+                        // SAFETY: Each pointer in `args_ptr` is borrowable as a &Variant for the duration of this call.
+                        unsafe { varcall_arg::<$P>(all_args[$n], call_ctx, $n)? },
                     )*
                 );
 
@@ -191,16 +211,16 @@ unsafe_impl_param_tuple!((p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4
 /// Convert the `N`th argument of `args_ptr` into a value of type `P`.
 ///
 /// # Safety
-/// - It must be safe to dereference the address at `args_ptr.offset(N)`.
-/// - The pointer at `args_ptr.offset(N)` must follow the safety requirements as laid out in
+/// - It must be safe to dereference the address at `args_ptr.add(N)`.
+/// - The pointer at `args_ptr.add(N)` must follow the safety requirements as laid out in
 ///   [`GodotFfi::from_arg_ptr`].
-pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
+pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: usize>(
     args_ptr: *const sys::GDExtensionConstTypePtr,
     call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) -> CallResult<P> {
     // SAFETY: It is safe to dereference `args_ptr` at `N`.
-    let offset_ptr = unsafe { *args_ptr.offset(N) };
+    let offset_ptr = unsafe { *args_ptr.add(N) };
 
     // SAFETY: The pointer follows the safety requirements from `GodotFfi::from_arg_ptr`.
     let ffi = unsafe {
@@ -220,7 +240,7 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
 pub(super) unsafe fn varcall_arg<P: FromGodot>(
     arg: sys::GDExtensionConstVariantPtr,
     call_ctx: &CallContext,
-    param_index: isize,
+    param_index: usize,
 ) -> CallResult<P> {
     // SAFETY: It is safe to dereference `args_ptr` at `N` as a `Variant`.
     let variant_ref = unsafe { Variant::borrow_var_sys(arg) };

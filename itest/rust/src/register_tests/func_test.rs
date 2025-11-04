@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// Needed for Clippy to accept #[cfg(all())]
+// Needed for Clippy to accept #[cfg(all())].
 #![allow(clippy::non_minimal_cfg)]
 
 use godot::builtin::vslice;
@@ -54,6 +54,30 @@ impl FuncObj {
     #[cfg(all())]
     fn returns_bye_world(&self) -> GString {
         GString::from("Bye world!")
+    }
+
+    #[func]
+    fn method_with_defaults(
+        &self,
+        required: i32,
+        #[opt(default = "Default str")] string: GString,
+        #[opt(default = 100)] integer: i32,
+    ) -> VariantArray {
+        varray![required, string, integer]
+    }
+
+    #[func]
+    fn static_with_defaults(
+        #[opt(default = &RefCounted::new_gd())] mut required: Gd<RefCounted>,
+        #[opt(default = Gd::null_arg())] nullable: Option<Gd<RefCounted>>,
+    ) -> Gd<RefCounted> {
+        let id = match nullable {
+            Some(obj) => obj.instance_id().to_i64(),
+            None => -1,
+        };
+
+        required.set_meta("nullable_id", &id.to_variant());
+        required
     }
 }
 
@@ -306,6 +330,61 @@ fn init_fn_panic_is_caught() {
     expect_panic("Gd::from_init_fn() propagates panic", || {
         let _obj = Gd::<InitPanic>::from_init_fn(|_base| panic!("custom init closure exploded"));
     });
+}
+
+#[itest]
+fn func_default_parameters() {
+    let mut obj = FuncObj::new_gd();
+
+    let a = obj.call("method_with_defaults", vslice![0]);
+    assert_eq!(a.to::<VariantArray>(), varray![0, "Default str", 100]);
+
+    let b = obj.call("method_with_defaults", vslice![1, "My string"]);
+    assert_eq!(b.to::<VariantArray>(), varray![1, "My string", 100]);
+
+    let c = obj.call("method_with_defaults", vslice![2, "Another string", 456]);
+    assert_eq!(c.to::<VariantArray>(), varray![2, "Another string", 456]);
+
+    // Test that object is passed through, and that Option<Gd> with default Gd::null_arg() works.
+    let first = RefCounted::new_gd();
+    let d = obj
+        .call("static_with_defaults", vslice![&first])
+        .to::<Gd<RefCounted>>();
+    assert_eq!(d.instance_id(), first.instance_id());
+    assert_eq!(d.get_meta("nullable_id"), (-1).to_variant());
+
+    // Test that Option<Gd> with a populated argument works.
+    let second = RefCounted::new_gd();
+    let e = obj
+        .call("static_with_defaults", vslice![&first, &second])
+        .to::<Gd<RefCounted>>();
+    assert_eq!(e.instance_id(), first.instance_id());
+    assert_eq!(e.get_meta("nullable_id"), second.instance_id().to_variant());
+}
+
+#[itest]
+fn func_defaults_re_evaluate_expr() {
+    // ClassDb::class_call_static() added in Godot 4.4, but non-static dispatch works even before.
+    #[cfg(since_api = "4.4")]
+    let call_api = || -> InstanceId {
+        let variant =
+            ClassDb::singleton().class_call_static("FuncObj", "static_with_defaults", &[]);
+        variant.object_id().unwrap()
+    };
+
+    #[cfg(before_api = "4.4")]
+    let call_api = || -> InstanceId {
+        let variant = FuncObj::new_gd().call("static_with_defaults", &[]);
+        variant.object_id().unwrap()
+    };
+
+    let first_id = call_api();
+    let second_id = call_api();
+
+    assert_ne!(
+        first_id, second_id,
+        "#[opt = EXPR] should create evaluate EXPR on each call"
+    );
 }
 
 // No test for Gd::from_object(), as that simply moves the existing object without running user code.

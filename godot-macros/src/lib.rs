@@ -719,6 +719,37 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// ## Default parameters
+///
+/// Functions can have default parameters using the `#[opt]` attribute. When a caller provides fewer arguments than the function
+/// signature defines, the default values are used for the missing parameters.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyStruct {}
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     fn greet(&self, #[opt(default = "World")] name: GString) {
+///         godot_print!("Hello, {name}!");
+///     }
+/// }
+/// ```
+/// ```gdscript
+/// // Can be called from GDScript as:
+/// obj.greet()        # prints "Hello, World!"
+/// obj.greet("Rust")  # prints "Hello, Rust!"
+/// ```
+///
+/// **Important notes:**
+/// - Optional parameters must come at the end of the parameter list.
+/// - The expression given in `default = ...` must implement [`AsArg<T>`](../meta/trait.AsArg.html) for the parameter type `T`.
+/// - Default expressions are evaluated on each function call (not cached). **This may change**, see
+///   [PR #1396](https://github.com/godot-rust/gdext/pull/1396).
+///
 /// ## Virtual methods
 ///
 /// Functions with the `#[func(virtual)]` attribute are virtual functions, meaning attached scripts can override them.
@@ -981,6 +1012,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// ```
 #[doc(
     alias = "func",
+    alias = "default",
     alias = "rpc",
     alias = "virtual",
     alias = "signal",

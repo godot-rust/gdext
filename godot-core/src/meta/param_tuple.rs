@@ -42,15 +42,18 @@ pub trait ParamTuple: Sized {
 /// As an example, this would be used for user-defined functions that will be called from Godot, however this is _not_ used when
 /// calling a Godot function from Rust code.
 pub trait InParamTuple: ParamTuple {
-    /// Converts `args_ptr` to `Self` by first going through [`Variant`].
+    /// Converts `args_ptr` to `Self`, merging with default values if needed.
     ///
     /// # Safety
     ///
-    /// - `args_ptr` must be a pointer to an array of length [`Self::LEN`](ParamTuple::LEN)
+    /// - `args_ptr` must be a pointer to an array of length `arg_count`
     /// - Each element of `args_ptr` must be reborrowable as a `&Variant` with a lifetime that lasts for the duration of the call.
-    #[doc(hidden)] // Hidden since v0.3.2.
+    /// - `arg_count + default_values.len()` must equal `Self::LEN`
+    #[doc(hidden)]
     unsafe fn from_varcall_args(
         args_ptr: *const sys::GDExtensionConstVariantPtr,
+        arg_count: usize,
+        default_values: &[Variant],
         call_ctx: &CallContext,
     ) -> CallResult<Self>;
 

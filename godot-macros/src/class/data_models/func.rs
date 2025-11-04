@@ -120,12 +120,24 @@ pub fn make_method_registration(
         interface_trait,
     );
 
+    let default_parameters = make_default_argument_vec(
+        &signature_info.optional_param_default_exprs,
+        &signature_info.param_types,
+    )?;
+
     // String literals
     let class_name_str = class_name.to_string();
     let method_name_str = func_definition.godot_name();
 
     let call_ctx = make_call_context(&class_name_str, &method_name_str);
-    let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure);
+
+    // Both varcall and ptrcall functions are always generated and registered, even when default parameters are present via #[opt].
+    // Key differences are:
+    // - varcall: handles default parameters, applying them when caller provides fewer arguments.
+    // - ptrcall: optimized path without default handling, can be used when caller provides all arguments.
+    //
+    // Godot decides at call-time which calling convention to use based on available type information.
+    let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure, &default_parameters);
     let ptrcall_fn_decl = make_ptrcall_fn(&call_ctx, &forwarding_closure);
 
     // String literals II
@@ -166,6 +178,7 @@ pub fn make_method_registration(
                     &[
                         #( #param_ident_strs ),*
                     ],
+                    #default_parameters,
                 )
             };
 
@@ -181,6 +194,48 @@ pub fn make_method_registration(
     };
 
     Ok(registration)
+}
+
+/// Generates code to create a `Vec<Variant>` containing default argument values for varcall. Allocates on every call.
+fn make_default_argument_vec(
+    optional_param_default_exprs: &[TokenStream],
+    all_params: &[venial::TypeExpr],
+) -> ParseResult<TokenStream> {
+    // Optional params appearing at the end has already been validated in validate_default_exprs().
+
+    // Early exit: all parameters are required, not optional. This check is not necessary for correctness.
+    if optional_param_default_exprs.is_empty() {
+        return Ok(quote! { vec![] });
+    }
+
+    let optional_param_types = all_params
+        .iter()
+        .skip(all_params.len() - optional_param_default_exprs.len());
+
+    let default_parameters = optional_param_default_exprs
+        .iter()
+        .zip(optional_param_types)
+        .map(|(value, param_type)| {
+            quote! {
+                ::godot::builtin::Variant::from(
+                    ::godot::meta::AsArg::<#param_type>::into_arg(#value)
+                )
+            }
+        });
+
+    // Performance: This generates `vec![...]` in the varcall FFI function, which allocates on *every* call when default parameters
+    // are present. This is a performance cost we accept for now.
+    //
+    // If no #[opt] attributes are used, this generates `vec![]` which does *not* allocate, so most #[func] functions are unaffected.
+    //
+    // Potential future improvements:
+    // - Use `Global<Vec<Variant>>` (or LazyLock/thread_local) to allocate once per function instead of per call.
+    // - Store defaults in MethodInfo during registration and retrieve via method_data pointer.
+    //
+    // Note also that there may be a semantic difference on reusing the same object vs. recreating it, see Python's default-param issue.
+    Ok(quote! {
+        vec![ #(#default_parameters),* ]
+    })
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -208,6 +263,9 @@ pub struct SignatureInfo {
     ///
     /// Index points into original venial tokens (i.e. takes into account potential receiver params).
     pub modified_param_types: Vec<(usize, venial::TypeExpr)>,
+
+    /// Default value expressions `EXPR` from `#[opt(default = EXPR)]`, for all optional parameters.
+    pub optional_param_default_exprs: Vec<TokenStream>,
 }
 
 impl SignatureInfo {
@@ -220,6 +278,7 @@ impl SignatureInfo {
             param_types: vec![],
             return_type: quote! { () },
             modified_param_types: vec![],
+            optional_param_default_exprs: vec![],
         }
     }
 
@@ -413,7 +472,7 @@ pub(crate) fn into_signature_info(
     let params_span = signature.span();
     let mut param_idents = Vec::with_capacity(num_params);
     let mut param_types = Vec::with_capacity(num_params);
-    let ret_type = match signature.return_ty {
+    let return_type = match signature.return_ty {
         None => quote! { () },
         Some(ty) => map_self_to_class_name(ty.tokens, class_name),
     };
@@ -469,8 +528,9 @@ pub(crate) fn into_signature_info(
         params_span,
         param_idents,
         param_types,
-        return_type: ret_type,
+        return_type,
         modified_param_types,
+        optional_param_default_exprs: vec![], // Assigned outside, if relevant.
     }
 }
 
@@ -552,8 +612,12 @@ fn make_method_flags(
 }
 
 /// Generate code for a C FFI function that performs a varcall.
-fn make_varcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> TokenStream {
-    let invocation = make_varcall_invocation(wrapped_method);
+fn make_varcall_fn(
+    call_ctx: &TokenStream,
+    wrapped_method: &TokenStream,
+    default_parameters: &TokenStream,
+) -> TokenStream {
+    let invocation = make_varcall_invocation(wrapped_method, default_parameters);
 
     // TODO reduce amount of code generated, by delegating work to a library function. Could even be one that produces this function pointer.
     quote! {
@@ -616,17 +680,24 @@ fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> To
 }
 
 /// Generate code for a `varcall()` call expression.
-fn make_varcall_invocation(wrapped_method: &TokenStream) -> TokenStream {
+fn make_varcall_invocation(
+    wrapped_method: &TokenStream,
+    default_parameters: &TokenStream,
+) -> TokenStream {
     quote! {
-        ::godot::meta::Signature::<CallParams, CallRet>::in_varcall(
-            instance_ptr,
-            &call_ctx,
-            args_ptr,
-            arg_count,
-            ret,
-            err,
-            #wrapped_method,
-        )
+        {
+            let defaults = #default_parameters;
+            ::godot::meta::Signature::<CallParams, CallRet>::in_varcall(
+                instance_ptr,
+                &call_ctx,
+                args_ptr,
+                arg_count,
+                &defaults,
+                ret,
+                err,
+                #wrapped_method,
+            )
+        }
     }
 }
 

@@ -24,6 +24,8 @@ pub struct MethodInfo {
     pub class_name: ClassId,
     pub return_type: PropertyInfo,
     pub arguments: Vec<PropertyInfo>,
+    /// Whether default arguments are real "arguments" is controversial. From the function PoV they are, but for the caller,
+    /// they are just pre-set values to fill in for missing arguments.
     pub default_arguments: Vec<Variant>,
     pub flags: MethodFlags,
 }

@@ -63,23 +63,27 @@ where
     /// # Safety
     /// A call to this function must be caused by Godot making a varcall with parameters `Params` and return type `Ret`.
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub unsafe fn in_varcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         call_ctx: &CallContext,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         arg_count: i64,
+        default_values: &[Variant],
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
         func: unsafe fn(sys::GDExtensionClassInstancePtr, Params) -> Ret,
     ) -> CallResult<()> {
         //$crate::out!("in_varcall: {call_ctx}");
-        CallError::check_arg_count(call_ctx, arg_count as usize, Params::LEN)?;
+        let arg_count = arg_count as usize;
+        CallError::check_arg_count(call_ctx, arg_count, default_values.len(), Params::LEN)?;
 
         #[cfg(feature = "trace")]
         trace::push(true, false, call_ctx);
 
         // SAFETY: TODO.
-        let args = unsafe { Params::from_varcall_args(args_ptr, call_ctx)? };
+        let args =
+            unsafe { Params::from_varcall_args(args_ptr, arg_count, default_values, call_ctx)? };
 
         let rust_result = unsafe { func(instance_ptr, args) };
         // SAFETY: TODO.

@@ -121,16 +121,18 @@ impl CallError {
     /// Checks whether number of arguments matches the number of parameters.
     pub(crate) fn check_arg_count(
         call_ctx: &CallContext,
-        arg_count: usize,
-        param_count: usize,
+        arg_count: usize,           // Arguments passed by the caller.
+        default_value_count: usize, // Fallback/default values, *not* arguments.
+        param_count: usize,         // Parameters declared by the function.
     ) -> Result<(), Self> {
-        // This will need to be adjusted once optional parameters are supported in #[func].
-        if arg_count == param_count {
+        // Valid if both:
+        // - Provided args + available defaults (fallbacks) are enough to fill all parameters.
+        // - Provided args don't exceed parameter count.
+        if arg_count + default_value_count >= param_count && arg_count <= param_count {
             return Ok(());
         }
 
         let call_error = Self::failed_param_count(call_ctx, arg_count, param_count);
-
         Err(call_error)
     }
 
@@ -180,7 +182,7 @@ impl CallError {
     /// Returns an error for a failed parameter conversion.
     pub(crate) fn failed_param_conversion<P>(
         call_ctx: &CallContext,
-        param_index: isize,
+        param_index: usize,
         convert_error: ConvertError,
     ) -> Self {
         let param_ty = std::any::type_name::<P>();

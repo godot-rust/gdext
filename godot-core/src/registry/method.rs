@@ -34,6 +34,8 @@ pub struct ClassMethodInfo {
     method_flags: MethodFlags,
     return_value: Option<MethodParamOrReturnInfo>,
     arguments: Vec<MethodParamOrReturnInfo>,
+    /// Whether default arguments are real "arguments" is controversial. From the function PoV they are, but for the caller,
+    /// they are just pre-set values to fill in for missing arguments.
     default_arguments: Vec<Variant>,
 }
 
@@ -59,12 +61,11 @@ impl ClassMethodInfo {
         ptrcall_func: sys::GDExtensionClassMethodPtrCall,
         method_flags: MethodFlags,
         param_names: &[&str],
-        // default_arguments: Vec<Variant>, - not yet implemented
+        default_arguments: Vec<Variant>,
     ) -> Self {
         let return_value = Ret::Via::return_info();
         let arguments = Signature::<Params, Ret>::param_names(param_names);
 
-        let default_arguments = vec![]; // not yet implemented.
         assert!(
             default_arguments.len() <= arguments.len(),
             "cannot have more default arguments than arguments"
