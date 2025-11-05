@@ -8,6 +8,7 @@
 use godot::builtin::GString;
 use godot::classes::{Input, Os};
 use godot::obj::{Gd, Singleton};
+use godot::register::{godot_api, GodotClass};
 
 use crate::framework::itest;
 
@@ -43,4 +44,24 @@ fn singleton_is_operational() {
 
     let read_value = os.get_environment(&key);
     assert_eq!(read_value, value);
+}
+
+#[itest]
+fn user_singleton() {
+    // Must be registered with the library and accessible at this point.
+    let value = SomeUserSingleton::singleton().bind().some_method();
+    assert_eq!(value, 42);
+}
+
+#[derive(GodotClass)]
+// `#[class(tool, base = Object)]` is implied by `#[class(singleton)]`.
+#[class(init, singleton)]
+struct SomeUserSingleton {}
+
+#[godot_api]
+impl SomeUserSingleton {
+    #[func]
+    fn some_method(&self) -> u32 {
+        42
+    }
 }

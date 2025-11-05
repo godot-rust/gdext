@@ -685,6 +685,74 @@ pub trait Singleton: GodotClass {
     fn singleton() -> Gd<Self>;
 }
 
+/// Trait for user-defined singleton classes in Godot.
+///
+/// Implementing this trait allows accessing a registered singleton instance through [`singleton()`][Singleton::singleton].
+/// User singletons should be registered under their class name – otherwise some Godot components (for example GDScript before 4.4) might have trouble handling them,
+/// and the editor might crash when using `T::singleton()`.
+///
+/// There should be only one instance of a given singleton class in the engine, valid as long as the library is loaded.
+/// Therefore, user singletons are limited to classes with manual memory management (ones not inheriting from `RefCounted`).
+///
+/// # Registration
+///
+/// godot-rust provides a way to register given class as an Engine Singleton with [`#[class(singleton)]`](../prelude/derive.GodotClass.html#user-engine-singletons).
+///
+/// Alternatively, a user singleton can be registered manually:
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// # use godot::classes::Engine;
+/// #[derive(GodotClass)]
+/// #[class(init, base = Object)]
+/// struct MyEngineSingleton {}
+///
+/// // Provides blanket implementation allowing to use MyEngineSingleton::singleton().
+/// // Ensures that `MyEngineSingleton` is a valid singleton (i.e., a non-refcounted GodotClass).
+/// impl UserSingleton for MyEngineSingleton {}
+///
+/// struct MyExtension;
+///
+/// #[gdextension]
+/// unsafe impl ExtensionLibrary for MyExtension {
+///     fn on_stage_init(stage: InitStage) {
+///         if stage == InitStage::MainLoop {
+///             let obj = MyEngineSingleton::new_alloc();
+///             Engine::singleton()
+///                 .register_singleton(&MyEngineSingleton::class_id().to_string_name(), &obj);
+///         }
+///     }
+///
+///     fn on_stage_deinit(stage: InitStage) {
+///         if stage == InitStage::MainLoop {
+///             let obj = MyEngineSingleton::singleton();
+///             Engine::singleton()
+///                 .unregister_singleton(&MyEngineSingleton::class_id().to_string_name());
+///             obj.free();
+///         }
+///     }
+/// }
+/// ```
+// For now exists mostly as a marker trait and a way to provide blanket implementation for `Singleton` trait.
+pub trait UserSingleton:
+    GodotClass + Bounds<Declarer = bounds::DeclUser, Memory = bounds::MemManual>
+{
+}
+
+impl<T> Singleton for T
+where
+    T: UserSingleton + Inherits<crate::classes::Object>,
+{
+    fn singleton() -> Gd<T> {
+        // Note: Under any safeguards level `singleton_unchecked` will panic if Singleton can't be retrieved.
+
+        let class_name = <T as GodotClass>::class_id().to_string_name();
+        // SAFETY: The caller must ensure that `class_name` corresponds to the actual class name of type `T`.
+        // This is always true for `#[class(singleton)]`.
+        unsafe { crate::classes::singleton_unchecked(&class_name) }
+    }
+}
+
 impl<T> NewAlloc for T
 where
     T: cap::GodotDefault + Bounds<Memory = bounds::MemManual>,
@@ -705,6 +773,7 @@ pub mod cap {
     use super::*;
     use crate::builtin::{StringName, Variant};
     use crate::meta::PropertyInfo;
+    use crate::obj::{Base, Bounds, Gd};
     use crate::storage::{IntoVirtualMethodReceiver, VirtualMethodReceiver};
 
     /// Trait for all classes that are default-constructible from the Godot engine.

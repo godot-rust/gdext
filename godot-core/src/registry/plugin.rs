@@ -10,7 +10,10 @@ use std::{any, fmt};
 
 use crate::init::InitLevel;
 use crate::meta::ClassId;
-use crate::obj::{bounds, cap, Bounds, DynGd, Gd, GodotClass, Inherits, UserClass};
+use crate::obj::{
+    bounds, cap, Bounds, DynGd, Gd, GodotClass, Inherits, NewAlloc, Singleton, UserClass,
+    UserSingleton,
+};
 use crate::registry::callbacks;
 use crate::registry::class::GodotGetVirtual;
 use crate::{classes, sys};
@@ -180,6 +183,12 @@ pub struct Struct {
         instance: sys::GDExtensionClassInstancePtr,
     ),
 
+    /// `#[class(singleton)]`
+    pub(crate) register_singleton_fn: Option<fn()>,
+
+    /// `#[class(singleton)]`
+    pub(crate) unregister_singleton_fn: Option<fn()>,
+
     /// Calls `__before_ready()`, if there is at least one `OnReady` field. Used if there is no `#[godot_api] impl` block
     /// overriding ready.
     pub(crate) default_get_virtual_fn: Option<GodotGetVirtual>,
@@ -209,6 +218,8 @@ impl Struct {
                 raw: callbacks::register_user_properties::<T>,
             },
             free_fn: callbacks::free::<T>,
+            register_singleton_fn: None,
+            unregister_singleton_fn: None,
             default_get_virtual_fn: None,
             is_tool: false,
             is_editor_plugin: false,
@@ -254,6 +265,28 @@ impl Struct {
 
     pub fn with_editor_plugin(mut self) -> Self {
         self.is_editor_plugin = true;
+        self
+    }
+
+    pub fn with_singleton<T>(mut self) -> Self
+    where
+        T: UserSingleton
+            + Bounds<Memory = bounds::MemManual, Declarer = bounds::DeclUser>
+            + NewAlloc
+            + Inherits<classes::Object>,
+    {
+        self.register_singleton_fn = Some(|| {
+            crate::classes::Engine::singleton()
+                .register_singleton(&T::class_id().to_string_name(), &T::new_alloc());
+        });
+
+        self.unregister_singleton_fn = Some(|| {
+            let singleton = T::singleton();
+            crate::classes::Engine::singleton()
+                .unregister_singleton(&T::class_id().to_string_name());
+            singleton.free();
+        });
+
         self
     }
 
