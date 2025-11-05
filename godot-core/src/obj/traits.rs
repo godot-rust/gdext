@@ -685,6 +685,30 @@ pub trait Singleton: GodotClass {
     fn singleton() -> Gd<Self>;
 }
 
+/// Trait for user-defined singleton classes in Godot.
+///
+/// There should be only one instance of each singleton class in the engine, accessible through [`singleton()`][Singleton::singleton].
+// For now exists mostly as a marker trait and a way to provide blanket implementation for `Singleton` trait.
+pub trait UserSingleton:
+    GodotClass + Bounds<Declarer = bounds::DeclUser, Memory = bounds::MemManual>
+{
+}
+
+impl<T> Singleton for T
+where
+    T: UserSingleton + Inherits<crate::classes::Object>,
+{
+    fn singleton() -> Gd<T> {
+        // Note: with any safeguards enabled `singleton_unchecked` will panic if Singleton can't be retrieved.
+
+        // SAFETY: The caller must ensure that `class_name` corresponds to the actual class name of type `T`.
+        // This is always true for `#[class(singleton)]`.
+        unsafe {
+            crate::classes::singleton_unchecked(&<T as GodotClass>::class_id().to_string_name())
+        }
+    }
+}
+
 impl<T> NewAlloc for T
 where
     T: cap::GodotDefault + Bounds<Memory = bounds::MemManual>,
@@ -705,6 +729,7 @@ pub mod cap {
     use super::*;
     use crate::builtin::{StringName, Variant};
     use crate::meta::PropertyInfo;
+    use crate::obj::{Base, Bounds, Gd};
     use crate::storage::{IntoVirtualMethodReceiver, VirtualMethodReceiver};
 
     /// Trait for all classes that are default-constructible from the Godot engine.
