@@ -17,6 +17,10 @@ pub use gstring::*;
 pub use node_path::NodePath;
 pub use string_name::*;
 
+/// Abbreviation for occasionally used _owned or borrowed string_.
+#[doc(hidden)]
+pub type CowStr = std::borrow::Cow<'static, str>;
+
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};

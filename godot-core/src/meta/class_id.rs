@@ -15,6 +15,7 @@ use std::hash::Hash;
 use godot_ffi as sys;
 use sys::Global;
 
+use crate::builtin::strings::CowStr;
 use crate::builtin::*;
 use crate::obj::GodotClass;
 
@@ -156,7 +157,7 @@ impl ClassId {
     }
 
     /// Returns an owned or borrowed `str` representing the class name.
-    pub fn to_cow_str(&self) -> Cow<'static, str> {
+    pub fn to_cow_str(&self) -> CowStr {
         let cache = CLASS_ID_CACHE.lock();
         let entry = cache.get_entry(self.global_index as usize);
         entry.rust_str.clone()
@@ -206,12 +207,12 @@ impl fmt::Debug for ClassId {
 ///
 /// `StringName` needs to be lazy-initialized because the Godot binding may not be initialized yet.
 struct ClassIdEntry {
-    rust_str: Cow<'static, str>,
+    rust_str: CowStr,
     godot_str: OnceCell<StringName>,
 }
 
 impl ClassIdEntry {
-    fn new(rust_str: Cow<'static, str>) -> Self {
+    fn new(rust_str: CowStr) -> Self {
         Self {
             rust_str,
             godot_str: OnceCell::new(),
@@ -257,7 +258,7 @@ impl ClassIdCache {
     /// If `expect_first` is true and the string is already present in the cache.
     fn insert_class_id(
         &mut self,
-        source: Cow<'static, str>,
+        source: CowStr,
         type_id: Option<TypeId>,
         expect_first: bool,
     ) -> ClassId {
