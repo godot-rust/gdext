@@ -11,7 +11,7 @@ use godot::builtin::{
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
-use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd, OnEditor, Singleton};
+use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd, OnEditor};
 use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
