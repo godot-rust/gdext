@@ -12,7 +12,8 @@ use godot_ffi as sys;
 use godot_ffi::is_main_thread;
 use sys::{static_assert_eq_size_align, SysPtr as _};
 
-use crate::builtin::{Callable, GString, NodePath, StringName, Variant};
+use crate::builtin::strings::CowStr;
+use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
     ArrayElement, AsArg, ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg,
@@ -586,7 +587,7 @@ impl<T: GodotClass> Gd<T> {
     /// If you need a Callable which can live indefinitely, use [`Callable::from_fn()`].
     pub fn linked_callable<R, F>(
         &self,
-        method_name: impl AsArg<GString>,
+        method_name: impl Into<CowStr>,
         rust_function: F,
     ) -> Callable
     where
