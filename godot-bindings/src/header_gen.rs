@@ -26,7 +26,13 @@ pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
     let builder = bindgen::Builder::default()
         .header(c_header_path)
         .parse_callbacks(Box::new(cargo_cfg))
-        .prepend_enum_name(false);
+        .prepend_enum_name(false)
+        // Bindgen can generate wrong size checks for types defined as `__attribute__((aligned(__alignof__(struct {...}))))`,
+        // which is how clang defines max_align_t: https://clang.llvm.org/doxygen/____stddef__max__align__t_8h_source.html.
+        // Size checks seems to be fine on all the targets but `wasm32-unknown-emscripten`, disallowing web builds.
+        // We don't use `max_align_t` anywhere, so blacklisting it until upstream fixes the problem seems to be the most sane solution.
+        // See: https://github.com/rust-lang/rust-bindgen/issues/3295.
+        .blocklist_type("max_align_t");
 
     std::fs::create_dir_all(
         out_rs_path
