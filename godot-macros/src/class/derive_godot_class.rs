@@ -369,7 +369,7 @@ fn make_onready_init(all_fields: &[Field]) -> TokenStream {
 
 fn make_oneditor_panic_inits(class_name: &Ident, all_fields: &[Field]) -> TokenStream {
     // Despite its name OnEditor shouldn't panic in the editor for tool classes.
-    let is_in_editor = quote! { ::godot::classes::Engine::singleton().is_editor_hint() };
+    let is_in_editor = quote! { <::godot::classes::Engine as ::godot::obj::Singleton>::singleton().is_editor_hint() };
 
     let are_all_oneditor_fields_valid = quote! { are_all_oneditor_fields_valid };
 

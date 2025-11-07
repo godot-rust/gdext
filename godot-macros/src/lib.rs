@@ -231,12 +231,15 @@ use crate::util::{bail, ident, KvParser};
 /// [`Export`](../register/property/trait.Export.html):
 ///
 /// ```
-/// # use godot::prelude::*;
+/// # use godot::prelude::{GodotClass, Node3D, Gd, OnEditor};
 /// #[derive(GodotClass)]
 /// # #[class(init)]
 /// struct MyStruct {
 ///     #[export]
 ///     my_field: i64,
+///
+///     #[export]
+///     child: OnEditor<Gd<Node3D>>,
 /// }
 /// ```
 ///
