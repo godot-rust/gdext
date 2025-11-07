@@ -112,37 +112,37 @@ use binding::{
 #[cfg(not(wasm_nothreads))]
 static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::new();
 
-#[cfg(before_api = "4.5")]
-mod version_symbols {
-
-    pub type GodotSysVersion = super::GDExtensionGodotVersion;
-    pub type GetGodotSysVersion = super::GDExtensionInterfaceGetGodotVersion;
-    pub const GET_GODOT_VERSION_SYS_STR: &[u8] = b"get_godot_version\0";
-}
-
-#[cfg(since_api = "4.5")]
-mod version_symbols {
-    pub type GodotSysVersion = super::GDExtensionGodotVersion2;
-
-    pub type GetGodotSysVersion = super::GDExtensionInterfaceGetGodotVersion2;
-    pub const GET_GODOT_VERSION_SYS_STR: &[u8] = b"get_godot_version2\0";
-}
-
-use version_symbols::*;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct GdextRuntimeMetadata {
-    godot_version: GodotSysVersion,
+    version_string: String,
+    version_triple: (u8, u8, u8),
 }
 
 impl GdextRuntimeMetadata {
-    /// # Safety
-    ///
-    /// - The `string` field of `godot_version` must not be written to while this struct exists.
-    /// - The `string` field of `godot_version` must be safe to read from while this struct exists.
-    pub unsafe fn new(godot_version: GodotSysVersion) -> Self {
-        Self { godot_version }
+    pub fn load(sys_version: GDExtensionGodotVersion) -> Self {
+        // SAFETY: GDExtensionGodotVersion always contains valid string.
+        let version_string = unsafe { read_version_string(sys_version.string) };
+
+        let version_triple = (
+            sys_version.major as u8,
+            sys_version.minor as u8,
+            sys_version.patch as u8,
+        );
+
+        Self {
+            version_string,
+            version_triple,
+        }
+    }
+
+    // TODO(v0.5): CowStr, also in GdextBuild.
+    pub fn version_string(&self) -> &str {
+        &self.version_string
+    }
+
+    pub fn version_triple(&self) -> (u8, u8, u8) {
+        self.version_triple
     }
 }
 
@@ -164,10 +164,10 @@ pub unsafe fn initialize(
     library: GDExtensionClassLibraryPtr,
     config: GdextConfig,
 ) {
-    out!("Initialize gdext...");
+    out!("Initialize godot-rust...");
 
     out!(
-        "Godot version against which gdext was compiled: {}",
+        "Godot version against which godot-rust was compiled: {}",
         GdextBuild::godot_static_version_string()
     );
 
@@ -201,8 +201,7 @@ pub unsafe fn initialize(
         unsafe { UtilityFunctionTable::load(&interface, &mut string_names) };
     out!("Loaded utility function table.");
 
-    // SAFETY: We do not touch `version` again after passing it to `new` here.
-    let runtime_metadata = unsafe { GdextRuntimeMetadata::new(version) };
+    let runtime_metadata = GdextRuntimeMetadata::load(version);
 
     let builtin_method_table = {
         #[cfg(feature = "codegen-lazy-fptrs")]
@@ -283,9 +282,11 @@ fn safeguards_level_string() -> &'static str {
     }
 }
 
-fn print_preamble(version: GodotSysVersion) {
+fn print_preamble(version: GDExtensionGodotVersion) {
+    // SAFETY: GDExtensionGodotVersion always contains valid string.
+    let runtime_version = unsafe { read_version_string(version.string) };
+
     let api_version: &'static str = GdextBuild::godot_static_version_string();
-    let runtime_version = read_version_string(&version);
     let safeguards_level = safeguards_level_string();
     println!("Initialize godot-rust (API {api_version}, runtime {runtime_version}, safeguards {safeguards_level})");
 }
@@ -489,6 +490,7 @@ pub unsafe fn classdb_construct_object(
 ) -> GDExtensionObjectPtr {
     #[cfg(before_api = "4.4")]
     return interface_fn!(classdb_construct_object)(class_name);
+
     #[cfg(since_api = "4.4")]
     return interface_fn!(classdb_construct_object2)(class_name);
 }
