@@ -66,6 +66,21 @@ fn cfg_test() {
     assert_ne!(cfg!(since_api = "4.4"), cfg!(before_api = "4.4"));
 }
 
+// Test that u64 works as a return type from engine APIs (after removing it from ToGodot/FromGodot). FileAccess::get_length() returns u64.
+#[itest]
+fn u64_in_engine_api_return() {
+    if let Some(file) = FileAccess::open(
+        "res://itest.gdextension",
+        godot::classes::file_access::ModeFlags::READ,
+    ) {
+        let length: u64 = file.get_length();
+        assert!(length > 0);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Class definitions
+
 #[derive(GodotClass)]
 #[class(base=HttpRequest)] // test a base class that is renamed in Godot
 pub struct CodegenTest {
