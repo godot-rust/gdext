@@ -243,24 +243,6 @@ jobs:
         include:
           # macOS -- for the unintuitive naming, see https://github.com/actions/runner-images?tab=readme-ov-file#available-images
 
-          - name: macos-x86
-            os: macos-13
-            artifact-name: macos-x86-nightly
-            godot-binary: godot.macos.editor.dev.x86_64
-            hot-reload: stable
-
-          - name: macos-double-x86
-            os: macos-13
-            artifact-name: macos-double-x86-nightly
-            godot-binary: godot.macos.editor.dev.double.x86_64
-            rust-extra-args: --features godot/api-custom,godot/double-precision
-
-          - name: macos-x86-4.4
-            os: macos-13
-            artifact-name: macos-x86-4.4
-            godot-binary: godot.macos.editor.dev.x86_64
-            godot-prebuilt-patch: '4.4'
-
           - name: macos-arm
             os: macos-latest
             artifact-name: macos-arm-nightly
