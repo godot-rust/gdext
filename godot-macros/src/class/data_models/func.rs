@@ -65,7 +65,7 @@ pub fn make_virtual_callback(
         before_kind,
         interface_trait,
     );
-    let sig_params = signature_info.params_type();
+    let sig_params = signature_info.params_type_substitute_u64();
     let sig_ret = signature_info.substitute_return_type();
 
     let call_ctx = make_call_context(
@@ -103,8 +103,8 @@ pub fn make_method_registration(
     interface_trait: Option<&venial::TypeExpr>,
 ) -> ParseResult<TokenStream> {
     let signature_info = &func_definition.signature_info;
-    let sig_params = signature_info.params_type();
-    let sig_ret = &signature_info.return_type;
+    let sig_params = signature_info.params_type_substitute_u64();
+    let sig_ret = signature_info.substitute_return_type();
 
     let is_script_virtual = func_definition.is_script_virtual;
     let method_flags = match make_method_flags(signature_info.receiver_type, is_script_virtual) {
@@ -267,10 +267,10 @@ pub struct SignatureInfo {
     /// Default value expressions `EXPR` from `#[opt(default = EXPR)]`, for all optional parameters.
     pub optional_param_default_exprs: Vec<TokenStream>,
 
-    /// True if return type is `u64`, requiring `i64` in `CallRet` with casting.
+    /// Original structured return type, if present. Used for u64 detection and future type checks.
     ///
-    /// Counterpart: `godot_codegen::generator::functions_common::call_sig_decl` return type check.
-    pub return_type_is_u64: bool,
+    /// Counterpart: `godot_codegen::generator::functions_common` has `RustTy` available directly.
+    pub return_type_expr: Option<venial::TypeExpr>,
 }
 
 impl SignatureInfo {
@@ -284,7 +284,7 @@ impl SignatureInfo {
             return_type: quote! { () },
             modified_param_types: vec![],
             optional_param_default_exprs: vec![],
-            return_type_is_u64: false,
+            return_type_expr: None,
         }
     }
 
@@ -300,12 +300,34 @@ impl SignatureInfo {
 
     /// Returns `as i64` cast for `u64` return types, empty otherwise.
     pub fn maybe_return_cast(&self) -> TokenStream {
-        u64_handling::maybe_return_cast(self.return_type_is_u64)
+        let is_u64 = u64_handling::is_return_type_u64(self.return_type_expr.as_ref());
+        u64_handling::maybe_return_cast(is_u64)
     }
 
     /// Returns `i64` for `u64` return types, otherwise the original type.
     pub fn substitute_return_type(&self) -> TokenStream {
-        u64_handling::substitute_return_type(&self.return_type, self.return_type_is_u64)
+        let is_u64 = u64_handling::is_return_type_u64(self.return_type_expr.as_ref());
+        u64_handling::substitute_return_type(&self.return_type, is_u64)
+    }
+
+    /// Returns individual params `#(params_as_u64),*` with `u64` casts where needed, for method invocation.
+    ///
+    /// Example: If params are `(x: i64, y: i64)` where `x` is `u64`, returns `x as u64, y`.
+    pub fn params_as_u64_iter(&self) -> impl Iterator<Item = TokenStream> + '_ {
+        self.param_idents
+            .iter()
+            .zip(&self.param_types)
+            .map(|(ident, ty)| u64_handling::maybe_cast_param_to_u64(ident, ty))
+    }
+
+    /// Returns param types `(i64, f64, ...)` with `u64` -> `i64` substitution, used in `type CallParams`.
+    pub fn params_type_substitute_u64(&self) -> Group {
+        let substituted_types = self
+            .param_types
+            .iter()
+            .map(u64_handling::substitute_param_type);
+
+        to_spanned_tuple(&substituted_types.collect::<Vec<_>>(), self.params_span)
     }
 }
 
@@ -330,8 +352,8 @@ fn make_forwarding_closure(
     interface_trait: Option<&venial::TypeExpr>,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
-    let params = &signature_info.param_idents;
     let params_tuple = signature_info.params_tuple();
+    let params_as_u64 = signature_info.params_as_u64_iter().collect::<Vec<_>>();
     let param_ident = Ident::new("params", signature_info.params_span);
 
     let instance_decl = match &signature_info.receiver_type {
@@ -389,7 +411,7 @@ fn make_forwarding_closure(
                 );
 
                 method_call = quote! {
-                    #method_invocation( #instance_ref, #(#params),* )
+                    #method_invocation( #instance_ref, #(#params_as_u64),* )
                 };
             } else {
                 // impl Class {...}
@@ -397,7 +419,7 @@ fn make_forwarding_closure(
 
                 sig_tuple_annotation = TokenStream::new();
                 method_call = quote! {
-                    instance.#method_name( #(#params),* )
+                    instance.#method_name( #(#params_as_u64),* )
                 };
             };
 
@@ -441,7 +463,7 @@ fn make_forwarding_closure(
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
 
                     #before_method_call
-                    #class_name::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*) #maybe_as_i64
+                    #class_name::#method_name(::godot::private::Storage::get_gd(storage), #(#params_as_u64),*) #maybe_as_i64
                 }
             }
         }
@@ -455,7 +477,7 @@ fn make_forwarding_closure(
             quote! {
                 |_, #param_ident| {
                     let #params_tuple = #param_ident;
-                    #class_name::#method_name(#(#params),*) #maybe_as_i64
+                    #class_name::#method_name(#(#params_as_u64),*) #maybe_as_i64
                 }
             }
         }
@@ -502,14 +524,14 @@ pub(crate) fn into_signature_info(
     let mut param_idents = Vec::with_capacity(num_params);
     let mut param_types = Vec::with_capacity(num_params);
 
-    let (return_type_is_u64, return_type);
+    let (return_type_expr, return_type);
     match signature.return_ty {
         None => {
-            return_type_is_u64 = false;
+            return_type_expr = None;
             return_type = quote! { () };
         }
         Some(ty) => {
-            return_type_is_u64 = u64_handling::is_u64_type(&ty);
+            return_type_expr = Some(ty.clone());
             return_type = map_self_to_class_name(ty.tokens, class_name);
         }
     };
@@ -568,7 +590,7 @@ pub(crate) fn into_signature_info(
         return_type,
         modified_param_types,
         optional_param_default_exprs: vec![], // Assigned outside, if relevant.
-        return_type_is_u64,
+        return_type_expr,
     }
 }
 

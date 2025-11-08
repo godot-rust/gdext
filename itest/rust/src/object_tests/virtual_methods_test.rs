@@ -754,3 +754,25 @@ impl IEditorPlugin for CustomEditorPlugin {
         true
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Test that virtual methods with u64 parameters work correctly.
+///
+/// `u64` doesn't have ToGodot/FromGodot implementations (not natively supported in GDScript),
+/// but engine virtual methods may use it. The macro should handle the i64<->u64 conversion.
+#[cfg(feature = "codegen-full")]
+#[derive(GodotClass)]
+#[class(init, tool, base=OpenXrExtensionWrapper)]
+struct VirtualU64Test {
+    base: Base<godot::classes::OpenXrExtensionWrapper>,
+}
+
+#[cfg(feature = "codegen-full")]
+#[godot_api]
+impl godot::classes::IOpenXrExtensionWrapper for VirtualU64Test {
+    // TODO: u64 not yet implemented
+    fn on_instance_created(&mut self, _instance: u64) {
+        // No need to do anything, this must just compile with u64.
+    }
+}

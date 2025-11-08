@@ -12,7 +12,7 @@
 //!
 //! The `godot_codegen::generator::u64_handling` module provides the same functionality for codegen.
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
 /// Checks if a type is `u64`, which requires `i64` for FFI with casting.
@@ -22,7 +22,7 @@ pub(crate) fn is_u64_type(ty_expr: &venial::TypeExpr) -> bool {
     ty_expr.tokens.len() == 1 && ty_expr.tokens[0].to_string() == "u64"
 }
 
-/// Returns `i64` for u64 types, otherwise the original type.
+/// Returns `i64` for `u64` types, otherwise the original type.
 ///
 /// Counterpart: `godot_codegen::generator::u64_handling::substitute_return_type`.
 pub(crate) fn substitute_return_type(return_type: &TokenStream, is_u64: bool) -> TokenStream {
@@ -33,13 +33,43 @@ pub(crate) fn substitute_return_type(return_type: &TokenStream, is_u64: bool) ->
     }
 }
 
-/// Returns `as i64` cast for u64 types, empty otherwise. 
-/// 
+/// Returns `as i64` cast for `u64` types, empty otherwise.
+///
 /// Counterpart: `godot_codegen::generator::u64_handling::maybe_return_cast`.
 pub(crate) fn maybe_return_cast(is_u64: bool) -> TokenStream {
     if is_u64 {
         quote! { as i64 }
     } else {
         TokenStream::new()
+    }
+}
+
+/// Checks if the return type is `u64` by examining the optional `TypeExpr`.
+pub(crate) fn is_return_type_u64(return_type_expr: Option<&venial::TypeExpr>) -> bool {
+    return_type_expr.is_some_and(is_u64_type)
+}
+
+/// Returns `as u64` cast for `u64` parameters, otherwise returns the identifier unchanged.
+///
+/// Used when passing parameters from FFI (`i64`) to user methods (`u64`).
+pub(crate) fn maybe_cast_param_to_u64(
+    param_ident: &Ident,
+    param_type: &venial::TypeExpr,
+) -> TokenStream {
+    if is_u64_type(param_type) {
+        quote! { #param_ident as u64 }
+    } else {
+        quote! { #param_ident }
+    }
+}
+
+/// Returns `i64` for `u64` parameter types, otherwise returns the original type.
+///
+/// Used for `type CallParams` declarations where FFI expects `i64`.
+pub(crate) fn substitute_param_type(param_type: &venial::TypeExpr) -> TokenStream {
+    if is_u64_type(param_type) {
+        quote! { i64 }
+    } else {
+        quote! { #param_type }
     }
 }
