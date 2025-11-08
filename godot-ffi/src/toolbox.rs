@@ -386,10 +386,14 @@ pub(crate) fn load_utility_function(
     })
 }
 
-pub(crate) fn read_version_string(version_ptr: &sys::GodotSysVersion) -> String {
-    let char_ptr = version_ptr.string;
-
-    // SAFETY: GDExtensionGodotVersion has the (manually upheld) invariant of a valid string field.
+/// Extracts the version string from a Godot version struct.
+///
+/// Works transparently with both `GDExtensionGodotVersion` and `GDExtensionGodotVersion2`.
+///
+/// # Safety
+/// The `char_ptr` must point to a valid C string.
+pub(crate) unsafe fn read_version_string(char_ptr: *const std::ffi::c_char) -> String {
+    // SAFETY: Caller guarantees the pointer is valid.
     let c_str = unsafe { std::ffi::CStr::from_ptr(char_ptr) };
 
     let full_version = c_str.to_str().unwrap_or("(invalid UTF-8 in version)");

@@ -24,34 +24,29 @@ pub fn make_gdext_build_struct(header: &GodotApiVersion) -> TokenStream {
         pub struct GdextBuild;
 
         impl GdextBuild {
-            /// Godot version against which gdext was compiled.
+            /// Godot version against which godot-rust was compiled.
             ///
             /// Example format: `v4.0.stable.official`
             pub const fn godot_static_version_string() -> &'static str {
                 #version_string
             }
 
-            /// Godot version against which gdext was compiled, as `(major, minor, patch)` triple.
+            /// Godot version against which godot-rust was compiled, as `(major, minor, patch)` triple.
             pub const fn godot_static_version_triple() -> (u8, u8, u8) {
                 (#major, #minor, #patch)
             }
 
-            /// Version of the Godot engine which loaded gdext via GDExtension binding.
+            /// Version of the Godot engine which loaded godot-rust via GDExtension binding.
             pub fn godot_runtime_version_string() -> String {
-                unsafe {
-                    let char_ptr = crate::runtime_metadata().godot_version.string;
-                    let c_str = std::ffi::CStr::from_ptr(char_ptr);
-                    String::from_utf8_lossy(c_str.to_bytes()).to_string()
-                }
+                let rt = unsafe { crate::runtime_metadata() };
+                rt.version_string().to_string()
             }
 
-            /// Version of the Godot engine which loaded gdext via GDExtension binding, as
+            /// Version of the Godot engine which loaded godot-rust via GDExtension binding, as
             /// `(major, minor, patch)` triple.
             pub fn godot_runtime_version_triple() -> (u8, u8, u8) {
-                let version = unsafe {
-                    crate::runtime_metadata().godot_version
-                };
-                (version.major as u8, version.minor as u8, version.patch as u8)
+                let rt = unsafe { crate::runtime_metadata() };
+                rt.version_triple()
             }
 
             // Duplicates code from `before_api` in `godot-bindings/lib.rs`.
