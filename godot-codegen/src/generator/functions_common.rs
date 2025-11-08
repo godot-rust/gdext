@@ -8,7 +8,7 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::generator::default_parameters;
+use crate::generator::{default_parameters, u64_handling};
 use crate::models::domain::{ArgPassing, FnParam, FnQualifier, Function, RustTy};
 use crate::special_cases;
 use crate::util::lifetime;
@@ -177,7 +177,10 @@ pub fn make_function_definition(
     let maybe_func_generic_bounds = sig.return_value().where_clause();
 
     let call_sig_decl = {
-        let return_ty = &sig.return_value().type_tokens();
+        let return_ty = u64_handling::substitute_return_type(
+            &sig.return_value().type_tokens(),
+            sig.return_value().type_.as_ref(),
+        );
 
         quote! {
             type CallRet #maybe_func_generic_params = #return_ty;
@@ -278,6 +281,8 @@ pub fn make_function_definition(
 
         let ptrcall_invocation = &code.ptrcall_invocation;
 
+        let maybe_as_u64 = u64_handling::maybe_return_cast(sig.return_value().type_.as_ref());
+
         quote! {
             #maybe_safety_doc
             #vis #maybe_unsafe fn #primary_fn_name #maybe_func_generic_params (
@@ -290,9 +295,10 @@ pub fn make_function_definition(
 
                 let args = (#( #arg_names, )*);
 
-                unsafe {
+                let result = unsafe {
                     #ptrcall_invocation
-                }
+                };
+                result #maybe_as_u64
             }
         }
     };
@@ -332,6 +338,7 @@ pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnRecei
         self_prefix,
     }
 }
+
 pub fn make_vis(is_private: bool) -> TokenStream {
     if is_private {
         quote! { pub(crate) }
@@ -515,6 +522,16 @@ pub(crate) fn make_param_or_field_type(
 }
 
 pub(crate) fn make_arg_expr(name: &Ident, ty: &RustTy, expr: FnArgExpr) -> TokenStream {
+    // u64 -> i64: Cast parameter/value to i64 when passing to FFI or storing in fields (public API uses u64, FFI uses i64).
+    if matches!(
+        expr,
+        FnArgExpr::PassToFfi | FnArgExpr::StoreInField | FnArgExpr::StoreInDefaultField
+    ) {
+        if let Some(cast) = u64_handling::cast_param_value(name, ty) {
+            return cast;
+        }
+    }
+
     match ty {
         // Objects.
         RustTy::EngineClass { .. } => match expr {
@@ -590,9 +607,22 @@ pub(crate) fn make_params_exprs<'a>(
         let param_name = &param.name;
         let param_rust_ty = &param.type_;
 
-        let (param_decl, param_ty) =
+        let (mut param_decl, mut param_ty) =
             make_param_or_field_type(param_name, param_rust_ty, param_kind, &mut lifetime_gen);
         let arg_expr = make_arg_expr(param_name, param_rust_ty, arg_kind);
+
+        // u64 -> i64: Substitute parameter type (public API uses u64, FFI uses i64).
+        param_ty = u64_handling::substitute_param_type(&param_ty, param_rust_ty);
+
+        // Only substitute declaration for internal/field types, not public APIs.
+        if u64_handling::is_u64_type(param_rust_ty)
+            && !matches!(
+                param_kind,
+                FnParamDecl::FnPublic | FnParamDecl::FnPublicLifetime
+            )
+        {
+            param_decl = quote! { #param_name: i64 };
+        }
 
         ret.param_decls.push(param_decl);
         ret.arg_exprs.push(arg_expr);

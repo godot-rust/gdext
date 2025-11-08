@@ -8,7 +8,7 @@
 use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 
-use crate::class::RpcAttr;
+use crate::class::{u64_handling, RpcAttr};
 use crate::util::{bail, bail_fn, ident, safe_ident, to_spanned_tuple};
 use crate::{util, ParseResult};
 
@@ -66,7 +66,7 @@ pub fn make_virtual_callback(
         interface_trait,
     );
     let sig_params = signature_info.params_type();
-    let sig_ret = &signature_info.return_type;
+    let sig_ret = signature_info.substitute_return_type();
 
     let call_ctx = make_call_context(
         class_name.to_string().as_str(),
@@ -266,6 +266,11 @@ pub struct SignatureInfo {
 
     /// Default value expressions `EXPR` from `#[opt(default = EXPR)]`, for all optional parameters.
     pub optional_param_default_exprs: Vec<TokenStream>,
+
+    /// True if return type is `u64`, requiring `i64` in `CallRet` with casting.
+    ///
+    /// Counterpart: `godot_codegen::generator::functions_common::call_sig_decl` return type check.
+    pub return_type_is_u64: bool,
 }
 
 impl SignatureInfo {
@@ -279,6 +284,7 @@ impl SignatureInfo {
             return_type: quote! { () },
             modified_param_types: vec![],
             optional_param_default_exprs: vec![],
+            return_type_is_u64: false,
         }
     }
 
@@ -290,6 +296,16 @@ impl SignatureInfo {
     /// Returns param types (e.g. `(f32, f64, GString...)`) of this signature as a properly spanned group.
     pub fn params_type(&self) -> Group {
         to_spanned_tuple(&self.param_types, self.params_span)
+    }
+
+    /// Returns `as i64` cast for `u64` return types, empty otherwise.
+    pub fn maybe_return_cast(&self) -> TokenStream {
+        u64_handling::maybe_return_cast(self.return_type_is_u64)
+    }
+
+    /// Returns `i64` for `u64` return types, otherwise the original type.
+    pub fn substitute_return_type(&self) -> TokenStream {
+        u64_handling::substitute_return_type(&self.return_type, self.return_type_is_u64)
     }
 }
 
@@ -385,6 +401,8 @@ fn make_forwarding_closure(
                 };
             };
 
+            let maybe_as_i64 = signature_info.maybe_return_cast();
+
             quote! {
                 // Identifiers need to share the span to avoid proc macro hygiene issues
                 // similar to https://github.com/godot-rust/gdext/pull/1397.
@@ -396,7 +414,7 @@ fn make_forwarding_closure(
 
                     #instance_decl
                     #before_method_call
-                    #method_call
+                    #method_call #maybe_as_i64
                 }
             }
         }
@@ -410,6 +428,8 @@ fn make_forwarding_closure(
                 TokenStream::new()
             };
 
+            let maybe_as_i64 = signature_info.maybe_return_cast();
+
             quote! {
                 // Identifiers need to share the span to avoid proc macro hygiene issues
                 // similar to https://github.com/godot-rust/gdext/pull/1397.
@@ -421,7 +441,7 @@ fn make_forwarding_closure(
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
 
                     #before_method_call
-                    #class_name::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*)
+                    #class_name::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*) #maybe_as_i64
                 }
             }
         }
@@ -430,10 +450,12 @@ fn make_forwarding_closure(
             //
             // Identifiers need to share the span to avoid proc macro hygiene issues
             // similar to https://github.com/godot-rust/gdext/pull/1397.
+            let maybe_as_i64 = signature_info.maybe_return_cast();
+
             quote! {
                 |_, #param_ident| {
                     let #params_tuple = #param_ident;
-                    #class_name::#method_name(#(#params),*)
+                    #class_name::#method_name(#(#params),*) #maybe_as_i64
                 }
             }
         }
@@ -479,9 +501,17 @@ pub(crate) fn into_signature_info(
     let params_span = signature.span();
     let mut param_idents = Vec::with_capacity(num_params);
     let mut param_types = Vec::with_capacity(num_params);
-    let return_type = match signature.return_ty {
-        None => quote! { () },
-        Some(ty) => map_self_to_class_name(ty.tokens, class_name),
+
+    let (return_type_is_u64, return_type);
+    match signature.return_ty {
+        None => {
+            return_type_is_u64 = false;
+            return_type = quote! { () };
+        }
+        Some(ty) => {
+            return_type_is_u64 = u64_handling::is_u64_type(&ty);
+            return_type = map_self_to_class_name(ty.tokens, class_name);
+        }
     };
 
     let mut next_unnamed_index = 0;
@@ -538,6 +568,7 @@ pub(crate) fn into_signature_info(
         return_type,
         modified_param_types,
         optional_param_default_exprs: vec![], // Assigned outside, if relevant.
+        return_type_is_u64,
     }
 }
 

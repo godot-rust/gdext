@@ -6,10 +6,13 @@
  */
 
 //! Runtime checks and inspection of Godot classes.
+//!
+//! Several of the symbols here exist to either avoid repetition, or reduce code size of generated code, by outsourcing common patterns.
+//! It also makes the latter more debuggable if they aren't part of "stringly typed" proc-macro/codegen output.
 
 use crate::builtin::{GString, StringName, Variant};
-use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
-use crate::sys;
+use crate::obj::{bounds, Bounds, EngineBitfield, EngineEnum, Gd, GodotClass, InstanceId, RawGd};
+use crate::{meta, sys};
 
 #[cfg(safeguards_strict)]
 mod strict {
@@ -202,6 +205,22 @@ where
 {
     let object_ptr = unsafe { sys::interface_fn!(global_get_singleton)(class_name.string_sys()) };
     Gd::<T>::from_obj_sys(object_ptr)
+}
+
+#[doc(hidden)]
+pub fn enum_try_from_godot<T: EngineEnum>(via: i32) -> Result<T, meta::error::ConvertError> {
+    T::try_from_ord(via).ok_or_else(|| meta::error::FromGodotError::InvalidEnum.into_error(via))
+}
+
+#[doc(hidden)]
+pub fn bitfield_try_from_godot<T: EngineBitfield>(
+    via: u64,
+) -> Result<T, meta::error::ConvertError> {
+    T::try_from_ord(via).ok_or_else(|| {
+        // Does not use FromGodotError::InvalidEnum.into_error(via) here, to keep the u64 value intact in error messages,
+        // as it may be outside i64 range. Especially important for bitfields which may use the highest bit.
+        meta::error::ConvertError::new(format!("Invalid bitfield value: {via}"))
+    })
 }
 
 /// Checks that the object with the given instance ID is still alive and that the pointer is valid.

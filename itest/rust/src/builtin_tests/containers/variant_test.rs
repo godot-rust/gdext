@@ -212,7 +212,8 @@ fn variant_bad_integer_conversions() {
     truncate_bad::<u32>(4294967296);
     truncate_bad::<u32>(-1);
 
-    truncate_bad::<u64>(-1);
+    // Note: u64 no longer implements FromGodot to prevent lossy conversions
+    // truncate_bad::<u64>(-1);
 }
 
 #[itest]
@@ -233,10 +234,10 @@ fn variant_bad_conversions() {
     assert_convert_err::<_, String>(false);
     assert_convert_err::<_, StringName>(VariantArray::default());
 
-    // Special case: ToVariant is not yet fallible, so u64 -> i64 conversion error panics.
-    expect_panic("u64 -> i64 conversion error", || {
-        u64::MAX.to_variant();
-    });
+    // When u64 still implemented ToGodot: ToGodot is not fallible, so u64 -> i64 conversion error panics.
+    // expect_panic("u64 -> i64 conversion error", || {
+    //     u64::MAX.to_variant();
+    // });
 
     //assert_eq!(
     //    Dictionary::default().to_variant().try_to::<Array>(),

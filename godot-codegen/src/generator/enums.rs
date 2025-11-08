@@ -16,6 +16,7 @@ use quote::{quote, ToTokens};
 
 use crate::models::domain::{Enum, Enumerator, EnumeratorValue, RustTy};
 use crate::special_cases;
+use crate::util::ident;
 
 pub fn make_enums(enums: &[Enum], cfg_attributes: &TokenStream) -> TokenStream {
     let definitions = enums.iter().map(make_enum_definition);
@@ -108,6 +109,12 @@ pub fn make_enum_definition_with(
         let index_enum_impl = make_enum_index_impl(enum_);
         let bitwise_impls = make_enum_bitwise_operators(enum_, enum_bitmask.as_ref());
 
+        let try_from_godot = if enum_.is_bitfield {
+            ident("bitfield_try_from_godot")
+        } else {
+            ident("enum_try_from_godot")
+        };
+
         quote! {
             #engine_trait_impl
             #index_enum_impl
@@ -127,8 +134,7 @@ pub fn make_enum_definition_with(
 
             impl crate::meta::FromGodot for #name {
                 fn try_from_godot(via: Self::Via) -> std::result::Result<Self, crate::meta::error::ConvertError> {
-                    <Self as #engine_trait>::try_from_ord(via)
-                        .ok_or_else(|| crate::meta::error::FromGodotError::InvalidEnum.into_error(via))
+                    crate::classes::#try_from_godot(via)
                 }
             }
         }

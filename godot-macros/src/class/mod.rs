@@ -23,6 +23,7 @@ mod data_models {
     #[cfg_attr(not(feature = "codegen-full"), allow(dead_code))]
     pub mod rpc;
     pub mod signal;
+    pub mod u64_handling;
 }
 
 pub(crate) use data_models::constant::*;
@@ -35,6 +36,7 @@ pub(crate) use data_models::interface_trait_impl::*;
 pub(crate) use data_models::property::*;
 pub(crate) use data_models::rpc::*;
 pub(crate) use data_models::signal::*;
+pub(crate) use data_models::u64_handling;
 pub(crate) use derive_godot_class::*;
 pub(crate) use godot_api::*;
 pub(crate) use godot_dyn::*;

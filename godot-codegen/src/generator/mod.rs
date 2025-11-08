@@ -29,6 +29,7 @@ pub mod native_structures;
 pub mod notifications;
 pub mod signals;
 pub mod sys_pointer_types;
+pub mod u64_handling;
 pub mod utility_functions;
 pub mod virtual_definitions;
 pub mod virtual_traits;
