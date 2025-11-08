@@ -386,7 +386,9 @@ fn make_forwarding_closure(
             };
 
             quote! {
-                |instance_ptr, params| {
+                // Identifiers need to share the span to avoid proc macro hygiene issues
+                // similar to https://github.com/godot-rust/gdext/pull/1397.
+                |instance_ptr, #param_ident| {
                     let #params_tuple #sig_tuple_annotation = #param_ident;
 
                     let storage =
@@ -409,7 +411,9 @@ fn make_forwarding_closure(
             };
 
             quote! {
-                |instance_ptr, params| {
+                // Identifiers need to share the span to avoid proc macro hygiene issues
+                // similar to https://github.com/godot-rust/gdext/pull/1397.
+                |instance_ptr, #param_ident| {
                     // Not using `virtual_sig`, since virtual methods with `#[func(gd_self)]` are being moved out of the trait to inherent impl.
                     let #params_tuple #sig_tuple_annotation = #param_ident;
 
@@ -423,8 +427,11 @@ fn make_forwarding_closure(
         }
         ReceiverType::Static => {
             // No before-call needed, since static methods are not virtual.
+            //
+            // Identifiers need to share the span to avoid proc macro hygiene issues
+            // similar to https://github.com/godot-rust/gdext/pull/1397.
             quote! {
-                |_, params| {
+                |_, #param_ident| {
                     let #params_tuple = #param_ident;
                     #class_name::#method_name(#(#params),*)
                 }
