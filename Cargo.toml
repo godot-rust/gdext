@@ -29,7 +29,7 @@ serde_json = "1"
 # Related to tooling/build setup.
 # * regex: not used for unicode parsing -> features unicode-bool + unicode-gencat are enabled instead of unicode-perl.
 #          'unicode-gencat' needed for \d, see https://docs.rs/regex/latest/regex/#unicode-features.
-bindgen = { version = "0.71", default-features = false, features = ["runtime"] }
+bindgen = { version = "0.72.1", default-features = false, features = ["runtime"] }
 libc = "0.2.172"
 regex = { version = "1.11", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }
 which = "7"
