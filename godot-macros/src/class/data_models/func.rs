@@ -217,9 +217,7 @@ fn make_default_argument_vec(
         .zip(optional_param_types)
         .map(|(value, param_type)| {
             quote! {
-                ::godot::builtin::Variant::from(
-                    ::godot::meta::AsArg::<#param_type>::into_arg(#value)
-                )
+                ::godot::private::opt_default_value::<#param_type>(#value)
             }
         });
 

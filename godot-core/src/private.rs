@@ -238,6 +238,25 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
     global_config.tool_only_in_editor
 }
 
+/// Converts a default parameter value to a runtime-immutable `Variant`.
+///
+/// This function is used internally by the `#[opt(default)]` attribute to:
+/// 1. Convert the value using `AsArg` trait for argument conversions (e.g. `"str"` for `AsArg<GString>`).
+/// 2. Apply immutability transformation.
+/// 3. Convert to `Variant` for Godot's storage.
+pub fn opt_default_value<T>(value: impl crate::meta::AsArg<T>) -> crate::builtin::Variant
+where
+    T: crate::meta::GodotImmutable + crate::meta::ToGodot + Clone,
+{
+    // We currently need cow_into_owned() to create an owned value for the immutability transform. This may be revisited once `#[opt]`
+    // supports more types (e.g. `Gd<RefCounted>`, where `cow_into_owned()` would increment ref-counts).
+
+    let value = crate::meta::AsArg::<T>::into_arg(value);
+    let value = value.cow_into_owned();
+    let value = <T as crate::meta::GodotImmutable>::into_runtime_immutable(value);
+    crate::builtin::Variant::from(value)
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Panic *hook* management
 
