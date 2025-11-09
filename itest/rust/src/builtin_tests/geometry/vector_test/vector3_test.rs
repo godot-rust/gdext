@@ -271,7 +271,7 @@ fn limit_length() {
 
     assert_eq!(
         a.limit_length(Some(b as real)),
-        a.as_inner().limit_length(b)
+        a.as_inner().limit_length_ex().length(b).done()
     );
 }
 

@@ -123,7 +123,7 @@ fn basis_euler_angles_same() {
         for vector in vectors_to_test.iter() {
             let vector = deg_to_rad(*vector);
             let rust_basis = Basis::from_euler(order, vector);
-            let godot_basis = InnerBasis::from_euler(vector, order as i64);
+            let godot_basis = InnerBasis::from_euler_ex(vector).order(order as i64).done();
             assert_eq_approx!(rust_basis, godot_basis);
         }
     }
@@ -165,7 +165,7 @@ fn basis_equiv() {
         "function: get_scale\n"
     );
     assert_eq_approx!(
-        inner.get_euler(EulerOrder::XYZ as i64),
+        inner.get_euler_ex().order(EulerOrder::XYZ as i64).done(),
         outer.get_euler_with(EulerOrder::XYZ),
         "function: get_euler\n"
     );

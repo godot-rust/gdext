@@ -87,13 +87,12 @@ fn test_create_orthogonal_aspect() {
 
     for (size, aspect, near, far, flip_fov) in TEST_DATA {
         let rust_proj = Projection::create_orthogonal_aspect(size, aspect, near, far, flip_fov);
-        let godot_proj = InnerProjection::create_orthogonal_aspect(
+        let godot_proj = InnerProjection::create_orthogonal_aspect_ex(
             size.as_f64(),
             aspect.as_f64(),
             near.as_f64(),
             far.as_f64(),
-            flip_fov,
-        );
+        ).flip_fov(flip_fov).done();
 
         assert_eq_approx!(
             rust_proj,
@@ -115,13 +114,12 @@ fn test_create_perspective() {
 
     for (fov_y, aspect, near, far, flip_fov) in TEST_DATA {
         let rust_proj = Projection::create_perspective(fov_y, aspect, near, far, flip_fov);
-        let godot_proj = InnerProjection::create_perspective(
+        let godot_proj = InnerProjection::create_perspective_ex(
             fov_y.as_f64(),
             aspect.as_f64(),
             near.as_f64(),
             far.as_f64(),
-            flip_fov,
-        );
+        ).flip_fov(flip_fov).done();
 
         assert_eq_approx!(
             rust_proj,
@@ -171,14 +169,13 @@ fn test_create_frustum_aspect() {
         let rust_proj =
             Projection::create_frustum_aspect(size, aspect, offset, near, far, flip_fov);
 
-        let godot_proj = InnerProjection::create_frustum_aspect(
+        let godot_proj = InnerProjection::create_frustum_aspect_ex(
             size.as_f64(),
             aspect.as_f64(),
             offset,
             near.as_f64(),
             far.as_f64(),
-            flip_fov,
-        );
+        ).flip_fov(flip_fov).done();
 
         assert_eq_approx!(
             rust_proj,
@@ -250,13 +247,12 @@ fn test_projection_combined() {
                         let rust_proj =
                             Projection::create_perspective(fov_y, aspect, near, far, false);
 
-                        let godot_proj = InnerProjection::create_perspective(
+                        let godot_proj = InnerProjection::create_perspective_ex(
                             fov_y.as_f64(),
                             aspect.as_f64(),
                             near.as_f64(),
                             far.as_f64(),
-                            false,
-                        );
+                        ).flip_fov(false).done();
 
                         assert_eq_approx!(
                             rust_proj,
@@ -330,14 +326,13 @@ fn test_projection_combined() {
                             far,
                             false,
                         );
-                        let godot_proj_frustum = InnerProjection::create_frustum_aspect(
+                        let godot_proj_frustum = InnerProjection::create_frustum_aspect_ex(
                             size.as_f64(),
                             aspect.as_f64(),
                             Vector2::ZERO,
                             near.as_f64(),
                             far.as_f64(),
-                            false,
-                        );
+                        ).flip_fov(false).done();
 
                         assert_eq_approx!(
                             rust_proj_frustum,
@@ -348,13 +343,12 @@ fn test_projection_combined() {
                         let rust_proj_ortho =
                             Projection::create_orthogonal_aspect(size, aspect, near, far, false);
 
-                        let godot_proj_ortho = InnerProjection::create_orthogonal_aspect(
+                        let godot_proj_ortho = InnerProjection::create_orthogonal_aspect_ex(
                             size.as_f64(),
                             aspect.as_f64(),
                             near.as_f64(),
                             far.as_f64(),
-                            false,
-                        );
+                        ).flip_fov(false).done();
 
                         assert_eq_approx!(
                             rust_proj_ortho,

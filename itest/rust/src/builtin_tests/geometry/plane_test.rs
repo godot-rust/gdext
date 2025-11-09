@@ -174,7 +174,7 @@ fn plane_contains_point() {
     check_mapping_eq(
         "contains_point",
         a.contains_point(b, Some(c)),
-        inner_a.has_point(b, c.as_f64()),
+        inner_a.has_point_ex(b).tolerance(c.as_f64()).done(),
     );
 
     let a = Plane::new(Vector3::new(0.9, 6.6, 0.1).normalized(), 0.1);
@@ -182,7 +182,7 @@ fn plane_contains_point() {
     check_mapping_eq(
         "contains_point",
         a.contains_point(b, Some(c)),
-        inner_a.has_point(b, c.as_f64()),
+        inner_a.has_point_ex(b).tolerance(c.as_f64()).done(),
     );
 }
 
