@@ -170,8 +170,8 @@ impl BuiltinClass {
         let methods = option_as_slice(&json.methods)
             .iter()
             .filter_map(|m| {
-                let inner_class_name = &ty_name;
-                BuiltinMethod::from_json(m, &ty_name, inner_class_name, ctx)
+                // Use inner_name (Inner*) as the surrounding class for builtin methods
+                BuiltinMethod::from_json(m, &ty_name, &inner_name, ctx)
             })
             .collect();
 
@@ -378,6 +378,25 @@ impl BuiltinMethod {
             FnReturn::new(return_value, ctx)
         };
 
+        let is_exposed_in_outer = special_cases::is_builtin_method_exposed(
+            builtin_name,
+            &method.name,
+        );
+
+        // Use inner class name (Inner*) for private methods, outer class name for exposed methods
+        // For outer class, need to use conv::to_rust_type to get correct mapping (String -> GString)
+        let surrounding_class = if is_exposed_in_outer {
+            let RustTy::BuiltinIdent { ty, .. } = conv::to_rust_type(&builtin_name.godot_ty, None, ctx) else {
+                panic!("Builtin type should map to BuiltinIdent");
+            };
+            TyName {
+                godot_ty: builtin_name.godot_ty.clone(),
+                rust_ty: ty,
+            }
+        } else {
+            inner_class_name.clone()
+        };
+
         Some(Self {
             common: FunctionCommon {
                 // Fill in these fields
@@ -396,11 +415,8 @@ impl BuiltinMethod {
                 },
             },
             qualifier: FnQualifier::from_const_static(method.is_const, method.is_static),
-            surrounding_class: inner_class_name.clone(),
-            is_exposed_in_outer: special_cases::is_builtin_method_exposed(
-                builtin_name,
-                &method.name,
-            ),
+            surrounding_class,
+            is_exposed_in_outer,
         })
     }
 }

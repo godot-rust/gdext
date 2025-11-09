@@ -77,8 +77,13 @@ pub fn make_function_definition_with_defaults(
 
     // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
     // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'a self.
+    // For builtins, the lifetime 'a is already in scope from impl<'a>, so both simple and _ex functions use &'a self.
     let receiver_self = &code.receiver.self_prefix;
-    let simple_receiver_param = &code.receiver.param;
+    let simple_receiver_param = if is_builtin {
+        &code.receiver.param_lifetime_a  // For builtins: use &'a self (lifetime 'a from impl<'a>)
+    } else {
+        &code.receiver.param  // For classes: use &self (no lifetime on impl)
+    };
     let extended_receiver_param = &code.receiver.param_lifetime_a;
 
     let builders = quote! {
@@ -119,14 +124,22 @@ pub fn make_function_definition_with_defaults(
         }
     };
 
+    // For builtins, use lifetimed params even in the simple function since 'a is in scope from impl<'a>.
+    let simple_method_required_params = if is_builtin {
+        &class_method_required_params_lifetimed
+    } else {
+        &class_method_required_params
+    };
+
     let functions = quote! {
         // Simple function:
         // Lifetime is set if any parameter is a reference.
+        // For builtins, use lifetimed parameters since 'a is already in scope from impl<'a>.
         #[doc = #default_parameter_usage]
         #[inline]
         #vis fn #simple_fn_name (
             #simple_receiver_param
-            #( #class_method_required_params, )*
+            #( #simple_method_required_params, )*
         ) #return_decl {
             #receiver_self #extended_fn_name(
                 #( #class_method_required_args, )*
@@ -230,12 +243,27 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
     match sig.surrounding_class() {
         Some(surrounding_class) if !sig.qualifier().is_static_or_global() => {
             let class = &surrounding_class.rust_ty;
+            let class_str = class.to_string();
+            let is_inner = class_str.starts_with("Inner");
+
+            // For Inner* builtin types:
+            // - Add lifetime parameter: Inner*<'a>
+            // - Use re_export:: prefix since Inner* is in the re_export module
+            // For regular classes and outer builtins:
+            // - No lifetime parameter
+            // - Use re_export:: prefix for classes (they have re_export module)
+            // - No re_export:: prefix for outer builtins (they don't use re_export)
+            let class_type = if is_inner {
+                quote! { re_export::#class<'a> }
+            } else {
+                quote! { re_export::#class }
+            };
 
             ExtenderReceiver {
                 object_fn_param: Some(FnParam {
                     name: ident("surround_object"),
                     type_: RustTy::ExtenderReceiver {
-                        tokens: quote! { &'a #builder_mut re_export::#class },
+                        tokens: quote! { &'a #builder_mut #class_type },
                     },
                     default_value: None,
                 }),
