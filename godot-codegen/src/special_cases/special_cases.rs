@@ -498,6 +498,7 @@ pub fn get_class_method_param_enum_replacement(
     }
 }
 
+/// Returns whether a builtin appears directly in the outer, public API (as opposed to private in `Inner*` structs).
 #[rustfmt::skip]
 pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -> bool {
     match (builtin_ty.godot_ty.as_str(), godot_method_name) {
