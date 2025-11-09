@@ -378,15 +378,15 @@ impl BuiltinMethod {
             FnReturn::new(return_value, ctx)
         };
 
-        let is_exposed_in_outer = special_cases::is_builtin_method_exposed(
-            builtin_name,
-            &method.name,
-        );
+        let is_exposed_in_outer =
+            special_cases::is_builtin_method_exposed(builtin_name, &method.name);
 
         // Use inner class name (Inner*) for private methods, outer class name for exposed methods
         // For outer class, need to use conv::to_rust_type to get correct mapping (String -> GString)
         let surrounding_class = if is_exposed_in_outer {
-            let RustTy::BuiltinIdent { ty, .. } = conv::to_rust_type(&builtin_name.godot_ty, None, ctx) else {
+            let RustTy::BuiltinIdent { ty, .. } =
+                conv::to_rust_type(&builtin_name.godot_ty, None, ctx)
+            else {
                 panic!("Builtin type should map to BuiltinIdent");
             };
             TyName {
@@ -403,8 +403,7 @@ impl BuiltinMethod {
                 name: method.name.clone(),
                 godot_name: method.name.clone(),
                 // Enable default parameters for builtin classes, generating _ex builders.
-                parameters: FnParam::builder()
-                    .build_many(&method.arguments, ctx),
+                parameters: FnParam::builder().build_many(&method.arguments, ctx),
                 return_value,
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),

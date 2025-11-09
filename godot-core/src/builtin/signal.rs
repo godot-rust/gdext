@@ -86,7 +86,11 @@ impl Signal {
     /// and pushes an error message, unless the signal is connected with [`ConnectFlags::REFERENCE_COUNTED`](ConnectFlags::REFERENCE_COUNTED).
     /// To prevent this, check for existing connections with [`is_connected()`][Self::is_connected].
     pub fn connect_flags(&self, callable: &Callable, flags: ConnectFlags) -> Error {
-        let error = self.as_inner().connect_ex(callable).flags(flags.ord() as i64).done();
+        let error = self
+            .as_inner()
+            .connect_ex(callable)
+            .flags(flags.ord() as i64)
+            .done();
 
         Error::from_godot(error as i32)
     }

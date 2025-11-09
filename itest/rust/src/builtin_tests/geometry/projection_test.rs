@@ -92,7 +92,9 @@ fn test_create_orthogonal_aspect() {
             aspect.as_f64(),
             near.as_f64(),
             far.as_f64(),
-        ).flip_fov(flip_fov).done();
+        )
+        .flip_fov(flip_fov)
+        .done();
 
         assert_eq_approx!(
             rust_proj,
@@ -119,7 +121,9 @@ fn test_create_perspective() {
             aspect.as_f64(),
             near.as_f64(),
             far.as_f64(),
-        ).flip_fov(flip_fov).done();
+        )
+        .flip_fov(flip_fov)
+        .done();
 
         assert_eq_approx!(
             rust_proj,
@@ -175,7 +179,9 @@ fn test_create_frustum_aspect() {
             offset,
             near.as_f64(),
             far.as_f64(),
-        ).flip_fov(flip_fov).done();
+        )
+        .flip_fov(flip_fov)
+        .done();
 
         assert_eq_approx!(
             rust_proj,
@@ -252,7 +258,9 @@ fn test_projection_combined() {
                             aspect.as_f64(),
                             near.as_f64(),
                             far.as_f64(),
-                        ).flip_fov(false).done();
+                        )
+                        .flip_fov(false)
+                        .done();
 
                         assert_eq_approx!(
                             rust_proj,
@@ -332,7 +340,9 @@ fn test_projection_combined() {
                             Vector2::ZERO,
                             near.as_f64(),
                             far.as_f64(),
-                        ).flip_fov(false).done();
+                        )
+                        .flip_fov(false)
+                        .done();
 
                         assert_eq_approx!(
                             rust_proj_frustum,
@@ -348,7 +358,9 @@ fn test_projection_combined() {
                             aspect.as_f64(),
                             near.as_f64(),
                             far.as_f64(),
-                        ).flip_fov(false).done();
+                        )
+                        .flip_fov(false)
+                        .done();
 
                         assert_eq_approx!(
                             rust_proj_ortho,

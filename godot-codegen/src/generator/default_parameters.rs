@@ -44,7 +44,7 @@ pub fn make_function_definition_with_defaults(
     } else {
         vec![quote! { <'a> }]
     };*/
-    let lifetime = quote! { <'a> };
+    let lifetime = quote! { <'ex> };
 
     let (builder_doc, surround_class_prefix) = make_extender_doc(sig, &extended_fn_name);
 
@@ -75,22 +75,18 @@ pub fn make_function_definition_with_defaults(
     let return_decl = &sig.return_value().decl;
 
     // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
-    // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'a self.
-    // For builtins, the lifetime 'a is already in scope from impl<'a>, so both simple and _ex functions use &'a self.
+    // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'ex self.
     let receiver_self = &code.receiver.self_prefix;
-    let simple_receiver_param = if is_builtin {
-        &code.receiver.param_lifetime_a  // For builtins: use &'a self (lifetime 'a from impl<'a>)
-    } else {
-        &code.receiver.param  // For classes: use &self (no lifetime on impl)
-    };
+    let simple_receiver_param = &code.receiver.param;
+
     let extended_receiver_param = &code.receiver.param_lifetime_a;
 
     let builders = quote! {
         #[doc = #builder_doc]
         #[must_use]
         #cfg_attributes
-        #vis struct #builder_ty<'a> {
-            _phantom: std::marker::PhantomData<&'a ()>,
+        #vis struct #builder_ty<'ex> {
+            _phantom: std::marker::PhantomData<&'ex ()>,
             #( #builder_field_decls, )*
         }
 
@@ -99,7 +95,7 @@ pub fn make_function_definition_with_defaults(
         // - redundant_field_names:     'value: value' is a possible initialization pattern
         // - needless-update:           Remainder expression '..self' has nothing left to change
         #[allow(clippy::wrong_self_convention, clippy::redundant_field_names, clippy::needless_update)]
-        impl<'a> #builder_ty<'a> {
+        impl<'ex> #builder_ty<'ex> {
             fn new(
                 //#object_param
                 #( #builder_ctor_params, )*
@@ -124,7 +120,7 @@ pub fn make_function_definition_with_defaults(
     };
 
     // For builtins, use lifetimed params even in the simple function since 'a is in scope from impl<'a>.
-    let simple_method_required_params = if is_builtin {
+    let simple_method_required_params = if false && is_builtin {
         &class_method_required_params_lifetimed
     } else {
         &class_method_required_params
@@ -153,7 +149,7 @@ pub fn make_function_definition_with_defaults(
         #vis fn #extended_fn_name #lifetime (
             #extended_receiver_param
             #( #class_method_required_params_lifetimed, )*
-        ) -> #builder_ty<'a> {
+        ) -> #builder_ty<'ex> {
             #builder_ty::new(
                 #object_arg
                 #( #class_method_required_args, )*
@@ -255,14 +251,14 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
             let class = &surrounding_class.rust_ty;
 
             // For Inner* builtin types:
-            // - Add lifetime parameter: Inner*<'a>
+            // - Add lifetime parameter: Inner*<'inner>
             // - Use re_export:: prefix since Inner* is in the re_export module
             // For regular classes and outer builtins:
             // - No lifetime parameter
             // - Use re_export:: prefix for classes (they have re_export module)
             // - No re_export:: prefix for outer builtins (they don't use re_export)
             let class_type = if sig.is_builtin() {
-                quote! { re_export::#class<'a> }
+                quote! { re_export::#class<'ex> }
             } else {
                 quote! { re_export::#class }
             };
@@ -271,7 +267,7 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
                 object_fn_param: Some(FnParam {
                     name: ident("surround_object"),
                     type_: RustTy::ExtenderReceiver {
-                        tokens: quote! { &'a #builder_mut #class_type },
+                        tokens: quote! { &'ex #builder_mut #class_type },
                     },
                     default_value: None,
                 }),
