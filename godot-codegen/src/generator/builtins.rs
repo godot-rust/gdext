@@ -126,13 +126,13 @@ fn make_builtin_class(
             use super::*;
 
             #[repr(transparent)]
-            pub struct #inner_class<'a> {
-                pub(super) _outer_lifetime: std::marker::PhantomData<&'a ()>,
+            pub struct #inner_class<'inner> {
+                pub(super) _outer_lifetime: std::marker::PhantomData<&'inner ()>,
                 pub(super) sys_ptr: sys::GDExtensionTypePtr,
             }
         }
 
-        impl<'a> re_export::#inner_class<'a> {
+        impl<'inner> re_export::#inner_class<'inner> {
             pub fn from_outer(outer: &#outer_class) -> Self {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,

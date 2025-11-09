@@ -39,11 +39,12 @@ pub fn make_function_definition_with_defaults(
     let vis = functions_common::make_vis(sig.is_private());
 
     // For classes, declare <'a> on the function. For builtins, use the existing 'a from impl<'a> block.
-    let lifetime_declaration: Vec<TokenStream> = if is_builtin {
+    /*let lifetime_declaration: Vec<TokenStream> = if is_builtin {
         vec![]
     } else {
         vec![quote! { <'a> }]
-    };
+    };*/
+    let lifetime = quote! { <'a> };
 
     let (builder_doc, surround_class_prefix) = make_extender_doc(sig, &extended_fn_name);
 
@@ -149,7 +150,7 @@ pub fn make_function_definition_with_defaults(
         // For builtins (Inner* types), the lifetime 'a is already declared on the impl block, so we don't redeclare it.
         // For classes, we need to declare <'a> on the function itself.
         #[inline]
-        #vis fn #extended_fn_name #(#lifetime_declaration)* (
+        #vis fn #extended_fn_name #lifetime (
             #extended_receiver_param
             #( #class_method_required_params_lifetimed, )*
         ) -> #builder_ty<'a> {
