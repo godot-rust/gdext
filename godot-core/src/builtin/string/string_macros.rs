@@ -82,13 +82,13 @@ macro_rules! impl_shared_string_api {
             /// Count how many times `what` appears within `range`. Use `..` for full string search.
             pub fn count(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().count(what, from, to) as usize
+                self.as_inner().count_full(what, from, to) as usize
             }
 
             /// Count how many times `what` appears within `range`, case-insensitively. Use `..` for full string search.
             pub fn countn(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().countn(what, from, to) as usize
+                self.as_inner().countn_full(what, from, to) as usize
             }
 
             /// Splits the string according to `delimiter`.
@@ -180,7 +180,7 @@ macro_rules! impl_shared_string_api {
             ///
             /// See Godot's [`String.format()`](https://docs.godotengine.org/en/stable/classes/class_string.html#class-string-method-format).
             pub fn format(&self, array_or_dict: &Variant) -> GString {
-                self.as_inner().format(array_or_dict, "{_}")
+                self.as_inner().format_full(array_or_dict, "{_}")
             }
 
             /// Format a string using substitutions from an array or dictionary + custom placeholder.
@@ -191,7 +191,7 @@ macro_rules! impl_shared_string_api {
                 array_or_dict: &Variant,
                 placeholder: impl AsArg<GString>,
             ) -> GString {
-                self.as_inner().format(array_or_dict, placeholder)
+                self.as_inner().format_full(array_or_dict, placeholder)
             }
 
             // left() + right() are not redefined, as their i64 can be negative.
@@ -204,7 +204,7 @@ macro_rules! impl_shared_string_api {
             /// See also [`rpad()`](Self::rpad).
             pub fn lpad(&self, min_length: usize, character: char) -> GString {
                 let one_char_string = GString::from([character].as_slice());
-                self.as_inner().lpad(min_length as i64, &one_char_string)
+                self.as_inner().lpad_full(min_length as i64, &one_char_string)
             }
 
             /// Formats the string to be at least `min_length` long, by adding characters to the right of the string, if necessary.
@@ -215,7 +215,7 @@ macro_rules! impl_shared_string_api {
             /// See also [`lpad()`](Self::lpad).
             pub fn rpad(&self, min_length: usize, character: char) -> GString {
                 let one_char_string = GString::from([character].as_slice());
-                self.as_inner().rpad(min_length as i64, &one_char_string)
+                self.as_inner().rpad_full(min_length as i64, &one_char_string)
             }
 
             /// Formats the string representing a number to have an exact number of `digits` _after_ the decimal point.
@@ -385,17 +385,17 @@ macro_rules! impl_shared_string_api {
                     let from_index = from_index.unwrap_or(-1);
 
                     if self.case_insensitive {
-                        inner.rfindn(what, from_index)
+                        inner.rfindn_full(what, from_index)
                     } else {
-                        inner.rfind(what, from_index)
+                        inner.rfind_full(what, from_index)
                     }
                 } else {
                     let from_index = from_index.unwrap_or(0);
 
                     if self.case_insensitive {
-                        inner.findn(what, from_index)
+                        inner.findn_full(what, from_index)
                     } else {
-                        inner.find(what, from_index)
+                        inner.find_full(what, from_index)
                     }
                 };
 
@@ -466,9 +466,9 @@ macro_rules! impl_shared_string_api {
                 let delimiter = self.delimiter;
 
                 if self.reverse {
-                    inner.rsplit(delimiter, self.allow_empty, self.maxsplit as i64)
+                    inner.rsplit_full(delimiter, self.allow_empty, self.maxsplit as i64)
                 } else {
-                    inner.split(delimiter, self.allow_empty, self.maxsplit as i64)
+                    inner.split_full(delimiter, self.allow_empty, self.maxsplit as i64)
                 }
             }
         }

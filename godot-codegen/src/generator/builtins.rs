@@ -127,7 +127,7 @@ fn make_builtin_class(
 
             #[repr(transparent)]
             pub struct #inner_class<'a> {
-                _outer_lifetime: std::marker::PhantomData<&'a ()>,
+                pub(super) _outer_lifetime: std::marker::PhantomData<&'a ()>,
                 pub(super) sys_ptr: sys::GDExtensionTypePtr,
             }
         }

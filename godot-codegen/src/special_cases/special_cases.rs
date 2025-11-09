@@ -751,6 +751,10 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot
         | ("Array", "duplicate_shallow")
         | ("Array", "subarray_deep")
         | ("Array", "subarray_shallow")
+        | ("InnerArray", "duplicate_deep")
+        | ("InnerArray", "duplicate_shallow")
+        | ("InnerArray", "subarray_deep")
+        | ("InnerArray", "subarray_shallow")
 
         // Array methods with generic return types (generic type Ret not in scope)
         | ("Array", "duplicate")
