@@ -748,10 +748,6 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot
         | ("StringName", "get_slice_count")
 
         // Array methods with unsafe implementations
-        | ("Array", "duplicate_deep")
-        | ("Array", "duplicate_shallow")
-        | ("Array", "subarray_deep")
-        | ("Array", "subarray_shallow")
         | ("InnerArray", "duplicate_deep")
         | ("InnerArray", "duplicate_shallow")
         | ("InnerArray", "subarray_deep")
@@ -764,13 +760,6 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot
         | ("InnerArray", "slice")
 
         // Array/Basis methods with custom wrappers that call _full variants
-        | ("Array", "find")
-        | ("Array", "rfind")
-        | ("Array", "bsearch")
-        | ("Array", "reduce")
-        | ("Array", "find_custom")
-        | ("Array", "rfind_custom")
-        | ("Array", "bsearch_custom")
         | ("InnerArray", "find")
         | ("InnerArray", "rfind")
         | ("InnerArray", "bsearch")
@@ -778,26 +767,15 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot
         | ("InnerArray", "find_custom")
         | ("InnerArray", "rfind_custom")
         | ("InnerArray", "bsearch_custom")
-        | ("Basis", "looking_at")
         | ("InnerBasis", "looking_at")
 
         // Dictionary methods with custom wrappers
-        | ("Dictionary", "get")
-        | ("Dictionary", "get_or_add")
-        | ("Dictionary", "merge")
-        | ("Dictionary", "duplicate")
         | ("InnerDictionary", "get")
         | ("InnerDictionary", "get_or_add")
         | ("InnerDictionary", "merge")
         | ("InnerDictionary", "duplicate")
 
         // PackedByteArray-specific methods with custom wrappers
-        | ("PackedByteArray", "encode_var")
-        | ("PackedByteArray", "decode_var")
-        | ("PackedByteArray", "decode_var_size")
-        | ("PackedByteArray", "compress")
-        | ("PackedByteArray", "decompress")
-        | ("PackedByteArray", "decompress_dynamic")
         | ("InnerPackedByteArray", "encode_var")
         | ("InnerPackedByteArray", "decode_var")
         | ("InnerPackedByteArray", "decode_var_size")
