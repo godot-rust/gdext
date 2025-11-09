@@ -694,7 +694,47 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot
     let class_name = class_name.map_or("", |ty| ty.godot_ty.as_str());
 
     match (class_name, godot_method_name) {
+        // Class exclusions
         | ("Object", "notification")
+
+        // Builtin exclusions - GString/StringName with custom implementations
+        | ("String", "find")
+        | ("String", "findn")
+        | ("String", "rfind")
+        | ("String", "rfindn")
+        | ("String", "split")
+        | ("String", "rsplit")
+        | ("String", "count")
+        | ("String", "countn")
+        | ("String", "substr")
+        | ("String", "erase")
+        | ("String", "lpad")
+        | ("String", "rpad")
+        | ("String", "format")
+        | ("String", "casecmp_to")
+        | ("String", "nocasecmp_to")
+        | ("String", "naturalcasecmp_to")
+        | ("String", "naturalnocasecmp_to")
+        | ("String", "filecasecmp_to")
+        | ("String", "filenocasecmp_to")
+        | ("String", "match_")
+        | ("String", "matchn")
+        | ("StringName", "find")
+        | ("StringName", "findn")
+        | ("StringName", "rfind")
+        | ("StringName", "rfindn")
+        | ("StringName", "split")
+        | ("StringName", "rsplit")
+        | ("StringName", "count")
+        | ("StringName", "countn")
+        | ("StringName", "casecmp_to")
+        | ("StringName", "nocasecmp_to")
+        | ("StringName", "naturalcasecmp_to")
+        | ("StringName", "naturalnocasecmp_to")
+        | ("StringName", "filecasecmp_to")
+        | ("StringName", "filenocasecmp_to")
+        | ("StringName", "match_")
+        | ("StringName", "matchn")
 
         => true, _ => false
     }

@@ -105,12 +105,12 @@ fn make_builtin_class(
     };
     let inner_class = class.inner_name();
 
-    // Note: builders are currently disabled for builtins, even though default parameters exist (e.g. String::substr).
-    // We just use the full signature instead. For outer APIs (user-facing), try to find idiomatic APIs.
+    // Enable builders for builtins to provide consistent API with classes.
+    // Builders are placed on Inner* types only.
     #[rustfmt::skip]
     let (
-        FnDefinitions { functions: inner_methods, .. },
-        FnDefinitions { functions: outer_methods, .. },
+        FnDefinitions { functions: inner_methods, builders: inner_builders },
+        FnDefinitions { functions: outer_methods, builders: _outer_builders },
     ) = make_builtin_methods(class, variant_shout_name, &class.methods, ctx);
 
     let imports = util::make_imports();
@@ -141,6 +141,7 @@ fn make_builtin_class(
             #outer_methods
         }
 
+        #inner_builders
         #enums
     };
     // note: TypePtr -> ObjectPtr conversion OK?

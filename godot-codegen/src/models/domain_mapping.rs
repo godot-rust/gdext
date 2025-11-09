@@ -383,10 +383,8 @@ impl BuiltinMethod {
                 // Fill in these fields
                 name: method.name.clone(),
                 godot_name: method.name.clone(),
-                // Disable default parameters for builtin classes.
-                // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
+                // Enable default parameters for builtin classes, generating _ex builders.
                 parameters: FnParam::builder()
-                    .no_defaults()
                     .build_many(&method.arguments, ctx),
                 return_value,
                 is_vararg: method.is_vararg,
