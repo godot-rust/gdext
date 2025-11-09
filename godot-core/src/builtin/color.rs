@@ -140,7 +140,7 @@ impl Color {
     ///
     /// See also: [`ColorHsv::to_rgb`] for fast conversion on Rust side.
     pub fn from_hsv(h: f64, s: f64, v: f64) -> Self {
-        InnerColor::from_hsv(h, s, v, 1.0)
+        InnerColor::from_hsv_ex(h, s, v).alpha(1.0).done()
     }
 
     /// Constructs a `Color` from an [OK HSL
@@ -148,7 +148,7 @@ impl Color {
     /// and lightness (`l`) are typically between 0.0 and 1.0. Alpha is set to 1; use
     /// [`Color::with_alpha`] to change it.
     pub fn from_ok_hsl(h: f64, s: f64, l: f64) -> Self {
-        InnerColor::from_ok_hsl(h, s, l, 1.0)
+        InnerColor::from_ok_hsl_ex(h, s, l).alpha(1.0).done()
     }
 
     /// Constructs a `Color` from an RGBE9995 format integer. This is a special OpenGL texture
@@ -237,7 +237,7 @@ impl Color {
     /// Returns a new color with all components clamped between the components of `min` and `max`.
     #[must_use]
     pub fn clamp(self, min: Color, max: Color) -> Self {
-        self.as_inner().clamp(min, max)
+        self.as_inner().clamp_ex().min(min).max(max).done()
     }
 
     /// Creates a new color resulting by making this color darker by the specified amount (ratio
@@ -280,13 +280,13 @@ impl Color {
     /// Returns the HTML color code representation of this color, as 8 lowercase hex digits in the
     /// order `RRGGBBAA`, without the `#` prefix.
     pub fn to_html(self) -> GString {
-        self.as_inner().to_html(true)
+        self.as_inner().to_html_ex().with_alpha(true).done()
     }
 
     /// Returns the HTML color code representation of this color, as 6 lowercase hex digits in the
     /// order `RRGGBB`, without the `#` prefix. The alpha channel is ignored.
     pub fn to_html_without_alpha(self) -> GString {
-        self.as_inner().to_html(false)
+        self.as_inner().to_html_ex().with_alpha(false).done()
     }
 
     /// Returns the color converted to a 32-bit integer (each component is 8 bits) with the given

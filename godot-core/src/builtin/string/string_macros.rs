@@ -82,13 +82,13 @@ macro_rules! impl_shared_string_api {
             /// Count how many times `what` appears within `range`. Use `..` for full string search.
             pub fn count(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().count_full(what, from, to) as usize
+                self.as_inner().count_full(what.into_arg(), from, to) as usize
             }
 
             /// Count how many times `what` appears within `range`, case-insensitively. Use `..` for full string search.
             pub fn countn(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().countn_full(what, from, to) as usize
+                self.as_inner().countn_full(what.into_arg(), from, to) as usize
             }
 
             /// Splits the string according to `delimiter`.
@@ -123,7 +123,7 @@ macro_rules! impl_shared_string_api {
             pub fn substr(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
                 let (from, len) = $crate::meta::signed_range::to_godot_range_fromlen(range, -1);
 
-                self.as_inner().substr(from, len)
+                self.as_inner().substr_ex(from).len(len).done()
             }
 
             /// Splits the string using a string delimiter and returns the substring at index `slice`.
@@ -164,7 +164,7 @@ macro_rules! impl_shared_string_api {
             /// Returns a copy of the string without the specified index range.
             pub fn erase(&self, range: impl std::ops::RangeBounds<usize>) -> GString {
                 let (from, len) = $crate::meta::signed_range::to_godot_range_fromlen(range, i32::MAX as i64);
-                self.as_inner().erase(from, len)
+                self.as_inner().erase_ex(from).chars(len).done()
             }
 
             /// Returns a copy of the string with an additional string inserted at the given position.
@@ -180,7 +180,7 @@ macro_rules! impl_shared_string_api {
             ///
             /// See Godot's [`String.format()`](https://docs.godotengine.org/en/stable/classes/class_string.html#class-string-method-format).
             pub fn format(&self, array_or_dict: &Variant) -> GString {
-                self.as_inner().format_full(array_or_dict, "{_}")
+                self.as_inner().format_ex(array_or_dict).placeholder("{_}").done()
             }
 
             /// Format a string using substitutions from an array or dictionary + custom placeholder.
@@ -191,7 +191,7 @@ macro_rules! impl_shared_string_api {
                 array_or_dict: &Variant,
                 placeholder: impl AsArg<GString>,
             ) -> GString {
-                self.as_inner().format_full(array_or_dict, placeholder)
+                self.as_inner().format_ex(array_or_dict).placeholder(placeholder).done()
             }
 
             // left() + right() are not redefined, as their i64 can be negative.
@@ -204,7 +204,7 @@ macro_rules! impl_shared_string_api {
             /// See also [`rpad()`](Self::rpad).
             pub fn lpad(&self, min_length: usize, character: char) -> GString {
                 let one_char_string = GString::from([character].as_slice());
-                self.as_inner().lpad_full(min_length as i64, &one_char_string)
+                self.as_inner().lpad_ex(min_length as i64).character(&one_char_string).done()
             }
 
             /// Formats the string to be at least `min_length` long, by adding characters to the right of the string, if necessary.
@@ -215,7 +215,7 @@ macro_rules! impl_shared_string_api {
             /// See also [`lpad()`](Self::lpad).
             pub fn rpad(&self, min_length: usize, character: char) -> GString {
                 let one_char_string = GString::from([character].as_slice());
-                self.as_inner().rpad_full(min_length as i64, &one_char_string)
+                self.as_inner().rpad_ex(min_length as i64).character(&one_char_string).done()
             }
 
             /// Formats the string representing a number to have an exact number of `digits` _after_ the decimal point.
