@@ -23,6 +23,13 @@ pub fn make_function_definition_with_defaults(
     full_fn_name: &Ident,
     cfg_attributes: &TokenStream,
 ) -> (TokenStream, TokenStream) {
+    // Detect if this is a builtin by checking if the surrounding class name starts with "Inner"
+    // Builtins have `impl<'a> Inner*<'a>` so the lifetime is already declared on the impl block.
+    // Classes have `impl ClassName` so each method needs to declare its own `<'a>`.
+    let is_builtin = sig
+        .surrounding_class()
+        .map_or(false, |ty| ty.rust_ty.to_string().starts_with("Inner"));
+
     let (default_fn_params, required_fn_params): (Vec<_>, Vec<_>) = sig
         .params()
         .iter()
@@ -32,6 +39,13 @@ pub fn make_function_definition_with_defaults(
     let extended_fn_name = format_ident!("{}_ex", simple_fn_name);
     let default_parameter_usage = format!("To set the default parameters, use [`Self::{extended_fn_name}`] and its builder methods.  See [the book](https://godot-rust.github.io/book/godot-api/functions.html#default-parameters) for detailed usage instructions.");
     let vis = functions_common::make_vis(sig.is_private());
+
+    // For classes, declare <'a> on the function. For builtins, use the existing 'a from impl<'a> block.
+    let lifetime_declaration: Vec<TokenStream> = if is_builtin {
+        vec![]
+    } else {
+        vec![quote! { <'a> }]
+    };
 
     let (builder_doc, surround_class_prefix) = make_extender_doc(sig, &extended_fn_name);
 
@@ -121,8 +135,10 @@ pub fn make_function_definition_with_defaults(
 
         // _ex() function:
         // Lifetime is set if any parameter is a reference OR if the method is not static/global (and thus can refer to self).
+        // For builtins (Inner* types), the lifetime 'a is already declared on the impl block, so we don't redeclare it.
+        // For classes, we need to declare <'a> on the function itself.
         #[inline]
-        #vis fn #extended_fn_name<'a> (
+        #vis fn #extended_fn_name #(#lifetime_declaration)* (
             #extended_receiver_param
             #( #class_method_required_params_lifetimed, )*
         ) -> #builder_ty<'a> {
