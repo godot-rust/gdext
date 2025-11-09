@@ -736,6 +736,103 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot
         | ("StringName", "match_")
         | ("StringName", "matchn")
 
+        // Additional String/StringName methods with custom implementations
+        | ("String", "insert")
+        | ("String", "get_slice")
+        | ("String", "get_slicec")
+        | ("String", "get_slice_count")
+        | ("StringName", "insert")
+        | ("StringName", "get_slice")
+        | ("StringName", "get_slicec")
+        | ("StringName", "get_slice_count")
+
+        // Array methods with unsafe implementations
+        | ("Array", "duplicate_deep")
+        | ("Array", "duplicate_shallow")
+        | ("Array", "subarray_deep")
+        | ("Array", "subarray_shallow")
+
+        // Array methods with generic return types (generic type Ret not in scope)
+        | ("Array", "duplicate")
+        | ("Array", "slice")
+        | ("InnerArray", "duplicate")
+        | ("InnerArray", "slice")
+
+        // Array/Basis methods with custom wrappers that call _full variants
+        | ("Array", "find")
+        | ("Array", "rfind")
+        | ("Array", "bsearch")
+        | ("Array", "reduce")
+        | ("Array", "find_custom")
+        | ("Array", "rfind_custom")
+        | ("Array", "bsearch_custom")
+        | ("InnerArray", "find")
+        | ("InnerArray", "rfind")
+        | ("InnerArray", "bsearch")
+        | ("InnerArray", "reduce")
+        | ("InnerArray", "find_custom")
+        | ("InnerArray", "rfind_custom")
+        | ("InnerArray", "bsearch_custom")
+        | ("Basis", "looking_at")
+        | ("InnerBasis", "looking_at")
+
+        // Dictionary methods with custom wrappers
+        | ("Dictionary", "get")
+        | ("Dictionary", "get_or_add")
+        | ("Dictionary", "merge")
+        | ("Dictionary", "duplicate")
+        | ("InnerDictionary", "get")
+        | ("InnerDictionary", "get_or_add")
+        | ("InnerDictionary", "merge")
+        | ("InnerDictionary", "duplicate")
+
+        // PackedByteArray-specific methods with custom wrappers
+        | ("PackedByteArray", "encode_var")
+        | ("PackedByteArray", "decode_var")
+        | ("PackedByteArray", "decode_var_size")
+        | ("PackedByteArray", "compress")
+        | ("PackedByteArray", "decompress")
+        | ("PackedByteArray", "decompress_dynamic")
+        | ("InnerPackedByteArray", "encode_var")
+        | ("InnerPackedByteArray", "decode_var")
+        | ("InnerPackedByteArray", "decode_var_size")
+        | ("InnerPackedByteArray", "compress")
+        | ("InnerPackedByteArray", "decompress")
+        | ("InnerPackedByteArray", "decompress_dynamic")
+
+        => true,
+
+        // Packed*Array common methods with custom wrappers (slice, find, rfind, bsearch)
+        (builtin, "slice" | "find" | "rfind" | "bsearch")
+            if builtin.starts_with("Packed") && builtin.ends_with("Array")
+        => true,
+        (builtin, "slice" | "find" | "rfind" | "bsearch")
+            if builtin.starts_with("InnerPacked") && builtin.ends_with("Array")
+        => true,
+
+        // GString methods with module visibility issues (all _ex builders try to access re_export::GString which is private)
+        | ("String", "num")
+        | ("String", "num_int64")
+        | ("String", "num_uint64")
+        | ("String", "num_scientific")
+        | ("String", "split_floats")
+        | ("String", "strip_edges")
+        | ("String", "xml_escape")
+        | ("String", "xml_unescape")
+        | ("String", "is_valid_hex_number")
+        | ("String", "is_valid_html_color")
+        | ("String", "is_valid_float")
+        | ("String", "is_valid_int")
+        | ("String", "pad_decimals")
+        | ("String", "pad_zeros")
+
+        // StringName methods with module visibility issues
+        | ("StringName", "split_floats")
+        | ("StringName", "strip_edges")
+        | ("StringName", "xml_escape")
+        | ("StringName", "xml_unescape")
+        | ("StringName", "is_valid_hex_number")
+
         => true, _ => false
     }
 }
