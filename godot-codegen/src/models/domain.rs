@@ -341,6 +341,10 @@ pub trait Function: fmt::Display {
     fn is_virtual_required(&self) -> bool {
         self.common().is_virtual_required
     }
+
+    fn is_builtin(&self) -> bool {
+        false
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -409,6 +413,10 @@ impl Function for BuiltinMethod {
 
     fn surrounding_class(&self) -> Option<&TyName> {
         Some(&self.surrounding_class)
+    }
+
+    fn is_builtin(&self) -> bool {
+        true
     }
 }
 

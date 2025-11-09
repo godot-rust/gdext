@@ -690,9 +690,9 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
 }
 
 #[rustfmt::skip]
-pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot_method_name: &str) -> bool {
+pub fn is_method_excluded_from_default_params(class_name: Option<&str>, godot_method_name: &str) -> bool {
     // None if global/utilities function
-    let class_name = class_name.map_or("", |ty| ty.godot_ty.as_str());
+    let class_name = class_name.unwrap_or("");
 
     match (class_name, godot_method_name) {
         // Class exclusions
@@ -748,49 +748,44 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot
         | ("StringName", "get_slice_count")
 
         // Array methods with unsafe implementations
-        | ("InnerArray", "duplicate_deep")
-        | ("InnerArray", "duplicate_shallow")
-        | ("InnerArray", "subarray_deep")
-        | ("InnerArray", "subarray_shallow")
+        | ("Array", "duplicate_deep")
+        | ("Array", "duplicate_shallow")
+        | ("Array", "subarray_deep")
+        | ("Array", "subarray_shallow")
 
         // Array methods with generic return types (generic type Ret not in scope)
         | ("Array", "duplicate")
         | ("Array", "slice")
-        | ("InnerArray", "duplicate")
-        | ("InnerArray", "slice")
 
         // Array/Basis methods with custom wrappers that call _full variants
-        | ("InnerArray", "find")
-        | ("InnerArray", "rfind")
-        | ("InnerArray", "bsearch")
-        | ("InnerArray", "reduce")
-        | ("InnerArray", "find_custom")
-        | ("InnerArray", "rfind_custom")
-        | ("InnerArray", "bsearch_custom")
-        | ("InnerBasis", "looking_at")
+        | ("Array", "find")
+        | ("Array", "rfind")
+        | ("Array", "bsearch")
+        | ("Array", "reduce")
+        | ("Array", "find_custom")
+        | ("Array", "rfind_custom")
+        | ("Array", "bsearch_custom")
+        | ("Basis", "looking_at")
 
         // Dictionary methods with custom wrappers
-        | ("InnerDictionary", "get")
-        | ("InnerDictionary", "get_or_add")
-        | ("InnerDictionary", "merge")
-        | ("InnerDictionary", "duplicate")
+        | ("Dictionary", "get")
+        | ("Dictionary", "get_or_add")
+        | ("Dictionary", "merge")
+        | ("Dictionary", "duplicate")
 
         // PackedByteArray-specific methods with custom wrappers
-        | ("InnerPackedByteArray", "encode_var")
-        | ("InnerPackedByteArray", "decode_var")
-        | ("InnerPackedByteArray", "decode_var_size")
-        | ("InnerPackedByteArray", "compress")
-        | ("InnerPackedByteArray", "decompress")
-        | ("InnerPackedByteArray", "decompress_dynamic")
+        | ("PackedByteArray", "encode_var")
+        | ("PackedByteArray", "decode_var")
+        | ("PackedByteArray", "decode_var_size")
+        | ("PackedByteArray", "compress")
+        | ("PackedByteArray", "decompress")
+        | ("PackedByteArray", "decompress_dynamic")
 
         => true,
 
         // Packed*Array common methods with custom wrappers (slice, find, rfind, bsearch)
         (builtin, "slice" | "find" | "rfind" | "bsearch")
             if builtin.starts_with("Packed") && builtin.ends_with("Array")
-        => true,
-        (builtin, "slice" | "find" | "rfind" | "bsearch")
-            if builtin.starts_with("InnerPacked") && builtin.ends_with("Array")
         => true,
 
         // GString methods with module visibility issues (all _ex builders try to access re_export::GString which is private)

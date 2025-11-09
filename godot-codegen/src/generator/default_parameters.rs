@@ -23,12 +23,10 @@ pub fn make_function_definition_with_defaults(
     full_fn_name: &Ident,
     cfg_attributes: &TokenStream,
 ) -> (TokenStream, TokenStream) {
-    // Detect if this is a builtin by checking if the surrounding class name starts with "Inner"
+    // Detect if this is a builtin using type information.
     // Builtins have `impl<'a> Inner*<'a>` so the lifetime is already declared on the impl block.
     // Classes have `impl ClassName` so each method needs to declare its own `<'a>`.
-    let is_builtin = sig
-        .surrounding_class()
-        .map_or(false, |ty| ty.rust_ty.to_string().starts_with("Inner"));
+    let is_builtin = sig.is_builtin();
 
     let (default_fn_params, required_fn_params): (Vec<_>, Vec<_>) = sig
         .params()
@@ -166,9 +164,20 @@ pub fn make_function_definition_with_defaults(
 }
 
 pub fn function_uses_default_params(sig: &dyn Function) -> bool {
+    // Get class name, stripping "Inner" prefix for builtins to match against actual type names
+    let class_name_for_check = sig.surrounding_class().map(|ty| {
+        let rust_name = ty.rust_ty.to_string();
+        if sig.is_builtin() && rust_name.starts_with("Inner") {
+            // Strip "Inner" prefix for builtins (e.g., "InnerArray" -> "Array")
+            rust_name[5..].to_string()
+        } else {
+            rust_name
+        }
+    });
+
     sig.params().iter().any(|arg| arg.default_value.is_some())
         && !special_cases::is_method_excluded_from_default_params(
-            sig.surrounding_class(),
+            class_name_for_check.as_deref(),
             sig.name(),
         )
 }
@@ -243,8 +252,6 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
     match sig.surrounding_class() {
         Some(surrounding_class) if !sig.qualifier().is_static_or_global() => {
             let class = &surrounding_class.rust_ty;
-            let class_str = class.to_string();
-            let is_inner = class_str.starts_with("Inner");
 
             // For Inner* builtin types:
             // - Add lifetime parameter: Inner*<'a>
@@ -253,7 +260,7 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
             // - No lifetime parameter
             // - Use re_export:: prefix for classes (they have re_export module)
             // - No re_export:: prefix for outer builtins (they don't use re_export)
-            let class_type = if is_inner {
+            let class_type = if sig.is_builtin() {
                 quote! { re_export::#class<'a> }
             } else {
                 quote! { re_export::#class }
