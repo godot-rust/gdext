@@ -748,10 +748,9 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&str>, godot_me
         | ("StringName", "get_slice_count")
 
         // Array methods with unsafe implementations
+        | ("Array", "duplicate")
         | ("Array", "duplicate_deep")
-        | ("Array", "duplicate_shallow")
-        | ("Array", "subarray_deep")
-        | ("Array", "subarray_shallow")
+        | ("Array", "slice")
 
         // Array methods with generic return types (generic type Ret not in scope)
         | ("Array", "duplicate")
