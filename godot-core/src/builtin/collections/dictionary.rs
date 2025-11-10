@@ -149,7 +149,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.get(key, null)`_
     pub fn get_or_nil<K: ToGodot>(&self, key: K) -> Variant {
-        self.as_inner().get_ex(&key.to_variant()).default(&Variant::nil()).done()
+        self.as_inner().get(&key.to_variant(), &Variant::nil())
     }
 
     /// Gets a value and ensures the key is set, inserting default if key is absent.
@@ -171,7 +171,7 @@ impl Dictionary {
         // Godot 4.3+: delegate to native get_or_add().
         #[cfg(since_api = "4.3")]
         {
-            self.as_inner().get_or_add_ex(&key_variant).default(&default_variant).done()
+            self.as_inner().get_or_add(&key_variant, &default_variant)
         }
 
         // Polyfill for Godot versions before 4.3.

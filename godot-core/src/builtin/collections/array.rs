@@ -536,7 +536,7 @@ impl<T: ArrayElement> Array<T> {
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> Self {
         // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type
-        let duplicate: Self = unsafe { self.as_inner().duplicate_ex().deep(false).done() };
+        let duplicate: Self = unsafe { self.as_inner().duplicate(false) };
 
         // Note: cache is being set while initializing the duplicate as a return value for above call.
         duplicate
@@ -550,7 +550,7 @@ impl<T: ArrayElement> Array<T> {
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
         // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type
-        let duplicate: Self = unsafe { self.as_inner().duplicate_ex().deep(true).done() };
+        let duplicate: Self = unsafe { self.as_inner().duplicate(true) };
 
         // Note: cache is being set while initializing the duplicate as a return value for above call.
         duplicate
@@ -591,11 +591,7 @@ impl<T: ArrayElement> Array<T> {
         // SAFETY: slice() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
         let subarray: Self = unsafe {
             self.as_inner()
-                .slice_ex(begin)
-                .end(end)
-                .step(step as i64)
-                .deep(deep)
-                .done()
+                .slice(begin, end, step as i64, deep)
         };
 
         subarray
@@ -654,7 +650,7 @@ impl<T: ArrayElement> Array<T> {
         meta::arg_into_ref!(value: T);
 
         let from = to_i64(from.unwrap_or(0));
-        let index = self.as_inner().find_ex(&value.to_variant()).from(from).done();
+        let index = self.as_inner().find(&value.to_variant(), from);
         if index >= 0 {
             Some(index.try_into().unwrap())
         } else {
@@ -670,7 +666,7 @@ impl<T: ArrayElement> Array<T> {
         meta::arg_into_ref!(value: T);
 
         let from = from.map(to_i64).unwrap_or(-1);
-        let index = self.as_inner().rfind_ex(&value.to_variant()).from(from).done();
+        let index = self.as_inner().rfind(&value.to_variant(), from);
 
         // It's not documented, but `rfind` returns -1 if not found.
         if index >= 0 {
@@ -691,7 +687,7 @@ impl<T: ArrayElement> Array<T> {
     pub fn bsearch(&self, value: impl AsArg<T>) -> usize {
         meta::arg_into_ref!(value: T);
 
-        to_usize(self.as_inner().bsearch_ex(&value.to_variant()).before(true).done())
+        to_usize(self.as_inner().bsearch(&value.to_variant(), true))
     }
 
     /// Finds the index of a value in a sorted array using binary search, with type-safe custom predicate.

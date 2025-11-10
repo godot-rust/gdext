@@ -763,9 +763,6 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&str>, godot_me
         | ("Basis", "looking_at")
 
         // Dictionary methods with custom wrappers
-        | ("Dictionary", "get")
-        | ("Dictionary", "get_or_add")
-        | ("Dictionary", "merge")
         | ("Dictionary", "duplicate")
 
         // PackedByteArray-specific methods with custom wrappers
