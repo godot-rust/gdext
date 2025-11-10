@@ -161,16 +161,10 @@ pub fn make_function_definition_with_defaults(
 }
 
 pub fn function_uses_default_params(sig: &dyn Function) -> bool {
-    // Get class name, stripping "Inner" prefix for builtins to match against actual type names
-    let class_name_for_check = sig.surrounding_class().map(|ty| {
-        let rust_name = ty.rust_ty.to_string();
-        if sig.is_builtin() && rust_name.starts_with("Inner") {
-            // Strip "Inner" prefix for builtins (e.g., "InnerArray" -> "Array")
-            rust_name[5..].to_string()
-        } else {
-            rust_name
-        }
-    });
+    // Get class name for exclusion checking.
+    // For exposed outer builtins (e.g., GString methods), use the outer type name.
+    // For Inner* methods, keep the "Inner" prefix to distinguish them from outer type exclusions.
+    let class_name_for_check = sig.surrounding_class().map(|ty| ty.rust_ty.to_string());
 
     sig.params().iter().any(|arg| arg.default_value.is_some())
         && !special_cases::is_method_excluded_from_default_params(
