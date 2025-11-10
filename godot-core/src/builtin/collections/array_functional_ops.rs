@@ -97,7 +97,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// ```
     #[must_use]
     pub fn reduce(&self, callable: &Callable, initial: &Variant) -> Variant {
-        self.array.as_inner().reduce(callable, initial)
+        self.array.as_inner().reduce_ex(callable).accum(initial).done()
     }
 
     /// Returns `true` if the callable returns a truthy value for at least one element.
@@ -160,7 +160,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     #[cfg(since_api = "4.4")]
     pub fn find_custom(&self, callable: &Callable, from: Option<usize>) -> Option<usize> {
         let from = from.map(|i| i as i64).unwrap_or(0);
-        let found_index = self.array.as_inner().find_custom(callable, from);
+        let found_index = self.array.as_inner().find_custom_ex(callable).from(from).done();
 
         sys::found_to_option(found_index)
     }
@@ -187,7 +187,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     #[cfg(since_api = "4.4")]
     pub fn rfind_custom(&self, callable: &Callable, from: Option<usize>) -> Option<usize> {
         let from = from.map(|i| i as i64).unwrap_or(-1);
-        let found_index = self.array.as_inner().rfind_custom(callable, from);
+        let found_index = self.array.as_inner().rfind_custom_ex(callable).from(from).done();
 
         sys::found_to_option(found_index)
     }
@@ -207,7 +207,9 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
         to_usize(
             self.array
                 .as_inner()
-                .bsearch_custom(&value.to_variant(), pred, true),
+                .bsearch_custom_ex(&value.to_variant(), pred)
+                .before(true)
+                .done(),
         )
     }
 }

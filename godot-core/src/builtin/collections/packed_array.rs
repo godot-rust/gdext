@@ -901,9 +901,11 @@ impl PackedByteArray {
     ) -> Result<usize, ()> {
         meta::arg_into_ref!(value);
 
-        let bytes_written: i64 =
-            self.as_inner()
-                .encode_var(byte_offset as i64, value, allow_objects);
+        let bytes_written: i64 = self
+            .as_inner()
+            .encode_var_ex(byte_offset as i64, value)
+            .allow_objects(allow_objects)
+            .done();
 
         if bytes_written == -1 {
             Err(())
@@ -946,7 +948,9 @@ impl PackedByteArray {
     ) -> Result<(Variant, usize), ()> {
         let variant = self
             .as_inner()
-            .decode_var(byte_offset as i64, allow_objects);
+            .decode_var_ex(byte_offset as i64)
+            .allow_objects(allow_objects)
+            .done();
 
         if variant.is_nil() {
             return Err(());
@@ -959,7 +963,9 @@ impl PackedByteArray {
         // So we combine the two calls for the sake of convenience and to avoid accidental usage.
         let size: i64 = self
             .as_inner()
-            .decode_var_size(byte_offset as i64, allow_objects);
+            .decode_var_size_ex(byte_offset as i64)
+            .allow_objects(allow_objects)
+            .done();
         sys::strict_assert_ne!(size, -1); // must not happen if we just decoded variant.
 
         Ok((variant, size as usize))
@@ -992,8 +998,16 @@ impl PackedByteArray {
     ) -> (Variant, usize) {
         let byte_offset = byte_offset as i64;
 
-        let variant = self.as_inner().decode_var(byte_offset, allow_objects);
-        let decoded_size = self.as_inner().decode_var_size(byte_offset, allow_objects);
+        let variant = self
+            .as_inner()
+            .decode_var_ex(byte_offset)
+            .allow_objects(allow_objects)
+            .done();
+        let decoded_size = self
+            .as_inner()
+            .decode_var_size_ex(byte_offset)
+            .allow_objects(allow_objects)
+            .done();
         let decoded_size = decoded_size.try_into().unwrap_or_else(|_| {
             panic!("unexpected value {decoded_size} returned from decode_var_size()")
         });
@@ -1006,7 +1020,11 @@ impl PackedByteArray {
     /// On failure, Godot prints an error and this method returns `Err`. (Note that any empty results coming from Godot are mapped to `Err`
     /// in Rust.)
     pub fn compress(&self, compression_mode: CompressionMode) -> Result<PackedByteArray, ()> {
-        let compressed: PackedByteArray = self.as_inner().compress(compression_mode.ord() as i64);
+        let compressed: PackedByteArray = self
+            .as_inner()
+            .compress_ex()
+            .compression_mode(compression_mode.ord() as i64)
+            .done();
         populated_or_err(compressed)
     }
 
@@ -1026,7 +1044,9 @@ impl PackedByteArray {
     ) -> Result<PackedByteArray, ()> {
         let decompressed: PackedByteArray = self
             .as_inner()
-            .decompress(buffer_size as i64, compression_mode.ord() as i64);
+            .decompress_ex(buffer_size as i64)
+            .compression_mode(compression_mode.ord() as i64)
+            .done();
 
         populated_or_err(decompressed)
     }
@@ -1056,7 +1076,9 @@ impl PackedByteArray {
         let max_output_size = max_output_size.map(|i| i as i64).unwrap_or(-1);
         let decompressed: PackedByteArray = self
             .as_inner()
-            .decompress_dynamic(max_output_size, compression_mode.ord() as i64);
+            .decompress_dynamic_ex(max_output_size)
+            .compression_mode(compression_mode.ord() as i64)
+            .done();
 
         populated_or_err(decompressed)
     }

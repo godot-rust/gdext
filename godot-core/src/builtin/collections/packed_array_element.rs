@@ -288,19 +288,19 @@ macro_rules! impl_packed_array_element {
 
             fn op_slice(inner: Self::Inner<'_>, range: impl $crate::meta::signed_range::SignedRange) -> PackedArray<Self> {
                 let (begin, end) = range.signed();
-                inner.slice(begin, end.unwrap_or(i32::MAX as i64))
+                inner.slice_ex(begin).end(end.unwrap_or(i32::MAX as i64)).done()
             }
 
             fn op_find(inner: Self::Inner<'_>, value: CowArg<'_, Self>, from: i64) -> i64 {
-                Self::with_arg(value, |arg| inner.find(arg, from))
+                Self::with_arg(value, |arg| inner.find_ex(arg).from(from).done())
             }
 
             fn op_rfind(inner: Self::Inner<'_>, value: CowArg<'_, Self>, from: i64) -> i64 {
-                Self::with_arg(value, |arg| inner.rfind(arg, from))
+                Self::with_arg(value, |arg| inner.rfind_ex(arg).from(from).done())
             }
 
             fn op_bsearch(mut inner: Self::Inner<'_>, value: CowArg<'_, Self>, before: bool) -> i64 {
-                Self::with_arg(value, |arg| inner.bsearch(arg, before))
+                Self::with_arg(value, |arg| inner.bsearch_ex(arg).before(before).done())
             }
 
             fn op_reverse(mut inner: Self::Inner<'_>) {

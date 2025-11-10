@@ -149,7 +149,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.get(key, null)`_
     pub fn get_or_nil<K: ToGodot>(&self, key: K) -> Variant {
-        self.as_inner().get(&key.to_variant(), &Variant::nil())
+        self.as_inner().get_ex(&key.to_variant()).default(&Variant::nil()).done()
     }
 
     /// Gets a value and ensures the key is set, inserting default if key is absent.
@@ -171,7 +171,7 @@ impl Dictionary {
         // Godot 4.3+: delegate to native get_or_add().
         #[cfg(since_api = "4.3")]
         {
-            self.as_inner().get_or_add(&key_variant, &default_variant)
+            self.as_inner().get_or_add_ex(&key_variant).default(&default_variant).done()
         }
 
         // Polyfill for Godot versions before 4.3.
@@ -320,7 +320,7 @@ impl Dictionary {
     pub fn extend_dictionary(&mut self, other: &Self, overwrite: bool) {
         self.balanced_ensure_mutable();
 
-        self.as_inner().merge(other, overwrite)
+        self.as_inner().merge_ex(other).overwrite(overwrite).done()
     }
 
     /// Deep copy, duplicating nested collections.
@@ -333,7 +333,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.duplicate(true)`_
     pub fn duplicate_deep(&self) -> Self {
-        self.as_inner().duplicate(true).with_cache(self)
+        self.as_inner().duplicate_ex().deep(true).done().with_cache(self)
     }
 
     /// Shallow copy, copying elements but sharing nested collections.
@@ -341,12 +341,12 @@ impl Dictionary {
     /// All dictionary keys and values are copied, but any reference types (such as `Array`, `Dictionary` and `Gd<T>` objects)
     /// will still refer to the same value.
     ///
-    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.  
+    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_
     pub fn duplicate_shallow(&self) -> Self {
-        self.as_inner().duplicate(false).with_cache(self)
+        self.as_inner().duplicate_ex().deep(false).done().with_cache(self)
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
@@ -636,7 +636,7 @@ impl<'a> DictionaryIter<'a> {
             return None;
         }
 
-        let value = self.dictionary.as_inner().get(&key, &Variant::nil());
+        let value = self.dictionary.as_inner().get_ex(&key).default(&Variant::nil()).done();
         Some((key, value))
     }
 
