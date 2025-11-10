@@ -788,30 +788,11 @@ pub fn is_method_excluded_from_default_params(class_name: Option<&str>, godot_me
             if builtin.starts_with("Packed") && builtin.ends_with("Array")
         => true,
 
-        // GString methods with module visibility issues (all _ex builders try to access re_export::GString which is private)
-        | ("String", "num")
-        | ("String", "num_int64")
-        | ("String", "num_uint64")
-        | ("String", "num_scientific")
-        | ("String", "split_floats")
-        | ("String", "strip_edges")
-        | ("String", "xml_escape")
-        | ("String", "xml_unescape")
-        | ("String", "is_valid_hex_number")
-        | ("String", "is_valid_html_color")
-        | ("String", "is_valid_float")
-        | ("String", "is_valid_int")
-        | ("String", "pad_decimals")
-        | ("String", "pad_zeros")
+        // Note: Previously excluded GString and StringName methods due to re_export::GString/StringName
+        // visibility issues have been re-enabled after fixing the builder codegen to handle exposed
+        // outer builtins correctly.
 
-        // StringName methods with module visibility issues
-        | ("StringName", "split_floats")
-        | ("StringName", "strip_edges")
-        | ("StringName", "xml_escape")
-        | ("StringName", "xml_unescape")
-        | ("StringName", "is_valid_hex_number")
-
-        => true, _ => false
+        _ => false
     }
 }
 

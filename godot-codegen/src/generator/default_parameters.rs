@@ -214,7 +214,12 @@ fn make_extender_doc(sig: &dyn Function, extended_fn_name: &Ident) -> (String, T
     #[allow(clippy::uninlined_format_args)]
     match sig.surrounding_class() {
         Some(TyName { rust_ty, .. }) => {
-            surround_class_prefix = quote! { re_export::#rust_ty:: };
+            // For exposed outer builtins, don't use re_export:: prefix since outer types aren't in re_export
+            surround_class_prefix = if sig.is_exposed_outer_builtin() {
+                quote! { #rust_ty:: }
+            } else {
+                quote! { re_export::#rust_ty:: }
+            };
             builder_doc = format!(
                 "Default-param extender for [`{class}::{method}`][super::{class}::{method}].",
                 class = rust_ty,
@@ -251,15 +256,22 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
             let class = &surrounding_class.rust_ty;
 
             // For Inner* builtin types:
-            // - Add lifetime parameter: Inner*<'inner>
+            // - Add lifetime parameter: Inner*<'ex>
             // - Use re_export:: prefix since Inner* is in the re_export module
-            // For regular classes and outer builtins:
+            // For exposed outer builtins (like GString):
             // - No lifetime parameter
-            // - Use re_export:: prefix for classes (they have re_export module)
-            // - No re_export:: prefix for outer builtins (they don't use re_export)
-            let class_type = if sig.is_builtin() {
+            // - Use direct reference (no re_export::) since outer types are NOT in re_export
+            // For regular classes:
+            // - No lifetime parameter
+            // - Use re_export:: prefix (classes ARE in re_export module)
+            let class_type = if sig.is_exposed_outer_builtin() {
+                // Outer builtin types like GString are not in re_export module.
+                quote! { #class }
+            } else if sig.is_builtin() {
+                // Inner* types like InnerString are in re_export module.
                 quote! { re_export::#class<'ex> }
             } else {
+                // Classes are in re_export module.
                 quote! { re_export::#class }
             };
 

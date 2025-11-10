@@ -345,6 +345,10 @@ pub trait Function: fmt::Display {
     fn is_builtin(&self) -> bool {
         false
     }
+
+    fn is_exposed_outer_builtin(&self) -> bool {
+        false
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -417,6 +421,10 @@ impl Function for BuiltinMethod {
 
     fn is_builtin(&self) -> bool {
         true
+    }
+
+    fn is_exposed_outer_builtin(&self) -> bool {
+        self.is_exposed_in_outer
     }
 }
 
