@@ -103,6 +103,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         class_name,
         &struct_cfg.base_ty,
         struct_cfg.is_tool,
+        struct_cfg.icon.as_ref(),
         &fields.all_fields,
     );
 
@@ -145,6 +146,13 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     if struct_cfg.is_tool {
         modifiers.push(quote! { with_tool })
     }
+
+    // Handle icon separately since it takes an argument (can't use the modifiers pattern).
+    let icon_modifier = if let Some(icon) = &struct_cfg.icon {
+        quote! { .with_icon(#icon) }
+    } else {
+        TokenStream::new()
+    };
 
     // Declares a "funcs collection" struct that, for holds a constant for each #[func].
     // That constant maps the Rust name (constant ident) to the Godot registered name (string value).
@@ -198,7 +206,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #struct_docs_registration
         ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
             #prv::PluginItem::Struct(
-                #prv::Struct::new::<#class_name>()#(.#modifiers())*
+                #prv::Struct::new::<#class_name>()#(.#modifiers())*#icon_modifier
             )
         ));
 
@@ -303,6 +311,7 @@ struct ClassAttributes {
     is_tool: bool,
     is_internal: bool,
     rename: Option<Ident>,
+    icon: Option<TokenStream>,
     deprecations: Vec<TokenStream>,
 }
 
@@ -421,6 +430,7 @@ fn make_user_class_impl(
     class_name: &Ident,
     trait_base_class: &Ident,
     is_tool: bool,
+    icon: Option<&TokenStream>,
     all_fields: &[Field],
 ) -> (TokenStream, bool) {
     #[cfg(feature = "codegen-full")]
@@ -480,12 +490,19 @@ fn make_user_class_impl(
         None
     };
 
+    let icon = if let Some(expr) = icon {
+        quote! { Some(#expr) }
+    } else {
+        quote! { None }
+    };
+
     let user_class_impl = quote! {
         impl ::godot::obj::UserClass for #class_name {
             #[doc(hidden)]
             fn __config() -> ::godot::private::ClassConfig {
                 ::godot::private::ClassConfig {
                     is_tool: #is_tool,
+                    icon: #icon,
                 }
             }
 
@@ -510,6 +527,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     let mut is_tool = false;
     let mut is_internal = false;
     let mut rename: Option<Ident> = None;
+    let mut icon: Option<TokenStream> = None;
     let mut deprecations = vec![];
 
     // #[class] attribute on struct
@@ -541,6 +559,11 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 
         // #[class(rename = NewName)]
         rename = parser.handle_ident("rename")?;
+
+        // #[class(icon = "PATH")]
+        if let Some(expr) = parser.handle_expr("icon")? {
+            icon = Some(expr);
+        }
 
         // #[class(internal)]
         // Named "internal" following Godot terminology: https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/class_db.hpp#L327
@@ -583,6 +606,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         is_tool,
         is_internal,
         rename,
+        icon,
         deprecations,
     })
 }
