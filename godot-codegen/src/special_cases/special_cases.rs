@@ -1264,7 +1264,7 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
     let level = match class_name {
         // See register_core_types() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
         // which is called before Core level is initialized. Only a small list is promoted to Core; carefully evaluate if more are added.
-        | "Object" | "RefCounted" | "Resource" | "MainLoop" | "GDExtension"
+        | "Object" | "RefCounted" | "Resource" | "MainLoop" | "GDExtension" | "GodotInstance"
         => ClassCodegenLevel::Core,
 
         // See register_early_core_singletons() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
