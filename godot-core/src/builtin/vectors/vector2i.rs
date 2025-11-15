@@ -124,6 +124,7 @@ impl GlamConv for Vector2i {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::assert_eq_approx;
 
     #[test]
     fn coord_min_max() {
@@ -160,5 +161,30 @@ mod test {
 
         assert_eq!(Vector2i::new(15, 15).max_axis(), None);
         assert_eq!(Vector2i::new(15, 15).min_axis(), None);
+    }
+
+    #[test]
+    fn distance() {
+        let a = Vector2i::new(1, 2);
+        let b = Vector2i::new(4, 6);
+
+        assert_eq!(a.distance_squared_to(b), 25);
+        assert_eq_approx!(a.distance_to(b), 5.0);
+    }
+
+    #[test]
+    fn mini_maxi_clampi() {
+        let v = Vector2i::new(10, -5);
+
+        assert_eq!(v.mini(3), Vector2i::new(3, -5));
+        assert_eq!(v.maxi(-2), Vector2i::new(10, -2));
+        assert_eq!(v.clampi(-3, 7), Vector2i::new(7, -3));
+    }
+
+    #[test]
+    fn snappedi() {
+        let v = Vector2i::new(13, -8);
+
+        assert_eq!(v.snappedi(5), Vector2i::new(15, -10));
     }
 }
