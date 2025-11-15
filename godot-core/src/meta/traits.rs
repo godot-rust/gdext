@@ -236,3 +236,88 @@ pub(crate) fn element_godot_type_name<T: ArrayElement>() -> String {
 // pub(crate)  fn element_godot_type_name<T: ArrayElement>() -> String {
 //     <T::Via as GodotType>::godot_type_name()
 // }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Implemented for types that can be used as immutable default parameters in `#[func]` methods.
+///
+/// This trait ensures that default parameter values cannot be mutated by callers, preventing the Python "mutable default argument" problem
+/// where a single default value is shared across multiple calls.
+///
+/// Post-processes the default value in some cases, e.g. makes `Array<T>` read-only via `into_read_only()`.
+///
+/// At the moment, this trait is conservatively implemented for types where immutability can be statically guaranteed.
+/// Depending on usage, the API might be expanded in the future to allow defaults whose immutability is only determined
+/// at runtime (e.g. untyped arrays/dictionaries where all element types are immutable).
+///
+/// # Safety
+/// Allows to use the implementors in a limited `Sync` context. Implementing this trait asserts that `Self` is either:
+/// - `Copy`, i.e. each instance is truly independent.
+/// - Thread-safe in the sense that `clone()` is thread-safe. Individual clones must not offer a way to mutate the value or cause race conditions.
+#[diagnostic::on_unimplemented(
+    message = "#[opt(default = ...)] only supports a set of truly immutable types",
+    label = "this type is not immutable and thus not eligible for a default value"
+)]
+pub unsafe trait GodotImmutable: GodotConvert + Sized {
+    fn into_runtime_immutable(self) -> Self {
+        self
+    }
+}
+
+mod godot_immutable_impls {
+    use super::GodotImmutable;
+    use crate::builtin::*;
+    use crate::meta::ArrayElement;
+
+    unsafe impl GodotImmutable for bool {}
+    unsafe impl GodotImmutable for i8 {}
+    unsafe impl GodotImmutable for u8 {}
+    unsafe impl GodotImmutable for i16 {}
+    unsafe impl GodotImmutable for u16 {}
+    unsafe impl GodotImmutable for i32 {}
+    unsafe impl GodotImmutable for u32 {}
+    unsafe impl GodotImmutable for i64 {}
+    unsafe impl GodotImmutable for f32 {}
+    unsafe impl GodotImmutable for f64 {}
+
+    // No NodePath, Callable, Signal, Rid, Variant.
+    unsafe impl GodotImmutable for Aabb {}
+    unsafe impl GodotImmutable for Basis {}
+    unsafe impl GodotImmutable for Color {}
+    unsafe impl GodotImmutable for GString {}
+    unsafe impl GodotImmutable for Plane {}
+    unsafe impl GodotImmutable for Projection {}
+    unsafe impl GodotImmutable for Quaternion {}
+    unsafe impl GodotImmutable for Rect2 {}
+    unsafe impl GodotImmutable for Rect2i {}
+    unsafe impl GodotImmutable for StringName {}
+    unsafe impl GodotImmutable for Transform2D {}
+    unsafe impl GodotImmutable for Transform3D {}
+    unsafe impl GodotImmutable for Vector2 {}
+    unsafe impl GodotImmutable for Vector2i {}
+    unsafe impl GodotImmutable for Vector3 {}
+    unsafe impl GodotImmutable for Vector3i {}
+    unsafe impl GodotImmutable for Vector4 {}
+    unsafe impl GodotImmutable for Vector4i {}
+
+    unsafe impl GodotImmutable for PackedByteArray {}
+    unsafe impl GodotImmutable for PackedColorArray {}
+    unsafe impl GodotImmutable for PackedFloat32Array {}
+    unsafe impl GodotImmutable for PackedFloat64Array {}
+    unsafe impl GodotImmutable for PackedInt32Array {}
+    unsafe impl GodotImmutable for PackedInt64Array {}
+    unsafe impl GodotImmutable for PackedStringArray {}
+    unsafe impl GodotImmutable for PackedVector2Array {}
+    unsafe impl GodotImmutable for PackedVector3Array {}
+    #[cfg(since_api = "4.3")]
+    unsafe impl GodotImmutable for PackedVector4Array {}
+
+    unsafe impl<T> GodotImmutable for Array<T>
+    where
+        T: GodotImmutable + ArrayElement,
+    {
+        fn into_runtime_immutable(self) -> Self {
+            self.into_read_only()
+        }
+    }
+}

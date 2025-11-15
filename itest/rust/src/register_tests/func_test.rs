@@ -67,6 +67,15 @@ impl FuncObj {
     }
 
     #[func]
+    fn method_with_immutable_array_default(
+        &self,
+        #[opt(default = &array![1, 2, 3])] arr: Array<i64>,
+    ) -> Array<i64> {
+        arr
+    }
+
+    /* For now, Gd<T> types cannot be used as default parameters due to immutability requirement.
+    #[func]
     fn static_with_defaults(
         #[opt(default = &RefCounted::new_gd())] mut required: Gd<RefCounted>,
         #[opt(default = Gd::null_arg())] nullable: Option<Gd<RefCounted>>,
@@ -79,6 +88,7 @@ impl FuncObj {
         required.set_meta("nullable_id", &id.to_variant());
         required
     }
+    */
 }
 
 impl FuncObj {
@@ -345,6 +355,7 @@ fn func_default_parameters() {
     let c = obj.call("method_with_defaults", vslice![2, "Another string", 456]);
     assert_eq!(c.to::<VariantArray>(), varray![2, "Another string", 456]);
 
+    /* For now, Gd<T> defaults are disabled due to immutability.
     // Test that object is passed through, and that Option<Gd> with default Gd::null_arg() works.
     let first = RefCounted::new_gd();
     let d = obj
@@ -360,8 +371,10 @@ fn func_default_parameters() {
         .to::<Gd<RefCounted>>();
     assert_eq!(e.instance_id(), first.instance_id());
     assert_eq!(e.get_meta("nullable_id"), second.instance_id().to_variant());
+    */
 }
 
+/* For now, Gd<T> defaults are disabled due to immutability.
 #[itest]
 fn func_defaults_re_evaluate_expr() {
     // ClassDb::class_call_static() added in Godot 4.4, but non-static dispatch works even before.
@@ -386,8 +399,23 @@ fn func_defaults_re_evaluate_expr() {
         "#[opt = EXPR] should create evaluate EXPR on each call"
     );
 }
+*/
 
-// No test for Gd::from_object(), as that simply moves the existing object without running user code.
+#[itest]
+fn func_immutable_defaults() {
+    let mut obj = FuncObj::new_gd();
+
+    // Test Array<T> default parameter.
+    let arr = obj
+        .call("method_with_immutable_array_default", &[])
+        .to::<Array<i64>>();
+    assert_eq!(arr, array![1, 2, 3]);
+
+    assert!(
+        arr.is_read_only(),
+        "GodotImmutable trait did its job to make array read-only"
+    );
+}
 
 #[itest]
 fn cfg_doesnt_interfere_with_valid_method_impls() {
@@ -430,6 +458,8 @@ fn cfg_removes_or_keeps_signals() {
     ));
     assert!(!class_has_signal::<GdSelfObj>("cfg_removes_signal"));
 }
+
+// No test for Gd::from_object(), as that simply moves the existing object without running user code.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helpers
