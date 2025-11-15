@@ -53,6 +53,14 @@ fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Ve
     lock_or_panic(&DYN_TRAITS_BY_TYPEID, "dyn traits")
 }
 
+#[cfg(since_api = "4.4")]
+pub(crate) fn global_icons_by_name(
+) -> GlobalGuard<'static, HashMap<ClassId, crate::builtin::GString>> {
+    static ICONS_BY_NAME: Global<HashMap<ClassId, crate::builtin::GString>> = Global::default();
+
+    lock_or_panic(&ICONS_BY_NAME, "icon strings (by name)")
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Represents a class which is currently loaded and retained in memory.
@@ -426,6 +434,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             is_instantiable,
             reference_fn,
             unreference_fn,
+            icon,
         }) => {
             c.parent_class_name = Some(base_class_name);
             c.default_virtual_fn = default_get_virtual_fn;
@@ -465,6 +474,21 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             {
                 c.godot_params.is_runtime =
                     sys::conv::bool_to_sys(crate::private::is_class_runtime(is_tool));
+            }
+
+            #[cfg(before_api = "4.4")]
+            let _ = icon; // mark used
+            #[cfg(since_api = "4.4")]
+            if let Some(icon_path) = icon {
+                // Convert to GString and store in global map to keep it alive for program lifetime.
+                let icon_gstring = crate::builtin::GString::from(icon_path);
+                let mut icon_map = global_icons_by_name();
+                icon_map.insert(c.class_name, icon_gstring);
+
+                let icon_ptr: sys::GDExtensionConstStringPtr =
+                    icon_map.get(&c.class_name).unwrap().string_sys();
+
+                c.godot_params.icon_path = icon_ptr;
             }
         }
 

@@ -195,6 +195,9 @@ pub struct Struct {
 
     /// Whether the class has a default constructor.
     pub(crate) is_instantiable: bool,
+
+    /// Icon path from `#[class(icon = EXPR)]`.
+    pub(crate) icon: Option<&'static str>,
 }
 
 impl Struct {
@@ -214,6 +217,7 @@ impl Struct {
             is_editor_plugin: false,
             is_internal: false,
             is_instantiable: false,
+            icon: None,
             // While Godot doesn't do anything with these callbacks for non-RefCounted classes, we can avoid instantiating them in Rust.
             reference_fn: refcounted.then_some(callbacks::reference::<T>),
             unreference_fn: refcounted.then_some(callbacks::unreference::<T>),
@@ -249,6 +253,12 @@ impl Struct {
 
     pub fn with_tool(mut self) -> Self {
         self.is_tool = true;
+        self
+    }
+
+    #[cfg(since_api = "4.4")]
+    pub fn with_icon(mut self, icon: &'static str) -> Self {
+        self.icon = Some(icon);
         self
     }
 

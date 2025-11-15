@@ -186,6 +186,7 @@ pub trait You_forgot_the_attribute__godot_api {}
 
 pub struct ClassConfig {
     pub is_tool: bool,
+    pub icon: Option<&'static str>,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

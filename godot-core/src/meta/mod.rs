@@ -102,4 +102,10 @@ pub(crate) use reexport_crate::*;
 /// Must not use meta facilities (e.g. `ClassId`) after this call.
 pub(crate) unsafe fn cleanup() {
     class_id::cleanup();
+
+    #[cfg(since_api = "4.4")]
+    {
+        let mut icons = crate::registry::class::global_icons_by_name();
+        *icons = std::collections::HashMap::new();
+    }
 }
