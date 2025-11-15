@@ -538,6 +538,56 @@ macro_rules! inline_impl_integer_vector_fns {
         // Names of the components, for example `x, y`.
         $($comp:ident),*
     ) => {
+        /// Returns the distance between this vector and `to`.
+        ///
+        /// Where possible, prefer [`distance_squared_to()`][Self::distance_squared_to] for precision and performance.
+        #[inline]
+        pub fn distance_to(self, to: Self) -> real {
+            (to - self).length()
+        }
+
+        /// Returns the squared distance between this vector and `to`.
+        ///
+        /// Faster than [`distance_to()`][Self::distance_to], so prefer it if you need to compare distances, or need the squared distance
+        /// in a formula.
+        #[inline]
+        pub fn distance_squared_to(self, to: Self) -> i32 {
+            (to - self).length_squared() as i32
+        }
+
+        /// Returns `self` with each component limited to a range defined by `min` and `max`.
+        ///
+        /// # Panics
+        /// If `min > max` on any axis.
+        #[inline]
+        pub fn clampi(self, min: i32, max: i32) -> Self {
+            Self::new(
+                $(
+                    self.$comp.clamp(min, max)
+                ),*
+            )
+        }
+
+        /// Returns a new vector with each component set to the minimum of `self` and `with`.
+        #[inline]
+        pub fn mini(self, with: i32) -> Self {
+            Self::new(
+                $(
+                    self.$comp.min(with)
+                ),*
+            )
+        }
+
+        /// Returns a new vector with each component set to the maximum of `self` and `with`.
+        #[inline]
+        pub fn maxi(self, with: i32) -> Self {
+            Self::new(
+                $(
+                    self.$comp.max(with)
+                ),*
+            )
+        }
+
         /// A new vector with each component snapped to the closest multiple of the corresponding
         /// component in `step`.
         ///
@@ -554,6 +604,15 @@ macro_rules! inline_impl_integer_vector_fns {
                     snap_one(self.$comp, step.$comp)
                 ),*
             )
+        }
+
+        /// A new vector with each component snapped to the closest multiple of `step`.
+        ///
+        /// # Panics
+        /// On under- or overflow (see [`snapped()`][Self::snapped] for details).
+        #[inline]
+        pub fn snappedi(self, step: i32) -> Self {
+            self.snapped(Self::splat(step))
         }
 
         /// Converts to a vector with floating-point [`real`](type.real.html) components, using `as` casts.
@@ -654,13 +713,16 @@ macro_rules! impl_float_vector_fns {
 
             /// Returns the squared distance between this vector and `to`.
             ///
-            /// This method runs faster than [`Self::distance_to`], so prefer it if you need to compare vectors or need the squared distance for some formula.
+            /// Faster than [`distance_to()`][Self::distance_to], so prefer it if you need to compare distances, or need the squared distance
+            /// in a formula.
             #[inline]
             pub fn distance_squared_to(self, to: Self) -> real {
                 (to - self).length_squared()
             }
 
             /// Returns the distance between this vector and `to`.
+            ///
+            /// Where possible, prefer [`distance_squared_to()`][Self::distance_squared_to] for performance reasons.
             #[inline]
             pub fn distance_to(self, to: Self) -> real {
                 (to - self).length()
