@@ -60,6 +60,12 @@ fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Ve
 /// Besides the name, this type holds information relevant for the deregistration of the class.
 pub struct LoadedClass {
     name: ClassId,
+
+    // Class icon needs to be retained for registered for class lifetime, this is not accessed directly.
+    #[cfg(since_api = "4.4")]
+    #[allow(unused)]
+    icon: crate::builtin::GString,
+
     is_editor_plugin: bool,
 }
 
@@ -96,6 +102,8 @@ struct ClassRegistrationInfo {
 
     /// Godot low-level class creation parameters.
     godot_params: GodotCreationInfo,
+
+    icon_path: crate::builtin::GString,
 
     #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
     init_level: InitLevel,
@@ -149,6 +157,7 @@ pub(crate) fn register_class<
     out!("Manually register class {}", std::any::type_name::<T>());
 
     let godot_params = GodotCreationInfo {
+        icon_path: ptr::null(),
         to_string_func: Some(callbacks::to_string::<T>),
         notification_func: Some(callbacks::on_notification::<T>),
         reference_func: Some(callbacks::reference::<T>),
@@ -167,6 +176,7 @@ pub(crate) fn register_class<
 
     register_class_raw(ClassRegistrationInfo {
         class_name: T::class_id(),
+        icon_path: crate::builtin::GString::from(T::icon()),
         parent_class_name: Some(T::Base::class_id()),
         register_methods_constants_fn: None,
         register_properties_fn: None,
@@ -258,8 +268,10 @@ fn register_classes_and_dyn_traits(
 
         let loaded_class = LoadedClass {
             name: class_name,
+            icon: info.icon_path.clone(),
             is_editor_plugin: info.is_editor_plugin,
         };
+
         let metadata = ClassMetadata {};
 
         // Transpose Class->Trait relations to Trait->Class relations.
@@ -426,6 +438,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             is_instantiable,
             reference_fn,
             unreference_fn,
+            icon,
         }) => {
             c.parent_class_name = Some(base_class_name);
             c.default_virtual_fn = default_get_virtual_fn;
@@ -465,6 +478,24 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             {
                 c.godot_params.is_runtime =
                     sys::conv::bool_to_sys(crate::private::is_class_runtime(is_tool));
+            }
+
+            #[cfg(before_api = "4.4")]
+            let _ = icon; // mark used
+            #[cfg(since_api = "4.4")]
+            {
+                let chosen = if !icon.is_empty() {
+                    icon
+                } else {
+                    // Default icon from `ExtensionLibrary::default_class_icon()`.
+                    *crate::init::DEFAULT_ICON.lock()
+                };
+
+                // It's possible that there's no icon.
+                if !chosen.is_empty() {
+                    c.icon_path = crate::builtin::GString::from(chosen);
+                    c.godot_params.icon_path = c.icon_path.string_sys();
+                }
             }
         }
 
@@ -664,6 +695,7 @@ fn lock_or_panic<T>(global: &'static Global<T>, ctx: &str) -> GlobalGuard<'stati
 fn default_registration_info(class_name: ClassId) -> ClassRegistrationInfo {
     ClassRegistrationInfo {
         class_name,
+        icon_path: crate::builtin::GString::new(),
         parent_class_name: None,
         register_methods_constants_fn: None,
         register_properties_fn: None,
