@@ -484,6 +484,17 @@ use crate::util::{bail, ident, KvParser};
 /// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
 /// because we have added a `hidden` key to the class. This will also prevent it from showing up in documentation.
 ///
+/// ## Class Icon
+///
+/// You can set a class icon by providing a valid resource path using `#[class(icon = EXPR)]`.
+///
+/// ```
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(base=Node, init, icon = "res://icon.svg")]
+/// pub struct Foo {}
+/// ```
+///
 /// # Further field customization
 ///
 /// ## Fine-grained inference hints

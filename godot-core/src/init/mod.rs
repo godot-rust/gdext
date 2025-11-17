@@ -8,6 +8,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use godot_ffi as sys;
+use sys::Global;
 use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
@@ -79,6 +80,15 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
             crate::private::set_gdext_hook(move || std::thread::current().id() == main_thread);
         }
 
+        // Write the extension default icon path in a `Global`.
+        // Will be provided to Godot during class registration (if not empty) and no class icon is provided.
+        // Empty by default. Resets on deinitialization, see `gdext_on_level_deinit()`.
+        #[cfg(since_api = "4.4")]
+        {
+            let mut icon = DEFAULT_ICON.lock();
+            *icon = E::default_icon();
+        }
+
         // Currently no way to express failure; could be exposed to E if necessary.
         // No early exit, unclear if Godot still requires output parameters to be set.
         let success = true;
@@ -116,6 +126,8 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
 
     is_success.unwrap_or(0)
 }
+
+pub(crate) static DEFAULT_ICON: Global<&'static str> = Global::new(|| "");
 
 static LEVEL_SERVERS_CORE_LOADED: AtomicBool = AtomicBool::new(false);
 
@@ -240,6 +252,9 @@ fn gdext_on_level_deinit(level: InitLevel) {
             crate::meta::cleanup();
         }
 
+        // Reset the extension default icon to be empty again.
+        *crate::init::DEFAULT_ICON.lock() = "";
+
         // SAFETY: called after all other logic, so no concurrent access.
         // TODO: multithreading must make sure other threads are joined/stopped here.
         unsafe {
@@ -330,6 +345,14 @@ pub unsafe trait ExtensionLibrary {
     /// If the level is lower than [`InitLevel::Scene`], the engine needs to be restarted to take effect.
     fn min_level() -> InitLevel {
         InitLevel::Scene
+    }
+
+    /// Default icon resource path for classes that don't specify one.
+    ///
+    /// This is used as a fallback when a class doesn't provide an icon, for example `#[class(icon = "...")]`.
+    #[cfg(since_api = "4.4")]
+    fn default_icon() -> &'static str {
+        "" // Default implementation: no icon.
     }
 
     /// Custom logic when a certain initialization stage is loaded.

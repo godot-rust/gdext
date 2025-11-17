@@ -44,6 +44,13 @@ where
         Self::class_id()
     }
 
+    /// Class icon resource path. Will use this icon if available.
+    ///
+    /// You can also set an icon via `#[class(icon = "path/to/icon.svg")]`.
+    fn icon() -> &'static str {
+        ""
+    }
+
     /// Initialization level, during which this class should be initialized with Godot.
     ///
     /// The default is a good choice in most cases; override only if you have very specific initialization requirements.
