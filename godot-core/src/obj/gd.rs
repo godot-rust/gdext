@@ -19,12 +19,14 @@ use crate::meta::{
     ToGodot,
 };
 use crate::obj::{
-    bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    OnEditor, RawGd, WithBaseField, WithSignals,
+    bounds, cap, Base, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits,
+    InstanceId, OnEditor, RawGd, WithBaseField, WithSignals,
 };
+use crate::private::callbacks::postinit;
 use crate::private::{callbacks, PanicPayload};
 use crate::registry::class::try_dynify_object;
 use crate::registry::property::{object_export_element_type_string, Export, Var};
+use crate::storage::Storage;
 use crate::{classes, meta, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -203,6 +205,18 @@ where
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     pub fn bind_mut(&mut self) -> GdMut<'_, T> {
         self.raw.bind_mut()
+    }
+
+    #[doc(hidden)]
+    pub fn default_user_instance() -> Gd<T>
+    where
+        T: cap::GodotDefault,
+    {
+        let obj = Gd::default_instance();
+        if let Some(storage) = obj.raw.storage() {
+            unsafe { Base::from_base(storage.base()).mark_initialized() };
+        }
+        obj
     }
 }
 
@@ -532,13 +546,9 @@ impl<T: GodotClass> Gd<T> {
         T: cap::GodotDefault,
     {
         unsafe {
-            // Default value (and compat one) for `p_notify_postinitialize` is true in Godot.
-            #[cfg(since_api = "4.4")]
-            let object_ptr = callbacks::create::<T>(std::ptr::null_mut(), sys::conv::SYS_TRUE);
-            #[cfg(before_api = "4.4")]
-            let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
-
-            Gd::from_obj_sys(object_ptr)
+            let object_ptr = sys::classdb_construct_object(T::class_id().string_sys());
+            postinit(object_ptr);
+            Gd::<T>::from_obj_sys(object_ptr)
         }
     }
 
