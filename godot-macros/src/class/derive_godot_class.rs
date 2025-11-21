@@ -362,6 +362,10 @@ fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
 
     quote! {
         impl ::godot::obj::cap::GodotDefault for #class_name {
+            fn __godot_default() -> ::godot::obj::Gd<Self> {
+                ::godot::obj::Gd::default_user_instance()
+            }
+
             fn __godot_user_init(base: ::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base>) -> Self {
                 Self {
                     #( #rest_init )*

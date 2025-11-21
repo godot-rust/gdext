@@ -420,7 +420,7 @@ impl Declarer for DeclUser {
     where
         T: GodotDefault + Bounds<Declarer = Self>,
     {
-        Gd::default_instance()
+        Gd::default_user_instance()
     }
 }
 

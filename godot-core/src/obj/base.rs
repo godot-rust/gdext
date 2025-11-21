@@ -80,7 +80,7 @@ pub struct Base<T: GodotClass> {
     // 2.
     obj: ManuallyDrop<Gd<T>>,
 
-    /// Tracks the initialization state of this `Base<T>` in Debug mode.
+    /// Tracks the initialization state of this `Base<T>` if safeguards are enabled.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
     #[cfg(safeguards_balanced)]
