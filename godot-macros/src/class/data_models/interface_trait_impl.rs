@@ -289,6 +289,10 @@ fn handle_init<'a>(
 
         #(#cfg_attrs)*
         impl ::godot::obj::cap::GodotDefault for #class_name {
+            fn __godot_default() -> ::godot::obj::Gd<Self> {
+                ::godot::obj::Gd::default_user_instance()
+            }
+
             fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
                 <Self as #trait_path>::init(base)
             }
