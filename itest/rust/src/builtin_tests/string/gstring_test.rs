@@ -145,7 +145,8 @@ fn string_substr() {
     assert_eq!(string.substr(2..=4), "abl".into());
 }
 
-#[itest]
+// TODO(v0.5): enable after https://github.com/godotengine/godot/pull/113044 is merged.
+#[itest(skip)]
 fn gstring_find() {
     let s = GString::from("Hello World");
 
