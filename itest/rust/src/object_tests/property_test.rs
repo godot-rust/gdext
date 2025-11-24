@@ -11,7 +11,7 @@ use godot::builtin::{
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
-use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd, OnEditor};
+use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
 use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
@@ -454,10 +454,10 @@ fn derive_export() {
         .unwrap();
     // `class_name` should be empty for non-Object variants.
     check_property(&property, "class_name", "");
-    check_property(&property, "type", VariantType::INT.ord());
-    check_property(&property, "hint", PropertyHint::ENUM.ord());
+    check_property(&property, "type", VariantType::INT);
+    check_property(&property, "hint", PropertyHint::ENUM);
     check_property(&property, "hint_string", "A:0,B:1,C:2");
-    check_property(&property, "usage", PropertyUsageFlags::DEFAULT.ord());
+    check_property(&property, "usage", PropertyUsageFlags::DEFAULT);
 }
 
 #[derive(GodotClass)]
@@ -489,13 +489,13 @@ fn export_resource() {
         .find(|c| c.get_or_nil("name") == "my_resource".to_variant())
         .unwrap();
     check_property(&property, "class_name", "CustomResource");
-    check_property(&property, "type", VariantType::OBJECT.ord());
-    check_property(&property, "hint", PropertyHint::RESOURCE_TYPE.ord());
+    check_property(&property, "type", VariantType::OBJECT);
+    check_property(&property, "hint", PropertyHint::RESOURCE_TYPE);
     check_property(&property, "hint_string", "CustomResource");
     check_property(
         &property,
         "usage",
-        PropertyUsageFlags::DEFAULT.ord() | PropertyUsageFlags::EDITOR_INSTANTIATE_OBJECT.ord(),
+        PropertyUsageFlags::DEFAULT | PropertyUsageFlags::EDITOR_INSTANTIATE_OBJECT,
     );
 
     let property = class
@@ -504,10 +504,10 @@ fn export_resource() {
         .find(|c| c.get_or_nil("name") == "renamed_resource".to_variant())
         .unwrap();
     check_property(&property, "class_name", "NewNameCustomResource");
-    check_property(&property, "type", VariantType::OBJECT.ord());
-    check_property(&property, "hint", PropertyHint::RESOURCE_TYPE.ord());
+    check_property(&property, "type", VariantType::OBJECT);
+    check_property(&property, "hint", PropertyHint::RESOURCE_TYPE);
     check_property(&property, "hint_string", "NewNameCustomResource");
-    check_property(&property, "usage", PropertyUsageFlags::DEFAULT.ord());
+    check_property(&property, "usage", PropertyUsageFlags::DEFAULT);
 
     class.free();
 }
@@ -551,9 +551,9 @@ fn override_export() {
         .find(|c| c.get_or_nil("name") == "resource".to_variant())
         .unwrap();
 
-    check_property(&property, "hint", PropertyHint::GLOBAL_FILE.ord());
+    check_property(&property, "hint", PropertyHint::GLOBAL_FILE);
     check_property(&property, "hint_string", "SomethingRandom");
-    check_property(&property, "usage", PropertyUsageFlags::GROUP.ord());
+    check_property(&property, "usage", PropertyUsageFlags::GROUP);
 }
 
 fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
