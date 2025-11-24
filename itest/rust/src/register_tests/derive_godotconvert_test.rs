@@ -77,12 +77,12 @@ fn enum_stringy() {
     roundtrip(EnumStringy::E);
     roundtrip(EnumStringy::F);
 
-    assert_eq!(EnumStringy::A.to_godot(), "A".into());
-    assert_eq!(EnumStringy::B.to_godot(), "B".into());
-    assert_eq!(EnumStringy::C.to_godot(), "C".into());
-    assert_eq!(EnumStringy::D.to_godot(), "D".into());
-    assert_eq!(EnumStringy::E.to_godot(), "E".into());
-    assert_eq!(EnumStringy::F.to_godot(), "F".into());
+    assert_eq!(EnumStringy::A.to_godot(), "A");
+    assert_eq!(EnumStringy::B.to_godot(), "B");
+    assert_eq!(EnumStringy::C.to_godot(), "C");
+    assert_eq!(EnumStringy::D.to_godot(), "D");
+    assert_eq!(EnumStringy::E.to_godot(), "E");
+    assert_eq!(EnumStringy::F.to_godot(), "F");
 
     // Rust-side discriminants.
     assert_eq!(EnumStringy::A as isize, 0);

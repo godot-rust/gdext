@@ -39,8 +39,7 @@ fn utilities_str() {
 
     let empty = str(&[]);
 
-    // TODO: implement GString==&str operator. Then look for "...".into() patterns and replace them.
-    assert_eq!(concat, "12 is a true number".into());
+    assert_eq!(concat, "12 is a true number");
     assert_eq!(concat, godot_str!("{a}{b}{c}{d}"));
     assert_eq!(empty, GString::new());
 }
