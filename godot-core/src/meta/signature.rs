@@ -15,8 +15,8 @@ use sys::GodotFfi;
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, CallResult, ConvertError};
 use crate::meta::{
-    FromGodot, GodotConvert, GodotType, InParamTuple, MethodParamOrReturnInfo, OutParamTuple,
-    ParamTuple, ToGodot,
+    EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType, InParamTuple,
+    MethodParamOrReturnInfo, OutParamTuple, ParamTuple, ToGodot,
 };
 use crate::obj::{GodotClass, ValidatedObject};
 
@@ -49,14 +49,14 @@ impl<Params: ParamTuple, Ret: GodotConvert> Signature<Params, Ret> {
     }
 }
 
-/// In-calls:
+/// In-calls (varcall):
 ///
-/// Calls going from the Godot engine to Rust code.
+/// Calls going from the Godot engine to Rust code, using varcall (for user `#[func]` methods with varargs/defaults).
 #[deny(unsafe_op_in_unsafe_fn)]
 impl<Params, Ret> Signature<Params, Ret>
 where
     Params: InParamTuple,
-    Ret: ToGodot<Via: Clone>,
+    Ret: EngineToGodot<Via: Clone>,
 {
     /// Receive a varcall from Godot, and return the value in `ret` as a variant pointer.
     ///
@@ -124,9 +124,9 @@ where
 
 /// Out-calls:
 ///
-/// Calls going from the rust code to the Godot engine.
+/// Calls going from Rust code to the Godot engine.
 #[deny(unsafe_op_in_unsafe_fn)]
-impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
+impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Make a varcall to the Godot engine for a class method.
     ///
     /// # Safety
@@ -169,7 +169,7 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         });
 
         variant.and_then(|v| {
-            v.try_to::<Ret>()
+            Ret::engine_try_from_variant(&v)
                 .map_err(|e| CallError::failed_return_conversion::<Ret>(&call_ctx, e))
         })
     }
@@ -189,7 +189,10 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         method_sname_ptr: sys::GDExtensionConstStringNamePtr,
         object_ptr: sys::GDExtensionObjectPtr,
         args: Params,
-    ) -> Ret {
+    ) -> Ret
+    where
+        Ret: FromGodot, // FromGodot and not just EngineFromGodot, because script-virtual functions are user-defined.
+    {
         // Assumes that caller has previously checked existence of a virtual method.
 
         let call_ctx = CallContext::outbound(class_name, method_name);
@@ -380,7 +383,7 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
         });
 
         Ret::Via::try_from_ffi(ffi)
-            .and_then(Ret::try_from_godot)
+            .and_then(Ret::engine_try_from_godot)
             .unwrap_or_else(|err| return_error::<Ret>(call_ctx, err))
     }
 }
@@ -391,12 +394,12 @@ impl<Params: OutParamTuple, Ret: FromGodot> Signature<Params, Ret> {
 /// - `ret` must be a pointer to an initialized `Variant`.
 /// - It must be safe to write a `Variant` once to `ret`.
 /// - It must be safe to write a `sys::GDExtensionCallError` once to `err`.
-unsafe fn varcall_return<R: ToGodot>(
+unsafe fn varcall_return<R: EngineToGodot>(
     ret_val: R,
     ret: sys::GDExtensionVariantPtr,
     err: *mut sys::GDExtensionCallError,
 ) {
-    let ret_variant = ret_val.to_variant();
+    let ret_variant = ret_val.engine_to_variant();
     *(ret as *mut Variant) = ret_variant;
     (*err).error = sys::GDEXTENSION_CALL_OK;
 }
@@ -423,14 +426,14 @@ pub(crate) unsafe fn varcall_return_checked<R: ToGodot>(
 /// # Safety
 /// `ret_val`, `ret`, and `call_type` must follow the safety requirements as laid out in
 /// [`GodotFuncMarshal::try_return`](sys::GodotFuncMarshal::try_return).
-unsafe fn ptrcall_return<R: ToGodot<Via: Clone>>(
+unsafe fn ptrcall_return<R: EngineToGodot<Via: Clone>>(
     ret_val: R,
     ret: sys::GDExtensionTypePtr,
     _call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) {
-    // Needs a value (no ref) to be moved; can't use to_godot() + to_ffi().
-    let val = ret_val.to_godot_owned();
+    // Needs a value (no ref) to be moved; can't use engine_to_godot() + to_ffi().
+    let val = ret_val.engine_to_godot_owned();
     let ffi = val.into_ffi();
 
     ffi.move_return_ptr(ret, call_type);

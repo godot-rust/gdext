@@ -318,10 +318,10 @@ fn make_forwarding_closure(
 
     let instance_decl = match &signature_info.receiver_type {
         ReceiverType::Ref => quote! {
-            let instance = ::godot::private::Storage::get(storage);
+            let __gdext_self = ::godot::private::Storage::get(storage);
         },
         ReceiverType::Mut => quote! {
-            let mut instance = ::godot::private::Storage::get_mut(storage);
+            let mut __gdext_self = ::godot::private::Storage::get_mut(storage);
         },
         _ => quote! {},
     };
@@ -333,7 +333,7 @@ fn make_forwarding_closure(
                 // In case of GdSelf receiver use instance only to call the before_method.
                 quote! { ::godot::private::Storage::get_mut(storage).#before_method(); }
             } else {
-                quote! { instance.#before_method(); }
+                quote! { __gdext_self.#before_method(); }
             }
         }
         BeforeKind::Without => TokenStream::new(),
@@ -354,8 +354,8 @@ fn make_forwarding_closure(
                 // Virtual methods.
 
                 let instance_ref = match signature_info.receiver_type {
-                    ReceiverType::Ref => quote! { &instance },
-                    ReceiverType::Mut => quote! { &mut instance },
+                    ReceiverType::Ref => quote! { &__gdext_self },
+                    ReceiverType::Mut => quote! { &mut __gdext_self },
                     _ => unreachable!("unexpected receiver type"), // checked above.
                 };
 
@@ -379,7 +379,7 @@ fn make_forwarding_closure(
 
                 sig_tuple_annotation = TokenStream::new();
                 method_call = quote! {
-                    instance.#method_name( #(#params),* )
+                    __gdext_self.#method_name( #(#params),* )
                 };
             };
 

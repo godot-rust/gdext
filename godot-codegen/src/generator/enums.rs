@@ -127,8 +127,10 @@ pub fn make_enum_definition_with(
 
             impl crate::meta::FromGodot for #name {
                 fn try_from_godot(via: Self::Via) -> std::result::Result<Self, crate::meta::error::ConvertError> {
+                    // Pass i32/u64 enum/bitfield as i64 on the FFI layer. Only necessary for bitfields (u64).
+                    // Bitfields are cast to i64 for FFI, then reinterpreted in C++ as uint64_t.
                     <Self as #engine_trait>::try_from_ord(via)
-                        .ok_or_else(|| crate::meta::error::FromGodotError::InvalidEnum.into_error(via))
+                        .ok_or_else(|| crate::meta::error::FromGodotError::InvalidEnum.into_error(via as i64))
                 }
             }
         }

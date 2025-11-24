@@ -9,6 +9,7 @@
 // Functionality is only tested on a superficial level (to make sure general FFI mechanisms work).
 
 use godot::builtin::inner::InnerColor;
+use godot::classes::file_access::ModeFlags;
 use godot::classes::rendering_server::PrimitiveType;
 use godot::classes::{FileAccess, HttpRequest, IHttpRequest, RenderingServer};
 use godot::prelude::*;
@@ -83,15 +84,57 @@ fn __array_return_types() {
 fn __array_param_types() {
     let mut server = RenderingServer::singleton();
 
-    let arrays: AnyArray = varray![].into_any();
+    let arrays: VarArray = varray![];
     server.mesh_add_surface_from_arrays(Rid::Invalid, PrimitiveType::LINES, &arrays);
 
-    let arrays: Array<GString> = array![];
+    let arrays: VarArray = varray![];
     server.mesh_add_surface_from_arrays(Rid::Invalid, PrimitiveType::LINES, &arrays);
 
     let arrays: VarArray = varray![];
     server.mesh_add_surface_from_arrays(Rid::Invalid, PrimitiveType::LINES, &arrays);
 }
+
+// Test that u64 works as a return type from engine APIs (after removing it from ToGodot/FromGodot). FileAccess::get_length() returns u64.
+#[itest]
+fn u64_in_engine_api_return() {
+    let file = FileAccess::open("res://itest.gdextension", ModeFlags::READ)
+        .expect("Failed to open `itest.gdextension` file");
+
+    let length: u64 = file.get_length();
+    assert!(length > 0);
+}
+
+// Test u64 FFI round-trip via FileAccess::store_64/get_64().
+// Verifies that u64 bit patterns are preserved across the FFI boundary.
+#[itest]
+#[cfg(since_api = "4.4")] // FileAccess::create_temp() API.
+fn u64_fileaccess_roundtrip() {
+    let i64_max = i64::MAX as u64;
+
+    // Empty prefix + extension (default values) are buggy before Godot 4.6: https://github.com/godotengine/godot/pull/109843
+    let mut file = FileAccess::create_temp_ex(ModeFlags::WRITE_READ)
+        .prefix("itest")
+        .extension(".tmp")
+        .done()
+        .expect("Failed to create temporary file");
+
+    file.store_64(0);
+    file.store_64(1);
+    file.store_64(i64_max);
+    file.store_64(i64_max + 1);
+    file.store_64(u64::MAX);
+
+    file.seek(0);
+
+    assert_eq!(file.get_64(), 0);
+    assert_eq!(file.get_64(), 1);
+    assert_eq!(file.get_64(), i64_max);
+    assert_eq!(file.get_64(), i64_max + 1);
+    assert_eq!(file.get_64(), u64::MAX);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Class definitions
 
 #[derive(GodotClass)]
 #[class(base=HttpRequest)] // test a base class that is renamed in Godot

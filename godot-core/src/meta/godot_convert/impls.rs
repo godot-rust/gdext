@@ -9,7 +9,7 @@ use godot_ffi as sys;
 
 use crate::builtin::{Array, Variant};
 use crate::meta;
-use crate::meta::error::{ConvertError, ErrorKind, FromFfiError, FromVariantError};
+use crate::meta::error::{ConvertError, ErrorKind, FromFfiError};
 use crate::meta::{
     ArrayElement, ClassId, FromGodot, GodotConvert, GodotNullableFfi, GodotType, PropertyHintInfo,
     PropertyInfo, ToGodot,
@@ -331,47 +331,46 @@ impl GodotType for u64 {
     }
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
-        // Ok(ffi as u64)
-        Self::try_from(ffi).map_err(|_rust_err| FromFfiError::U64.into_error(ffi))
+        Ok(ffi as u64)
     }
 
     impl_godot_scalar!(@shared_fns; i64, sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64);
 }
 
+/// Test that `u64` does not implement `ToGodot/FromGodot`.
+///
+/// The impls are not provided since `u64` is not a natively supported type in GDScript (e.g. cannot be stored in a variant without altering the
+/// value). So `#[func]` does not support it. However, engine APIs may still need it, so there is codegen/macro support.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// let value: u64 = 42;
+/// let variant = value.to_variant();  // Error: u64 does not implement ToGodot
+/// ```
 impl GodotConvert for u64 {
     type Via = u64;
 }
 
-impl ToGodot for u64 {
+// u64 implements internal-only conversion traits for use in engine APIs and virtual methods.
+impl meta::EngineToGodot for u64 {
     type Pass = meta::ByValue;
 
-    fn to_godot(&self) -> Self::Via {
+    fn engine_to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
         *self
     }
 
-    fn to_variant(&self) -> Variant {
-        // TODO panic doesn't fit the trait's infallibility too well; maybe in the future try_to_godot/try_to_variant() methods are possible.
-        i64::try_from(*self)
-            .map(|v| v.to_variant())
-            .unwrap_or_else(|_| {
-                panic!("to_variant(): u64 value {self} is not representable inside Variant, which can only store i64 integers")
-            })
+    fn engine_to_variant(&self) -> Variant {
+        Variant::from(*self as i64) // Treat as i64.
     }
 }
 
-impl FromGodot for u64 {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+impl meta::EngineFromGodot for u64 {
+    fn engine_try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         Ok(via)
     }
 
-    fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-        // Fail for values that are not representable as u64.
-        let value = variant.try_to::<i64>()?;
-
-        u64::try_from(value).map_err(|_rust_err| {
-            // TODO maybe use better error enumerator
-            FromVariantError::BadValue.into_error(value)
-        })
+    fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        variant.try_to::<i64>().map(|i| i as u64)
     }
 }
 
