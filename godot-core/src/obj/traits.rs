@@ -36,7 +36,7 @@ where
 
     /// Globally unique class ID, linked to the name under which the class is registered in Godot.
     ///
-    /// The name may deviate from the Rust struct name: `HttpRequest::class_id().as_str() == "HTTPRequest"`.
+    /// The name may deviate from the Rust struct name: `HttpRequest::class_id().to_cow_str() == "HTTPRequest"`.
     fn class_id() -> ClassId;
 
     #[deprecated = "Renamed to `class_id()`"]
