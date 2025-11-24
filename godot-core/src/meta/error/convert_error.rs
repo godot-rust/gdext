@@ -277,7 +277,6 @@ pub(crate) enum FromFfiError {
     U16,
     I32,
     U32,
-    U64,
 }
 
 impl FromFfiError {
@@ -302,7 +301,6 @@ impl fmt::Display for FromFfiError {
             Self::U16 => "u16",
             Self::I32 => "i32",
             Self::U32 => "u32",
-            Self::U64 => "u64",
         };
 
         write!(f, "`{target}` cannot store the given value")
@@ -317,15 +315,15 @@ pub(crate) enum FromVariantError {
         actual: VariantType,
     },
 
-    /// Value cannot be represented in target type's domain.
-    BadValue,
-
     WrongClass {
         expected: ClassId,
     },
 
     /// Variant holds an object which is no longer alive.
     DeadObject,
+    //
+    // BadValue: Value cannot be represented in target type's domain.
+    // Used in the past for types like u64, with fallible FromVariant.
 }
 
 impl FromVariantError {
@@ -344,7 +342,6 @@ impl fmt::Display for FromVariantError {
                 // Note: wording is the same as in CallError::failed_param_conversion_engine()
                 write!(f, "cannot convert from {actual:?} to {expected:?}")
             }
-            Self::BadValue => write!(f, "value cannot be represented in target type's domain"),
             Self::WrongClass { expected } => {
                 write!(f, "cannot convert to class {expected}")
             }

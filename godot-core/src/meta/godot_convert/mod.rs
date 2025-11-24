@@ -143,6 +143,83 @@ pub trait FromGodot: Sized + GodotConvert {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Engine conversion traits (for APIs and virtual methods, not user-facing #[func])
+
+/// Engine-internal variant of [`ToGodot`], used for engine APIs and virtual methods.
+///
+/// This trait exists to support types like `u64` that work in engine contexts (backed by C++ `uint64_t`), but cannot be used in user-facing
+/// `#[func]` methods (as they don't fit in GDScript/Variant, which can only store `i64`).
+///
+/// On the FFI level, `u64` are passed as `i64` (same bit pattern). The C++ side reinterprets the bits again as `uint64_t` in engine APIs
+/// and bitfields. User-defined GDScript code generally does not get into contact with `i64` (except for bitfields).
+///
+/// For internal use only; see [`ToGodot`] for user-facing conversions.
+#[doc(hidden)]
+pub trait EngineToGodot: Sized + GodotConvert {
+    /// Whether arguments of this type are passed by value or by reference.
+    type Pass: ArgPassing;
+
+    /// Converts this type to Godot representation, optimizing for zero-copy when possible.
+    fn engine_to_godot(&self) -> ToArg<'_, Self::Via, Self::Pass>;
+
+    /// Converts this type to owned Godot representation.
+    fn engine_to_godot_owned(&self) -> Self::Via
+    where
+        Self::Via: Clone,
+    {
+        Self::Pass::ref_to_owned_via(self)
+    }
+
+    fn engine_to_variant(&self) -> Variant;
+}
+
+// Blanket implementations: all user-facing types work in engine contexts.
+impl<T: ToGodot> EngineToGodot for T {
+    type Pass = T::Pass;
+
+    fn engine_to_godot(&self) -> ToArg<'_, Self::Via, Self::Pass> {
+        <T as ToGodot>::to_godot(self)
+    }
+
+    fn engine_to_godot_owned(&self) -> Self::Via
+    where
+        Self::Via: Clone,
+    {
+        <T as ToGodot>::to_godot_owned(self)
+    }
+
+    fn engine_to_variant(&self) -> Variant {
+        <T as ToGodot>::to_variant(self)
+    }
+}
+
+/// Engine-internal variant of [`FromGodot`], used for engine APIs and virtual methods.
+///
+/// See [`EngineToGodot`] for rationale.
+///
+/// For internal use only; see [`FromGodot`] for user-facing conversions.
+#[doc(hidden)]
+pub trait EngineFromGodot: Sized + GodotConvert {
+    /// Converts the Godot representation to this type, returning `Err` on failure.
+    fn engine_try_from_godot(via: Self::Via) -> Result<Self, ConvertError>;
+
+    fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError>;
+}
+
+impl<T: FromGodot> EngineFromGodot for T {
+    fn engine_try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        <T as FromGodot>::try_from_godot(via)
+    }
+
+    fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        <T as FromGodot>::try_from_variant(variant)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Impls
+
 #[macro_export]
 macro_rules! impl_godot_as_self {
     ($T:ty: $Passing:ident) => {
