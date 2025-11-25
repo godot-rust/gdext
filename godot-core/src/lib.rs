@@ -72,3 +72,33 @@ pub mod private;
 /// Re-export logging macro.
 #[doc(hidden)]
 pub use godot_ffi::out;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Tests for code that must not compile.
+///
+/// To add a new one, simply add a new `__*` named function with a `compile_fail` doc attribute.
+mod no_compile_tests {
+    /// With Godot 4.6+, functions with required parameters accept `Gd<T>` instead of `Option<Gd<T>>`.
+    ///
+    /// ```compile_fail
+    /// use godot::prelude::*;
+    /// let mut node: Gd<Node> = unimplemented!();
+    /// let option = Some(node.clone());
+    /// let option: Option<&Gd<Node>> = option.as_ref();
+    ///
+    /// // Following must not compile since `add_child` accepts only required (non-null) arguments.
+    /// node.add_child(option);
+    /// ```
+    ///
+    /// Sanity check that without the last line, it _does_ compile. This catches any regressions in the previous statements that would not
+    /// be caught by the above `compile_fail` test.
+    /// ```no_run
+    /// use godot::prelude::*;
+    /// let mut node: Gd<Node> = unimplemented!();
+    /// let option = Some(node.clone());
+    /// let option: Option<&Gd<Node>> = option.as_ref();
+    /// ```
+    #[cfg(since_api = "4.6")]
+    fn __required_param_must_not_take_option() {}
+}

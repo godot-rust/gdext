@@ -251,7 +251,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             arg_passing: ctx.get_builtin_arg_passing(full_ty),
         }
     } else {
-        let is_nullable = if cfg!(feature = "experimental-required-objs") {
+        let is_nullable = if cfg!(since_api = "4.6") {
             full_ty.meta.as_ref().is_none_or(|m| m != "required")
         } else {
             true
