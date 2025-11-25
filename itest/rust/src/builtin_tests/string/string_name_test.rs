@@ -9,6 +9,8 @@ use std::collections::HashSet;
 
 use godot::builtin::{static_sname, Encoding, GString, NodePath, StringName};
 
+#[cfg(since_api = "4.5")]
+use super::string_test_macros::{APPLE_CHARS, APPLE_STR};
 use crate::framework::{assert_eq_self, itest};
 
 #[itest]
@@ -186,16 +188,8 @@ fn string_name_chars() {
     assert_eq!(name.chars(), empty_char_slice);
 
     // Unicode characters including emoji
-    let name = StringName::from("ö🍎A💡");
-    assert_eq!(
-        name.chars(),
-        &[
-            char::from_u32(0x00F6).unwrap(),  // ö
-            char::from_u32(0x1F34E).unwrap(), // 🍎
-            char::from(65),                   // A
-            char::from_u32(0x1F4A1).unwrap(), // 💡
-        ]
-    );
+    let name = StringName::from(APPLE_STR);
+    assert_eq!(name.chars(), APPLE_CHARS);
 
     // Verify it matches GString::chars()
     let gstring = GString::from(&name);
