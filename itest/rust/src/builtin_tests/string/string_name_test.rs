@@ -177,6 +177,36 @@ fn string_name_with_null() {
     }
 }
 
+#[cfg(since_api = "4.5")]
+#[itest]
+fn string_name_chars() {
+    // Empty string edge case (regression test similar to GString)
+    let name = StringName::default();
+    let empty_char_slice: &[char] = &[];
+    assert_eq!(name.chars(), empty_char_slice);
+
+    // Unicode characters including emoji
+    let name = StringName::from("ö🍎A💡");
+    assert_eq!(
+        name.chars(),
+        &[
+            char::from_u32(0x00F6).unwrap(),  // ö
+            char::from_u32(0x1F34E).unwrap(), // 🍎
+            char::from(65),                   // A
+            char::from_u32(0x1F4A1).unwrap(), // 💡
+        ]
+    );
+
+    // Verify it matches GString::chars()
+    let gstring = GString::from(&name);
+    assert_eq!(name.chars(), gstring.chars());
+
+    // Verify multiple calls work correctly
+    let chars1 = name.chars();
+    let chars2 = name.chars();
+    assert_eq!(chars1, chars2);
+}
+
 // Byte and C-string conversions.
 crate::generate_string_bytes_and_cstr_tests!(
     builtin: StringName,

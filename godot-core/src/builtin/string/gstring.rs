@@ -172,18 +172,31 @@ impl GString {
     pub fn chars(&self) -> &[char] {
         // SAFETY: Since 4.1, Godot ensures valid UTF-32, making interpreting as char slice safe.
         // See https://github.com/godotengine/godot/pull/74760.
-        unsafe {
-            let s = self.string_sys();
-            let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
-            let ptr = interface_fn!(string_operator_index_const)(s, 0);
+        let (ptr, len) = self.raw_slice();
 
-            // Even when len == 0, from_raw_parts requires ptr != null.
-            if ptr.is_null() {
-                return &[];
-            }
-
-            std::slice::from_raw_parts(ptr as *const char, len as usize)
+        // Even when len == 0, from_raw_parts requires ptr != null.
+        if ptr.is_null() {
+            return &[];
         }
+
+        unsafe { std::slice::from_raw_parts(ptr, len) }
+    }
+
+    /// Returns the raw pointer and length of the internal UTF-32 character array.
+    ///
+    /// This is used by `StringName::chars()` in Godot 4.5+ where the buffer is shared via reference counting.
+    /// Since Godot 4.1, the buffer contains valid UTF-32.
+    pub(crate) fn raw_slice(&self) -> (*const char, usize) {
+        let s = self.string_sys();
+
+        let len: sys::GDExtensionInt;
+        let ptr: *const sys::char32_t;
+        unsafe {
+            len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
+            ptr = interface_fn!(string_operator_index_const)(s, 0);
+        }
+
+        (ptr.cast(), len as usize)
     }
 
     ffi_methods! {
