@@ -131,12 +131,6 @@
 //!   Access to `godot::classes` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
 //!   If you opt in to this feature, expect breaking changes at compile and runtime.<br><br>
 //!
-//! * **`experimental-required-objs`**
-//!
-//!   Enables _required_ objects in Godot function signatures. When GDExtension advertises parameters or return value as required (non-null), the
-//!   generated code will use `Gd<T>` instead of `Option<Gd<T>>` for type safety. This will undergo many breaking changes as the API evolves;
-//!   we are explicitly excluding this from any SemVer guarantees. Needs Godot 4.6-dev. See <https://github.com/godot-rust/gdext/pull/1383>.
-//!
 //! _Rust functionality toggles:_
 //!
 //! * **`lazy-function-tables`**
@@ -279,19 +273,3 @@ pub use godot_core::private;
 
 /// Often-imported symbols.
 pub mod prelude;
-
-/// Tests for code that must not compile.
-// Do not add #[cfg(test)], it seems to break `cargo test -p godot --features godot/api-custom,godot/experimental-required-objs`.
-mod no_compile_tests {
-    /// ```compile_fail
-    /// use godot::prelude::*;
-    /// let mut node: Gd<Node> = todo!();
-    /// let option = Some(node.clone());
-    /// let option: Option<&Gd<Node>> = option.as_ref();
-    ///
-    /// // Following must not compile since `add_child` accepts only required (non-null) arguments. Comment-out for sanity check.
-    /// node.add_child(option);
-    /// ```
-    #[cfg(feature = "experimental-required-objs")]
-    fn __test_invalid_patterns() {}
-}

@@ -75,9 +75,8 @@ fn node_call_group(ctx: &TestContext) {
     assert!(!node.has_meta("something"));
 }
 
-// Experimental required parameter/return value.
-/* TODO(v0.5): enable once https://github.com/godot-rust/gdext/pull/1383 is merged.
-#[cfg(all(feature = "codegen-full-experimental", since_api = "4.6"))]
+// Required parameter/return value.
+#[cfg(all(feature = "codegen-full", since_api = "4.6"))]
 #[itest]
 fn node_required_param_return() {
     use godot::classes::Tween;
@@ -97,4 +96,3 @@ fn node_required_param_return() {
 
     parent.free();
 }
-*/
