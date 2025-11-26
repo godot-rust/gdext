@@ -414,14 +414,11 @@ fn derive_property() {
 fn enum_var_hint() {
     let int_prop = <Behavior as Var>::var_hint();
     assert_eq!(int_prop.hint, PropertyHint::ENUM);
-    assert_eq!(
-        int_prop.hint_string,
-        "Peaceful:0,Defend:1,Aggressive:7".into()
-    );
+    assert_eq!(int_prop.hint_string, "Peaceful:0,Defend:1,Aggressive:7");
 
     let str_prop = <StrBehavior as Var>::var_hint();
     assert_eq!(str_prop.hint, PropertyHint::ENUM);
-    assert_eq!(str_prop.hint_string, "Peaceful,Defend,Aggressive".into());
+    assert_eq!(str_prop.hint_string, "Peaceful,Defend,Aggressive");
 }
 
 #[derive(GodotClass)]

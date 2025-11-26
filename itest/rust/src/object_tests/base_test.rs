@@ -176,7 +176,7 @@ fn base_refcounted_weak_reference() {
 
         // Call an API to ensure Base is functional.
         let class_name = base_guard.get_class();
-        assert_eq!(class_name, "RefcBased".into());
+        assert_eq!(class_name, "RefcBased");
     }
 
     let final_refcount = obj.get_reference_count();
