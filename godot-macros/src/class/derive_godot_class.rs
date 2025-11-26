@@ -41,7 +41,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let mut fields = parse_fields(named_fields, struct_cfg.init_strategy)?;
 
     if struct_cfg.is_editor_plugin() {
-        modifiers.push(quote! { with_editor_plugin })
+        modifiers.push(quote! { with_editor_plugin() })
     }
 
     let mut deprecations = std::mem::take(&mut struct_cfg.deprecations);
@@ -58,7 +58,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class_name_allocation = quote! { ClassId::__alloc_next_unicode(#class_name_str) };
 
     if struct_cfg.is_internal {
-        modifiers.push(quote! { with_internal })
+        modifiers.push(quote! { with_internal() })
     }
     let base_ty = &struct_cfg.base_ty;
     let prv = quote! { ::godot::private };
@@ -113,7 +113,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     match struct_cfg.init_strategy {
         InitStrategy::Generated => {
             godot_init_impl = make_godot_init_impl(class_name, &fields);
-            modifiers.push(quote! { with_generated::<#class_name> });
+            modifiers.push(quote! { with_generated::<#class_name>() });
         }
         InitStrategy::UserDefined => {
             let fn_name = format_ident!("class_{}_must_have_an_init_method", class_name);
@@ -131,19 +131,24 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
             // Workaround for https://github.com/godot-rust/gdext/issues/874 before Godot 4.5.
             #[cfg(before_api = "4.5")]
-            modifiers.push(quote! { with_generated_no_default::<#class_name> });
+            modifiers.push(quote! { with_generated_no_default::<#class_name>() });
         }
     };
     if is_instantiable {
-        modifiers.push(quote! { with_instantiable });
+        modifiers.push(quote! { with_instantiable() });
     }
 
     if has_default_virtual {
-        modifiers.push(quote! { with_default_get_virtual_fn::<#class_name> });
+        modifiers.push(quote! { with_default_get_virtual_fn::<#class_name>() });
     }
 
     if struct_cfg.is_tool {
-        modifiers.push(quote! { with_tool })
+        modifiers.push(quote! { with_tool() })
+    }
+
+    #[cfg(since_api = "4.4")]
+    if let Some(icon) = &struct_cfg.icon {
+        modifiers.push(quote! { with_icon(#icon) })
     }
 
     // Declares a "funcs collection" struct that, for holds a constant for each #[func].
@@ -198,8 +203,9 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #struct_docs_registration
         ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
             #prv::PluginItem::Struct(
-                #prv::Struct::new::<#class_name>()#(.#modifiers())*
+                #prv::Struct::new::<#class_name>()#(.#modifiers)*
             )
+
         ));
 
         #prv::class_macros::#inherits_macro_ident!(#class_name);
@@ -303,6 +309,7 @@ struct ClassAttributes {
     is_tool: bool,
     is_internal: bool,
     rename: Option<Ident>,
+    icon: Option<TokenStream>,
     deprecations: Vec<TokenStream>,
 }
 
@@ -510,6 +517,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     let mut is_tool = false;
     let mut is_internal = false;
     let mut rename: Option<Ident> = None;
+    let mut icon: Option<TokenStream> = None;
     let mut deprecations = vec![];
 
     // #[class] attribute on struct
@@ -541,6 +549,11 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 
         // #[class(rename = NewName)]
         rename = parser.handle_ident("rename")?;
+
+        // #[class(icon = "PATH")]
+        if let Some(expr) = parser.handle_expr("icon")? {
+            icon = Some(expr);
+        }
 
         // #[class(internal)]
         // Named "internal" following Godot terminology: https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/class_db.hpp#L327
@@ -583,6 +596,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         is_tool,
         is_internal,
         rename,
+        icon,
         deprecations,
     })
 }
