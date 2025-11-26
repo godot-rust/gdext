@@ -9,6 +9,8 @@ use std::collections::HashSet;
 
 use godot::builtin::{static_sname, Encoding, GString, NodePath, StringName};
 
+#[cfg(since_api = "4.5")]
+use super::string_test_macros::{APPLE_CHARS, APPLE_STR};
 use crate::framework::{assert_eq_self, itest};
 
 #[itest]
@@ -175,6 +177,28 @@ fn string_name_with_null() {
 
         assert_eq!(left, right);
     }
+}
+
+#[cfg(since_api = "4.5")]
+#[itest]
+fn string_name_chars() {
+    // Empty string edge case (regression test similar to GString)
+    let name = StringName::default();
+    let empty_char_slice: &[char] = &[];
+    assert_eq!(name.chars(), empty_char_slice);
+
+    // Unicode characters including emoji
+    let name = StringName::from(APPLE_STR);
+    assert_eq!(name.chars(), APPLE_CHARS);
+
+    // Verify it matches GString::chars()
+    let gstring = GString::from(&name);
+    assert_eq!(name.chars(), gstring.chars());
+
+    // Verify multiple calls work correctly
+    let chars1 = name.chars();
+    let chars2 = name.chars();
+    assert_eq!(chars1, chars2);
 }
 
 // Byte and C-string conversions.

@@ -179,6 +179,29 @@ impl StringName {
         TransientStringNameOrd(self)
     }
 
+    /// Gets the UTF-32 character slice from a `StringName`.
+    ///
+    /// # Compatibility
+    /// This method is only available for Godot 4.5 and later, where `StringName` to `GString` conversions preserve the
+    /// underlying buffer pointer via reference counting.
+    #[cfg(since_api = "4.5")]
+    pub fn chars(&self) -> &[char] {
+        let gstring = GString::from(self);
+        let (ptr, len) = gstring.raw_slice();
+
+        // Even when len == 0, from_raw_parts requires ptr != null.
+        if ptr.is_null() {
+            return &[];
+        }
+
+        // SAFETY: In Godot 4.5+, StringName always uses String (GString) as backing storage internally, see
+        // https://github.com/godotengine/godot/pull/104985.
+        // The conversion preserves the original buffer pointer via reference counting. As long as the GString is not modified,
+        // the buffer remains valid and is kept alive by the StringName's reference count, even after the temporary GString drops.
+        // The returned slice's lifetime is tied to &self, which is correct since self keeps the buffer alive.
+        unsafe { std::slice::from_raw_parts(ptr, len) }
+    }
+
     ffi_methods! {
         type sys::GDExtensionStringNamePtr = *mut Opaque;
 

@@ -9,6 +9,7 @@ use std::collections::HashSet;
 
 use godot::builtin::{Encoding, GString, PackedStringArray};
 
+use super::string_test_macros::{APPLE_CHARS, APPLE_STR};
 use crate::framework::{expect_panic_or_nothing, itest};
 
 // TODO use tests from godot-rust/gdnative
@@ -68,27 +69,19 @@ fn string_chars() {
     assert_eq!(string.chars(), empty_char_slice);
     assert_eq!(string, GString::from(empty_char_slice));
 
-    let string = String::from("ö🍎A💡");
+    let string = String::from(APPLE_STR);
     let string_chars: Vec<char> = string.chars().collect();
     let gstring = GString::from(&string);
 
     assert_eq!(gstring.chars(), string_chars.as_slice());
-    assert_eq!(
-        gstring.chars(),
-        &[
-            char::from_u32(0x00F6).unwrap(),
-            char::from_u32(0x1F34E).unwrap(),
-            char::from(65),
-            char::from_u32(0x1F4A1).unwrap(),
-        ]
-    );
+    assert_eq!(gstring.chars(), APPLE_CHARS);
 
     assert_eq!(gstring, GString::from(string_chars.as_slice()));
 }
 
 #[itest]
 fn string_unicode_at() {
-    let s = GString::from("ö🍎A💡");
+    let s = GString::from(APPLE_STR);
     assert_eq!(s.unicode_at(0), 'ö');
     assert_eq!(s.unicode_at(1), '🍎');
     assert_eq!(s.unicode_at(2), 'A');

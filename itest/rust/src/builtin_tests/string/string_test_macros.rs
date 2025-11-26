@@ -7,6 +7,17 @@
 
 //! Byte and C-string conversions.
 
+/// Test string containing Unicode and emoji characters.
+pub(super) const APPLE_STR: &str = "ö🍎A💡";
+
+/// Expected UTF-32 character array for `APPLE_STR`.
+pub(super) const APPLE_CHARS: &[char] = &[
+    '\u{00F6}',  // ö
+    '\u{1F34E}', // 🍎
+    'A',
+    '\u{1F4A1}', // 💡
+];
+
 #[macro_export]
 macro_rules! generate_string_bytes_and_cstr_tests {
     (
