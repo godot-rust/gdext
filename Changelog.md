@@ -10,10 +10,47 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042)
+- [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.4.3](https://docs.rs/godot/0.4.3)
+
+_26 November 2025_
+
+### 🌻 Features
+
+- Safeguard levels: fine-tune the amount of runtime validations ([#1278](https://github.com/godot-rust/gdext/pull/1278))
+- Support `rename` for `#[var]` ([#1388](https://github.com/godot-rust/gdext/pull/1388))
+- Add `Array::functional_ops()` ([#1393](https://github.com/godot-rust/gdext/pull/1393))
+- Default parameters via `#[opt(default = ...)]` syntax ([#1396](https://github.com/godot-rust/gdext/pull/1396))
+
+### 📈 Performance
+
+- Only provide function name to `CallContext` in debug ([#1331](https://github.com/godot-rust/gdext/pull/1331))
+
+### 🧹 Quality of life
+
+- Failed ptrcalls: instead of panic, print error + return default ([#1387](https://github.com/godot-rust/gdext/pull/1387))
+- `#[bench(manual)]` for more control, including setup ([#1390](https://github.com/godot-rust/gdext/pull/1390))
+- Add `GodotImmutable` to constrain `#[opt(default)]` types ([#1406](https://github.com/godot-rust/gdext/pull/1406))
+- Update `runtime_version` to use non-deprecated `get_godot_version` pointer ([#1394](https://github.com/godot-rust/gdext/pull/1394))
+- Start phasing out `#[cfg(debug_assertions)]` in favor of safeguards ([#1395](https://github.com/godot-rust/gdext/pull/1395))
+- Remove macOS x86 (Intel) from CI ([#1402](https://github.com/godot-rust/gdext/pull/1402))
+- Remove unnecessary `.ord()` calls for enums/bitfields ([#1414](https://github.com/godot-rust/gdext/pull/1414))
+- Remove `experimental-required-objs` Cargo feature ([#1416](https://github.com/godot-rust/gdext/pull/1416))
+- Various small cleanups ([#1386](https://github.com/godot-rust/gdext/pull/1386))
+
+### 🛠️ Bugfixes
+
+- Fix non-deterministic `register-docs` XML output ([#1391](https://github.com/godot-rust/gdext/pull/1391))
+- `__are_oneditor_fields_initalized` needs explicit usage of Singleton trait ([#1400](https://github.com/godot-rust/gdext/pull/1400))
+- Blocklist `max_align_t` from bindings generation ([#1401](https://github.com/godot-rust/gdext/pull/1401))
+- Prevent procedural macro hygiene issue with eager macros ([#1397](https://github.com/godot-rust/gdext/pull/1397))
+- Fix `get_godot_version2` unavailable on older builds ([#1403](https://github.com/godot-rust/gdext/pull/1403))
+- Temporarily disable `GString::find()` itest due to upstream bug ([#1411](https://github.com/godot-rust/gdext/pull/1411))
 
 
 ## [v0.4.2](https://docs.rs/godot/0.4.2)
