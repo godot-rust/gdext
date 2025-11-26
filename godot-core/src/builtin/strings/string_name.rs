@@ -347,6 +347,23 @@ impl_shared_string_api! {
     builtin_mod: string_name,
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Comparison with Rust strings
+
+// API design: see PartialEq for GString.
+impl PartialEq<&str> for StringName {
+    #[cfg(since_api = "4.5")]
+    fn eq(&self, other: &&str) -> bool {
+        self.chars().iter().copied().eq(other.chars())
+    }
+
+    // Polyfill for older Godot versions -- StringName->GString conversion still requires allocation in older versions.
+    #[cfg(before_api = "4.5")]
+    fn eq(&self, other: &&str) -> bool {
+        GString::from(self) == *other
+    }
+}
+
 impl fmt::Display for StringName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = GString::from(self);

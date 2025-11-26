@@ -152,7 +152,7 @@ func _get_thing():
         .collect::<VarArray>();
 
     // Ensure script has been parsed + compiled correctly.
-    assert_eq!(script.get_instance_base_type(), "VirtualScriptCalls".into());
+    assert_eq!(script.get_instance_base_type(), "VirtualScriptCalls");
     assert_eq!(
         methods,
         varray![

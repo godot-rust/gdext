@@ -712,10 +712,10 @@ func make_array() -> Array[CustomScriptForArrays]:
     let script = script.script().expect("script object should be alive");
     assert_eq!(script, gdscript.upcast());
     assert_eq!(script.get_name(), GString::new()); // Resource name.
-    assert_eq!(script.get_instance_base_type(), "RefCounted".into());
+    assert_eq!(script.get_instance_base_type(), "RefCounted");
 
     #[cfg(since_api = "4.3")]
-    assert_eq!(script.get_global_name(), "CustomScriptForArrays".into());
+    assert_eq!(script.get_global_name(), "CustomScriptForArrays");
 }
 
 // Test that proper type has been set&cached while creating new Array.
