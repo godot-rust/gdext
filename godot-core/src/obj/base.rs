@@ -5,14 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 use std::rc::Rc;
 
 use crate::builtin::Callable;
@@ -39,14 +39,14 @@ enum InitState {
     Script,
 }
 
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj, $state)
     };
 }
 
-#[cfg(not(safeguards_balanced))]
+#[cfg(not(safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_balanced))))]
 macro_rules! base_from_obj {
     ($obj:expr, $state:expr) => {
         Base::from_obj($obj)
@@ -83,7 +83,7 @@ pub struct Base<T: GodotClass> {
     /// Tracks the initialization state of this `Base<T>` in Debug mode.
     ///
     /// Rc allows to "copy-construct" the base from an existing one, while still affecting the user-instance through the original `Base<T>`.
-    #[cfg(safeguards_balanced)]
+    #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
     init_state: Rc<Cell<InitState>>,
 }
 
@@ -105,7 +105,7 @@ impl<T: GodotClass> Base<T> {
 
         Self {
             obj: ManuallyDrop::new(obj),
-            #[cfg(safeguards_balanced)]
+            #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
             init_state: Rc::clone(&base.init_state),
         }
     }
@@ -145,7 +145,7 @@ impl<T: GodotClass> Base<T> {
         base_from_obj!(obj, InitState::ObjectConstructing)
     }
 
-    #[cfg(safeguards_balanced)]
+    #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
     fn from_obj(obj: Gd<T>, init_state: InitState) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -153,7 +153,7 @@ impl<T: GodotClass> Base<T> {
         }
     }
 
-    #[cfg(not(safeguards_balanced))]
+    #[cfg(not(safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_balanced))))]
     fn from_obj(obj: Gd<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
@@ -280,14 +280,14 @@ impl<T: GodotClass> Base<T> {
     }
 
     // Internal use only, do not make public.
-    #[cfg(feature = "debug-log")]
+    #[cfg(feature = "debug-log")] #[cfg_attr(published_docs, doc(cfg(feature = "debug-log")))]
     pub(crate) fn debug_instance_id(&self) -> crate::obj::InstanceId {
         self.obj.instance_id()
     }
 
     /// Returns a passive reference to the base object, for use in script contexts only.
     pub(crate) fn to_script_passive(&self) -> PassiveGd<T> {
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         assert_eq!(
             self.init_state.get(),
             InitState::Script,
@@ -299,13 +299,13 @@ impl<T: GodotClass> Base<T> {
     }
 
     /// Returns `true` if this `Base<T>` is currently in the initializing state.
-    #[cfg(safeguards_balanced)]
+    #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
     fn is_initializing(&self) -> bool {
         self.init_state.get() == InitState::ObjectConstructing
     }
 
     /// Always returns `false` when balanced safeguards are disabled.
-    #[cfg(not(safeguards_balanced))]
+    #[cfg(not(safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_balanced))))]
     fn is_initializing(&self) -> bool {
         false
     }

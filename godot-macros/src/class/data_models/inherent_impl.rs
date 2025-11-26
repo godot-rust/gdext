@@ -110,9 +110,9 @@ pub fn transform_inherent_impl(
         meta.no_typed_signals,
     )?;
 
-    #[cfg(feature = "codegen-full")]
+    #[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
     let rpc_registrations = crate::class::make_rpc_registrations_fn(&class_name, &funcs);
-    #[cfg(not(feature = "codegen-full"))]
+    #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
     let rpc_registrations = TokenStream::new();
 
     let method_registrations: Vec<TokenStream> = funcs

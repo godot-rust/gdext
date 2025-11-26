@@ -309,7 +309,7 @@ mod godot_immutable_impls {
     unsafe impl GodotImmutable for PackedStringArray {}
     unsafe impl GodotImmutable for PackedVector2Array {}
     unsafe impl GodotImmutable for PackedVector3Array {}
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     unsafe impl GodotImmutable for PackedVector4Array {}
 
     unsafe impl<T> GodotImmutable for Array<T>

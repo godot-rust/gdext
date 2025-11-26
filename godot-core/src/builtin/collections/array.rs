@@ -207,7 +207,7 @@ impl_builtin_froms!(VariantArray;
     PackedVector3Array => array_from_packed_vector3_array,
 );
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl_builtin_froms!(VariantArray;
     PackedVector4Array => array_from_packed_vector4_array,
 );
@@ -971,7 +971,7 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Validates that all elements in this array can be converted to integers of type `T`.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     pub(crate) fn debug_validate_int_elements(&self) -> Result<(), ConvertError> {
         // SAFETY: every element is internally represented as Variant.
         let canonical_array = unsafe { self.assume_type_ref::<Variant>() };
@@ -993,7 +993,7 @@ impl<T: ArrayElement> Array<T> {
     }
 
     // No-op in Release. Avoids O(n) conversion checks, but still panics on access.
-    #[cfg(not(safeguards_strict))]
+    #[cfg(not(safeguards_strict))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_strict))))]
     pub(crate) fn debug_validate_int_elements(&self) -> Result<(), ConvertError> {
         Ok(())
     }
@@ -1678,7 +1678,7 @@ macro_rules! vslice {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use std::marker::PhantomData;
 

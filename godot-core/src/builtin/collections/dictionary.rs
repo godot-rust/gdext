@@ -427,7 +427,7 @@ impl Dictionary {
     /// In the astronomically rare case where another extension in Godot modifies a dictionary's key type (which godot-rust already cached as `Untyped`)
     /// via C function `dictionary_set_typed`, thus leading to incorrect cache values. Such bad practice of not typing dictionaries immediately on
     /// construction is not supported, and will not be checked in Release mode.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub fn key_element_type(&self) -> ElementType {
         ElementType::get_or_compute_cached(
             &self.cached_key_type,
@@ -447,7 +447,7 @@ impl Dictionary {
     /// In the astronomically rare case where another extension in Godot modifies a dictionary's value type (which godot-rust already cached as `Untyped`)
     /// via C function `dictionary_set_typed`, thus leading to incorrect cache values. Such bad practice of not typing dictionaries immediately on
     /// construction is not supported, and will not be checked in Release mode.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub fn value_element_type(&self) -> ElementType {
         ElementType::get_or_compute_cached(
             &self.cached_value_type,

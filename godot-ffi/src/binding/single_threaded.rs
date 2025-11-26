@@ -137,7 +137,7 @@ impl BindingStorage {
     fn ensure_main_thread() {
         // Check that we're on the main thread. Only enabled with balanced+ safeguards and, for Wasm, in threaded builds.
         // In wasm_nothreads, there's only one thread, so no check is needed.
-        #[cfg(all(safeguards_balanced, not(wasm_nothreads)))]
+        #[cfg(all(safeguards_balanced, not(wasm_nothreads)))] #[cfg_attr(published_docs, doc(cfg(all(safeguards_balanced, not(wasm_nothreads)))))]
         if !crate::is_main_thread() {
             // If a binding is accessed the first time, this will panic and start unwinding. It can then happen that during unwinding,
             // another FFI call happens (e.g. Godot destructor), which would cause immediate abort, swallowing the error message.
