@@ -282,7 +282,7 @@ fn dyn_gd_call_godot_method() {
     let mut node = foreign::NodeHealth::new_alloc().into_dyn::<dyn Health>();
 
     node.set_name("dyn-name!");
-    assert_eq!(node.get_name(), "dyn-name!".into());
+    assert_eq!(node.get_name(), "dyn-name!");
 
     node.free();
 }

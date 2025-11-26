@@ -228,7 +228,7 @@ where
 
     assert_eq!(a, global::Error::OK);
     assert_eq!(b, global::Error::OK);
-    assert_eq!(manual2.get_name(), "hello".into());
+    assert_eq!(manual2.get_name(), "hello");
     assert_eq!(refc2.bind().value, -123);
 
     manual2.free();

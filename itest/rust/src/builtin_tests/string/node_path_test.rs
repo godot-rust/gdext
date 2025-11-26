@@ -109,23 +109,23 @@ fn node_path_subpath() {
 #[itest]
 fn node_path_get_name() {
     let path = NodePath::from("../RigidBody2D/Sprite2D");
-    assert_eq!(path.get_name(0), "..".into());
-    assert_eq!(path.get_name(1), "RigidBody2D".into());
-    assert_eq!(path.get_name(2), "Sprite2D".into());
+    assert_eq!(path.get_name(0), "..");
+    assert_eq!(path.get_name(1), "RigidBody2D");
+    assert_eq!(path.get_name(2), "Sprite2D");
 
     expect_panic_or_nothing("NodePath::get_name() out of bounds", || {
-        assert_eq!(path.get_name(3), "".into());
+        assert_eq!(path.get_name(3), "");
     })
 }
 
 #[itest]
 fn node_path_get_subname() {
     let path = NodePath::from("Sprite2D:texture:resource_name");
-    assert_eq!(path.get_subname(0), "texture".into());
-    assert_eq!(path.get_subname(1), "resource_name".into());
+    assert_eq!(path.get_subname(0), "texture");
+    assert_eq!(path.get_subname(1), "resource_name");
 
     expect_panic_or_nothing("NodePath::get_subname() out of bounds", || {
-        assert_eq!(path.get_subname(2), "".into());
+        assert_eq!(path.get_subname(2), "");
     })
 }
 
