@@ -78,25 +78,13 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
     let godot_exports_impl = make_property_impl(class_name, &fields);
 
-    let godot_withbase_impl = if let Some(Field { name, ty, .. }) = &fields.base_field {
-        // Apply the span of the field's type so that errors show up on the field's type.
-        quote_spanned! { ty.span()=>
-            impl ::godot::obj::WithBaseField for #class_name {
-                fn to_gd(&self) -> ::godot::obj::Gd<#class_name> {
-                    // By not referencing the base field directly here we ensure that the user only gets one error when the base
-                    // field's type is wrong.
-                    let base = <#class_name as ::godot::obj::WithBaseField>::base_field(self);
+    let godot_withbase_impl = make_with_base_impl(&fields.base_field, class_name);
 
-                    base.__constructed_gd().cast()
-                }
-
-                fn base_field(&self) -> &::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base> {
-                    &self.#name
-                }
-            }
-        }
+    let (user_singleton_impl, singleton_init_level_const) = if struct_cfg.is_singleton {
+        modifiers.push(quote! { with_singleton::<#class_name> });
+        make_singleton_impl(class_name)
     } else {
-        TokenStream::new()
+        (TokenStream::new(), TokenStream::new())
     };
 
     let (user_class_impl, has_default_virtual) = make_user_class_impl(
@@ -164,6 +152,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
 
+            #singleton_init_level_const
+
             // Code duplicated in godot-codegen.
             fn class_id() -> ::godot::meta::ClassId {
                 use ::godot::meta::ClassId;
@@ -194,6 +184,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #deny_manual_init_macro
         #( #deprecations )*
         #( #errors )*
+        #user_singleton_impl
 
         #struct_docs_registration
         ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
@@ -204,6 +195,43 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
         #prv::class_macros::#inherits_macro_ident!(#class_name);
     })
+}
+
+fn make_with_base_impl(base_field: &Option<Field>, class_name: &Ident) -> TokenStream {
+    let Some(Field { name, ty, .. }) = base_field else {
+        return TokenStream::new();
+    };
+
+    // Apply the span of the field's type so that errors show up on the field.
+    quote_spanned! { ty.span()=>
+        impl ::godot::obj::WithBaseField for #class_name {
+            fn to_gd(&self) -> ::godot::obj::Gd<#class_name> {
+                // By not referencing the base field directly here we ensure that the user only gets one error when the base
+                // field's type is wrong.
+                let base = <#class_name as ::godot::obj::WithBaseField>::base_field(self);
+
+                base.__constructed_gd().cast()
+            }
+
+            fn base_field(&self) -> &::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base> {
+                &self.#name
+            }
+        }
+    }
+}
+
+/// Generates registration for user singleton and proper INIT_LEVEL declaration.
+///
+/// Before Godot4.4, built-in engine singleton -- required for registration -- wasn't available before `InitLevel::Scene`.
+fn make_singleton_impl(class_name: &Ident) -> (TokenStream, TokenStream) {
+    (
+        quote! {
+            impl ::godot::obj::UserSingleton for #class_name {}
+        },
+        quote! {
+            const INIT_LEVEL: ::godot::init::InitLevel = ::godot::init::InitLevel::Scene;
+        },
+    )
 }
 
 /// Generates code for a decl-macro, which takes any item and prepends it with the visibility marker of the class.
@@ -301,6 +329,7 @@ struct ClassAttributes {
     base_ty: Ident,
     init_strategy: InitStrategy,
     is_tool: bool,
+    is_singleton: bool,
     is_internal: bool,
     rename: Option<Ident>,
     deprecations: Vec<TokenStream>,
@@ -505,9 +534,10 @@ fn make_user_class_impl(
 
 /// Returns the name of the base and the default mode
 fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttributes> {
-    let mut base_ty = ident("RefCounted");
+    let mut base_ty = None;
     let mut init_strategy = InitStrategy::UserDefined;
     let mut is_tool = false;
+    let mut is_singleton = false;
     let mut is_internal = false;
     let mut rename: Option<Ident> = None;
     let mut deprecations = vec![];
@@ -516,7 +546,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     if let Some(mut parser) = KvParser::parse(&class.attributes, "class")? {
         // #[class(base = Base)]
         if let Some(base) = parser.handle_ident("base")? {
-            base_ty = base;
+            base_ty = Some(base);
         }
 
         // #[class(init)], #[class(no_init)]
@@ -528,6 +558,12 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 
         // #[class(tool)]
         if parser.handle_alone("tool")? {
+            is_tool = true;
+        }
+
+        // #[class(singleton)]
+        if parser.handle_alone("singleton")? {
+            is_singleton = true;
             is_tool = true;
         }
 
@@ -568,11 +604,20 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         parser.finish()?;
     }
 
+    let base_ty = base_field_or_default(base_ty, is_singleton);
+
     // Deprecated: #[class(no_init)] with base=EditorPlugin
     if matches!(init_strategy, InitStrategy::Absent) && base_ty == ident("EditorPlugin") {
         deprecations.push(quote! {
             ::godot::__deprecated::emit_deprecated_warning!(class_no_init_editor_plugin);
         });
+    }
+
+    if matches!(init_strategy, InitStrategy::Absent) && is_singleton {
+        return bail!(
+            class,
+            "#[class(singleton)] can't be used with #[class(no_init)]",
+        );
     }
 
     post_validate(&base_ty, is_tool)?;
@@ -581,6 +626,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         base_ty,
         init_strategy,
         is_tool,
+        is_singleton,
         is_internal,
         rename,
         deprecations,
@@ -784,6 +830,19 @@ fn validate_base_field(field: &Field, errors: &mut Vec<Error>) {
             default_val.span,
             "base field cannot have the attribute #[init]"
         ));
+    }
+}
+
+/// Returns `Base<T>` set by the user or default.
+///
+/// Default base is `Object` for `#[class(singleton)]`, `RefCounted` otherwise.
+fn base_field_or_default(mut base: Option<Ident>, is_singleton: bool) -> Ident {
+    if let Some(base) = base.take() {
+        base
+    } else if is_singleton {
+        ident("Object")
+    } else {
+        ident("RefCounted")
     }
 }
 

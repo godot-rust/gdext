@@ -61,6 +61,7 @@ fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Ve
 pub struct LoadedClass {
     name: ClassId,
     is_editor_plugin: bool,
+    unregister_singleton_fn: Option<fn()>,
 }
 
 /// Represents a class which is currently loaded and retained in memory -- including metadata.
@@ -93,6 +94,8 @@ struct ClassRegistrationInfo {
     user_register_fn: Option<ErasedRegisterFn>,
     default_virtual_fn: Option<GodotGetVirtual>, // Optional (set if there is at least one OnReady field)
     user_virtual_fn: Option<GodotGetVirtual>, // Optional (set if there is a `#[godot_api] impl I*`)
+    register_singleton_fn: Option<fn()>,
+    unregister_singleton_fn: Option<fn()>,
 
     /// Godot low-level class creation parameters.
     godot_params: GodotCreationInfo,
@@ -180,6 +183,8 @@ pub(crate) fn register_class<
         is_editor_plugin: false,
         dynify_fns_by_trait: HashMap::new(),
         component_already_filled: Default::default(), // [false; N]
+        register_singleton_fn: None,
+        unregister_singleton_fn: None,
     });
 }
 
@@ -215,9 +220,17 @@ pub fn auto_register_classes(init_level: InitLevel) {
     // but it is much slower and doesn't guarantee that all the dependent classes will be already loaded in most cases.
     register_classes_and_dyn_traits(&mut map, init_level);
 
-    // Editor plugins should be added to the editor AFTER all the classes has been registered.
-    // Adding EditorPlugin to the Editor before registering all the classes it depends on might result in crash.
+    // Before Godot 4.4.1, editor plugins were added to the editor immediately, triggering their lifecycle methods –- even before their
+    // dependencies (e.g. properties) have been registered.
+    // During hot-reload, Godot erases all GDExtension instance bindings (the "rust part"), effectively changing them to the base classes.
+    // These two behaviors combined were leading to crashes.
+    //
+    // Since Godot 4.4.1, adding new EditorPlugin to the editor is being postponed until the end of the frame (i.e. after library registration).
+    // See also: https://github.com/godot-rust/gdext/issues/1132.
     let mut editor_plugins: Vec<ClassId> = Vec::new();
+
+    // Similarly to EnginePlugins – freshly instantiated engine singleton might depend on some not-yet-registered classes.
+    let mut singletons: Vec<fn()> = Vec::new();
 
     // Actually register all the classes.
     for info in map.into_values() {
@@ -228,15 +241,19 @@ pub fn auto_register_classes(init_level: InitLevel) {
             editor_plugins.push(info.class_name);
         }
 
+        if let Some(register_singleton_fn) = info.register_singleton_fn {
+            singletons.push(register_singleton_fn)
+        }
+
         register_class_raw(info);
 
         out!("Class {class_name} loaded.");
     }
 
-    // Will imminently add given class to the editor.
-    // It is expected and beneficial behaviour while we load library for the first time
-    // but (for now) might lead to some issues during hot reload.
-    // See also: (https://github.com/godot-rust/gdext/issues/1132)
+    for register_singleton_fn in singletons {
+        register_singleton_fn()
+    }
+
     for editor_plugin_class_name in editor_plugins {
         unsafe { interface_fn!(editor_add_plugin)(editor_plugin_class_name.string_sys()) };
     }
@@ -259,6 +276,7 @@ fn register_classes_and_dyn_traits(
         let loaded_class = LoadedClass {
             name: class_name,
             is_editor_plugin: info.is_editor_plugin,
+            unregister_singleton_fn: info.unregister_singleton_fn,
         };
         let metadata = ClassMetadata {};
 
@@ -420,6 +438,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             register_properties_fn,
             free_fn,
             default_get_virtual_fn,
+            unregister_singleton_fn,
+            register_singleton_fn,
             is_tool,
             is_editor_plugin,
             is_internal,
@@ -431,6 +451,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.default_virtual_fn = default_get_virtual_fn;
             c.register_properties_fn = Some(register_properties_fn);
             c.is_editor_plugin = is_editor_plugin;
+            c.register_singleton_fn = register_singleton_fn;
+            c.unregister_singleton_fn = unregister_singleton_fn;
 
             // Classes marked #[class(no_init)] are translated to "abstract" in Godot. This disables their default constructor.
             // "Abstract" is a misnomer -- it's not an abstract base class, but rather a "utility/static class" (although it can have instance
@@ -632,6 +654,12 @@ fn unregister_class_raw(class: LoadedClass) {
         out!("> Editor plugin removed");
     }
 
+    // Similarly to EditorPlugin – given instance is being freed and will not be recreated
+    // during hot reload (a new, independent one will be created instead).
+    if let Some(unregister_singleton_fn) = class.unregister_singleton_fn {
+        unregister_singleton_fn();
+    }
+
     #[allow(clippy::let_unit_value)]
     let _: () = unsafe {
         interface_fn!(classdb_unregister_extension_class)(
@@ -670,6 +698,8 @@ fn default_registration_info(class_name: ClassId) -> ClassRegistrationInfo {
         user_register_fn: None,
         default_virtual_fn: None,
         user_virtual_fn: None,
+        register_singleton_fn: None,
+        unregister_singleton_fn: None,
         godot_params: default_creation_info(),
         init_level: InitLevel::Scene,
         is_editor_plugin: false,

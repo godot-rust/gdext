@@ -100,7 +100,7 @@ use crate::util::{bail, ident, KvParser};
 /// Unlike C++, Rust doesn't really have inheritance, but the GDExtension API lets us "inherit"
 /// from a Godot-provided engine class.
 ///
-/// By default, classes created with this library inherit from `RefCounted`, like GDScript.
+/// By default, non-singleton classes created with this library inherit from `RefCounted`, like GDScript.
 ///
 /// To specify a different class to inherit from, add `#[class(base = Base)]` as an annotation on
 /// your `struct`:
@@ -484,6 +484,43 @@ use crate::util::{bail, ident, KvParser};
 /// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
 /// because we have added a `hidden` key to the class. This will also prevent it from showing up in documentation.
 ///
+/// ## User-defined Singletons
+///
+/// Non-refcounted classes can be registered as an engine singleton with `#[class(singleton)]`.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// # use godot::classes::Object;
+/// #[derive(GodotClass)]
+/// #[class(init, singleton)]
+/// struct MySingleton {
+///     my_field: i32,
+///     // For `#[class(singleton)]`, the default base is Object, not RefCounted.
+///     base: Base<Object>,
+/// }
+///
+/// // Can be accessed like any other engine singleton from the main thread.
+/// let val = MySingleton::singleton().bind().my_field;
+/// ```
+///
+/// By default, engine singletons inherit from `Object` and always run in the editor (implied `#[class(tool)]`).
+/// During hot reload, user-defined singletons are not being recreated like other tool classes. Instead, they are freed while unloading the
+/// library, and then freshly instantiated after other classes have been registered.
+///
+/// GDScript will be prohibited from creating new instances of said class.
+///
+/// User-defined singletons must have an `init` constructor:
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(no_init, singleton)]
+/// struct MySingleton {
+///     my_field: i32,
+/// }
+/// ```
+///
+///
 /// # Further field customization
 ///
 /// ## Fine-grained inference hints
@@ -557,6 +594,7 @@ use crate::util::{bail, ident, KvParser};
     alias = "base",
     alias = "init",
     alias = "no_init",
+    alias = "singleton",
     alias = "var",
     alias = "export",
     alias = "tool",

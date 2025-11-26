@@ -18,7 +18,7 @@ pub use super::meta::error::{ConvertError, IoError};
 pub use super::meta::{FromGodot, GodotConvert, ToGodot};
 pub use super::obj::{
     AsDyn, Base, DynGd, DynGdMut, DynGdRef, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    OnEditor, OnReady,
+    OnEditor, OnReady, UserSingleton,
 };
 pub use super::register::property::{Export, PhantomVar, Var};
 // Re-export macros.
