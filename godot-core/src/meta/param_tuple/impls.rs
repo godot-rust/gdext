@@ -16,8 +16,8 @@ use sys::GodotFfi;
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, CallResult};
 use crate::meta::{
-    ArgPassing, CallContext, FromGodot, GodotConvert, GodotType, InParamTuple, OutParamTuple,
-    ParamTuple, ToGodot,
+    ArgPassing, CallContext, EngineFromGodot, EngineToGodot, GodotConvert, GodotType, InParamTuple,
+    OutParamTuple, ParamTuple,
 };
 
 macro_rules! count_idents {
@@ -53,7 +53,7 @@ macro_rules! unsafe_impl_param_tuple {
             }
         }
 
-        impl<$($P),*> InParamTuple for ($($P,)*) where $($P: FromGodot + fmt::Debug),* {
+        impl<$($P),*> InParamTuple for ($($P,)*) where $($P: EngineFromGodot + fmt::Debug),* {
             unsafe fn from_varcall_args(
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 arg_count: usize,
@@ -100,7 +100,10 @@ macro_rules! unsafe_impl_param_tuple {
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 call_type: sys::PtrcallType,
                 call_ctx: &crate::meta::CallContext,
-            ) -> CallResult<Self> {
+            ) -> CallResult<Self>
+            where
+                $($P: EngineFromGodot,)*
+            {
                 let tuple = (
                     $(
                         // SAFETY: `args_ptr` has length `Self::LEN` and `$n` is less than `Self::LEN`, and `args_ptr` must be an array whose
@@ -129,7 +132,7 @@ macro_rules! unsafe_impl_param_tuple {
             }
         }
 
-        impl<$($P),*> OutParamTuple for ($($P,)*) where $($P: ToGodot<Via: Clone> + fmt::Debug,)* {
+        impl<$($P),*> OutParamTuple for ($($P,)*) where $($P: EngineToGodot<Via: Clone> + fmt::Debug,)* {
             fn with_variants<F, R>(self, f: F) -> R
             where
                 F: FnOnce(&[Variant]) -> R,
@@ -178,10 +181,11 @@ macro_rules! unsafe_impl_param_tuple {
             }
 
             fn to_variant_array(&self) -> Vec<Variant> {
-                let ($($p,)*) = self;
-
+                // Using ArgPassing::ref_to_variant which works with EngineToGodot.
                 vec![
-                    $( $p.to_variant(), )*
+                    $(
+                        <$P::Pass as ArgPassing>::ref_to_variant(&self.$n),
+                    )*
                 ]
             }
         }
@@ -214,7 +218,7 @@ unsafe_impl_param_tuple!((p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4
 /// - It must be safe to dereference the address at `args_ptr.add(N)`.
 /// - The pointer at `args_ptr.add(N)` must follow the safety requirements as laid out in
 ///   [`GodotFfi::from_arg_ptr`].
-pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: usize>(
+pub(super) unsafe fn ptrcall_arg<P: EngineFromGodot, const N: usize>(
     args_ptr: *const sys::GDExtensionConstTypePtr,
     call_ctx: &CallContext,
     call_type: sys::PtrcallType,
@@ -228,7 +232,7 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: usize>(
     };
 
     <P::Via as GodotType>::try_from_ffi(ffi)
-        .and_then(P::try_from_godot)
+        .and_then(P::engine_try_from_godot)
         .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, N, err))
 }
 
@@ -237,7 +241,7 @@ pub(super) unsafe fn ptrcall_arg<P: FromGodot, const N: usize>(
 /// # Safety
 ///
 /// - It must be safe to reborrow `arg` as a `&Variant` with a lifetime that lasts for the duration of the call.
-pub(super) unsafe fn varcall_arg<P: FromGodot>(
+pub(super) unsafe fn varcall_arg<P: EngineFromGodot>(
     arg: sys::GDExtensionConstVariantPtr,
     call_ctx: &CallContext,
     param_index: usize,
@@ -246,7 +250,7 @@ pub(super) unsafe fn varcall_arg<P: FromGodot>(
     let variant_ref = unsafe { Variant::borrow_var_sys(arg) };
 
     variant_ref
-        .try_to_relaxed::<P>()
+        .engine_try_to_relaxed::<P>()
         .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, param_index, err))
 }
 
