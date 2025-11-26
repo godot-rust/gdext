@@ -42,6 +42,13 @@ fn string_equality() {
 }
 
 #[itest]
+fn string_eq_str() {
+    let gstring = GString::from("hello");
+    assert_eq!(gstring, "hello");
+    assert_ne!(gstring, "hallo");
+}
+
+#[itest]
 fn string_ordering() {
     let low = GString::from("Alpha");
     let high = GString::from("Beta");
@@ -130,12 +137,12 @@ fn string_with_null() {
 #[itest]
 fn string_substr() {
     let string = GString::from("stable");
-    assert_eq!(string.substr(..), "stable".into());
-    assert_eq!(string.substr(1..), "table".into());
-    assert_eq!(string.substr(..4), "stab".into());
-    assert_eq!(string.substr(..=3), "stab".into());
-    assert_eq!(string.substr(2..5), "abl".into());
-    assert_eq!(string.substr(2..=4), "abl".into());
+    assert_eq!(string.substr(..), "stable");
+    assert_eq!(string.substr(1..), "table");
+    assert_eq!(string.substr(..4), "stab");
+    assert_eq!(string.substr(..=3), "stab");
+    assert_eq!(string.substr(2..5), "abl");
+    assert_eq!(string.substr(2..=4), "abl");
 }
 
 #[itest]
@@ -217,42 +224,42 @@ fn gstring_erase() {
     let s = GString::from("Hello World");
     assert_eq!(s.erase(..), GString::new());
     assert_eq!(s.erase(4..4), s);
-    assert_eq!(s.erase(2..=2), "Helo World".into());
-    assert_eq!(s.erase(1..=3), "Ho World".into());
-    assert_eq!(s.erase(1..4), "Ho World".into());
-    assert_eq!(s.erase(..6), "World".into());
-    assert_eq!(s.erase(5..), "Hello".into());
+    assert_eq!(s.erase(2..=2), "Helo World");
+    assert_eq!(s.erase(1..=3), "Ho World");
+    assert_eq!(s.erase(1..4), "Ho World");
+    assert_eq!(s.erase(..6), "World");
+    assert_eq!(s.erase(5..), "Hello");
 }
 
 #[itest]
 fn gstring_insert() {
     let s = GString::from("H World");
-    assert_eq!(s.insert(1, "i"), "Hi World".into());
-    assert_eq!(s.insert(1, "ello"), "Hello World".into());
-    assert_eq!(s.insert(7, "."), "H World.".into());
-    assert_eq!(s.insert(0, "¿"), "¿H World".into());
+    assert_eq!(s.insert(1, "i"), "Hi World");
+    assert_eq!(s.insert(1, "ello"), "Hello World");
+    assert_eq!(s.insert(7, "."), "H World.");
+    assert_eq!(s.insert(0, "¿"), "¿H World");
 
     // Special behavior in Godot, but maybe the idea is to allow large constants to mean "end".
-    assert_eq!(s.insert(123, "!"), "H World!".into());
+    assert_eq!(s.insert(123, "!"), "H World!");
 }
 
 #[itest]
 fn gstring_pad() {
     let s = GString::from("123");
-    assert_eq!(s.lpad(5, '0'), "00123".into());
-    assert_eq!(s.lpad(2, ' '), "123".into());
-    assert_eq!(s.lpad(4, ' '), " 123".into());
+    assert_eq!(s.lpad(5, '0'), "00123");
+    assert_eq!(s.lpad(2, ' '), "123");
+    assert_eq!(s.lpad(4, ' '), " 123");
 
-    assert_eq!(s.rpad(5, '+'), "123++".into());
-    assert_eq!(s.rpad(2, ' '), "123".into());
-    assert_eq!(s.rpad(4, ' '), "123 ".into());
+    assert_eq!(s.rpad(5, '+'), "123++");
+    assert_eq!(s.rpad(2, ' '), "123");
+    assert_eq!(s.rpad(4, ' '), "123 ");
 
     let s = GString::from("123.456");
-    assert_eq!(s.pad_decimals(5), "123.45600".into());
-    assert_eq!(s.pad_decimals(2), "123.45".into()); // note: Godot rounds down
+    assert_eq!(s.pad_decimals(5), "123.45600");
+    assert_eq!(s.pad_decimals(2), "123.45"); // note: Godot rounds down
 
-    assert_eq!(s.pad_zeros(5), "00123.456".into());
-    assert_eq!(s.pad_zeros(2), "123.456".into());
+    assert_eq!(s.pad_zeros(5), "00123.456");
+    assert_eq!(s.pad_zeros(2), "123.456");
 }
 
 // Byte and C-string conversions.

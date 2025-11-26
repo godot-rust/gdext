@@ -138,7 +138,7 @@ impl ScriptInstance for TestScriptInstance {
     }
 
     fn set_property(mut this: SiMut<Self>, name: StringName, value: &Variant) -> bool {
-        if name.to_string() == "script_property_b" {
+        if name == "script_property_b" {
             this.script_property_b = FromGodot::from_variant(value);
             true
         } else {
