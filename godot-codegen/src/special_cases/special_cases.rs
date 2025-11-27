@@ -498,6 +498,10 @@ pub fn get_class_method_param_enum_replacement(
     }
 }
 
+/// Returns whether a builtin method appears directly in the outer, public API (as opposed to private in `Inner*` structs).
+/// 
+/// For methods with default parameters, this also changes the signature to have an `*_ex` overload + `Ex*` builder struct; this is not done for
+/// inner methods by default, to save on code generation.
 #[rustfmt::skip]
 pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -> bool {
     match (builtin_ty.godot_ty.as_str(), godot_method_name) {
@@ -681,14 +685,95 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
 }
 
 #[rustfmt::skip]
-pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot_method_name: &str) -> bool {
-    // None if global/utilities function
-    let class_name = class_name.map_or("", |ty| ty.godot_ty.as_str());
+pub fn is_method_excluded_from_default_params(class_name: Option<&str>, godot_method_name: &str) -> bool {
+    // Utility functions: use "" string.
+    let class_name = class_name.unwrap_or("");
 
     match (class_name, godot_method_name) {
+        // Class exclusions.
         | ("Object", "notification")
 
-        => true, _ => false
+        // Builtin exclusions - GString/StringName with custom implementations.
+        | ("String", "find")
+        | ("String", "findn")
+        | ("String", "rfind")
+        | ("String", "rfindn")
+        | ("String", "split")
+        | ("String", "rsplit")
+        | ("String", "count")
+        | ("String", "countn")
+        | ("String", "substr")
+        | ("String", "erase")
+        | ("String", "lpad")
+        | ("String", "rpad")
+        | ("String", "format")
+        | ("String", "casecmp_to")
+        | ("String", "nocasecmp_to")
+        | ("String", "naturalcasecmp_to")
+        | ("String", "naturalnocasecmp_to")
+        | ("String", "filecasecmp_to")
+        | ("String", "filenocasecmp_to")
+        | ("String", "match_")
+        | ("String", "matchn")
+        | ("StringName", "find")
+        | ("StringName", "findn")
+        | ("StringName", "rfind")
+        | ("StringName", "rfindn")
+        | ("StringName", "split")
+        | ("StringName", "rsplit")
+        | ("StringName", "count")
+        | ("StringName", "countn")
+        | ("StringName", "casecmp_to")
+        | ("StringName", "nocasecmp_to")
+        | ("StringName", "naturalcasecmp_to")
+        | ("StringName", "naturalnocasecmp_to")
+        | ("StringName", "filecasecmp_to")
+        | ("StringName", "filenocasecmp_to")
+        | ("StringName", "match_")
+        | ("StringName", "matchn")
+
+        // Additional String/StringName methods with custom implementations.
+        | ("String", "insert")
+        | ("String", "get_slice")
+        | ("String", "get_slicec")
+        | ("String", "get_slice_count")
+        | ("StringName", "insert")
+        | ("StringName", "get_slice")
+        | ("StringName", "get_slicec")
+        | ("StringName", "get_slice_count")
+
+        // Array methods with unsafe implementations and/or generic return types.
+        | ("Array", "duplicate")
+        | ("Array", "duplicate_deep")
+        | ("Array", "slice")
+
+        // Methods with custom wrappers.
+        | ("Array", "find")
+        | ("Array", "rfind")
+        | ("Array", "bsearch")
+        | ("Array", "reduce")
+        | ("Array", "find_custom")
+        | ("Array", "rfind_custom")
+        | ("Array", "bsearch_custom")
+        | ("Basis", "looking_at")
+        | ("Dictionary", "duplicate")
+
+        // PackedByteArray-specific methods with custom wrappers.
+        | ("PackedByteArray", "encode_var")
+        | ("PackedByteArray", "decode_var")
+        | ("PackedByteArray", "decode_var_size")
+        | ("PackedByteArray", "compress")
+        | ("PackedByteArray", "decompress")
+        | ("PackedByteArray", "decompress_dynamic")
+
+        => true,
+
+        // Packed*Array common methods with custom wrappers (slice, find, rfind, bsearch)
+        (builtin, "slice" | "find" | "rfind" | "bsearch")
+            if builtin.starts_with("Packed") && builtin.ends_with("Array")
+        => true,
+
+        _ => false
     }
 }
 

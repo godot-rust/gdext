@@ -105,28 +105,34 @@ fn make_builtin_class(
     };
     let inner_class = class.inner_name();
 
-    // Note: builders are currently disabled for builtins, even though default parameters exist (e.g. String::substr).
-    // We just use the full signature instead. For outer APIs (user-facing), try to find idiomatic APIs.
+    // Enable `Ex*` builders for builtins to provide consistent API with classes.
+    // By default, builders are only placed on outer methods (for methods that are exposed per special_cases.rs), to reduce codegen.
+    // However it's possible to enable builders on the inner type, too, which is why both `inner_builders` + `outer_builders` exist.
     #[rustfmt::skip]
     let (
-        FnDefinitions { functions: inner_methods, .. },
-        FnDefinitions { functions: outer_methods, .. },
+        FnDefinitions { functions: inner_methods, builders: inner_builders },
+        FnDefinitions { functions: outer_methods, builders: outer_builders },
     ) = make_builtin_methods(class, variant_shout_name, &class.methods, ctx);
 
     let imports = util::make_imports();
     let enums = enums::make_enums(&class.enums, &TokenStream::new());
     let special_constructors = make_special_builtin_methods(class.name(), ctx);
 
-    // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
+    // `mod re_export` needed for builder structs to reference the Inner* type, similar to how classes use `re_export` for the class type.
     let code = quote! {
         #imports
 
-        #[repr(transparent)]
-        pub struct #inner_class<'a> {
-            _outer_lifetime: std::marker::PhantomData<&'a ()>,
-            sys_ptr: sys::GDExtensionTypePtr,
+        pub(super) mod re_export {
+            use super::*;
+
+            #[repr(transparent)]
+            pub struct #inner_class<'inner> {
+                pub(super) _outer_lifetime: std::marker::PhantomData<&'inner ()>,
+                pub(super) sys_ptr: sys::GDExtensionTypePtr,
+            }
         }
-        impl<'a> #inner_class<'a> {
+
+        impl<'inner> re_export::#inner_class<'inner> {
             pub fn from_outer(outer: &#outer_class) -> Self {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,
@@ -136,11 +142,17 @@ fn make_builtin_class(
             #special_constructors
             #inner_methods
         }
+
+        // Re-export Inner* type for convenience.
+        pub use re_export::#inner_class;
+
         // Selected APIs appear directly in the outer class.
         impl #outer_class {
             #outer_methods
         }
 
+        #inner_builders
+        #outer_builders
         #enums
     };
     // note: TypePtr -> ObjectPtr conversion OK?

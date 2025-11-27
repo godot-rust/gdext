@@ -82,13 +82,13 @@ macro_rules! impl_shared_string_api {
             /// Count how many times `what` appears within `range`. Use `..` for full string search.
             pub fn count(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().count(what, from, to) as usize
+                self.as_inner().count(what.into_arg(), from, to) as usize
             }
 
             /// Count how many times `what` appears within `range`, case-insensitively. Use `..` for full string search.
             pub fn countn(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().countn(what, from, to) as usize
+                self.as_inner().countn(what.into_arg(), from, to) as usize
             }
 
             /// Splits the string according to `delimiter`.

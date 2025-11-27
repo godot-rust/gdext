@@ -170,8 +170,9 @@ impl BuiltinClass {
         let methods = option_as_slice(&json.methods)
             .iter()
             .filter_map(|m| {
-                let inner_class_name = &ty_name;
-                BuiltinMethod::from_json(m, &ty_name, inner_class_name, ctx)
+                // Pass inner_name "Inner*" as surrounding class. This is later overridden to the outer type (e.g. "GString")
+                // for methods exposed in the public API via is_builtin_method_exposed().
+                BuiltinMethod::from_json(m, &ty_name, &inner_name, ctx)
             })
             .collect();
 
@@ -378,16 +379,32 @@ impl BuiltinMethod {
             FnReturn::new(return_value, ctx)
         };
 
+        let is_exposed_in_outer =
+            special_cases::is_builtin_method_exposed(builtin_name, &method.name);
+
+        // Use inner class name (Inner*) for private methods, outer class name for exposed methods
+        // For outer class, need to use conv::to_rust_type to get correct mapping (String -> GString)
+        let surrounding_class = if is_exposed_in_outer {
+            let RustTy::BuiltinIdent { ty, .. } =
+                conv::to_rust_type(&builtin_name.godot_ty, None, ctx)
+            else {
+                panic!("Builtin type should map to BuiltinIdent");
+            };
+            TyName {
+                godot_ty: builtin_name.godot_ty.clone(),
+                rust_ty: ty,
+            }
+        } else {
+            inner_class_name.clone()
+        };
+
         Some(Self {
             common: FunctionCommon {
                 // Fill in these fields
                 name: method.name.clone(),
                 godot_name: method.name.clone(),
-                // Disable default parameters for builtin classes.
-                // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
-                parameters: FnParam::builder()
-                    .no_defaults()
-                    .build_many(&method.arguments, ctx),
+                // Enable default parameters for builtin classes, generating _ex builders.
+                parameters: FnParam::builder().build_many(&method.arguments, ctx),
                 return_value,
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
@@ -398,11 +415,8 @@ impl BuiltinMethod {
                 },
             },
             qualifier: FnQualifier::from_const_static(method.is_const, method.is_static),
-            surrounding_class: inner_class_name.clone(),
-            is_exposed_in_outer: special_cases::is_builtin_method_exposed(
-                builtin_name,
-                &method.name,
-            ),
+            surrounding_class,
+            is_exposed_in_outer,
         })
     }
 }
