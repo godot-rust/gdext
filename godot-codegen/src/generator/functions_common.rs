@@ -416,7 +416,7 @@ pub(crate) enum FnParamDecl {
 
     /// Return values from virtual methods (Rust -> Godot).
     ///
-    /// Uses `OutArray` for untyped arrays, to allow covariant returns.
+    /// Uses `AnyArray` for untyped arrays, to allow covariant returns.
     FnReturnVirtual,
 }
 

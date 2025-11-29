@@ -739,7 +739,7 @@ pub enum RustTy {
 
     /// `Array<i32>`
     ///
-    /// Untyped arrays are either `BuiltinIdent("OutArray")` for outbound methods, or `BuiltinIdent("Array")` for virtual methods.
+    /// Untyped arrays are either `BuiltinIdent("AnyArray")` for outbound methods, or `BuiltinIdent("Array")` for virtual methods.
     BuiltinArray { elem_type: TokenStream },
 
     /// Will be included as `Array<T>` in the generated source.

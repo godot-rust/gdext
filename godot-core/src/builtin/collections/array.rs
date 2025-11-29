@@ -51,12 +51,12 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// - Typed: `Array<T>`, with any non-`Variant` type `T` such as `i64`, `GString`, `Gd<T>` etc.  \
 ///   Typing is enforced at compile-time in Rust, and at runtime by Godot.
 ///
-/// - Either typed or untyped: [`OutArray`].  \
+/// - Either typed or untyped: [`AnyArray`].  \
 ///   Represents either typed or untyped arrays. This is different from `Array<Variant>`, because the latter allows you to insert
 ///   `Variant` objects. However, for an array that has dynamic type `i64`, it is not allowed to insert any variants that are not `i64`.
 ///
-/// Godot APIs reflect this. You can `Deref`-coerce from any `Array<T>` to `OutArray` (e.g. when passing arguments), and explicitly
-/// convert the other way, using [`OutArray::try_into_typed()`] and [`OutArray::try_into_untyped()`].
+/// Godot APIs reflect this. You can `Deref`-coerce from any `Array<T>` to `AnyArray` (e.g. when passing arguments), and explicitly
+/// convert the other way, using [`AnyArray::try_into_typed()`] and [`AnyArray::try_into_untyped()`].
 ///
 /// If you plan to use any integer or float types apart from `i64` and `f64`, read
 /// [this documentation](../meta/trait.ArrayElement.html#integer-and-float-types).
@@ -197,7 +197,7 @@ impl<'a> std::ops::Deref for ImmutableInnerArray<'a> {
 }
 
 impl<T: ArrayElement> std::ops::Deref for Array<T> {
-    type Target = OutArray;
+    type Target = AnyArray;
 
     fn deref(&self) -> &Self::Target {
         self.as_any_ref()
@@ -213,7 +213,7 @@ impl<T: ArrayElement> std::ops::DerefMut for Array<T> {
 // Compile-time validation of layout compatibility.
 sys::static_assert_eq_size_align!(Array<i64>, VariantArray);
 sys::static_assert_eq_size_align!(Array<GString>, VariantArray);
-sys::static_assert_eq_size_align!(VariantArray, OutArray);
+sys::static_assert_eq_size_align!(VariantArray, AnyArray);
 
 /// A Godot `Array` without an assigned type.
 pub type VariantArray = Array<Variant>;
@@ -236,7 +236,7 @@ impl_builtin_froms!(VariantArray;
     PackedVector4Array => array_from_packed_vector4_array,
 );
 
-// Methods that don't provide type-specific ergonomics are available through `Deref`/`DerefMut` to [`OutArray`].
+// Methods that don't provide type-specific ergonomics are available through `Deref`/`DerefMut` to [`AnyArray`].
 // This includes:
 // - Read-only: `len()`, `is_empty()`, `hash_u32()`, `element_type()`
 // - Mutable: `clear()`, `reverse()`, `shuffle()`, `shrink()`, `sort_unstable()`, `sort_unstable_custom()`
@@ -470,7 +470,7 @@ impl<T: ArrayElement> Array<T> {
     /// If the new size is smaller than the current size, then it removes elements from the end. If the new size is bigger than the current one
     /// then the new elements are set to `value`.
     ///
-    /// If you know that the new size is smaller, then consider using [`shrink`][OutArray::shrink] instead.
+    /// If you know that the new size is smaller, then consider using [`shrink`][AnyArray::shrink] instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
         self.balanced_ensure_mutable();
 
@@ -770,8 +770,8 @@ impl<T: ArrayElement> Array<T> {
         self
     }
 
-    pub fn into_any(self) -> OutArray {
-        OutArray::from_typed_or_untyped(self)
+    pub fn into_any(self) -> AnyArray {
+        AnyArray::from_typed_or_untyped(self)
     }
 
     /// Returns true if the array is read-only.
@@ -896,19 +896,19 @@ impl<T: ArrayElement> Array<T> {
         std::mem::transmute::<&Array<T>, &Array<U>>(self)
     }
 
-    fn as_any_ref(&self) -> &OutArray {
+    fn as_any_ref(&self) -> &AnyArray {
         // SAFETY:
         // - Array<T> and Array<Variant> have identical memory layout.
-        // - OutArray is #[repr(transparent)] around VariantArray and provides no "in" operations (moving data in) that could violate covariance.
-        unsafe { std::mem::transmute::<&Array<T>, &OutArray>(self) }
+        // - AnyArray is #[repr(transparent)] around VariantArray and provides no "in" operations (moving data in) that could violate covariance.
+        unsafe { std::mem::transmute::<&Array<T>, &AnyArray>(self) }
     }
 
-    fn as_any_mut(&mut self) -> &mut OutArray {
+    fn as_any_mut(&mut self) -> &mut AnyArray {
         // SAFETY:
         // - Array<T> and Array<Variant> have identical memory layout (validated by static_assert_eq_size_align!).
-        // - OutArray is #[repr(transparent)] around VariantArray.
-        // - Mutable operations on OutArray work with Variant values, maintaining type safety through balanced_ensure_mutable() checks.
-        unsafe { std::mem::transmute::<&mut Array<T>, &mut OutArray>(self) }
+        // - AnyArray is #[repr(transparent)] around VariantArray.
+        // - Mutable operations on AnyArray work with Variant values, maintaining type safety through balanced_ensure_mutable() checks.
+        unsafe { std::mem::transmute::<&mut Array<T>, &mut AnyArray>(self) }
     }
 
     /// Changes the type parameter without runtime checks, consuming the array.
@@ -1035,7 +1035,7 @@ impl<T: ArrayElement> Array<T> {
 
     /// # Safety
     /// Does not validate the array element type; `with_checked_type()` should be called afterward.
-    // Visibility: shared with OutArray.
+    // Visibility: shared with AnyArray.
     pub(super) unsafe fn unchecked_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         let dest_type = Self::VARIANT_TYPE.variant_as_nil();
 
@@ -1584,7 +1584,7 @@ macro_rules! varray {
             )*
             array
         } as $crate::builtin::VariantArray
-        // The `as` cast is necessary for Deref coercion to OutArray; type inference doesn't seem to pick it up otherwise.
+        // The `as` cast is necessary for Deref coercion to AnyArray; type inference doesn't seem to pick it up otherwise.
     };
 }
 

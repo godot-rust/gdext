@@ -6,7 +6,7 @@
  */
 
 use godot::builtin::{
-    real, varray, vslice, Color, GString, OutArray, PackedByteArray, PackedColorArray,
+    real, varray, vslice, Color, GString, AnyArray, PackedByteArray, PackedColorArray,
     PackedFloat32Array, PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv,
     StringName, Variant, Vector2, Vector3,
 };
@@ -123,7 +123,7 @@ struct VirtualReturnTest {
 #[rustfmt::skip]
 #[godot_api]
 impl IPrimitiveMesh for VirtualReturnTest {
-    fn create_mesh_array(&self) -> OutArray {
+    fn create_mesh_array(&self) -> AnyArray {
         varray![
             PackedVector3Array::from_iter([Vector3::LEFT]),
             PackedVector3Array::from_iter([Vector3::LEFT]),
@@ -144,8 +144,8 @@ impl IPrimitiveMesh for VirtualReturnTest {
     fn get_surface_count(&self) -> i32 { unreachable!() }
     fn surface_get_array_len(&self, _index: i32) -> i32 { unreachable!() }
     fn surface_get_array_index_len(&self, _index: i32) -> i32 { unreachable!() }
-    fn surface_get_arrays(&self, _index: i32) -> OutArray { unreachable!() }
-    fn surface_get_blend_shape_arrays(&self, _index: i32) -> godot::prelude::Array<OutArray> { unreachable!() }
+    fn surface_get_arrays(&self, _index: i32) -> AnyArray { unreachable!() }
+    fn surface_get_blend_shape_arrays(&self, _index: i32) -> godot::prelude::Array<AnyArray> { unreachable!() }
     fn surface_get_lods(&self, _index: i32) -> godot::prelude::Dictionary { unreachable!() }
     fn surface_get_format(&self, _index: i32) -> u32 { unreachable!() }
     fn surface_get_primitive_type(&self, _index: i32) -> u32 { unreachable!() }

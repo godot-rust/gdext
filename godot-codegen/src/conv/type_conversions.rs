@@ -189,16 +189,16 @@ fn to_rust_type_uncached(full_ty: &GodotTy, decl: FnParamDecl, ctx: &mut Context
                 conv::to_rust_type_abi("Array", ctx).0
             }
             FnParamDecl::FnReturnVirtual => {
-                // Virtual returns (Rust → Godot): OutArray for covariance.
+                // Virtual returns (Rust → Godot): AnyArray for covariance.
                 RustTy::BuiltinIdent {
-                    ty: ident("OutArray"),
+                    ty: ident("AnyArray"),
                     arg_passing: ctx.get_builtin_arg_passing(full_ty),
                 }
             }
             _ => {
-                // All other contexts (outbound parameters, internal, fields): OutArray.
+                // All other contexts (outbound parameters, internal, fields): AnyArray.
                 RustTy::BuiltinIdent {
-                    ty: ident("OutArray"),
+                    ty: ident("AnyArray"),
                     arg_passing: ctx.get_builtin_arg_passing(full_ty),
                 }
             }
@@ -372,8 +372,8 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         "true" => return quote! { true },
         "false" => return quote! { false },
         "[]" | "{}" if is_inner => return quote! {},
-        "[]" if matches!(ty, RustTy::BuiltinIdent { ty, .. } if ty == "OutArray") => {
-            return quote! { OutArray::new_untyped() }
+        "[]" if matches!(ty, RustTy::BuiltinIdent { ty, .. } if ty == "AnyArray") => {
+            return quote! { AnyArray::new_untyped() }
         }
         "[]" => return quote! { Array::new() }, // VariantArray or Array<T>
         "{}" => return quote! { Dictionary::new() },

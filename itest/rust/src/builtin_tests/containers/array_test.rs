@@ -411,7 +411,7 @@ fn array_mixed_values() {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// OutArray interactions
+// AnyArray interactions
 
 #[itest]
 fn array_typed_conversions() {
@@ -827,10 +827,10 @@ fn array_deref_to_out_array() {
     let typed: Array<i64> = array![10, 20, 30];
     let untyped: VariantArray = varray![1, "hello", true];
 
-    let typed: &OutArray = &typed;
+    let typed: &AnyArray = &typed;
     assert_eq!(typed.at(1), 20.to_variant());
 
-    let untyped: &OutArray = &untyped;
+    let untyped: &AnyArray = &untyped;
     assert_eq!(untyped.at(1), "hello".to_variant());
 }
 

@@ -20,8 +20,8 @@ use crate::meta::{
 
 /// A Godot `Array` that can be either typed or untyped.
 ///
-/// Unlike [`Array<T>`], which carries compile-time type information, `OutArray` is a type-erased version of arrays.
-/// It can point to any `Array<T>`, for both typed `T` and untyped arrays (`T=Variant`).
+/// Unlike [`Array<T>`], which carries compile-time type information, `AnyArray` is a type-erased version of arrays.
+/// It can point to any `Array<T>`, for both typed and untyped arrays. See [`Array`: Element type](struct.Array.html#element-type) section.
 ///
 /// # Covariance
 /// In GDScript, the subtyping relationship is modeled incorrectly for arrays:
@@ -32,35 +32,36 @@ use crate::meta::{
 /// untyped.append("hello")      # Not detected by GDScript parser (no-op at runtime).
 /// ```
 ///
-/// godot-rust on the other hand introduces a new type `OutArray`, which can store _any_ array, typed or untyped.
-/// `OutArray` thus provides operations that are valid regardless of the type, e.g. `len()`, `clear()` or `shuffle()`.
+/// godot-rust on the other hand introduces a new type `AnyArray`, which can store _any_ array, typed or untyped.
+/// `AnyArray` thus provides operations that are valid regardless of the type, e.g. `len()`, `clear()` or `shuffle()`.
+/// Methods, which can be more concrete on `Array<T>` by using `T` (e.g. `pick_random() -> Option<T>`), exist on both types.
 ///
-/// `OutArray` does not provide any operations where data flows _in_ to the array, such as `push()` or `insert()`.
+/// `AnyArray` does not provide any operations where data flows _in_ to the array, such as `push()` or `insert()`.
 ///
 /// # Conversions
-/// Engine APIs accept `&OutArray` parameters. Due to [deref coercion], you can pass any `&Array<T>` implicitly, even for `T=Variant`.
+/// Engine APIs accept `&AnyArray` parameters. Due to [deref coercion], you can pass any `&Array<T>` implicitly, even for `T=Variant`.
 ///
-/// If you need to upcast `Array<T>` _values_ to `OutArray`, use [`Array::into_any()`].
+/// If you need to upcast `Array<T>` _values_ to `AnyArray`, use [`Array::into_any()`].
 ///
-/// [deref coercion]: struct.Array.html#deref-methods-OutArray
+/// [deref coercion]: struct.Array.html#deref-methods-AnyArray
 ///
-/// You can explicitly downcast an `OutArray` using [`try_into_typed()`][Self::try_into_typed] and
+/// You can explicitly downcast an `AnyArray` using [`try_into_typed()`][Self::try_into_typed] and
 /// [`try_into_untyped()`][Self::try_into_untyped].
 #[derive(PartialEq, PartialOrd)]
 #[repr(transparent)] // Guarantees same layout as VariantArray, enabling Deref from Array<T>.
-pub struct OutArray {
+pub struct AnyArray {
     array: VariantArray,
 }
 
-impl OutArray {
+impl AnyArray {
     pub(super) fn from_typed_or_untyped<T: ArrayElement>(array: Array<T>) -> Self {
-        // SAFETY: Array<Variant> is not accessed as such, but immediately wrapped in OutArray.
+        // SAFETY: Array<Variant> is not accessed as such, but immediately wrapped in AnyArray.
         let inner = unsafe { array.assume_type::<Variant>() };
 
         Self { array: inner }
     }
 
-    /// Creates an empty untyped `OutArray`.
+    /// Creates an empty untyped `AnyArray`.
     pub(crate) fn new_untyped() -> Self {
         Self {
             array: VariantArray::default(),
@@ -213,7 +214,7 @@ impl OutArray {
     ///
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
-    pub fn duplicate_shallow(&self) -> OutArray {
+    pub fn duplicate_shallow(&self) -> AnyArray {
         self.array.duplicate_shallow().into_any()
     }
 
@@ -448,9 +449,9 @@ impl OutArray {
 
 // SAFETY: See VariantArray.
 //
-// We cannot provide GodotConvert with Via=VariantArray, because ToGodot::to_godot() would otherwise enable a safe conversion from OutArray to
+// We cannot provide GodotConvert with Via=VariantArray, because ToGodot::to_godot() would otherwise enable a safe conversion from AnyArray to
 // VariantArray, which is not sound.
-unsafe impl GodotFfi for OutArray {
+unsafe impl GodotFfi for AnyArray {
     const VARIANT_TYPE: sys::ExtVariantType = sys::ExtVariantType::Concrete(VariantType::ARRAY);
 
     // No Default trait, thus manually defining this and ffi_methods!.
@@ -480,9 +481,9 @@ unsafe impl GodotFfi for OutArray {
     }
 }
 
-impl Clone for OutArray {
+impl Clone for AnyArray {
     fn clone(&self) -> Self {
-        // SAFETY: we don't want to check that static type (Variant) matches dynamic type (anything), because all types are valid in OutArray.
+        // SAFETY: we don't want to check that static type (Variant) matches dynamic type (anything), because all types are valid in AnyArray.
         let inner = unsafe { VariantArray::clone_unchecked(&self.array) };
 
         Self { array: inner }
@@ -490,15 +491,15 @@ impl Clone for OutArray {
 }
 
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
-impl meta::sealed::Sealed for OutArray {}
+impl meta::sealed::Sealed for AnyArray {}
 
-impl ArrayElement for OutArray {}
+impl ArrayElement for AnyArray {}
 
-impl GodotConvert for OutArray {
+impl GodotConvert for AnyArray {
     type Via = Self;
 }
 
-impl ToGodot for OutArray {
+impl ToGodot for AnyArray {
     type Pass = meta::ByValue;
 
     fn to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
@@ -510,29 +511,29 @@ impl ToGodot for OutArray {
     }
 }
 
-impl FromGodot for OutArray {
+impl FromGodot for AnyArray {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         Ok(via)
     }
 }
 
-impl fmt::Debug for OutArray {
+impl fmt::Debug for AnyArray {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.array.fmt(f)
     }
 }
 
-impl fmt::Display for OutArray {
+impl fmt::Display for AnyArray {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.array.fmt(f)
     }
 }
 
-impl GodotType for OutArray {
+impl GodotType for AnyArray {
     type Ffi = Self;
 
     type ToFfi<'f>
-        = meta::RefArg<'f, OutArray>
+        = meta::RefArg<'f, AnyArray>
     where
         Self: 'f;
 
@@ -553,13 +554,13 @@ impl GodotType for OutArray {
     }
 }
 
-impl GodotFfiVariant for OutArray {
+impl GodotFfiVariant for AnyArray {
     fn ffi_to_variant(&self) -> Variant {
         VariantArray::ffi_to_variant(&self.array)
     }
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-        // SAFETY: All element types are valid for OutArray.
+        // SAFETY: All element types are valid for AnyArray.
         let result = unsafe { VariantArray::unchecked_from_variant(variant) };
         result.map(|inner| Self { array: inner })
     }
@@ -567,7 +568,7 @@ impl GodotFfiVariant for OutArray {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// An iterator over elements of an [`OutArray`].
+/// An iterator over elements of an [`AnyArray`].
 pub struct Iter<'a> {
     inner: super::array::Iter<'a, Variant>,
 }

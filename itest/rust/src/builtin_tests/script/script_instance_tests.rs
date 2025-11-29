@@ -7,7 +7,7 @@
 
 use std::ffi::c_void;
 
-use godot::builtin::{Array, Dictionary, GString, OutArray, StringName, Variant, VariantType};
+use godot::builtin::{Array, Dictionary, GString, AnyArray, StringName, Variant, VariantType};
 use godot::classes::{
     IScriptExtension, IScriptLanguageExtension, Object, Script, ScriptExtension, ScriptLanguage,
     ScriptLanguageExtension,
@@ -329,7 +329,7 @@ impl IScriptLanguageExtension for TestScriptLanguage {
     #[cfg(since_api = "4.3")]
     fn preferred_file_name_casing(&self) -> godot::classes::script_language::ScriptNameCasing { unreachable!() }
     #[cfg(since_api = "4.4")]
-    fn reload_scripts(&mut self, _scripts: OutArray, _soft: bool) { unreachable!() }
+    fn reload_scripts(&mut self, _scripts: AnyArray, _soft: bool) { unreachable!() }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
