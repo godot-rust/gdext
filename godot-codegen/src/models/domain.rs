@@ -18,6 +18,7 @@ use quote::{format_ident, quote, ToTokens};
 
 use crate::context::Context;
 use crate::conv;
+use crate::generator::functions_common::FnParamDecl;
 use crate::models::json::{JsonMethodArg, JsonMethodReturn};
 use crate::util::{ident, option_as_slice, safe_ident};
 
@@ -555,26 +556,37 @@ impl FnParamBuilder {
     }
 
     /// Builds a single function parameter from the provided JSON method argument.
-    pub fn build_single(self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
-        self.build_single_impl(method_arg, ctx)
+    pub fn build_single(
+        self,
+        method_arg: &JsonMethodArg,
+        decl: FnParamDecl,
+        ctx: &mut Context,
+    ) -> FnParam {
+        self.build_single_impl(method_arg, decl, ctx)
     }
 
     /// Builds a vector of function parameters from the provided JSON method arguments.
     pub fn build_many(
         self,
         method_args: &Option<Vec<JsonMethodArg>>,
+        decl: FnParamDecl,
         ctx: &mut Context,
     ) -> Vec<FnParam> {
         option_as_slice(method_args)
             .iter()
-            .map(|arg| self.build_single_impl(arg, ctx))
+            .map(|arg| self.build_single_impl(arg, decl, ctx))
             .collect()
     }
 
     /// Core implementation for processing a single JSON method argument into a `FnParam`.
-    fn build_single_impl(&self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
+    fn build_single_impl(
+        &self,
+        method_arg: &JsonMethodArg,
+        decl: FnParamDecl,
+        ctx: &mut Context,
+    ) -> FnParam {
         let name = safe_ident(&method_arg.name);
-        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
+        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), decl, ctx);
 
         // Apply enum replacement if one exists for this parameter
         let matching_replacement = self
@@ -630,7 +642,7 @@ pub struct FnReturn {
 
 impl FnReturn {
     pub fn new(return_value: &Option<JsonMethodReturn>, ctx: &mut Context) -> Self {
-        Self::with_enum_replacements(return_value, &[], ctx)
+        Self::with_enum_replacements(return_value, &[], FnParamDecl::FnReturn, ctx)
     }
 
     pub fn with_generic_builtin(generic_type: RustTy) -> Self {
@@ -643,10 +655,11 @@ impl FnReturn {
     pub fn with_enum_replacements(
         return_value: &Option<JsonMethodReturn>,
         replacements: EnumReplacements,
+        decl: FnParamDecl,
         ctx: &mut Context,
     ) -> Self {
         if let Some(ret) = return_value {
-            let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
+            let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), decl, ctx);
 
             // Apply enum replacement if one exists for return type (indicated by empty string)
             let matching_replacement = replacements.iter().find(|(p, ..)| p.is_empty());
@@ -726,7 +739,7 @@ pub enum RustTy {
 
     /// `Array<i32>`
     ///
-    /// Note that untyped arrays are mapped as `BuiltinIdent("Array")`.
+    /// Untyped arrays are either `BuiltinIdent("OutArray")` for outbound methods, or `BuiltinIdent("Array")` for virtual methods.
     BuiltinArray { elem_type: TokenStream },
 
     /// Will be included as `Array<T>` in the generated source.

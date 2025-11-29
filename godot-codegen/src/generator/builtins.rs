@@ -11,7 +11,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
 use crate::context::Context;
-use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
+use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions, FnParamDecl};
 use crate::generator::method_tables::MethodTableKey;
 use crate::generator::{enums, functions_common};
 use crate::models::domain::{
@@ -99,7 +99,7 @@ fn make_builtin_class(
 
     let RustTy::BuiltinIdent {
         ty: outer_class, ..
-    } = conv::to_rust_type(godot_name, None, ctx)
+    } = conv::to_rust_type(godot_name, None, FnParamDecl::FnPublic, ctx)
     else {
         panic!("Rust type `{godot_name}` categorized wrong")
     };

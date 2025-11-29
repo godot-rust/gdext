@@ -14,6 +14,7 @@ use quote::{quote, ToTokens};
 
 use crate::context::Context;
 use crate::conv;
+use crate::generator::functions_common::FnParamDecl;
 use crate::models::domain::{ArgPassing, GodotTy, ModName, RustTy, TyName};
 use crate::special_cases::is_builtin_type_scalar;
 use crate::util::ident;
@@ -53,7 +54,6 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         // Others
         ("bool", None) => "bool",
         ("String", None) => "GString",
-        ("Array", None) => "VariantArray",
 
         // Types needed for native structures mapping
         ("uint8_t", None) => "u8",
@@ -124,7 +124,7 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> (RustTy, bool) {
             ty: ident("f64"),
             arg_passing: ArgPassing::ByValue,
         },
-        _ => to_rust_type(ty, None, ctx),
+        _ => to_rust_type(ty, None, FnParamDecl::FnPublic, ctx),
     };
 
     (ty, is_obj)
@@ -134,24 +134,37 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> (RustTy, bool) {
 ///
 /// Uses an internal cache (via `ctx`), as several types are ubiquitous.
 // TODO take TyName as input
-pub(crate) fn to_rust_type<'a>(ty: &'a str, meta: Option<&'a String>, ctx: &mut Context) -> RustTy {
+pub(crate) fn to_rust_type<'a>(
+    ty: &'a str,
+    meta: Option<&'a String>,
+    decl: FnParamDecl,
+    ctx: &mut Context,
+) -> RustTy {
     let full_ty = GodotTy {
         ty: ty.to_string(),
         meta: meta.cloned(),
     };
 
-    // Separate find + insert slightly slower, but much easier with lifetimes
-    // The insert path will be hit less often and thus doesn't matter
-    if let Some(rust_ty) = ctx.find_rust_type(&full_ty) {
-        rust_ty.clone()
+    // Don't cache untyped Array, as it depends on context (decl parameter)
+    let is_context_dependent = ty == "Array" && full_ty.meta.is_none();
+
+    if is_context_dependent {
+        // Skip cache for context-dependent types
+        to_rust_type_uncached(&full_ty, decl, ctx)
     } else {
-        let rust_ty = to_rust_type_uncached(&full_ty, ctx);
-        ctx.insert_rust_type(full_ty, rust_ty.clone());
-        rust_ty
+        // Separate find + insert slightly slower, but much easier with lifetimes
+        // The insert path will be hit less often and thus doesn't matter
+        if let Some(rust_ty) = ctx.find_rust_type(&full_ty) {
+            rust_ty.clone()
+        } else {
+            let rust_ty = to_rust_type_uncached(&full_ty, decl, ctx);
+            ctx.insert_rust_type(full_ty, rust_ty.clone());
+            rust_ty
+        }
     }
 }
 
-fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
+fn to_rust_type_uncached(full_ty: &GodotTy, decl: FnParamDecl, ctx: &mut Context) -> RustTy {
     let ty = full_ty.ty.as_str();
 
     /// Transforms a Godot class/builtin/enum IDENT (without `::` or other syntax) to a Rust one
@@ -162,6 +175,34 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             // Convert as-is. Includes StringName and NodePath.
             TyName::from_godot(ty).rust_ty
         }
+    }
+
+    // Special case: untyped Array depends on context
+    if ty == "Array" && full_ty.meta.is_none() {
+        return match decl {
+            FnParamDecl::FnVirtual => {
+                // Virtual method parameters (Godot → Rust): Array<Variant>.
+                conv::to_rust_type_abi("Array", ctx).0
+            }
+            FnParamDecl::FnReturn => {
+                // Outbound returns (Godot → Rust): Array<Variant>.
+                conv::to_rust_type_abi("Array", ctx).0
+            }
+            FnParamDecl::FnReturnVirtual => {
+                // Virtual returns (Rust → Godot): OutArray for covariance.
+                RustTy::BuiltinIdent {
+                    ty: ident("OutArray"),
+                    arg_passing: ctx.get_builtin_arg_passing(full_ty),
+                }
+            }
+            _ => {
+                // All other contexts (outbound parameters, internal, fields): OutArray.
+                RustTy::BuiltinIdent {
+                    ty: ident("OutArray"),
+                    arg_passing: ctx.get_builtin_arg_passing(full_ty),
+                }
+            }
+        };
     }
 
     if ty.ends_with('*') {
@@ -188,7 +229,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         // .trim() is necessary here, as Godot places a space between a type and the stars when representing a double pointer.
         // Example: "int*" but "int **".
-        let inner_type = to_rust_type(ty.trim(), None, ctx);
+        let inner_type = to_rust_type(ty.trim(), None, FnParamDecl::FnPublic, ctx);
         return RustTy::RawPointer {
             inner: Box::new(inner_type),
             is_const,
@@ -226,7 +267,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             };
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
-        let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), ctx);
+        let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), decl, ctx);
         return if ctx.is_builtin(elem_ty) {
             RustTy::BuiltinArray {
                 elem_type: quote! { Array<#rust_elem_ty> },
@@ -331,6 +372,9 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         "true" => return quote! { true },
         "false" => return quote! { false },
         "[]" | "{}" if is_inner => return quote! {},
+        "[]" if matches!(ty, RustTy::BuiltinIdent { ty, .. } if ty == "OutArray") => {
+            return quote! { OutArray::new_untyped() }
+        }
         "[]" => return quote! { Array::new() }, // VariantArray or Array<T>
         "{}" => return quote! { Dictionary::new() },
         "null" => {

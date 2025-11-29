@@ -10,6 +10,7 @@ use quote::{format_ident, quote, ToTokens};
 
 use crate::context::Context;
 use crate::conv;
+use crate::generator::functions_common::FnParamDecl;
 use crate::generator::sys_pointer_types::make_godotconvert_for_systypes;
 use crate::generator::{enums, gdext_build_struct};
 use crate::models::domain::ExtensionApi;
@@ -179,7 +180,7 @@ fn make_variant_enums(api: &ExtensionApi, ctx: &mut Context) -> VariantEnums {
     for builtin in api.builtins.iter() {
         let original_name = builtin.godot_original_name();
         let shout_case = builtin.godot_shout_name();
-        let rust_ty = conv::to_rust_type(original_name, None, ctx);
+        let rust_ty = conv::to_rust_type(original_name, None, FnParamDecl::FnPublic, ctx);
         let pascal_case = conv::to_pascal_case(original_name);
 
         result

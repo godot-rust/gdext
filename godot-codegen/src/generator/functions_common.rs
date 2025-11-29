@@ -403,6 +403,21 @@ pub(crate) enum FnParamDecl {
 
     /// Store in a field, i.e. `v` or `CowArg<T>`.
     Field,
+
+    /// Parameters in virtual methods (callbacks from Godot to Rust).
+    ///
+    /// Uses direct types (no `impl AsArg`) and VariantArray` for untyped arrays.
+    FnVirtual,
+
+    /// Return values from outbound functions (Godot -> Rust).
+    ///
+    /// Uses `VariantArray` for untyped arrays.
+    FnReturn,
+
+    /// Return values from virtual methods (Rust -> Godot).
+    ///
+    /// Uses `OutArray` for untyped arrays, to allow covariant returns.
+    FnReturnVirtual,
 }
 
 pub(crate) struct LifetimeGen {
@@ -464,6 +479,9 @@ pub(crate) fn make_param_or_field_type(
                 FnParamDecl::Field => {
                     quote! { CowArg<'a, #ty> }
                 }
+                FnParamDecl::FnVirtual | FnParamDecl::FnReturn | FnParamDecl::FnReturnVirtual => {
+                    quote! { #ty }
+                }
             }
         }
 
@@ -480,6 +498,9 @@ pub(crate) fn make_param_or_field_type(
                 FnParamDecl::FnPublicLifetime => quote! { impl AsArg<#ty> + 'a },
                 FnParamDecl::FnInternal => quote! { CowArg<#ty> },
                 FnParamDecl::Field => quote! { CowArg<'a, #ty> },
+                FnParamDecl::FnVirtual | FnParamDecl::FnReturn | FnParamDecl::FnReturnVirtual => {
+                    quote! { #ty }
+                }
             }
         }
 
@@ -499,6 +520,9 @@ pub(crate) fn make_param_or_field_type(
                 FnParamDecl::FnPublicLifetime => quote! { &'a #ty },
                 FnParamDecl::FnInternal => quote! { RefArg<#ty> },
                 FnParamDecl::Field => quote! { CowArg<'a, #ty>  },
+                FnParamDecl::FnVirtual | FnParamDecl::FnReturn | FnParamDecl::FnReturnVirtual => {
+                    quote! { #ty }
+                }
             }
         }
 

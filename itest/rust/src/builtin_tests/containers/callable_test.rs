@@ -350,7 +350,10 @@ fn callable_get_bound_arguments() {
     let callable = obj.callable("baz");
     let callable_bound = callable.bindv(&varray![a, b, c, d]);
 
-    assert_eq!(callable_bound.get_bound_arguments(), varray![a, b, c, d]);
+    assert_eq!(
+        callable_bound.get_bound_arguments(),
+        varray![a, b, c, d].into_any()
+    );
 }
 
 // Regression test for https://github.com/godot-rust/gdext/issues/410.

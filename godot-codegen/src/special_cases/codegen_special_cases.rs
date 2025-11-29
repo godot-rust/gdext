@@ -42,6 +42,7 @@ pub(crate) fn is_native_struct_excluded(_native_struct: &str) -> bool {
 #[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     use crate::conv;
+    use crate::generator::functions_common::FnParamDecl;
     use crate::models::domain::RustTy;
 
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
@@ -62,7 +63,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
             RustTy::ExtenderReceiver { .. } => false,
         }
     }
-    is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
+    is_rust_type_excluded(&conv::to_rust_type(ty, None, FnParamDecl::FnPublic, ctx))
 }
 
 #[cfg(feature = "codegen-full")]

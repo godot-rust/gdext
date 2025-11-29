@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use proc_macro2::Ident;
 
 use crate::context::Context;
+use crate::generator::functions_common::FnParamDecl;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
@@ -385,9 +386,11 @@ impl BuiltinMethod {
                 godot_name: method.name.clone(),
                 // Disable default parameters for builtin classes.
                 // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
-                parameters: FnParam::builder()
-                    .no_defaults()
-                    .build_many(&method.arguments, ctx),
+                parameters: FnParam::builder().no_defaults().build_many(
+                    &method.arguments,
+                    FnParamDecl::FnPublic,
+                    ctx,
+                ),
                 return_value,
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
@@ -536,12 +539,26 @@ impl ClassMethod {
             method.return_value.is_some(),
         );
 
+        let param_decl = match direction {
+            FnDirection::Virtual { .. } => FnParamDecl::FnVirtual,
+            _ => FnParamDecl::FnPublic,
+        };
+
         let parameters = FnParam::builder()
             .enum_replacements(enum_replacements)
-            .build_many(&method.arguments, ctx);
+            .build_many(&method.arguments, param_decl, ctx);
 
-        let return_value =
-            FnReturn::with_enum_replacements(&method.return_value, enum_replacements, ctx);
+        let return_decl = match direction {
+            FnDirection::Virtual { .. } => FnParamDecl::FnReturnVirtual,
+            _ => FnParamDecl::FnReturn,
+        };
+
+        let return_value = FnReturn::with_enum_replacements(
+            &method.return_value,
+            enum_replacements,
+            return_decl,
+            ctx,
+        );
 
         let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
 
@@ -609,7 +626,11 @@ impl ClassSignal {
 
         Some(Self {
             name: json_signal.name.clone(),
-            parameters: FnParam::builder().build_many(&json_signal.arguments, ctx),
+            parameters: FnParam::builder().build_many(
+                &json_signal.arguments,
+                FnParamDecl::FnPublic,
+                ctx,
+            ),
             surrounding_class: surrounding_class.clone(),
         })
     }
@@ -628,7 +649,7 @@ impl UtilityFunction {
         let parameters = if function.is_vararg && args.len() == 1 && args[0].name == "arg1" {
             vec![]
         } else {
-            FnParam::builder().build_many(&function.arguments, ctx)
+            FnParam::builder().build_many(&function.arguments, FnParamDecl::FnPublic, ctx)
         };
 
         let godot_method_name = function.name.clone();
