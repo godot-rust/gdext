@@ -1628,7 +1628,8 @@ macro_rules! varray {
                 array.push(&$elements.to_variant());
             )*
             array
-        }
+        } as $crate::builtin::VarArray
+        // The `as` cast is necessary for Deref coercion to AnyArray; type inference doesn't seem to pick it up otherwise.
     };
 }
 
