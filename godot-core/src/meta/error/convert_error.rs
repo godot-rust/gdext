@@ -35,10 +35,10 @@ impl ConvertError {
         }
     }
 
-    // /// Create a new custom error for a conversion with the value that failed to convert.
-    // pub(crate) fn with_kind(kind: ErrorKind) -> Self {
-    //     Self { kind, value: None }
-    // }
+    /// Create a new custom error for a conversion, without associated value.
+    pub(crate) fn with_kind(kind: ErrorKind) -> Self {
+        Self { kind, value: None }
+    }
 
     /// Create a new custom error for a conversion with the value that failed to convert.
     pub(crate) fn with_kind_value<V>(kind: ErrorKind, value: V) -> Self
@@ -162,6 +162,7 @@ pub(crate) enum ErrorKind {
     FromGodot(FromGodotError),
     FromFfi(FromFfiError),
     FromVariant(FromVariantError),
+    FromOutArray(ArrayMismatch),
     Custom(Option<Cause>),
 }
 
@@ -171,6 +172,7 @@ impl fmt::Display for ErrorKind {
             Self::FromGodot(from_godot) => write!(f, "{from_godot}"),
             Self::FromVariant(from_variant) => write!(f, "{from_variant}"),
             Self::FromFfi(from_ffi) => write!(f, "{from_ffi}"),
+            Self::FromOutArray(array_mismatch) => write!(f, "{array_mismatch}"),
             Self::Custom(cause) => match cause {
                 Some(c) => write!(f, "{c}"),
                 None => write!(f, "custom error"),
@@ -183,10 +185,7 @@ impl fmt::Display for ErrorKind {
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum FromGodotError {
     /// Destination `Array<T>` has different type than source's runtime type.
-    BadArrayType {
-        expected: ElementType,
-        actual: ElementType,
-    },
+    BadArrayType(ArrayMismatch),
 
     /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
     #[cfg(safeguards_strict)]
@@ -223,17 +222,8 @@ impl FromGodotError {
 impl fmt::Display for FromGodotError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::BadArrayType { expected, actual } => {
-                if expected.variant_type() != actual.variant_type() {
-                    // Includes either of two sides being Untyped (VARIANT).
-                    return write!(f, "expected array of type {expected:?}, got {actual:?}");
-                }
+            Self::BadArrayType(mismatch) => write!(f, "{mismatch}"),
 
-                let exp_class = format!("{expected:?}");
-                let act_class = format!("{actual:?}");
-
-                write!(f, "expected array of type {exp_class}, got {act_class}")
-            }
             #[cfg(safeguards_strict)]
             Self::BadArrayTypeInt {
                 expected_int_type,
@@ -244,8 +234,11 @@ impl fmt::Display for FromGodotError {
                     "integer value {value} does not fit into Array<{expected_int_type}>"
                 )
             }
+
             Self::InvalidEnum => write!(f, "invalid engine enum value"),
+
             Self::ZeroInstanceId => write!(f, "`InstanceId` cannot be 0"),
+
             Self::UnimplementedDynTrait {
                 trait_name,
                 class_name,
@@ -255,6 +248,7 @@ impl fmt::Display for FromGodotError {
                     "none of the classes derived from `{class_name}` have been linked to trait `{trait_name}` with #[godot_dyn]"
                 )
             }
+
             FromGodotError::UnregisteredDynTrait { trait_name } => {
                 write!(
                     f,
@@ -262,6 +256,27 @@ impl fmt::Display for FromGodotError {
                 )
             }
         }
+    }
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub(crate) struct ArrayMismatch {
+    pub expected: ElementType,
+    pub actual: ElementType,
+}
+
+impl fmt::Display for ArrayMismatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ArrayMismatch { expected, actual } = self;
+
+        if expected.variant_type() != actual.variant_type() {
+            return write!(f, "expected array of type {expected:?}, got {actual:?}");
+        }
+
+        let exp_class = format!("{expected:?}");
+        let act_class = format!("{actual:?}");
+
+        write!(f, "expected array of type {exp_class}, got {act_class}")
     }
 }
 

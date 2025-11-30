@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+mod any_array;
 mod array;
 mod array_functional_ops;
 mod dictionary;
@@ -14,6 +15,7 @@ mod packed_array_element;
 
 // Re-export in godot::builtin.
 pub(crate) mod containers {
+    pub use super::any_array::AnyArray;
     #[allow(deprecated)]
     pub use super::array::VariantArray;
     pub use super::array::{Array, VarArray};

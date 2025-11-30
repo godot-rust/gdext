@@ -389,7 +389,7 @@ pub(crate) enum FnArgExpr {
     StoreInDefaultField,
 }
 
-/// How parameters are declared in a function signature.
+/// Whether parameters need to be declared in a special way (e.g. with `impl AsArg`).
 #[derive(Copy, Clone)]
 pub(crate) enum FnParamDecl {
     /// Public-facing, i.e. `T`, `&T`, `impl AsArg<T>`.
@@ -493,6 +493,11 @@ pub(crate) fn make_param_or_field_type(
         | RustTy::EngineArray { .. } => {
             let lft = lifetimes.next();
             special_ty = Some(quote! { RefArg<#lft, #ty> });
+
+            // Transform VariantArray -> AnyArray for outbound parameters.
+            // FIXME virtual params
+            // let ty = if matches!(decl, FnParamDecl::)
+            //     ty.try_to_any_array().unwrap_or_else(|| ty.clone());
 
             match decl {
                 FnParamDecl::FnPublic => quote! { & #ty },

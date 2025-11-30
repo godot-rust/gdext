@@ -15,8 +15,8 @@ use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
 use crate::generator::{enums, functions_common};
 use crate::models::domain::{
-    BuiltinClass, BuiltinMethod, ClassLike, ExtensionApi, FnDirection, Function, ModName, RustTy,
-    TyName,
+    BuiltinClass, BuiltinMethod, ClassLike, ExtensionApi, FlowDirection, FnDirection, Function,
+    ModName, RustTy, TyName,
 };
 use crate::{conv, util, SubmitFn};
 
@@ -97,9 +97,12 @@ fn make_builtin_class(
 ) -> GeneratedBuiltin {
     let godot_name = &class.name().godot_ty;
 
+    // Meta direction irrelevant, since we're just interested in the builtin "outer" name.
+    // Flow mostly irrelevant too, but we'd like to have VariantArray as the outer class, so choose Godot->Rust.
+    let flow = FlowDirection::GodotToRust;
     let RustTy::BuiltinIdent {
         ty: outer_class, ..
-    } = conv::to_rust_type(godot_name, None, ctx)
+    } = conv::to_rust_type(godot_name, None, Some(flow), ctx)
     else {
         panic!("Rust type `{godot_name}` categorized wrong")
     };

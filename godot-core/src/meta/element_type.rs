@@ -15,10 +15,12 @@ use crate::obj::{Gd, InstanceId};
 
 /// Dynamic type information of Godot arrays and dictionaries.
 ///
-/// Used by [`Array::element_type()`][crate::builtin::Array::element_type], dictionary key/value type methods,
-/// and other type introspection functionality.
+/// Used in the following APIs:
+/// - [`AnyArray::element_type()`][crate::builtin::AnyArray::element_type]
+/// - [`Dictionary::key_element_type()`][crate::builtin::Dictionary::key_element_type]
+/// - [`Dictionary::value_element_type()`][crate::builtin::Dictionary::value_element_type]
 ///
-/// While Rust's type parameters provide compile-time type information, this method can give additional RTTI (runtime type information).
+/// While Rust's type parameters provide compile-time type information, this method supplies additional RTTI (runtime type information).
 /// For example, `Array<Gd<RefCounted>>` may store classes or scripts derived from `RefCounted`.
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ElementType {

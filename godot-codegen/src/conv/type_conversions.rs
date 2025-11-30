@@ -14,7 +14,7 @@ use quote::{quote, ToTokens};
 
 use crate::context::Context;
 use crate::conv;
-use crate::models::domain::{ArgPassing, GodotTy, ModName, RustTy, TyName};
+use crate::models::domain::{ArgPassing, FlowDirection, GodotTy, ModName, RustTy, TyName};
 use crate::special_cases::is_builtin_type_scalar;
 use crate::util::ident;
 
@@ -22,7 +22,7 @@ use crate::util::ident;
 // Godot -> Rust types
 
 /// Returns `(identifier, is_copy)` for a hardcoded Rust type, if it exists.
-fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
+fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<Ident> {
     let ty = full_ty.ty.as_str();
     let meta = full_ty.meta.as_deref();
 
@@ -53,7 +53,14 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         // Others
         ("bool", None) => "bool",
         ("String", None) => "GString",
-        ("Array", None) => "VarArray",
+
+        // Must remain "Array" because this is checked verbatim for later adjustments (e.g. to AnyArray).
+        // Keep also in line with default-exprs e.g. `Array::new()`.
+        ("Array", None) => match full_ty.flow {
+            Some(FlowDirection::RustToGodot) => "AnyArray",
+            Some(FlowDirection::GodotToRust) => "VarArray",
+            None => "_unused__Array_must_not_appear_in_idents",
+        },
         ("Dictionary", None) => "VarDictionary",
 
         // Types needed for native structures mapping
@@ -77,10 +84,10 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         _ => return None,
     };
 
-    Some(result)
+    Some(ident(result))
 }
 
-fn to_hardcoded_rust_enum(ty: &str) -> Option<&str> {
+fn to_hardcoded_rust_enum(ty: &str) -> Option<Ident> {
     // Some types like Vector2[i].Axis may not appear in Godot's current JSON, but they are encountered
     // in custom Godot builds, e.g. when extending PhysicsServer2D.
     let result = match ty {
@@ -93,7 +100,8 @@ fn to_hardcoded_rust_enum(ty: &str) -> Option<&str> {
         "enum::Vector3i.Axis" => "Vector3Axis",
         _ => return None,
     };
-    Some(result)
+
+    Some(ident(result))
 }
 
 /// Maps an input type to a Godot type with the same C representation. This is subtly different from [`to_rust_type`],
@@ -125,7 +133,7 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> (RustTy, bool) {
             ty: ident("f64"),
             arg_passing: ArgPassing::ByValue,
         },
-        _ => to_rust_type(ty, None, ctx),
+        _ => to_rust_temporary_type(ty, ctx),
     };
 
     (ty, is_obj)
@@ -135,14 +143,28 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> (RustTy, bool) {
 ///
 /// Uses an internal cache (via `ctx`), as several types are ubiquitous.
 // TODO take TyName as input
-pub(crate) fn to_rust_type<'a>(ty: &'a str, meta: Option<&'a String>, ctx: &mut Context) -> RustTy {
-    let full_ty = GodotTy {
-        ty: ty.to_string(),
-        meta: meta.cloned(),
+pub(crate) fn to_rust_type<'a>(
+    json_ty: &'a str,
+    meta: Option<&'a String>,
+    flow: Option<FlowDirection>,
+    ctx: &mut Context,
+) -> RustTy {
+    // Flow: don't-care for everything besides GDScript types Array or Array[Array].
+    // Do not panic if not set (used in to_temporary_rust_type()).
+    let flow = if json_ty == "Array" || json_ty == "typedarray::Array" {
+        flow
+    } else {
+        None
     };
 
-    // Separate find + insert slightly slower, but much easier with lifetimes
-    // The insert path will be hit less often and thus doesn't matter
+    let full_ty = GodotTy {
+        ty: json_ty.to_string(),
+        meta: meta.cloned(),
+        flow,
+    };
+
+    // Separate find + insert slightly slower, but much easier with lifetimes.
+    // The insert path will be hit less often and thus doesn't matter.
     if let Some(rust_ty) = ctx.find_rust_type(&full_ty) {
         rust_ty.clone()
     } else {
@@ -150,6 +172,17 @@ pub(crate) fn to_rust_type<'a>(ty: &'a str, meta: Option<&'a String>, ctx: &mut 
         ctx.insert_rust_type(full_ty, rust_ty.clone());
         rust_ty
     }
+}
+
+/// Converts a Godot type to a Rust type without caching, suitable for cases where only parts of the returned RustTy are needed.
+///
+/// This is a lightweight alternative to [`to_rust_type()`] for scenarios where only parts of the returned `RustTy` are needed (e.g.
+/// just the identifier name).
+///
+/// The returned type may have inaccuracies in fields that depend on metad or flow direction, so this should only be used when
+/// those fields are not needed. This allows for simpler call sites in code that doesn't require complete type information.
+pub(crate) fn to_rust_temporary_type(ty: &str, ctx: &mut Context) -> RustTy {
+    to_rust_type(ty, None, None, ctx)
 }
 
 fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
@@ -189,7 +222,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         // .trim() is necessary here, as Godot places a space between a type and the stars when representing a double pointer.
         // Example: "int*" but "int **".
-        let inner_type = to_rust_type(ty.trim(), None, ctx);
+        let inner_type = to_rust_type(ty.trim(), None, None, ctx);
         return RustTy::RawPointer {
             inner: Box::new(inner_type),
             is_const,
@@ -200,7 +233,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     if !ty.starts_with("typedarray::") {
         if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
             return RustTy::BuiltinIdent {
-                ty: ident(hardcoded),
+                ty: hardcoded,
                 arg_passing: ctx.get_builtin_arg_passing(full_ty),
             };
         }
@@ -208,7 +241,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
     if let Some(hardcoded) = to_hardcoded_rust_enum(ty) {
         return RustTy::EngineEnum {
-            tokens: ident(hardcoded).to_token_stream(),
+            tokens: hardcoded.to_token_stream(),
             surrounding_class: None, // would need class passed in
             is_bitfield: false,
         };
@@ -227,7 +260,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             };
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
-        let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), ctx);
+        let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), full_ty.flow, ctx);
         return if ctx.is_builtin(elem_ty) {
             RustTy::BuiltinArray {
                 elem_type: quote! { Array<#rust_elem_ty> },
@@ -332,6 +365,9 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         "true" => return quote! { true },
         "false" => return quote! { false },
         "[]" | "{}" if is_inner => return quote! {},
+        "[]" if matches!(ty, RustTy::BuiltinIdent { ty, .. } if ty == "AnyArray") => {
+            return quote! { AnyArray::new_untyped() }
+        }
         "[]" => return quote! { Array::new() }, // VarArray or Array<T>
         "{}" => return quote! { VarDictionary::new() },
         "null" => {

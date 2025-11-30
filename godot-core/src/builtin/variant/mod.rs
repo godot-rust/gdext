@@ -587,7 +587,7 @@ impl fmt::Debug for Variant {
         match self.get_type() {
             // Special case for arrays: avoids converting to VarArray (the only Array type in VariantDispatch),
             // which fails for typed arrays and causes a panic. This can cause an infinite loop with Debug, or abort.
-            // Can be removed if there's ever a "possibly typed" Array type (e.g. OutArray) in the library.
+            // Can be removed if there's ever a "possibly typed" Array type (e.g. AnyArray) in the library.
             VariantType::ARRAY => {
                 // SAFETY: type is checked, and only operation is print (out data flow, no covariant in access).
                 let array = unsafe { VarArray::from_variant_unchecked(self) };

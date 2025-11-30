@@ -62,7 +62,9 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
             RustTy::ExtenderReceiver { .. } => false,
         }
     }
-    is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
+
+    // Both meta + flow direction are irrelevant here.
+    is_rust_type_excluded(&conv::to_rust_temporary_type(ty, ctx))
 }
 
 #[cfg(feature = "codegen-full")]
