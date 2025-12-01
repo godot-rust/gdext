@@ -344,8 +344,7 @@ impl_builtin_traits! {
 
 impl_shared_string_api! {
     builtin: StringName,
-    find_builder: ExStringNameFind,
-    split_builder: ExStringNameSplit,
+    builtin_mod: string_name,
 }
 
 impl fmt::Display for StringName {

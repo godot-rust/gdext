@@ -13,7 +13,7 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, ExtVariantType, GodotFfi};
 
-use crate::builtin::string::{pad_if_needed, Encoding};
+use crate::builtin::strings::{pad_if_needed, Encoding};
 use crate::builtin::{inner, NodePath, StringName, Variant};
 use crate::meta::error::StringError;
 use crate::meta::AsArg;
@@ -312,8 +312,7 @@ impl_builtin_traits! {
 
 impl_shared_string_api! {
     builtin: GString,
-    find_builder: ExGStringFind,
-    split_builder: ExGStringSplit,
+    builtin_mod: gstring,
 }
 
 impl fmt::Display for GString {
