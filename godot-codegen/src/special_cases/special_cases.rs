@@ -609,19 +609,63 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
         | ("PackedByteArray", "get_string_from_wchar")
         | ("PackedByteArray", "hex_encode")
 
+        // Basis
+        | ("Basis", "looking_at")
+        | ("Transform3D", "looking_at")
+
         => true, _ => false
     }
 }
 
 #[rustfmt::skip]
-pub fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot_method_name: &str) -> bool {
-    // None if global/utilities function
-    let class_name = class_name.map_or("", |ty| ty.godot_ty.as_str());
+pub fn is_method_excluded_from_default_params(class_name: Option<&str>, godot_method_name: &str) -> bool {
+    // Utility functions: use "" string.
+    let class_name = class_name.unwrap_or("");
 
     match (class_name, godot_method_name) {
+        // Class exclusions.
         | ("Object", "notification")
 
-        => true, _ => false
+        // Builtin exclusions.
+        // Do not add methods here that aren't also part of is_builtin_method_exposed(). Methods on Inner* structs
+        // do not have default-parameter code generation.
+
+        | ("String" | "StringName", "find")
+        | ("String" | "StringName", "findn")
+        | ("String" | "StringName", "rfind")
+        | ("String" | "StringName", "rfindn")
+        | ("String" | "StringName", "split")
+        | ("String" | "StringName", "rsplit")
+
+        | ("Array", "duplicate")
+        | ("Array", "duplicate_deep")
+        | ("Array", "slice")
+        | ("Array", "find")
+        | ("Array", "rfind")
+        | ("Array", "find_custom")
+        | ("Array", "rfind_custom")
+        | ("Array", "bsearch")
+        | ("Array", "bsearch_custom")
+        | ("Array", "reduce")
+
+        | ("Dictionary", "duplicate")
+
+        // PackedByteArray-specific methods with custom wrappers.
+        | ("PackedByteArray", "encode_var")
+        | ("PackedByteArray", "decode_var")
+        | ("PackedByteArray", "decode_var_size")
+        | ("PackedByteArray", "compress")
+        | ("PackedByteArray", "decompress")
+        | ("PackedByteArray", "decompress_dynamic")
+
+        => true,
+
+        // Packed*Array common methods with custom wrappers (slice, find, rfind, bsearch)
+        (builtin, "slice" | "find" | "rfind" | "bsearch")
+            if builtin.starts_with("Packed") && builtin.ends_with("Array")
+        => true,
+
+        _ => false
     }
 }
 

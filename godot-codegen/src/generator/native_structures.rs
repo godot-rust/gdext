@@ -43,8 +43,10 @@ pub fn generate_native_structures_files(
         submit_fn(out_path, file_contents);
 
         modules.push(builtins::GeneratedBuiltinModule {
-            symbol_ident: class_name.rust_ty.clone(),
+            outer_builtin: class_name.rust_ty.clone(),
+            inner_builtin: class_name.rust_ty.clone(),
             module_name,
+            is_pub_sidecar: false, // Native structures don't have default extenders.
         });
     }
 
@@ -145,7 +147,10 @@ fn make_native_structure(
     };
     // note: TypePtr -> ObjectPtr conversion OK?
 
-    builtins::GeneratedBuiltin { code: tokens }
+    builtins::GeneratedBuiltin {
+        code: tokens,
+        has_sidecar_module: false,
+    }
 }
 
 fn make_native_structure_fields_and_methods(

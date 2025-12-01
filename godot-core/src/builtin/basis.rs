@@ -158,15 +158,6 @@ impl Basis {
         }
     }
 
-    /// If `use_model_front` is true, the +Z axis (asset front) is treated as forward (implies +X is left)
-    /// and points toward the target position. By default, the -Z axis (camera forward) is treated as forward
-    /// (implies +X is right).
-    ///
-    /// _Godot equivalent: `Basis.looking_at()`_
-    pub fn looking_at(target: Vector3, up: Vector3, use_model_front: bool) -> Self {
-        super::inner::InnerBasis::looking_at(target, up, use_model_front)
-    }
-
     /// Creates a `[Vector3; 3]` with the columns of the `Basis`.
     pub fn to_cols(&self) -> [Vector3; 3] {
         self.transposed().rows

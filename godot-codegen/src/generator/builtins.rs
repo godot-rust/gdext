@@ -23,11 +23,14 @@ use crate::{conv, util, SubmitFn};
 // Shared with native_structures.rs.
 pub struct GeneratedBuiltin {
     pub code: TokenStream,
+    pub has_sidecar_module: bool,
 }
 
 pub struct GeneratedBuiltinModule {
-    pub symbol_ident: Ident,
+    pub outer_builtin: Ident,
+    pub inner_builtin: Ident,
     pub module_name: ModName,
+    pub is_pub_sidecar: bool,
 }
 
 pub fn generate_builtin_class_files(
@@ -49,16 +52,18 @@ pub fn generate_builtin_class_files(
         let module_name = class.mod_name();
 
         let variant_shout_name = util::ident(variant.godot_shout_name());
-        let generated_class = make_builtin_class(class, &variant_shout_name, ctx);
-        let file_contents = generated_class.code;
+        let generated_builtin = make_builtin_class(class, &variant_shout_name, ctx);
+        let file_contents = generated_builtin.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
 
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
-            symbol_ident: class.inner_name().clone(),
+            outer_builtin: class.name().rust_ty.clone(),
+            inner_builtin: class.inner_name().clone(),
             module_name: module_name.clone(),
+            is_pub_sidecar: generated_builtin.has_sidecar_module,
         });
     }
 
@@ -71,14 +76,21 @@ pub fn generate_builtin_class_files(
 pub fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) -> TokenStream {
     let decls = classes_and_modules.iter().map(|m| {
         let GeneratedBuiltinModule {
+            outer_builtin,
+            inner_builtin,
             module_name,
-            symbol_ident,
-            ..
+            is_pub_sidecar,
         } = m;
 
+        // Module is public if it has default extenders (Ex* builders). Enums do not contribute, they're all manually redefined.
+        let vis = is_pub_sidecar.then_some(quote! { pub });
+
+        let doc = format!("Default extenders for builtin type [`{outer_builtin}`][crate::builtin::{outer_builtin}].");
+
         quote! {
-            mod #module_name;
-            pub use #module_name::#symbol_ident;
+            #[doc = #doc]
+            #vis mod #module_name;
+            pub use #module_name::#inner_builtin;
         }
     });
 
@@ -106,30 +118,39 @@ fn make_builtin_class(
     else {
         panic!("Rust type `{godot_name}` categorized wrong")
     };
-    let inner_class = class.inner_name();
+    let inner_builtin = class.inner_name();
 
-    // Note: builders are currently disabled for builtins, even though default parameters exist (e.g. String::substr).
-    // We just use the full signature instead. For outer APIs (user-facing), try to find idiomatic APIs.
+    // Enable `Ex*` builders for builtins to provide consistent API with classes.
+    // By default, builders are only placed on outer methods (for methods that are exposed per special_cases.rs), to reduce codegen.
+    // However it's possible to enable builders on the inner type, too, which is why both `inner_builders` + `outer_builders` exist.
     #[rustfmt::skip]
     let (
-        FnDefinitions { functions: inner_methods, .. },
-        FnDefinitions { functions: outer_methods, .. },
+        FnDefinitions { functions: inner_methods, builders: inner_builders },
+        FnDefinitions { functions: outer_methods, builders: outer_builders },
     ) = make_builtin_methods(class, variant_shout_name, &class.methods, ctx);
 
     let imports = util::make_imports();
     let enums = enums::make_enums(&class.enums, &TokenStream::new());
     let special_constructors = make_special_builtin_methods(class.name(), ctx);
 
-    // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
+    // `mod re_export` needed for builder structs to reference the Inner* type, similar to how classes use `re_export` for the class type.
     let code = quote! {
         #imports
 
-        #[repr(transparent)]
-        pub struct #inner_class<'a> {
-            _outer_lifetime: std::marker::PhantomData<&'a ()>,
-            sys_ptr: sys::GDExtensionTypePtr,
+        pub(super) mod re_export {
+            use super::*;
+
+            // Do *not* try to limit visibility, because inner types are used in PackedArrayElement::Inner<'a> associated type.
+            // Need to redesign that trait otherwise, and split into private/public parts.
+            #[doc(hidden)]
+            #[repr(transparent)]
+            pub struct #inner_builtin<'inner> {
+                pub(super) _outer_lifetime: std::marker::PhantomData<&'inner ()>,
+                pub(super) sys_ptr: sys::GDExtensionTypePtr,
+            }
         }
-        impl<'a> #inner_class<'a> {
+
+        impl<'inner> re_export::#inner_builtin<'inner> {
             pub fn from_outer(outer: &#outer_class) -> Self {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,
@@ -139,16 +160,29 @@ fn make_builtin_class(
             #special_constructors
             #inner_methods
         }
+
+        // Re-export Inner* type for convenience.
+        pub use re_export::#inner_builtin;
+
         // Selected APIs appear directly in the outer class.
         impl #outer_class {
             #outer_methods
         }
 
+        #inner_builders
+        #outer_builders
         #enums
     };
     // note: TypePtr -> ObjectPtr conversion OK?
 
-    GeneratedBuiltin { code }
+    // If any exposed builders are present, generate a sidecar module for the builtin.
+    // Do not care about inner Ex* builders, or builtin enums (enums are manually defined).
+    let has_sidecar_module = !outer_builders.is_empty();
+
+    GeneratedBuiltin {
+        code,
+        has_sidecar_module,
+    }
 }
 
 /// Returns 2 definition packs, one for the `Inner*` methods, and one for those ending up directly in the public-facing (outer) class.

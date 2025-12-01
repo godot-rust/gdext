@@ -348,7 +348,7 @@ impl VarDictionary {
     /// All dictionary keys and values are copied, but any reference types (such as `Array`, `Dictionary` and `Gd<T>` objects)
     /// will still refer to the same value.
     ///
-    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.  
+    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_

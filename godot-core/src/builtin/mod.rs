@@ -77,6 +77,10 @@ pub mod strings {
     };
 }
 
+pub mod sidecars {
+    pub use crate::gen::builtin_classes::*;
+}
+
 pub(crate) mod meta_reexport {
     pub use super::collections::PackedArrayElement;
 }

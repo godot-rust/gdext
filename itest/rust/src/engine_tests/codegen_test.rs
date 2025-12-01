@@ -35,7 +35,7 @@ fn codegen_base_renamed() {
 
 #[itest]
 fn codegen_static_builtin_method() {
-    let pi = GString::num(std::f64::consts::PI, 3);
+    let pi = GString::num_ex(std::f64::consts::PI).decimals(3).done();
     assert_eq!(pi, GString::from("3.142"));
 
     let col = InnerColor::html("#663399cc");

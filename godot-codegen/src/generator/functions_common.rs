@@ -17,8 +17,8 @@ pub struct FnReceiver {
     /// `&self`, `&mut self`, (none)
     pub param: TokenStream,
 
-    /// `&'a self`, `&'a mut self`, (none)
-    pub param_lifetime_a: TokenStream,
+    /// `&'ex self`, `&'ex mut self`, (none)
+    pub param_lifetime_ex: TokenStream,
 
     /// `ptr::null_mut()`, `self.object_ptr`, `self.sys_ptr`, (none)
     pub ffi_arg: TokenStream,
@@ -32,7 +32,7 @@ impl FnReceiver {
     pub fn global_function() -> FnReceiver {
         FnReceiver {
             param: TokenStream::new(),
-            param_lifetime_a: TokenStream::new(),
+            param_lifetime_ex: TokenStream::new(),
             ffi_arg: TokenStream::new(),
             self_prefix: TokenStream::new(),
         }
@@ -309,9 +309,9 @@ pub fn make_function_definition(
 pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnReceiver {
     assert_ne!(qualifier, FnQualifier::Global, "expected class");
 
-    let (param, param_lifetime_a) = match qualifier {
-        FnQualifier::Const => (quote! { &self, }, quote! { &'a self, }),
-        FnQualifier::Mut => (quote! { &mut self, }, quote! { &'a mut self, }),
+    let (param, param_lifetime_ex) = match qualifier {
+        FnQualifier::Const => (quote! { &self, }, quote! { &'ex self, }),
+        FnQualifier::Mut => (quote! { &mut self, }, quote! { &'ex mut self, }),
         FnQualifier::Static => (quote! {}, quote! {}),
         FnQualifier::Global => (quote! {}, quote! {}),
     };
@@ -327,11 +327,12 @@ pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnRecei
 
     FnReceiver {
         param,
-        param_lifetime_a,
+        param_lifetime_ex,
         ffi_arg,
         self_prefix,
     }
 }
+
 pub fn make_vis(is_private: bool) -> TokenStream {
     if is_private {
         quote! { pub(crate) }
@@ -395,7 +396,7 @@ pub(crate) enum FnParamDecl {
     /// Public-facing, i.e. `T`, `&T`, `impl AsArg<T>`.
     FnPublic,
 
-    /// Public-facing with explicit lifetime, e.g. `&'a T`. Used in `Ex` builder methods.
+    /// Public-facing with explicit lifetime, e.g. `&'ex T`. Used in `Ex` builder methods.
     FnPublicLifetime,
 
     /// Parameters in internal methods, used for delegation.
@@ -457,12 +458,12 @@ pub(crate) fn make_param_or_field_type(
 
             match decl {
                 FnParamDecl::FnPublic => quote! { #impl_as_object_arg },
-                FnParamDecl::FnPublicLifetime => quote! { #impl_as_object_arg + 'a },
+                FnParamDecl::FnPublicLifetime => quote! { #impl_as_object_arg + 'ex },
                 FnParamDecl::FnInternal => {
                     quote! { CowArg<#ty> }
                 }
                 FnParamDecl::Field => {
-                    quote! { CowArg<'a, #ty> }
+                    quote! { CowArg<'ex, #ty> }
                 }
             }
         }
@@ -477,9 +478,9 @@ pub(crate) fn make_param_or_field_type(
 
             match decl {
                 FnParamDecl::FnPublic => quote! { impl AsArg<#ty> },
-                FnParamDecl::FnPublicLifetime => quote! { impl AsArg<#ty> + 'a },
+                FnParamDecl::FnPublicLifetime => quote! { impl AsArg<#ty> + 'ex },
                 FnParamDecl::FnInternal => quote! { CowArg<#ty> },
-                FnParamDecl::Field => quote! { CowArg<'a, #ty> },
+                FnParamDecl::Field => quote! { CowArg<'ex, #ty> },
             }
         }
 
@@ -501,9 +502,9 @@ pub(crate) fn make_param_or_field_type(
 
             match decl {
                 FnParamDecl::FnPublic => quote! { & #ty },
-                FnParamDecl::FnPublicLifetime => quote! { &'a #ty },
+                FnParamDecl::FnPublicLifetime => quote! { &'ex #ty },
                 FnParamDecl::FnInternal => quote! { RefArg<#ty> },
-                FnParamDecl::Field => quote! { CowArg<'a, #ty>  },
+                FnParamDecl::Field => quote! { CowArg<'ex, #ty>  },
             }
         }
 

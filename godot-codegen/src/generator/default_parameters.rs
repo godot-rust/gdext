@@ -33,7 +33,7 @@ pub fn make_function_definition_with_defaults(
     let default_parameter_usage = format!("To set the default parameters, use [`Self::{extended_fn_name}`] and its builder methods.  See [the book](https://godot-rust.github.io/book/godot-api/functions.html#default-parameters) for detailed usage instructions.");
     let vis = functions_common::make_vis(sig.is_private());
 
-    let (builder_doc, surround_class_prefix) = make_extender_doc(sig, &extended_fn_name);
+    let (builder_doc, surround_class_path) = make_extender_doc(sig, &extended_fn_name);
 
     let ExtenderReceiver {
         object_fn_param,
@@ -62,26 +62,26 @@ pub fn make_function_definition_with_defaults(
     let return_decl = &sig.return_value().decl;
 
     // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
-    // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'a self.
+    // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'ex self.
     let receiver_self = &code.receiver.self_prefix;
     let simple_receiver_param = &code.receiver.param;
-    let extended_receiver_param = &code.receiver.param_lifetime_a;
+    let extended_receiver_param = &code.receiver.param_lifetime_ex;
 
     let builders = quote! {
         #[doc = #builder_doc]
         #[must_use]
         #cfg_attributes
-        #vis struct #builder_ty<'a> {
-            _phantom: std::marker::PhantomData<&'a ()>,
+        #vis struct #builder_ty<'ex> {
+            _phantom: std::marker::PhantomData<&'ex ()>,
             #( #builder_field_decls, )*
         }
 
         // #[allow] exceptions:
         // - wrong_self_convention:     to_*() and from_*() are taken from Godot
         // - redundant_field_names:     'value: value' is a possible initialization pattern
-        // - needless-update:           Remainder expression '..self' has nothing left to change
+        // - needless_update:           Remainder expression '..self' has nothing left to change
         #[allow(clippy::wrong_self_convention, clippy::redundant_field_names, clippy::needless_update)]
-        impl<'a> #builder_ty<'a> {
+        impl<'ex> #builder_ty<'ex> {
             fn new(
                 //#object_param
                 #( #builder_ctor_params, )*
@@ -98,7 +98,7 @@ pub fn make_function_definition_with_defaults(
             #[inline]
             pub fn done(self) #return_decl {
                 let Self { _phantom, #( #builder_field_names, )* } = self;
-                #surround_class_prefix #full_fn_name(
+                #surround_class_path::#full_fn_name(
                     #( #full_fn_args, )* // includes `surround_object` if present
                 )
             }
@@ -122,10 +122,10 @@ pub fn make_function_definition_with_defaults(
         // _ex() function:
         // Lifetime is set if any parameter is a reference OR if the method is not static/global (and thus can refer to self).
         #[inline]
-        #vis fn #extended_fn_name<'a> (
+        #vis fn #extended_fn_name<'ex> (
             #extended_receiver_param
             #( #class_method_required_params_lifetimed, )*
-        ) -> #builder_ty<'a> {
+        ) -> #builder_ty<'ex> {
             #builder_ty::new(
                 #object_arg
                 #( #class_method_required_args, )*
@@ -137,11 +137,30 @@ pub fn make_function_definition_with_defaults(
 }
 
 pub fn function_uses_default_params(sig: &dyn Function) -> bool {
-    sig.params().iter().any(|arg| arg.default_value.is_some())
+    // For builtin types, strip "Inner" prefix, while avoiding collision with classes that might start with "Inner".
+    let class_or_builtin = sig.surrounding_class().map(|ty| {
+        let rust_name = ty.rust_ty.to_string();
+
+        // If it’s builtin and starts with "Inner", drop that prefix; otherwise keep original string.
+        match (sig.is_builtin(), rust_name.strip_prefix("Inner")) {
+            (true, Some(rest)) => rest.to_string(),
+            _ => rust_name,
+        }
+    });
+
+    let fn_declares_default_params = sig.params().iter().any(|arg| arg.default_value.is_some())
         && !special_cases::is_method_excluded_from_default_params(
-            sig.surrounding_class(),
+            class_or_builtin.as_deref(),
             sig.name(),
-        )
+        );
+
+    // For builtins, only generate `Ex*` builders if the method is exposed on the outer type.
+    // This saves on code generation and compile time for `Inner*` methods.
+    if fn_declares_default_params && sig.is_builtin() {
+        return sig.is_exposed_outer_builtin();
+    }
+
+    fn_declares_default_params
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -179,11 +198,17 @@ fn make_extender_doc(sig: &dyn Function, extended_fn_name: &Ident) -> (String, T
     #[allow(clippy::uninlined_format_args)]
     match sig.surrounding_class() {
         Some(TyName { rust_ty, .. }) => {
-            surround_class_prefix = quote! { re_export::#rust_ty:: };
+            surround_class_prefix = make_qualified_type(sig, rust_ty, true);
+            let path = if sig.is_builtin() {
+                format!("crate::builtin::{rust_ty}")
+            } else {
+                format!("super::{rust_ty}")
+            };
             builder_doc = format!(
-                "Default-param extender for [`{class}::{method}`][super::{class}::{method}].",
+                "Default-param extender for [`{class}::{method}`][{path}::{method}].",
                 class = rust_ty,
                 method = extended_fn_name,
+                path = path,
             );
         }
         None => {
@@ -213,13 +238,13 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
     // Only add it if the method is not global or static.
     match sig.surrounding_class() {
         Some(surrounding_class) if !sig.qualifier().is_static_or_global() => {
-            let class = &surrounding_class.rust_ty;
+            let ty = make_qualified_type(sig, &surrounding_class.rust_ty, false);
 
             ExtenderReceiver {
                 object_fn_param: Some(FnParam {
                     name: ident("surround_object"),
                     type_: RustTy::ExtenderReceiver {
-                        tokens: quote! { &'a #builder_mut re_export::#class },
+                        tokens: quote! { &'ex #builder_mut #ty },
                     },
                     default_value: None,
                 }),
@@ -329,5 +354,25 @@ fn make_extender(
         class_method_required_params,
         class_method_required_params_lifetimed,
         class_method_required_args,
+    }
+}
+
+/// Returns a qualified type path for builtin or class.
+///
+/// Type categories:
+/// - Exposed outer builtins (like `GString`): direct type reference without `re_export::`.
+/// - `Inner\*` types (like `InnerString`): `re_export::Type<'ex>`, with lifetime if `with_inner_lifetime` is true.
+/// - Classes (like `Node`): `re_export::Type` without lifetime.
+fn make_qualified_type(
+    sig: &dyn Function,
+    class_or_builtin: &Ident,
+    with_inner_lifetime: bool,
+) -> TokenStream {
+    if sig.is_exposed_outer_builtin() {
+        quote! { #class_or_builtin }
+    } else if with_inner_lifetime && sig.is_builtin() {
+        quote! { re_export::#class_or_builtin<'ex> }
+    } else {
+        quote! { re_export::#class_or_builtin }
     }
 }
