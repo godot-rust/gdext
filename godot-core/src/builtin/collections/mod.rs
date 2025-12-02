@@ -14,8 +14,12 @@ mod packed_array_element;
 
 // Re-export in godot::builtin.
 pub(crate) mod containers {
-    pub use super::array::{Array, VariantArray};
+    #[allow(deprecated)]
+    pub use super::array::VariantArray;
+    pub use super::array::{Array, VarArray};
+    #[allow(deprecated)]
     pub use super::dictionary::Dictionary;
+    pub use super::dictionary::VarDictionary;
     pub use super::packed_array::*;
 }
 

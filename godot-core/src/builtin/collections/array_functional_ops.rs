@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{to_usize, Array, Callable, Variant, VariantArray};
+use crate::builtin::{to_usize, Array, Callable, VarArray, Variant};
 use crate::meta::{ArrayElement, AsArg};
 use crate::{meta, sys};
 
@@ -59,7 +59,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// **Rust alternatives:** [`Iterator::map()`].
     ///
     /// The callable has signature `fn(T) -> Variant`. Since the transformation can change the element type, this method returns
-    /// a `VariantArray` (untyped array).
+    /// a `VarArray` (untyped array).
     ///
     /// # Example
     /// ```no_run
@@ -71,7 +71,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// assert_eq!(rounded, varray![1, 2, 2]);
     /// ```
     #[must_use]
-    pub fn map(&self, callable: &Callable) -> VariantArray {
+    pub fn map(&self, callable: &Callable) -> VarArray {
         // SAFETY: map() returns an untyped array.
         unsafe { self.array.as_inner().map(callable) }
     }

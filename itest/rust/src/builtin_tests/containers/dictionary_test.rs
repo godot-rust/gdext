@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use godot::builtin::{varray, vdict, Dictionary, Variant, VariantType};
+use godot::builtin::{varray, vdict, VarDictionary, Variant, VariantType};
 use godot::classes::RefCounted;
 use godot::meta::{ElementType, FromGodot, ToGodot};
 use godot::obj::NewGd;
@@ -18,23 +18,23 @@ use crate::framework::{
 
 #[itest]
 fn dictionary_default() {
-    assert_eq!(Dictionary::default().len(), 0);
+    assert_eq!(VarDictionary::default().len(), 0);
 }
 
 #[itest]
 fn dictionary_new() {
-    assert_eq!(Dictionary::new().len(), 0);
+    assert_eq!(VarDictionary::new().len(), 0);
 }
 
 #[itest]
 fn dictionary_from_iterator() {
-    let dictionary = Dictionary::from_iter([("foo", 1), ("bar", 2)]);
+    let dictionary = VarDictionary::from_iter([("foo", 1), ("bar", 2)]);
 
     assert_eq!(dictionary.len(), 2);
     assert_eq!(dictionary.get("foo"), Some(1.to_variant()), "key = \"foo\"");
     assert_eq!(dictionary.get("bar"), Some(2.to_variant()), "key = \"bar\"");
 
-    let dictionary = Dictionary::from_iter([(1, "foo"), (2, "bar")]);
+    let dictionary = VarDictionary::from_iter([(1, "foo"), (2, "bar")]);
 
     assert_eq!(dictionary.len(), 2);
     assert_eq!(dictionary.get(1), Some("foo".to_variant()), "key = 1");
@@ -43,13 +43,13 @@ fn dictionary_from_iterator() {
 
 #[itest]
 fn dictionary_from() {
-    let dictionary = Dictionary::from(&HashMap::from([("foo", 1), ("bar", 2)]));
+    let dictionary = VarDictionary::from(&HashMap::from([("foo", 1), ("bar", 2)]));
 
     assert_eq!(dictionary.len(), 2);
     assert_eq!(dictionary.get("foo"), Some(1.to_variant()), "key = \"foo\"");
     assert_eq!(dictionary.get("bar"), Some(2.to_variant()), "key = \"bar\"");
 
-    let dictionary = Dictionary::from(&HashMap::from([(1, "foo"), (2, "bar")]));
+    let dictionary = VarDictionary::from(&HashMap::from([(1, "foo"), (2, "bar")]));
 
     assert_eq!(dictionary.len(), 2);
     assert_eq!(dictionary.get(1), Some("foo".to_variant()), "key = \"foo\"");
@@ -104,7 +104,7 @@ fn dictionary_clone() {
 
     #[allow(clippy::redundant_clone)]
     let clone = dictionary.clone();
-    Dictionary::from_variant(&clone.get("bar").unwrap()).set("final", 4);
+    VarDictionary::from_variant(&clone.get("bar").unwrap()).set("final", 4);
     assert_eq!(subdictionary.get("final"), Some(4.to_variant()));
 }
 
@@ -157,7 +157,7 @@ fn dictionary_duplicate_deep() {
         "bar": subdictionary.clone()
     };
     let clone = dictionary.duplicate_deep();
-    Dictionary::from_variant(&clone.get("bar").unwrap()).set("baz", 4);
+    VarDictionary::from_variant(&clone.get("bar").unwrap()).set("baz", 4);
     assert_eq!(
         subdictionary.get("baz"),
         Some(true.to_variant()),
@@ -177,7 +177,7 @@ fn dictionary_duplicate_shallow() {
     };
 
     let mut clone = dictionary.duplicate_shallow();
-    Dictionary::from_variant(&clone.get("bar").unwrap()).set("baz", 4);
+    VarDictionary::from_variant(&clone.get("bar").unwrap()).set("baz", 4);
     assert_eq!(
         subdictionary.get("baz"),
         Some(4.to_variant()),
@@ -464,7 +464,7 @@ fn dictionary_iter() {
 #[itest]
 fn dictionary_iter_size_hint() {
     // Test a completely empty dict.
-    let dictionary = Dictionary::new();
+    let dictionary = VarDictionary::new();
     let iter = dictionary.iter_shared();
     assert_eq!(iter.size_hint(), (0, Some(0)));
 
@@ -502,11 +502,11 @@ fn dictionary_iter_size_hint() {
 
 #[itest]
 fn dictionary_iter_equals_big() {
-    let dictionary: Dictionary = (0..1000).zip(0..1000).collect();
+    let dictionary: VarDictionary = (0..1000).zip(0..1000).collect();
     let map: HashMap<i64, i64> = (0..1000).zip(0..1000).collect();
     let collected_map: HashMap<i64, i64> = dictionary.iter_shared().typed::<i64, i64>().collect();
     assert_eq!(map, collected_map);
-    let collected_dictionary: Dictionary = collected_map.into_iter().collect();
+    let collected_dictionary: VarDictionary = collected_map.into_iter().collect();
     assert_eq!(dictionary, collected_dictionary);
 }
 
@@ -559,7 +559,7 @@ fn dictionary_iter_insert_after_completion() {
 
 #[itest]
 fn dictionary_iter_big() {
-    let dictionary: Dictionary = (0..256).zip(0..256).collect();
+    let dictionary: VarDictionary = (0..256).zip(0..256).collect();
     let mut dictionary2 = dictionary.clone();
     let mut iter = dictionary.iter_shared();
 
@@ -627,18 +627,19 @@ fn dictionary_iter_simultaneous() {
 #[itest]
 fn dictionary_iter_panics() {
     expect_panic(
-        "Dictionary containing integer keys should not be convertible to a HashSet<String>",
+        "VarDictionary containing integer keys should not be convertible to a HashSet<String>",
         || {
-            let dictionary: Dictionary = (0..10).zip(0..).collect();
+            let dictionary: VarDictionary = (0..10).zip(0..).collect();
             let _set: HashSet<String> = dictionary.keys_shared().typed::<String>().collect();
         },
     );
 
     expect_panic(
-        "Dictionary containing integer entries should not be convertible to a HashMap<String,String>",
+        "VarDictionary containing integer entries should not be convertible to a HashMap<String,String>",
         || {
-            let dictionary: Dictionary = (0..10).zip(0..).collect();
-            let _set: HashMap<String,String> = dictionary.iter_shared().typed::<String,String>().collect();
+            let dictionary: VarDictionary = (0..10).zip(0..).collect();
+            let _set: HashMap<String, String> =
+                dictionary.iter_shared().typed::<String, String>().collect();
         },
     );
 }
@@ -737,7 +738,7 @@ fn dictionary_iter_erase() {
 
 #[itest]
 fn dictionary_should_format_with_display() {
-    let d = Dictionary::new();
+    let d = VarDictionary::new();
     assert_eq!(format!("{d}"), "{  }");
 
     let d = vdict! {
@@ -754,14 +755,14 @@ fn dictionary_element_type() {
     use godot::meta::ElementType;
 
     // Test untyped dictionary
-    let untyped = Dictionary::new();
+    let untyped = VarDictionary::new();
     assert!(
         matches!(untyped.key_element_type(), ElementType::Untyped),
-        "expected untyped key for Dictionary"
+        "expected untyped key for VarDictionary"
     );
     assert!(
         matches!(untyped.value_element_type(), ElementType::Untyped),
-        "expected untyped value for Dictionary"
+        "expected untyped value for VarDictionary"
     );
 }
 
@@ -795,12 +796,16 @@ func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
     // Test all 4 ElementType variants in alternating key/value pattern.
 
     // 1) Dictionary.
-    let dict = object.call("variant_variant_dict", &[]).to::<Dictionary>();
+    let dict = object
+        .call("variant_variant_dict", &[])
+        .to::<VarDictionary>();
     assert_match!(dict.key_element_type(), ElementType::Untyped);
     assert_match!(dict.value_element_type(), ElementType::Untyped);
 
     // 2) Dictionary[String, Variant].
-    let dict = object.call("builtin_variant_dict", &[]).to::<Dictionary>();
+    let dict = object
+        .call("builtin_variant_dict", &[])
+        .to::<VarDictionary>();
     assert_match!(
         dict.key_element_type(),
         ElementType::Builtin(VariantType::STRING)
@@ -808,7 +813,7 @@ func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
     assert_match!(dict.value_element_type(), ElementType::Untyped);
 
     // 3) Dictionary[Color, RefCounted].
-    let dict = object.call("builtin_class_dict", &[]).to::<Dictionary>();
+    let dict = object.call("builtin_class_dict", &[]).to::<VarDictionary>();
     assert_match!(
         dict.key_element_type(),
         ElementType::Builtin(VariantType::COLOR)
@@ -817,7 +822,9 @@ func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
     assert_eq!(class_name.to_string(), "RefCounted");
 
     // 4) Dictionary[Variant, CustomScriptForDictionaries].
-    let dict = object.call("variant_script_dict", &[]).to::<Dictionary>();
+    let dict = object
+        .call("variant_script_dict", &[])
+        .to::<VarDictionary>();
     assert_match!(dict.key_element_type(), ElementType::Untyped);
     assert_match!(dict.value_element_type(), ElementType::ScriptClass(script));
     let script = script.script().expect("script object should be alive");

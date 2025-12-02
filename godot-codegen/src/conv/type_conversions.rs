@@ -53,7 +53,8 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         // Others
         ("bool", None) => "bool",
         ("String", None) => "GString",
-        ("Array", None) => "VariantArray",
+        ("Array", None) => "VarArray",
+        ("Dictionary", None) => "VarDictionary",
 
         // Types needed for native structures mapping
         ("uint8_t", None) => "u8",
@@ -331,8 +332,8 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         "true" => return quote! { true },
         "false" => return quote! { false },
         "[]" | "{}" if is_inner => return quote! {},
-        "[]" => return quote! { Array::new() }, // VariantArray or Array<T>
-        "{}" => return quote! { Dictionary::new() },
+        "[]" => return quote! { Array::new() }, // VarArray or Array<T>
+        "{}" => return quote! { VarDictionary::new() },
         "null" => {
             return match ty {
                 RustTy::BuiltinIdent { ty: ident, .. } if ident == "Variant" => {
@@ -614,7 +615,7 @@ fn gdscript_to_rust_expr() {
         // Special literals
         ("true",                                           None,               quote! { true }),
         ("false",                                          None,               quote! { false }),
-        ("{}",                                             None,               quote! { Dictionary::new() }),
+        ("{}",                                             None,               quote! { VarDictionary::new() }),
         ("[]",                                             None,               quote! { Array::new() }),
 
         ("null",                                           ty_variant,         quote! { Variant::nil() }),

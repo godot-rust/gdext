@@ -11,7 +11,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use crate::builtin::{
-    GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
+    GString, StringName, VarArray, VariantDispatch, VariantOperator, VariantType,
 };
 use crate::classes;
 use crate::meta::error::{ConvertError, FromVariantError};
@@ -585,12 +585,12 @@ impl fmt::Display for Variant {
 impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.get_type() {
-            // Special case for arrays: avoids converting to VariantArray (the only Array type in VariantDispatch),
+            // Special case for arrays: avoids converting to VarArray (the only Array type in VariantDispatch),
             // which fails for typed arrays and causes a panic. This can cause an infinite loop with Debug, or abort.
             // Can be removed if there's ever a "possibly typed" Array type (e.g. OutArray) in the library.
             VariantType::ARRAY => {
                 // SAFETY: type is checked, and only operation is print (out data flow, no covariant in access).
-                let array = unsafe { VariantArray::from_variant_unchecked(self) };
+                let array = unsafe { VarArray::from_variant_unchecked(self) };
                 array.fmt(f)
             }
 

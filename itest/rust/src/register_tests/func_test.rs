@@ -62,7 +62,7 @@ impl FuncObj {
         required: i32,
         #[opt(default = "Default str")] string: GString,
         #[opt(default = 100)] integer: i32,
-    ) -> VariantArray {
+    ) -> VarArray {
         varray![required, string, integer]
     }
 
@@ -347,13 +347,13 @@ fn func_default_parameters() {
     let mut obj = FuncObj::new_gd();
 
     let a = obj.call("method_with_defaults", vslice![0]);
-    assert_eq!(a.to::<VariantArray>(), varray![0, "Default str", 100]);
+    assert_eq!(a.to::<VarArray>(), varray![0, "Default str", 100]);
 
     let b = obj.call("method_with_defaults", vslice![1, "My string"]);
-    assert_eq!(b.to::<VariantArray>(), varray![1, "My string", 100]);
+    assert_eq!(b.to::<VarArray>(), varray![1, "My string", 100]);
 
     let c = obj.call("method_with_defaults", vslice![2, "Another string", 456]);
-    assert_eq!(c.to::<VariantArray>(), varray![2, "Another string", 456]);
+    assert_eq!(c.to::<VarArray>(), varray![2, "Another string", 456]);
 
     /* For now, Gd<T> defaults are disabled due to immutability.
     // Test that object is passed through, and that Option<Gd> with default Gd::null_arg() works.

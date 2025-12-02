@@ -10,9 +10,9 @@ use std::fmt;
 use std::fmt::Display;
 
 use godot::builtin::{
-    array, varray, vdict, vslice, Array, Basis, Color, Dictionary, GString, NodePath,
-    PackedInt32Array, PackedStringArray, Projection, Quaternion, Signal, StringName, Transform2D,
-    Transform3D, Variant, VariantArray, VariantOperator, VariantType, Vector2, Vector2i, Vector3,
+    array, varray, vdict, vslice, Array, Basis, Color, GString, NodePath, PackedInt32Array,
+    PackedStringArray, Projection, Quaternion, Signal, StringName, Transform2D, Transform3D,
+    VarArray, VarDictionary, Variant, VariantOperator, VariantType, Vector2, Vector2i, Vector3,
     Vector3i,
 };
 use godot::classes::{Node, Node2D, Resource};
@@ -124,8 +124,8 @@ fn variant_relaxed_conversions() {
     convert_relaxed_fail::<i64>(Variant::nil());
     convert_relaxed_fail::<GString>(Variant::nil());
     convert_relaxed_fail::<Gd<Node>>(Variant::nil());
-    convert_relaxed_fail::<VariantArray>(Variant::nil());
-    convert_relaxed_fail::<Dictionary>(Variant::nil());
+    convert_relaxed_fail::<VarArray>(Variant::nil());
+    convert_relaxed_fail::<VarDictionary>(Variant::nil());
 
     // anything -> Variant
     convert_relaxed_to(123, Variant::from(123));
@@ -231,7 +231,7 @@ fn variant_bad_conversions() {
     assert_convert_err::<f32, i32>(1.23);
     assert_convert_err::<i32, bool>(10);
     assert_convert_err::<_, String>(false);
-    assert_convert_err::<_, StringName>(VariantArray::default());
+    assert_convert_err::<_, StringName>(VarArray::default());
 
     // Special case: ToVariant is not yet fallible, so u64 -> i64 conversion error panics.
     expect_panic("u64 -> i64 conversion error", || {
@@ -239,13 +239,13 @@ fn variant_bad_conversions() {
     });
 
     //assert_eq!(
-    //    Dictionary::default().to_variant().try_to::<Array>(),
+    //    VarDictionary::default().to_variant().try_to::<Array>(),
     //    Err(VariantConversionError)
     //);
     Variant::nil()
         .to_variant()
-        .try_to::<Dictionary>()
-        .expect_err("`nil` should not convert to `Dictionary`");
+        .try_to::<VarDictionary>()
+        .expect_err("`nil` should not convert to `VarDictionary`");
 }
 
 #[itest]
@@ -337,9 +337,9 @@ fn variant_array_to_untyped_conversions() {
     // Even empty arrays are typed and cannot be converted.
     let node_array: Array<Gd<Node>> = array![];
     let node_variant = node_array.to_variant();
-    let untyped_array = node_variant.try_to::<VariantArray>();
+    let untyped_array = node_variant.try_to::<VarArray>();
 
-    let err = untyped_array.expect_err("Array<Gd<Node>> -> VariantArray conversion should fail");
+    let err = untyped_array.expect_err("Array<Gd<Node>> -> VarArray conversion should fail");
     assert_eq!(
         err.to_string(),
         "expected array of type Untyped, got Class(Node): []"
@@ -350,11 +350,11 @@ fn variant_array_to_untyped_conversions() {
 #[itest]
 fn variant_array_from_untyped_conversions() {
     // Even empty arrays are typed and cannot be converted.
-    let untyped_array: VariantArray = varray![1, 2];
+    let untyped_array: VarArray = varray![1, 2];
     let untyped_variant = untyped_array.to_variant();
     let int_array = untyped_variant.try_to::<Array<i64>>();
 
-    let err = int_array.expect_err("VariantArray -> Array<i64> conversion should fail");
+    let err = int_array.expect_err("VarArray -> Array<i64> conversion should fail");
     assert_eq!(
         err.to_string(),
         "expected array of type Builtin(INT), got Untyped: [1, 2]"
@@ -691,7 +691,7 @@ fn variant_booleanize() {
     assert!(varray![""].to_variant().booleanize());
     assert!(vdict! { "Key": 50 }.to_variant().booleanize());
 
-    assert!(!Dictionary::new().to_variant().booleanize());
+    assert!(!VarDictionary::new().to_variant().booleanize());
     assert!(!varray![].to_variant().booleanize());
     assert!(!0.to_variant().booleanize());
     assert!(!Variant::nil().booleanize());

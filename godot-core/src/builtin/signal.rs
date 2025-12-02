@@ -10,7 +10,7 @@ use std::{fmt, ptr};
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
-use crate::builtin::{inner, Array, Callable, Dictionary, StringName, Variant};
+use crate::builtin::{inner, Array, Callable, StringName, VarDictionary, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::classes::Object;
 use crate::global::Error;
@@ -117,7 +117,7 @@ impl Signal {
     ///  - `flags` is a combination of [`ConnectFlags`](ConnectFlags).
     ///
     /// _Godot equivalent: `get_connections`_
-    pub fn connections(&self) -> Array<Dictionary> {
+    pub fn connections(&self) -> Array<VarDictionary> {
         self.as_inner()
             .get_connections()
             .iter_shared()

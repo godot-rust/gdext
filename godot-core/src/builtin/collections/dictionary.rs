@@ -13,8 +13,11 @@ use godot_ffi as sys;
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::{inner, Variant, VariantArray};
+use crate::builtin::{inner, VarArray, Variant};
 use crate::meta::{ElementType, ExtVariantType, FromGodot, ToGodot};
+
+#[deprecated = "Renamed to `VarDictionary`; `Dictionary` will be reserved for typed dictionaries in the future."]
+pub type Dictionary = VarDictionary;
 
 /// Godot's `Dictionary` type.
 ///
@@ -30,7 +33,7 @@ use crate::meta::{ElementType, ExtVariantType, FromGodot, ToGodot};
 /// ```no_run
 /// # use godot::prelude::*;
 /// // Create empty dictionary and add key-values pairs.
-/// let mut dict = Dictionary::new();
+/// let mut dict = VarDictionary::new();
 /// dict.set("str", "Hello");
 /// dict.set("num", 23);
 ///
@@ -74,12 +77,12 @@ use crate::meta::{ElementType, ExtVariantType, FromGodot, ToGodot};
 ///
 /// # Thread safety
 ///
-/// The same principles apply as for [`VariantArray`]. Consult its documentation for details.
+/// The same principles apply as for [`VarArray`]. Consult its documentation for details.
 ///
 /// # Godot docs
 ///
 /// [`Dictionary` (stable)](https://docs.godotengine.org/en/stable/classes/class_dictionary.html)
-pub struct Dictionary {
+pub struct VarDictionary {
     opaque: OpaqueDictionary,
 
     /// Lazily computed and cached element type information for the key type.
@@ -89,7 +92,7 @@ pub struct Dictionary {
     cached_value_type: OnceCell<ElementType>,
 }
 
-impl Dictionary {
+impl VarDictionary {
     fn from_opaque(opaque: OpaqueDictionary) -> Self {
         Self {
             opaque,
@@ -199,7 +202,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `has_all`_
     #[doc(alias = "has_all")]
-    pub fn contains_all_keys(&self, keys: &VariantArray) -> bool {
+    pub fn contains_all_keys(&self, keys: &VarArray) -> bool {
         self.as_inner().has_all(keys)
     }
 
@@ -299,7 +302,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `keys`_
     #[doc(alias = "keys")]
-    pub fn keys_array(&self) -> VariantArray {
+    pub fn keys_array(&self) -> VarArray {
         self.as_inner().keys()
     }
 
@@ -307,7 +310,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `values`_
     #[doc(alias = "values")]
-    pub fn values_array(&self) -> VariantArray {
+    pub fn values_array(&self) -> VarArray {
         self.as_inner().values()
     }
 
@@ -351,10 +354,10 @@ impl Dictionary {
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
     ///
-    /// The pairs are each of type `(Variant, Variant)`. Each pair references the original `Dictionary`, but instead of a `&`-reference
+    /// The pairs are each of type `(Variant, Variant)`. Each pair references the original dictionary, but instead of a `&`-reference
     /// to key-value pairs as you might expect, the iterator returns a (cheap, shallow) copy of each key-value pair.
     ///
-    /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
+    /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     ///
     /// Use `dict.iter_shared().typed::<K, V>()` to iterate over `(K, V)` pairs instead.
@@ -473,9 +476,9 @@ impl Dictionary {
         unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) }
     }
 
-    /// Execute a function that creates a new Dictionary, transferring cached element types if available.
+    /// Execute a function that creates a new dictionary, transferring cached element types if available.
     ///
-    /// This is a convenience helper for methods that create new Dictionary instances and want to preserve
+    /// This is a convenience helper for methods that create new dictionary instances and want to preserve
     /// cached type information to avoid redundant FFI calls.
     fn with_cache(self, source: &Self) -> Self {
         // Transfer both key and value type caches independently
@@ -490,23 +493,23 @@ impl Dictionary {
 
 // SAFETY:
 // - `move_return_ptr`
-//   Nothing special needs to be done beyond a `std::mem::swap` when returning a Dictionary.
+//   Nothing special needs to be done beyond a `std::mem::swap` when returning a dictionary.
 //   So we can just use `ffi_methods`.
 //
 // - `from_arg_ptr`
 //   Dictionaries are properly initialized through a `from_sys` call, but the ref-count should be
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(dictionary.clone())`.
-unsafe impl GodotFfi for Dictionary {
+unsafe impl GodotFfi for VarDictionary {
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::DICTIONARY);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-crate::meta::impl_godot_as_self!(Dictionary: ByRef);
+crate::meta::impl_godot_as_self!(VarDictionary: ByRef);
 
 impl_builtin_traits! {
-    for Dictionary {
+    for VarDictionary {
         Default => dictionary_construct_default;
         Drop => dictionary_destroy;
         PartialEq => dictionary_operator_equal;
@@ -515,13 +518,13 @@ impl_builtin_traits! {
     }
 }
 
-impl fmt::Debug for Dictionary {
+impl fmt::Debug for VarDictionary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.to_variant().stringify())
     }
 }
 
-impl fmt::Display for Dictionary {
+impl fmt::Display for VarDictionary {
     /// Formats `Dictionary` to match Godot's string representation.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{ ")?;
@@ -538,9 +541,9 @@ impl fmt::Display for Dictionary {
 /// Creates a new reference to the data in this dictionary. Changes to the original dictionary will be
 /// reflected in the copy and vice versa.
 ///
-/// To create a (mostly) independent copy instead, see [`Dictionary::duplicate_shallow()`] and
-/// [`Dictionary::duplicate_deep()`].
-impl Clone for Dictionary {
+/// To create a (mostly) independent copy instead, see [`VarDictionary::duplicate_shallow()`] and
+/// [`VarDictionary::duplicate_deep()`].
+impl Clone for VarDictionary {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid dictionary, since we have a reference that keeps it alive.
         let result = unsafe {
@@ -560,7 +563,7 @@ impl Clone for Dictionary {
 /// Creates a dictionary from the given iterator `I` over a `(&K, &V)` key-value pair.
 ///
 /// Each key and value are converted to a `Variant`.
-impl<'a, 'b, K, V, I> From<I> for Dictionary
+impl<'a, 'b, K, V, I> From<I> for VarDictionary
 where
     I: IntoIterator<Item = (&'a K, &'b V)>,
     K: ToGodot + 'a,
@@ -578,7 +581,7 @@ where
 ///
 /// Inserts all key-value pairs from the iterator into the dictionary. Previous values for keys appearing
 /// in `iter` will be overwritten.
-impl<K: ToGodot, V: ToGodot> Extend<(K, V)> for Dictionary {
+impl<K: ToGodot, V: ToGodot> Extend<(K, V)> for VarDictionary {
     fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
         for (k, v) in iter.into_iter() {
             self.set(k.to_variant(), v.to_variant())
@@ -586,9 +589,9 @@ impl<K: ToGodot, V: ToGodot> Extend<(K, V)> for Dictionary {
     }
 }
 
-impl<K: ToGodot, V: ToGodot> FromIterator<(K, V)> for Dictionary {
+impl<K: ToGodot, V: ToGodot> FromIterator<(K, V)> for VarDictionary {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        let mut dict = Dictionary::new();
+        let mut dict = VarDictionary::new();
         dict.extend(iter);
         dict
     }
@@ -599,13 +602,13 @@ impl<K: ToGodot, V: ToGodot> FromIterator<(K, V)> for Dictionary {
 /// Internal helper for different iterator impls -- not an iterator itself
 struct DictionaryIter<'a> {
     last_key: Option<Variant>,
-    dictionary: &'a Dictionary,
+    dictionary: &'a VarDictionary,
     is_first: bool,
     next_idx: usize,
 }
 
 impl<'a> DictionaryIter<'a> {
-    fn new(dictionary: &'a Dictionary) -> Self {
+    fn new(dictionary: &'a VarDictionary) -> Self {
         Self {
             last_key: None,
             dictionary,
@@ -648,7 +651,7 @@ impl<'a> DictionaryIter<'a> {
         (remaining, Some(remaining))
     }
 
-    fn call_init(dictionary: &Dictionary) -> Option<Variant> {
+    fn call_init(dictionary: &VarDictionary) -> Option<Variant> {
         let variant: Variant = Variant::nil();
         let iter_fn = |dictionary, next_value: sys::GDExtensionVariantPtr, valid| unsafe {
             interface_fn!(variant_iter_init)(dictionary, sys::SysPtr::as_uninit(next_value), valid)
@@ -657,7 +660,7 @@ impl<'a> DictionaryIter<'a> {
         Self::ffi_iterate(iter_fn, dictionary, variant)
     }
 
-    fn call_next(dictionary: &Dictionary, last_key: Variant) -> Option<Variant> {
+    fn call_next(dictionary: &VarDictionary, last_key: Variant) -> Option<Variant> {
         let iter_fn = |dictionary, next_value, valid| unsafe {
             interface_fn!(variant_iter_next)(dictionary, next_value, valid)
         };
@@ -675,14 +678,14 @@ impl<'a> DictionaryIter<'a> {
             sys::GDExtensionVariantPtr,
             *mut sys::GDExtensionBool,
         ) -> sys::GDExtensionBool,
-        dictionary: &Dictionary,
+        dictionary: &VarDictionary,
         mut next_value: Variant,
     ) -> Option<Variant> {
         let dictionary = dictionary.to_variant();
         let mut valid_u8: u8 = 0;
 
         // SAFETY:
-        // `dictionary` is a valid `Dictionary` since we have a reference to it,
+        // `dictionary` is a valid dictionary since we have a reference to it,
         //    so this will call the implementation for dictionaries.
         // `last_key` is an initialized and valid `Variant`, since we own a copy of it.
         let has_next = unsafe {
@@ -706,15 +709,15 @@ impl<'a> DictionaryIter<'a> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Iterator over key-value pairs in a [`Dictionary`].
+/// Iterator over key-value pairs in a [`VarDictionary`].
 ///
-/// See [`Dictionary::iter_shared()`] for more information about iteration over dictionaries.
+/// See [`VarDictionary::iter_shared()`] for more information about iteration over dictionaries.
 pub struct Iter<'a> {
     iter: DictionaryIter<'a>,
 }
 
 impl<'a> Iter<'a> {
-    fn new(dictionary: &'a Dictionary) -> Self {
+    fn new(dictionary: &'a VarDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
         }
@@ -741,15 +744,15 @@ impl Iterator for Iter<'_> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Iterator over keys in a [`Dictionary`].
+/// Iterator over keys in a [`VarDictionary`].
 ///
-/// See [`Dictionary::keys_shared()`] for more information about iteration over dictionaries.
+/// See [`VarDictionary::keys_shared()`] for more information about iteration over dictionaries.
 pub struct Keys<'a> {
     iter: DictionaryIter<'a>,
 }
 
 impl<'a> Keys<'a> {
-    fn new(dictionary: &'a Dictionary) -> Self {
+    fn new(dictionary: &'a VarDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
         }
@@ -762,7 +765,7 @@ impl<'a> Keys<'a> {
     }
 
     /// Returns an array of the keys.
-    pub fn array(self) -> VariantArray {
+    pub fn array(self) -> VarArray {
         // Can only be called
         assert!(self.iter.is_first);
         self.iter.dictionary.keys_array()
@@ -783,9 +786,9 @@ impl Iterator for Keys<'_> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// [`Dictionary`] iterator that converts each key-value pair into a typed `(K, V)`.
+/// [`VarDictionary`] iterator that converts each key-value pair into a typed `(K, V)`.
 ///
-/// See [`Dictionary::iter_shared()`] for more information about iteration over dictionaries.
+/// See [`VarDictionary::iter_shared()`] for more information about iteration over dictionaries.
 pub struct TypedIter<'a, K, V> {
     iter: DictionaryIter<'a>,
     _k: PhantomData<K>,
@@ -818,9 +821,9 @@ impl<K: FromGodot, V: FromGodot> Iterator for TypedIter<'_, K, V> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// [`Dictionary`] iterator that converts each key into a typed `K`.
+/// [`VarDictionary`] iterator that converts each key into a typed `K`.
 ///
-/// See [`Dictionary::iter_shared()`] for more information about iteration over dictionaries.
+/// See [`VarDictionary::iter_shared()`] for more information about iteration over dictionaries.
 pub struct TypedKeys<'a, K> {
     iter: DictionaryIter<'a>,
     _k: PhantomData<K>,
@@ -860,7 +863,7 @@ fn u8_to_bool(u: u8) -> bool {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Constructs [`Dictionary`] literals, close to Godot's own syntax.
+/// Constructs [`VarDictionary`] literals, close to Godot's own syntax.
 ///
 /// Any value can be used as a key, but to use an expression you need to surround it
 /// in `()` or `{}`.
@@ -885,7 +888,7 @@ fn u8_to_bool(u: u8) -> bool {
 macro_rules! vdict {
     ($($key:tt: $value:expr),* $(,)?) => {
         {
-            let mut d = $crate::builtin::Dictionary::new();
+            let mut d = $crate::builtin::VarDictionary::new();
             $(
                 // `cargo check` complains that `(1 + 2): true` has unused parens, even though it's not
                 // possible to omit the parens.

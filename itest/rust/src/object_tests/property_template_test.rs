@@ -26,7 +26,7 @@ fn property_template_test(ctx: &TestContext) {
 
     // Accumulate errors so we can catch all of them in one go.
     let mut errors: Vec<String> = Vec::new();
-    let mut properties: HashMap<String, Dictionary> = HashMap::new();
+    let mut properties: HashMap<String, VarDictionary> = HashMap::new();
 
     for property in rust_properties.get_property_list().iter_shared() {
         let name = property.get("name").unwrap().to::<String>();

@@ -188,11 +188,11 @@ fn collect_inputs() -> Vec<Input> {
         array![-7, 12, 40]
     );*/
 
-    push!(inputs; Array, VariantArray,
+    push!(inputs; Array, VarArray,
         [-7, "godot", false, Vector2i(-77, 88)],
         varray![-7, "godot", false, Vector2i::new(-77, 88)]);
 
-    pushs!(inputs; Dictionary, Dictionary,
+    pushs!(inputs; Dictionary, VarDictionary,
         r#"{"key": 83, -3: Vector2(1, 2), 0.03: true}"#,
         vdict! { "key": 83, (-3): Vector2::new(1.0, 2.0), 0.03: true },
         true, true, None

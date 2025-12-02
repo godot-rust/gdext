@@ -37,7 +37,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// Godot's `Array` can be either typed or untyped.
 ///
 /// An untyped array can contain any kind of [`Variant`], even different types in the same array.
-/// We represent this in Rust as `VariantArray`, which is just a type alias for `Array<Variant>`.
+/// We represent this in Rust as `VarArray`, which is just a type alias for `Array<Variant>`.
 ///
 /// Godot also supports typed arrays, which are also just `Variant` arrays under the hood, but with
 /// runtime checks, so that no values of the wrong type are inserted into the array. We represent this as
@@ -93,8 +93,8 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///
 /// ```no_run
 /// # use godot::prelude::*;
-/// // VariantArray allows dynamic element types.
-/// let mut array = VariantArray::new();
+/// // VarArray allows dynamic element types.
+/// let mut array = VarArray::new();
 /// array.push(&10.to_variant());
 /// array.push(&"Hello".to_variant());
 ///
@@ -191,11 +191,14 @@ impl<'a> std::ops::Deref for ImmutableInnerArray<'a> {
     }
 }
 
-/// A Godot `Array` without an assigned type.
+#[deprecated = "Renamed to `VarArray`."]
 pub type VariantArray = Array<Variant>;
 
+/// Untyped Godot `Array`.
+pub type VarArray = Array<Variant>;
+
 // TODO check if these return a typed array
-impl_builtin_froms!(VariantArray;
+impl_builtin_froms!(VarArray;
     PackedByteArray => array_from_packed_byte_array,
     PackedColorArray => array_from_packed_color_array,
     PackedFloat32Array => array_from_packed_float32_array,
@@ -208,7 +211,7 @@ impl_builtin_froms!(VariantArray;
 );
 
 #[cfg(since_api = "4.3")]
-impl_builtin_froms!(VariantArray;
+impl_builtin_froms!(VarArray;
     PackedVector4Array => array_from_packed_vector4_array,
 );
 
@@ -521,7 +524,7 @@ impl<T: ArrayElement> Array<T> {
         self.balanced_ensure_mutable();
 
         // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
-        let other: &VariantArray = unsafe { other.assume_type_ref::<Variant>() };
+        let other: &VarArray = unsafe { other.assume_type_ref::<Variant>() };
 
         // SAFETY: `append_array` will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
         // to be of type `T`.
@@ -1124,7 +1127,7 @@ fn correct_variant_t() {
     assert!(!Array::<i64>::has_variant_t());
 }
 
-impl VariantArray {
+impl VarArray {
     /// # Safety
     /// - Variant must have type `VariantType::ARRAY`.
     /// - Subsequent operations on this array must not rely on the type of the array.
@@ -1165,7 +1168,7 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 }
 
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
-impl ArrayElement for VariantArray {}
+impl ArrayElement for VarArray {}
 
 impl<T: ArrayElement> GodotConvert for Array<T> {
     type Via = Self;
@@ -1271,7 +1274,7 @@ where
     fn export_hint() -> PropertyHintInfo {
         // If T == Variant, then we return "Array" builtin type hint.
         if Self::has_variant_t() {
-            PropertyHintInfo::type_name::<VariantArray>()
+            PropertyHintInfo::type_name::<VarArray>()
         } else {
             PropertyHintInfo::export_array_element::<T>()
         }
@@ -1598,14 +1601,14 @@ macro_rules! array {
     };
 }
 
-/// Constructs [`VariantArray`] literals, similar to Rust's standard `vec!` macro.
+/// Constructs [`VarArray`] literals, similar to Rust's standard `vec!` macro.
 ///
 /// The type of the array elements is always [`Variant`].
 ///
 /// # Example
 /// ```no_run
 /// # use godot::prelude::*;
-/// let arr: VariantArray = varray![42_i64, "hello", true];
+/// let arr: VarArray = varray![42_i64, "hello", true];
 /// ```
 ///
 /// # See also
@@ -1620,7 +1623,7 @@ macro_rules! varray {
     ($($elements:expr),* $(,)?) => {
         {
             use $crate::meta::ToGodot as _;
-            let mut array = $crate::builtin::VariantArray::default();
+            let mut array = $crate::builtin::VarArray::default();
             $(
                 array.push(&$elements.to_variant());
             )*
@@ -1668,7 +1671,6 @@ macro_rules! vslice {
     ($($elements:expr),* $(,)?) => {
         {
             use $crate::meta::ToGodot as _;
-            let mut array = $crate::builtin::VariantArray::default();
             &[
                 $( $elements.to_variant(), )*
             ]

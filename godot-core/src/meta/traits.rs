@@ -165,7 +165,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 /// The types, for which this trait is implemented, overlap mostly with [`GodotType`].
 ///
 /// Notable differences are:
-/// - Only `VariantArray`, not `Array<T>` is allowed (typed arrays cannot be nested).
+/// - Only `VarArray`, not `Array<T>` is allowed (typed arrays cannot be nested).
 /// - `Option` is only supported for `Option<Gd<T>>`, but not e.g. `Option<i32>`.
 ///
 /// # Integer and float types
