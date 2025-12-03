@@ -149,7 +149,7 @@ func _get_thing():
         .get_script_method_list()
         .iter_shared()
         .map(|dict| dict.get("name").unwrap())
-        .collect::<VariantArray>();
+        .collect::<VarArray>();
 
     // Ensure script has been parsed + compiled correctly.
     assert_eq!(script.get_instance_base_type(), "VirtualScriptCalls".into());

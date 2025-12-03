@@ -7,7 +7,7 @@
 
 use std::time::{Duration, Instant};
 
-use godot::builtin::{vslice, Array, Callable, GString, Variant, VariantArray};
+use godot::builtin::{vslice, Array, Callable, GString, VarArray, Variant};
 use godot::classes::{Engine, Node, Os};
 use godot::global::godot_error;
 use godot::obj::{Gd, Singleton};
@@ -40,11 +40,11 @@ impl IntegrationTests {
     #[func]
     fn run_all_tests(
         &mut self,
-        gdscript_tests: VariantArray,
+        gdscript_tests: VarArray,
         gdscript_file_count: i64,
         allow_focus: bool,
         scene_tree: Gd<Node>,
-        filters: VariantArray,
+        filters: VarArray,
         property_tests: Gd<Node>,
         on_finished: Callable,
     ) {
@@ -247,7 +247,7 @@ impl IntegrationTests {
         });
     }
 
-    fn run_gdscript_tests(&mut self, tests: VariantArray) -> Duration {
+    fn run_gdscript_tests(&mut self, tests: VarArray) -> Duration {
         let mut last_file = None;
         let mut extra_duration = Duration::new(0, 0);
 

@@ -6,7 +6,7 @@
  */
 
 use godot::builtin::{
-    vdict, vslice, Color, Dictionary, GString, PackedInt32Array, Variant, VariantType,
+    vdict, vslice, Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType,
 };
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
@@ -236,7 +236,7 @@ struct NotExportable {
 }
 
 impl GodotConvert for NotExportable {
-    type Via = Dictionary;
+    type Via = VarDictionary;
 }
 
 impl Var for NotExportable {
@@ -556,7 +556,7 @@ fn override_export() {
     check_property(&property, "usage", PropertyUsageFlags::GROUP);
 }
 
-fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
+fn check_property(property: &VarDictionary, key: &str, expected: impl ToGodot) {
     assert_eq!(property.get_or_nil(key), expected.to_variant());
 }
 

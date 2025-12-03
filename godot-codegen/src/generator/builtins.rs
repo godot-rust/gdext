@@ -211,7 +211,7 @@ fn method_safety_doc(class_name: &TyName, method: &BuiltinMethod) -> Option<Toke
                ///
                /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
             });
-        } else if &method.return_value().type_tokens().to_string() == "VariantArray" {
+        } else if &method.return_value().type_tokens().to_string() == "VarArray" {
             return Some(quote! {
                 /// # Safety
                 ///

@@ -9,8 +9,8 @@ use std::hash::Hasher;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use godot::builtin::{
-    array, varray, vdict, vslice, Array, Callable, Color, GString, NodePath, StringName, Variant,
-    VariantArray, Vector2,
+    array, varray, vdict, vslice, Array, Callable, Color, GString, NodePath, StringName, VarArray,
+    Variant, Vector2,
 };
 use godot::classes::{Node2D, Object, RefCounted};
 use godot::init::GdextBuild;
@@ -39,7 +39,7 @@ impl CallableTestObj {
     }
 
     #[func] // static
-    fn concat_array(a: i32, b: GString, c: Array<NodePath>, d: Gd<RefCounted>) -> VariantArray {
+    fn concat_array(a: i32, b: GString, c: Array<NodePath>, d: Gd<RefCounted>) -> VarArray {
         varray![a, b, c, d]
     }
 }
@@ -103,7 +103,7 @@ fn callable_object_method() {
 #[itest]
 #[cfg(since_api = "4.3")]
 fn callable_variant_method() {
-    // Dictionary
+    // VarDictionary
     let dict = vdict! { "one": 1, "value": 2 };
     let dict_get = Callable::from_variant_method(&dict.to_variant(), "get");
     assert_eq!(dict_get.call(vslice!["one"]), 1.to_variant());
@@ -158,7 +158,7 @@ fn callable_static() {
         RefCounted::new_gd()
     ]);
 
-    let result = result.to::<VariantArray>();
+    let result = result.to::<VarArray>();
     assert_eq!(result.len(), 4);
     assert_eq!(result.at(0), 10.to_variant());
 
@@ -188,7 +188,7 @@ fn callable_static_bind() {
 
     assert!(!bindv_result.is_nil());
 
-    let bind_result_data: VariantArray = bindv_result.to();
+    let bind_result_data: VarArray = bindv_result.to();
     assert_eq!(4, bind_result_data.len());
 }
 
@@ -373,7 +373,7 @@ pub mod custom_callable {
     use std::hash::Hash;
     use std::sync::{Arc, Mutex};
 
-    use godot::builtin::{Dictionary, RustCallable};
+    use godot::builtin::{RustCallable, VarDictionary};
     use godot::prelude::Signal;
     use godot::sys;
     use godot::sys::GdextBuild;
@@ -558,7 +558,7 @@ pub mod custom_callable {
         let a = Callable::from_custom(Adder::new_tracked(3, at.clone()));
         let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()));
 
-        let mut dict = Dictionary::new();
+        let mut dict = VarDictionary::new();
 
         dict.set(a, "hello");
         assert_eq!(hash_count(&at), 1, "hash needed for a dict key");

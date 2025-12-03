@@ -150,7 +150,7 @@ mod impls {
     impl_ffi_variant!(ref GString, string_to_variant, string_from_variant; String);
     impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
-    impl_ffi_variant!(ref Dictionary, dictionary_to_variant, dictionary_from_variant);
+    impl_ffi_variant!(ref VarDictionary, dictionary_to_variant, dictionary_from_variant; Dictionary);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
 }
@@ -192,7 +192,7 @@ impl_dynamic_send!(
 
 impl_dynamic_send!(
     !Send;
-    Variant, NodePath, GString, Dictionary, Callable, Signal,
+    Variant, NodePath, GString, VarDictionary, Callable, Signal,
     PackedByteArray, PackedInt32Array, PackedInt64Array, PackedFloat32Array, PackedFloat64Array, PackedStringArray,
     PackedVector2Array, PackedVector3Array, PackedColorArray
 );
@@ -261,8 +261,8 @@ const _: () = {
     const OBJECT: VariantType = variant_type::<Gd<Object>>();
     const CALLABLE: VariantType = variant_type::<Callable>();
     const SIGNAL: VariantType = variant_type::<Signal>();
-    const DICTIONARY: VariantType = variant_type::<Dictionary>();
-    const ARRAY: VariantType = variant_type::<VariantArray>();
+    const DICTIONARY: VariantType = variant_type::<VarDictionary>();
+    const ARRAY: VariantType = variant_type::<VarArray>();
     const PACKED_BYTE_ARRAY: VariantType = variant_type::<PackedByteArray>();
     const PACKED_INT32_ARRAY: VariantType = variant_type::<PackedInt32Array>();
     const PACKED_INT64_ARRAY: VariantType = variant_type::<PackedInt64Array>();

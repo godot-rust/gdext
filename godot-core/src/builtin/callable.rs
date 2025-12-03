@@ -11,7 +11,7 @@ use std::{fmt, ptr};
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
-use crate::builtin::{inner, GString, StringName, Variant, VariantArray};
+use crate::builtin::{inner, GString, StringName, VarArray, Variant};
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
@@ -381,14 +381,14 @@ impl Callable {
     /// - If called on an invalid Callable then no error is printed, and `NIL` is returned.
     ///
     /// _Godot equivalent: `callv`_
-    pub fn callv(&self, arguments: &VariantArray) -> Variant {
+    pub fn callv(&self, arguments: &VarArray) -> Variant {
         self.as_inner().callv(arguments)
     }
 
     /// Returns a copy of this Callable with one or more arguments bound, reading them from an array.
     ///
     /// _Godot equivalent: `bindv`_
-    pub fn bindv(&self, arguments: &VariantArray) -> Self {
+    pub fn bindv(&self, arguments: &VarArray) -> Self {
         self.as_inner().bindv(arguments)
     }
 

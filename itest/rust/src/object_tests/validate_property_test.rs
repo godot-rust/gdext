@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{Array, Dictionary, GString, StringName};
+use godot::builtin::{Array, GString, StringName, VarDictionary};
 use godot::classes::IObject;
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::PropertyInfo;
@@ -39,7 +39,7 @@ impl IObject for ValidatePropertyTest {
 #[itest]
 fn validate_property_test() {
     let obj = ValidatePropertyTest::new_alloc();
-    let properties: Array<Dictionary> = obj.get_property_list();
+    let properties: Array<VarDictionary> = obj.get_property_list();
 
     let property = properties
         .iter_shared()

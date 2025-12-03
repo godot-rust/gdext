@@ -12,12 +12,12 @@ use crate::framework::{assert_match, create_gdscript, expect_panic, itest};
 
 #[itest]
 fn array_default() {
-    assert_eq!(VariantArray::default().len(), 0);
+    assert_eq!(VarArray::default().len(), 0);
 }
 
 #[itest]
 fn array_new() {
-    assert_eq!(VariantArray::new().len(), 0);
+    assert_eq!(VarArray::new().len(), 0);
 }
 
 #[itest]
@@ -43,14 +43,14 @@ fn untyped_array_from_to_variant() {
     let array = varray![1, 2];
     let variant = array.to_variant();
     let result =
-        VariantArray::try_from_variant(&variant).expect("untyped array conversion should succeed");
+        VarArray::try_from_variant(&variant).expect("untyped array conversion should succeed");
     assert_eq!(result, array);
 }
 
 #[itest]
 fn array_from_packed_array() {
     let packed_array = PackedInt32Array::from(&[42]);
-    let mut array = VariantArray::from(&packed_array);
+    let mut array = VarArray::from(&packed_array);
 
     // This tests that the resulting array doesn't secretly have a runtime type assigned to it,
     // which is not reflected in our static type. It would make sense if it did, but Godot decided
@@ -226,7 +226,7 @@ fn array_first_last() {
     assert_eq!(array.front(), Some(1));
     assert_eq!(array.back(), Some(2));
 
-    let empty_array = VariantArray::new();
+    let empty_array = VarArray::new();
 
     assert_eq!(empty_array.front(), None);
     assert_eq!(empty_array.back(), None);
@@ -262,7 +262,7 @@ fn array_min_max() {
     assert_eq!(uncomparable_array.min(), None);
     assert_eq!(uncomparable_array.max(), None);
 
-    let empty_array = VariantArray::new();
+    let empty_array = VarArray::new();
 
     assert_eq!(empty_array.min(), None);
     assert_eq!(empty_array.max(), None);
@@ -270,7 +270,7 @@ fn array_min_max() {
 
 #[itest]
 fn array_pick_random() {
-    assert_eq!(VariantArray::new().pick_random(), None);
+    assert_eq!(VarArray::new().pick_random(), None);
     assert_eq!(array![1].pick_random(), Some(1));
 }
 
@@ -436,7 +436,7 @@ fn untyped_array_return_from_godot_func() {
 
 // Conditional, so we don't need Texture2DArray > ImageTextureLayered > TextureLayered > Texture in minimal codegen.
 // Potential alternatives (search for "typedarray::" in extension_api.json):
-// - ClassDB::class_get_signal_list() -> Array<Dictionary>
+// - ClassDB::class_get_signal_list() -> Array<VarDictionary>
 // - Compositor::set_compositor_effects( Array<Gd<Compositor>> )
 #[cfg(feature = "codegen-full-experimental")]
 #[itest]
@@ -476,7 +476,7 @@ fn typed_array_return_from_godot_func() {
 #[itest]
 fn typed_array_try_from_untyped() {
     let node = Node::new_alloc();
-    let array = VariantArray::from(&[node.clone().to_variant()]);
+    let array = VarArray::from(&[node.clone().to_variant()]);
 
     array
         .to_variant()
@@ -493,7 +493,7 @@ fn untyped_array_try_from_typed() {
 
     array
         .to_variant()
-        .try_to::<VariantArray>()
+        .try_to::<VarArray>()
         .expect_err("typed array should not coerce to untyped array");
 
     node.free();
@@ -607,10 +607,10 @@ fn __array_type_inference() {
 #[itest]
 fn array_element_type() {
     // Untyped array.
-    let untyped = VariantArray::new();
+    let untyped = VarArray::new();
     assert!(
         matches!(untyped.element_type(), ElementType::Untyped),
-        "expected untyped array for VariantArray"
+        "expected untyped array for VarArray"
     );
 
     let builtin_int = Array::<i64>::new();
@@ -674,7 +674,7 @@ func make_array() -> Array[CustomScriptForArrays]:
 // https://github.com/godot-rust/gdext/pull/1357
 #[itest]
 fn array_inner_type() {
-    let primary = Array::<Dictionary>::new();
+    let primary = Array::<VarDictionary>::new();
 
     let secondary = primary.duplicate_shallow();
     assert_eq!(secondary.element_type(), primary.element_type());

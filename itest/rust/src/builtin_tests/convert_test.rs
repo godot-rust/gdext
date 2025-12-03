@@ -6,7 +6,7 @@
  */
 
 use godot::builtin::{
-    array, vdict, Array, Dictionary, GString, NodePath, StringName, Variant, VariantArray, Vector2,
+    array, vdict, Array, GString, NodePath, StringName, VarArray, VarDictionary, Variant, Vector2,
     Vector2Axis,
 };
 use godot::classes::{Node, Resource};
@@ -27,18 +27,18 @@ fn error_has_value_and_no_cause() {
             "`nil` -> `i64`",
         ),
         (
-            VariantArray::new()
+            VarArray::new()
                 .to_variant()
                 .try_to::<GString>()
                 .unwrap_err(),
-            "`VariantArray` -> `GString`",
+            "`VarArray` -> `GString`",
         ),
         (
-            VariantArray::new()
+            VarArray::new()
                 .to_variant()
                 .try_to::<Array<i64>>()
                 .unwrap_err(),
-            "`VariantArray` -> `Array<i64>`",
+            "`VarArray` -> `Array<i64>`",
         ),
         (
             Array::<Gd<Node>>::new()
@@ -104,7 +104,7 @@ impl ConvertedStruct {
 }
 
 impl GodotConvert for ConvertedStruct {
-    type Via = Dictionary;
+    type Via = VarDictionary;
 }
 
 impl ToGodot for ConvertedStruct {

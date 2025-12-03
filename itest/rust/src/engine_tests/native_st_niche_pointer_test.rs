@@ -11,7 +11,7 @@
 
 use std::ptr;
 
-use godot::builtin::{vslice, Dictionary, Rect2, Rid};
+use godot::builtin::{vslice, Rect2, Rid, VarDictionary};
 use godot::classes::native::{CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult};
 use godot::classes::text_server::Direction;
 use godot::classes::{IRefCounted, Node3D, RefCounted};
@@ -42,7 +42,7 @@ impl IRefCounted for NativeStructTests {
 #[godot_api]
 impl NativeStructTests {
     #[func]
-    fn pass_native_struct(&self, caret_info: *const CaretInfo) -> Dictionary {
+    fn pass_native_struct(&self, caret_info: *const CaretInfo) -> VarDictionary {
         let CaretInfo {
             leading_caret,
             trailing_caret,
@@ -50,7 +50,7 @@ impl NativeStructTests {
             trailing_direction,
         } = unsafe { &*caret_info };
 
-        let mut result = Dictionary::new();
+        let mut result = VarDictionary::new();
 
         result.set("leading_caret", *leading_caret);
         result.set("trailing_caret", *trailing_caret);
@@ -79,7 +79,7 @@ fn native_structure_parameter() {
 
     let ptr = ptr::addr_of!(caret);
     let mut object = NativeStructTests::new_gd();
-    let result: Dictionary = object.call("pass_native_struct", vslice![ptr]).to();
+    let result: VarDictionary = object.call("pass_native_struct", vslice![ptr]).to();
 
     assert_eq!(
         result.at("leading_caret").to::<Rect2>(),

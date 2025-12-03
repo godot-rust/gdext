@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use godot::builtin::{Dictionary, GString, StringName, VariantType, Vector2, Vector3};
+use godot::builtin::{GString, StringName, VarDictionary, VariantType, Vector2, Vector3};
 use godot::classes::{IObject, Node};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::PropertyInfo;
@@ -34,7 +34,7 @@ impl IObject for GetPropertyListTest {
     }
 }
 
-fn property_dict_eq_property_info(dict: &Dictionary, info: &PropertyInfo) -> bool {
+fn property_dict_eq_property_info(dict: &VarDictionary, info: &PropertyInfo) -> bool {
     dict.get("name").unwrap().to::<GString>().to_string() == info.property_name.to_string()
         && dict.get("class_name").unwrap().to::<StringName>() == info.class_id.to_string_name()
         && dict.get("type").unwrap().to::<VariantType>() == info.variant_type
