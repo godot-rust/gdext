@@ -1121,6 +1121,22 @@ pub fn get_derived_virtual_method_presence(class_name: &TyName, godot_method_nam
          | ("AudioStreamPlaybackResampled", "_mix")
          => VirtualMethodPresence::Remove,
 
+         | ("PrimitiveMesh", "_get_surface_count")
+         | ("PrimitiveMesh", "_surface_get_array_len")
+         | ("PrimitiveMesh", "_surface_get_array_index_len")
+         | ("PrimitiveMesh", "_surface_get_arrays")
+         | ("PrimitiveMesh", "_surface_get_blend_shape_arrays")
+         | ("PrimitiveMesh", "_surface_get_lods")
+         | ("PrimitiveMesh", "_surface_get_format")
+         | ("PrimitiveMesh", "_surface_get_primitive_type")
+         | ("PrimitiveMesh", "_surface_set_material")
+         | ("PrimitiveMesh", "_surface_get_material")
+         | ("PrimitiveMesh", "_get_blend_shape_count")
+         | ("PrimitiveMesh", "_get_blend_shape_name")
+         | ("PrimitiveMesh", "_set_blend_shape_name")
+         | ("PrimitiveMesh", "_get_aabb")
+         => VirtualMethodPresence::Override { is_required: false },
+
          // Default: inherit presence from base class.
          _ => VirtualMethodPresence::Inherit,
     }
