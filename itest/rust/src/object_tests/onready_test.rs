@@ -218,7 +218,7 @@ fn init_attribute_node_key_lifecycle() {
 
     {
         let obj = obj.bind();
-        assert_eq!(obj.node.get_name(), "child".into());
+        assert_eq!(obj.node.get_name(), "child");
         assert_eq!(obj.self_name.as_str(), "CustomNodeName");
     }
 
@@ -374,7 +374,7 @@ struct InitWithNodeOrBase {
 #[godot_api]
 impl INode for InitWithNodeOrBase {
     fn ready(&mut self) {
-        assert_eq!(self.node.get_name(), "child".into());
+        assert_eq!(self.node.get_name(), "child");
         assert_eq!(self.self_name.as_str(), "CustomNodeName");
     }
 }

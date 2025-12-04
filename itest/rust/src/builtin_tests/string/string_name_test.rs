@@ -52,6 +52,13 @@ fn string_name_equality() {
 }
 
 #[itest]
+fn string_name_eq_str() {
+    let apple = StringName::from("apple");
+    assert_eq!(apple, "apple");
+    assert_ne!(apple, "orange");
+}
+
+#[itest]
 #[allow(clippy::eq_op)]
 fn string_name_transient_ord() {
     // We can't deterministically know the ordering, so this test only ensures consistency between different operators.

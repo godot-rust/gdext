@@ -829,8 +829,5 @@ func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
     assert_match!(dict.value_element_type(), ElementType::ScriptClass(script));
     let script = script.script().expect("script object should be alive");
     assert_eq!(script, gdscript.upcast());
-    assert_eq!(
-        script.get_global_name(),
-        "CustomScriptForDictionaries".into()
-    );
+    assert_eq!(script.get_global_name(), "CustomScriptForDictionaries");
 }

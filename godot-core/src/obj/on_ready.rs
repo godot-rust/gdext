@@ -104,7 +104,7 @@ use crate::registry::property::Var;
 /// impl INode for MyClass {
 ///     fn ready(&mut self) {
 ///        // self.node is now ready with the node found at path `ChildPath`.
-///        assert_eq!(self.auto.get_name(), "ChildPath".into());
+///        assert_eq!(self.auto.get_name(), "ChildPath");
 ///
 ///        // self.manual needs to be initialized manually.
 ///        self.manual.init(22);

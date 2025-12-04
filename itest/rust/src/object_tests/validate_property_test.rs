@@ -24,7 +24,7 @@ pub struct ValidatePropertyTest {
 #[godot_api]
 impl IObject for ValidatePropertyTest {
     fn validate_property(&self, property: &mut PropertyInfo) {
-        if property.property_name.to_string() == "my_var" {
+        if property.property_name == "my_var" {
             property.usage = PropertyUsageFlags::NO_EDITOR;
             property.property_name = StringName::from("SuperNewTestPropertyName");
             property.hint_info.hint_string = GString::from("SomePropertyHint");
