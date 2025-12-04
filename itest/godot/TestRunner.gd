@@ -9,12 +9,13 @@ extends Node
 class_name GDScriptTestRunner
 
 func _ready():
-	# Don't run tests when opened in the editor.
+	# Don't run tests when opened in the editor, unless it's headless mode (-e --headless).
 	if Engine.is_editor_hint():
 		if DisplayServer.get_name() == 'headless':
-			push_error("Opening itest in editor in headless mode is not supported.")
-			get_tree().quit(2)
-		return
+			print("Opened itest in editor in headless mode -> run integration tests.")
+		else:
+			print("Opened itest in editor in UI mode -> skip integration tests.")
+			return
 
 	# Ensure physics is initialized, for tests that require it.
 	await get_tree().physics_frame
