@@ -9,6 +9,7 @@
 // Functionality is only tested on a superficial level (to make sure general FFI mechanisms work).
 
 use godot::builtin::inner::InnerColor;
+use godot::classes::rendering_server::PrimitiveType;
 use godot::classes::{FileAccess, HttpRequest, IHttpRequest, RenderingServer};
 use godot::prelude::*;
 
@@ -64,6 +65,32 @@ fn cfg_test() {
     // Makes sure that since_api and before_api are mutually exclusive.
     assert_ne!(cfg!(since_api = "4.3"), cfg!(before_api = "4.3"));
     assert_ne!(cfg!(since_api = "4.4"), cfg!(before_api = "4.4"));
+}
+
+// Test that generated builtin/class methods return untyped arrays, not any-arrays.
+fn __array_return_types() {
+    let c = Callable::invalid();
+    let _args: VarArray = c.get_bound_arguments();
+
+    let server = RenderingServer::singleton();
+    let _arrays: VarArray = server.mesh_surface_get_arrays(Rid::Invalid, 12);
+
+    // Nested arrays still work.
+    let _arrays: Array<VarArray> = server.mesh_surface_get_blend_shape_arrays(Rid::Invalid, 12);
+}
+
+// Test that generated builtin/class methods accept OutArray.
+fn __array_param_types() {
+    let mut server = RenderingServer::singleton();
+
+    let arrays: AnyArray = varray![].into_any();
+    server.mesh_add_surface_from_arrays(Rid::Invalid, PrimitiveType::LINES, &arrays);
+
+    let arrays: Array<GString> = array![];
+    server.mesh_add_surface_from_arrays(Rid::Invalid, PrimitiveType::LINES, &arrays);
+
+    let arrays: VarArray = varray![];
+    server.mesh_add_surface_from_arrays(Rid::Invalid, PrimitiveType::LINES, &arrays);
 }
 
 #[derive(GodotClass)]

@@ -13,9 +13,9 @@ use crate::context::Context;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
-    EnumReplacements, Enumerator, EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier,
-    FnReturn, FunctionCommon, GodotApiVersion, ModName, NativeStructure, Operator, RustTy,
-    Singleton, TyName, UtilityFunction,
+    EnumReplacements, Enumerator, EnumeratorValue, ExtensionApi, FlowDirection, FnDirection,
+    FnParam, FnQualifier, FnReturn, FunctionCommon, GodotApiVersion, ModName, NativeStructure,
+    Operator, RustTy, Singleton, TyName, UtilityFunction,
 };
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
@@ -375,8 +375,17 @@ impl BuiltinMethod {
                 .return_type
                 .as_deref()
                 .map(JsonMethodReturn::from_type_no_meta);
-            FnReturn::new(return_value, ctx)
+
+            // Builtin methods are always outbound (not virtual), thus flow for return type is Godot -> Rust.
+            FnReturn::new(return_value, FlowDirection::GodotToRust, ctx)
         };
+
+        // For parameters in builtin methods, flow is always Rust -> Godot.
+        let parameters = FnParam::builder().no_defaults().build_many(
+            &method.arguments,
+            FlowDirection::RustToGodot,
+            ctx,
+        );
 
         Some(Self {
             common: FunctionCommon {
@@ -385,9 +394,7 @@ impl BuiltinMethod {
                 godot_name: method.name.clone(),
                 // Disable default parameters for builtin classes.
                 // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
-                parameters: FnParam::builder()
-                    .no_defaults()
-                    .build_many(&method.arguments, ctx),
+                parameters,
                 return_value,
                 is_vararg: method.is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
@@ -536,12 +543,23 @@ impl ClassMethod {
             method.return_value.is_some(),
         );
 
+        let (param_flow, return_flow) = match &direction {
+            FnDirection::Outbound { .. } => {
+                (FlowDirection::RustToGodot, FlowDirection::GodotToRust)
+            }
+            FnDirection::Virtual { .. } => (FlowDirection::GodotToRust, FlowDirection::RustToGodot),
+        };
+
         let parameters = FnParam::builder()
             .enum_replacements(enum_replacements)
-            .build_many(&method.arguments, ctx);
+            .build_many(&method.arguments, param_flow, ctx);
 
-        let return_value =
-            FnReturn::with_enum_replacements(&method.return_value, enum_replacements, ctx);
+        let return_value = FnReturn::with_enum_replacements(
+            &method.return_value,
+            enum_replacements,
+            return_flow,
+            ctx,
+        );
 
         let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
 
@@ -607,9 +625,12 @@ impl ClassSignal {
             return None;
         }
 
+        // Signals only have parameters, no return type; emitted data always flows Rust -> Godot.
+        let flow = FlowDirection::RustToGodot;
+
         Some(Self {
             name: json_signal.name.clone(),
-            parameters: FnParam::builder().build_many(&json_signal.arguments, ctx),
+            parameters: FnParam::builder().build_many(&json_signal.arguments, flow, ctx),
             surrounding_class: surrounding_class.clone(),
         })
     }
@@ -628,23 +649,25 @@ impl UtilityFunction {
         let parameters = if function.is_vararg && args.len() == 1 && args[0].name == "arg1" {
             vec![]
         } else {
-            FnParam::builder().build_many(&function.arguments, ctx)
+            // Parameters in utility functions always flow Rust -> Godot.
+            FnParam::builder().build_many(&function.arguments, FlowDirection::RustToGodot, ctx)
         };
 
-        let godot_method_name = function.name.clone();
-        let rust_method_name = godot_method_name.clone(); // No change for now.
-
-        let return_value = function
+        let json_return = function
             .return_type
             .as_deref()
             .map(JsonMethodReturn::from_type_no_meta);
+        let return_value = FnReturn::new(&json_return, FlowDirection::GodotToRust, ctx);
+
+        let godot_method_name = function.name.clone();
+        let rust_method_name = godot_method_name.clone(); // No change for now.
 
         Some(Self {
             common: FunctionCommon {
                 name: rust_method_name,
                 godot_name: godot_method_name,
                 parameters,
-                return_value: FnReturn::new(&return_value, ctx),
+                return_value,
                 is_vararg: function.is_vararg,
                 is_private,
                 is_virtual_required: false,

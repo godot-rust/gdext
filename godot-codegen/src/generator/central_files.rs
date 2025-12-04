@@ -12,7 +12,7 @@ use crate::context::Context;
 use crate::conv;
 use crate::generator::sys_pointer_types::make_godotconvert_for_systypes;
 use crate::generator::{enums, gdext_build_struct};
-use crate::models::domain::ExtensionApi;
+use crate::models::domain::{ExtensionApi, FlowDirection};
 use crate::util::ident;
 
 pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
@@ -175,11 +175,14 @@ fn make_variant_enums(api: &ExtensionApi, ctx: &mut Context) -> VariantEnums {
         variant_ty_enumerators_rust: Vec::with_capacity(len),
     };
 
+    // When extracting variant, data moves Godot->Rust. Means `VariantArray` for `Array`.
+    let flow = FlowDirection::GodotToRust;
+
     // Note: NIL is not part of this iteration, it will be added manually.
     for builtin in api.builtins.iter() {
         let original_name = builtin.godot_original_name();
         let shout_case = builtin.godot_shout_name();
-        let rust_ty = conv::to_rust_type(original_name, None, ctx);
+        let rust_ty = conv::to_rust_type(original_name, None, Some(flow), ctx);
         let pascal_case = conv::to_pascal_case(original_name);
 
         result

@@ -303,7 +303,9 @@ impl VarDictionary {
     /// _Godot equivalent: `keys`_
     #[doc(alias = "keys")]
     pub fn keys_array(&self) -> VarArray {
-        self.as_inner().keys()
+        // SAFETY: keys() returns an untyped array with element type Variant.
+        let out_array = self.as_inner().keys();
+        unsafe { out_array.assume_type() }
     }
 
     /// Creates a new `Array` containing all the values currently in the dictionary.
@@ -311,7 +313,9 @@ impl VarDictionary {
     /// _Godot equivalent: `values`_
     #[doc(alias = "values")]
     pub fn values_array(&self) -> VarArray {
-        self.as_inner().values()
+        // SAFETY: values() returns an untyped array with element type Variant.
+        let out_array = self.as_inner().values();
+        unsafe { out_array.assume_type() }
     }
 
     /// Copies all keys and values from `other` into `self`.

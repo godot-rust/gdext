@@ -479,6 +479,15 @@ pub enum FnDirection {
     Outbound { hash: i64 },
 }
 
+/// Whether return values need to be declared in a special way (e.g. `AnyArray`).
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub(crate) enum FlowDirection {
+    /// Godot -> Rust.
+    GodotToRust,
+
+    /// Rust -> Godot.
+    RustToGodot,
+}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -555,32 +564,45 @@ impl FnParamBuilder {
     }
 
     /// Builds a single function parameter from the provided JSON method argument.
-    pub fn build_single(self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
-        self.build_single_impl(method_arg, ctx)
+    pub fn build_single(
+        self,
+        method_arg: &JsonMethodArg,
+        flow: FlowDirection,
+        ctx: &mut Context,
+    ) -> FnParam {
+        self.build_single_impl(method_arg, flow, ctx)
     }
 
     /// Builds a vector of function parameters from the provided JSON method arguments.
     pub fn build_many(
         self,
         method_args: &Option<Vec<JsonMethodArg>>,
+        flow: FlowDirection,
         ctx: &mut Context,
     ) -> Vec<FnParam> {
         option_as_slice(method_args)
             .iter()
-            .map(|arg| self.build_single_impl(arg, ctx))
+            .map(|arg| self.build_single_impl(arg, flow, ctx))
             .collect()
     }
 
     /// Core implementation for processing a single JSON method argument into a `FnParam`.
-    fn build_single_impl(&self, method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
+    fn build_single_impl(
+        &self,
+        method_arg: &JsonMethodArg,
+        flow: FlowDirection,
+        ctx: &mut Context,
+    ) -> FnParam {
         let name = safe_ident(&method_arg.name);
-        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
+        let type_ =
+            conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), Some(flow), ctx);
 
         // Apply enum replacement if one exists for this parameter
         let matching_replacement = self
             .replacements
             .iter()
             .find(|(p, ..)| *p == method_arg.name);
+
         let type_ = if let Some((_, enum_name, is_bitfield)) = matching_replacement {
             if !type_.is_integer() {
                 panic!(
@@ -588,6 +610,7 @@ impl FnParamBuilder {
                     method_arg.name, type_
                 );
             }
+
             conv::to_enum_type_uncached(enum_name, *is_bitfield)
         } else {
             type_
@@ -629,8 +652,12 @@ pub struct FnReturn {
 }
 
 impl FnReturn {
-    pub fn new(return_value: &Option<JsonMethodReturn>, ctx: &mut Context) -> Self {
-        Self::with_enum_replacements(return_value, &[], ctx)
+    pub fn new(
+        return_value: &Option<JsonMethodReturn>,
+        flow: FlowDirection,
+        ctx: &mut Context,
+    ) -> Self {
+        Self::with_enum_replacements(return_value, &[], flow, ctx)
     }
 
     pub fn with_generic_builtin(generic_type: RustTy) -> Self {
@@ -643,10 +670,11 @@ impl FnReturn {
     pub fn with_enum_replacements(
         return_value: &Option<JsonMethodReturn>,
         replacements: EnumReplacements,
+        flow: FlowDirection,
         ctx: &mut Context,
     ) -> Self {
         if let Some(ret) = return_value {
-            let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
+            let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), Some(flow), ctx);
 
             // Apply enum replacement if one exists for return type (indicated by empty string)
             let matching_replacement = replacements.iter().find(|(p, ..)| p.is_empty());
@@ -710,6 +738,9 @@ pub type EnumReplacements = &'static [(&'static str, &'static str, bool)];
 pub struct GodotTy {
     pub ty: String,
     pub meta: Option<String>,
+
+    // None if flow doesn't matter (most types except "Array").
+    pub flow: Option<FlowDirection>,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -726,7 +757,7 @@ pub enum RustTy {
 
     /// `Array<i32>`
     ///
-    /// Note that untyped arrays are mapped as `BuiltinIdent("Array")`.
+    /// Untyped arrays are either `BuiltinIdent("AnyArray")` for outbound methods, or `BuiltinIdent("Array")` for virtual methods.
     BuiltinArray { elem_type: TokenStream },
 
     /// Will be included as `Array<T>` in the generated source.

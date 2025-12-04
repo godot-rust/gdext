@@ -72,7 +72,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// ```
     #[must_use]
     pub fn map(&self, callable: &Callable) -> VarArray {
-        // SAFETY: map() returns an untyped array.
+        // SAFETY: map() returns an untyped array (element type Variant).
         unsafe { self.array.as_inner().map(callable) }
     }
 
@@ -199,7 +199,8 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     ///
     /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
     ///
-    /// Calling `bsearch_custom()` on an unsorted array results in unspecified behavior. Consider using [`Array::sort_unstable_custom()`]
+    /// Calling `bsearch_custom()` on an unsorted array results in unspecified behavior. Consider using
+    /// [`AnyArray::sort_unstable_custom()`][crate::builtin::AnyArray::sort_unstable_custom()] beforehand.
     /// to ensure the sorting order is compatible with your callable's ordering.
     pub fn bsearch_custom(&self, value: impl AsArg<T>, pred: &Callable) -> usize {
         meta::arg_into_ref!(value: T);

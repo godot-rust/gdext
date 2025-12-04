@@ -410,13 +410,59 @@ fn array_mixed_values() {
     node.free();
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// AnyArray interactions
+
 #[itest]
-fn untyped_array_pass_to_godot_func() {
+fn array_typed_conversions() {
+    let typed = array![1, 2, 3];
+    let any = typed.clone().into_any();
+
+    let typed_back = any
+        .clone()
+        .try_into_typed::<i64>()
+        .expect("convert back to typed");
+    assert_eq!(typed_back, typed);
+
+    let untyped_fail = any.try_into_untyped();
+    assert!(untyped_fail.is_err(), "cannot convert typed to untyped");
+}
+
+#[itest]
+fn array_untyped_conversions() {
+    let untyped = varray![1, 2, 3];
+    let any = untyped.clone().into_any();
+
+    let untyped_back = any
+        .clone()
+        .try_into_untyped()
+        .expect("convert back to untyped");
+    assert_eq!(untyped_back, untyped);
+
+    let typed_fail = any.try_into_typed::<i64>();
+    assert!(typed_fail.is_err(), "cannot convert untyped to typed");
+}
+
+#[itest]
+fn untyped_out_array_pass_to_godot_func() {
     let mut node = Node::new_alloc();
     node.queue_free(); // Do not leak even if the test fails.
 
+    let args: VarArray = varray!["tree_entered"];
     assert_eq!(
-        node.callv("has_signal", &varray!["tree_entered"]),
+        node.callv(&StringName::from("has_signal"), &args),
+        true.to_variant()
+    );
+}
+
+#[itest]
+fn typed_out_array_pass_to_godot_func() {
+    let mut node = Node::new_alloc();
+    node.queue_free(); // Do not leak even if the test fails.
+
+    let args: Array<GString> = array!["tree_entered"];
+    assert_eq!(
+        node.callv(&StringName::from("has_signal"), &args),
         true.to_variant()
     );
 }
@@ -438,7 +484,7 @@ fn untyped_array_return_from_godot_func() {
 // Potential alternatives (search for "typedarray::" in extension_api.json):
 // - ClassDB::class_get_signal_list() -> Array<VarDictionary>
 // - Compositor::set_compositor_effects( Array<Gd<Compositor>> )
-#[cfg(feature = "codegen-full-experimental")]
+#[cfg(feature = "codegen-full")]
 #[itest]
 fn typed_array_pass_to_godot_func() {
     use godot::classes::image::Format;
@@ -498,6 +544,8 @@ fn untyped_array_try_from_typed() {
 
     node.free();
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[itest]
 fn array_should_format_with_display() {
@@ -769,6 +817,18 @@ fn backwards_sort_callable() -> Callable {
 
 fn is_even_callable() -> Callable {
     Callable::from_fn("is even", |args| args[0].to::<i64>() % 2 == 0)
+}
+
+#[itest]
+fn array_deref_to_out_array() {
+    let typed: Array<i64> = array![10, 20, 30];
+    let untyped: VarArray = varray![1, "hello", true];
+
+    let typed: &AnyArray = &typed;
+    assert_eq!(typed.at(1), 20.to_variant());
+
+    let untyped: &AnyArray = &untyped;
+    assert_eq!(untyped.at(1), "hello".to_variant());
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
