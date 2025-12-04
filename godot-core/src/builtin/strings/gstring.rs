@@ -336,6 +336,21 @@ impl fmt::Debug for GString {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Comparison with Rust strings
+
+// API design:
+// * StringName and NodePath don't implement PartialEq<&str> yet, because they require allocation (convert to GString).
+//   == should ideally not allocate.
+// * Reverse `impl PartialEq<GString> for &str` is not implemented now. Comparisons usually take the form of variable == "literal".
+//   Can be added later if there are good use-cases.
+
+impl PartialEq<&str> for GString {
+    fn eq(&self, other: &&str) -> bool {
+        self.chars().iter().copied().eq(other.chars())
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion from/into Rust string-types
 
 impl From<&str> for GString {

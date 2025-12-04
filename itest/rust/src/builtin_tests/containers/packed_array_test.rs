@@ -107,11 +107,11 @@ fn packed_array_index() {
     array.push("first");
     array.push(&GString::from("second"));
 
-    assert_eq!(array[0], "first".into());
-    assert_eq!(array[1], "second".into());
+    assert_eq!(array[0], "first");
+    assert_eq!(array[1], "second");
 
     array[0] = GString::from("begin");
-    assert_eq!(array[0], "begin".into());
+    assert_eq!(array[0], "begin");
 }
 
 #[itest]
@@ -202,7 +202,7 @@ fn packed_array_push() {
     let mut strings = PackedStringArray::from(&[GString::from("a")]);
     strings.push("b");
     assert_eq!(strings.len(), 2);
-    assert_eq!(strings[1], "b".into());
+    assert_eq!(strings[1], "b");
 
     fn test<T: Generator>() {
         let mut array = PackedArray::<T>::new();
@@ -481,7 +481,7 @@ fn packed_array_as_slice() {
     );
 
     let empty = PackedStringArray::new();
-    assert_eq!(empty.as_slice(), &[]);
+    assert_eq!(empty.as_slice(), &[] as &[GString]); // Ambiguity due to GString==&str op. Could use is_empty() but this uses explicit type.
 }
 
 #[itest]
@@ -501,7 +501,7 @@ fn packed_array_as_mut_slice() {
     );
 
     let mut empty = PackedStringArray::new();
-    assert_eq!(empty.as_mut_slice(), &mut []);
+    assert_eq!(empty.as_mut_slice(), &mut [] as &mut [GString]);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

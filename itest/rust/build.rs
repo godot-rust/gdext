@@ -120,7 +120,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; float, f64, 127.83156478);
     push!(inputs; bool, bool, true);
     push!(inputs; Color, Color, Color(0.7, 0.5, 0.3, 0.2), Color::from_rgba(0.7, 0.5, 0.3, 0.2));
-    push!(inputs; String, GString, "hello", "hello".into());
+    push!(inputs; String, GString, "hello", GString::from("hello"));
     push!(inputs; StringName, StringName, &"hello", "hello".into());
     pushs!(inputs; NodePath, NodePath, r#"^"hello""#, "hello".into(), true, true, None);
     push!(inputs; Vector2, Vector2, Vector2(12.5, -3.5), Vector2::new(12.5, -3.5));
@@ -170,7 +170,7 @@ fn collect_inputs() -> Vec<Input> {
     push_newtype!(inputs; float, NewF64(f64), 127.83156478);
     push_newtype!(inputs; bool, NewBool(bool), true);
     push_newtype!(inputs; Color, NewColor(Color), Color(0.7, 0.5, 0.3, 0.2), NewColor(Color::from_rgba(0.7, 0.5, 0.3, 0.2)));
-    push_newtype!(inputs; String, NewString(GString), "hello", NewString("hello".into()));
+    push_newtype!(inputs; String, NewString(GString), "hello", NewString(GString::from("hello")));
     push_newtype!(inputs; StringName, NewStringName(StringName), &"hello", NewStringName("hello".into()));
     push_newtype!(@s inputs; NodePath, NewNodePath(NodePath), r#"^"hello""#, NewNodePath("hello".into()));
     push_newtype!(inputs; Vector2, NewVector2(Vector2), Vector2(12.5, -3.5), NewVector2(Vector2::new(12.5, -3.5)));
