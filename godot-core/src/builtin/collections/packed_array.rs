@@ -353,7 +353,25 @@ impl<T: PackedArrayElement> PackedArray<T> {
         }
     }
 
-    /// Converts this packed array to a `VarArray`.
+    /// Converts this packed array into a typed `Array<T>` of the same element type.
+    ///
+    /// To create an untyped `VarArray`, use [`to_var_array()`][Self::to_var_array].
+    ///
+    /// # Performance
+    /// This conversion is not natively supported by Godot, as such it is roughly 5x slower than `to_var_array()`. If you need speed and can
+    /// live without the type safety, use the latter instead.
+    // Naming: not called to_array() because the result is NEVER untyped, as it's impossible to have T=Variant.
+    pub fn to_typed_array(&self) -> Array<T>
+    where
+        T: meta::ArrayElement, // Could technically be a subtrait of PackedArrayElement; for now they're unrelated.
+    {
+        // TODO(v0.5) use iterators once available.
+        self.as_slice().iter().cloned().collect()
+    }
+
+    /// Converts this packed array to an untyped `VarArray`.
+    ///
+    /// To create a typed `Array<T>`, use [`to_typed_array()`][Self::to_typed_array].
     #[inline]
     pub fn to_var_array(&self) -> VarArray {
         // SAFETY: Godot FFI converter expects uninitialized dest + initialized source.

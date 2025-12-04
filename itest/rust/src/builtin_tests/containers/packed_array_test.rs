@@ -9,11 +9,12 @@ use std::fmt;
 
 use godot::builtin::{
     array, varray, vdict, Array, Color, GString, PackedArray, PackedByteArray, PackedFloat32Array,
-    PackedInt32Array, PackedStringArray, VarArray, Variant, Vector2, Vector3, Vector4,
+    PackedInt32Array, PackedStringArray, VarArray, Variant, VariantType, Vector2, Vector3, Vector4,
 };
 use godot::global::godot_str;
-use godot::meta::{owned_into_arg, ref_to_arg, wrapped, PackedArrayElement, ToGodot};
+use godot::meta::{owned_into_arg, ref_to_arg, wrapped, ElementType, PackedArrayElement, ToGodot};
 
+use crate::assert_match;
 use crate::framework::{expect_panic, itest};
 
 /// Utility to run generic `PackedArray<T>` tests for multiple types `T`.
@@ -777,6 +778,13 @@ fn packed_array_array_conversions_f32() {
     // It should not even be possible to construct a VarArray from a typed array, but since the implementation is very low-level FFI
     // and Godot isn't strict about typed/untyped arrays, we verify that the VarArray is indeed untyped.
     assert!(!untyped.element_type().is_typed());
+
+    let typed = packed.to_typed_array();
+    assert_eq!(typed, array);
+    assert_match!(
+        typed.element_type(),
+        ElementType::Builtin(VariantType::FLOAT)
+    );
 }
 
 #[itest]
@@ -789,6 +797,13 @@ fn packed_array_array_conversions_gstring() {
     let untyped: VarArray = packed.to_var_array();
     assert_eq!(untyped, varray!["first", "second"]);
     assert!(!untyped.element_type().is_typed());
+
+    let typed = packed.to_typed_array();
+    assert_eq!(typed, array);
+    assert_match!(
+        typed.element_type(),
+        ElementType::Builtin(VariantType::STRING)
+    );
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
