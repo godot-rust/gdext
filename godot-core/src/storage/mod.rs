@@ -53,12 +53,12 @@ fn bug_inaccessible<T>(err: Box<dyn std::error::Error>) -> ! {
     )
 }
 
-#[cfg(feature = "debug-log")]
+#[cfg(feature = "debug-log")] #[cfg_attr(published_docs, doc(cfg(feature = "debug-log")))]
 use log_active::*;
-#[cfg(not(feature = "debug-log"))]
+#[cfg(not(feature = "debug-log"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "debug-log"))))]
 use log_inactive::*;
 
-#[cfg(feature = "debug-log")]
+#[cfg(feature = "debug-log")] #[cfg_attr(published_docs, doc(cfg(feature = "debug-log")))]
 mod log_active {
     use godot_ffi::out;
 
@@ -109,7 +109,7 @@ mod log_active {
 }
 
 // out! macro still mentions arguments in all cfgs, so they must exist (and may or may not be optimized away).
-#[cfg(not(feature = "debug-log"))]
+#[cfg(not(feature = "debug-log"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "debug-log"))))]
 mod log_inactive {
     use super::*;
 
@@ -123,14 +123,14 @@ mod log_inactive {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tracking borrows in Debug mode
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 use borrow_info::DebugBorrowTracker;
-#[cfg(not(safeguards_strict))]
+#[cfg(not(safeguards_strict))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_strict))))]
 use borrow_info_noop::DebugBorrowTracker;
 
 use crate::obj::{Base, GodotClass};
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 mod borrow_info {
     use std::backtrace::Backtrace;
     use std::fmt;
@@ -195,7 +195,7 @@ mod borrow_info {
     }
 }
 
-#[cfg(not(safeguards_strict))]
+#[cfg(not(safeguards_strict))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_strict))))]
 mod borrow_info_noop {
     use std::fmt;
 

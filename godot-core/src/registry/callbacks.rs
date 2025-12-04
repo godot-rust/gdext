@@ -30,7 +30,7 @@ use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
 /// If the `init()` constructor panics, null is returned.
 ///
 /// Creation callback has `p_notify_postinitialize` parameter since 4.4: <https://github.com/godotengine/godot/pull/91018>.
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     .unwrap_or(std::ptr::null_mut())
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
 ///
 /// Godot expects a creator function, but doesn't require an actual object to be instantiated.
-#[cfg(all(since_api = "4.4", before_api = "4.5"))]
+#[cfg(all(since_api = "4.4", before_api = "4.5"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.4", before_api = "4.5"))))]
 pub unsafe extern "C" fn create_null<T>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn create_null<T>(
     std::ptr::null_mut()
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn create_null<T>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
 ///
 /// Godot expects a creator function, but doesn't require an actual object to be instantiated.
-#[cfg(before_api = "4.5")]
+#[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
 pub unsafe extern "C" fn recreate_null<T>(
     _class_userdata: *mut std::ffi::c_void,
     _object: sys::GDExtensionObjectPtr,
@@ -102,7 +102,7 @@ where
     let base_ptr = unsafe { sys::classdb_construct_object(base_class_name.string_sys()) };
 
     let postinit = |base_ptr| {
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         if notify_postinitialize {
             // Should notify it with a weak pointer, during `NOTIFICATION_POSTINITIALIZE`, ref-counted object is not yet fully-initialized.
             let mut obj = unsafe { Gd::<Object>::from_obj_sys_weak(base_ptr) };
@@ -191,7 +191,7 @@ pub unsafe extern "C" fn free<T: GodotClass>(
     crate::storage::destroy_storage::<T>(instance);
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -204,7 +204,7 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     T::__virtual_call(method_name.as_str(), hash)
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -216,7 +216,7 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     T::__virtual_call(method_name.as_str())
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -229,7 +229,7 @@ pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     T::__default_virtual_call(method_name.as_str(), hash)
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,

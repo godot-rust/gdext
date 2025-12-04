@@ -463,7 +463,7 @@ impl_packed_array_element!(
     index_const_fn: packed_vector3_array_operator_index_const,
 );
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl_packed_array_element!(
     element_type: builtin::Vector4,
     argument_type: builtin::Vector4,

@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -42,10 +43,10 @@ pub struct GodotVersion {
 // Custom mode: Regenerate all files
 
 // This file is explicitly included in unit tests. Needs regex dependency.
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod godot_version;
 
-#[cfg(feature = "api-custom")]
+#[cfg(feature = "api-custom")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom")))]
 #[path = ""]
 mod depend_on_custom {
     use std::borrow::Cow;
@@ -64,7 +65,7 @@ mod depend_on_custom {
         godot_exe::write_gdextension_headers(h_path, rs_path, false, watch);
     }
 
-    #[cfg(feature = "api-custom-extheader")]
+    #[cfg(feature = "api-custom-extheader")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom-extheader")))]
     pub fn write_gdextension_headers_from_c(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
         godot_exe::write_gdextension_headers(h_path, rs_path, true, watch);
     }
@@ -74,13 +75,13 @@ mod depend_on_custom {
     }
 }
 
-#[cfg(feature = "api-custom")]
+#[cfg(feature = "api-custom")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom")))]
 pub use depend_on_custom::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Custom mode: Generate all files based on user provided JSON.
 
-#[cfg(feature = "api-custom-json")]
+#[cfg(feature = "api-custom-json")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom-json")))]
 #[path = ""]
 mod depend_on_custom_json {
     use std::borrow::Cow;
@@ -106,13 +107,13 @@ mod depend_on_custom_json {
     }
 }
 
-#[cfg(feature = "api-custom-json")]
+#[cfg(feature = "api-custom-json")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom-json")))]
 pub use depend_on_custom_json::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Prebuilt mode: Reuse existing files
 
-#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
+#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))] #[cfg_attr(published_docs, doc(cfg(not(any(feature = "api-custom", feature = "api-custom-json")))))]
 #[path = ""]
 mod depend_on_prebuilt {
     use super::*;
@@ -154,7 +155,7 @@ mod depend_on_prebuilt {
     }
 }
 
-#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
+#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))] #[cfg_attr(published_docs, doc(cfg(not(any(feature = "api-custom", feature = "api-custom-json")))))]
 pub use depend_on_prebuilt::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -218,7 +219,7 @@ pub fn emit_wasm_nothreads_cfg() {
 
     // The environment variable for target family has a list of applicable families separated by commas.
     // For Emscripten in particular, this can be "unix,wasm". Therefore, to check for the Wasm target, we must check each item in the list.
-    #[cfg(feature = "experimental-wasm-nothreads")]
+    #[cfg(feature = "experimental-wasm-nothreads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-wasm-nothreads")))]
     if std::env::var("CARGO_CFG_TARGET_FAMILY")
         .expect("target family environment variable")
         .split(',')
@@ -273,11 +274,11 @@ pub fn emit_safeguard_levels() {
     let mut safeguards_level = if cfg!(debug_assertions) { 2 } else { 1 };
 
     // Override default level with Cargo feature, in dev/release profiles.
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     if cfg!(feature = "safeguards-dev-balanced") {
         safeguards_level = 1;
     }
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
     if cfg!(feature = "safeguards-release-disengaged") {
         safeguards_level = 0;
     }

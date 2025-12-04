@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -15,11 +16,11 @@
 pub mod builder;
 pub mod builtin;
 pub mod classes;
-#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+#[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
 pub mod docs;
 #[doc(hidden)]
 pub mod possibly_docs {
-    #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+    #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
     pub use crate::docs::*;
 }
 pub mod global;
@@ -38,7 +39,7 @@ pub use crate::private::{fetch_last_panic_context, set_gdext_hook};
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Validations (see also godot/lib.rs)
 
-#[cfg(all(feature = "register-docs", before_api = "4.3"))]
+#[cfg(all(feature = "register-docs", before_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", before_api = "4.3"))))]
 compile_error!("Generating editor docs for Rust symbols requires at least Godot 4.3.");
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -99,6 +100,6 @@ mod no_compile_tests {
     /// let option = Some(node.clone());
     /// let option: Option<&Gd<Node>> = option.as_ref();
     /// ```
-    #[cfg(since_api = "4.6")]
+    #[cfg(since_api = "4.6")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.6")))]
     fn __required_param_must_not_take_option() {}
 }

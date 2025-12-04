@@ -92,7 +92,7 @@ impl SceneTree {
     }
 }
 
-#[cfg(feature = "codegen-full")]
+#[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
 mod codegen_full {
     // For future, expanding manual replacements for classes in the codegen-full set.
 }

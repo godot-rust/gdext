@@ -72,16 +72,16 @@ pub struct ClassMetadata {}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 type GodotCreationInfo = sys::GDExtensionClassCreationInfo2;
-#[cfg(all(since_api = "4.3", before_api = "4.4"))]
+#[cfg(all(since_api = "4.3", before_api = "4.4"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", before_api = "4.4"))))]
 type GodotCreationInfo = sys::GDExtensionClassCreationInfo3;
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 type GodotCreationInfo = sys::GDExtensionClassCreationInfo4;
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual as sys::Inner>::FnPtr;
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual2 as sys::Inner>::FnPtr;
 
 #[derive(Debug)]
@@ -234,7 +234,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
 
     // Actually register all the classes.
     for info in map.into_values() {
-        #[cfg(feature = "debug-log")]
+        #[cfg(feature = "debug-log")] #[cfg_attr(published_docs, doc(cfg(feature = "debug-log")))]
         let class_name = info.class_name;
 
         if info.is_editor_plugin {
@@ -319,7 +319,7 @@ pub fn unregister_classes(init_level: InitLevel) {
     }
 }
 
-#[cfg(feature = "codegen-full")]
+#[cfg(feature = "codegen-full")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-full")))]
 pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
     // Find the element that matches our class, and call the closure if it exists.
     if let Some(InherentImpl {
@@ -481,7 +481,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
 
             c.godot_params.is_exposed = sys::conv::bool_to_sys(!is_internal);
 
-            #[cfg(before_api = "4.3")]
+            #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
             let _ = is_tool; // mark used
             #[cfg(since_api = "4.3")]
             {
@@ -585,13 +585,13 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     let registration_failed = unsafe {
         // Try to register class...
 
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         let register_fn = interface_fn!(classdb_register_extension_class2);
 
-        #[cfg(all(since_api = "4.3", before_api = "4.4"))]
+        #[cfg(all(since_api = "4.3", before_api = "4.4"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", before_api = "4.4"))))]
         let register_fn = interface_fn!(classdb_register_extension_class3);
 
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         let register_fn = interface_fn!(classdb_register_extension_class4);
 
         let _: () = register_fn(
@@ -708,7 +708,7 @@ fn default_registration_info(class_name: ClassId) -> ClassRegistrationInfo {
     }
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
     sys::GDExtensionClassCreationInfo2 {
         is_virtual: false as u8,
@@ -736,7 +736,7 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
     }
 }
 
-#[cfg(all(since_api = "4.3", before_api = "4.4"))]
+#[cfg(all(since_api = "4.3", before_api = "4.4"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", before_api = "4.4"))))]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo3 {
     sys::GDExtensionClassCreationInfo3 {
         is_virtual: false as u8,
@@ -765,7 +765,7 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo3 {
     }
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo4 {
     sys::GDExtensionClassCreationInfo4 {
         is_virtual: false as u8,

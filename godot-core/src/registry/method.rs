@@ -148,7 +148,7 @@ impl ClassMethodInfo {
         }
     }
 
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     fn register_virtual_class_method(
         &self,
         normal_method_info: sys::GDExtensionClassMethodInfo,
@@ -176,7 +176,7 @@ impl ClassMethodInfo {
     }
 
     // Polyfill doing nothing.
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     fn register_virtual_class_method(
         &self,
         _normal_method_info: sys::GDExtensionClassMethodInfo,

@@ -239,7 +239,7 @@ impl Struct {
     }
 
     // Workaround for https://github.com/godot-rust/gdext/issues/874, before https://github.com/godotengine/godot/pull/99133 is merged in 4.5.
-    #[cfg(before_api = "4.5")]
+    #[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
     pub fn with_generated_no_default<T: GodotClass>(mut self) -> Self {
         set(&mut self.generated_create_fn, callbacks::create_null::<T>);
 
@@ -401,7 +401,7 @@ pub struct ITraitImpl {
 
     // We do not support using this in Godot < 4.3, however it's easier to leave this in and fail elsewhere when attempting to use
     // this in Godot < 4.3.
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     pub(crate) user_free_property_list_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -409,7 +409,7 @@ pub struct ITraitImpl {
         ),
     >,
     /// Frees the property list created in the user-defined `get_property_list` function.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub(crate) user_free_property_list_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
@@ -469,7 +469,7 @@ impl ITraitImpl {
     pub fn with_create<T: GodotClass + cap::GodotDefault>(mut self) -> Self {
         set(&mut self.user_create_fn, callbacks::create::<T>);
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         set(&mut self.user_recreate_fn, callbacks::recreate::<T>);
         self
     }
@@ -503,7 +503,7 @@ impl ITraitImpl {
             callbacks::get_property_list::<T>,
         );
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         set(
             &mut self.user_free_property_list_fn,
             callbacks::free_property_list::<T>,
