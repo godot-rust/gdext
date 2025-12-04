@@ -240,3 +240,30 @@ fn changed_enum_apis() {
     assert_eq!(mode, DropModeFlags::INBETWEEN);
     tree.free();
 }
+
+// Example of a test that can be executed ad-hoc in `-e --headless` mode.
+#[cfg(feature = "codegen-full")]
+#[itest(skip)]
+fn changed_editor_api() {
+    use godot::classes::editor_file_dialog::{Access, DisplayMode, FileMode};
+    use godot::classes::EditorFileDialog;
+
+    let mut dialog = EditorFileDialog::new_alloc();
+
+    dialog.add_filter("*.gd");
+    dialog.clear_filters();
+
+    assert_eq!(dialog.get_access(), Access::RESOURCES);
+    dialog.set_access(Access::USERDATA);
+    assert_eq!(dialog.get_access(), Access::USERDATA);
+
+    assert_eq!(dialog.get_display_mode(), DisplayMode::THUMBNAILS);
+    dialog.set_display_mode(DisplayMode::LIST);
+    assert_eq!(dialog.get_display_mode(), DisplayMode::LIST);
+
+    assert_eq!(dialog.get_file_mode(), FileMode::SAVE_FILE);
+    dialog.set_file_mode(FileMode::OPEN_DIR);
+    assert_eq!(dialog.get_file_mode(), FileMode::OPEN_DIR);
+
+    dialog.free();
+}
