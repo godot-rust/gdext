@@ -16,8 +16,8 @@ use crate::builtin::{
 use crate::classes;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
-    arg_into_ref, ffi_variant_type, ArrayElement, AsArg, ExtVariantType, FromGodot, GodotType,
-    ToGodot,
+    arg_into_ref, ffi_variant_type, ArrayElement, AsArg, EngineFromGodot, ExtVariantType,
+    FromGodot, GodotType, ToGodot,
 };
 
 mod impls;
@@ -118,14 +118,18 @@ impl Variant {
         try_from_variant_relaxed(self)
     }
 
+    pub(crate) fn engine_try_to_relaxed<T: EngineFromGodot>(&self) -> Result<T, ConvertError> {
+        try_from_variant_relaxed(self)
+    }
+
     /// Helper function for relaxed variant conversion with panic on failure.
     /// Similar to [`to()`](Self::to) but uses relaxed conversion rules.
     pub(crate) fn to_relaxed_or_panic<T, F>(&self, context: F) -> T
     where
-        T: FromGodot,
+        T: EngineFromGodot,
         F: FnOnce() -> String,
     {
-        self.try_to_relaxed::<T>()
+        self.engine_try_to_relaxed::<T>()
             .unwrap_or_else(|err| panic!("{}: {err}", context()))
     }
 
@@ -604,17 +608,17 @@ impl fmt::Debug for Variant {
     }
 }
 
-fn try_from_variant_relaxed<T: FromGodot>(variant: &Variant) -> Result<T, ConvertError> {
+fn try_from_variant_relaxed<T: EngineFromGodot>(variant: &Variant) -> Result<T, ConvertError> {
     let from_type = variant.get_type();
     let to_type = match ffi_variant_type::<T>() {
         ExtVariantType::Variant => {
             // Converting to Variant always succeeds.
-            return T::try_from_variant(variant);
+            return T::engine_try_from_variant(variant);
         }
         ExtVariantType::Concrete(to_type) if from_type == to_type => {
             // If types are the same, use the regular conversion.
             // This is both an optimization (avoids more FFI) and ensures consistency between strict and relaxed conversions for identical types.
-            return T::try_from_variant(variant);
+            return T::engine_try_from_variant(variant);
         }
         ExtVariantType::Concrete(to_type) => to_type,
     };
@@ -649,7 +653,7 @@ fn try_from_variant_relaxed<T: FromGodot>(variant: &Variant) -> Result<T, Conver
 
     // Try to convert the FFI types back to the user type. Can still fail, e.g. i64 -> i8.
     let via = <T::Via as GodotType>::try_from_ffi(ffi_result)?;
-    let concrete = T::try_from_godot(via)?;
+    let concrete = T::engine_try_from_godot(via)?;
 
     Ok(concrete)
 }

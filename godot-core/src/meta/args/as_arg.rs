@@ -8,7 +8,7 @@
 use crate::builtin::{GString, NodePath, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::{GodotFfiVariant, GodotNullableFfi};
-use crate::meta::{CowArg, FfiArg, GodotType, ObjectArg, ToGodot};
+use crate::meta::{CowArg, EngineToGodot, FfiArg, GodotType, ObjectArg, ToGodot};
 use crate::obj::{DynGd, Gd, GodotClass, Inherits};
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -595,21 +595,21 @@ pub trait ArgPassing: Sealed {
     #[doc(hidden)]
     fn ref_to_owned_via<T>(value: &T) -> T::Via
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: Clone;
 
     /// Convert to FFI repr in the most efficient way (move or borrow).
     #[doc(hidden)]
     fn ref_to_ffi<T>(value: &T) -> Self::FfiOutput<'_, T::Via>
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: GodotType;
 
     /// Convert to `Variant` in the most efficient way (move or borrow).
     #[doc(hidden)]
     fn ref_to_variant<T>(value: &T) -> Variant
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
     {
         let ffi_result = Self::ref_to_ffi(value);
         GodotFfiVariant::ffi_to_variant(&ffi_result)
@@ -631,19 +631,19 @@ impl ArgPassing for ByValue {
 
     fn ref_to_owned_via<T>(value: &T) -> T::Via
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: Clone,
     {
-        value.to_godot()
+        value.engine_to_godot()
     }
 
     fn ref_to_ffi<T>(value: &T) -> Self::FfiOutput<'_, T::Via>
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: GodotType,
     {
-        // For ByValue: to_godot() returns owned T::Via, move directly to FFI.
-        GodotType::into_ffi(value.to_godot())
+        // For ByValue: engine_to_godot() returns owned T::Via, move directly to FFI.
+        GodotType::into_ffi(value.engine_to_godot())
     }
 }
 
@@ -662,20 +662,20 @@ impl ArgPassing for ByRef {
 
     fn ref_to_owned_via<T>(value: &T) -> T::Via
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: Clone,
     {
         // For ByRef types, clone the reference to get owned value.
-        value.to_godot().clone()
+        value.engine_to_godot().clone()
     }
 
     fn ref_to_ffi<T>(value: &T) -> <T::Via as GodotType>::ToFfi<'_>
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: GodotType,
     {
         // Use by-ref conversion if possible, avoiding unnecessary clones when passing to FFI.
-        GodotType::to_ffi(value.to_godot())
+        GodotType::to_ffi(value.engine_to_godot())
     }
 }
 
@@ -696,19 +696,19 @@ impl ArgPassing for ByObject {
 
     fn ref_to_owned_via<T>(value: &T) -> T::Via
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: Clone,
     {
         // For ByObject types, do like ByRef: clone the reference to get owned value.
-        value.to_godot().clone()
+        value.engine_to_godot().clone()
     }
 
     fn ref_to_ffi<T>(value: &T) -> ObjectArg<'_>
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: GodotType,
     {
-        let obj_ref: &T::Via = value.to_godot(); // implements GodotType.
+        let obj_ref: &T::Via = value.engine_to_godot(); // implements GodotType.
         obj_ref.as_object_arg()
     }
 }
@@ -745,20 +745,20 @@ where
     // return: T::Via = Option<U::Via>
     fn ref_to_owned_via<T>(value: &T) -> T::Via
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: Clone,
     {
-        value.to_godot_owned()
+        value.engine_to_godot_owned()
     }
 
     fn ref_to_ffi<T>(value: &T) -> Self::FfiOutput<'_, T::Via>
     where
-        T: ToGodot<Pass = Self>,
+        T: EngineToGodot<Pass = Self>,
         T::Via: GodotType,
     {
         // Reuse pattern from impl GodotType for Option<T>:
         // Convert Option<&Via> to Option<Via::ToFfi> and then flatten to Via::ToFfi with null handling.
-        GodotNullableFfi::flatten_option(value.to_godot().map(|via_ref| via_ref.to_ffi()))
+        GodotNullableFfi::flatten_option(value.engine_to_godot().map(|via_ref| via_ref.to_ffi()))
     }
 }
 
