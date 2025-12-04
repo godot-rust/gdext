@@ -299,6 +299,7 @@ macro_rules! impl_packed_array_element {
                 Self::with_arg(value, |arg| inner.rfind(arg, from))
             }
 
+            #[allow(unused_mut)] // Generated bsearch() needs &mut before 4.6, but not anymore afterwards.
             fn op_bsearch(mut inner: Self::Inner<'_>, value: CowArg<'_, Self>, before: bool) -> i64 {
                 Self::with_arg(value, |arg| inner.bsearch(arg, before))
             }
