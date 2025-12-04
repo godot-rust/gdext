@@ -10,10 +10,38 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043)
+- [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043), [v0.4.4](#v044)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.4.4](https://docs.rs/godot/0.4.4)
+
+_4 December 2025_
+
+### 🌻 Features
+
+- Fix `Vector2i` using FFI; add functions to `Vector3i`/`Vector4i` ([#1418](https://github.com/godot-rust/gdext/pull/1418))
+- Allow to register user-defined engine singletons ([#1399](https://github.com/godot-rust/gdext/pull/1399))
+- Add `StringName::chars()` ([#1419](https://github.com/godot-rust/gdext/pull/1419))
+
+### 📈 Performance
+
+- Fix `Vector2i` using FFI; add functions to `Vector3i`/`Vector4i` ([#1418](https://github.com/godot-rust/gdext/pull/1418))
+
+### 🧹 Quality of life
+
+- Rename untyped collections to `VarArray` + `VarDictionary` ([#1428](https://github.com/godot-rust/gdext/pull/1428))
+- Run integration tests in `-e --headless` mode ([#1432](https://github.com/godot-rust/gdext/pull/1432))
+
+### 🛠️ Bugfixes
+
+- Add special casing for `PrimitiveMesh` methods ([#1430](https://github.com/godot-rust/gdext/pull/1430))
+
+### 📚 Documentation
+
+- Update comment to use `to_cow_str()` for `class_id()` ([#1412](https://github.com/godot-rust/gdext/pull/1412))
 
 
 ## [v0.4.3](https://docs.rs/godot/0.4.3)
