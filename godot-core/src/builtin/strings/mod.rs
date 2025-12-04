@@ -13,9 +13,9 @@ mod node_path;
 mod string_macros;
 mod string_name;
 
-pub use gstring::*;
+pub use gstring::{ExFind as GStringExFind, ExSplit as GStringExSplit, *};
 pub use node_path::NodePath;
-pub use string_name::*;
+pub use string_name::{ExFind as StringNameExFind, ExSplit as StringNameExSplit, *};
 
 use crate::meta;
 use crate::meta::error::ConvertError;

@@ -18,7 +18,7 @@ use quote::{format_ident, quote, ToTokens};
 
 use crate::context::Context;
 use crate::conv;
-use crate::models::json::{JsonMethodArg, JsonMethodReturn};
+use crate::models::json::{JsonBuiltinClass, JsonMethodArg, JsonMethodReturn};
 use crate::util::{ident, option_as_slice, safe_ident};
 
 mod enums;
@@ -341,6 +341,15 @@ pub trait Function: fmt::Display {
     fn is_virtual_required(&self) -> bool {
         self.common().is_virtual_required
     }
+
+    fn is_builtin(&self) -> bool {
+        false
+    }
+
+    /// Whether this method is directly generated on the outer type (`GString`), as opposed to the private inner one (`InnerString`).
+    fn is_exposed_outer_builtin(&self) -> bool {
+        false
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -409,6 +418,14 @@ impl Function for BuiltinMethod {
 
     fn surrounding_class(&self) -> Option<&TyName> {
         Some(&self.surrounding_class)
+    }
+
+    fn is_builtin(&self) -> bool {
+        true
+    }
+
+    fn is_exposed_outer_builtin(&self) -> bool {
+        self.is_exposed_in_outer
     }
 }
 
@@ -537,7 +554,7 @@ impl FnParam {
 }
 
 /// Builder for constructing `FnParam` instances with configurable enum replacements and default value handling.
-pub struct FnParamBuilder {
+pub(crate) struct FnParamBuilder {
     replacements: EnumReplacements,
     no_defaults: bool,
 }
@@ -558,12 +575,14 @@ impl FnParamBuilder {
     }
 
     /// Configures the builder to exclude default values from generated parameters.
+    #[expect(dead_code)] // May be useful in future.
     pub fn no_defaults(mut self) -> Self {
         self.no_defaults = true;
         self
     }
 
     /// Builds a single function parameter from the provided JSON method argument.
+    #[expect(dead_code)] // May be useful in future.
     pub fn build_single(
         self,
         method_arg: &JsonMethodArg,
@@ -950,8 +969,21 @@ pub struct TyName {
 impl TyName {
     pub fn from_godot(godot_ty: &str) -> Self {
         Self {
-            godot_ty: godot_ty.to_owned(),
+            godot_ty: godot_ty.to_string(),
             rust_ty: ident(&conv::to_pascal_case(godot_ty)),
+        }
+    }
+
+    pub fn from_godot_builtin(godot_ty: &JsonBuiltinClass) -> Self {
+        let godot_ty = godot_ty.name.as_str();
+
+        if godot_ty == "String" {
+            Self {
+                godot_ty: godot_ty.to_string(),
+                rust_ty: ident("GString"),
+            }
+        } else {
+            Self::from_godot(godot_ty)
         }
     }
 
@@ -988,9 +1020,18 @@ pub struct ModName {
 
 impl ModName {
     pub fn from_godot(godot_ty: &str) -> Self {
-        Self {
-            // godot_mod: godot_ty.to_owned(),
-            rust_mod: ident(&conv::to_snake_case(godot_ty)),
+        let rust_mod = ident(&conv::to_snake_case(godot_ty));
+
+        Self { rust_mod }
+    }
+
+    pub fn from_godot_builtin(godot_ty: &JsonBuiltinClass) -> Self {
+        if godot_ty.name == "String" {
+            Self {
+                rust_mod: ident("gstring"),
+            }
+        } else {
+            Self::from_godot(&godot_ty.name)
         }
     }
 }

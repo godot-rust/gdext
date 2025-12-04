@@ -169,14 +169,6 @@ impl Transform3D {
         self.basis.is_finite() && self.origin.is_finite()
     }
 
-    #[must_use]
-    pub fn looking_at(&self, target: Vector3, up: Vector3, use_model_front: bool) -> Self {
-        Self {
-            basis: Basis::looking_at(target - self.origin, up, use_model_front),
-            origin: self.origin,
-        }
-    }
-
     /// Returns the transform with the basis orthogonal (90 degrees), and
     /// normalized axis vectors (scale of 1 or -1).
     ///

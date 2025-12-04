@@ -156,22 +156,23 @@ impl Class {
 
 impl BuiltinClass {
     pub fn from_json(json: &JsonBuiltinClass, ctx: &mut Context) -> Option<Self> {
-        let ty_name = TyName::from_godot(&json.name);
+        let ty_name = TyName::from_godot_builtin(json);
 
         if special_cases::is_builtin_type_deleted(&ty_name) {
             return None;
         }
 
+        let mod_name = ModName::from_godot_builtin(json);
         let inner_name = TyName::from_godot(&format!("Inner{}", ty_name.godot_ty));
-        let mod_name = ModName::from_godot(&ty_name.godot_ty);
 
         let operators = json.operators.iter().map(Operator::from_json).collect();
 
         let methods = option_as_slice(&json.methods)
             .iter()
             .filter_map(|m| {
-                let inner_class_name = &ty_name;
-                BuiltinMethod::from_json(m, &ty_name, inner_class_name, ctx)
+                // Pass inner_name "Inner*" as surrounding class. This is later overridden to the outer type (e.g. "GString")
+                // for methods exposed in the public API via is_builtin_method_exposed().
+                BuiltinMethod::from_json(m, &ty_name, &inner_name, ctx)
             })
             .collect();
 
@@ -381,19 +382,34 @@ impl BuiltinMethod {
         };
 
         // For parameters in builtin methods, flow is always Rust -> Godot.
-        let parameters = FnParam::builder().no_defaults().build_many(
-            &method.arguments,
-            FlowDirection::RustToGodot,
-            ctx,
-        );
+        // Enable default parameters for builtin classes, generating _ex builders.
+        let parameters =
+            FnParam::builder().build_many(&method.arguments, FlowDirection::RustToGodot, ctx);
+
+        let is_exposed_in_outer =
+            special_cases::is_builtin_method_exposed(builtin_name, &method.name);
+
+        // Use inner class name (Inner*) for private methods, outer class name for exposed methods
+        // For outer class, need to use conv::to_rust_type to get correct mapping (String -> GString)
+        let surrounding_class = if is_exposed_in_outer {
+            let RustTy::BuiltinIdent { ty, .. } =
+                conv::to_rust_type(&builtin_name.godot_ty, None, None, ctx)
+            else {
+                panic!("Builtin type should map to BuiltinIdent");
+            };
+            TyName {
+                godot_ty: builtin_name.godot_ty.clone(),
+                rust_ty: ty,
+            }
+        } else {
+            inner_class_name.clone()
+        };
 
         Some(Self {
             common: FunctionCommon {
                 // Fill in these fields
                 name: method.name.clone(),
                 godot_name: method.name.clone(),
-                // Disable default parameters for builtin classes.
-                // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
                 parameters,
                 return_value,
                 is_vararg: method.is_vararg,
@@ -405,11 +421,8 @@ impl BuiltinMethod {
                 },
             },
             qualifier: FnQualifier::from_const_static(method.is_const, method.is_static),
-            surrounding_class: inner_class_name.clone(),
-            is_exposed_in_outer: special_cases::is_builtin_method_exposed(
-                builtin_name,
-                &method.name,
-            ),
+            surrounding_class,
+            is_exposed_in_outer,
         })
     }
 }

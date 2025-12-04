@@ -28,22 +28,19 @@ pub mod __prelude_reexport {
     use super::*;
 
     pub use aabb::*;
-    pub use basis::*;
     pub use callable::*;
     pub use collections::containers::*;
     pub use color::*;
     pub use color_hsv::*;
+    pub use matrices::*;
     pub use plane::*;
-    pub use projection::*;
     pub use quaternion::*;
     pub use real_inner::*;
     pub use rect2::*;
     pub use rect2i::*;
     pub use rid::*;
     pub use signal::*;
-    pub use string::{Encoding, GString, NodePath, StringName};
-    pub use transform2d::*;
-    pub use transform3d::*;
+    pub use strings::{Encoding, GString, NodePath, StringName};
     pub use variant::*;
     pub use vectors::*;
 
@@ -59,6 +56,22 @@ pub mod __prelude_reexport {
     pub use crate::static_sname;
 }
 
+pub use crate::gen::builtin_classes::*;
+
+/// Manual symbols and default extenders for builtin type [`GString`].
+pub mod gstring {
+    pub use crate::builtin::strings::{GStringExFind as ExFind, GStringExSplit as ExSplit};
+    pub use crate::gen::builtin_classes::gstring::*;
+}
+
+/// Manual symbols and default extenders for builtin type [`StringName`].
+pub mod string_name {
+    pub use crate::builtin::strings::{
+        StringNameExFind as ExFind, StringNameExSplit as ExSplit, TransientStringNameOrd,
+    };
+    pub use crate::gen::builtin_classes::string_name::*;
+}
+
 pub use __prelude_reexport::*;
 
 /// Math-related functions and traits like [`ApproxEq`][math::ApproxEq].
@@ -68,13 +81,6 @@ pub mod math;
 // Might rename this to `collections` or so.
 pub mod iter {
     pub use super::collections::iterators::*;
-}
-
-/// Specialized types related to Godot's various string implementations.
-pub mod strings {
-    pub use super::string::{
-        ExGStringFind, ExGStringSplit, ExStringNameFind, ExStringNameSplit, TransientStringNameOrd,
-    };
 }
 
 pub(crate) mod meta_reexport {
@@ -89,22 +95,19 @@ mod macros;
 
 // Other modules
 mod aabb;
-mod basis;
 mod callable;
 mod collections;
 mod color;
 mod color_constants; // After color, so that constants are listed after methods in docs (alphabetic ensures that).
 mod color_hsv;
+mod matrices;
 mod plane;
-mod projection;
 mod quaternion;
 mod rect2;
 mod rect2i;
 mod rid;
 mod signal;
-mod string;
-mod transform2d;
-mod transform3d;
+mod strings;
 mod variant;
 mod vectors;
 

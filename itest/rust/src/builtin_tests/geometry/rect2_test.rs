@@ -41,7 +41,7 @@ fn rect2_inner_equivalence() {
 
         for other in rects {
             assert_eq!(rect.encloses(other), inner_rect.encloses(other));
-            assert_eq!(rect.intersects(other), inner_rect.intersects(other, true),);
+            assert_eq!(rect.intersects(other), inner_rect.intersects(other, true));
             // Check intersection without considering borders
             assert_eq!(
                 rect.intersects_exclude_borders(other),

@@ -9,8 +9,7 @@
 macro_rules! impl_shared_string_api {
     (
         builtin: $Builtin:ty,
-        find_builder: $FindBuilder:ident,
-        split_builder: $SplitBuilder:ident,
+        builtin_mod: $builtin_mod:ident,
     ) => {
         // --------------------------------------------------------------------------------------------------------------------------------------
         // Extending the builtin itself
@@ -75,20 +74,20 @@ macro_rules! impl_shared_string_api {
             pub fn find_ex<'s, 'w>(
                 &'s self,
                 what: impl AsArg<GString> + 'w,
-            ) -> $FindBuilder<'s, 'w> {
-                $FindBuilder::new(self, what.into_arg())
+            ) -> ExFind<'s, 'w> {
+                ExFind::new(self, what.into_arg())
             }
 
             /// Count how many times `what` appears within `range`. Use `..` for full string search.
             pub fn count(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().count(what, from, to) as usize
+                self.as_inner().count(what.into_arg(), from, to) as usize
             }
 
             /// Count how many times `what` appears within `range`, case-insensitively. Use `..` for full string search.
             pub fn countn(&self, what: impl AsArg<GString>, range: impl std::ops::RangeBounds<usize>) -> usize {
                 let (from, to) = $crate::meta::signed_range::to_godot_range_fromto(range);
-                self.as_inner().countn(what, from, to) as usize
+                self.as_inner().countn(what.into_arg(), from, to) as usize
             }
 
             /// Splits the string according to `delimiter`.
@@ -114,8 +113,8 @@ macro_rules! impl_shared_string_api {
             pub fn split_ex<'s, 'w>(
                 &'s self,
                 delimiter: impl AsArg<GString> + 'w,
-            ) -> $SplitBuilder<'s, 'w> {
-                $SplitBuilder::new(self, delimiter.into_arg())
+            ) -> ExSplit<'s, 'w> {
+                ExSplit::new(self, delimiter.into_arg())
             }
 
             /// Returns a substring of this, as another `GString`.
@@ -330,9 +329,9 @@ macro_rules! impl_shared_string_api {
         // --------------------------------------------------------------------------------------------------------------------------------------
         // find() support
 
-        #[doc = concat!("Builder for [`", stringify!($Builtin), "::find_ex()`][", stringify!($Builtin), "::find_ex].")]
+        #[doc = concat!("Manual extender for [`", stringify!($Builtin), "::find_ex`][crate::builtin::", stringify!($builtin_mod), "::ExFind].")]
         #[must_use]
-        pub struct $FindBuilder<'s, 'w> {
+        pub struct ExFind<'s, 'w> {
             owner: &'s $Builtin,
             what: meta::CowArg<'w, GString>,
             reverse: bool,
@@ -340,7 +339,7 @@ macro_rules! impl_shared_string_api {
             from_index: Option<usize>,
         }
 
-        impl<'s, 'w> $FindBuilder<'s, 'w> {
+        impl<'s, 'w> ExFind<'s, 'w> {
             pub(crate) fn new(owner: &'s $Builtin, what: meta::CowArg<'w, GString>) -> Self {
                 Self {
                     owner,
@@ -406,9 +405,9 @@ macro_rules! impl_shared_string_api {
         // --------------------------------------------------------------------------------------------------------------------------------------
         // split() support
 
-        #[doc = concat!("Builder for [`", stringify!($Builtin), "::split_ex()`][", stringify!($Builtin), "::split_ex].")]
+        #[doc = concat!("Manual extender for [`", stringify!($Builtin), "::split_ex`][crate::builtin::", stringify!($builtin_mod), "::ExSplit].")]
         #[must_use]
-        pub struct $SplitBuilder<'s, 'w> {
+        pub struct ExSplit<'s, 'w> {
             owner: &'s $Builtin,
             delimiter: meta::CowArg<'w, GString>,
             reverse: bool,
@@ -416,7 +415,7 @@ macro_rules! impl_shared_string_api {
             maxsplit: usize,
         }
 
-        impl<'s, 'w> $SplitBuilder<'s, 'w> {
+        impl<'s, 'w> ExSplit<'s, 'w> {
             pub(crate) fn new(owner: &'s $Builtin, delimiter: meta::CowArg<'w, GString>) -> Self {
                 Self {
                     owner,

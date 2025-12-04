@@ -50,7 +50,7 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<Ident> {
         ("double", None) => "f64",
         ("double", Some(meta)) => panic!("unhandled type double with meta {meta:?}"),
 
-        // Others
+        // Others. Keep in sync with BuiltinClass::from_json().
         ("bool", None) => "bool",
         ("String", None) => "GString",
 

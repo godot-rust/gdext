@@ -210,7 +210,7 @@ impl<'a> Context<'a> {
         methods: &[JsonBuiltinMethod],
         ctx: &mut Context,
     ) {
-        let builtin_ty = TyName::from_godot(builtin.name.as_str());
+        let builtin_ty = TyName::from_godot_builtin(builtin);
         if special_cases::is_builtin_type_deleted(&builtin_ty) {
             return;
         }

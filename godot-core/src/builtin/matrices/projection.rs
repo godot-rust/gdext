@@ -10,10 +10,10 @@ use std::ops::Mul;
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
-use super::{Aabb, Rect2, Vector3};
 use crate::builtin::math::{ApproxEq, GlamConv, GlamType};
 use crate::builtin::{
-    inner, real, Plane, RMat4, RealConv, Transform3D, Vector2, Vector4, Vector4Axis,
+    inner, real, Aabb, Plane, RMat4, RealConv, Rect2, Transform3D, Vector2, Vector3, Vector4,
+    Vector4Axis,
 };
 
 /// A 4x4 matrix used for 3D projective transformations.
