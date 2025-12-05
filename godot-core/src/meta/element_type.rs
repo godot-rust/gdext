@@ -54,12 +54,14 @@ impl ElementType {
         }
     }
 
-    /// True if this denotes a typed array (non-NIL variant type).
+    /// True if this denotes a typed array/dictionary element.
+    ///
+    /// `Variant` is considered untyped, every other type is typed.
     pub fn is_typed(&self) -> bool {
         !matches!(self, ElementType::Untyped)
     }
 
-    /// The VariantType corresponding to this element type.
+    /// The `VariantType` corresponding to this element type.
     pub fn variant_type(&self) -> VariantType {
         match self {
             ElementType::Untyped => VariantType::NIL,

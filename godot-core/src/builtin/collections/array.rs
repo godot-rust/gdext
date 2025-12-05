@@ -222,22 +222,6 @@ pub type VariantArray = Array<Variant>;
 pub type VarArray = Array<Variant>;
 
 // TODO check if these return a typed array
-impl_builtin_froms!(VarArray;
-    PackedByteArray => array_from_packed_byte_array,
-    PackedColorArray => array_from_packed_color_array,
-    PackedFloat32Array => array_from_packed_float32_array,
-    PackedFloat64Array => array_from_packed_float64_array,
-    PackedInt32Array => array_from_packed_int32_array,
-    PackedInt64Array => array_from_packed_int64_array,
-    PackedStringArray => array_from_packed_string_array,
-    PackedVector2Array => array_from_packed_vector2_array,
-    PackedVector3Array => array_from_packed_vector3_array,
-);
-
-#[cfg(since_api = "4.3")]
-impl_builtin_froms!(VarArray;
-    PackedVector4Array => array_from_packed_vector4_array,
-);
 
 // Methods that don't provide type-specific ergonomics are available through `Deref`/`DerefMut` to [`AnyArray`].
 // This includes:
@@ -773,8 +757,20 @@ impl<T: ArrayElement> Array<T> {
         self
     }
 
+    /// Downgrades this typed/untyped `Array<T>` into an owned `AnyArray`.
+    ///
+    /// Typically, you can use deref coercion to convert `&Array<T>` to `&AnyArray`. This method is useful if you need `AnyArray` by value.
+    /// It consumes `self` to avoid incrementing the reference count; use `clone()` if you use the original array further.
     pub fn into_any(self) -> AnyArray {
         AnyArray::from_typed_or_untyped(self)
+    }
+
+    /// Converts this typed `Array<T>` into a `PackedArray<T>`.
+    pub fn to_packed_array(&self) -> PackedArray<T>
+    where
+        T: meta::PackedArrayElement,
+    {
+        PackedArray::<T>::from_typed_array(self)
     }
 
     /// Returns true if the array is read-only.

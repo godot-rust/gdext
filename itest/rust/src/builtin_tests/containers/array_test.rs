@@ -48,18 +48,6 @@ fn untyped_array_from_to_variant() {
 }
 
 #[itest]
-fn array_from_packed_array() {
-    let packed_array = PackedInt32Array::from(&[42]);
-    let mut array = VarArray::from(&packed_array);
-
-    // This tests that the resulting array doesn't secretly have a runtime type assigned to it,
-    // which is not reflected in our static type. It would make sense if it did, but Godot decided
-    // otherwise: we get an untyped array.
-    array.push(&GString::from("hi").to_variant());
-    assert_eq!(array, varray![42, "hi"]);
-}
-
-#[itest]
 fn array_from_iterator() {
     let array = Array::from_iter([1, 2]);
 
