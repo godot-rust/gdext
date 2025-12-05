@@ -87,6 +87,9 @@ pub type PackedColorArray = PackedArray<Color>;
 /// but any writes must be externally synchronized. The Rust compiler will enforce this as
 /// long as you use only Rust threads, but it cannot protect against concurrent modification
 /// on other threads (e.g. created through GDScript).
+///
+/// # Element type and conversions
+/// See the [corresponding section in `Array`](struct.Array.html#conversions-between-arrays).
 pub struct PackedArray<T: PackedArrayElement> {
     // All packed arrays have same memory layout.
     opaque: sys::types::OpaquePackedByteArray,

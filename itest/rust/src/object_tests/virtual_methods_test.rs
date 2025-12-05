@@ -138,7 +138,7 @@ impl IPrimitiveMesh for VirtualReturnTest {
             PackedInt32Array::from_iter([0, 1, 2, 3]),
             PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0]),
             PackedInt32Array::from_iter([0]),
-        ].into_any()
+        ].upcast_any_array()
     }
 
     fn get_surface_count(&self) -> i32 { unreachable!() }

@@ -33,7 +33,6 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// Check out the [book](https://godot-rust.github.io/book/godot-api/builtins.html#arrays-and-dictionaries) for a tutorial on arrays.
 ///
 /// # Reference semantics
-///
 /// Like in GDScript, `Array` acts as a reference type: multiple `Array` instances may
 /// refer to the same underlying array, and changes to one are visible in the other.
 ///
@@ -42,7 +41,6 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// or [`duplicate_deep()`][Self::duplicate_deep].
 ///
 /// # Element type
-///
 /// Godot's `Array` builtin can be either typed or untyped. In Rust, this maps to three representations:
 ///
 /// - Untyped array: `VariantArray`, a type alias for `Array<Variant>`.  \
@@ -55,14 +53,29 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///   Represents either typed or untyped arrays. This is different from `Array<Variant>`, because the latter allows you to insert
 ///   `Variant` objects. However, for an array that has dynamic type `i64`, it is not allowed to insert any variants that are not `i64`.
 ///
-/// Godot APIs reflect this. You can `Deref`-coerce from any `Array<T>` to `AnyArray` (e.g. when passing arguments), and explicitly
-/// convert the other way, using [`AnyArray::try_into_typed()`] and [`AnyArray::try_into_untyped()`].
-///
 /// If you plan to use any integer or float types apart from `i64` and `f64`, read
 /// [this documentation](../meta/trait.ArrayElement.html#integer-and-float-types).
 ///
-/// ## Typed array example
+/// ## Conversions between arrays
+/// The following table gives an overview of useful conversions.
 ///
+/// | From               | To               | Conversion method                                        |
+/// |--------------------|------------------|----------------------------------------------------------|
+/// | `AnyArray`         | `Array<T>`       | [`AnyArray::try_cast_array::<T>`]                        |
+/// | `AnyArray`         | `Array<Variant>` | [`AnyArray::try_cast_var_array`]                         |
+/// | `&Array<T>`        | `&AnyArray`      | Implicit via [deref coercion]; often used in class APIs. |
+/// | `Array<T>`         | `AnyArray`       | [`Array<T>::upcast_any_array`]                           |
+/// | `Array<T>`         | `PackedArray<T>` | [`Array<T>::to_packed_array`]                            |
+/// | `PackedArray<T>`   | `Array<T>`       | [`PackedArray<T>::to_typed_array`]                       |
+/// | `PackedArray<T>`   | `Array<Variant>` | [`PackedArray<T>::to_var_array`]                         |
+///
+/// Note that it's **not** possible to upcast `Array<Gd<Derived>>` to `Array<Gd<Base>>`. `Array<T>` is not covariant over the `T` parameter,
+/// otherwise it would be possible to insert `Base` pointers that aren't actually `Derived`.
+// Note: the above could theoretically be implemented by making AnyArray<T> generic and covariant over T.
+///
+/// [deref coercion]: struct.Array.html#deref-methods-AnyArray
+///
+/// ## Typed array example
 /// ```no_run
 /// # use godot::prelude::*;
 /// // Create typed Array<i64> and add values.
@@ -95,7 +108,6 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// ```
 ///
 /// ## Untyped array example
-///
 /// ```no_run
 /// # use godot::prelude::*;
 /// // VarArray allows dynamic element types.
@@ -116,7 +128,6 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// ```
 ///
 /// # Working with signed ranges and steps
-///
 /// For negative indices, use [`wrapped()`](crate::meta::wrapped).
 ///
 /// ```no_run
@@ -145,14 +156,12 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// ```
 ///
 /// # Thread safety
-///
 /// Usage is safe if the `Array` is used on a single thread only. Concurrent reads on
 /// different threads are also safe, but any writes must be externally synchronized. The Rust
 /// compiler will enforce this as long as you use only Rust threads, but it cannot protect against
 /// concurrent modification on other threads (e.g. created through GDScript).
 ///
 /// # Element type safety
-///
 /// We provide a richer set of element types than Godot, for convenience and stronger invariants in your _Rust_ code.
 /// This, however, means that the Godot representation of such arrays is not capable of incorporating the additional "Rust-side" information.
 /// This can lead to situations where GDScript code or the editor UI can insert values that do not fulfill the Rust-side invariants.
@@ -168,11 +177,9 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///   Godot doesn't know Rust traits and will only see the `T` part.
 ///
 /// # Differences from GDScript
-///
 /// Unlike GDScript, all indices and sizes are unsigned, so negative indices are not supported.
 ///
 /// # Godot docs
-///
 /// [`Array[T]` (stable)](https://docs.godotengine.org/en/stable/classes/class_array.html)
 pub struct Array<T: ArrayElement> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
@@ -761,7 +768,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Typically, you can use deref coercion to convert `&Array<T>` to `&AnyArray`. This method is useful if you need `AnyArray` by value.
     /// It consumes `self` to avoid incrementing the reference count; use `clone()` if you use the original array further.
-    pub fn into_any(self) -> AnyArray {
+    pub fn upcast_any_array(self) -> AnyArray {
         AnyArray::from_typed_or_untyped(self)
     }
 
@@ -890,6 +897,7 @@ impl<T: ArrayElement> Array<T> {
     /// Note also that any `GodotType` can be written to a `Variant` array.
     ///
     /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
+    #[cfg(safeguards_strict)]
     unsafe fn assume_type_ref<U: ArrayElement>(&self) -> &Array<U> {
         // The memory layout of `Array<T>` does not depend on `T`.
         std::mem::transmute::<&Array<T>, &Array<U>>(self)
@@ -1086,12 +1094,6 @@ impl<T: ArrayElement> Array<T> {
         ElementType::transfer_cache(&source.cached_element_type, &self.cached_element_type);
         self
     }
-}
-
-#[test]
-fn correct_variant_t() {
-    assert!(Array::<Variant>::has_variant_t());
-    assert!(!Array::<i64>::has_variant_t());
 }
 
 impl VarArray {
@@ -1371,6 +1373,9 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion traits
 
+// From impls converting values (like [T; N] or Vec<T>) are explicitly not supported, because there's no perf benefit in submitting ownership.
+// This is different for PackedArray, which can move values. See also related: https://github.com/godot-rust/gdext/pull/1286.
+
 /// Creates a `Array` from the given Rust array.
 impl<T: ArrayElement + ToGodot, const N: usize> From<&[T; N]> for Array<T> {
     fn from(arr: &[T; N]) -> Self {
@@ -1444,6 +1449,7 @@ impl<T: ArrayElement + FromGodot> From<&Array<T>> for Vec<T> {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Iterators
 
 /// An iterator over typed elements of an [`Array`].
 pub struct Iter<'a, T: ArrayElement> {
@@ -1515,6 +1521,7 @@ impl<T: ArrayElement> PartialOrd for Array<T> {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Expression macros
 
 /// Constructs [`Array`] literals, similar to Rust's standard `vec!` macro.
 ///
@@ -1634,6 +1641,7 @@ macro_rules! vslice {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Serde support
 
 #[cfg(feature = "serde")]
 mod serialize {
@@ -1703,4 +1711,37 @@ mod serialize {
             deserializer.deserialize_seq(ArrayVisitor::<T>(PhantomData))
         }
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Tests
+
+/// Verifies that `AnyArray::try_cast*()` cannot be called on concrete arrays.
+///
+/// > error[E0507]: cannot move out of dereference of `godot::prelude::Array<i64>`
+///
+/// ```compile_fail
+/// use godot::prelude::*;
+/// let a: Array<i64> = array![1, 2, 3];
+/// a.try_cast_var_array();
+/// ```
+///
+/// ```compile_fail
+/// use godot::prelude::*;
+/// let a: VarArray = varray![1, 2, 3];
+/// a.try_cast_array::<i64>();
+/// ```
+///
+/// This works:
+/// ```no_run
+/// use godot::prelude::*;
+/// let a: VarArray = varray![1, 2, 3];
+/// a.upcast_any_array().try_cast_array::<i64>();
+/// ```
+fn __cannot_downcast_from_concrete() {}
+
+#[test]
+fn correct_variant_t() {
+    assert!(Array::<Variant>::has_variant_t());
+    assert!(!Array::<i64>::has_variant_t());
 }

@@ -80,7 +80,7 @@ fn __array_return_types() {
     let _arrays: Array<VarArray> = server.mesh_surface_get_blend_shape_arrays(Rid::Invalid, 12);
 }
 
-// Test that generated builtin/class methods accept OutArray.
+// Test that generated builtin/class methods accept AnyArray.
 fn __array_param_types() {
     let mut server = RenderingServer::singleton();
 

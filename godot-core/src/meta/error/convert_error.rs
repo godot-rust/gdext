@@ -36,6 +36,7 @@ impl ConvertError {
     }
 
     /// Create a new custom error for a conversion, without associated value.
+    #[allow(dead_code)] // Needed a few times already, stays to prevent churn on refactorings.
     pub(crate) fn with_kind(kind: ErrorKind) -> Self {
         Self { kind, value: None }
     }
@@ -162,7 +163,7 @@ pub(crate) enum ErrorKind {
     FromGodot(FromGodotError),
     FromFfi(FromFfiError),
     FromVariant(FromVariantError),
-    FromOutArray(ArrayMismatch),
+    // FromAnyArray(ArrayMismatch), -- needed if AnyArray downcasts return ConvertError one day.
     Custom(Option<Cause>),
 }
 
@@ -172,7 +173,6 @@ impl fmt::Display for ErrorKind {
             Self::FromGodot(from_godot) => write!(f, "{from_godot}"),
             Self::FromVariant(from_variant) => write!(f, "{from_variant}"),
             Self::FromFfi(from_ffi) => write!(f, "{from_ffi}"),
-            Self::FromOutArray(array_mismatch) => write!(f, "{array_mismatch}"),
             Self::Custom(cause) => match cause {
                 Some(c) => write!(f, "{c}"),
                 None => write!(f, "custom error"),
