@@ -19,12 +19,14 @@ use crate::meta::{
     ToGodot,
 };
 use crate::obj::{
-    bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    OnEditor, RawGd, WithBaseField, WithSignals,
+    bounds, cap, Base, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits,
+    InstanceId, OnEditor, RawGd, WithBaseField, WithSignals,
 };
+use crate::private::callbacks::postinit;
 use crate::private::{callbacks, PanicPayload};
 use crate::registry::class::try_dynify_object;
 use crate::registry::property::{object_export_element_type_string, Export, Var};
+use crate::storage::Storage;
 use crate::{classes, meta, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -203,6 +205,38 @@ where
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     pub fn bind_mut(&mut self) -> GdMut<'_, T> {
         self.raw.bind_mut()
+    }
+
+    /// Creates a new initialized instance.
+    ///
+    /// Creation goes through ClassDb, which handles creation of placeholders and other specific logic.
+    ///
+    /// Since Godot 4.4 the caller (in this case godot-rust) is responsible for emitting the `POSTINITIALIZE`
+    /// notification, which should be handled by a not fully-initialized object. This is done so to maintain the consistency –
+    /// the notification must be handled the same way regardless of how and where the instance was created (in other words,
+    /// `T::new_gd()` and `T::default()` must be equivalent to the GDScript expression `T.new()`).
+    ///
+    /// Before Godot 4.4, Godot itself was responsible for emitting the `POSTINITIALIZE` notification, so we mark the instance as initialized
+    /// during creation.
+    ///
+    /// See also: [`Base`].
+    #[doc(hidden)]
+    pub fn default_user_instance() -> Gd<T>
+    where
+        T: cap::GodotDefault,
+    {
+        let obj = unsafe {
+            let object_ptr = sys::classdb_construct_object(T::class_id().string_sys());
+            postinit(object_ptr);
+            Gd::<T>::from_obj_sys(object_ptr)
+        };
+
+        // Mark base as initialized after postinit.
+        #[cfg(since_api = "4.4")]
+        if let Some(storage) = obj.raw.storage() {
+            unsafe { Base::from_base(storage.base()).mark_initialized() };
+        }
+        obj
     }
 }
 
@@ -522,24 +556,6 @@ impl<T: GodotClass> Gd<T> {
             .owned_cast()
             .map(Gd::from_ffi)
             .map_err(Self::from_ffi)
-    }
-
-    /// Create default instance for all types that have `GodotDefault`.
-    ///
-    /// Deliberately more loose than `Gd::default()`, does not require ref-counted memory strategy for user types.
-    pub(crate) fn default_instance() -> Self
-    where
-        T: cap::GodotDefault,
-    {
-        unsafe {
-            // Default value (and compat one) for `p_notify_postinitialize` is true in Godot.
-            #[cfg(since_api = "4.4")]
-            let object_ptr = callbacks::create::<T>(std::ptr::null_mut(), sys::conv::SYS_TRUE);
-            #[cfg(before_api = "4.4")]
-            let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
-
-            Gd::from_obj_sys(object_ptr)
-        }
     }
 
     /// Upgrades to a `DynGd<T, D>` pointer, enabling the `D` abstraction.

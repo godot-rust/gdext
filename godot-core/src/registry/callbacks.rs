@@ -13,6 +13,7 @@
 use std::any::Any;
 
 use godot_ffi as sys;
+use godot_ffi::GDExtensionObjectPtr;
 use sys::conv::u32_to_usize;
 use sys::interface_fn;
 
@@ -75,7 +76,7 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     object: sys::GDExtensionObjectPtr,
 ) -> sys::GDExtensionClassInstancePtr {
-    create_rust_part_for_existing_godot_part(T::__godot_user_init, object, |_| {})
+    create_rust_part_for_existing_godot_part(T::__godot_user_init, object, true)
         .unwrap_or(std::ptr::null_mut())
 }
 
@@ -90,6 +91,18 @@ pub unsafe extern "C" fn recreate_null<T>(
     std::ptr::null_mut()
 }
 
+#[cfg(since_api = "4.4")]
+pub(crate) fn postinit(base_ptr: GDExtensionObjectPtr) {
+    // Should notify it with a weak pointer, during `NOTIFICATION_POSTINITIALIZE`, ref-counted object is not yet fully-initialized.
+    // SAFETY: `base_ptr` is either null or points to some valid `GDExtensionObjectPtr` instance.
+    let mut obj = unsafe { Gd::<Object>::from_obj_sys_weak(base_ptr) };
+    obj.notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
+    obj.drop_weak();
+}
+
+#[cfg(before_api = "4.4")]
+pub(crate) fn postinit(_base_ptr: GDExtensionObjectPtr) {}
+
 pub(crate) fn create_custom<T, F>(
     make_user_instance: F,
     notify_postinitialize: bool,
@@ -101,17 +114,11 @@ where
     let base_class_name = T::Base::class_id();
     let base_ptr = unsafe { sys::classdb_construct_object(base_class_name.string_sys()) };
 
-    let postinit = |base_ptr| {
-        #[cfg(since_api = "4.4")]
-        if notify_postinitialize {
-            // Should notify it with a weak pointer, during `NOTIFICATION_POSTINITIALIZE`, ref-counted object is not yet fully-initialized.
-            let mut obj = unsafe { Gd::<Object>::from_obj_sys_weak(base_ptr) };
-            obj.notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
-            obj.drop_weak();
-        }
-    };
-
-    match create_rust_part_for_existing_godot_part(make_user_instance, base_ptr, postinit) {
+    match create_rust_part_for_existing_godot_part(
+        make_user_instance,
+        base_ptr,
+        notify_postinitialize,
+    ) {
         Ok(_extension_ptr) => Ok(base_ptr),
         Err(payload) => {
             // Creation of extension object failed; we must now also destroy the base object to avoid leak.
@@ -130,15 +137,14 @@ where
 /// With godot-rust, custom objects consist of two parts: the Godot object and the Rust object. This method takes the Godot part by pointer,
 /// creates the Rust part with the supplied state, and links them together. This is used for both brand-new object creation and hot reload.
 /// During hot reload, Rust objects are disposed of and then created again with updated code, so it's necessary to re-link them to Godot objects.
-fn create_rust_part_for_existing_godot_part<T, F, P>(
+fn create_rust_part_for_existing_godot_part<T, F>(
     make_user_instance: F,
     base_ptr: sys::GDExtensionObjectPtr,
-    postinit: P,
+    notify_postinitialize: bool,
 ) -> Result<sys::GDExtensionClassInstancePtr, PanicPayload>
 where
     T: GodotClass,
     F: FnOnce(Base<T::Base>) -> T,
-    P: Fn(sys::GDExtensionObjectPtr),
 {
     let class_name = T::class_id();
     //out!("create callback: {}", class_name.backing);
@@ -170,10 +176,11 @@ where
         );
     }
 
-    postinit(base_ptr);
-
-    // Mark initialization as complete, now that user constructor has finished.
-    base_copy.mark_initialized();
+    if notify_postinitialize {
+        postinit(base_ptr);
+        // Mark initialization as complete, now that user constructor has finished.
+        base_copy.mark_initialized();
+    }
 
     // No std::mem::forget(base_copy) here, since Base may stores other fields that need deallocation.
     Ok(instance_ptr)
