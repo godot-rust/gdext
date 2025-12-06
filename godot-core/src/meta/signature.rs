@@ -16,9 +16,16 @@ use crate::builtin::Variant;
 use crate::meta::error::{CallError, CallResult, ConvertError};
 use crate::meta::{
     EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType, InParamTuple,
-    MethodParamOrReturnInfo, OutParamTuple, ParamTuple, ToGodot,
+    MethodParamOrReturnInfo, OutParamTuple, ParamTuple, ToGodot, TupleFromGodot,
 };
 use crate::obj::{GodotClass, ValidatedObject};
+
+/// Checks for `#[func]` expansions that all parameters implement `FromGodot` and the return type implements `ToGodot`.
+///
+/// [`Signature`] itself only requires `EngineFromGodot` and `EngineToGodot`.
+#[inline(always)]
+#[doc(hidden)]
+pub fn ensure_func_bounds<Params: TupleFromGodot, Ret: ToGodot>() {}
 
 /// A full signature for a function.
 ///
@@ -177,7 +184,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Make a varcall to the Godot engine for a virtual function call.
     ///
     /// # Safety
-    ///
     /// - `object_ptr` must be a live instance of a class with a method named `method_sname_ptr`
     /// - The method must expect args `args`, and return a value of type `Ret`
     #[cfg(since_api = "4.3")]
@@ -224,7 +230,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Make a ptrcall to the Godot engine for a utility function that has varargs.
     ///
     /// # Safety
-    ///
     /// - `utility_fn` must expect args `args`, varargs `varargs`, and return a value of type `Ret`
     // Note: this is doing a ptrcall, but uses variant conversions for it.
     #[inline]
@@ -253,7 +258,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Make a ptrcall to the Godot engine for a builtin method that has varargs.
     ///
     /// # Safety
-    ///
     /// - `builtin_fn` must expect args `args`, varargs `varargs`, and return a value of type `Ret`
     #[inline]
     pub unsafe fn out_builtin_ptrcall_varargs(
@@ -317,7 +321,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Make a ptrcall to the Godot engine for a builtin method.
     ///
     /// # Safety
-    ///
     /// - `builtin_fn` must expect explicit args `args`, and return a value of type `Ret`
     #[inline]
     pub unsafe fn out_builtin_ptrcall(
@@ -346,7 +349,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Make a ptrcall to the Godot engine for a utility function.
     ///
     /// # Safety
-    ///
     /// - `utility_fn` must expect explicit args `args`, and return a value of type `Ret`
     #[inline]
     pub unsafe fn out_utility_ptrcall(
@@ -371,7 +373,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Performs a ptrcall and processes the return value to give nice error output.
     ///
     /// # Safety
-    ///
     /// This calls [`GodotFfi::new_with_init`] and passes the ptr as the second argument to `f`, see that function for safety docs.
     unsafe fn raw_ptrcall(
         args: Params,

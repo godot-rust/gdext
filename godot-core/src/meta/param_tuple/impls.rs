@@ -16,8 +16,8 @@ use sys::GodotFfi;
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, CallResult};
 use crate::meta::{
-    ArgPassing, CallContext, EngineFromGodot, EngineToGodot, GodotConvert, GodotType, InParamTuple,
-    OutParamTuple, ParamTuple,
+    ArgPassing, CallContext, EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType,
+    InParamTuple, OutParamTuple, ParamTuple, TupleFromGodot,
 };
 
 macro_rules! count_idents {
@@ -27,6 +27,8 @@ macro_rules! count_idents {
 
 macro_rules! unsafe_impl_param_tuple {
     ($(($p:ident, $n:tt): $P:ident),*) => {
+        impl<$($P: FromGodot + fmt::Debug),*> TupleFromGodot for ($($P,)*) {}
+
         impl<$($P),*> ParamTuple for ($($P,)*) where $($P: GodotConvert + fmt::Debug),* {
             const LEN: usize = count_idents!($($P)*);
 

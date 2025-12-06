@@ -88,17 +88,15 @@ fn make_native_structure(
 
     let imports = util::make_imports();
     let (fields, methods) = make_native_structure_fields_and_methods(structure, ctx);
-    let doc = format!("[`ToGodot`] and [`FromGodot`] are implemented for `*mut {class_name}` and `*const {class_name}`.");
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         #imports
         use std::ffi::c_void; // for opaque object pointer fields
-        use crate::meta::{GodotConvert, FromGodot, ToGodot};
+        use crate::meta::{GodotConvert, EngineFromGodot, EngineToGodot};
 
         /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
         ///
-        #[doc = #doc]
         #[derive(Clone, PartialEq, Debug)]
         #[repr(C)]
         pub struct #class_name {
@@ -113,17 +111,26 @@ fn make_native_structure(
             type Via = i64;
         }
 
-        impl ToGodot for *mut #class_name {
+        // Native structure pointers implement internal-only conversion traits for use in engine APIs.
+        impl EngineToGodot for *mut #class_name {
             type Pass = crate::meta::ByValue;
 
-            fn to_godot(&self) -> Self::Via {
+            fn engine_to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
                 *self as i64
+            }
+
+            fn engine_to_variant(&self) -> crate::builtin::Variant {
+                crate::builtin::Variant::from(*self as i64)
             }
         }
 
-        impl FromGodot for *mut #class_name {
-            fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
+        impl EngineFromGodot for *mut #class_name {
+            fn engine_try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
                 Ok(via as Self)
+            }
+
+            fn engine_try_from_variant(variant: &crate::builtin::Variant) -> Result<Self, crate::meta::error::ConvertError> {
+                variant.try_to::<i64>().map(|i| i as Self)
             }
         }
 
@@ -131,17 +138,25 @@ fn make_native_structure(
             type Via = i64;
         }
 
-        impl ToGodot for *const #class_name {
+        impl EngineToGodot for *const #class_name {
             type Pass = crate::meta::ByValue;
 
-            fn to_godot(&self) -> Self::Via {
+            fn engine_to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
                 *self as i64
+            }
+
+            fn engine_to_variant(&self) -> crate::builtin::Variant {
+                crate::builtin::Variant::from(*self as i64)
             }
         }
 
-        impl FromGodot for *const #class_name {
-            fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
+        impl EngineFromGodot for *const #class_name {
+            fn engine_try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
                 Ok(via as Self)
+            }
+
+            fn engine_try_from_variant(variant: &crate::builtin::Variant) -> Result<Self, crate::meta::error::ConvertError> {
+                variant.try_to::<i64>().map(|i| i as Self)
             }
         }
     };

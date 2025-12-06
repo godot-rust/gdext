@@ -163,6 +163,9 @@ pub fn make_method_registration(
             type CallParams = #sig_params;
             type CallRet = #sig_ret;
 
+            // Statically check that all parameters implement FromGodot + return type implements ToGodot.
+            ::godot::meta::ensure_func_bounds::<CallParams, CallRet>();
+
             let method_name = StringName::from(#method_name_str);
 
             #varcall_fn_decl;

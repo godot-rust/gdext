@@ -69,7 +69,7 @@ pub use element_type::{ElementScript, ElementType};
 pub use godot_convert::{EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, ToGodot};
 pub use method_info::MethodInfo;
 pub use object_to_owned::ObjectToOwned;
-pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple};
+pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple, TupleFromGodot};
 pub use property_info::{PropertyHintInfo, PropertyInfo};
 #[cfg(feature = "trace")]
 pub use signature::trace;
