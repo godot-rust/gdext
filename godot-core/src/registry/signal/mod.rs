@@ -11,12 +11,14 @@ mod signal_object;
 mod signal_receiver;
 mod typed_signal;
 
+use std::borrow::Cow;
+
 pub(crate) use connect_builder::*;
 pub(crate) use connect_handle::*;
 pub(crate) use signal_object::*;
 pub(crate) use typed_signal::*;
 
-use crate::builtin::{GString, Variant};
+use crate::builtin::{CowStr, Variant};
 use crate::meta;
 
 // Used in `godot` crate.
@@ -52,9 +54,9 @@ where
 }
 
 // Used by both `TypedSignal` and `ConnectBuilder`.
-fn make_callable_name<F>() -> GString {
+fn make_callable_name<F>() -> CowStr {
     // When using sys::short_type_name() in the future, make sure global "func" and member "MyClass::func" are rendered as such.
     // PascalCase heuristic should then be good enough.
 
-    std::any::type_name::<F>().into()
+    Cow::Borrowed(std::any::type_name::<F>())
 }
