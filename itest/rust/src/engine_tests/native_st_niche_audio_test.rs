@@ -19,6 +19,7 @@ use godot::classes::{
     AudioStreamGeneratorPlayback, AudioStreamPlayer, Engine, IAudioEffect, IAudioEffectInstance,
     SceneTree,
 };
+use godot::meta::RawPtr;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, Singleton};
 use godot::register::{godot_api, GodotClass};
 
@@ -48,12 +49,12 @@ struct AudioEffectReceiverInstance {
 impl IAudioEffectInstance for AudioEffectReceiverInstance {
     unsafe fn process_rawptr(
         &mut self,
-        _src_buffer: *const std::ffi::c_void,
-        dst_buffer: *mut AudioFrame,
+        _src_buffer: RawPtr<*const std::ffi::c_void>,
+        dst_buffer: RawPtr<*mut AudioFrame>,
         _frame_count: i32,
     ) {
-        (*dst_buffer).left = 15.0;
-        (*dst_buffer).right = -12.0;
+        (*dst_buffer.ptr()).left = 15.0;
+        (*dst_buffer.ptr()).right = -12.0;
         self.was_called = true;
     }
 }
@@ -82,11 +83,11 @@ struct AudioEffectAsserterInstance {
 impl IAudioEffectInstance for AudioEffectAsserterInstance {
     unsafe fn process_rawptr(
         &mut self,
-        src_buffer: *const std::ffi::c_void,
-        _dst_buffer: *mut AudioFrame,
+        src_buffer: RawPtr<*const std::ffi::c_void>,
+        _dst_buffer: RawPtr<*mut AudioFrame>,
         _frame_count: i32,
     ) {
-        let src = src_buffer as *const AudioFrame;
+        let src = src_buffer.ptr() as *const AudioFrame;
 
         assert_eq!((*src).left, 15.0);
         assert_eq!((*src).right, -12.0);

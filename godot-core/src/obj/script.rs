@@ -23,7 +23,7 @@ use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
 use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{Object, Script, ScriptLanguage};
 use crate::meta::error::CallErrorType;
-use crate::meta::{MethodInfo, PropertyInfo};
+use crate::meta::{MethodInfo, PropertyInfo, RawPtr};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
 
@@ -234,7 +234,7 @@ impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
     }
 }
 
-/// Creates a new  from a type that implements [`ScriptInstance`].
+/// Creates a raw pointer to a Godot script instance, from a Rust [`ScriptInstance`] object.
 ///
 /// See [`ScriptInstance`] for usage. Discarding the resulting value will result in a memory leak.
 ///
@@ -246,7 +246,7 @@ impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
 pub unsafe fn create_script_instance<T: ScriptInstance>(
     rust_instance: T,
     for_object: Gd<T::Base>,
-) -> *mut c_void {
+) -> RawPtr<*mut c_void> {
     // Field grouping matches C header.
     let gd_instance = ScriptInstanceInfo {
         set_func: Some(script_instance_info::set_property_func::<T>),
@@ -319,8 +319,8 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
     // SAFETY: `script_instance_create` expects a `GDExtensionScriptInstanceInfoPtr` and a generic `GDExtensionScriptInstanceDataPtr` of our
     // choice. The validity of the instance info struct is ensured by code generation.
     //
-    // It is expected that the engine upholds the safety invariants stated on each of the GDEXtensionScriptInstanceInfo functions.
-    unsafe {
+    // It is expected that the engine upholds the safety invariants stated on each of the GDExtensionScriptInstanceInfo functions.
+    let instance_extension: sys::GDExtensionScriptInstancePtr = unsafe {
         #[cfg(before_api = "4.3")]
         let create_fn = sys::interface_fn!(script_instance_create2);
 
@@ -330,8 +330,11 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         create_fn(
             instance_ptr,
             data_ptr as sys::GDExtensionScriptInstanceDataPtr,
-        ) as *mut c_void
-    }
+        )
+    };
+
+    // SAFETY: object validity guaranteed per this function's safety precondition.
+    unsafe { RawPtr::new(instance_extension.cast::<c_void>()) }
 }
 
 /// Checks if an instance of the script exists for a given object.

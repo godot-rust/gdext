@@ -337,16 +337,6 @@ impl GodotType for u64 {
     impl_godot_scalar!(@shared_fns; i64, sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64);
 }
 
-/// Test that `u64` does not implement `ToGodot/FromGodot`.
-///
-/// The impls are not provided since `u64` is not a natively supported type in GDScript (e.g. cannot be stored in a variant without altering the
-/// value). So `#[func]` does not support it. However, engine APIs may still need it, so there is codegen/macro support.
-///
-/// ```compile_fail
-/// # use godot::prelude::*;
-/// let value: u64 = 42;
-/// let variant = value.to_variant();  // Error: u64 does not implement ToGodot
-/// ```
 impl GodotConvert for u64 {
     type Via = u64;
 }
@@ -450,57 +440,31 @@ impl<T: ArrayElement> ToGodot for &[T] {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Raw pointers
 
-// const void* is used in some APIs like OpenXrApiExtension::transform_from_pose().
-// void* is used by ScriptExtension::instance_create().
-// Other impls for raw pointers are generated for native structures.
-
-macro_rules! impl_pointer_convert {
-    ($Ptr:ty) => {
-        impl GodotConvert for $Ptr {
-            type Via = i64;
-        }
-
-        // Pointers implement internal-only conversion traits for use in engine APIs and virtual methods.
-        impl meta::EngineToGodot for $Ptr {
-            type Pass = meta::ByValue;
-
-            fn engine_to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
-                *self as i64
-            }
-
-            fn engine_to_variant(&self) -> Variant {
-                Variant::from(*self as i64)
-            }
-        }
-
-        impl meta::EngineFromGodot for $Ptr {
-            fn engine_try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-                Ok(via as Self)
-            }
-
-            fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-                variant.try_to::<i64>().map(|i| i as Self)
-            }
-        }
-    };
-}
-
-impl_pointer_convert!(*const std::ffi::c_void);
-impl_pointer_convert!(*mut std::ffi::c_void);
-
+// Following types used to be manually implemented, but are now covered by RawPtr<P>.
+// - *mut *const u8
+// - *mut i32
+// - *mut f64
+// - *mut u8
+// - *const u8
+//
+// *const c_void: is used in some APIs like OpenXrApiExtension::transform_from_pose().
+// *mut c_void: is used by ScriptExtension::instance_create().
+//
+// Other impls for raw pointers are generated for native structures and sys pointers (e.g. GDExtensionManager::load_extension_from_function).
 // Some other pointer types are used by various other methods, see https://github.com/godot-rust/gdext/issues/677
-// Keep manually extending this; no point in automating with how rarely Godot adds new pointer types.
-
-impl_pointer_convert!(*mut *const u8);
-impl_pointer_convert!(*mut i32);
-impl_pointer_convert!(*mut f64);
-impl_pointer_convert!(*mut u8);
-impl_pointer_convert!(*const u8);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests for ToGodot/FromGodot missing impls
 //
 // Sanity check: comment-out ::godot::meta::ensure_func_bounds in func.rs, the 3 latter #[func] ones should fail.
+
+/// Test that `u64` cannot be converted to variant.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// let variant = 100u64.to_variant();  // Error: u64 does not implement ToGodot
+/// ```
+fn __doctest_u64() {}
 
 /// Test that `*mut i32` cannot be converted to variant.
 ///

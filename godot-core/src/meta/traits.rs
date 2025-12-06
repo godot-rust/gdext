@@ -179,7 +179,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 /// best-effort checks to detect such errors, however they are expensive and not bullet-proof. If you need very rigid type safety, stick to
 /// `i64` and `f64`. The other types however can be extremely convenient and work well, as long as you are aware of the limitations.
 ///
-/// `u64` is entirely unsupported since it cannot be safely stored inside a `Variant`.
+/// `u64` is [entirely unsupported](trait.GodotConvert.html#u64).
 ///
 /// Also, keep in mind that Godot uses `Variant` for each element. If performance matters and you have small element types such as `u8`,
 /// consider using packed arrays (e.g. `PackedByteArray`) instead.

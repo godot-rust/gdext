@@ -67,7 +67,7 @@ impl AnyArray {
         }
     }
 
-    /// Returns the value at the specified index.
+    /// ⚠️ Returns the value at the specified index.
     ///
     /// This replaces the `Index` trait, which cannot be implemented for `Array`, as it stores variants and not references.
     ///

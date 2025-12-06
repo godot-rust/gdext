@@ -165,7 +165,7 @@ impl<T: PackedArrayElement> PackedArray<T> {
     //     T::op_push_back(self.as_inner(), CowArg::Owned(value));
     // }
 
-    /// Inserts a new element at a given index in the array.
+    /// ⚠️ Inserts a new element at a given index in the array.
     ///
     /// The index must be valid, or at the end of the array (`index == len()`).
     ///
@@ -180,7 +180,7 @@ impl<T: PackedArrayElement> PackedArray<T> {
         T::op_insert(self.as_inner(), to_i64(index), value.into_arg());
     }
 
-    /// Removes and returns the element at the specified index. Similar to `remove_at` in
+    /// ⚠️ Removes and returns the element at the specified index. Similar to `remove_at` in
     /// GDScript, but also returns the removed value.
     ///
     /// On large arrays, this method is much slower than `pop_back` as it will move all the array's

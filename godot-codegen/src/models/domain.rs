@@ -902,11 +902,11 @@ impl ToTokens for RustTy {
             RustTy::RawPointer {
                 inner,
                 is_const: true,
-            } => quote! { *const #inner }.to_tokens(tokens),
+            } => quote! { crate::meta::RawPtr<*const #inner> }.to_tokens(tokens),
             RustTy::RawPointer {
                 inner,
                 is_const: false,
-            } => quote! { *mut #inner }.to_tokens(tokens),
+            } => quote! { crate::meta::RawPtr<*mut #inner> }.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass {
