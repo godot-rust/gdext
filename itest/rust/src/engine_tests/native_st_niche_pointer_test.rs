@@ -15,6 +15,7 @@ use godot::builtin::{vslice, Rect2, Rid, VarDictionary};
 use godot::classes::native::{CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult};
 use godot::classes::text_server::Direction;
 use godot::classes::{IRefCounted, Node3D, RefCounted};
+use godot::meta::RawPtr;
 use godot::obj::{Base, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 
@@ -42,13 +43,13 @@ impl IRefCounted for NativeStructTests {
 #[godot_api]
 impl NativeStructTests {
     #[func]
-    fn pass_native_struct(&self, caret_info: *const CaretInfo) -> VarDictionary {
+    fn pass_native_struct(&self, caret_info: RawPtr<*const CaretInfo>) -> VarDictionary {
         let CaretInfo {
             leading_caret,
             trailing_caret,
             leading_direction,
             trailing_direction,
-        } = unsafe { &*caret_info };
+        } = unsafe { &*caret_info.ptr() };
 
         let mut result = VarDictionary::new();
 
@@ -61,8 +62,8 @@ impl NativeStructTests {
     }
 
     #[func]
-    fn native_struct_array_ret(&self) -> *const Glyph {
-        self.glyphs.as_ptr()
+    fn native_struct_array_ret(&self) -> RawPtr<*const Glyph> {
+        unsafe { RawPtr::new(self.glyphs.as_ptr()) }
     }
 }
 
@@ -77,9 +78,9 @@ fn native_structure_parameter() {
         trailing_direction: Direction::LTR,
     };
 
-    let ptr = ptr::addr_of!(caret);
+    let raw_ptr: RawPtr<*const CaretInfo> = unsafe { RawPtr::new(ptr::addr_of!(caret)) };
     let mut object = NativeStructTests::new_gd();
-    let result: VarDictionary = object.call("pass_native_struct", vslice![ptr]).to();
+    let result: VarDictionary = object.call("pass_native_struct", vslice![raw_ptr]).to();
 
     assert_eq!(
         result.at("leading_caret").to::<Rect2>(),
@@ -103,8 +104,8 @@ fn native_structure_parameter() {
 fn native_structure_pointer_to_array_parameter() {
     // Instantiate a custom class.
     let mut object = NativeStructTests::new_gd();
-    let result_ptr: *const Glyph = object.call("native_struct_array_ret", &[]).to();
-    let result = unsafe { std::slice::from_raw_parts(result_ptr, 2) };
+    let result_ptr: RawPtr<*const Glyph> = object.call("native_struct_array_ret", &[]).to();
+    let result = unsafe { std::slice::from_raw_parts(result_ptr.ptr(), 2) };
 
     // Check the result array.
     assert_eq!(result[0].start, 99);
@@ -143,7 +144,8 @@ fn native_structure_object_pointers() {
     let mut result = PhysicsServer2DExtensionShapeResult {
         rid: Rid::new(12),
         collider_id: ObjectId { id: 0 },
-        raw_collider_ptr: std::ptr::null_mut(),
+        // SAFETY: PhysicsServer2DExtensionShapeResult accepts null pointers for raw_collider_ptr.
+        raw_collider_ptr: unsafe { RawPtr::null() },
         shape: 0,
     };
 
@@ -151,7 +153,7 @@ fn native_structure_object_pointers() {
     assert_eq!(retrieved, None);
 
     let object = Node3D::new_alloc();
-    result.set_collider(object.clone());
+    unsafe { result.set_collider(object.clone()) };
     assert_eq!(result.collider_id.id, object.instance_id().to_i64() as u64);
 
     let retrieved = result.get_collider();
@@ -166,14 +168,15 @@ fn native_structure_refcounted_pointers() {
     let mut result = PhysicsServer2DExtensionShapeResult {
         rid: Rid::new(12),
         collider_id: ObjectId { id: 0 },
-        raw_collider_ptr: ptr::null_mut(),
+        // SAFETY: PhysicsServer2DExtensionShapeResult accepts null pointers for raw_collider_ptr.
+        raw_collider_ptr: unsafe { RawPtr::null() },
         shape: 0,
     };
 
     // RefCounted, increment ref-count.
     let object = RefCounted::new_gd();
     let id = object.instance_id();
-    result.set_collider(object.clone());
+    unsafe { result.set_collider(object.clone()) };
     assert_eq!(result.collider_id.id, id.to_i64() as u64);
 
     drop(object); // Test if Godot keeps ref-count.
@@ -189,7 +192,7 @@ fn native_structure_refcounted_pointers() {
     // RefCounted, do NOT increment ref-count.
     let object = RefCounted::new_gd();
     let id = object.instance_id();
-    result.set_collider(object.clone());
+    unsafe { result.set_collider(object.clone()) };
     assert_eq!(result.collider_id.id, id.to_i64() as u64);
 
     drop(object); // Test if Godot keeps ref-count.

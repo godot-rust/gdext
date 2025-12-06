@@ -69,6 +69,8 @@ where
     T::Ffi: GodotNullableFfi,
 {
 }
+impl<T> Sealed for *mut T {} // FfiRawPointer.
+impl<T> Sealed for *const T {} // FfiRawPointer.
 impl<T1> Sealed for (T1,) {}
 impl<T1, T2> Sealed for (T1, T2) {}
 impl<T1, T2, T3> Sealed for (T1, T2, T3) {}

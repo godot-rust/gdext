@@ -93,7 +93,6 @@ fn make_native_structure(
     let tokens = quote! {
         #imports
         use std::ffi::c_void; // for opaque object pointer fields
-        use crate::meta::{GodotConvert, EngineFromGodot, EngineToGodot};
 
         /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
         ///
@@ -107,58 +106,7 @@ fn make_native_structure(
             #methods
         }
 
-        impl GodotConvert for *mut #class_name {
-            type Via = i64;
-        }
-
-        // Native structure pointers implement internal-only conversion traits for use in engine APIs.
-        impl EngineToGodot for *mut #class_name {
-            type Pass = crate::meta::ByValue;
-
-            fn engine_to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
-                *self as i64
-            }
-
-            fn engine_to_variant(&self) -> crate::builtin::Variant {
-                crate::builtin::Variant::from(*self as i64)
-            }
-        }
-
-        impl EngineFromGodot for *mut #class_name {
-            fn engine_try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
-                Ok(via as Self)
-            }
-
-            fn engine_try_from_variant(variant: &crate::builtin::Variant) -> Result<Self, crate::meta::error::ConvertError> {
-                variant.try_to::<i64>().map(|i| i as Self)
-            }
-        }
-
-        impl GodotConvert for *const #class_name {
-            type Via = i64;
-        }
-
-        impl EngineToGodot for *const #class_name {
-            type Pass = crate::meta::ByValue;
-
-            fn engine_to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
-                *self as i64
-            }
-
-            fn engine_to_variant(&self) -> crate::builtin::Variant {
-                crate::builtin::Variant::from(*self as i64)
-            }
-        }
-
-        impl EngineFromGodot for *const #class_name {
-            fn engine_try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
-                Ok(via as Self)
-            }
-
-            fn engine_try_from_variant(variant: &crate::builtin::Variant) -> Result<Self, crate::meta::error::ConvertError> {
-                variant.try_to::<i64>().map(|i| i as Self)
-            }
-        }
+        // Pointer conversions are now handled by RawPtr<P>, no direct ToGodot/FromGodot impls.
     };
     // note: TypePtr -> ObjectPtr conversion OK?
 
@@ -233,7 +181,11 @@ fn make_native_structure_field_and_accessor(
             }
 
             /// Sets the object from a `Gd` pointer holding `Node` or a derived class.
-            pub fn #setter_name<T>(&mut self, #snake_field_name: Gd<T>)
+            ///
+            /// # Safety
+            /// You must ensure that the provided object remains alive while Godot accesses it.
+            /// See also [`RawPtr::new()`][crate::meta::RawPtr::new].
+            pub unsafe fn #setter_name<T>(&mut self, #snake_field_name: Gd<T>)
             where T: crate::obj::Inherits<Object> {
                 use crate::meta::GodotType as _;
 
@@ -245,7 +197,10 @@ fn make_native_structure_field_and_accessor(
                 let id = obj.instance_id().to_u64();
 
                 self.#id_field_name = ObjectId { id };
-                self.#field_name = obj.obj_sys() as *mut std::ffi::c_void;
+
+                // SAFETY: provided by method safety contract.
+                // Godot declares void* but expects GDExtensionObjectPtr.
+                self.#field_name = unsafe { RawPtr::new(obj.obj_sys().cast::<std::ffi::c_void>()) };
             }
         });
     } else {
