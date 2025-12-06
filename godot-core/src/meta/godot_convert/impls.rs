@@ -450,52 +450,18 @@ impl<T: ArrayElement> ToGodot for &[T] {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Raw pointers
 
-// const void* is used in some APIs like OpenXrApiExtension::transform_from_pose().
-// void* is used by ScriptExtension::instance_create().
-// Other impls for raw pointers are generated for native structures.
-
-macro_rules! impl_pointer_convert {
-    ($Ptr:ty) => {
-        impl GodotConvert for $Ptr {
-            type Via = i64;
-        }
-
-        // Pointers implement internal-only conversion traits for use in engine APIs and virtual methods.
-        impl meta::EngineToGodot for $Ptr {
-            type Pass = meta::ByValue;
-
-            fn engine_to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
-                *self as i64
-            }
-
-            fn engine_to_variant(&self) -> Variant {
-                Variant::from(*self as i64)
-            }
-        }
-
-        impl meta::EngineFromGodot for $Ptr {
-            fn engine_try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-                Ok(via as Self)
-            }
-
-            fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-                variant.try_to::<i64>().map(|i| i as Self)
-            }
-        }
-    };
-}
-
-impl_pointer_convert!(*const std::ffi::c_void);
-impl_pointer_convert!(*mut std::ffi::c_void);
-
+// Following types used to be manually implemented, but are now covered by RawPtr<P>.
+// - *mut *const u8
+// - *mut i32
+// - *mut f64
+// - *mut u8
+// - *const u8
+//
+// *const c_void: is used in some APIs like OpenXrApiExtension::transform_from_pose().
+// *mut c_void: is used by ScriptExtension::instance_create().
+//
+// Other impls for raw pointers are generated for native structures and sys pointers (e.g. GDExtensionManager::load_extension_from_function).
 // Some other pointer types are used by various other methods, see https://github.com/godot-rust/gdext/issues/677
-// Keep manually extending this; no point in automating with how rarely Godot adds new pointer types.
-
-impl_pointer_convert!(*mut *const u8);
-impl_pointer_convert!(*mut i32);
-impl_pointer_convert!(*mut f64);
-impl_pointer_convert!(*mut u8);
-impl_pointer_convert!(*const u8);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests for ToGodot/FromGodot missing impls

@@ -13,7 +13,7 @@ mod engine_enum_test;
 mod gfile_test;
 mod match_class_test;
 mod native_st_niche_audio_test;
-//mod native_st_niche_pointer_test; // FIXME(v0.5): re-enable once implemented.
+mod native_st_niche_pointer_test;
 mod native_structures_test;
 mod node_test;
 mod save_load_test;

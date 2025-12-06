@@ -51,6 +51,7 @@ mod method_info;
 mod object_to_owned;
 mod param_tuple;
 mod property_info;
+mod raw_ptr;
 mod signature;
 mod traits;
 mod uniform_object_deref;
@@ -71,6 +72,7 @@ pub use method_info::MethodInfo;
 pub use object_to_owned::ObjectToOwned;
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple, TupleFromGodot};
 pub use property_info::{PropertyHintInfo, PropertyInfo};
+pub use raw_ptr::{FfiRawPointer, RawPtr};
 #[cfg(feature = "trace")]
 pub use signature::trace;
 #[doc(hidden)]

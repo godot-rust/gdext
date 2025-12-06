@@ -16,7 +16,7 @@ use crate::meta::error::ConvertError;
 use crate::obj::{Gd, Inherits, Singleton};
 use crate::sys;
 
-/// Retrieves an autoload by name.
+///  ⚠️ Retrieves an autoload by name.
 ///
 /// See [Godot docs] for an explanation of the autoload concept. Godot sometimes uses the term "autoload" interchangeably with "singleton";
 /// we strictly refer to the former to separate from [`Singleton`][crate::obj::Singleton] objects.
