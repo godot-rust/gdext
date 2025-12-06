@@ -460,17 +460,26 @@ macro_rules! impl_pointer_convert {
             type Via = i64;
         }
 
-        impl ToGodot for $Ptr {
+        // Pointers implement internal-only conversion traits for use in engine APIs and virtual methods.
+        impl meta::EngineToGodot for $Ptr {
             type Pass = meta::ByValue;
 
-            fn to_godot(&self) -> Self::Via {
+            fn engine_to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
                 *self as i64
+            }
+
+            fn engine_to_variant(&self) -> Variant {
+                Variant::from(*self as i64)
             }
         }
 
-        impl FromGodot for $Ptr {
-            fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        impl meta::EngineFromGodot for $Ptr {
+            fn engine_try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
                 Ok(via as Self)
+            }
+
+            fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+                variant.try_to::<i64>().map(|i| i as Self)
             }
         }
     };
@@ -480,7 +489,7 @@ impl_pointer_convert!(*const std::ffi::c_void);
 impl_pointer_convert!(*mut std::ffi::c_void);
 
 // Some other pointer types are used by various other methods, see https://github.com/godot-rust/gdext/issues/677
-// TODO: Find better solution to this, this may easily break still if godot decides to add more pointer arguments.
+// Keep manually extending this; no point in automating with how rarely Godot adds new pointer types.
 
 impl_pointer_convert!(*mut *const u8);
 impl_pointer_convert!(*mut i32);
