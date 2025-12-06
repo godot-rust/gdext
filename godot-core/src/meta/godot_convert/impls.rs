@@ -337,16 +337,6 @@ impl GodotType for u64 {
     impl_godot_scalar!(@shared_fns; i64, sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64);
 }
 
-/// Test that `u64` does not implement `ToGodot/FromGodot`.
-///
-/// The impls are not provided since `u64` is not a natively supported type in GDScript (e.g. cannot be stored in a variant without altering the
-/// value). So `#[func]` does not support it. However, engine APIs may still need it, so there is codegen/macro support.
-///
-/// ```compile_fail
-/// # use godot::prelude::*;
-/// let value: u64 = 42;
-/// let variant = value.to_variant();  // Error: u64 does not implement ToGodot
-/// ```
 impl GodotConvert for u64 {
     type Via = u64;
 }
@@ -467,6 +457,14 @@ impl<T: ArrayElement> ToGodot for &[T] {
 // Tests for ToGodot/FromGodot missing impls
 //
 // Sanity check: comment-out ::godot::meta::ensure_func_bounds in func.rs, the 3 latter #[func] ones should fail.
+
+/// Test that `u64` cannot be converted to variant.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// let variant = 100u64.to_variant();  // Error: u64 does not implement ToGodot
+/// ```
+fn __doctest_u64() {}
 
 /// Test that `*mut i32` cannot be converted to variant.
 ///

@@ -21,6 +21,13 @@ use crate::meta::{ArgPassing, GodotType, ToArg};
 /// in Godot (without intermediate "via"). Every `GodotType` also implements `GodotConvert` with `Via = Self`.
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
+///
+/// # u64
+/// The type `u64` is **not** supported by `ToGodot` and `FromGodot` traits. You can thus not pass it in `#[func]` parameters/return types.
+///
+/// The reason is that Godot's `Variant` type, and therefore also GDScript, only support _signed_ 64-bit integers (`i64`).
+/// Implicitly wrapping `u64` to `i64` would be surprising behavior, as the value could suddenly change for large numbers.
+/// As such, godot-rust leaves this decision to users: it's possible to define a newtype around `u64` with custom `ToGodot`/`FromGodot` impls.
 #[doc(alias = "via", alias = "transparent")]
 #[diagnostic::on_unimplemented(
     message = "`GodotConvert` is needed for `#[func]` parameters/returns, as well as `#[var]` and `#[export]` properties",

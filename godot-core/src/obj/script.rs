@@ -234,7 +234,7 @@ impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
     }
 }
 
-/// Creates a new  from a type that implements [`ScriptInstance`].
+/// Creates a raw pointer to a Godot script instance, from a Rust [`ScriptInstance`] object.
 ///
 /// See [`ScriptInstance`] for usage. Discarding the resulting value will result in a memory leak.
 ///
@@ -246,7 +246,7 @@ impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
 pub unsafe fn create_script_instance<T: ScriptInstance>(
     rust_instance: T,
     for_object: Gd<T::Base>,
-) -> crate::meta::RawPtr<*mut c_void> {
+) -> RawPtr<*mut c_void> {
     // Field grouping matches C header.
     let gd_instance = ScriptInstanceInfo {
         set_func: Some(script_instance_info::set_property_func::<T>),
