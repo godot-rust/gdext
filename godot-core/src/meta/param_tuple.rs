@@ -99,3 +99,10 @@ pub trait OutParamTuple: ParamTuple {
     /// Converts `array` to `Self` by calling [`to_variant`](crate::meta::ToGodot::to_variant) on each argument.
     fn to_variant_array(&self) -> Vec<Variant>;
 }
+
+/// Helper trait to verify that all tuple elements implement `FromGodot`.
+///
+/// Used internally by [`crate::meta::ensure_func_bounds()`] to ensure each parameter in a `#[func]` method
+/// implements `FromGodot`, not just `EngineFromGodot`.
+#[doc(hidden)]
+pub trait TupleFromGodot: Sized {}

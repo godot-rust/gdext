@@ -496,3 +496,78 @@ impl_pointer_convert!(*mut i32);
 impl_pointer_convert!(*mut f64);
 impl_pointer_convert!(*mut u8);
 impl_pointer_convert!(*const u8);
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Tests for ToGodot/FromGodot missing impls
+//
+// Sanity check: comment-out ::godot::meta::ensure_func_bounds in func.rs, the 3 latter #[func] ones should fail.
+
+/// Test that `*mut i32` cannot be converted to variant.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// let ptr: *mut i32 = std::ptr::null_mut();
+/// let variant = ptr.to_variant();  // Error: *mut i32 does not implement ToGodot
+/// ```
+fn __doctest_i32_ptr_to_variant() {}
+
+/// Test that void-pointers cannot be converted from variant.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// let variant = Variant::nil();
+/// let ptr: *const std::ffi::c_void = variant.to();
+/// ```
+fn __doctest_void_ptr_from_variant() {}
+
+/// Test that native struct pointers cannot be used as `#[func]` parameters.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// # use godot::classes::native::AudioFrame;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyClass {}
+///
+/// #[godot_api]
+/// impl MyClass {
+///     #[func]
+///     fn take_pointer(&self, ptr: *mut AudioFrame) {}
+/// }
+/// ```
+fn __doctest_native_struct_pointer_param() {}
+
+/// Test that native struct pointers cannot be used as `#[func]` return types.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// # use godot::classes::native::AudioFrame;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyClass {}
+///
+/// #[godot_api]
+/// impl MyClass {
+///     #[func]
+///     fn return_pointer(&self) -> *const AudioFrame {
+///         std::ptr::null()
+///     }
+/// }
+/// ```
+fn __doctest_native_struct_pointer_return() {}
+
+/// Test that `u64` cannot be returned from `#[func]`.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyClass {}
+///
+/// #[godot_api]
+/// impl MyClass {
+///     #[func]
+///     fn return_pointer(&self) -> u64 { 123 }
+/// }
+/// ```
+fn __doctest_u64_return() {}
