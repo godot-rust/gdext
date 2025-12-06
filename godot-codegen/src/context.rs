@@ -254,6 +254,7 @@ impl<'a> Context<'a> {
 
     /// Yields cached sys pointer types – various pointer types declared in `gdextension_interface`
     /// and used as parameters in exposed Godot APIs.
+    #[allow(dead_code)] // Currently unused, as RawPtr<P> covers all raw pointers.
     pub fn cached_sys_pointer_types(&self) -> impl Iterator<Item = &RustTy> {
         self.cached_rust_types
             .values()

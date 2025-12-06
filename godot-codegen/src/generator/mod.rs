@@ -28,7 +28,6 @@ pub mod method_tables;
 pub mod native_structures;
 pub mod notifications;
 pub mod signals;
-pub mod sys_pointer_types;
 pub mod utility_functions;
 pub mod virtual_definitions;
 pub mod virtual_traits;
