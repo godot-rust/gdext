@@ -22,6 +22,10 @@ pub use crate::sys::VariantType;
 #[allow(deprecated)] // dict
 pub use crate::{array, dict, real, reals, varray, vdict};
 
+/// Abbreviation for occasionally used _owned or borrowed string_.
+#[doc(hidden)]
+pub type CowStr = std::borrow::Cow<'static, str>;
+
 #[doc(hidden)]
 pub mod __prelude_reexport {
     #[rustfmt::skip] // Do not reorder.

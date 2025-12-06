@@ -5,9 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::borrow::Cow;
-
-use crate::builtin::Callable;
+use crate::builtin::{Callable, CowStr};
 use crate::classes::Object;
 use crate::obj::Gd;
 use crate::sys;
@@ -20,7 +18,7 @@ use crate::sys;
 /// Connections managed by a handle can be disconnected using [`disconnect()`][Self::disconnect].
 pub struct ConnectHandle {
     receiver_object: Gd<Object>,
-    signal_name: Cow<'static, str>,
+    signal_name: CowStr,
     callable: Callable,
 }
 
@@ -28,7 +26,7 @@ impl ConnectHandle {
     // Should only be invoked by connect_* methods.
     pub(super) fn new(
         receiver_object: Gd<Object>,
-        signal_name: Cow<'static, str>,
+        signal_name: CowStr,
         callable: Callable,
     ) -> Self {
         Self {
