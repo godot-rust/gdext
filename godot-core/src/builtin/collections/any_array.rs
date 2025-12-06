@@ -13,7 +13,7 @@ use sys::{ffi_methods, GodotFfi};
 use crate::builtin::iter::ArrayFunctionalOps;
 use crate::builtin::*;
 use crate::meta;
-use crate::meta::error::{ArrayMismatch, ConvertError, ErrorKind};
+use crate::meta::error::ConvertError;
 use crate::meta::{
     ArrayElement, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
@@ -38,15 +38,8 @@ use crate::meta::{
 ///
 /// `AnyArray` does not provide any operations where data flows _in_ to the array, such as `push()` or `insert()`.
 ///
-/// # Conversions
-/// Engine APIs accept `&AnyArray` parameters. Due to [deref coercion], you can pass any `&Array<T>` implicitly, even for `T=Variant`.
-///
-/// If you need to upcast `Array<T>` _values_ to `AnyArray`, use [`Array::into_any()`].
-///
-/// [deref coercion]: struct.Array.html#deref-methods-AnyArray
-///
-/// You can explicitly downcast an `AnyArray` using [`try_into_typed()`][Self::try_into_typed] and
-/// [`try_into_untyped()`][Self::try_into_untyped].
+/// ## Conversions
+/// See the [corresponding section in `Array`](struct.Array.html#conversions-between-arrays).
 #[derive(PartialEq, PartialOrd)]
 #[repr(transparent)] // Guarantees same layout as VarArray, enabling Deref from Array<T>.
 pub struct AnyArray {
@@ -215,7 +208,7 @@ impl AnyArray {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> AnyArray {
-        self.array.duplicate_shallow().into_any()
+        self.array.duplicate_shallow().upcast_any_array()
     }
 
     /// Returns a deep copy, duplicating nested `Array`/`Dictionary` elements but keeping `Object` elements shared.
@@ -225,7 +218,7 @@ impl AnyArray {
     /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        self.array.duplicate_deep().into_any()
+        self.array.duplicate_deep().upcast_any_array()
     }
 
     /// Returns a sub-range as a new array.
@@ -238,7 +231,7 @@ impl AnyArray {
     #[doc(alias = "slice")]
     pub fn subarray_shallow(&self, range: impl meta::SignedRange, step: Option<i32>) -> Self {
         let sliced = self.array.subarray_shallow(range, step);
-        sliced.into_any()
+        sliced.upcast_any_array()
     }
 
     /// Returns a sub-range as a new `Array`.
@@ -251,7 +244,7 @@ impl AnyArray {
     #[doc(alias = "slice")]
     pub fn subarray_deep(&self, range: impl meta::SignedRange, step: Option<i32>) -> Self {
         let sliced = self.array.subarray_deep(range, step);
-        sliced.into_any()
+        sliced.upcast_any_array()
     }
 
     /// Returns an non-exclusive iterator over the elements of the `Array`.
@@ -407,9 +400,15 @@ impl AnyArray {
 
     /// Converts to `Array<T>` if the runtime type matches.
     ///
-    /// Returns `Err` if the array's dynamic type differs from `T`. Check [`element_type()`][Self::element_type]
+    /// If `T=Variant`, this will attempt to "downcast" to an untyped array, identical to [`try_cast_var_array()`][Self::try_cast_var_array].
+    ///
+    /// Returns `Err(self)` if the array's dynamic type differs from `T`. Check [`element_type()`][Self::element_type]
     /// before calling to determine what type the array actually holds.
-    pub fn try_into_typed<T: ArrayElement>(self) -> Result<Array<T>, ConvertError> {
+    ///
+    /// Consumes `self`, to avoid incrementing reference-count. Use `clone()` if you need to keep the original. Using `self` also has the nice
+    /// side effect that this method cannot be called on concrete `Array<T>` types, as `Deref` only operates on references, not values.
+    // Naming: not `try_into_typed` because T can be Variant.
+    pub fn try_cast_array<T: ArrayElement>(self) -> Result<Array<T>, Self> {
         let from_type = self.array.element_type();
         let to_type = ElementType::of::<T>();
 
@@ -418,19 +417,22 @@ impl AnyArray {
             let array = unsafe { self.array.assume_type::<T>() };
             Ok(array)
         } else {
-            let mismatch = ArrayMismatch {
-                expected: to_type,
-                actual: from_type,
-            };
-            Err(ConvertError::with_kind(ErrorKind::FromOutArray(mismatch)))
+            // If we add ConvertError here:
+            // let mismatch = ArrayMismatch { expected: to_type, actual: from_type };
+            // Err(ConvertError::with_kind(ErrorKind::FromAnyArray(mismatch)))
+
+            Err(self)
         }
     }
 
-    /// Converts to `VarArray` if the array is untyped.
+    /// Converts to an untyped `VarArray` if the array is untyped.
     ///
-    /// This is a shorthand for [`try_into_typed::<Variant>()`][Self::try_into_typed].
-    pub fn try_into_untyped(self) -> Result<VarArray, ConvertError> {
-        self.try_into_typed::<Variant>()
+    /// This is a shorthand for [`try_cast_array::<Variant>()`][Self::try_cast_array].
+    ///
+    /// Consumes `self`, to avoid incrementing reference-count. Use `clone()` if you need to keep the original. Using `self` also has the nice
+    /// side effect that this method cannot be called on concrete `Array<T>` types, as `Deref` only operates on references, not values.
+    pub fn try_cast_var_array(self) -> Result<VarArray, Self> {
+        self.try_cast_array::<Variant>()
     }
 
     // If we add direct-conversion methods that panic, we can use meta::element_godot_type_name::<T>() to mention type in case of mismatch.

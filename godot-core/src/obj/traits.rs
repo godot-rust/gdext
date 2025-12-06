@@ -773,7 +773,7 @@ pub mod cap {
     use super::*;
     use crate::builtin::{StringName, Variant};
     use crate::meta::PropertyInfo;
-    use crate::obj::{Base, Bounds, Gd};
+    use crate::obj::{Base, Gd};
     use crate::storage::{IntoVirtualMethodReceiver, VirtualMethodReceiver};
 
     /// Trait for all classes that are default-constructible from the Godot engine.

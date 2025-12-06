@@ -404,31 +404,65 @@ fn array_mixed_values() {
 #[itest]
 fn array_typed_conversions() {
     let typed = array![1, 2, 3];
-    let any = typed.clone().into_any();
+    let any = typed.clone().upcast_any_array();
 
     let typed_back = any
         .clone()
-        .try_into_typed::<i64>()
+        .try_cast_array::<i64>()
         .expect("convert back to typed");
     assert_eq!(typed_back, typed);
 
-    let untyped_fail = any.try_into_untyped();
+    let untyped_fail = any.try_cast_var_array();
     assert!(untyped_fail.is_err(), "cannot convert typed to untyped");
 }
 
 #[itest]
 fn array_untyped_conversions() {
     let untyped = varray![1, 2, 3];
-    let any = untyped.clone().into_any();
+    let any = untyped.clone().upcast_any_array();
 
     let untyped_back = any
         .clone()
-        .try_into_untyped()
+        .try_cast_var_array()
         .expect("convert back to untyped");
     assert_eq!(untyped_back, untyped);
 
-    let typed_fail = any.try_into_typed::<i64>();
+    let typed_fail = any.try_cast_array::<i64>();
     assert!(typed_fail.is_err(), "cannot convert untyped to typed");
+}
+
+#[itest]
+fn array_bad_cast() {
+    let int_array: Array<i64> = array![1, 2, 3];
+    let erased_array = int_array.upcast_any_array();
+
+    erased_array
+        .clone()
+        .try_cast_array::<f64>()
+        .expect_err("must not downcast to differently-typed array");
+
+    erased_array
+        .try_cast_var_array()
+        .expect_err("must not downcast to untyped array");
+}
+
+#[itest]
+fn array_invariant_class_cast() {
+    let refc_array: Array<Gd<RefCounted>> = array![&RefCounted::new_gd()];
+    let erased_array = refc_array.clone().upcast_any_array();
+
+    // Downcast back to Array<Gd<Object>> must *fail*.
+    // Reason: T is not covariant in Array<T>; otherwise it would be possible to insert non-RefCounted Object objects into the array.
+    // There could theoretically be a AnyArray<T> type supporting covariance, but let's only add such complexity if truly needed.
+    let erased_array = erased_array
+        .try_cast_array::<Gd<Object>>()
+        .expect_err("must not downcast to differently-typed class array");
+
+    // Failed Err(self) object can be used further; downcast to original type.
+    let refc_array_back = erased_array
+        .try_cast_array::<Gd<RefCounted>>()
+        .expect("should cast back to Array<Gd<RefCounted>>");
+    assert_eq!(refc_array_back, refc_array);
 }
 
 #[itest]
