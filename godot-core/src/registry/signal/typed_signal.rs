@@ -132,7 +132,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         bound: &Gd<impl GodotClass>,
     ) -> ConnectHandle {
         let callable_name = make_callable_name::<F>();
-        let callable = bound.linked_callable(&callable_name, godot_fn);
+        let callable = bound.linked_callable(callable_name, godot_fn);
         self.inner_connect_untyped(callable, None)
     }
 

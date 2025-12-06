@@ -117,15 +117,17 @@ fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
 #[bench(manual)]
 fn call_callv_rust_fn() -> BenchResult {
     let callable = Callable::from_fn("RustFunction", |_| ());
+    let arg = varray![];
 
-    bench_measure(25, || callable.callv(&varray![]))
+    bench_measure(25, || callable.callv(&arg))
 }
 
 #[bench(manual)]
 fn call_callv_custom() -> BenchResult {
     let callable = Callable::from_custom(MyRustCallable {});
+    let arg = varray![];
 
-    bench_measure(25, || callable.callv(&varray![]))
+    bench_measure(25, || callable.callv(&arg))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
