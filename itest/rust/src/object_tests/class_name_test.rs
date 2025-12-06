@@ -5,9 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::borrow::Cow;
-
-use godot::builtin::{GString, StringName};
+use godot::builtin::{CowStr, GString, StringName};
 use godot::meta::ClassId;
 use godot::obj::bounds::implement_godot_bounds;
 use godot::obj::GodotClass;
@@ -48,7 +46,7 @@ fn class_name_godotclass() {
     assert_eq!(a.to_string(), "A");
     assert_eq!(a.to_gstring(), GString::from("A"));
     assert_eq!(a.to_string_name(), StringName::from("A"));
-    assert_eq!(a.to_cow_str(), Cow::<'static, str>::Owned("A".to_string()));
+    assert_eq!(a.to_cow_str(), CowStr::Owned("A".to_string()));
 }
 
 #[cfg(since_api = "4.4")]
@@ -63,10 +61,7 @@ fn class_name_godotclass_unicode() {
     assert_eq!(a.to_string(), "统一码");
     assert_eq!(a.to_gstring(), GString::from("统一码"));
     assert_eq!(a.to_string_name(), StringName::from("统一码"));
-    assert_eq!(
-        a.to_cow_str(),
-        Cow::<'static, str>::Owned("统一码".to_string())
-    );
+    assert_eq!(a.to_cow_str(), CowStr::Owned("统一码".to_string()));
 
     let b = ClassId::__dynamic("统一码");
     assert_eq!(a, b);
