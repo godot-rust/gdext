@@ -203,6 +203,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         }
     }
 
+    // Code duplication: pointer parsing logic - generator/header_codegen.rs::map_c_type().
+    // Future refactoring: extract C type parsing to dedicated file.
+
     if ty.ends_with('*') {
         // Pointer type; strip '*', see if const, and then resolve the inner type.
         let mut ty = ty[0..ty.len() - 1].to_string();
