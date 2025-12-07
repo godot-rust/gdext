@@ -11,7 +11,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::models::header_json::{HeaderJson, HeaderReturnValue, HeaderType};
-use crate::util::ident;
+use crate::util::{ident, safe_ident};
 
 /// Generate Rust type definitions and function signatures from header JSON.
 pub fn generate_header_types(header: &HeaderJson) -> TokenStream {
@@ -24,21 +24,18 @@ pub fn generate_header_types(header: &HeaderJson) -> TokenStream {
 
 /// Generate Rust interface function type signatures.
 pub fn generate_interface_functions(header: &HeaderJson) -> TokenStream {
-    let function_types = header
-        .interface
-        .iter()
-        .map(|func| {
-            let name = ident(&func.name);
-            let return_type = map_return_type(&func.return_value);
-            let params = func.arguments.iter().map(|arg| {
-                let param_type = map_type(&arg.type_);
-                quote! { #param_type }
-            });
-
-            quote! {
-                pub type #name = unsafe extern "C" fn(#( #params ),*) -> #return_type;
-            }
+    let function_types = header.interface.iter().map(|func| {
+        let name = ident(&func.name);
+        let return_type = map_return_type(&func.return_value);
+        let params = func.arguments.iter().map(|arg| {
+            let param_type = map_type(&arg.type_);
+            quote! { #param_type }
         });
+
+        quote! {
+            pub type #name = unsafe extern "C" fn(#( #params ),*) -> #return_type;
+        }
+    });
 
     quote! {
         #( #function_types )*
@@ -60,13 +57,15 @@ fn generate_enum_type(type_def: &HeaderType) -> TokenStream {
     let name = ident(&type_def.name);
 
     let values = if let Some(vals) = &type_def.values {
-        vals.iter().map(|val| {
-            let variant_name = ident(&val.name);
-            let variant_value = val.value;
-            quote! {
-                pub const #variant_name: #name = #variant_value;
-            }
-        }).collect::<Vec<_>>()
+        vals.iter()
+            .map(|val| {
+                let variant_name = ident(&val.name);
+                let variant_value = val.value;
+                quote! {
+                    pub const #variant_name: #name = #variant_value;
+                }
+            })
+            .collect::<Vec<_>>()
     } else {
         vec![]
     };
@@ -99,13 +98,16 @@ fn generate_struct_type(type_def: &HeaderType) -> TokenStream {
     let name = ident(&type_def.name);
 
     let fields = if let Some(members) = &type_def.members {
-        members.iter().map(|member| {
-            let field_name = ident(&member.name);
-            let field_type = map_type(&member.type_);
-            quote! {
-                pub #field_name: #field_type,
-            }
-        }).collect::<Vec<_>>()
+        members
+            .iter()
+            .map(|member| {
+                let field_name = safe_ident(&member.name);
+                let field_type = map_type(&member.type_);
+                quote! {
+                    pub #field_name: #field_type,
+                }
+            })
+            .collect::<Vec<_>>()
     } else {
         vec![]
     };
@@ -128,10 +130,12 @@ fn generate_function_type(type_def: &HeaderType) -> TokenStream {
         .unwrap_or_else(|| quote! { () });
 
     let params = if let Some(args) = &type_def.arguments {
-        args.iter().map(|arg| {
-            let param_type = map_type(&arg.type_);
-            quote! { #param_type }
-        }).collect::<Vec<_>>()
+        args.iter()
+            .map(|arg| {
+                let param_type = map_type(&arg.type_);
+                quote! { #param_type }
+            })
+            .collect::<Vec<_>>()
     } else {
         vec![]
     };
@@ -197,14 +201,16 @@ fn map_return_type(return_value: &HeaderReturnValue) -> TokenStream {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use nanoserde::DeJson;
+
+    use super::*;
 
     #[test]
     fn test_generate_header_code() {
-        let json_str =
-            std::fs::read_to_string("../json/gdextension_interface.json").expect("failed to read JSON file");
-        let header: HeaderJson = DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
+        let json_str = std::fs::read_to_string("../json/gdextension_interface.json")
+            .expect("failed to read JSON file");
+        let header: HeaderJson =
+            DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
 
         // Test type generation
         let type_code = generate_header_types(&header);
@@ -224,5 +230,36 @@ mod tests {
         // Verify function types are generated
         assert!(interface_str.contains("pub type"));
         assert!(interface_str.contains("unsafe extern \"C\" fn"));
+    }
+
+    #[test]
+    fn write_generated_output_to_file() {
+        let json_str = std::fs::read_to_string("../json/gdextension_interface.json")
+            .expect("failed to read JSON file");
+        let header: HeaderJson =
+            DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
+
+        // Generate both types and interface functions
+        let type_code = generate_header_types(&header);
+        let interface_code = generate_interface_functions(&header);
+
+        // Combine into a single file
+        let combined = quote! {
+            // Generated from gdextension_interface.json
+
+            #type_code
+
+            #interface_code
+        };
+
+        // Write to file in the same directory as header_codegen.rs
+        let output_path = "src/generator/generated_header.rs";
+        std::fs::write(output_path, combined.to_string()).expect("failed to write generated file");
+
+        // Format with rustfmt
+        std::process::Command::new("rustfmt")
+            .arg(output_path)
+            .status()
+            .expect("failed to run rustfmt");
     }
 }
