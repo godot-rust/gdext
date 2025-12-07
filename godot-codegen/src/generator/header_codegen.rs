@@ -60,7 +60,8 @@ fn generate_enum_type(type_def: &HeaderType) -> TokenStream {
         vals.iter()
             .map(|val| {
                 let variant_name = ident(&val.name);
-                let variant_value = val.value;
+                // Use unsuffixed literals to match bindgen output.
+                let variant_value = proc_macro2::Literal::i32_unsuffixed(val.value as i32);
                 quote! {
                     pub const #variant_name: #name = #variant_value;
                 }
@@ -70,8 +71,9 @@ fn generate_enum_type(type_def: &HeaderType) -> TokenStream {
         vec![]
     };
 
+    // Note: C enums are implementation-defined but typically 'int' (signed, usually 32 bit).
     quote! {
-        pub type #name = i32;
+        pub type #name = std::ffi::c_int;
 
         #( #values )*
     }
@@ -164,15 +166,18 @@ fn map_c_type(c_type: &str) -> TokenStream {
         let base_type = c_type.trim_end_matches('*').trim();
         let inner = map_c_type(base_type);
 
-        if is_const {
-            return quote! { *const #inner };
+        return if is_const {
+            quote! { *const #inner }
         } else {
-            return quote! { *mut #inner };
-        }
+            quote! { *mut #inner }
+        };
     }
 
+    // Base types - use standard Rust types for simplicity and portability
     match c_type {
         "void" => quote! { () },
+        "char" => quote! { std::ffi::c_char },
+        "int" => quote! { std::ffi::c_int }, // Only appears once in current JSON (worker_thread_pool_add_native_group_task).
         "int8_t" => quote! { i8 },
         "int16_t" => quote! { i16 },
         "int32_t" => quote! { i32 },
@@ -181,10 +186,9 @@ fn map_c_type(c_type: &str) -> TokenStream {
         "uint16_t" => quote! { u16 },
         "uint32_t" => quote! { u32 },
         "uint64_t" => quote! { u64 },
+        "size_t" => quote! { usize },
         "float" => quote! { f32 },
         "double" => quote! { f64 },
-        "char" => quote! { std::ffi::c_char },
-        "size_t" => quote! { usize },
         _ => {
             // Fallback: use the type as-is (should be a GDExtension type)
             let type_ident = ident(c_type);
