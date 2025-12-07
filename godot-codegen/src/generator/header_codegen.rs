@@ -153,7 +153,8 @@ fn map_type(godot_type: &str) -> TokenStream {
 }
 
 fn map_c_type(c_type: &str) -> TokenStream {
-    // Note: C type mappings duplicated in type_conversions.rs; consider extracting to shared utility.
+    // Code duplication: pointer parsing logic - conv/type_conversions.rs::to_rust_type_uncached().
+
     // Strip const qualifier and remember if it was const
     let (is_const, c_type) = if c_type.starts_with("const ") {
         (true, c_type.strip_prefix("const ").unwrap().trim())
