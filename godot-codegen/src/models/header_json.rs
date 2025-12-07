@@ -7,6 +7,7 @@
 
 // In #[derive(DeJson)]: "this block may be rewritten with the `?` operator"
 #![allow(clippy::question_mark)]
+#![allow(dead_code)]
 
 // This file acts as deserialization check of the JSON file. Even if some fields are unused, having them declared makes sure they're
 // deserializable and conform to our expectations. It also doesn't add much value to annotate individual fields; it doesn't really
@@ -19,10 +20,8 @@ use nanoserde::DeJson;
 
 #[derive(DeJson)]
 pub struct HeaderJson {
-    #[allow(dead_code)]
     pub _copyright: Vec<String>,
     #[nserde(rename = "$schema")]
-    #[allow(dead_code)]
     pub schema: String,
     pub format_version: u32,
     pub types: Vec<HeaderType>,
@@ -33,34 +32,26 @@ pub struct HeaderJson {
 pub struct HeaderType {
     pub name: String,
     pub kind: String,
-    #[allow(dead_code)]
     pub description: Option<Vec<String>>,
-    #[allow(dead_code)]
     pub deprecated: Option<HeaderDeprecated>,
     // enum fields
     pub values: Option<Vec<HeaderEnumValue>>,
     // handle fields
-    #[allow(dead_code)]
     pub parent: Option<String>,
     #[nserde(rename = "const")]
-    #[allow(dead_code)]
     pub is_const: Option<bool>,
     // alias fields
     #[nserde(rename = "type")]
-    #[allow(dead_code)]
     pub type_: Option<String>,
     // struct fields
     pub members: Option<Vec<HeaderStructMember>>,
     // function fields
-    #[allow(dead_code)]
     pub return_value: Option<HeaderReturnValue>,
-    #[allow(dead_code)]
     pub arguments: Option<Vec<HeaderArgument>>,
 }
 
 // Same repr as JsonEnumConstant
 #[derive(DeJson, Clone)]
-#[allow(dead_code)]
 pub struct HeaderEnumValue {
     pub name: String,
     pub value: i64,
@@ -68,7 +59,6 @@ pub struct HeaderEnumValue {
 }
 
 #[derive(DeJson)]
-#[allow(dead_code)]
 pub struct HeaderStructMember {
     pub name: String,
     #[nserde(rename = "type")]
@@ -78,7 +68,6 @@ pub struct HeaderStructMember {
 
 // Same repr as JsonMethodReturn
 #[derive(DeJson, Clone)]
-#[allow(dead_code)]
 pub struct HeaderReturnValue {
     #[nserde(rename = "type")]
     pub type_: String,
@@ -87,7 +76,6 @@ pub struct HeaderReturnValue {
 
 // Same repr as JsonMethodArg
 #[derive(DeJson, Clone)]
-#[allow(dead_code)]
 pub struct HeaderArgument {
     #[nserde(rename = "type")]
     pub type_: String,
@@ -98,24 +86,16 @@ pub struct HeaderArgument {
 #[derive(DeJson)]
 pub struct HeaderInterfaceFunction {
     pub name: String,
-    #[allow(dead_code)]
     pub return_value: HeaderReturnValue,
-    #[allow(dead_code)]
     pub arguments: Vec<HeaderArgument>,
-    #[allow(dead_code)]
     pub description: Vec<String>,
-    #[allow(dead_code)]
     pub since: String,
-    #[allow(dead_code)]
     pub deprecated: Option<HeaderDeprecated>,
-    #[allow(dead_code)]
     pub see: Option<Vec<String>>,
-    #[allow(dead_code)]
     pub legacy_type_name: Option<String>,
 }
 
 #[derive(DeJson, Clone)]
-#[allow(dead_code)]
 pub struct HeaderDeprecated {
     pub since: String,
     pub message: Option<String>,
