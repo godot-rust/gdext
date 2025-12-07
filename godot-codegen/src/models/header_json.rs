@@ -111,15 +111,19 @@ mod tests {
 
     #[test]
     fn test_parse_header_json() {
-        let json_str =
-            std::fs::read_to_string("../json/gdextension_interface.json").expect("failed to read JSON file");
-        let model: HeaderJson = DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
+        let json_str = std::fs::read_to_string("../json/gdextension_interface.json")
+            .expect("failed to read JSON file");
+        let model: HeaderJson =
+            DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
 
         // Verify format version
         assert_eq!(model.format_version, 1);
 
         // Verify some types exist
-        assert!(model.types.iter().any(|t| t.name == "GDExtensionVariantType"));
+        assert!(model
+            .types
+            .iter()
+            .any(|t| t.name == "GDExtensionVariantType"));
         assert!(model.types.iter().any(|t| t.name == "GDExtensionCallError"));
 
         // Verify interface functions exist
@@ -144,7 +148,10 @@ mod tests {
         assert!(call_error.members.is_some());
 
         // Spot-check an interface function
-        let interface_fn = model.interface.iter().find(|f| f.name == "variant_new_copy");
+        let interface_fn = model
+            .interface
+            .iter()
+            .find(|f| f.name == "variant_new_copy");
         assert!(interface_fn.is_some());
     }
 }
