@@ -23,6 +23,7 @@ pub mod enums;
 pub mod extension_interface;
 pub mod functions_common;
 pub mod gdext_build_struct;
+pub mod header_codegen;
 pub mod lifecycle_builtins;
 pub mod method_tables;
 pub mod native_structures;
