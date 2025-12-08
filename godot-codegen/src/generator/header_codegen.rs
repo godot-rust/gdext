@@ -68,25 +68,38 @@ pub fn generate_gdextension_interface(header: &HeaderJson) -> TokenStream {
 
         // Parameter documentation
         if !func.arguments.is_empty() {
-            doc_parts.push(String::new()); // Empty line before params
+            let mut has_documented_params = false;
+            let mut param_docs = Vec::new();
+
             for arg in &func.arguments {
                 if let Some(name) = &arg.name {
                     if let Some(desc_lines) = &arg.description {
                         if !desc_lines.is_empty() {
-                            let param_doc = format!("@param {} {}", name, desc_lines.join(" "));
-                            doc_parts.push(param_doc);
+                            has_documented_params = true;
+                            let param_doc = format!("- `{}` - {}", name, desc_lines.join(" "));
+                            param_docs.push(param_doc);
                         }
                     }
                 }
             }
+
+            if has_documented_params {
+                doc_parts.push(String::new()); // Empty line before section
+                doc_parts.push("## Parameters".to_string());
+                doc_parts.extend(param_docs);
+            }
         }
 
         // Return value documentation
-        if let Some(ret_desc_lines) = &func.return_value.description {
-            if !ret_desc_lines.is_empty() {
-                doc_parts.push(String::new()); // Empty line before return
-                let return_doc = format!("@return {}", ret_desc_lines.join(" "));
-                doc_parts.push(return_doc);
+        // Only show if non-void and has description
+        let is_void = func.return_value.type_ == "void";
+        if !is_void {
+            if let Some(ret_desc_lines) = &func.return_value.description {
+                if !ret_desc_lines.is_empty() {
+                    doc_parts.push(String::new()); // Empty line before return
+                    doc_parts.push("## Return value".to_string());
+                    doc_parts.push(ret_desc_lines.join(" "));
+                }
             }
         }
 
@@ -111,7 +124,9 @@ pub fn generate_gdextension_interface(header: &HeaderJson) -> TokenStream {
 }
 
 /// Generate an inline function pointer type for a single interface function.
-fn generate_function_pointer_type(func: &crate::models::header_json::HeaderInterfaceFunction) -> TokenStream {
+fn generate_function_pointer_type(
+    func: &crate::models::header_json::HeaderInterfaceFunction,
+) -> TokenStream {
     let return_type = map_return_type(&func.return_value);
     let params = func.arguments.iter().map(|arg| {
         let param_type = map_type(&arg.type_);
