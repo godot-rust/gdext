@@ -52,6 +52,54 @@ pub fn generate_interface_functions(header: &HeaderJson) -> TokenStream {
     }
 }
 
+/// Generate the GDExtensionInterface struct with function pointer fields.
+pub fn generate_gdextension_interface(header: &HeaderJson) -> TokenStream {
+    let fields = header.interface.iter().map(|func| {
+        let field_name = ident(&func.name);
+        let func_ptr_ty = generate_function_pointer_type(func);
+
+        if !func.description.is_empty() {
+            let doc_str = func.description.join("\n");
+            quote! {
+                #[doc = #doc_str]
+                pub #field_name: #func_ptr_ty,
+            }
+        } else {
+            quote! {
+                pub #field_name: #func_ptr_ty,
+            }
+        }
+    });
+
+    quote! {
+        pub struct GDExtensionInterface {
+            #( #fields )*
+        }
+    }
+}
+
+/// Generate an inline function pointer type for a single interface function.
+fn generate_function_pointer_type(func: &crate::models::header_json::HeaderInterfaceFunction) -> TokenStream {
+    let return_type = map_return_type(&func.return_value);
+    let params = func.arguments.iter().map(|arg| {
+        let param_type = map_type(&arg.type_);
+        if let Some(param_name_str) = &arg.name {
+            if param_name_str.is_empty() {
+                quote! { #param_type }
+            } else {
+                let param_name = safe_ident(param_name_str);
+                quote! { #param_name: #param_type }
+            }
+        } else {
+            quote! { #param_type }
+        }
+    });
+
+    quote! {
+        unsafe extern "C" fn(#( #params ),*) -> #return_type
+    }
+}
+
 fn generate_type_definition(type_def: &HeaderType) -> TokenStream {
     match type_def.kind.as_str() {
         "enum" => generate_enum_type(type_def),
@@ -276,6 +324,40 @@ mod tests {
             #type_code
 
             #interface_code
+        };
+
+        // Write to file in the same directory as header_codegen.rs
+        let output_path = "src/generator/generated_header.rs";
+        std::fs::write(output_path, combined.to_string()).expect("failed to write generated file");
+
+        // Format with rustfmt
+        std::process::Command::new("rustfmt")
+            .arg(output_path)
+            .status()
+            .expect("failed to run rustfmt");
+    }
+
+    #[test]
+    fn write_gdextension_interface_to_file() {
+        let json_str = std::fs::read_to_string("../json/gdextension_interface.json")
+            .expect("failed to read JSON file");
+        let header: HeaderJson =
+            DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
+
+        // Generate both types and interface functions, and the struct
+        let type_code = generate_header_types(&header);
+        let interface_code = generate_interface_functions(&header);
+        let struct_code = generate_gdextension_interface(&header);
+
+        // Combine into a single file
+        let combined = quote! {
+            // Generated from gdextension_interface.json
+
+            #type_code
+
+            #interface_code
+
+            #struct_code
         };
 
         // Write to file in the same directory as header_codegen.rs
