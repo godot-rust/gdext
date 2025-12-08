@@ -344,9 +344,8 @@ mod tests {
         let header: HeaderJson =
             DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
 
-        // Generate both types and interface functions, and the struct
+        // Generate types and the struct (without separate function type aliases)
         let type_code = generate_header_types(&header);
-        let interface_code = generate_interface_functions(&header);
         let struct_code = generate_gdextension_interface(&header);
 
         // Combine into a single file
@@ -354,8 +353,6 @@ mod tests {
             // Generated from gdextension_interface.json
 
             #type_code
-
-            #interface_code
 
             #struct_code
         };
