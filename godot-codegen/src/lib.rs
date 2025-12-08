@@ -21,6 +21,32 @@ mod models;
 mod special_cases;
 mod util;
 
+#[allow(missing_docs, non_camel_case_types)]
+pub mod generated_header {
+    //! Generated FFI bindings from gdextension_interface.json
+    //!
+    //! This module contains the complete FFI interface generated from the Godot GDExtension specification:
+    //! - Type definitions (enums, structs, handles, aliases)
+    //! - Interface function type signatures with named parameters
+    //! - GDExtensionInterface struct containing all function pointers
+
+    use std::ffi::c_int;
+
+    /// UTF-16 character type
+    pub type char16_t = u16;
+
+    /// UTF-32 character type
+    pub type char32_t = u32;
+
+    /// Wide character type
+    pub type wchar_t = c_int;
+
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/generator/generated_header.rs"
+    ));
+}
+
 #[cfg(test)]
 mod tests;
 
