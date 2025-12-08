@@ -58,8 +58,40 @@ pub fn generate_gdextension_interface(header: &HeaderJson) -> TokenStream {
         let field_name = ident(&func.name);
         let func_ptr_ty = generate_function_pointer_type(func);
 
+        // Build comprehensive documentation including parameter docs
+        let mut doc_parts = Vec::new();
+
+        // Main description
         if !func.description.is_empty() {
-            let doc_str = func.description.join("\n");
+            doc_parts.push(func.description.join("\n"));
+        }
+
+        // Parameter documentation
+        if !func.arguments.is_empty() {
+            doc_parts.push(String::new()); // Empty line before params
+            for arg in &func.arguments {
+                if let Some(name) = &arg.name {
+                    if let Some(desc_lines) = &arg.description {
+                        if !desc_lines.is_empty() {
+                            let param_doc = format!("@param {} {}", name, desc_lines.join(" "));
+                            doc_parts.push(param_doc);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Return value documentation
+        if let Some(ret_desc_lines) = &func.return_value.description {
+            if !ret_desc_lines.is_empty() {
+                doc_parts.push(String::new()); // Empty line before return
+                let return_doc = format!("@return {}", ret_desc_lines.join(" "));
+                doc_parts.push(return_doc);
+            }
+        }
+
+        if !doc_parts.is_empty() {
+            let doc_str = doc_parts.join("\n");
             quote! {
                 #[doc = #doc_str]
                 pub #field_name: #func_ptr_ty,
@@ -96,7 +128,7 @@ fn generate_function_pointer_type(func: &crate::models::header_json::HeaderInter
     });
 
     quote! {
-        unsafe extern "C" fn(#( #params ),*) -> #return_type
+        Option<unsafe extern "C" fn(#( #params ),*) -> #return_type>
     }
 }
 
