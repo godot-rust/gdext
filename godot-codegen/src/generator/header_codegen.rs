@@ -29,7 +29,17 @@ pub fn generate_interface_functions(header: &HeaderJson) -> TokenStream {
         let return_type = map_return_type(&func.return_value);
         let params = func.arguments.iter().map(|arg| {
             let param_type = map_type(&arg.type_);
-            quote! { #param_type }
+            if let Some(param_name_str) = &arg.name {
+                if param_name_str.is_empty() {
+                    // Empty name - fall back to unnamed
+                    quote! { #param_type }
+                } else {
+                    let param_name = safe_ident(param_name_str);
+                    quote! { #param_name: #param_type }
+                }
+            } else {
+                quote! { #param_type }
+            }
         });
 
         quote! {
@@ -135,7 +145,17 @@ fn generate_function_type(type_def: &HeaderType) -> TokenStream {
         args.iter()
             .map(|arg| {
                 let param_type = map_type(&arg.type_);
-                quote! { #param_type }
+                if let Some(param_name_str) = &arg.name {
+                    if param_name_str.is_empty() {
+                        // Empty name - fall back to unnamed
+                        quote! { #param_type }
+                    } else {
+                        let param_name = safe_ident(param_name_str);
+                        quote! { #param_name: #param_type }
+                    }
+                } else {
+                    quote! { #param_type }
+                }
             })
             .collect::<Vec<_>>()
     } else {
