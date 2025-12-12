@@ -1,6 +1,6 @@
 [package]
 name = "godot-core"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2021"
 rust-version = "1.87"
 license = "MPL-2.0"
@@ -43,16 +43,16 @@ safeguards-dev-balanced = ["godot-ffi/safeguards-dev-balanced"]
 safeguards-release-disengaged = ["godot-ffi/safeguards-release-disengaged"]
 
 [dependencies]
-godot-ffi = { path = "../godot-ffi", version = "=0.4.4" }
+godot-ffi = { path = "../godot-ffi", version = "=0.4.5" }
 
 # See https://docs.rs/glam/latest/glam/index.html#feature-gates
 glam = { workspace = true }
 serde = { workspace = true, optional = true }
-godot-cell = { path = "../godot-cell", version = "=0.4.4" }
+godot-cell = { path = "../godot-cell", version = "=0.4.5" }
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings", version = "=0.4.4" }
-godot-codegen = { path = "../godot-codegen", version = "=0.4.4" }
+godot-bindings = { path = "../godot-bindings", version = "=0.4.5" }
+godot-codegen = { path = "../godot-codegen", version = "=0.4.5" }
 
 # Reverse dev dependencies so doctests can use `godot::` prefix.
 [dev-dependencies]

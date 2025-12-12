@@ -10,10 +10,21 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043), [v0.4.4](#v044)
+- [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043), [v0.4.4](#v044), [v0.4.5](#v045)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.4.5](https://docs.rs/godot/0.4.5)
+
+_12 December 2025_
+
+_Hotfix release: backports an update due to a breaking change in the Rust compiler._
+
+### 🛠️ Bugfixes
+
+- Fix compiler error caused by raw pointer cast no longer extending lifetimes ([#1441](https://github.com/godot-rust/gdext/pull/1441))
 
 
 ## [v0.4.4](https://docs.rs/godot/0.4.4)
