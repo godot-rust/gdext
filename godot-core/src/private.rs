@@ -373,10 +373,17 @@ struct ScopedFunctionStack {
 impl ScopedFunctionStack {
     /// # Safety
     /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
-    unsafe fn push_function(&mut self, function: &dyn Fn() -> String) {
-        let function = std::ptr::from_ref(function);
-        #[allow(clippy::unnecessary_cast)]
-        let function = function as *const (dyn Fn() -> String + 'static);
+    unsafe fn push_function<'a, 'b>(&'a mut self, function: &'b (dyn Fn() -> String + 'b)) {
+        // SAFETY: Function has its lifetime `'b` extended to `'static` to satisfy the signature
+        // of `functions` which has an implied `'static` bound.
+        // Given function must be removed before lifetime `'b` is invalidated.
+        let function = unsafe {
+            std::mem::transmute::<
+                *const (dyn Fn() -> String + 'b),
+                *const (dyn Fn() -> String + 'static),
+            >(function)
+        };
+
         self.functions.push(function);
     }
 
