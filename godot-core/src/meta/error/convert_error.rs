@@ -93,7 +93,7 @@ impl ConvertError {
         ErasedConvertError::from(self)
     }
 
-    #[cfg(before_api = "4.4")]
+    #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
     pub(crate) fn kind(&self) -> &ErrorKind {
         &self.kind
     }
@@ -189,7 +189,7 @@ pub(crate) enum FromGodotError {
     },
 
     /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     BadArrayTypeInt {
         expected_int_type: &'static str,
         value: i64,
@@ -234,7 +234,7 @@ impl fmt::Display for FromGodotError {
 
                 write!(f, "expected array of type {exp_class}, got {act_class}")
             }
-            #[cfg(safeguards_strict)]
+            #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
             Self::BadArrayTypeInt {
                 expected_int_type,
                 value,

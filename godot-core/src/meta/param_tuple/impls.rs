@@ -262,7 +262,7 @@ fn assert_array_length<P: ParamTuple>(array: &[&Variant]) {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 

@@ -47,7 +47,7 @@ macro_rules! static_assert_eq_size_align {
 #[macro_export]
 macro_rules! strict_assert {
     ($($arg:tt)*) => {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         assert!($($arg)*);
     };
 }
@@ -56,11 +56,11 @@ macro_rules! strict_assert {
 #[macro_export]
 macro_rules! strict_assert_eq {
     ($actual:expr, $expected:expr) => {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         assert_eq!($actual, $expected);
     };
     ($actual:expr, $expected:expr, $($arg:tt)*) => {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         assert_eq!($actual, $expected, $($arg)*);
     };
 }
@@ -69,11 +69,11 @@ macro_rules! strict_assert_eq {
 #[macro_export]
 macro_rules! strict_assert_ne {
     ($actual:expr, $expected:expr) => {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         assert_ne!($actual, $expected);
     };
     ($actual:expr, $expected:expr, $($arg:tt)*) => {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         assert_ne!($actual, $expected, $($arg)*);
     };
 }
@@ -85,7 +85,7 @@ macro_rules! strict_assert_ne {
 #[macro_export]
 macro_rules! balanced_assert {
     ($($arg:tt)*) => {
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         assert!($($arg)*);
     };
 }
@@ -94,11 +94,11 @@ macro_rules! balanced_assert {
 #[macro_export]
 macro_rules! balanced_assert_eq {
     ($actual:expr, $expected:expr) => {
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         assert_eq!($actual, $expected);
     };
     ($actual:expr, $expected:expr, $($arg:tt)*) => {
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         assert_eq!($actual, $expected, $($arg)*);
     };
 }
@@ -107,11 +107,11 @@ macro_rules! balanced_assert_eq {
 #[macro_export]
 macro_rules! balanced_assert_ne {
     ($actual:expr, $expected:expr) => {
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         assert_ne!($actual, $expected);
     };
     ($actual:expr, $expected:expr, $($arg:tt)*) => {
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         assert_ne!($actual, $expected, $($arg)*);
     };
 }

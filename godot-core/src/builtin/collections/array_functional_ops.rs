@@ -157,7 +157,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// assert_eq!(array.functional_ops().find_custom(&is_even, None), Some(1)); // value 2
     /// assert_eq!(array.functional_ops().find_custom(&is_even, Some(2)), Some(3)); // value 4
     /// ```
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub fn find_custom(&self, callable: &Callable, from: Option<usize>) -> Option<usize> {
         let from = from.map(|i| i as i64).unwrap_or(0);
         let found_index = self.array.as_inner().find_custom(callable, from);
@@ -184,7 +184,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// assert_eq!(array.functional_ops().rfind_custom(&is_even, None), Some(3)); // value 4
     /// assert_eq!(array.functional_ops().rfind_custom(&is_even, Some(2)), Some(1)); // value 2
     /// ```
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub fn rfind_custom(&self, callable: &Callable, from: Option<usize>) -> Option<usize> {
         let from = from.map(|i| i as i64).unwrap_or(-1);
         let found_index = self.array.as_inner().rfind_custom(callable, from);

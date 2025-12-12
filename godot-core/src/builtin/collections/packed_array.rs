@@ -44,7 +44,7 @@ pub type PackedFloat64Array = PackedArray<f64>;
 pub type PackedStringArray = PackedArray<GString>;
 pub type PackedVector2Array = PackedArray<Vector2>;
 pub type PackedVector3Array = PackedArray<Vector3>;
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub type PackedVector4Array = PackedArray<Vector4>;
 pub type PackedColorArray = PackedArray<Color>;
 
@@ -509,7 +509,7 @@ impl<T: PackedArrayElement> meta::GodotType for PackedArray<T> {
             VariantType::PACKED_FLOAT64_ARRAY => "PackedFloat64Array".to_string(),
             VariantType::PACKED_VECTOR2_ARRAY => "PackedVector2Array".to_string(),
             VariantType::PACKED_VECTOR3_ARRAY => "PackedVector3Array".to_string(),
-            #[cfg(since_api = "4.3")]
+            #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
             VariantType::PACKED_VECTOR4_ARRAY => "PackedVector4Array".to_string(),
             VariantType::PACKED_COLOR_ARRAY => "PackedColorArray".to_string(),
             VariantType::PACKED_STRING_ARRAY => "PackedStringArray".to_string(),
@@ -872,7 +872,7 @@ impl_to_byte_array!(PackedFloat64Array);
 impl_to_byte_array!(PackedStringArray);
 impl_to_byte_array!(PackedVector2Array);
 impl_to_byte_array!(PackedVector3Array);
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl_to_byte_array!(PackedVector4Array);
 impl_to_byte_array!(PackedColorArray);
 

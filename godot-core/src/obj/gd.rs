@@ -533,9 +533,9 @@ impl<T: GodotClass> Gd<T> {
     {
         unsafe {
             // Default value (and compat one) for `p_notify_postinitialize` is true in Godot.
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             let object_ptr = callbacks::create::<T>(std::ptr::null_mut(), sys::conv::SYS_TRUE);
-            #[cfg(before_api = "4.4")]
+            #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
             let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
 
             Gd::from_obj_sys(object_ptr)
@@ -791,7 +791,7 @@ where
         // static type information to be correct. This is a no-op in Release mode.
         // Skip check during panic unwind; would need to rewrite whole thing to use Result instead. Having BOTH panic-in-panic and bad type is
         // a very unlikely corner case.
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         if !is_panic_unwind {
             self.raw
                 .check_dynamic_type(&crate::meta::CallContext::gd::<T>("free"));

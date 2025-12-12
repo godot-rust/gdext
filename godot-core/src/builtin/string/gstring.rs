@@ -345,9 +345,9 @@ impl From<&str> for GString {
 
         unsafe {
             Self::new_with_string_uninit(|string_ptr| {
-                #[cfg(before_api = "4.3")]
+                #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
                 let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
-                #[cfg(since_api = "4.3")]
+                #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
                 let ctor = interface_fn!(string_new_with_utf8_chars_and_len2);
 
                 ctor(
@@ -447,7 +447,7 @@ impl From<&NodePath> for GString {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use std::fmt::Formatter;
 

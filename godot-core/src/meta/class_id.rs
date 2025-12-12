@@ -88,7 +88,7 @@ impl ClassId {
         // Not cached, need to get or create entry
         let name = init_fn();
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         assert!(
             name.is_ascii(),
             "In Godot < 4.4, class name must be ASCII: '{name}'"
@@ -129,7 +129,7 @@ impl ClassId {
     /// Create a new Unicode entry; expect to be unique. Internal, reserved for macros.
     #[doc(hidden)]
     pub fn __alloc_next_unicode(class_name_str: &'static str) -> Self {
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         assert!(
             class_name_str.is_ascii(),
             "Before Godot 4.4, class names must be ASCII, but '{class_name_str}' is not.\nSee https://github.com/godotengine/godot/pull/96501."

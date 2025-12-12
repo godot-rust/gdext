@@ -12,7 +12,7 @@ use sys::{interface_fn, ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType}
 
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::{ConvertError, FromVariantError};
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 use crate::meta::CallContext;
 use crate::meta::{ClassId, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
 use crate::obj::bounds::{Declarer, DynMemory as _};
@@ -388,12 +388,12 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// # Panics
     /// If validation fails.
-    #[cfg(safeguards_balanced)]
+    #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
     pub(crate) fn check_rtti(&self, method_name: &'static str) {
         let call_ctx = CallContext::gd::<T>(method_name);
 
         // Type check (strict only).
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         self.check_dynamic_type(&call_ctx);
 
         // SAFETY: check_rtti() is only called for non-null pointers.
@@ -403,7 +403,7 @@ impl<T: GodotClass> RawGd<T> {
         classes::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
     }
 
-    #[cfg(not(safeguards_balanced))]
+    #[cfg(not(safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_balanced))))]
     pub(crate) fn check_rtti(&self, _method_name: &'static str) {
         // Disengaged level: no-op.
     }
@@ -412,7 +412,7 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// Used in specific scenarios like `Gd<T>::free()` where we need type validation
     /// but the object may already be dead. This is an internal helper for `check_rtti()`.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     #[inline]
     pub(crate) fn check_dynamic_type(&self, call_ctx: &CallContext<'static>) {
         assert!(
@@ -542,7 +542,7 @@ where
 
         let ptr: sys::GDExtensionClassInstancePtr = binding.cast();
 
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         crate::classes::ensure_binding_not_null::<T>(ptr);
 
         self.cached_storage_ptr.set(ptr);
