@@ -8,9 +8,9 @@
 use std::cell::UnsafeCell;
 use std::error::Error;
 use std::marker::PhantomPinned;
+use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::ptr::NonNull;
-use std::sync::Mutex;
 
 use crate::borrow_state::BorrowState;
 use crate::guards::{InaccessibleGuard, MutGuard, RefGuard};
@@ -73,11 +73,12 @@ impl<T> GdCell<T> {
 ///
 /// This cell must be pinned to be usable, as it stores self-referential pointers. The [`GdCell`] type abstracts this detail away from
 /// the public type.
-// TODO: consider not using `Mutex`
+///
+/// The cell is **not** thread-safe by itself.
 #[derive(Debug)]
 pub(crate) struct GdCellInner<T> {
     /// The mutable state of this cell.
-    pub(crate) state: Mutex<CellState<T>>,
+    pub(crate) state: UnsafeCell<CellState<T>>,
     /// The actual value we're handing out references to, uses `UnsafeCell` as we're passing out `&mut`
     /// references to its contents even when we only have a `&` reference to the cell.
     value: UnsafeCell<T>,
@@ -88,34 +89,42 @@ pub(crate) struct GdCellInner<T> {
 impl<T> GdCellInner<T> {
     /// Creates a new cell storing `value`.
     pub fn new(value: T) -> Pin<Box<Self>> {
-        let cell = Box::pin(Self {
-            state: Mutex::new(CellState::new()),
-            value: UnsafeCell::new(value),
-            _pin: PhantomPinned,
-        });
+        let mut uninitialized_cell: Box<MaybeUninit<Self>> = Box::new_uninit();
 
-        cell.state.lock().unwrap().initialize_ptr(&cell.value);
+        unsafe {
+            let value_ptr = &raw mut (*uninitialized_cell.as_mut_ptr()).value;
+            // SAFETY: Box::pin(...) is equivalent to Box::into_pin(Box::...) therefore `value_ptr`
+            // is and will stay valid (i.e. will refer to the same place after pinning).
+            value_ptr.write(UnsafeCell::new(value));
+            (&raw mut (*uninitialized_cell.as_mut_ptr()).state)
+                .write(UnsafeCell::new(CellState::new(value_ptr.as_ref().unwrap())));
 
-        cell
+            Box::into_pin(uninitialized_cell.assume_init())
+        }
     }
 
     /// Returns a new shared reference to the contents of the cell.
     ///
     /// Fails if an accessible mutable reference exists.
     pub fn borrow(self: Pin<&Self>) -> Result<RefGuard<'_, T>, Box<dyn Error>> {
-        let mut state = self.state.lock().unwrap();
+        // SAFETY: There can be only one active reference to the cell state at a given time.
+        // The underlying `CellState` will not be deallocated as long as Cell itself is alive.
+        let state = unsafe { &mut *self.state.get() };
         state.borrow_state.increment_shared()?;
+        let value = state.get_ptr();
 
         // SAFETY: `increment_shared` succeeded, therefore there cannot currently be any accessible mutable
         // references.
-        unsafe { Ok(RefGuard::new(&self.get_ref().state, state.get_ptr())) }
+        unsafe { Ok(RefGuard::new(&self.get_ref().state, value)) }
     }
 
     /// Returns a new mutable reference to the contents of the cell.
     ///
     /// Fails if an accessible mutable reference exists, or a shared reference exists.
     pub fn borrow_mut(self: Pin<&Self>) -> Result<MutGuard<'_, T>, Box<dyn Error>> {
-        let mut state = self.state.lock().unwrap();
+        // SAFETY: There can be only one active reference to the cell state at a given time.
+        // The underlying `CellState` will not be deallocated as long as Cell itself is alive.
+        let state = unsafe { &mut *self.state.get() };
         state.borrow_state.increment_mut()?;
         let count = state.borrow_state.mut_count();
         let value = state.get_ptr();
@@ -157,26 +166,20 @@ impl<T> GdCellInner<T> {
     /// cell hands out a new borrow before it is destroyed. So we still need to ensure that this cannot
     /// happen at the same time.
     pub fn is_currently_bound(self: Pin<&Self>) -> bool {
-        let state = self.state.lock().unwrap();
+        let state = unsafe { &*self.state.get() };
 
         state.borrow_state.shared_count() > 0 || state.borrow_state.mut_count() > 0
     }
 
     /// Similar to [`Self::is_currently_bound`] but only counts mutable references and ignores shared references.
     pub(crate) fn is_currently_mutably_bound(self: Pin<&Self>) -> bool {
-        let state = self.state.lock().unwrap();
+        let state = unsafe { &*self.state.get() };
 
         state.borrow_state.mut_count() > 0
     }
 }
 
-// SAFETY: `T` is Sync, so we can return references to it on different threads.
-// It is also Send, so we can return mutable references to it on different threads.
-// Additionally, all internal state is synchronized via a mutex, so we won't have race conditions when trying to use it from multiple threads.
-unsafe impl<T: Send + Sync> Sync for GdCellInner<T> {}
-
-/// Mutable state of the `GdCell`, bundled together to make it easier to avoid deadlocks when locking the
-/// mutex.
+/// Mutable state of the `GdCell`.
 #[derive(Debug)]
 pub(crate) struct CellState<T> {
     /// Tracking the borrows this cell has. This ensures relevant invariants are upheld.
@@ -191,8 +194,7 @@ pub(crate) struct CellState<T> {
     ///
     /// We always generate new pointer based off of the pointer currently in this field, to ensure any new
     /// references are derived from the most recent `&mut` reference.
-    // TODO: Consider using `NonNull<T>` instead.
-    ptr: *mut T,
+    ptr: NonNull<T>,
 
     /// How many pointers have been handed out.
     ///
@@ -201,43 +203,42 @@ pub(crate) struct CellState<T> {
 }
 
 impl<T> CellState<T> {
-    /// Create a new uninitialized state. Use [`initialize_ptr()`](CellState::initialize_ptr()) to initialize
-    /// it.
-    fn new() -> Self {
+    fn new(value: &UnsafeCell<T>) -> Self {
         Self {
             borrow_state: BorrowState::new(),
-            ptr: std::ptr::null_mut(),
+            ptr: NonNull::new(value.get()).unwrap(),
             stack_depth: 0,
-        }
-    }
-
-    /// Initialize the pointer if it is `None`.
-    fn initialize_ptr(&mut self, value: &UnsafeCell<T>) {
-        if self.ptr.is_null() {
-            self.ptr = value.get();
-            assert!(!self.ptr.is_null());
-        } else {
-            panic!("Cannot initialize pointer as it is already initialized.")
         }
     }
 
     /// Returns the current pointer. Panics if uninitialized.
     pub(crate) fn get_ptr(&self) -> NonNull<T> {
-        NonNull::new(self.ptr).unwrap()
+        self.ptr
     }
 
     /// Push a pointer to this state.
     pub(crate) fn push_ptr(&mut self, new_ptr: NonNull<T>) -> usize {
-        self.ptr = new_ptr.as_ptr();
+        self.ptr = new_ptr;
         self.stack_depth += 1;
         self.stack_depth
     }
 
     /// Pop a pointer to this state, resetting it to the given old pointer.
     pub(crate) fn pop_ptr(&mut self, old_ptr: NonNull<T>) -> usize {
-        self.ptr = old_ptr.as_ptr();
+        self.ptr = old_ptr;
         self.stack_depth -= 1;
         self.stack_depth
+    }
+
+    /// Returns underlying [`BorrowState`].
+    ///
+    /// # Safety
+    ///
+    /// - `cell_state` must point to a valid reference.
+    /// - There can't be any active reference to `CellState`.
+    #[allow(clippy::mut_from_ref)]
+    pub(crate) unsafe fn borrow_state(cell_state: &UnsafeCell<Self>) -> &mut BorrowState {
+        &mut cell_state.get().as_mut().unwrap().borrow_state
     }
 }
 
