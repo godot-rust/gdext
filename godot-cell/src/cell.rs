@@ -73,7 +73,8 @@ impl<T> GdCell<T> {
 ///
 /// This cell must be pinned to be usable, as it stores self-referential pointers. The [`GdCell`] type abstracts this detail away from
 /// the public type.
-// TODO: consider not using `Mutex`
+///
+/// The cell is **not** thread-safe by itself.
 #[derive(Debug)]
 pub(crate) struct GdCellInner<T> {
     /// The mutable state of this cell.
@@ -181,13 +182,7 @@ impl<T> GdCellInner<T> {
     }
 }
 
-// SAFETY: `T` is Sync, so we can return references to it on different threads.
-// It is also Send, so we can return mutable references to it on different threads.
-// Additionally, all internal state is synchronized via a mutex, so we won't have race conditions when trying to use it from multiple threads.
-unsafe impl<T: Send + Sync> Sync for GdCellInner<T> {}
-
-/// Mutable state of the `GdCell`, bundled together to make it easier to avoid deadlocks when locking the
-/// mutex.
+/// Mutable state of the `GdCell`.
 #[derive(Debug)]
 pub(crate) struct CellState<T> {
     /// Tracking the borrows this cell has. This ensures relevant invariants are upheld.
