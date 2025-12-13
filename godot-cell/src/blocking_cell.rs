@@ -168,10 +168,9 @@ impl<T> GdCellBlocking<T> {
     }
 }
 
-// SAFETY: `T` is Sync, so we can return references to it on different threads.
-// It is also Send, so we can return mutable references to it on different threads.
-// Additionally, all internal state is synchronized via a mutex, so we won't have race conditions when trying to use it from multiple threads.
-unsafe impl<T: Send + Sync> Sync for GdCellBlocking<T> {}
+// SAFETY: `T` must be only Send and the only way to access underlying `T` from multiple thread is via `GdCellBlocking`.
+// This ensures that the protected data can be accessed safely from multiple threads without causing data races or other unsafe behavior.
+unsafe impl<T: Send> Sync for GdCellBlocking<T> {}
 
 /// Holds the reference count and the currently mutable thread.
 #[derive(Debug)]

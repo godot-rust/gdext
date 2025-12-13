@@ -55,9 +55,7 @@ impl<T> Deref for RefGuard<'_, T> {
 
 impl<T> Drop for RefGuard<'_, T> {
     fn drop(&mut self) {
-        unsafe { self.state.get().as_mut() }
-            .unwrap()
-            .borrow_state
+        unsafe { CellState::borrow_state(self.state) }
             .decrement_shared()
             .unwrap();
     }
@@ -124,9 +122,7 @@ impl<T> Deref for MutGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        let count = unsafe { self.state.get().as_ref().unwrap() }
-            .borrow_state
-            .mut_count();
+        let count = unsafe { CellState::borrow_state(self.state) }.mut_count();
         // This is just a best-effort error check. It should never be triggered.
         assert_eq!(
             self.count,
@@ -152,9 +148,7 @@ impl<T> Deref for MutGuard<'_, T> {
 
 impl<T> DerefMut for MutGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        let count = unsafe { self.state.get().as_ref().unwrap() }
-            .borrow_state
-            .mut_count();
+        let count = unsafe { CellState::borrow_state(self.state) }.mut_count();
         // This is just a best-effort error check. It should never be triggered.
         assert_eq!(
             self.count,
@@ -181,8 +175,7 @@ impl<T> DerefMut for MutGuard<'_, T> {
 
 impl<T> Drop for MutGuard<'_, T> {
     fn drop(&mut self) {
-        unsafe { self.state.get().as_mut().unwrap() }
-            .borrow_state
+        unsafe { CellState::borrow_state(self.state) }
             .decrement_mut()
             .unwrap();
     }
@@ -222,6 +215,7 @@ impl<'a, T> InaccessibleGuard<'a, T> {
     where
         'a: 'b,
     {
+        // SAFETY: There can be only one active reference to the cell state at a given time.
         let cell_state = unsafe { state.get().as_mut() }.unwrap();
         let current_ptr = cell_state.get_ptr();
         let new_ptr = NonNull::from(new_ref);
@@ -255,6 +249,11 @@ impl<'a, T> InaccessibleGuard<'a, T> {
         state.pop_ptr(prev_ptr);
     }
 
+    /// Returns `true` if guard can be safely dropped, i.e.:
+    ///
+    /// - Guard is being released in correct order.
+    /// - There is no accessible mutable reference to underlying value.
+    /// - There are no shared references to underlying value.
     #[doc(hidden)]
     pub fn can_drop(&self) -> bool {
         let state = unsafe { self.state.get().as_mut() }.unwrap();
