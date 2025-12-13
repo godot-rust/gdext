@@ -128,12 +128,12 @@ where
         godot_fn: impl FnMut(&[&Variant]) -> Variant + 'static,
         bound: &Gd<impl GodotClass>,
     ) -> ConnectHandle {
-        let callable_name = match self.data.callable_name {
-            Some(user_provided_name) => user_provided_name,
-            None => make_callable_name::<F>().to_string().into(),
-        };
+        let callable_name = self
+            .data
+            .callable_name
+            .unwrap_or_else(make_callable_name::<F>);
 
-        let callable = bound.linked_callable(callable_name, godot_fn);
+        let callable = bound.linked_callable(callable_name.as_ref(), godot_fn);
         self.parent_sig
             .inner_connect_untyped(callable, self.data.connect_flags)
     }
@@ -310,10 +310,10 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call((), args);
         });
 
-        let callable_name = match self.data.callable_name {
-            Some(user_provided_name) => user_provided_name,
-            None => make_callable_name::<F>(),
-        };
+        let callable_name = self
+            .data
+            .callable_name
+            .unwrap_or_else(make_callable_name::<F>);
 
         let callable = Callable::from_sync_fn(callable_name, godot_fn);
         self.parent_sig

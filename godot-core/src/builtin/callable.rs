@@ -11,11 +11,11 @@ use std::{fmt, ptr};
 use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
-use crate::builtin::{inner, AnyArray, CowStr, StringName, Variant};
+use crate::builtin::{inner, AnyArray, GString, StringName, Variant};
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
-use crate::{classes, meta};
+use crate::{classes, godot_str, meta};
 
 #[cfg(before_api = "4.3")]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo;
@@ -100,7 +100,7 @@ impl Callable {
         meta::arg_into_owned!(class_name);
         meta::arg_into_owned!(function_name);
 
-        let callable_name = format!("{class_name}.{function_name}");
+        let callable_name = godot_str!("{class_name}.{function_name}");
 
         let function = move |args: &[&Variant]| {
             let args = args.iter().cloned().cloned().collect::<Vec<_>>();
@@ -114,10 +114,10 @@ impl Callable {
         };
 
         #[cfg(feature = "experimental-threads")]
-        let callable = Self::from_sync_fn(callable_name, function);
+        let callable = Self::from_sync_fn(&callable_name, function);
 
         #[cfg(not(feature = "experimental-threads"))]
-        let callable = Self::from_fn(callable_name, function);
+        let callable = Self::from_fn(&callable_name, function);
 
         callable
     }
@@ -161,14 +161,9 @@ impl Callable {
     where
         R: ToGodot,
         F: 'static + FnMut(&[&Variant]) -> R,
-        S: Into<CowStr>,
+        S: meta::AsArg<GString>,
     {
-        Self::from_fn_wrapper(
-            name.into(),
-            rust_function,
-            Some(std::thread::current().id()),
-            None,
-        )
+        Self::from_fn_wrapper(name, rust_function, Some(std::thread::current().id()), None)
     }
 
     /// Creates a new callable linked to the given object from **single-threaded** Rust function or closure.
@@ -184,10 +179,10 @@ impl Callable {
         R: ToGodot,
         T: GodotClass,
         F: 'static + FnMut(&[&Variant]) -> R,
-        S: Into<CowStr>,
+        S: meta::AsArg<GString>,
     {
         Self::from_fn_wrapper(
-            name.into(),
+            name,
             rust_function,
             Some(std::thread::current().id()),
             Some(linked_object.instance_id()),
@@ -201,12 +196,10 @@ impl Callable {
     pub fn from_local_fn<F, S>(name: S, mut rust_function: F) -> Self
     where
         F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: Into<CowStr>,
+        S: meta::AsArg<GString>,
     {
-        let name_cow = name.into();
-
         Self::from_fn_wrapper(
-            name_cow,
+            name,
             move |args| {
                 // Ignore errors.
                 rust_function(args).unwrap_or_else(|()| Variant::nil())
@@ -226,13 +219,11 @@ impl Callable {
     where
         R: ToGodot,
         F: 'static + FnOnce(&[&Variant]) -> R,
-        S: Into<CowStr>,
+        S: meta::AsArg<GString>,
     {
-        let name_cow = name.into();
-
         let mut rust_fn_once = Some(rust_function);
         Self::from_fn_wrapper(
-            name_cow,
+            name,
             move |args| {
                 let rust_fn_once = rust_fn_once
                     .take()
@@ -250,23 +241,19 @@ impl Callable {
     pub fn __once_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + FnOnce(&[&Variant]) -> Variant,
-        S: Into<CowStr>,
+        S: meta::AsArg<GString>,
     {
         Self::from_once_fn(name, rust_function)
     }
 
     pub(crate) fn with_scoped_fn<S, F, Fc, R>(name: S, rust_function: F, callable_usage: Fc) -> R
     where
-        S: Into<CowStr>,
+        S: meta::AsArg<GString>,
         F: FnMut(&[&Variant]) -> Variant,
         Fc: FnOnce(&Callable) -> R,
     {
-        let callable = Self::from_fn_wrapper(
-            name.into(),
-            rust_function,
-            Some(std::thread::current().id()),
-            None,
-        );
+        let callable =
+            Self::from_fn_wrapper(name, rust_function, Some(std::thread::current().id()), None);
 
         callable_usage(&callable)
     }
@@ -295,9 +282,9 @@ impl Callable {
     where
         R: ToGodot,
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> R,
-        S: Into<CowStr>,
+        S: meta::AsArg<GString>,
     {
-        Self::from_fn_wrapper(name.into(), rust_function, None, None)
+        Self::from_fn_wrapper(name, rust_function, None, None)
     }
 
     /// Create a highly configurable callable from Rust.
@@ -307,7 +294,7 @@ impl Callable {
         // Could theoretically use `dyn` but would need:
         // - double boxing
         // - a type-erased workaround for PartialEq supertrait (which has a `Self` type parameter and thus is not object-safe)
-        let userdata = CallableUserdata { inner: callable };
+        let userdata = CallableUserdata::new(callable);
 
         let info = CallableCustomInfo {
             // We could technically associate an object_id with the custom callable. is_valid_func would then check that for validity.
@@ -324,8 +311,8 @@ impl Callable {
         Self::from_custom_info(info)
     }
 
-    fn from_fn_wrapper<F, R>(
-        name: CowStr,
+    fn from_fn_wrapper<F, R, S>(
+        name: S,
         rust_function: F,
         thread_id: Option<ThreadId>,
         linked_object_id: Option<InstanceId>,
@@ -333,7 +320,10 @@ impl Callable {
     where
         F: FnMut(&[&Variant]) -> R,
         R: ToGodot,
+        S: meta::AsArg<GString>,
     {
+        meta::arg_into_owned!(name);
+
         let wrapper = FnWrapper {
             rust_function,
             name,
@@ -342,7 +332,7 @@ impl Callable {
         };
 
         let object_id = wrapper.linked_object_id();
-        let userdata = CallableUserdata { inner: wrapper };
+        let userdata = CallableUserdata::new(wrapper);
 
         let info = CallableCustomInfo {
             object_id,
@@ -607,6 +597,10 @@ mod custom_callable {
     }
 
     impl<T> CallableUserdata<T> {
+        pub fn new(inner: T) -> Self {
+            Self { inner }
+        }
+
         /// # Safety
         /// Returns an unbounded reference. `void_ptr` must be a valid pointer to a `CallableUserdata`.
         unsafe fn inner_from_raw<'a>(void_ptr: *mut std::ffi::c_void) -> &'a mut T {
@@ -617,7 +611,7 @@ mod custom_callable {
 
     pub(crate) struct FnWrapper<F> {
         pub(super) rust_function: F,
-        pub(super) name: CowStr,
+        pub(super) name: GString,
 
         /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
         pub(super) thread_id: Option<ThreadId>,
@@ -629,19 +623,6 @@ mod custom_callable {
         pub(crate) fn linked_object_id(&self) -> GDObjectInstanceID {
             self.linked_object_id.map(InstanceId::to_u64).unwrap_or(0)
         }
-    }
-
-    /// Returns the name for safeguard-enabled builds, or `"<optimized out>"` otherwise.
-    macro_rules! name_or_optimized {
-        ($($code:tt)*) => {
-            {
-                #[cfg(safeguards_balanced)]
-                { $($code)* }
-
-                #[cfg(not(safeguards_balanced))]
-                { "<optimized out>" }
-            }
-        };
     }
 
     /// Represents a custom callable object defined in Rust.
@@ -680,7 +661,7 @@ mod custom_callable {
     ) {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
-        let name = name_or_optimized! {
+        let name = {
             let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
             c.to_string()
         };
@@ -708,7 +689,8 @@ mod custom_callable {
         let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
         let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
-        let ctx = meta::CallContext::custom_callable(&w.name);
+        let name = w.name.to_string();
+        let ctx = meta::CallContext::custom_callable(&name);
 
         crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
             // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
@@ -729,36 +711,37 @@ mod custom_callable {
         });
     }
 
+    /** `T` here is entire object stored in [`CallableUserdata`], not just the actual [`RustCallable`] or closure instance. */
     pub unsafe extern "C" fn rust_callable_destroy<T>(callable_userdata: *mut std::ffi::c_void) {
         let rust_ptr = callable_userdata as *mut CallableUserdata<T>;
         let _drop = Box::from_raw(rust_ptr);
     }
 
-    pub unsafe extern "C" fn rust_callable_hash<T: Hash>(
+    pub unsafe extern "C" fn rust_callable_hash<C: RustCallable + Hash>(
         callable_userdata: *mut std::ffi::c_void,
     ) -> u32 {
-        let c: &T = CallableUserdata::<T>::inner_from_raw(callable_userdata);
+        let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
 
         // Just cut off top bits, not best-possible hash.
         sys::hash_value(c) as u32
     }
 
-    pub unsafe extern "C" fn rust_callable_equal<T: PartialEq>(
+    pub unsafe extern "C" fn rust_callable_equal<C: RustCallable + PartialEq>(
         callable_userdata_a: *mut std::ffi::c_void,
         callable_userdata_b: *mut std::ffi::c_void,
     ) -> sys::GDExtensionBool {
-        let a: &T = CallableUserdata::inner_from_raw(callable_userdata_a);
-        let b: &T = CallableUserdata::inner_from_raw(callable_userdata_b);
+        let a: &C = CallableUserdata::inner_from_raw(callable_userdata_a);
+        let b: &C = CallableUserdata::inner_from_raw(callable_userdata_b);
 
         sys::conv::bool_to_sys(a == b)
     }
 
-    pub unsafe extern "C" fn rust_callable_to_string_display<T: fmt::Display>(
+    pub unsafe extern "C" fn rust_callable_to_string_display<C: RustCallable + fmt::Display>(
         callable_userdata: *mut std::ffi::c_void,
         r_is_valid: *mut sys::GDExtensionBool,
         r_out: sys::GDExtensionStringPtr,
     ) {
-        let c: &T = CallableUserdata::inner_from_raw(callable_userdata);
+        let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
         let s = GString::from(&c.to_string());
 
         s.move_into_string_ptr(r_out);
@@ -770,19 +753,19 @@ mod custom_callable {
         r_is_valid: *mut sys::GDExtensionBool,
         r_out: sys::GDExtensionStringPtr,
     ) {
-        let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
-        let gstring = GString::from(w.name.as_ref());
+        let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
-        gstring.move_into_string_ptr(r_out);
+        // Clone is cheap (atomic refcount increment).
+        w.name.clone().move_into_string_ptr(r_out);
         *r_is_valid = sys::conv::SYS_TRUE;
     }
 
-    // Implementing this is necessary because the default (nullptr) may consider custom callables as invalid in some cases.
+    // Necessary to avoid false invalidity for custom callables with default callback.
     pub unsafe extern "C" fn rust_callable_is_valid_custom<C: RustCallable>(
         callable_userdata: *mut std::ffi::c_void,
     ) -> sys::GDExtensionBool {
-        let w: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
-        let valid = w.is_valid();
+        let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
+        let valid = c.is_valid();
 
         sys::conv::bool_to_sys(valid)
     }
