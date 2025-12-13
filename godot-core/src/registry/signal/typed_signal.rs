@@ -49,6 +49,14 @@ use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalRec
 ///
 /// # Generic programming and code reuse
 /// If you want to build higher-level abstractions that operate on `TypedSignal`, you will need the [`SignalReceiver`] trait.
+///
+/// # Availability
+/// For typed signals to be available, you need:
+/// - A `#[godot_api] impl MyClass {}` block.
+///     - This must be an inherent impl, the `I*`` trait `impl`` won't be enough.
+///     - Leave the impl empty if necessary.
+/// - A `Base<T>` field.
+/// Signals, typed or not, cannot be declared in secondary impl blocks (those annotated with `#[godot_api(secondary)]` attribute).
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
     object: C::__SignalObj<'c>,
@@ -186,7 +194,48 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     }
 
     /// Connect a method (member function) with `&mut self` as the first parameter.
-    ///
+    /// 
+    /// Example usage:
+    /// ```
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(base=Node,init)]
+/// # pub struct Player {
+/// #     health_ui: OnEditor<Gd<HealthUI>>,
+/// #     base: Base<Node>,
+/// # }
+/// # #[derive(GodotClass)]
+/// # #[class(base=Node2D,init)]
+/// # pub struct HealthUI {
+/// #     base: Base<Node2D>,
+/// # }
+/// # #[godot_api]
+/// # impl Player {
+/// #     #[signal]
+/// #     fn health_changed(health: i32);
+/// # }
+/// # impl Player {
+/// #     fn change_health_anim(&mut self, health: i32) {
+/// #         // if health > 0 cure anim, if health < 0 hit anim
+/// #     }
+/// # }
+/// # impl HealthUI {
+/// #     fn on_health_changed(&mut self, health: i32) {
+/// #         // Update healthbar
+/// #     }
+/// # }
+/// #[godot_api]
+/// impl INode for Player {
+///     fn ready(&mut self) {
+///         self.signals() // Connect to self
+///             .health_changed()
+///             .connect_self(Self::change_health_anim);
+///         self.signals() // Connect to other object
+///             .health_changed()
+///             .connect_self(|s, amount| s.health_ui.bind_mut().on_health_changed(amount));
+///     }
+/// }
+    /// ```
     /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
     /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
     pub fn connect_self<F, Declarer>(&self, mut function: F) -> ConnectHandle
@@ -215,6 +264,41 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     /// - `&OtherC`, as long as `OtherC` is a user class that contains a `base` field (it implements the
     ///   [`WithBaseField`][crate::obj::WithBaseField] trait).
     ///
+    /// Example usage:
+    /// ```
+    /// # #[derive(GodotClass)]
+    /// # #[class(base=Control,init)]
+    /// # pub struct OtherTool {
+    /// #     base: Base<Control>,
+    /// # }
+    /// # impl OtherTool {
+    /// #     fn disable_tool(&mut self) {}
+    /// # }
+    /// # #[derive(GodotClass)]
+    /// # #[class(base=Control,init)]
+    /// # pub struct Tool {
+    /// #     button: OnEditor<Gd<Button>>,
+    /// #     other_tool: OnEditor<Gd<OtherTool>>,
+    /// #     base: Base<Control>,
+    /// # }
+    /// # #[godot_api]
+    /// # impl Tool {
+    /// #     fn execute_tool(&mut self) {}
+    /// # }
+    /// #[godot_api]
+    /// impl IControl for Tool {
+    ///     fn ready(&mut self) {
+    ///         self.button // Connect from other to self
+    ///             .signals()
+    ///             .pressed()
+    ///             .connect_other(&self.to_gd(), Self::execute_tool);
+    ///         self.button // Connect from other to other
+    ///             .signals()
+    ///             .pressed()
+    ///             .connect_other(&*self.other_tool, OtherTool::disable_tool);
+    ///     }
+    /// }
+    /// ```
     /// ---
     ///
     /// - To connect to methods on the object that owns this signal, use [`connect_self()`][Self::connect_self].
