@@ -13,6 +13,7 @@ Its _GDExtension_ API allows integrating third-party languages and libraries.
 ## Philosophy
 
 The Rust binding is an alternative to GDScript, with a focus on type safety, scalability and performance.
+The two languages can be mixed in a project, and your custom Rust APIs can be called type-safely from GDScript.
 
 The primary goal of godot-rust is to provide a [**pragmatic Rust API**][philosophy] for game developers.
 
@@ -91,8 +92,8 @@ Keep in mind that we occasionally introduce breaking changes, motivated by impro
 minor and accompanied by migration guides. Our [crates.io releases][crates-io] adhere to SemVer, but lag a bit behind the `master` branch.
 See also [API stability] in the book.
 
-The vast majority of Godot APIs have been mapped to Rust. The current focus lies on a more natural Rust experience and enable more design
-patterns that come in handy for day-to-day game development. To counter bugs, we use an elaborate CI suite including clippy, unit tests,
+The vast majority of Godot APIs have been mapped to Rust. The current development focus lies on a more natural Rust experience, to enable
+design patterns that come in handy for day-to-day game development. To counter bugs, we use an elaborate CI suite including clippy, unit tests,
 engine integration tests and memory sanitizers. Even hot-reload is tested!
 
 At the moment, there is experimental support for [Wasm], [Android] and [iOS], but documentation and tooling is still lacking.
