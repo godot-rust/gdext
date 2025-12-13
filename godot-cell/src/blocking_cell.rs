@@ -17,7 +17,7 @@ use crate::cell::GdCellInner;
 /// Blocking version of [`panicking::GdCell`](crate::panicking::GdCell) for multithreaded usage.
 ///
 /// This version of GdCell blocks the current thread if it does not yet hold references to the cell.
-/// Since `GdCellInner` isn't thread-safe by itself, any access to `inner` should be guarded by the `thread_tracker`.
+/// Since `GdCellInner` isn't thread-safe by itself, any access to `inner` must be guarded by locking the `thread_tracker`.
 ///
 /// For more details on when threads are being blocked see [`Self::borrow`] and [`Self::borrow_mut`].
 ///
@@ -168,10 +168,11 @@ impl<T> GdCellBlocking<T> {
     }
 }
 
-// SAFETY: `T` is Sync, so we can return references to it on different threads.
-// It is also Send, so we can return mutable references to it on different threads.
-// Additionally, all internal state is synchronized via a mutex, so we won't have race conditions when trying to use it from multiple threads.
-unsafe impl<T: Send + Sync> Sync for GdCellBlocking<T> {}
+// SAFETY:
+// - `T` must not be `Sync`, and the only way to access the underlying `T` is via `GdCellBlocking`.
+// - It must be ensured that `GdCellInner`, which holds `T`, cannot be accessed from multiple threads simultaneously while handing out guards.
+// The current implementation ensures this by locking the `thread_tracker`.
+unsafe impl<T: Send> Sync for GdCellBlocking<T> {}
 
 /// Holds the reference count and the currently mutable thread.
 #[derive(Debug)]
