@@ -345,6 +345,18 @@ func test_phantom_var_writing_read_only():
 	obj.read_only = 1
 	assert_fail("HasPhantomVar.read_only should not be writable")
 
+func test_phantom_var_enum():
+	var obj := HasPhantomVar.new()
+
+	assert_eq(obj.read_write_engine_enum, VerticalAlignment.VERTICAL_ALIGNMENT_CENTER)
+	assert_eq(obj.read_write_bit_enum, KeyModifierMask.KEY_MASK_ALT | KeyModifierMask.KEY_MASK_CTRL)
+
+	obj.read_write_engine_enum = VerticalAlignment.VERTICAL_ALIGNMENT_TOP
+	obj.read_write_bit_enum = KeyModifierMask.KEY_MASK_ALT | KeyModifierMask.KEY_MASK_SHIFT
+
+	assert_eq(obj.read_write_engine_enum, VerticalAlignment.VERTICAL_ALIGNMENT_TOP)
+	assert_eq(obj.read_write_bit_enum, KeyModifierMask.KEY_MASK_ALT | KeyModifierMask.KEY_MASK_SHIFT)
+
 func test_option_export():
 	var obj := OptionExportFfiTest.new()
 

@@ -11,6 +11,7 @@
 
 use std::collections::HashSet;
 
+use heck::ToPascalCase;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
@@ -45,6 +46,7 @@ pub fn make_enum_definition_with(
     // Things needed for the type definition
     let derives = enum_.derives();
     let enum_doc = make_enum_doc(enum_);
+    let enum_hint_string = make_enum_hint_string(enum_);
     let name = &enum_.name;
 
     // Values
@@ -105,8 +107,27 @@ pub fn make_enum_definition_with(
 
         // Trait implementations.
         let engine_trait_impl = make_enum_engine_trait_impl(enum_, enum_bitmask.as_ref());
+        let property_hint = if enum_.is_bitfield {
+            quote! { crate::global::PropertyHint::FLAGS }
+        } else {
+            quote! { crate::global::PropertyHint::ENUM }
+        };
         let index_enum_impl = make_enum_index_impl(enum_);
         let bitwise_impls = make_enum_bitwise_operators(enum_, enum_bitmask.as_ref());
+
+        let var_trait_set_property = if enum_.is_exhaustive {
+            quote! {
+                fn set_property(&mut self, value: Self::Via) {
+                    *self = <Self as #engine_trait>::from_ord(value);
+                }
+            }
+        } else {
+            quote! {
+                fn set_property(&mut self, value: Self::Via) {
+                    self.ord = value;
+                }
+            }
+        };
 
         quote! {
             #engine_trait_impl
@@ -133,6 +154,23 @@ pub fn make_enum_definition_with(
                         .ok_or_else(|| crate::meta::error::FromGodotError::InvalidEnum.into_error(via as i64))
                 }
             }
+
+  impl crate::registry::property::Var for #name {
+      fn get_property(&self) -> Self::Via{
+          <Self as #engine_trait>::ord(*self)
+      }
+
+      #var_trait_set_property
+
+      fn var_hint() -> crate::meta::PropertyHintInfo{
+          crate::meta::PropertyHintInfo{
+              hint: #property_hint,
+              hint_string: crate::builtin::GString::from(#enum_hint_string),
+          }
+      }
+  }
+
+  impl crate::registry::property::Export for #name {}
         }
     });
 
@@ -482,6 +520,17 @@ fn make_enum_doc(enum_: &Enum) -> Vec<String> {
     }
 
     docs
+}
+/// Returns the hint string for the given enum.
+///
+/// e.g.: "Left,Center,Right,Fill"
+fn make_enum_hint_string(enum_: &Enum) -> String {
+    enum_
+        .enumerators
+        .iter()
+        .map(|enumerator| enumerator.name.to_string().to_pascal_case())
+        .collect::<Vec<String>>()
+        .join(",")
 }
 
 /// Creates a definition for `enumerator` of the type `enum_type`.
