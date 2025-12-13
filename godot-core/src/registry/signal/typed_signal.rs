@@ -197,44 +197,44 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     /// 
     /// Example usage:
     /// ```
-/// # use godot::prelude::*;
-/// # #[derive(GodotClass)]
-/// # #[class(base=Node,init)]
-/// # pub struct Player {
-/// #     health_ui: OnEditor<Gd<HealthUI>>,
-/// #     base: Base<Node>,
-/// # }
-/// # #[derive(GodotClass)]
-/// # #[class(base=Node2D,init)]
-/// # pub struct HealthUI {
-/// #     base: Base<Node2D>,
-/// # }
-/// # #[godot_api]
-/// # impl Player {
-/// #     #[signal]
-/// #     fn health_changed(health: i32);
-/// # }
-/// # impl Player {
-/// #     fn change_health_anim(&mut self, health: i32) {
-/// #         // if health > 0 cure anim, if health < 0 hit anim
-/// #     }
-/// # }
-/// # impl HealthUI {
-/// #     fn on_health_changed(&mut self, health: i32) {
-/// #         // Update healthbar
-/// #     }
-/// # }
-/// #[godot_api]
-/// impl INode for Player {
-///     fn ready(&mut self) {
-///         self.signals() // Connect to self
-///             .health_changed()
-///             .connect_self(Self::change_health_anim);
-///         self.signals() // Connect to other object
-///             .health_changed()
-///             .connect_self(|s, amount| s.health_ui.bind_mut().on_health_changed(amount));
-///     }
-/// }
+    /// # use godot::prelude::*;
+    /// # #[derive(GodotClass)]
+    /// # #[class(base=Node,init)]
+    /// # pub struct Player {
+    /// #     health_ui: OnEditor<Gd<HealthUI>>,
+    /// #     base: Base<Node>,
+    /// # }
+    /// # #[derive(GodotClass)]
+    /// # #[class(base=Node2D,init)]
+    /// # pub struct HealthUI {
+    /// #     base: Base<Node2D>,
+    /// # }
+    /// # #[godot_api]
+    /// # impl Player {
+    /// #     #[signal]
+    /// #     fn health_changed(health: i32);
+    /// # }
+    /// # impl Player {
+    /// #     fn change_health_anim(&mut self, health: i32) {
+    /// #         // if health > 0 cure anim, if health < 0 hit anim
+    /// #     }
+    /// # }
+    /// # impl HealthUI {
+    /// #     fn on_health_changed(&mut self, health: i32) {
+    /// #         // Update healthbar
+    /// #     }
+    /// # }
+    /// #[godot_api]
+    /// impl INode for Player {
+    ///     fn ready(&mut self) {
+    ///         self.signals() // Connect to self
+    ///             .health_changed()
+    ///             .connect_self(Self::change_health_anim);
+    ///         self.signals() // Connect to other object
+    ///             .health_changed()
+    ///             .connect_self(|s, amount| s.health_ui.bind_mut().on_health_changed(amount));
+    ///     }
+    /// }
     /// ```
     /// - To connect to methods on other objects, use [`connect_other()`][Self::connect_other].
     /// - If you need [`connect flags`](ConnectFlags) or cross-thread signals, use [`builder()`][Self::builder].
@@ -271,21 +271,21 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     /// # pub struct OtherTool {
     /// #     base: Base<Control>,
     /// # }
-    /// # impl OtherTool {
-    /// #     fn disable_tool(&mut self) {}
-    /// # }
-    /// # #[derive(GodotClass)]
-    /// # #[class(base=Control,init)]
-    /// # pub struct Tool {
-    /// #     button: OnEditor<Gd<Button>>,
-    /// #     other_tool: OnEditor<Gd<OtherTool>>,
-    /// #     base: Base<Control>,
-    /// # }
-    /// # #[godot_api]
-    /// # impl Tool {
-    /// #     fn execute_tool(&mut self) {}
-    /// # }
-    /// #[godot_api]
+    ///# impl OtherTool {
+    ///#     fn set_tool_enabled(&mut self, value: bool) {}
+    ///# }
+    ///# #[derive(GodotClass)]
+    ///# #[class(base=Control,init)]
+    ///# pub struct Tool {
+    ///#     button: OnEditor<Gd<Button>>,
+    ///#     other_tool: OnEditor<Gd<OtherTool>>,
+    ///#     base: Base<Control>,
+    ///# }
+    ///# #[godot_api]
+    ///# impl Tool {
+    ///#     fn execute_tool(&mut self) {}
+    ///# }
+    ///# #[godot_api]
     /// impl IControl for Tool {
     ///     fn ready(&mut self) {
     ///         self.button // Connect from other to self
@@ -295,7 +295,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     ///         self.button // Connect from other to other
     ///             .signals()
     ///             .pressed()
-    ///             .connect_other(&*self.other_tool, OtherTool::disable_tool);
+    ///             .connect_other(&*self.other_tool, |tool| tool.set_tool_enabled(false));
     ///     }
     /// }
     /// ```
