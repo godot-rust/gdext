@@ -90,12 +90,14 @@ impl<'a, T> Deref for MutGuardBlocking<'a, T> {
     type Target = <MutGuard<'a, T> as Deref>::Target;
 
     fn deref(&self) -> &Self::Target {
+        let _tracker_guard = self.state.lock().unwrap();
         self.inner.deref().deref()
     }
 }
 
 impl<T> DerefMut for MutGuardBlocking<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        let _tracker_guard = self.state.lock().unwrap();
         self.inner.deref_mut().deref_mut()
     }
 }
@@ -135,17 +137,15 @@ impl<'a, T> InaccessibleGuardBlocking<'a, T> {
     /// logic may poison state, however it should not cause any UB either way.
     ///
     /// See [`panicking::InaccessibleGuard::try_drop`](crate::panicking::InaccessibleGuard::try_drop) for more details.
-    pub fn try_drop(self) -> Result<(), ManuallyDrop<Self>> {
-        let mut manual = ManuallyDrop::new(self);
+    pub fn try_drop(self) -> Result<(), Self> {
         let can_drop = {
-            let _guard = manual.state.lock();
-            manual.inner.can_drop()
+            let _tracker_guard = self.state.lock();
+            self.inner.can_drop()
         };
 
         if !can_drop {
-            Err(manual)
+            Err(self)
         } else {
-            unsafe { ManuallyDrop::drop(&mut manual) };
             Ok(())
         }
     }
@@ -153,8 +153,8 @@ impl<'a, T> InaccessibleGuardBlocking<'a, T> {
 
 impl<T> Drop for InaccessibleGuardBlocking<'_, T> {
     fn drop(&mut self) {
-        let state_lock = self.state.lock().unwrap();
+        let _tracker_guard = self.state.lock().unwrap();
         unsafe { ManuallyDrop::drop(&mut self.inner) };
-        drop(state_lock)
+        drop(_tracker_guard)
     }
 }
