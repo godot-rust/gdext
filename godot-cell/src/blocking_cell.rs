@@ -11,13 +11,13 @@ use std::pin::Pin;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread;
 
-use crate::blocking_guards::{MutGuardBlocking, RefGuardBlocking};
+use crate::blocking_guards::{InaccessibleGuardBlocking, MutGuardBlocking, RefGuardBlocking};
 use crate::cell::GdCellInner;
-use crate::guards::InaccessibleGuard;
 
 /// Blocking version of [`panicking::GdCell`](crate::panicking::GdCell) for multithreaded usage.
 ///
 /// This version of GdCell blocks the current thread if it does not yet hold references to the cell.
+/// Since `GdCellInner` isn't thread-safe by itself, any access to `inner` should be guarded by the `thread_tracker`.
 ///
 /// For more details on when threads are being blocked see [`Self::borrow`] and [`Self::borrow_mut`].
 ///
@@ -107,6 +107,7 @@ impl<T> GdCellBlocking<T> {
             inner_guard,
             self.mut_condition.clone(),
             self.immut_condition.clone(),
+            self.thread_tracker.clone(),
         ))
     }
 
@@ -119,11 +120,14 @@ impl<T> GdCellBlocking<T> {
     pub fn make_inaccessible<'cell, 'val>(
         &'cell self,
         current_ref: &'val mut T,
-    ) -> Result<InaccessibleGuard<'val, T>, Box<dyn Error>>
+    ) -> Result<InaccessibleGuardBlocking<'val, T>, Box<dyn Error>>
     where
         'cell: 'val,
     {
-        self.inner.as_ref().make_inaccessible(current_ref)
+        let _tracker_guard = self.thread_tracker.lock().unwrap();
+        let inner = self.inner.as_ref().make_inaccessible(current_ref)?;
+        let inaccessible = InaccessibleGuardBlocking::new(inner, self.thread_tracker.clone());
+        Ok(inaccessible)
     }
 
     /// Returns `true` if there are any mutable or shared references, regardless of whether the mutable
@@ -163,6 +167,11 @@ impl<T> GdCellBlocking<T> {
         tracker_guard
     }
 }
+
+// SAFETY: `T` is Sync, so we can return references to it on different threads.
+// It is also Send, so we can return mutable references to it on different threads.
+// Additionally, all internal state is synchronized via a mutex, so we won't have race conditions when trying to use it from multiple threads.
+unsafe impl<T: Send + Sync> Sync for GdCellBlocking<T> {}
 
 /// Holds the reference count and the currently mutable thread.
 #[derive(Debug)]
