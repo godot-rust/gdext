@@ -255,6 +255,12 @@ impl<'a, T> InaccessibleGuard<'a, T> {
         state.pop_ptr(prev_ptr);
     }
 
+    #[doc(hidden)]
+    pub fn can_drop(&self) -> bool {
+        let state = unsafe { self.state.get().as_mut() }.unwrap();
+        state.borrow_state.may_unset_inaccessible() || state.stack_depth == self.stack_depth
+    }
+
     /// Drop self if possible, otherwise returns self again.
     ///
     /// Used currently in the mock-tests, as we need a thread safe way to drop self. Using the normal drop
@@ -262,8 +268,7 @@ impl<'a, T> InaccessibleGuard<'a, T> {
     #[doc(hidden)]
     pub fn try_drop(self) -> Result<(), std::mem::ManuallyDrop<Self>> {
         let manual = std::mem::ManuallyDrop::new(self);
-        let state = unsafe { manual.state.get().as_mut() }.unwrap();
-        if !state.borrow_state.may_unset_inaccessible() || state.stack_depth != manual.stack_depth {
+        if !manual.can_drop() {
             return Err(manual);
         }
         Self::perform_drop(manual.state, manual.prev_ptr, manual.stack_depth);

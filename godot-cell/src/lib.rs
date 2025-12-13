@@ -43,6 +43,8 @@ pub mod panicking {
 
 pub mod blocking {
     pub use crate::blocking_cell::GdCellBlocking as GdCell;
-    pub use crate::blocking_guards::{MutGuardBlocking as MutGuard, RefGuardBlocking as RefGuard};
-    pub use crate::guards::InaccessibleGuard;
+    pub use crate::blocking_guards::{
+        InaccessibleGuardBlocking as InaccessibleGuard, MutGuardBlocking as MutGuard,
+        RefGuardBlocking as RefGuard,
+    };
 }

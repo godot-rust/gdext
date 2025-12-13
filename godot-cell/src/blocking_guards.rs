@@ -11,6 +11,7 @@ use std::sync::{Arc, Condvar, Mutex};
 
 use crate::blocking_cell::ThreadTracker;
 use crate::guards::{MutGuard, RefGuard};
+use crate::panicking::InaccessibleGuard;
 
 /// Extended version of [`panicking::RefGuard`](crate::panicking::RefGuard) that tracks which thread a reference belongs to and when it's dropped.
 ///
@@ -50,7 +51,7 @@ impl<T> Drop for RefGuardBlocking<'_, T> {
 
         state_lock.decrement_current_thread_shared_count();
 
-        // SAFETY: guard is dropped exactly once, here.
+        // SAFETY: guard is dropped exactly once, here, while state is guarded by `_tracker_guard` preventing access from any other thread.
         unsafe { ManuallyDrop::drop(&mut self.inner) };
 
         self.mut_condition.notify_one();
@@ -66,6 +67,7 @@ pub struct MutGuardBlocking<'a, T> {
     inner: ManuallyDrop<MutGuard<'a, T>>,
     mut_condition: Arc<Condvar>,
     immut_condition: Arc<Condvar>,
+    state: Arc<Mutex<ThreadTracker>>,
 }
 
 impl<'a, T> MutGuardBlocking<'a, T> {
@@ -73,11 +75,13 @@ impl<'a, T> MutGuardBlocking<'a, T> {
         inner: MutGuard<'a, T>,
         mut_condition: Arc<Condvar>,
         immut_condition: Arc<Condvar>,
+        state: Arc<Mutex<ThreadTracker>>,
     ) -> Self {
         Self {
             inner: ManuallyDrop::new(inner),
             immut_condition,
             mut_condition,
+            state,
         }
     }
 }
@@ -98,10 +102,59 @@ impl<T> DerefMut for MutGuardBlocking<'_, T> {
 
 impl<T> Drop for MutGuardBlocking<'_, T> {
     fn drop(&mut self) {
-        // SAFETY: guard is dropped exactly once, here.
+        let _tracker_guard = self.state.lock().unwrap();
+
+        // SAFETY: guard is dropped exactly once, here, while state is guarded by `_tracker_guard` preventing access from any other thread.
         unsafe { ManuallyDrop::drop(&mut self.inner) };
 
         self.mut_condition.notify_one();
         self.immut_condition.notify_all();
+    }
+}
+
+/// Extended version of [`panicking::InaccessibleGuard`](crate::panicking::InaccessibleGuard) that blocks thread upon dropping.
+///
+/// See [`panicking::InaccessibleGuard`](crate::panicking::InaccessibleGuard) for more details.
+#[derive(Debug)]
+pub struct InaccessibleGuardBlocking<'a, T> {
+    inner: ManuallyDrop<InaccessibleGuard<'a, T>>,
+    state: Arc<Mutex<ThreadTracker>>,
+}
+
+impl<'a, T> InaccessibleGuardBlocking<'a, T> {
+    pub(crate) fn new(inner: InaccessibleGuard<'a, T>, state: Arc<Mutex<ThreadTracker>>) -> Self {
+        Self {
+            inner: ManuallyDrop::new(inner),
+            state,
+        }
+    }
+
+    /// Drop self if possible, otherwise returns self again.
+    ///
+    /// Used currently in the mock-tests, as we need a thread safe way to drop self. Using the normal drop
+    /// logic may poison state, however it should not cause any UB either way.
+    ///
+    /// See [`panicking::InaccessibleGuard::try_drop`](crate::panicking::InaccessibleGuard::try_drop) for more details.
+    pub fn try_drop(self) -> Result<(), ManuallyDrop<Self>> {
+        let mut manual = ManuallyDrop::new(self);
+        let can_drop = {
+            let _guard = manual.state.lock();
+            manual.inner.can_drop()
+        };
+
+        if !can_drop {
+            Err(manual)
+        } else {
+            unsafe { ManuallyDrop::drop(&mut manual) };
+            Ok(())
+        }
+    }
+}
+
+impl<T> Drop for InaccessibleGuardBlocking<'_, T> {
+    fn drop(&mut self) {
+        let state_lock = self.state.lock().unwrap();
+        unsafe { ManuallyDrop::drop(&mut self.inner) };
+        drop(state_lock)
     }
 }
