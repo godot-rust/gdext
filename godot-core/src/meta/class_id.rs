@@ -211,7 +211,7 @@ struct ClassIdEntry {
 }
 
 impl ClassIdEntry {
-    fn new(rust_str: CowStr) -> Self {
+    const fn new(rust_str: CowStr) -> Self {
         Self {
             rust_str,
             godot_str: OnceCell::new(),

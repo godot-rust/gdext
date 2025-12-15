@@ -14,7 +14,9 @@ use godot::obj::{Base, Gd, InstanceId, NewGd, Singleton, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::task::TaskHandle;
 
-use crate::framework::{expect_panic, itest, next_frame};
+#[cfg(safeguards_balanced)]
+use crate::framework::expect_panic;
+use crate::framework::{itest, next_frame};
 use crate::object_tests::base_test::{Based, RefcBased};
 
 #[itest]

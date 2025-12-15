@@ -11,7 +11,7 @@ use godot::obj::bounds::implement_godot_bounds;
 use godot::obj::GodotClass;
 use godot::sys;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::itest;
 
 struct A;
 struct U;
@@ -151,6 +151,8 @@ fn class_name_debug() {
 #[cfg(safeguards_balanced)]
 #[itest]
 fn class_name_alloc_panic() {
+    use crate::framework::expect_panic;
+
     // ASCII.
     {
         let _1st = ClassId::__alloc_next_unicode("DuplicateTestClass");

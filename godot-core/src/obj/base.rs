@@ -304,12 +304,6 @@ impl<T: GodotClass> Base<T> {
         self.init_state.get() == InitState::ObjectConstructing
     }
 
-    /// Always returns `false` when balanced safeguards are disabled.
-    #[cfg(not(safeguards_balanced))]
-    fn is_initializing(&self) -> bool {
-        false
-    }
-
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
     #[doc(hidden)]
     pub fn __constructed_gd(&self) -> Gd<T> {
