@@ -23,10 +23,22 @@ pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
     // If you have an idea to address this without too invasive changes, please comment on that issue.
     let cargo_cfg = bindgen::CargoCallbacks::new().rerun_on_header_files(false);
 
+    // Only disable layout tests when cross-compiling between different pointer widths.
+    // Layout tests are generated based on the host architecture but validated on the target,
+    // which causes failures when cross-compiling (e.g., from 64-bit host to 32-bit target)
+    // because struct sizes differ. See: https://github.com/godot-rust/gdext/issues/347.
+    let host_pointer_width = std::mem::size_of::<usize>() * 8;
+    let target_pointer_width: usize = env::var("CARGO_CFG_TARGET_POINTER_WIDTH")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(host_pointer_width);
+    let enable_layout_tests = host_pointer_width == target_pointer_width;
+
     let builder = bindgen::Builder::default()
         .header(c_header_path)
         .parse_callbacks(Box::new(cargo_cfg))
         .prepend_enum_name(false)
+        .layout_tests(enable_layout_tests)
         // Bindgen can generate wrong size checks for types defined as `__attribute__((aligned(__alignof__(struct {...}))))`,
         // which is how clang defines max_align_t: https://clang.llvm.org/doxygen/____stddef__max__align__t_8h_source.html.
         // Size checks seems to be fine on all the targets but `wasm32-unknown-emscripten`, disallowing web builds.

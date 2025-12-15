@@ -130,9 +130,85 @@ mod depend_on_prebuilt {
         watch.record("write_header_h");
 
         let rs_contents = prebuilt::load_gdextension_header_rs();
-        std::fs::write(rs_path, rs_contents.as_ref())
+
+        // Prebuilt bindings are generated for 64-bit. When targeting 32-bit, we must strip
+        // the layout assertions since they validate 64-bit struct sizes which don't match.
+        // For native 64-bit builds, we keep the safety checks intact.
+        // See: https://github.com/godot-rust/gdext/issues/347
+        let target_pointer_width = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH")
+            .expect("CARGO_CFG_TARGET_POINTER_WIDTH not set");
+        let rs_contents = if target_pointer_width == "32" {
+            strip_bindgen_layout_tests(rs_contents.as_ref())
+        } else {
+            rs_contents.to_string()
+        };
+
+        std::fs::write(rs_path, rs_contents)
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
         watch.record("write_header_rs");
+    }
+
+    /// Removes bindgen-generated layout test assertion blocks from the source code.
+    ///
+    /// Bindgen generates compile-time assertions in blocks like:
+    /// ```ignore
+    /// const _: () = {
+    ///     ["Size of SomeStruct"][::std::mem::size_of::<SomeStruct>() - 48usize];
+    ///     ["Alignment of SomeStruct"][::std::mem::align_of::<SomeStruct>() - 8usize];
+    /// };
+    /// ```
+    ///
+    /// These cause compile-time errors when cross-compiling between 32-bit and 64-bit targets
+    /// because struct sizes differ based on pointer width.
+    /// See: https://github.com/godot-rust/gdext/issues/347
+    fn strip_bindgen_layout_tests(source: &str) -> String {
+        let mut result = String::with_capacity(source.len());
+        let mut in_const_block = false;
+        let mut brace_depth = 0;
+
+        for line in source.lines() {
+            let trimmed = line.trim();
+
+            // Detect start of a const assertion block.
+            // Pattern: `const _: () = {` or with #[allow(...)] attributes before.
+            if !in_const_block && trimmed.starts_with("const _: () = {") {
+                in_const_block = true;
+                brace_depth = 1;
+                continue;
+            }
+
+            // Skip lines with #[allow(...)] that precede const blocks.
+            if !in_const_block
+                && trimmed.starts_with("#[allow(")
+                && trimmed.contains("clippy::unnecessary_operation")
+            {
+                continue;
+            }
+
+            if in_const_block {
+                // Track brace depth to find the end of the block.
+                for ch in trimmed.chars() {
+                    match ch {
+                        '{' => brace_depth += 1,
+                        '}' => {
+                            brace_depth -= 1;
+                            if brace_depth == 0 {
+                                in_const_block = false;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                continue; // Skip all lines inside the const block.
+            }
+
+            // Keep all other lines.
+            result.push_str(line);
+            result.push('\n');
+        }
+
+        result
     }
 
     pub(crate) fn get_godot_version() -> GodotVersion {
