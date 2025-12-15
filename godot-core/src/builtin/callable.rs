@@ -163,7 +163,7 @@ impl Callable {
         F: 'static + FnMut(&[&Variant]) -> R,
         S: Into<CowStr>,
     {
-        Self::from_fn_wrapper(name, rust_function, Some(std::thread::current().id()), None)
+        Self::from_fn_wrapper(name, rust_function, None)
     }
 
     /// Creates a new callable linked to the given object from **single-threaded** Rust function or closure.
@@ -181,12 +181,7 @@ impl Callable {
         F: 'static + FnMut(&[&Variant]) -> R,
         S: Into<CowStr>,
     {
-        Self::from_fn_wrapper(
-            name,
-            rust_function,
-            Some(std::thread::current().id()),
-            Some(linked_object.instance_id()),
-        )
+        Self::from_fn_wrapper(name, rust_function, Some(linked_object.instance_id()))
     }
 
     /// This constructor is being phased out in favor of [`from_fn()`][Self::from_fn], but kept through v0.4 for smoother migration.
@@ -204,7 +199,6 @@ impl Callable {
                 // Ignore errors.
                 rust_function(args).unwrap_or_else(|()| Variant::nil())
             },
-            Some(std::thread::current().id()),
             None,
         )
     }
@@ -231,7 +225,6 @@ impl Callable {
 
                 rust_fn_once(args)
             },
-            Some(std::thread::current().id()),
             None,
         )
     }
@@ -252,8 +245,7 @@ impl Callable {
         F: FnMut(&[&Variant]) -> Variant,
         Fc: FnOnce(&Callable) -> R,
     {
-        let callable =
-            Self::from_fn_wrapper(name, rust_function, Some(std::thread::current().id()), None);
+        let callable = Self::from_fn_wrapper(name, rust_function, None);
 
         callable_usage(&callable)
     }
@@ -284,7 +276,7 @@ impl Callable {
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> R,
         S: Into<CowStr>,
     {
-        Self::from_fn_wrapper(name, rust_function, None, None)
+        Self::from_fn_wrapper_with_thread(name, rust_function, None, None)
     }
 
     /// Create a highly configurable callable from Rust.
@@ -314,8 +306,27 @@ impl Callable {
     fn from_fn_wrapper<F, R, S>(
         name: S,
         rust_function: F,
-        thread_id: Option<std::thread::ThreadId>,
         linked_object_id: Option<InstanceId>,
+    ) -> Self
+    where
+        F: FnMut(&[&Variant]) -> R,
+        R: ToGodot,
+        S: Into<CowStr>,
+    {
+        Self::from_fn_wrapper_with_thread(
+            name,
+            rust_function,
+            linked_object_id,
+            #[cfg(safeguards_balanced)]
+            Some(std::thread::current().id()),
+        )
+    }
+
+    fn from_fn_wrapper_with_thread<F, R, S>(
+        name: S,
+        rust_function: F,
+        linked_object_id: Option<InstanceId>,
+        #[cfg(safeguards_balanced)] thread_id: Option<std::thread::ThreadId>,
     ) -> Self
     where
         F: FnMut(&[&Variant]) -> R,
@@ -328,6 +339,7 @@ impl Callable {
             rust_function,
             name,
             name_cached: OnceLock::new(),
+            #[cfg(safeguards_balanced)]
             thread_id,
             linked_object_id,
         };
@@ -619,7 +631,8 @@ mod custom_callable {
         /// `Sync`. Could be split into separate single/multi-threaded locks, but atomic overhead of `OnceLock` is good enough for now.
         pub(super) name_cached: OnceLock<GString>,
 
-        /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
+        /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).       
+        #[cfg(safeguards_balanced)]
         pub(super) thread_id: Option<std::thread::ThreadId>,
 
         /// `None` if callable is not linked with any object.
