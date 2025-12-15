@@ -24,6 +24,8 @@ pub struct FieldVar {
     pub setter: GetterSetter,
     pub hint: FieldHint,
     pub usage_flags: UsageFlags,
+    /// Whether this property is marked with `#[var(override)]`.
+    pub marked_override: bool,
     pub span: Span,
 }
 
@@ -36,12 +38,14 @@ impl FieldVar {
     /// - `set = expr`
     /// - `hint = ident`
     /// - `hint_string = expr`
-    /// - `usage_flags =
+    /// - `usage_flags = [...]`
+    /// - `override`
     pub(crate) fn new_from_kv(parser: &mut KvParser) -> ParseResult<Self> {
         let span = parser.span();
         let rename = parser.handle_ident("rename")?;
         let getter = GetterSetter::parse(parser, "get")?;
         let setter = GetterSetter::parse(parser, "set")?;
+        let marked_override = parser.handle_alone("override")?;
 
         let hint = parser.handle_ident("hint")?;
 
@@ -73,6 +77,7 @@ impl FieldVar {
             setter,
             hint,
             usage_flags,
+            marked_override,
             span,
         })
     }
@@ -94,6 +99,7 @@ impl Default for FieldVar {
             setter: Default::default(),
             hint: Default::default(),
             usage_flags: Default::default(),
+            marked_override: false,
             span: Span::call_site(),
         }
     }

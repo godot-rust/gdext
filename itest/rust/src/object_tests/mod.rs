@@ -27,6 +27,7 @@ mod property_template_test;
 mod property_test;
 mod reentrant_test;
 mod singleton_test;
+mod var_override_test;
 // `validate_property` is only supported in Godot 4.2+.
 mod base_init_test;
 mod validate_property_test;

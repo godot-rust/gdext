@@ -82,6 +82,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             setter,
             hint,
             mut usage_flags,
+            marked_override,
             ..
         } = var;
 
@@ -181,6 +182,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 #setter_tokens,
                 #hint,
                 #usage_flags,
+                #marked_override,
             );
 
             // Register property in metadata registry.

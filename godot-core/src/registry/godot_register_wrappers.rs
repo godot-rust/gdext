@@ -23,6 +23,7 @@ pub fn register_export<C: GodotClass, T: Export>(
     setter_name: &str,
     hint_info: PropertyHintInfo,
     usage: PropertyUsageFlags,
+    marked_override: bool,
 ) {
     // Note: if the user manually specifies `hint`, `hint_string` or `usage` keys, and thus is routed to `register_var()` instead,
     // they can bypass this validation.
@@ -36,7 +37,14 @@ pub fn register_export<C: GodotClass, T: Export>(
         }
     }
 
-    register_var::<C, T>(property_name, getter_name, setter_name, hint_info, usage);
+    register_var::<C, T>(
+        property_name,
+        getter_name,
+        setter_name,
+        hint_info,
+        usage,
+        marked_override,
+    );
 }
 
 pub fn register_var<C: GodotClass, T: Var>(
@@ -45,7 +53,11 @@ pub fn register_var<C: GodotClass, T: Var>(
     setter_name: &str,
     hint_info: PropertyHintInfo,
     usage: PropertyUsageFlags,
+    marked_override: bool,
 ) {
+    // Validate override flag against base class properties.
+    validate_property_override::<C>(property_name, marked_override);
+
     let info = PropertyInfo {
         variant_type: <<T as GodotConvert>::Via as GodotType>::Ffi::VARIANT_TYPE.variant_as_nil(),
         class_id: <T as GodotConvert>::Via::class_id(),
@@ -109,4 +121,61 @@ pub fn register_subgroup<C: GodotClass>(subgroup_name: &str, prefix: &str) {
             prefix.string_sys(),
         );
     }
+}
+
+/// Validates property override at runtime.
+///
+/// Future improvement: Generate property symbols per class to enable compile-time validation; similar to virtual method hashes in
+/// `godot-codegen/src/generator/virtual_definitions.rs`.
+///
+/// This would create modules like:
+/// ```ignore
+/// pub mod Node {
+///     pub const name: &str = "name";
+///     pub const position: &str = "position";
+///     pub use super::Object::*; // Inherit parent properties
+/// }
+/// ```
+/// Then macros could check `<Base as GodotClass>::PropertySymbols::name` at compile time.
+fn validate_property_override<C: GodotClass>(property_name: &str, marked_override: bool) {
+    // Check if property exists in base class by querying property list.
+    let base_has_property = check_base_has_property::<C::Base>(property_name);
+
+    if marked_override && !base_has_property {
+        panic!(
+            "Property `{}` in class `{}` has #[var(override)], but neither direct base class `{}`\n\
+            nor any indirect one has a property with that name.",
+            property_name,
+            C::class_id(),
+            C::Base::class_id()
+        );
+    }
+
+    if !marked_override && base_has_property {
+        panic!(
+            "Property `{}` in class `{}` overrides property from base class `{}`, but is missing #[var(override)].\n\
+            Add #[var(override)] to explicitly indicate this override is intentional.",
+            property_name,
+            C::class_id(),
+            C::Base::class_id()
+        );
+    }
+}
+
+/// Checks if a base class has a property with the given name.
+fn check_base_has_property<Base: GodotClass>(property_name: &str) -> bool {
+    use crate::builtin::{GString, StringName};
+    use crate::classes::ClassDb;
+    use crate::obj::Singleton;
+
+    // Try to get property list from ClassDB first (more efficient, no object creation needed).
+    let class_name: StringName = Base::class_id().to_string_name();
+    let class_db = ClassDb::singleton();
+    let property_list = class_db.class_get_property_list(&class_name);
+
+    property_list.iter_shared().any(|dict| {
+        dict.get("name")
+            .and_then(|v| v.try_to::<GString>().ok())
+            .is_some_and(|name| name == property_name)
+    })
 }
