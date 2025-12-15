@@ -213,6 +213,24 @@ jobs:
       - name: "Test"
         run: cargo test -p godot-cell --features="proptest"
 
+  # Verifies that the library compiles for wasm32, which is a 32-bit target.
+  # This catches regressions in 32-bit support (e.g., pointer width assumptions).
+  # See https://github.com/godot-rust/gdext/issues/347.
+  wasm-check:
+    name: wasm-check
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+
+      - name: "Add wasm target"
+        run: rustup target add wasm32-unknown-emscripten
+
+      - name: "Check wasm32 compilation (32-bit target)"
+        run: cargo check --target wasm32-unknown-emscripten -p godot --features experimental-wasm,experimental-wasm-nothreads
+
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
     name: godot-itest (${{ matrix.name }})
@@ -493,6 +511,7 @@ jobs:
       - unit-test
       - miri-test
       - proptest
+      - wasm-check
       - godot-itest
       - cargo-deny-machete
       - license-guard
