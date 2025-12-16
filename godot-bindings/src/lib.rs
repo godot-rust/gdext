@@ -69,6 +69,38 @@ mod depend_on_custom {
         godot_exe::write_gdextension_headers(h_path, rs_path, true, watch);
     }
 
+    // Re-export types for prebuilt artifact generation.
+    #[cfg(feature = "api-custom-extheader")]
+    pub use header_gen::TargetPointerWidth;
+
+    /// Generate Rust bindings for a specific target pointer width.
+    ///
+    /// This function is intended for the prebuilt artifact generator (godot4-prebuilt)
+    /// to produce bindings for both 32-bit and 64-bit architectures from a single host.
+    ///
+    /// # Example (in godot4-prebuilt generator)
+    /// ```ignore
+    /// use godot_bindings::{write_gdextension_headers_for_target, TargetPointerWidth};
+    ///
+    /// // Generate 64-bit bindings
+    /// write_gdextension_headers_for_target(h_path, rs_64_path, TargetPointerWidth::Bits64);
+    ///
+    /// // Generate 32-bit bindings
+    /// write_gdextension_headers_for_target(h_path, rs_32_path, TargetPointerWidth::Bits32);
+    /// ```
+    #[cfg(feature = "api-custom-extheader")]
+    pub fn write_gdextension_headers_for_target(
+        h_path: &Path,
+        rs_path: &Path,
+        target_width: header_gen::TargetPointerWidth,
+    ) {
+        // Patch the C header first (same as write_gdextension_headers_from_c).
+        godot_exe::patch_c_header(h_path, h_path);
+
+        // Generate bindings for the specified target.
+        header_gen::generate_rust_binding_for_target(h_path, rs_path, target_width);
+    }
+
     pub(crate) fn get_godot_version() -> GodotVersion {
         godot_exe::read_godot_version(&godot_exe::locate_godot_binary())
     }
@@ -123,92 +155,25 @@ mod depend_on_prebuilt {
     }
 
     pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
-        // Note: prebuilt artifacts just return a static str.
         let h_contents = prebuilt::load_gdextension_header_h();
         std::fs::write(h_path, h_contents.as_ref())
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
         watch.record("write_header_h");
 
-        let rs_contents = prebuilt::load_gdextension_header_rs();
+        // Use CARGO_CFG_TARGET_POINTER_WIDTH to select the correct bindings for cross-compilation.
+        // This is set by Cargo to the target's pointer width, not the host's.
+        let target_pointer_width =
+            std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_else(|_| "64".to_string());
 
-        // Prebuilt bindings are generated for 64-bit. When targeting 32-bit, we must strip
-        // the layout assertions since they validate 64-bit struct sizes which don't match.
-        // For native 64-bit builds, we keep the safety checks intact.
-        // See: https://github.com/godot-rust/gdext/issues/347
-        let target_pointer_width = std::env::var("CARGO_CFG_TARGET_POINTER_WIDTH")
-            .expect("CARGO_CFG_TARGET_POINTER_WIDTH not set");
         let rs_contents = if target_pointer_width == "32" {
-            strip_bindgen_layout_tests(rs_contents.as_ref())
+            prebuilt::load_gdextension_header_rs_32()
         } else {
-            rs_contents.to_string()
+            prebuilt::load_gdextension_header_rs_64()
         };
 
-        std::fs::write(rs_path, rs_contents)
+        std::fs::write(rs_path, rs_contents.as_ref())
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
         watch.record("write_header_rs");
-    }
-
-    /// Removes bindgen-generated layout test assertion blocks from the source code.
-    ///
-    /// Bindgen generates compile-time assertions in blocks like:
-    /// ```ignore
-    /// const _: () = {
-    ///     ["Size of SomeStruct"][::std::mem::size_of::<SomeStruct>() - 48usize];
-    ///     ["Alignment of SomeStruct"][::std::mem::align_of::<SomeStruct>() - 8usize];
-    /// };
-    /// ```
-    ///
-    /// These cause compile-time errors when cross-compiling between 32-bit and 64-bit targets
-    /// because struct sizes differ based on pointer width.
-    /// See: https://github.com/godot-rust/gdext/issues/347
-    fn strip_bindgen_layout_tests(source: &str) -> String {
-        let mut result = String::with_capacity(source.len());
-        let mut in_const_block = false;
-        let mut brace_depth = 0;
-
-        for line in source.lines() {
-            let trimmed = line.trim();
-
-            // Detect start of a const assertion block.
-            // Pattern: `const _: () = {` or with #[allow(...)] attributes before.
-            if !in_const_block && trimmed.starts_with("const _: () = {") {
-                in_const_block = true;
-                brace_depth = 1;
-                continue;
-            }
-
-            // Skip lines with #[allow(...)] that precede const blocks.
-            if !in_const_block
-                && trimmed.starts_with("#[allow(")
-                && trimmed.contains("clippy::unnecessary_operation")
-            {
-                continue;
-            }
-
-            if in_const_block {
-                // Track brace depth to find the end of the block.
-                for ch in trimmed.chars() {
-                    match ch {
-                        '{' => brace_depth += 1,
-                        '}' => {
-                            brace_depth -= 1;
-                            if brace_depth == 0 {
-                                in_const_block = false;
-                                break;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                continue; // Skip all lines inside the const block.
-            }
-
-            // Keep all other lines.
-            result.push_str(line);
-            result.push('\n');
-        }
-
-        result
     }
 
     pub(crate) fn get_godot_version() -> GodotVersion {

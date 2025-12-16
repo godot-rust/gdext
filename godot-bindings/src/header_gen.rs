@@ -8,6 +8,31 @@
 use std::env;
 use std::path::Path;
 
+/// Target pointer width for binding generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TargetPointerWidth {
+    /// 32-bit target (e.g., wasm32, i686)
+    Bits32,
+    /// 64-bit target (e.g., x86_64, aarch64)
+    Bits64,
+}
+
+impl TargetPointerWidth {
+    /// Returns the clang target triple for this pointer width.
+    fn clang_target(&self) -> &'static str {
+        match self {
+            // Use wasm32-unknown-emscripten as the 32-bit target since that's the primary
+            // 32-bit platform supported by Godot/gdext.
+            TargetPointerWidth::Bits32 => "wasm32-unknown-emscripten",
+            TargetPointerWidth::Bits64 => "x86_64-unknown-linux-gnu",
+        }
+    }
+}
+
+/// Generate Rust bindings from a C header file.
+///
+/// This is the standard function that determines whether to enable layout tests
+/// based on cross-compilation detection (host vs target pointer width).
 pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
     let c_header_path = in_h_path.display().to_string();
 
@@ -65,6 +90,68 @@ pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
         });
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
+    bindings.write_to_file(out_rs_path).unwrap_or_else(|err| {
+        panic!(
+            "bindgen write failed\n    c: {}\n   rs: {}\n  err: {}\n",
+            in_h_path.display(),
+            out_rs_path.display(),
+            err
+        )
+    });
+}
+
+/// Generate Rust bindings from a C header file for a specific target pointer width.
+///
+/// This function is intended for use by the prebuilt artifact generator (godot4-prebuilt)
+/// to generate bindings for both 32-bit and 64-bit targets from a single host machine.
+///
+/// Unlike [`generate_rust_binding`], this function:
+/// - Explicitly targets a specific pointer width via clang's `--target` flag
+/// - Always enables layout tests (since the target is explicitly specified)
+///
+/// # Arguments
+/// * `in_h_path` - Path to the input C header file
+/// * `out_rs_path` - Path where the generated Rust bindings will be written
+/// * `target_width` - The target pointer width to generate bindings for
+pub fn generate_rust_binding_for_target(
+    in_h_path: &Path,
+    out_rs_path: &Path,
+    target_width: TargetPointerWidth,
+) {
+    let c_header_path = in_h_path.display().to_string();
+
+    // We don't need cargo rerun-if-changed since this is for prebuilt generation.
+    let cargo_cfg = bindgen::CargoCallbacks::new().rerun_on_header_files(false);
+
+    let builder = bindgen::Builder::default()
+        .header(c_header_path)
+        .parse_callbacks(Box::new(cargo_cfg))
+        .prepend_enum_name(false)
+        // Enable layout tests - they will be valid for the specified target.
+        .layout_tests(true)
+        // Blocklist max_align_t due to bindgen issues.
+        // See: https://github.com/rust-lang/rust-bindgen/issues/3295.
+        .blocklist_type("max_align_t")
+        // Target the specified architecture for correct pointer sizes.
+        .clang_arg(format!("--target={}", target_width.clang_target()));
+
+    std::fs::create_dir_all(
+        out_rs_path
+            .parent()
+            .expect("bindgen output file has parent dir"),
+    )
+    .expect("create bindgen output dir");
+
+    let bindings = builder.generate().unwrap_or_else(|err| {
+        panic!(
+            "bindgen generate failed\n    c: {}\n   rs: {}\n  target: {:?}\n  err: {}\n",
+            in_h_path.display(),
+            out_rs_path.display(),
+            target_width,
+            err
+        )
+    });
+
     bindings.write_to_file(out_rs_path).unwrap_or_else(|err| {
         panic!(
             "bindgen write failed\n    c: {}\n   rs: {}\n  err: {}\n",
@@ -140,3 +227,52 @@ fn apple_include_path() -> Result<String, std::io::Error> {
         println!("cargo:rerun-if-changed={}", path.display());
     }
 }*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_target_pointer_width_clang_targets() {
+        // Verify 32-bit target produces wasm32 triple (primary 32-bit target for Godot)
+        assert_eq!(
+            TargetPointerWidth::Bits32.clang_target(),
+            "wasm32-unknown-emscripten"
+        );
+
+        // Verify 64-bit target produces x86_64 triple
+        assert_eq!(
+            TargetPointerWidth::Bits64.clang_target(),
+            "x86_64-unknown-linux-gnu"
+        );
+    }
+
+    #[test]
+    fn test_target_pointer_width_equality() {
+        // Test PartialEq derive
+        assert_eq!(TargetPointerWidth::Bits32, TargetPointerWidth::Bits32);
+        assert_eq!(TargetPointerWidth::Bits64, TargetPointerWidth::Bits64);
+        assert_ne!(TargetPointerWidth::Bits32, TargetPointerWidth::Bits64);
+    }
+
+    #[test]
+    fn test_target_pointer_width_clone_copy() {
+        // Test Clone and Copy derives
+        let width = TargetPointerWidth::Bits64;
+        let cloned = width.clone();
+        let copied = width; // Copy
+
+        assert_eq!(width, cloned);
+        assert_eq!(width, copied);
+    }
+
+    #[test]
+    fn test_target_pointer_width_debug() {
+        // Test Debug derive produces meaningful output
+        let debug_32 = format!("{:?}", TargetPointerWidth::Bits32);
+        let debug_64 = format!("{:?}", TargetPointerWidth::Bits64);
+
+        assert!(debug_32.contains("Bits32") || debug_32.contains("32"));
+        assert!(debug_64.contains("Bits64") || debug_64.contains("64"));
+    }
+}
