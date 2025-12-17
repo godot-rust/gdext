@@ -149,6 +149,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let enums = enums::make_enums(&class.enums, &cfg_attributes);
     let constants = constants::make_constants(&class.constants);
     let deref_impl = make_deref_impl(class_name, &base_ty);
+    let class_metadata_impl = make_class_metadata_impl(class);
 
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let (inherits_macro_ident, inherits_macro_code) = make_inherits_macro(class, &all_bases);
@@ -268,6 +269,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                 unsafe impl crate::obj::Inherits<crate::classes::#all_bases> for #class_name {}
             )*
 
+            #class_metadata_impl
             #godot_default_impl
             #singleton_impl
             #deref_impl
@@ -517,6 +519,68 @@ fn make_deref_impl(class_name: &TyName, base_ty: &TokenStream) -> TokenStream {
                 // SAFETY: see above
                 unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
             }
+        }
+    }
+}
+
+fn make_class_metadata_impl(class: &Class) -> TokenStream {
+    let class_name = &class.name().rust_ty;
+
+    // Collect property names.
+    let property_names: Vec<_> = class.properties.iter().map(|p| &p.name).collect();
+
+    // Collect non-virtual method names.
+    let method_names: Vec<_> = class
+        .methods
+        .iter()
+        .filter(|m| !m.is_virtual())
+        .map(|m| m.name())
+        .collect();
+
+    // Generate property check implementation.
+    let property_impl = if property_names.is_empty() {
+        quote! {
+            fn __class_has_local_property(_name: &str) -> bool {
+                false
+            }
+        }
+    } else {
+        quote! {
+            fn __class_has_local_property(name: &str) -> bool {
+                matches!(name, #(#property_names)|*)
+            }
+        }
+    };
+
+    // Generate function check implementation.
+    let function_impl = if method_names.is_empty() {
+        quote! {
+            fn __class_has_local_function(_name: &str) -> bool {
+                false
+            }
+        }
+    } else {
+        quote! {
+            fn __class_has_local_function(name: &str) -> bool {
+                matches!(name, #(#method_names)|*)
+            }
+        }
+    };
+
+    quote! {
+        impl crate::obj::ClassMetadata for #class_name {
+            fn __class_has_property(name: &str) -> bool {
+                Self::__class_has_local_property(name)
+                    || <Self::Base as crate::obj::ClassMetadata>::__class_has_property(name)
+            }
+
+            fn __class_has_function(name: &str) -> bool {
+                Self::__class_has_local_function(name)
+                    || <Self::Base as crate::obj::ClassMetadata>::__class_has_function(name)
+            }
+
+            #property_impl
+            #function_impl
         }
     }
 }

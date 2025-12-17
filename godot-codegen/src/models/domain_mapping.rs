@@ -12,16 +12,16 @@ use proc_macro2::Ident;
 use crate::context::Context;
 use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
-    ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
-    EnumReplacements, Enumerator, EnumeratorValue, ExtensionApi, FlowDirection, FnDirection,
-    FnParam, FnQualifier, FnReturn, FunctionCommon, GodotApiVersion, ModName, NativeStructure,
-    Operator, RustTy, Singleton, TyName, UtilityFunction,
+    ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassProperty, ClassSignal,
+    Constructor, Enum, EnumReplacements, Enumerator, EnumeratorValue, ExtensionApi, FlowDirection,
+    FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon, GodotApiVersion, ModName,
+    NativeStructure, Operator, RustTy, Singleton, TyName, UtilityFunction,
 };
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
     JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
-    JsonMethodArg, JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSignal, JsonSingleton,
-    JsonUtilityFunction,
+    JsonMethodArg, JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonProperty, JsonSignal,
+    JsonSingleton, JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
 use crate::{conv, special_cases};
@@ -122,6 +122,11 @@ impl Class {
             })
             .collect();
 
+        let properties = option_as_slice(&json.properties)
+            .iter()
+            .map(ClassProperty::from_json)
+            .collect();
+
         let signals = option_as_slice(&json.signals)
             .iter()
             .filter_map(|s| {
@@ -149,6 +154,7 @@ impl Class {
             constants,
             enums,
             methods,
+            properties,
             signals,
         })
     }
@@ -625,6 +631,14 @@ impl ClassMethod {
 
         // No short-circuiting due to variable decls, but that's fine.
         has_pointer_params || has_pointer_return
+    }
+}
+
+impl ClassProperty {
+    pub fn from_json(json_property: &JsonProperty) -> Self {
+        Self {
+            name: json_property.name.clone(),
+        }
     }
 }
 

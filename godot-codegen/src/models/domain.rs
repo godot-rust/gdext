@@ -168,6 +168,7 @@ pub struct Class {
     pub constants: Vec<ClassConstant>,
     pub enums: Vec<Enum>,
     pub methods: Vec<ClassMethod>,
+    pub properties: Vec<ClassProperty>,
     pub signals: Vec<ClassSignal>,
 }
 
@@ -479,6 +480,10 @@ pub struct ClassSignal {
     pub name: String,
     pub parameters: Vec<FnParam>,
     pub surrounding_class: TyName,
+}
+
+pub struct ClassProperty {
+    pub name: String,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

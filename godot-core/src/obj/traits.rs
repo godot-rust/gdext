@@ -766,6 +766,63 @@ where
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Trait for querying class metadata (properties and methods).
+///
+/// This trait provides methods to check whether a class or its parents have specific properties or methods.
+/// It is primarily used for validation during class registration to prevent conflicts with engine APIs.
+///
+/// Engine classes use compile-time `matches!()` patterns for O(1) lookups with zero runtime overhead.
+/// User classes query a global registry that is populated during registration.
+#[doc(hidden)]
+pub trait ClassMetadata: GodotClass {
+    /// Check if this class or any parent has a property with the given name.
+    ///
+    /// This method automatically delegates to the parent class if the property is not found locally.
+    fn __class_has_property(name: &str) -> bool;
+
+    /// Check if this class or any parent has a non-virtual function with the given name.
+    ///
+    /// This method automatically delegates to the parent class if the function is not found locally.
+    /// Note: Only non-virtual methods are checked, as virtual methods are opt-in overrides.
+    fn __class_has_function(name: &str) -> bool;
+
+    /// Check if THIS class (not parents) has a property with the given name.
+    ///
+    /// Engine classes override this with compile-time `matches!()` patterns.
+    /// User classes use the default implementation which queries a global registry.
+    fn __class_has_local_property(name: &str) -> bool;
+
+    /// Check if THIS class (not parents) has a non-virtual function with the given name.
+    ///
+    /// Engine classes override this with compile-time `matches!()` patterns.
+    /// User classes use the default implementation which queries a global registry.
+    fn __class_has_local_function(name: &str) -> bool;
+}
+
+// Base case: NoBase has no properties or methods.
+impl ClassMetadata for NoBase {
+    fn __class_has_property(_name: &str) -> bool {
+        false
+    }
+
+    fn __class_has_function(_name: &str) -> bool {
+        false
+    }
+
+    fn __class_has_local_property(_name: &str) -> bool {
+        false
+    }
+
+    fn __class_has_local_function(_name: &str) -> bool {
+        false
+    }
+}
+
+// Note: ClassMetadata implementations are generated for both engine classes (in godot-codegen)
+// and user classes (in godot-macros derive macro). There is no blanket implementation.
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Capability traits, providing dedicated functionalities for Godot classes
 pub mod cap {
     use std::any::Any;

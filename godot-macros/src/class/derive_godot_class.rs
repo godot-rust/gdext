@@ -79,6 +79,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let godot_exports_impl = make_property_impl(class_name, &fields);
 
     let godot_withbase_impl = make_with_base_impl(&fields.base_field, class_name);
+    let class_metadata_impl = make_class_metadata_impl(class_name, &fields);
 
     let (user_singleton_impl, singleton_init_level_const) = if struct_cfg.is_singleton {
         modifiers.push(quote! { with_singleton::<#class_name> });
@@ -173,6 +174,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             type Exportable = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::Exportable;
         }
 
+        #class_metadata_impl
         #funcs_collection_struct
         #godot_init_impl
         #godot_withbase_impl
@@ -232,6 +234,54 @@ fn make_singleton_impl(class_name: &Ident) -> (TokenStream, TokenStream) {
             const INIT_LEVEL: ::godot::init::InitLevel = ::godot::init::InitLevel::Scene;
         },
     )
+}
+
+/// Generates ClassMetadata impl for user classes.
+///
+/// Properties are collected from fields. Methods will be empty for now (collected separately in godot_api macro).
+fn make_class_metadata_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+    // Collect property names from fields with #[var] or #[export].
+    let property_names: Vec<String> = fields
+        .all_fields
+        .iter()
+        .map(|f| f.name.to_string())
+        .collect();
+
+    let property_check = if property_names.is_empty() {
+        quote! {
+            fn __class_has_local_property(_name: &str) -> bool {
+                false
+            }
+        }
+    } else {
+        quote! {
+            fn __class_has_local_property(name: &str) -> bool {
+                matches!(name, #(#property_names)|*)
+            }
+        }
+    };
+
+    quote! {
+        impl ::godot::obj::ClassMetadata for #class_name {
+            fn __class_has_property(name: &str) -> bool {
+                Self::__class_has_local_property(name)
+                    || <Self::Base as ::godot::obj::ClassMetadata>::__class_has_property(name)
+            }
+
+            fn __class_has_function(name: &str) -> bool {
+                Self::__class_has_local_function(name)
+                    || <Self::Base as ::godot::obj::ClassMetadata>::__class_has_function(name)
+            }
+
+            #property_check
+
+            fn __class_has_local_function(_name: &str) -> bool {
+                // Methods are handled separately in godot_api macro.
+                // For now, return false.
+                false
+            }
+        }
+    }
 }
 
 /// Generates code for a decl-macro, which takes any item and prepends it with the visibility marker of the class.
