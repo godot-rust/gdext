@@ -239,35 +239,24 @@ fn make_singleton_impl(class_name: &Ident) -> (TokenStream, TokenStream) {
 /// Generates ClassMetadata impl for user classes.
 ///
 /// Properties are collected from fields. Methods will be empty for now (collected separately in godot_api macro).
-fn make_class_metadata_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
-    // Collect property names from fields with #[var] or #[export].
-    let property_names: Vec<String> = fields
-        .all_fields
-        .iter()
-        .map(|f| f.name.to_string())
-        .collect();
-
-    let property_check = if property_names.is_empty() {
-        quote! {
-            fn __class_has_local_property(_name: &str) -> bool {
-                false
-            }
-        }
-    } else {
-        quote! {
-            fn __class_has_local_property(name: &str) -> bool {
-                matches!(name, #(#property_names)|*)
-            }
-        }
-    };
-
+fn make_class_metadata_impl(class_name: &Ident, _fields: &Fields) -> TokenStream {
+    // User classes use runtime registry for metadata queries.
+    // Properties are registered during class initialization via register_user_property().
+    // Functions are registered when #[godot_api] methods are registered via register_user_function().
     quote! {
         impl ::godot::obj::ClassMetadata for #class_name {
-            #property_check
+            fn __class_has_local_property(name: &str) -> bool {
+                ::godot::private::class_metadata::has_user_property(
+                    <#class_name as ::godot::obj::GodotClass>::class_id(),
+                    name
+                )
+            }
 
-            fn __class_has_local_function(_name: &str) -> bool {
-                // TODO(v0.5): implement methods, registered in #[godot_api].
-                false
+            fn __class_has_local_function(name: &str) -> bool {
+                ::godot::private::class_metadata::has_user_function(
+                    <#class_name as ::godot::obj::GodotClass>::class_id(),
+                    name
+                )
             }
         }
     }

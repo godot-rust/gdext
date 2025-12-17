@@ -182,6 +182,12 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 #hint,
                 #usage_flags,
             );
+
+            // Register property in metadata registry.
+            ::godot::private::class_metadata::register_user_property(
+                <#class_name as ::godot::obj::GodotClass>::class_id(),
+                #field_name
+            );
         });
     }
 

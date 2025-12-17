@@ -34,7 +34,7 @@ static USER_CLASS_METADATA: Global<HashMap<ClassId, ClassMetadataInfo>> = Global
 /// Register a property for a user-defined class.
 ///
 /// This is called during class registration (from derive macros or builder API).
-pub(crate) fn register_user_property(class_id: ClassId, name: &str) {
+pub fn register_user_property(class_id: ClassId, name: &str) {
     let mut metadata = USER_CLASS_METADATA.lock();
     metadata
         .entry(class_id)
@@ -46,7 +46,7 @@ pub(crate) fn register_user_property(class_id: ClassId, name: &str) {
 /// Register a function for a user-defined class.
 ///
 /// This is called during class registration (from derive macros or builder API).
-pub(crate) fn register_user_function(class_id: ClassId, name: &str) {
+pub fn register_user_function(class_id: ClassId, name: &str) {
     let mut metadata = USER_CLASS_METADATA.lock();
     metadata
         .entry(class_id)
@@ -61,7 +61,8 @@ pub(crate) fn register_user_function(class_id: ClassId, name: &str) {
 /// Check if a user-defined class has a property with the given name.
 ///
 /// Returns `false` if the class is not registered or doesn't have the property.
-pub(crate) fn has_user_property(class_id: ClassId, name: &str) -> bool {
+#[doc(hidden)]
+pub fn has_user_property(class_id: ClassId, name: &str) -> bool {
     let metadata = USER_CLASS_METADATA.lock();
     metadata
         .get(&class_id)
@@ -71,7 +72,8 @@ pub(crate) fn has_user_property(class_id: ClassId, name: &str) -> bool {
 /// Check if a user-defined class has a function with the given name.
 ///
 /// Returns `false` if the class is not registered or doesn't have the function.
-pub(crate) fn has_user_function(class_id: ClassId, name: &str) -> bool {
+#[doc(hidden)]
+pub fn has_user_function(class_id: ClassId, name: &str) -> bool {
     let metadata = USER_CLASS_METADATA.lock();
     metadata
         .get(&class_id)

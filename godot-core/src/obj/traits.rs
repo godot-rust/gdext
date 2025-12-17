@@ -773,7 +773,7 @@ where
 /// It is primarily used for validation during class registration to prevent conflicts with engine APIs.
 ///
 /// Engine classes use compile-time `matches!()` patterns for O(1) lookups with zero runtime overhead.
-/// User classes query a global registry that is populated during registration.
+/// User classes query a global runtime registry that is populated during class registration.
 #[doc(hidden)]
 pub trait ClassMetadata: GodotClass {
     /// Check if this class or any parent has a property with the given name.

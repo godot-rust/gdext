@@ -29,12 +29,12 @@ mod reexport_pub {
     #[cfg(feature = "trace")]
     pub use crate::meta::trace;
     pub use crate::obj::rtti::ObjectRtti;
-    pub use crate::registry::callbacks;
     pub use crate::registry::plugin::{
         ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
         PluginItem, Struct,
     };
     pub use crate::registry::signal::priv_re_export::*;
+    pub use crate::registry::{callbacks, class_metadata};
     pub use crate::storage::{
         as_storage, IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage,
         VirtualMethodReceiver,

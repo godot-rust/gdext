@@ -193,6 +193,16 @@ pub fn make_method_registration(
 
             // Note: information whether the method is virtual is stored in method method_info's flags.
             method_info.register_extension_class_method();
+
+            // Register non-virtual functions in metadata registry.
+            // Virtual functions are excluded for now, but should be included once #[func(virtual_pub)]
+            // allows exposing the base version of the virtual function.
+            if !#is_script_virtual {
+                ::godot::private::class_metadata::register_user_function(
+                    <#class_name as ::godot::obj::GodotClass>::class_id(),
+                    #method_name_str
+                );
+            }
         };
     };
 
