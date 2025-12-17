@@ -1163,9 +1163,13 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
         | "ProjectSettings" | "Engine" | "OS" | "Time"
         => ClassCodegenLevel::Core,
 
+        // See initialize_openxr_module() in https://github.com/godotengine/godot/blob/master/modules/openxr/register_types.cpp
+        | "OpenXRExtensionWrapper"
+        => ClassCodegenLevel::Core,
+
         // Symbols from another extension could be available in Core, but since GDExtension can currently not guarantee
         // the order of different extensions being loaded, we prevent implicit dependencies and require Server.
-        | "OpenXRExtensionWrapperExtension" 
+        | "OpenXRExtensionWrapperExtension"
         => ClassCodegenLevel::Servers,
 
         // See register_server_types() in https://github.com/godotengine/godot/blob/master/servers/register_server_types.cpp
