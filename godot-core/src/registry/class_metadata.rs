@@ -5,16 +5,17 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Metadata registry for user-defined classes.
+//! Global registry for property and method names of user-defined classes.
 //!
-//! This module provides a global registry for storing property and method names
-//! of user-defined classes. Engine classes use compile-time metadata via the
-//! `ClassMetadata` trait implementations.
+//! Used for validation (overriding/redeclaring symbols in inherited classes).
 
 use std::collections::{HashMap, HashSet};
 
 use crate::meta::ClassId;
 use crate::sys::Global;
+
+/// Global registry mapping class IDs to their metadata.
+static USER_CLASS_METADATA: Global<HashMap<ClassId, ClassMetadataInfo>> = Global::default();
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -24,9 +25,6 @@ pub struct ClassMetadataInfo {
     pub properties: HashSet<String>,
     pub functions: HashSet<String>,
 }
-
-/// Global registry mapping class IDs to their metadata.
-static USER_CLASS_METADATA: Global<HashMap<ClassId, ClassMetadataInfo>> = Global::default();
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Registration functions
