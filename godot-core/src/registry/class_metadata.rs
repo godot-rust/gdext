@@ -65,7 +65,7 @@ pub(crate) fn has_user_property(class_id: ClassId, name: &str) -> bool {
     let metadata = USER_CLASS_METADATA.lock();
     metadata
         .get(&class_id)
-        .map_or(false, |info| info.properties.contains(name))
+        .is_some_and(|info| info.properties.contains(name))
 }
 
 /// Check if a user-defined class has a function with the given name.
@@ -75,5 +75,5 @@ pub(crate) fn has_user_function(class_id: ClassId, name: &str) -> bool {
     let metadata = USER_CLASS_METADATA.lock();
     metadata
         .get(&class_id)
-        .map_or(false, |info| info.functions.contains(name))
+        .is_some_and(|info| info.functions.contains(name))
 }

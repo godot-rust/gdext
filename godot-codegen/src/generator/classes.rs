@@ -569,16 +569,6 @@ fn make_class_metadata_impl(class: &Class) -> TokenStream {
 
     quote! {
         impl crate::obj::ClassMetadata for #class_name {
-            fn __class_has_property(name: &str) -> bool {
-                Self::__class_has_local_property(name)
-                    || <Self::Base as crate::obj::ClassMetadata>::__class_has_property(name)
-            }
-
-            fn __class_has_function(name: &str) -> bool {
-                Self::__class_has_local_function(name)
-                    || <Self::Base as crate::obj::ClassMetadata>::__class_has_function(name)
-            }
-
             #property_impl
             #function_impl
         }

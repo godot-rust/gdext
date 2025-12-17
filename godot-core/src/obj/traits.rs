@@ -32,7 +32,8 @@ where
     Self: Sized,
 {
     /// The immediate superclass of `T`. This is always a Godot engine class.
-    type Base: GodotClass; // not EngineClass because it can be ()
+    type Base: GodotClass + ClassMetadata;
+    // TODO(v0.5): must ClassMetadata be public? maybe merge with GodotClass + make default #[doc(hidden)] methods?
 
     /// Globally unique class ID, linked to the name under which the class is registered in Godot.
     ///
@@ -778,13 +779,19 @@ pub trait ClassMetadata: GodotClass {
     /// Check if this class or any parent has a property with the given name.
     ///
     /// This method automatically delegates to the parent class if the property is not found locally.
-    fn __class_has_property(name: &str) -> bool;
+    fn __class_has_property(name: &str) -> bool {
+        Self::__class_has_local_property(name)
+            || <Self::Base as ClassMetadata>::__class_has_property(name)
+    }
 
     /// Check if this class or any parent has a non-virtual function with the given name.
     ///
     /// This method automatically delegates to the parent class if the function is not found locally.
     /// Note: Only non-virtual methods are checked, as virtual methods are opt-in overrides.
-    fn __class_has_function(name: &str) -> bool;
+    fn __class_has_function(name: &str) -> bool {
+        Self::__class_has_local_function(name)
+            || <Self::Base as ClassMetadata>::__class_has_function(name)
+    }
 
     /// Check if THIS class (not parents) has a property with the given name.
     ///

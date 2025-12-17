@@ -263,21 +263,10 @@ fn make_class_metadata_impl(class_name: &Ident, fields: &Fields) -> TokenStream 
 
     quote! {
         impl ::godot::obj::ClassMetadata for #class_name {
-            fn __class_has_property(name: &str) -> bool {
-                Self::__class_has_local_property(name)
-                    || <Self::Base as ::godot::obj::ClassMetadata>::__class_has_property(name)
-            }
-
-            fn __class_has_function(name: &str) -> bool {
-                Self::__class_has_local_function(name)
-                    || <Self::Base as ::godot::obj::ClassMetadata>::__class_has_function(name)
-            }
-
             #property_check
 
             fn __class_has_local_function(_name: &str) -> bool {
-                // Methods are handled separately in godot_api macro.
-                // For now, return false.
+                // TODO(v0.5): implement methods, registered in #[godot_api].
                 false
             }
         }
