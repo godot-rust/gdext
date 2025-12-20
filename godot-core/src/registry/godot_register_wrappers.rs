@@ -7,14 +7,39 @@
 
 //! Internal registration machinery used by proc-macro APIs.
 
+use std::collections::HashMap;
+
 use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
 use crate::global::PropertyUsageFlags;
+use crate::init::InitLevel;
 use crate::meta::{ClassId, GodotConvert, GodotType, PropertyHintInfo, PropertyInfo};
 use crate::obj::GodotClass;
 use crate::registry::property::{Export, Var};
+use crate::sys::Global;
 use crate::{classes, sys};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deferred property override validation
+
+/// Stores property override validation data pending ClassDB availability.
+#[derive(Debug)]
+struct PendingValidation {
+    class_name: ClassId,
+    base_class_name: ClassId,
+    property_name: String,
+    marked_override: bool,
+}
+
+/// Global registry of pending property override validations, organized by init level.
+///
+/// During class registration, validation requests are stored here instead of being executed immediately.
+/// After `auto_register_classes(level)` completes, `validate_pending_overrides(level)` queries ClassDB
+/// to perform the actual validation.
+static PENDING_VALIDATIONS: Global<HashMap<InitLevel, Vec<PendingValidation>>> = Global::default();
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Same as [`register_var()`], but statically verifies the `Export` trait (again) and the fact that nodes can only be exported from nodes.
 pub fn register_export<C: GodotClass, T: Export>(
@@ -123,7 +148,10 @@ pub fn register_subgroup<C: GodotClass>(subgroup_name: &str, prefix: &str) {
     }
 }
 
-/// Validates property override at runtime.
+/// Stores property override validation request for deferred validation.
+///
+/// Validation is deferred until after `auto_register_classes(level)` completes, at which point
+/// ClassDB is populated with the newly-registered classes and safe to query.
 ///
 /// Future improvement: Generate property symbols per class to enable compile-time validation; similar to virtual method hashes in
 /// `godot-codegen/src/generator/virtual_definitions.rs`.
@@ -138,38 +166,90 @@ pub fn register_subgroup<C: GodotClass>(subgroup_name: &str, prefix: &str) {
 /// ```
 /// Then macros could check `<Base as GodotClass>::PropertySymbols::name` at compile time.
 fn validate_property_override<C: GodotClass>(property_name: &str, marked_override: bool) {
-    // Check if property exists in base class by querying property list.
-    let base_has_property = check_base_has_property::<C::Base>(property_name);
+    // Store validation request for later execution when ClassDB is available.
+    let mut pending = PENDING_VALIDATIONS.lock();
 
-    if marked_override && !base_has_property {
-        panic!(
-            "Property `{}` in class `{}` has #[var(override)], but neither direct base class `{}`\n\
-            nor any indirect one has a property with that name.",
-            property_name,
-            C::class_id(),
-            C::Base::class_id()
-        );
+    pending
+        .entry(C::INIT_LEVEL)
+        .or_default()
+        .push(PendingValidation {
+            class_name: C::class_id(),
+            base_class_name: C::Base::class_id(),
+            property_name: property_name.to_string(),
+            marked_override,
+        });
+}
+
+/// Validates all pending property overrides for the given initialization level.
+///
+/// This must be called AFTER `auto_register_classes(level)` completes, ensuring
+/// that ClassDB has been populated with all classes for this level.
+///
+/// # Panics
+///
+/// Panics if any property override validation fails. All errors for the level are
+/// collected and reported together before panicking.
+pub fn validate_pending_overrides(level: InitLevel) {
+    // ClassDB is not available during Core level initialization.
+    // Skip validation for Core level to avoid panicking when trying to access ClassDb::singleton().
+    if level == InitLevel::Core {
+        return;
     }
 
-    if !marked_override && base_has_property {
+    let mut pending = PENDING_VALIDATIONS.lock();
+
+    // Take ownership of validations for this level (removing from map).
+    let Some(validations) = pending.remove(&level) else {
+        return; // No validations pending for this level.
+    };
+
+    // Collect all errors before panicking (better UX).
+    let mut errors = Vec::new();
+
+    for validation in validations {
+        let base_has_property =
+            check_base_has_property_by_id(validation.base_class_name, &validation.property_name);
+
+        if validation.marked_override && !base_has_property {
+            errors.push(format!(
+                "Property `{}` in class `{}` has #[var(override)], but neither direct base class `{}`\n\
+                nor any indirect one has a property with that name.",
+                validation.property_name,
+                validation.class_name,
+                validation.base_class_name
+            ));
+        }
+
+        if !validation.marked_override && base_has_property {
+            errors.push(format!(
+                "Property `{}` in class `{}` overrides property from base class `{}`, but is missing #[var(override)].\n\
+                Add #[var(override)] to explicitly indicate this override is intentional.",
+                validation.property_name,
+                validation.class_name,
+                validation.base_class_name
+            ));
+        }
+    }
+
+    // Report all errors together.
+    if !errors.is_empty() {
         panic!(
-            "Property `{}` in class `{}` overrides property from base class `{}`, but is missing #[var(override)].\n\
-            Add #[var(override)] to explicitly indicate this override is intentional.",
-            property_name,
-            C::class_id(),
-            C::Base::class_id()
+            "Property override validation failed:\n\n{}",
+            errors.join("\n\n")
         );
     }
 }
 
-/// Checks if a base class has a property with the given name.
-fn check_base_has_property<Base: GodotClass>(property_name: &str) -> bool {
+/// Checks if a base class (identified by ClassId) has a property with the given name.
+///
+/// This function queries ClassDB, so it must only be called when ClassDB is available
+/// (i.e., after class registration completes).
+fn check_base_has_property_by_id(base_class_id: ClassId, property_name: &str) -> bool {
     use crate::builtin::{GString, StringName};
     use crate::classes::ClassDb;
     use crate::obj::Singleton;
 
-    // Try to get property list from ClassDB first (more efficient, no object creation needed).
-    let class_name: StringName = Base::class_id().to_string_name();
+    let class_name: StringName = base_class_id.to_string_name();
     let class_db = ClassDb::singleton();
     let property_list = class_db.class_get_property_list(&class_name);
 

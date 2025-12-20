@@ -221,6 +221,9 @@ unsafe fn gdext_on_level_init(level: InitLevel, userdata: &InitUserData) {
     }
 
     crate::registry::class::auto_register_classes(level);
+
+    // Validate property overrides now that all classes for this level are registered in ClassDB.
+    crate::registry::godot_register_wrappers::validate_pending_overrides(level);
 }
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
