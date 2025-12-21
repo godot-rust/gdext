@@ -252,28 +252,28 @@ impl Callable {
         Self::from_fn_wrapper_with_thread(name, rust_function, None, None)
     }
 
-    /// Create a highly configurable callable from Rust.
+    /// Create a builder for a custom callable from Rust.
     ///
-    /// See [`RustCallable`] for requirements on the type.
-    pub fn from_custom<C: RustCallable>(callable: C) -> Self {
-        // Could theoretically use `dyn` but would need:
-        // - double boxing
-        // - a type-erased workaround for PartialEq supertrait (which has a `Self` type parameter and thus is not object-safe)
-        let userdata = CallableUserdata::new(callable);
-
-        let info = CallableCustomInfo {
-            // We could technically associate an object_id with the custom callable. is_valid_func would then check that for validity.
-            callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
-            call_func: Some(rust_callable_call_custom::<C>),
-            free_func: Some(rust_callable_destroy::<C>),
-            hash_func: Some(rust_callable_hash::<C>),
-            equal_func: Some(rust_callable_equal::<C>),
-            to_string_func: Some(rust_callable_to_string_display::<C>),
-            is_valid_func: Some(rust_callable_is_valid_custom::<C>),
-            ..Self::default_callable_custom_info()
-        };
-
-        Self::from_custom_info(info)
+    /// See [`RustCallable`] for requirements on the type, and [`CustomCallableBuilder`] for the opt-in capabilities. Finalize with
+    /// [`build()`][CustomCallableBuilder::build].
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use godot::builtin::{Callable, RustCallable, Variant};
+    /// # struct MyCallable;
+    /// # impl RustCallable for MyCallable {
+    /// #     fn invoke(&mut self, _args: &[&Variant]) -> Variant { Variant::nil() }
+    /// # }
+    /// # impl std::fmt::Display for MyCallable {
+    /// #     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { write!(f, "MyCallable") }
+    /// # }
+    /// let callable = Callable::from_custom(MyCallable)
+    ///     .display_repr()
+    ///     .build();
+    /// ```
+    pub fn from_custom<C: RustCallable>(callable: C) -> CustomCallableBuilder<C> {
+        CustomCallableBuilder::new(callable)
     }
 
     fn from_fn_wrapper<F, R, S>(
@@ -670,25 +670,22 @@ mod custom_callable {
 
     /// Represents a custom callable object defined in Rust.
     ///
-    /// This trait has a single method, `invoke`, which is called upon invocation.
-    ///
-    /// Since callables can be invoked from anywhere, they must be self-contained (`'static`) and thread-safe (`Send + Sync`).
-    /// They also should implement `Display` for the Godot string representation.
-    /// Furthermore, `Hash` is required for usage as a key in a `Dictionary` and for checking signal connections –
-    /// Godot considers a custom callable to be connected to a signal if a callable with the same hash is already connected to that signal.
-    /// Finally, `PartialEq` is necessary for equality checks.
-    // TODO(v0.6): possibly replace this with a builder approach. if not, add object_id().
-    pub trait RustCallable: 'static + PartialEq + Hash + fmt::Display + Send + Sync {
+    /// This trait has a single method, `invoke`, which is called upon invocation. Since callables can be invoked from anywhere, they must be
+    /// self-contained (`'static`) and thread-safe (`Send + Sync`). Everything beyond that is opt-in via [`CustomCallableBuilder`]:
+    /// `PartialEq + Hash` (needed for `Dictionary` keys and signal-connection identity) and `Display`.
+    // TODO(v0.6): add object_id().
+    pub trait RustCallable: 'static + Send + Sync {
         /// Invokes the callable with the given arguments as `Variant` references.
         ///
         /// Errors are supported via panics.
         fn invoke(&mut self, args: &[&Variant]) -> Variant;
 
-        /// Returns the name of this callable for error messages and display.
+        /// Returns the name of this callable, used for error messages and Godot's string representation.
         ///
-        /// By default, the `Display` impl is used. You can override this for a cached/constant name.
+        /// Override this for a constant or cached name; alternatively, use [`display_repr()`][CustomCallableBuilder::display_repr] to route
+        /// the string representation through `Display`.
         fn callable_name(&self) -> CowStr {
-            CowStr::Owned(self.to_string())
+            CowStr::Borrowed("<RustCallable>")
         }
 
         /// Returns whether the callable is considered valid.
@@ -698,6 +695,61 @@ mod custom_callable {
         /// If this Callable stores an object, this method should return whether that object is alive.
         fn is_valid(&self) -> bool {
             true
+        }
+    }
+
+    /// Builder for custom callables, created by [`Callable::from_custom()`].
+    ///
+    /// Every FFI hook is monomorphized over `C`, so the userdata type must stay `C` -- do not add capabilities that wrap the callable.
+    #[must_use]
+    pub struct CustomCallableBuilder<C: RustCallable> {
+        callable: C,
+        info: CallableCustomInfo,
+    }
+
+    impl<C: RustCallable> CustomCallableBuilder<C> {
+        pub(crate) fn new(callable: C) -> Self {
+            let mut info = Callable::default_callable_custom_info();
+            info.to_string_func = Some(rust_callable_to_string_name::<C>);
+
+            Self { callable, info }
+        }
+
+        /// Use `PartialEq`/`Hash` of `C` instead of Godot's defaults.
+        ///
+        /// Godot considers a custom callable connected to a signal if a callable with the same hash is already connected, and uses the hash
+        /// for `Dictionary` keys.
+        pub fn eq_hash(mut self) -> Self
+        where
+            C: PartialEq + Hash,
+        {
+            self.info.equal_func = Some(rust_callable_equal::<C>);
+            self.info.hash_func = Some(rust_callable_hash::<C>);
+            self
+        }
+
+        /// Use `Display` of `C` for Godot's string representation, instead of [`RustCallable::callable_name()`].
+        pub fn display_repr(mut self) -> Self
+        where
+            C: fmt::Display,
+        {
+            self.info.to_string_func = Some(rust_callable_to_string_display::<C>);
+            self
+        }
+
+        /// Finalize the builder and create a `Callable`.
+        pub fn build(self) -> Callable {
+            let userdata = CallableUserdata::new(self.callable);
+
+            let info = CallableCustomInfo {
+                callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
+                call_func: Some(rust_callable_call_custom::<C>),
+                free_func: Some(rust_callable_destroy::<C>),
+                is_valid_func: Some(rust_callable_is_valid_custom::<C>),
+                ..self.info
+            };
+
+            Callable::from_custom_info(info)
         }
     }
 
@@ -806,8 +858,21 @@ mod custom_callable {
         r_out: sys::GDExtensionStringPtr,
     ) {
         let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
-        let name = c.callable_name();
-        let s = GString::from(name.as_ref());
+        let s = GString::from(&c.to_string());
+
+        s.move_into_string_ptr(r_out);
+        *r_is_valid = sys::conv::SYS_TRUE;
+    }
+
+    /// Default `to_string` for custom callables; see [`rust_callable_to_string_display`] for the opt-in `Display` variant.
+    #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
+    pub unsafe extern "C" fn rust_callable_to_string_name<C: RustCallable>(
+        callable_userdata: *mut std::ffi::c_void,
+        r_is_valid: *mut sys::GDExtensionBool,
+        r_out: sys::GDExtensionStringPtr,
+    ) {
+        let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
+        let s = GString::from(c.callable_name().as_ref());
 
         s.move_into_string_ptr(r_out);
         *r_is_valid = sys::conv::SYS_TRUE;

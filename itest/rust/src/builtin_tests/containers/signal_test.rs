@@ -924,6 +924,6 @@ mod custom_callable {
     }
 
     fn connect_signal_panic_from_custom(received: Arc<AtomicU32>) -> Callable {
-        Callable::from_custom(PanicCallable(received))
+        Callable::from_custom(PanicCallable(received)).build()
     }
 }

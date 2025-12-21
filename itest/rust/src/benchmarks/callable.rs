@@ -20,7 +20,7 @@ fn callable_callv_rust_fn() -> BenchResult {
 
 #[bench(manual)]
 fn callable_callv_custom() -> BenchResult {
-    let callable = Callable::from_custom(MyRustCallable {});
+    let callable = Callable::from_custom(MyRustCallable {}).build();
     let arg = varray![];
 
     bench_measure(25, || callable.callv(&arg))
@@ -35,7 +35,9 @@ fn callable_to_string_rust_fn() -> BenchResult {
 
 #[bench(manual)]
 fn callable_to_string_custom() -> BenchResult {
-    let callable = Callable::from_custom(MyRustCallable {});
+    let callable = Callable::from_custom(MyRustCallable {})
+        .display_repr()
+        .build();
 
     bench_measure(1000, || callable.to_string())
 }

@@ -541,7 +541,7 @@ pub mod custom_callable {
     #[itest]
     fn callable_custom_invoke() {
         let my_rust_callable = Adder::new(0);
-        let callable = Callable::from_custom(my_rust_callable);
+        let callable = Callable::from_custom(my_rust_callable).build();
 
         assert!(callable.is_valid());
         assert!(!callable.is_null());
@@ -558,10 +558,20 @@ pub mod custom_callable {
     #[itest]
     fn callable_custom_to_string() {
         let my_rust_callable = Adder::new(-2);
-        let callable = Callable::from_custom(my_rust_callable);
+        let callable = Callable::from_custom(my_rust_callable)
+            .display_repr()
+            .build();
 
         let variant = callable.to_variant();
         assert_eq!(variant.stringify(), "Adder(sum=-2, arc=1)");
+    }
+
+    #[itest]
+    fn callable_custom_to_string_default() {
+        // Without display_repr(), the string representation comes from callable_name().
+        let callable = Callable::from_custom(Adder::new(-2)).build();
+
+        assert_eq!(callable.to_variant().stringify(), "<RustCallable>");
     }
 
     #[itest]
@@ -572,9 +582,15 @@ pub mod custom_callable {
         let bt = Tracker::new();
         let ct = Tracker::new();
 
-        let a = Callable::from_custom(Adder::new_tracked(3, at.clone()));
-        let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()));
-        let c = Callable::from_custom(Adder::new_tracked(4, ct.clone()));
+        let a = Callable::from_custom(Adder::new_tracked(3, at.clone()))
+            .eq_hash()
+            .build();
+        let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()))
+            .eq_hash()
+            .build();
+        let c = Callable::from_custom(Adder::new_tracked(4, ct.clone()))
+            .eq_hash()
+            .build();
 
         assert_eq_self!(a);
         assert_eq!(
@@ -607,8 +623,12 @@ pub mod custom_callable {
         let at = Tracker::new();
         let bt = Tracker::new();
 
-        let a = Callable::from_custom(Adder::new_tracked(3, at.clone()));
-        let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()));
+        let a = Callable::from_custom(Adder::new_tracked(3, at.clone()))
+            .eq_hash()
+            .build();
+        let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()))
+            .eq_hash()
+            .build();
 
         let mut dict = VarDictionary::new();
 
@@ -648,7 +668,7 @@ pub mod custom_callable {
     #[itest]
     fn callable_callv_panic_from_custom() {
         let received = Arc::new(AtomicU32::new(0));
-        let callable = Callable::from_custom(PanicCallable(received.clone()));
+        let callable = Callable::from_custom(PanicCallable(received.clone())).build();
 
         assert_eq!(Variant::nil(), callable.callv(&varray![]));
 
@@ -661,8 +681,12 @@ pub mod custom_callable {
         let tracker2 = Tracker::new();
 
         // Adder hash depends on its sum.
-        let some_callable = Callable::from_custom(Adder::new_tracked(3, tracker));
-        let identical_callable = Callable::from_custom(Adder::new_tracked(3, tracker2));
+        let some_callable = Callable::from_custom(Adder::new_tracked(3, tracker))
+            .eq_hash()
+            .build();
+        let identical_callable = Callable::from_custom(Adder::new_tracked(3, tracker2))
+            .eq_hash()
+            .build();
 
         let obj = RefCounted::new_gd();
         let signal = Signal::from_object_signal(&obj, "script_changed");
@@ -830,7 +854,7 @@ pub mod custom_callable {
         let tracker = Tracker::new();
 
         let adder = Adder::new_tracked(5, Arc::clone(&tracker));
-        let callable = Callable::from_custom(adder);
+        let callable = Callable::from_custom(adder).display_repr().build();
 
         // RustCallable always calls Display -- no caching.
         assert_eq!(callable.to_string(), "Adder(sum=5, arc=2)");

@@ -232,7 +232,7 @@ impl<R: InParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
         let callable = SignalFutureResolver::new(data.clone());
 
         signal.connect_flags(
-            &Callable::from_custom(callable.clone()),
+            &Callable::from_custom(callable.clone()).build(),
             ConnectFlags::ONE_SHOT,
         );
 
@@ -317,7 +317,7 @@ impl<R: InParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
         }
 
         // We create a new Godot Callable from our RustCallable so we get independent reference counting.
-        let gd_callable = Callable::from_custom(self.callable.clone());
+        let gd_callable = Callable::from_custom(self.callable.clone()).build();
 
         // The future was dropped before the signal fired, so the ONE_SHOT connection is still live and must be disconnected.
         // Signal::object() resolves the object over separate FFI calls (validate liveness, then inc-ref), which creates a TOCTOU race:

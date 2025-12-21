@@ -289,8 +289,8 @@ fn signal_future_send_arg_no_panic() -> TaskHandle {
 fn resolver_callabable_equality() {
     let resolver = create_test_signal_future_resolver::<(u8,)>();
 
-    let callable = Callable::from_custom(resolver.clone());
-    let cloned_callable = Callable::from_custom(resolver.clone());
+    let callable = Callable::from_custom(resolver.clone()).eq_hash().build();
+    let cloned_callable = Callable::from_custom(resolver.clone()).eq_hash().build();
     let unrelated_callable = Callable::from_fn("unrelated", |_| {});
 
     assert_eq!(callable, cloned_callable);
