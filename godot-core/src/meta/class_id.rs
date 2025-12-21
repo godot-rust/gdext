@@ -97,14 +97,37 @@ impl ClassId {
         cache.insert_class_id(Cow::Owned(name), Some(type_id), false)
     }
 
-    /// Create a `ClassId` from a runtime string (for dynamic class names).
+    /// Create a `ClassId` from a class name only known at runtime.
     ///
-    /// Will reuse existing `ClassId` entries if the string is recognized.
-    // Deliberately not public.
-    pub(crate) fn new_dynamic(class_name: String) -> Self {
+    /// Unlike [`ClassId::new_cached()`], this doesn't require a static type parameter. Useful for classes defined outside Rust code, e.g. in
+    /// scripts.
+    ///
+    /// Multiple calls with the same name return equal `ClassId` instances (but may need a lookup).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use godot::meta::ClassId;
+    ///
+    /// // For a script class defined in GDScript
+    /// let script_class = ClassId::new_dynamic("MyGDScriptClass".to_string());
+    ///
+    /// // Multiple calls with the same name produce equal ClassIds
+    /// let same_class = ClassId::new_dynamic("MyGDScriptClass".to_string());
+    /// assert_eq!(script_class, same_class);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// On Godot versions before 4.4, this function panics if the class name contains non-ASCII characters.
+    /// Godot 4.4+ supports Unicode class names. See <https://github.com/godotengine/godot/pull/96501>.
+    ///
+    /// See also [`ClassId::new_cached()`] for compile-time class IDs and [`ClassId::none()`] for properties
+    /// without a class.
+    pub fn new_dynamic(class_name: impl Into<CowStr>) -> Self {
         let mut cache = CLASS_ID_CACHE.lock();
 
-        cache.insert_class_id(Cow::Owned(class_name), None, false)
+        cache.insert_class_id(class_name.into(), None, false)
     }
 
     // Test-only APIs.
@@ -120,7 +143,35 @@ impl ClassId {
         Self::new_dynamic(class_name.to_string())
     }
 
-    #[doc(hidden)]
+    /// Returns a `ClassId` representing "no class" (empty class name) for non-object property types.
+    ///
+    /// This is used for properties that don't have an associated class, such as built-in types (int, float, bool,
+    /// String, etc.), Variant types without specific class information, or properties where the class is not
+    /// applicable.
+    ///
+    /// When constructing a [`PropertyInfo`](crate::meta::PropertyInfo) for non-class types, you should use
+    /// `ClassId::none()` for the `class_id` field.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use godot::meta::{ClassId, PropertyInfo, PropertyHintInfo};
+    /// use godot::builtin::StringName;
+    /// use godot::global::PropertyUsageFlags;
+    /// use godot_ffi::VariantType;
+    ///
+    /// // Create a PropertyInfo for an integer property (built-in type)
+    /// let property = PropertyInfo {
+    ///     variant_type: VariantType::INT,
+    ///     class_id: ClassId::none(),  // No class for built-in int type
+    ///     property_name: StringName::from("my_count"),
+    ///     hint_info: PropertyHintInfo::none(),
+    ///     usage: PropertyUsageFlags::DEFAULT,
+    /// };
+    /// ```
+    ///
+    /// See also [`ClassId::new_cached()`] for creating class IDs from types and [`ClassId::new_dynamic()`] for
+    /// runtime class names.
     pub fn none() -> Self {
         // First element is always the empty string name.
         Self { global_index: 0 }

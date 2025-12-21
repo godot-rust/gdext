@@ -12,21 +12,96 @@ use crate::global::MethodFlags;
 use crate::meta::{ClassId, PropertyInfo};
 use crate::sys;
 
-/// Describes a method in Godot.
+/// Describes a method's signature and metadata required by the Godot engine.
 ///
-/// Abstraction of the low-level `sys::GDExtensionMethodInfo`.
-// Currently used for ScriptInstance.
-// TODO check overlap with (private) ClassMethodInfo.
+/// This struct is primarily used when implementing custom script instances via the `ScriptInstance` trait,
+/// where you need to provide method information to the engine. It contains all the metadata Godot needs to
+/// understand and call a method.
+///
+/// `MethodInfo` is a high-level abstraction over the low-level FFI type `sys::GDExtensionMethodInfo`,
+/// managing memory safely and providing a more ergonomic Rust API.
+///
+/// # Examples
+///
+/// ```no_run
+/// use godot::meta::{MethodInfo, PropertyInfo, ClassId};
+/// use godot::builtin::{StringName, Variant};
+/// use godot::global::MethodFlags;
+/// use godot_ffi::VariantType;
+///
+/// // Define a simple method: fn add(a: int, b: int) -> int
+/// let method = MethodInfo {
+///     id: 0,
+///     method_name: StringName::from("add"),
+///     class_name: ClassId::none(),
+///     return_type: PropertyInfo {
+///         variant_type: VariantType::INT,
+///         class_id: ClassId::none(),
+///         property_name: StringName::from(""),
+///         hint_info: Default::default(),
+///         usage: Default::default(),
+///     },
+///     arguments: vec![
+///         PropertyInfo {
+///             variant_type: VariantType::INT,
+///             class_id: ClassId::none(),
+///             property_name: StringName::from("a"),
+///             hint_info: Default::default(),
+///             usage: Default::default(),
+///         },
+///         PropertyInfo {
+///             variant_type: VariantType::INT,
+///             class_id: ClassId::none(),
+///             property_name: StringName::from("b"),
+///             hint_info: Default::default(),
+///             usage: Default::default(),
+///         },
+///     ],
+///     default_arguments: vec![],
+///     flags: MethodFlags::DEFAULT,
+/// };
+/// ```
+///
+/// See also [`PropertyInfo`] for describing individual method parameters and return types.
 #[derive(Clone, Debug)]
 pub struct MethodInfo {
+    /// Unique identifier for the method within its class.
+    ///
+    /// This ID can be used to distinguish between methods and is typically set by the implementation. For script
+    /// instances, this is often just a sequential index.
     pub id: i32,
+
+    /// The name of the method as it appears in Godot.
     pub method_name: StringName,
+
+    /// The class this method belongs to.
+    ///
+    /// For script-defined methods, this is typically the script's class ID obtained via
+    /// [`ClassId::new_dynamic()`]. Use [`ClassId::none()`] if the class is not applicable or unknown.
     pub class_name: ClassId,
+
+    /// Description of the method's return type.
+    ///
+    /// See [`PropertyInfo`] for how to construct type information. For methods that
+    /// don't return a value (void), use `VariantType::NIL`.
     pub return_type: PropertyInfo,
+
+    /// Descriptions of each method parameter.
+    ///
+    /// Each element describes one parameter's type, name, and metadata. The order
+    /// matches the parameter order in the method signature.
     pub arguments: Vec<PropertyInfo>,
-    /// Whether default arguments are real "arguments" is controversial. From the function PoV they are, but for the caller,
-    /// they are just pre-set values to fill in for missing arguments.
+
+    /// Default values for parameters with defaults.
+    ///
+    /// Contains the actual default [`Variant`] values for parameters that have them.
+    /// The length of this vector is typically less than or equal to `arguments.len()`,
+    /// containing defaults only for trailing parameters.
     pub default_arguments: Vec<Variant>,
+
+    /// Method flags controlling behavior and access.
+    ///
+    /// See [`MethodFlags`] for available options like `NORMAL`, `VIRTUAL`, `CONST`, etc.
     pub flags: MethodFlags,
 }
 
@@ -35,6 +110,7 @@ impl MethodInfo {
     /// [`free_owned_method_sys`](Self::free_owned_method_sys).
     ///
     /// This will leak memory unless used together with `free_owned_method_sys`.
+    #[doc(hidden)]
     pub fn into_owned_method_sys(self) -> sys::GDExtensionMethodInfo {
         use crate::obj::EngineBitfield as _;
 
@@ -88,6 +164,7 @@ impl MethodInfo {
     ///
     /// * Must only be used on a struct returned from a call to `into_owned_method_sys`, without modification.
     /// * Must not be called more than once on a `sys::GDExtensionMethodInfo` struct.
+    #[doc(hidden)]
     #[deny(unsafe_op_in_unsafe_fn)]
     pub unsafe fn free_owned_method_sys(info: sys::GDExtensionMethodInfo) {
         // Destructure info to ensure all fields are used.
