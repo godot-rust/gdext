@@ -13,11 +13,11 @@ use godot::builtin::inner::InnerRect2i;
 use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i};
 use godot::classes::{Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
-use godot::prelude::{varray, Callable, RustCallable, Variant};
 use godot::register::GodotClass;
 
-use crate::framework::{bench, bench_measure, BenchResult};
+use crate::framework::bench;
 
+mod callable;
 mod color;
 
 #[bench]
@@ -114,38 +114,9 @@ fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
     }))
 }
 
-#[bench(manual)]
-fn call_callv_rust_fn() -> BenchResult {
-    let callable = Callable::from_fn("RustFunction", |_| ());
-
-    bench_measure(25, || callable.callv(&varray![]))
-}
-
-#[bench(manual)]
-fn call_callv_custom() -> BenchResult {
-    let callable = Callable::from_custom(MyRustCallable {});
-
-    bench_measure(25, || callable.callv(&varray![]))
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helpers for benchmarks above
 
 #[derive(GodotClass)]
 #[class(init)]
 struct MyBenchType {}
-
-#[derive(PartialEq, Hash)]
-struct MyRustCallable {}
-
-impl RustCallable for MyRustCallable {
-    fn invoke(&mut self, _args: &[&Variant]) -> Variant {
-        Variant::nil()
-    }
-}
-
-impl std::fmt::Display for MyRustCallable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MyRustCallable")
-    }
-}

@@ -8,7 +8,7 @@
 use super::{make_callable_name, make_godot_fn};
 #[cfg(feature = "experimental-threads")]
 use crate::builtin::Callable;
-use crate::builtin::{GString, Variant};
+use crate::builtin::{CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned};
@@ -76,7 +76,7 @@ pub struct ConnectBuilder<'ts, 'c, C: WithSignals, Ps> {
 #[derive(Default)]
 struct BuilderData {
     /// User-specified name; if not provided, the Rust RTTI type name of the function is used.
-    callable_name: Option<GString>,
+    callable_name: Option<CowStr>,
 
     /// Godot connection flags.
     connect_flags: Option<ConnectFlags>,
@@ -98,14 +98,13 @@ where
     /// Name of the `Callable`, mostly used for debugging.
     ///
     /// If not provided, the Rust type name of the function/method is used.
-    pub fn name(mut self, name: impl meta::AsArg<GString>) -> Self {
+    pub fn name(mut self, name: impl Into<CowStr>) -> Self {
         assert!(
             self.data.callable_name.is_none(),
             "name() called twice on the same builder."
         );
 
-        meta::arg_into_owned!(name);
-        self.data.callable_name = Some(name);
+        self.data.callable_name = Some(name.into());
         self
     }
 
@@ -129,10 +128,10 @@ where
         godot_fn: impl FnMut(&[&Variant]) -> Variant + 'static,
         bound: &Gd<impl GodotClass>,
     ) -> ConnectHandle {
-        let callable_name = match &self.data.callable_name {
-            Some(user_provided_name) => user_provided_name,
-            None => &make_callable_name::<F>(),
-        };
+        let callable_name = self
+            .data
+            .callable_name
+            .unwrap_or_else(make_callable_name::<F>);
 
         let callable = bound.linked_callable(callable_name, godot_fn);
         self.parent_sig
@@ -311,10 +310,10 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call((), args);
         });
 
-        let callable_name = match &self.data.callable_name {
-            Some(user_provided_name) => user_provided_name,
-            None => &make_callable_name::<F>(),
-        };
+        let callable_name = self
+            .data
+            .callable_name
+            .unwrap_or_else(make_callable_name::<F>);
 
         let callable = Callable::from_sync_fn(callable_name, godot_fn);
         self.parent_sig

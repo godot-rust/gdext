@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::ops::DerefMut;
 
 use super::{make_callable_name, make_godot_fn, ConnectBuilder, ConnectHandle, SignalObject};
-use crate::builtin::{Callable, Variant};
+use crate::builtin::{Callable, CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned, UniformObjectDeref};
@@ -52,7 +52,7 @@ use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalRec
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
     object: C::__SignalObj<'c>,
-    name: Cow<'static, str>,
+    name: CowStr,
     _signature: PhantomData<Ps>,
 }
 
@@ -132,7 +132,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         bound: &Gd<impl GodotClass>,
     ) -> ConnectHandle {
         let callable_name = make_callable_name::<F>();
-        let callable = bound.linked_callable(&callable_name, godot_fn);
+        let callable = bound.linked_callable(callable_name, godot_fn);
         self.inner_connect_untyped(callable, None)
     }
 

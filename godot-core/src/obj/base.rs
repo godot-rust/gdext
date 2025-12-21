@@ -217,7 +217,7 @@ impl<T: GodotClass> Base<T> {
         });
 
         let name = format!("Base<{}> deferred unref", T::class_id());
-        let callable = Callable::from_once_fn(&name, move |_args| {
+        let callable = Callable::from_once_fn(name, move |_args| {
             Self::drop_strong_ref(instance_id);
         });
 
@@ -302,12 +302,6 @@ impl<T: GodotClass> Base<T> {
     #[cfg(safeguards_balanced)]
     fn is_initializing(&self) -> bool {
         self.init_state.get() == InitState::ObjectConstructing
-    }
-
-    /// Always returns `false` when balanced safeguards are disabled.
-    #[cfg(not(safeguards_balanced))]
-    fn is_initializing(&self) -> bool {
-        false
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.

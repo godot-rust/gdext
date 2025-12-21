@@ -509,7 +509,7 @@ pub mod custom_callable {
         let callable = Callable::from_custom(my_rust_callable);
 
         let variant = callable.to_variant();
-        assert_eq!(variant.stringify(), GString::from("Adder(sum=-2)"));
+        assert_eq!(variant.stringify(), "Adder(sum=-2, arc=1)");
     }
 
     #[itest]
@@ -697,7 +697,8 @@ pub mod custom_callable {
 
     impl fmt::Display for Adder {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "Adder(sum={})", self.sum)
+            let arc = Arc::strong_count(&self.tracker);
+            write!(f, "Adder(sum={sum}, arc={arc})", sum = self.sum)
         }
     }
 
@@ -758,5 +759,30 @@ pub mod custom_callable {
         fn invoke(&mut self, _args: &[&Variant]) -> Variant {
             panic!("TEST: {}", self.0.fetch_add(1, Ordering::SeqCst))
         }
+    }
+
+    #[itest]
+    fn callable_from_fn_name_cached() {
+        let callable = Callable::from_fn("test_callable", |_args: &[&Variant]| 42);
+
+        // Convert to variant string twice -- should use cached GString.
+        let str1 = callable.to_variant().stringify();
+        let str2 = callable.to_variant().stringify();
+
+        assert_eq!(str1, str2);
+        assert_eq!(str1, "test_callable");
+    }
+
+    #[itest]
+    fn callable_rust_callable_name_no_cache() {
+        let tracker = Tracker::new();
+
+        let adder = Adder::new_tracked(5, Arc::clone(&tracker));
+        let callable = Callable::from_custom(adder);
+
+        // RustCallable always calls Display -- no caching.
+        assert_eq!(callable.to_string(), "Adder(sum=5, arc=2)");
+        let _inc_ref = Arc::clone(&tracker);
+        assert_eq!(callable.to_string(), "Adder(sum=5, arc=3)");
     }
 }
