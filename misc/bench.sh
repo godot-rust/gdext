@@ -7,11 +7,19 @@
 set -e
 
 ################################################################################
-# Configuration
+# Help text
 ################################################################################
 
-# Godot binary (release template for benchmarking)
-GODOT_BINARY="${GODOT4_BIN:-/home/jan/gamedev/godot/bin/godot.linuxbsd.template_release.x86_64}"
+HELP_TEXT="Usage: $0 <godot-binary-path>
+
+Run benchmarks comparing the current branch against master.
+
+Arguments:
+    <godot-binary-path>    Path to a Godot release template binary
+
+The script will verify the binary is a release export template and exit with
+an error if ripgrep (rg) is not available.
+"
 
 ################################################################################
 # Constants
@@ -51,33 +59,57 @@ function extract_benchmarks() {
 }
 
 ################################################################################
+# Argument parsing
+################################################################################
+
+if [[ $# -ne 1 ]]; then
+    echo "$HELP_TEXT"
+    exit 2
+fi
+
+GODOT_BINARY="$1"
+
+################################################################################
 # Validation
 ################################################################################
 
 log -ne "${YELLOW}=== Benchmark Script ===${END}\n"
 log ""
 
+# Verify ripgrep is available
+if ! command -v rg &> /dev/null; then
+    log -ne "${RED}ERROR: ripgrep (rg) is required but not found in PATH${END}\n"
+    exit 1
+fi
+
 # Verify Godot binary exists
 if [[ ! -f "$GODOT_BINARY" ]]; then
     log -ne "${RED}ERROR: Godot binary not found at: $GODOT_BINARY${END}\n"
-    log "Set GODOT4_BIN environment variable to the full path to the executable."
     exit 1
 fi
 log "Using Godot binary: ${GODOT_BINARY##*/}"
 
-# Verify we're not on master
+# Godot outputs "Option legend (this build = release export template):" for --help if release. The --version doesn't always specify it.
+if ! "$GODOT_BINARY" --help 2>/dev/null | rg -q "release export template"; then
+    log ""
+    log -ne "${YELLOW}WARNING: Provided Godot binary is a Debug build, not Release export template.${END}\n"
+    log "Benchmark results may not be meaningful."
+    log ""
+fi
+
+# Ensure this is run on another branch, to compare with master.
 currentBranch=$(git rev-parse --abbrev-ref HEAD)
 if [[ "$currentBranch" == "master" ]]; then
-    log -ne "${RED}ERROR: You are currently on the master branch. Please check out a different branch first.${END}\n"
+    log -ne "${RED}ERROR: Currently on master; check out a different branch to compare with master.${END}\n"
     exit 1
 fi
 log -ne "${GREEN}✓${END} Current branch: $currentBranch"
 
-# Check for uncommitted changes
-UNCOMMITTED=$(git status --porcelain | grep -v '??' | wc -l)
+# Since we switch branches back and forth, it's safer to have a clean tree.
+UNCOMMITTED=$(git status --porcelain | rg -v '^\?\?' | wc -l)
 if [[ "$UNCOMMITTED" -gt 0 ]]; then
-    log -ne "${YELLOW}Warning: You have uncommitted changes:${END}\n"
-    git status --porcelain | grep -v '??' >&2
+    log -ne "${RED}ERROR: You have uncommitted changes:${END}\n"
+    git status --porcelain | rg -v '^\?\?' >&2
     log -ne "${YELLOW}Please commit or stash these changes before benchmarking.${END}\n"
     exit 1
 fi
