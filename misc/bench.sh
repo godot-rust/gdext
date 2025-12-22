@@ -1,128 +1,184 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Copyright (c) godot-rust; Bromeon and contributors.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 set -e
 
+################################################################################
+# Configuration
+################################################################################
+
 # Godot binary (release template for benchmarking)
-godotBinary=/home/jan/gamedev/godot/bin/godot.linuxbsd.template_release.x86_64
+GODOT_BINARY="${GODOT4_BIN:-/home/jan/gamedev/godot/bin/godot.linuxbsd.template_release.x86_64}"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
+################################################################################
+# Constants
+################################################################################
+
+# Terminal color codes.
+RED='\033[1;31m'
+CYAN='\033[1;36m'
+GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+END='\033[0m'
 
-echo -e "${YELLOW}=== Benchmark Script ===${NC}"
-echo ""
+################################################################################
+# Helper functions
+################################################################################
 
-# Step 1: Verify we're not on master
-currentBranch=$(git branch | grep '^\*' | sed 's/^\* //')
-if [ "$currentBranch" == "master" ]; then
-    echo -e "${RED}ERROR: You are currently on the master branch. Please check out a different branch first.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓${NC} Current branch: $currentBranch"
+# Drop-in replacement for `echo` that outputs to stderr and adds a newline.
+function log() {
+    echo "$@" >&2
+}
 
-# Step 2: Check for uncommitted changes
-UNCOMMITTED=$(git status --porcelain | grep -v '??' | wc -l)
-if [ "$UNCOMMITTED" -gt 0 ]; then
-    echo -e "${YELLOW}Warning: You have uncommitted changes:${NC}"
-    git status --porcelain | grep -v '??'
-    echo -e "${YELLOW}Please commit or stash these changes before benchmarking.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓${NC} No uncommitted changes"
+# Echoes the given command to stderr, then executes it.
+function run() {
+    echo -n '>' >&2
+    for arg in "$@"; do
+        printf " %q" "$arg" >&2
+    done
+    echo >&2
+    "$@"
+}
 
-# Create tmp directory for logs
-mkdir -p ./tmp
-
-echo ""
-echo -e "${YELLOW}=== Phase 1: Current Branch ===${NC}"
-echo -e "${GREEN}Branch: $currentBranch${NC}"
-echo ""
-
-# Phase 1a: BALANCED
-echo -e "${YELLOW}[1/4] Building BALANCED configuration...${NC}"
-cargo build -p itest --release 2>&1 | tail -5
-echo -e "Run BALANCED tests..."
-$godotBinary --path itest/godot --headless 2>&1 | tee ./tmp/bench_current_balanced.log > /dev/null
-echo -e "${GREEN}✓${NC} BALANCED complete"
-echo ""
-
-# Phase 1b: DISENGAGED
-echo -e "${YELLOW}[2/4] Building DISENGAGED configuration...${NC}"
-cargo build -p itest --release --features godot/safeguards-release-disengaged 2>&1 | tail -5
-echo -e "Run DISENGAGED tests..."
-$godotBinary --path itest/godot --headless 2>&1 | tee ./tmp/bench_current_disengaged.log > /dev/null
-echo -e "${GREEN}✓${NC} DISENGAGED complete"
-
-echo ""
-echo -e "${YELLOW}=== Phase 2: Master Branch ===${NC}"
-
-# Switch to master
-echo -e "${YELLOW}Switching to master branch...${NC}"
-git checkout master
-MASTER_BRANCH=$(git branch | grep '^\*' | sed 's/^\* //')
-echo -e "${GREEN}✓${NC} Now on: $MASTER_BRANCH"
-
-# Restore benchmark files from the feature branch
-echo -e "Restore benchmark files from $currentBranch..."
-git restore --source=$currentBranch -- itest/rust/src/benchmarks/
-echo -e "${GREEN}✓${NC} Benchmarks restored"
-echo ""
-
-# Force rebuild of itest package to pick up restored benchmarks
-echo -e "Clean itest package to force rebuild..."
-cargo clean -p itest
-echo -e "${GREEN}✓${NC} Package cleaned"
-echo ""
-
-# Phase 2a: DISENGAGED (opposite order for cache optimization)
-echo -e "${YELLOW}[3/4] Building DISENGAGED configuration...${NC}"
-cargo build -p itest --release --features godot/safeguards-release-disengaged 2>&1 | tail -5
-echo -e "Run DISENGAGED tests..."
-$godotBinary --path itest/godot --headless 2>&1 | tee ./tmp/bench_master_disengaged.log > /dev/null
-echo -e "${GREEN}✓${NC} DISENGAGED complete"
-echo ""
-
-# Phase 2b: BALANCED
-echo -e "${YELLOW}[4/4] Building BALANCED configuration...${NC}"
-cargo build -p itest --release 2>&1 | tail -5
-echo -e "Run BALANCED tests..."
-$godotBinary --path itest/godot --headless 2>&1 | tee ./tmp/bench_master_balanced.log > /dev/null
-echo -e "${GREEN}✓${NC} BALANCED complete"
-echo ""
-
-# Clean up restored benchmark files before switching back
-echo -e "Clean up benchmark files..."
-git restore -- itest/rust/src/benchmarks/
-# Remove files that were added on the feature branch but don't exist on master
-git diff --name-only --diff-filter=A master $currentBranch -- itest/rust/src/benchmarks/ | xargs rm
-echo -e "${GREEN}✓${NC} Cleaned up"
-echo ""
-
-# Switch back to original branch
-echo ""
-echo -e "${YELLOW}Switch back to $currentBranch...${NC}"
-git checkout -
-RESTORED_BRANCH=$(git branch | grep '^\*' | sed 's/^\* //')
-echo -e "${GREEN}✓${NC} Restored to: $RESTORED_BRANCH"
-
-echo ""
-echo -e "${YELLOW}=== Extracting Results ===${NC}"
-
-# Function to extract benchmark results from log (just the lines, no headers)
-extract_benchmarks() {
+# Extract benchmark results from log (just the lines, no headers)
+function extract_benchmarks() {
     local logfile=$1
     # Extract benchmark timing lines from color.rs and mod.rs sections (with timing values in μs)
     rg '^\s+--\s+\S+.*μs' "$logfile" 2>/dev/null || echo ""
 }
+
+################################################################################
+# Validation
+################################################################################
+
+log -ne "${YELLOW}=== Benchmark Script ===${END}\n"
+log ""
+
+# Verify Godot binary exists
+if [[ ! -f "$GODOT_BINARY" ]]; then
+    log -ne "${RED}ERROR: Godot binary not found at: $GODOT_BINARY${END}\n"
+    log "Set GODOT4_BIN environment variable to the full path to the executable."
+    exit 1
+fi
+log "Using Godot binary: ${GODOT_BINARY##*/}"
+
+# Verify we're not on master
+currentBranch=$(git rev-parse --abbrev-ref HEAD)
+if [[ "$currentBranch" == "master" ]]; then
+    log -ne "${RED}ERROR: You are currently on the master branch. Please check out a different branch first.${END}\n"
+    exit 1
+fi
+log -ne "${GREEN}✓${END} Current branch: $currentBranch"
+
+# Check for uncommitted changes
+UNCOMMITTED=$(git status --porcelain | grep -v '??' | wc -l)
+if [[ "$UNCOMMITTED" -gt 0 ]]; then
+    log -ne "${YELLOW}Warning: You have uncommitted changes:${END}\n"
+    git status --porcelain | grep -v '??' >&2
+    log -ne "${YELLOW}Please commit or stash these changes before benchmarking.${END}\n"
+    exit 1
+fi
+log -ne "${GREEN}✓${END} No uncommitted changes"
+log ""
+
+# Create tmp directory for logs
+mkdir -p ./tmp
+
+################################################################################
+# Phase 1: Current Branch
+################################################################################
+
+log -ne "${YELLOW}=== Phase 1: Current Branch ===${END}\n"
+log "Branch: ${GREEN}${currentBranch}${END}"
+log ""
+
+# Phase 1a: BALANCED
+log -ne "${YELLOW}[1/4] Building BALANCED configuration...${END}\n"
+cargo build -p itest --release 2>&1 | tail -5 >&2
+log "Run BALANCED tests..."
+run "$GODOT_BINARY" --path itest/godot --headless 2>&1 | tee ./tmp/bench_current_balanced.log > /dev/null
+log -ne "${GREEN}✓${END} BALANCED complete"
+log ""
+
+# Phase 1b: DISENGAGED
+log -ne "${YELLOW}[2/4] Building DISENGAGED configuration...${END}\n"
+cargo build -p itest --release --features godot/safeguards-release-disengaged 2>&1 | tail -5 >&2
+log "Run DISENGAGED tests..."
+run "$GODOT_BINARY" --path itest/godot --headless 2>&1 | tee ./tmp/bench_current_disengaged.log > /dev/null
+log -ne "${GREEN}✓${END} DISENGAGED complete"
+log ""
+
+################################################################################
+# Phase 2: Master Branch
+################################################################################
+
+log -ne "${YELLOW}=== Phase 2: Master Branch ===${END}\n"
+
+# Switch to master
+log "Switch to master branch..."
+git checkout master
+MASTER_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+log -ne "${GREEN}✓${END} Now on: $MASTER_BRANCH"
+
+# Restore benchmark files from the feature branch
+log "Restore benchmark files from ${currentBranch}..."
+git restore --source="$currentBranch" -- itest/rust/src/benchmarks/
+log -ne "${GREEN}✓${END} Benchmarks restored"
+log ""
+
+# Force rebuild of itest package to pick up restored benchmarks
+log "Clean itest package to force rebuild..."
+cargo clean -p itest
+log -ne "${GREEN}✓${END} Package cleaned"
+log ""
+
+# Phase 2a: DISENGAGED (opposite order for cache optimization)
+log -ne "${YELLOW}[3/4] Building DISENGAGED configuration...${END}\n"
+cargo build -p itest --release --features godot/safeguards-release-disengaged 2>&1 | tail -5 >&2
+log "Run DISENGAGED tests..."
+run "$GODOT_BINARY" --path itest/godot --headless 2>&1 | tee ./tmp/bench_master_disengaged.log > /dev/null
+log -ne "${GREEN}✓${END} DISENGAGED complete"
+log ""
+
+# Phase 2b: BALANCED
+log -ne "${YELLOW}[4/4] Building BALANCED configuration...${END}\n"
+cargo build -p itest --release 2>&1 | tail -5 >&2
+log "Run BALANCED tests..."
+run "$GODOT_BINARY" --path itest/godot --headless 2>&1 | tee ./tmp/bench_master_balanced.log > /dev/null
+log -ne "${GREEN}✓${END} BALANCED complete"
+log ""
+
+# Clean up restored benchmark files before switching back
+log "Clean up benchmark files..."
+git restore -- itest/rust/src/benchmarks/
+# Remove files that were added on the feature branch but don't exist on master
+git diff --name-only --diff-filter=A master "$currentBranch" -- itest/rust/src/benchmarks/ | xargs rm
+log -ne "${GREEN}✓${END} Cleaned up"
+log ""
+
+# Switch back to original branch
+log "Switch back to ${currentBranch}..."
+git checkout -
+RESTORED_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+log -ne "${GREEN}✓${END} Restored to: $RESTORED_BRANCH"
+log ""
+
+################################################################################
+# Results extraction
+################################################################################
+
+log -ne "${YELLOW}=== Extract Results ===${END}\n"
 
 # Generate bench_results.md
 resultsFile="bench_results.md"
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 
 # Extract benchmark data
-echo -e "${YELLOW}Parsing benchmark results...${NC}"
+log "Parse benchmark results..."
+log ""
 
 # Extract just the benchmark lines
 CURRENT_BALANCED_LINES=$(extract_benchmarks "./tmp/bench_current_balanced.log")
@@ -155,7 +211,7 @@ echo "$MASTER_DISENGAGED_LINES" > "$tmpdir/md.txt"
 
 # Parse each benchmark line and find matches in other configs
 while IFS= read -r line; do
-    [ -z "$line" ] && continue
+    [[ -z "$line" ]] && continue
 
     # Extract benchmark name and min value from current balanced
     name=$(echo "$line" | sed 's/^[[:space:]]*--[[:space:]]*//; s/[[:space:]]*\.\.\..*//')
@@ -172,9 +228,7 @@ while IFS= read -r line; do
     md_min=$(echo "$md_line" | awk '{print $(NF-1)}')
 
     # Add row if all values found -- check no longer needed, as change from branch is backported (git restore) to master.
-    #if [ -n "$cb_min" ] && [ -n "$cd_min" ] && [ -n "$mb_min" ] && [ -n "$md_min" ]; then
     printf "| \`%s\` | %s | %s | %s | %s |\n" "$name" "$cb_min" "$mb_min" "$cd_min" "$md_min" >> "$resultsFile"
-    #fi
 done <<< "$CURRENT_BALANCED_LINES"
 
 # Cleanup temp files
@@ -193,9 +247,11 @@ cat >> "$resultsFile" << EOF
 
 EOF
 
-echo -e "${GREEN}✓${NC} Results written to $resultsFile"
-echo ""
-echo -e "${GREEN}=== Benchmark Complete ===${NC}"
-echo ""
-echo "Results saved to: $resultsFile"
-echo "Log files saved to: ./tmp/"
+log -ne "${GREEN}✓${END} Results written to $resultsFile"
+log ""
+log -ne "${CYAN}=============================="
+log -ne "\ngodot-rust: benchmark COMPLETE."
+log -ne "\n==============================${END}\n"
+log ""
+log "Results saved to: $resultsFile"
+log "Log files saved to: ./tmp/"
