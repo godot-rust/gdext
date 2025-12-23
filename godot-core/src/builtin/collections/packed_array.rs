@@ -472,6 +472,48 @@ impl<T: PackedArrayElement> Default for PackedArray<T> {
     }
 }
 
+impl PackedFloat32Array {
+    /// Fast conversion to `Array<f32>` using pure-Rust variant marshalling.
+    ///
+    /// This is a demonstration of using [`RustVariant`] to bypass FFI calls
+    /// for setting scalar values in an array.
+    ///
+    /// # Performance
+    /// This should be faster than the standard `to_typed_array()` by avoiding
+    /// FFI overhead for each element conversion.
+    pub fn to_typed_array_blaze(&self) -> Array<f32> {
+        use crate::builtin::{Array, RustVariant};
+
+        let len = self.len();
+        let mut array = Array::<f32>::new();
+
+        if len == 0 {
+            return array;
+        }
+
+        // Resize array to the right size (fills with default values).
+        array.resize_default(len);
+
+        // Get mutable access to the underlying variant array.
+        // SAFETY: We just created this array and know its length.
+        let variants = unsafe { Variant::borrow_slice_mut(array.variant_ptr_mut(0), len) };
+
+        // Write each packed float directly via RustVariant.
+        let src = self.as_slice();
+        for i in 0..len {
+            let float_value = src[i];
+            let view = RustVariant::view_mut(&mut variants[i]);
+
+            // SAFETY: Array constructor sets type tag for all elements.
+            unsafe {
+                view.set_assuming_type(float_value as f64);
+            }
+        }
+
+        array
+    }
+}
+
 impl<T: PackedArrayElement> Clone for PackedArray<T> {
     fn clone(&self) -> Self {
         unsafe {
@@ -561,18 +603,18 @@ impl<T: PackedArrayElement> meta::GodotType for PackedArray<T> {
 }
 
 impl<T: PackedArrayElement> meta::GodotFfiVariant for PackedArray<T> {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         unsafe {
             Variant::new_with_var_uninit(|variant_ptr| {
-                T::ffi_to_variant(self.sys(), SysPtr::force_init(variant_ptr));
+                T::rust_to_variant(self.sys(), SysPtr::force_init(variant_ptr));
             })
         }
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, meta::error::ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, meta::error::ConvertError> {
         let array = unsafe {
             Self::new_with_uninit(|ptr| {
-                T::ffi_from_variant(variant.var_sys(), SysPtr::force_init(ptr));
+                T::rust_from_variant(variant.var_sys(), SysPtr::force_init(ptr));
             })
         };
         Ok(array)

@@ -23,6 +23,7 @@ serde = ["dep:serde", "dep:serde_json", "godot/serde"]
 
 [dependencies]
 godot = { path = "../../godot", default-features = false, features = ["__trace"] }
+paste = "1.0"
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 pin-project-lite = { workspace = true }

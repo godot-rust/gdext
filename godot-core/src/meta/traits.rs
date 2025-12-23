@@ -24,10 +24,56 @@ pub use sys::{ExtVariantType, GodotFfi, GodotNullableFfi};
 pub use crate::builtin::meta_reexport::PackedArrayElement;
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
+///
+/// The default methods (`rust_to_variant` and `rust_from_variant`) may use rust-side marshalling for types allowing this optimization.
+/// For guaranteed FFI-only conversion (testing), use the `_ffi_only` variants.
+///
+/// This trait overlaps strongly with `GodotType`, but currently has an `impl ObjectArg<'gd>` on top. Vice versa, following types implement
+/// `GodotType` but not `GodotFfiVariant`: `u8, u16, u32, i8, i16, i32, f32, u64`.
+///
+/// Compared to `GodotFfi`, this trait adds `Variant` conversion with optional RustMarshal optimizations.
 #[doc(hidden)]
 pub trait GodotFfiVariant: Sized + GodotFfi {
-    fn ffi_to_variant(&self) -> Variant;
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError>;
+    /// Converts this type to `Variant`, using RustMarshal optimization when available.
+    ///
+    /// For types implementing RustMarshal, this may use direct memory marshalling instead of going through FFI. For guaranteed
+    /// FFI-only conversion, use [`rust_to_variant_ffi()`](Self::rust_to_variant_ffi).
+    fn rust_to_variant(&self) -> Variant;
+
+    /// Converts from `Variant` to this type, using RustMarshal optimization when available.
+    ///
+    /// For types implementing RustMarshal, this may use direct memory unmarshalling instead of going through FFI. For guaranteed
+    /// FFI-only conversion, use [`rust_from_variant_ffi()`](Self::rust_from_variant_ffi).
+    fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError>;
+
+    // TODO(v0.5): these 2 methods aren't used, either remove or use.
+    #[allow(dead_code)]
+    fn rust_to_variant_inplace(&self, variant: &mut Variant) {
+        *variant = self.rust_to_variant();
+    }
+
+    #[allow(dead_code)]
+    unsafe fn rust_to_variant_inplace_same_type(&self, variant: &mut Variant) {
+        self.rust_to_variant_inplace(variant);
+    }
+
+    /// Guaranteed FFI-only conversion to `Variant` (bypasses RustMarshal optimizations).
+    ///
+    /// This method always uses the pure FFI path, even for types that implement RustMarshal. Use this when you need to verify
+    /// FFI behavior or for testing.
+    #[doc(hidden)]
+    fn rust_to_variant_ffi(&self) -> Variant {
+        self.rust_to_variant()
+    }
+
+    /// Guaranteed FFI-only conversion from `Variant` (bypasses RustMarshal optimizations).
+    ///
+    /// This method always uses the pure FFI path, even for types that implement RustMarshal. Use this when you need to verify
+    /// FFI behavior or for testing.
+    #[doc(hidden)]
+    fn rust_from_variant_ffi(variant: &Variant) -> Result<Self, ConvertError> {
+        Self::rust_from_variant(variant)
+    }
 }
 
 /// Type that is directly representable in the engine.
