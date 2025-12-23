@@ -880,3 +880,122 @@ fn gstr(s: &str) -> GString {
 fn sname(s: &str) -> StringName {
     StringName::from(s)
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// RustVariant tests
+
+#[itest]
+fn rust_variant_getters() {
+    use godot::builtin::RustVariant;
+
+    // Nil
+    let mut nil_variant = Variant::nil();
+    let view = RustVariant::view_mut(&mut nil_variant);
+    assert_eq!(view.get_type(), VariantType::NIL);
+
+    // Bool
+    let mut bool_variant = Variant::from(true);
+    let view = RustVariant::view_mut(&mut bool_variant);
+    assert_eq!(view.get_type(), VariantType::BOOL);
+    assert_eq!(view.get_value::<bool>(), Some(true));
+    assert!(view.get_value::<i64>().is_none());
+
+    let mut bool_variant = Variant::from(false);
+    let view = RustVariant::view_mut(&mut bool_variant);
+    assert_eq!(view.get_value::<bool>(), Some(false));
+
+    // Int
+    let mut int_variant = Variant::from(42i64);
+    let view = RustVariant::view_mut(&mut int_variant);
+    assert_eq!(view.get_type(), VariantType::INT);
+    assert_eq!(view.get_value::<i64>(), Some(42));
+    assert!(view.get_value::<f64>().is_none());
+
+    let mut int_variant = Variant::from(-9223372036854775808i64);
+    let view = RustVariant::view_mut(&mut int_variant);
+    assert_eq!(view.get_value::<i64>(), Some(-9223372036854775808i64));
+
+    // Float
+    let mut float_variant = Variant::from(3.125f64);
+    let view = RustVariant::view_mut(&mut float_variant);
+    assert_eq!(view.get_type(), VariantType::FLOAT);
+    assert_eq!(view.get_value::<f64>(), Some(3.125));
+    assert!(view.get_value::<i64>().is_none());
+}
+
+#[itest]
+fn rust_variant_setters() {
+    use godot::builtin::RustVariant;
+
+    // Start with nil, set to int, float, bool
+    let mut variant = Variant::nil();
+    let view = RustVariant::view_mut(&mut variant);
+
+    assert!(view.set_value(123i64).is_ok());
+    assert_eq!(view.get_value::<i64>(), Some(123));
+
+    // Change int to float
+    assert!(view.set_value(2.72f64).is_ok());
+    assert_eq!(view.get_value::<f64>(), Some(2.72));
+
+    // Change float to bool
+    assert!(view.set_value(true).is_ok());
+    assert_eq!(view.get_value::<bool>(), Some(true));
+
+    // Verify the underlying Variant was actually modified
+    let extracted: bool = variant.to();
+    assert!(extracted);
+}
+
+#[itest]
+fn rust_variant_setters_reject_complex_types() {
+    use godot::builtin::{RustVariant, SetError};
+
+    // String is a complex type that needs destruction
+    let mut string_variant = Variant::from(GString::from("hello"));
+    let view = RustVariant::view_mut(&mut string_variant);
+
+    // Should fail because String needs destruction
+    let result = view.set_value(42i64);
+    assert!(result.is_err());
+    if let Err(SetError { current_type }) = result {
+        assert_eq!(current_type, VariantType::STRING);
+    }
+
+    // Array is also a complex type
+    let mut array_variant = Variant::from(varray![1, 2, 3]);
+    let view = RustVariant::view_mut(&mut array_variant);
+    assert!(view.set_value(true).is_err());
+}
+
+#[itest]
+fn rust_variant_roundtrip_with_ffi() {
+    use godot::builtin::RustVariant;
+
+    // Create variant via FFI, read with RustVariant
+    let mut variant = 42i64.to_variant();
+    {
+        let view = RustVariant::view_mut(&mut variant);
+        assert_eq!(view.get_value::<i64>(), Some(42));
+    }
+
+    // Verify FFI extraction still works
+    let extracted: i64 = variant.to();
+    assert_eq!(extracted, 42);
+}
+
+#[itest]
+fn rust_variant_set_then_ffi_extract() {
+    use godot::builtin::RustVariant;
+
+    // Set value via RustVariant, extract via FFI
+    let mut variant = Variant::nil();
+    {
+        let view = RustVariant::view_mut(&mut variant);
+        view.set_value(99.5).unwrap();
+    }
+
+    // FFI extraction should see the value we set
+    let extracted: f64 = variant.to();
+    assert_eq!(extracted, 99.5);
+}

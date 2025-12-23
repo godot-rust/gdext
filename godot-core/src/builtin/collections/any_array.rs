@@ -502,7 +502,7 @@ impl ToGodot for AnyArray {
     }
 
     fn to_variant(&self) -> Variant {
-        self.ffi_to_variant()
+        self.rust_to_variant()
     }
 }
 
@@ -552,11 +552,11 @@ impl GodotType for AnyArray {
 }
 
 impl GodotFfiVariant for AnyArray {
-    fn ffi_to_variant(&self) -> Variant {
-        VarArray::ffi_to_variant(&self.array)
+    fn rust_to_variant(&self) -> Variant {
+        VarArray::rust_to_variant(&self.array)
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         // SAFETY: All element types are valid for AnyArray.
         let result = unsafe { VarArray::unchecked_from_variant(variant) };
         result.map(|inner| Self { array: inner })

@@ -186,15 +186,15 @@ impl<T> GodotFfiVariant for RefArg<'_, T>
 where
     T: GodotFfiVariant,
 {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         match self.shared_ref {
-            Some(r) => r.ffi_to_variant(),
+            Some(r) => r.rust_to_variant(),
             None => Variant::nil(),
         }
     }
 
-    fn ffi_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
-        wrong_direction!(ffi_from_variant)
+    fn rust_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
+        wrong_direction!(rust_from_variant)
     }
 }
 

@@ -116,11 +116,11 @@ unsafe impl<'gd> GodotFfi for ObjectArg<'gd> {
 }
 
 impl<'gd> GodotFfiVariant for ObjectArg<'gd> {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         obj::object_ffi_to_variant(self)
     }
 
-    fn ffi_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
+    fn rust_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
         unreachable!("ObjectArg should only be passed *to* Godot, not *from*.")
     }
 }

@@ -157,7 +157,7 @@ impl<T: GodotClass> RawGd<T> {
         //eprintln!("ffi_cast: {} (dyn {}) -> {}", T::class_id(), self.as_non_null().dynamic_class_string(), U::class_name());
 
         // `self` may be null when we convert a null-variant into a `Option<Gd<T>>`, since we use `ffi_cast`
-        // in the `ffi_from_variant` conversion function to ensure type-correctness. So the chain would be as follows:
+        // in the `rust_from_variant` conversion function to ensure type-correctness. So the chain would be as follows:
         // - Variant::nil()
         // - null RawGd<Object>
         // - null RawGd<T>
@@ -676,11 +676,11 @@ impl<T: GodotClass> GodotType for RawGd<T> {
 }
 
 impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         object_ffi_to_variant(self)
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         let variant_type = variant.get_type();
 
         // Explicit type check before calling `object_from_variant`, to allow for better error messages.

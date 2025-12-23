@@ -10,13 +10,14 @@
 use std::hint::black_box;
 
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i};
+use godot::builtin::{GString, PackedFloat32Array, PackedInt32Array, Rect2i, StringName, Vector2i};
 use godot::classes::{Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
 use godot::register::GodotClass;
 
 use crate::framework::bench;
 
+mod array;
 mod callable;
 mod color;
 
@@ -112,6 +113,49 @@ fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
             None
         }
     }))
+}
+
+#[bench(manual)]
+fn call_callv_rust_fn() -> BenchResult {
+    let callable = Callable::from_fn("RustFunction", |_| ());
+
+    bench_measure(25, || callable.callv(&varray![]))
+}
+
+#[bench(manual)]
+fn call_callv_custom() -> BenchResult {
+    let callable = Callable::from_custom(MyRustCallable {});
+
+    bench_measure(25, || callable.callv(&varray![]))
+}
+
+#[bench(manual)]
+fn packed_f32_to_array() -> BenchResult {
+    let packed = PackedFloat32Array::from_iter((0..10_000).map(|v: i32| v as f32));
+    bench_measure(1, || packed.to_typed_array())
+}
+#[bench(manual)]
+fn packed_f32_to_array_blaze() -> BenchResult {
+    let packed = PackedFloat32Array::from_iter((0..10_000).map(|v: i32| v as f32));
+    bench_measure(1, || packed.to_typed_array_blaze())
+}
+
+#[bench(manual)]
+fn packed_f32_to_var_array() -> BenchResult {
+    let packed = PackedFloat32Array::from_iter((0..10_000).map(|v: i32| v as f32));
+    bench_measure(1, || packed.to_var_array())
+}
+
+#[bench(manual)]
+fn packed_f32_to_array_small() -> BenchResult {
+    let packed = PackedFloat32Array::from_iter((0..100).map(|v: i32| v as f32));
+    bench_measure(1, || packed.to_typed_array())
+}
+
+#[bench(manual)]
+fn packed_f32_to_var_array_small() -> BenchResult {
+    let packed = PackedFloat32Array::from_iter((0..100).map(|v: i32| v as f32));
+    bench_measure(1, || packed.to_var_array())
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

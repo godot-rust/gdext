@@ -21,6 +21,9 @@ use crate::meta::{
 };
 
 mod impls;
+mod rust_variant;
+
+pub use rust_variant::{RustMarshal, RustVariant, SetError};
 
 /// Godot variant type, able to store a variety of different types.
 ///
@@ -35,7 +38,7 @@ mod impls;
 /// # Godot docs
 ///
 /// [`Variant` (stable)](https://docs.godotengine.org/en/stable/classes/class_variant.html)
-// We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`.
+// We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`, and for Array access.
 #[repr(transparent)]
 pub struct Variant {
     _opaque: sys::types::OpaqueVariant,
@@ -293,10 +296,11 @@ impl Variant {
     }
 
     pub(crate) fn sys_type(&self) -> sys::GDExtensionVariantType {
-        unsafe {
-            let ty: sys::GDExtensionVariantType = interface_fn!(variant_get_type)(self.var_sys());
-            ty
-        }
+        // Rust-only implementation: read type tag directly from internal representation.
+        RustVariant::view(self).type_tag()
+
+        // FFI implementation (commented out):
+        //   let ty: sys::GDExtensionVariantType = interface_fn!(variant_get_type)(self.var_sys());
     }
 
     /// Return Godot's string representation of the variant.

@@ -53,6 +53,13 @@ pub fn attribute_bench(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let other_attributes: Vec<_> = retain_attributes_except(&func.attributes, "bench").collect();
 
     let generated_fn = if manual {
+        if func.return_ty.is_none() {
+            return bail!(
+                func,
+                "#[bench(manual)] function must return crate::framework::BenchResult"
+            );
+        }
+
         // Manual mode: user calls bench_measure() directly.
         let ret = func.return_ty;
         quote! {

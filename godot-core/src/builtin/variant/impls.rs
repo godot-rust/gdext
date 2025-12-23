@@ -27,29 +27,80 @@ use crate::task::{impl_dynamic_send, DynamicSend, IntoDynamicSend, ThreadConfine
 // However, those same types would cause memory leaks in Godot 4.1 if pre-initialized. A compat layer `new_with_uninit_or_init()` addressed this.
 // As these Godot versions are no longer supported, the current implementation uses `new_with_uninit()` uniformly for all versions.
 macro_rules! impl_ffi_variant {
-    (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
-        impl_ffi_variant!(@impls by_ref; $T, $from_fn, $to_fn $(; $GodotTy)?);
+    // Entry points with RustVariant optimization (use @ prefix to avoid ambiguity).
+    (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?, @rust_variant) => {
+        impl_ffi_variant!(@rust_variant_impls by_ref; $T, $from_fn, $to_fn $(; $GodotTy)?);
     };
-    ($T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
-        impl_ffi_variant!(@impls by_val; $T, $from_fn, $to_fn $(; $GodotTy)?);
+    ($T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?, @rust_variant) => {
+        impl_ffi_variant!(@rust_variant_impls by_val; $T, $from_fn, $to_fn $(; $GodotTy)?);
     };
 
-    // Implementations
-    (@impls $by_ref_or_val:ident; $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+    // Entry points without RustVariant (standard FFI path).
+    (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+        impl_ffi_variant!(@ffi_only_impls by_ref; $T, $from_fn, $to_fn $(; $GodotTy)?);
+    };
+    ($T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+        impl_ffi_variant!(@ffi_only_impls by_val; $T, $from_fn, $to_fn $(; $GodotTy)?);
+    };
+
+    // Implementation with RustVariant optimization.
+    (@rust_variant_impls $by_ref_or_val:ident; $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+        // Compile-time size check at macro expansion site.
+        const _: () = {
+            use crate::builtin::variant::rust_variant::VARIANT_DATA_SIZE;
+            assert!(
+                std::mem::size_of::<$T>() <= VARIANT_DATA_SIZE,
+                "Type is too large for RustVariant"
+            );
+        };
+
         impl GodotFfiVariant for $T {
-            fn ffi_to_variant(&self) -> Variant {
-                let variant = unsafe {
+            fn rust_to_variant(&self) -> Variant {
+                unsafe {
                     Variant::new_with_var_uninit(|variant_ptr| {
                         let converter = sys::builtin_fn!($from_fn);
                         converter(variant_ptr, sys::SysPtr::force_mut(self.sys()));
                     })
-                };
-
-                variant
+                }
             }
 
-            fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-                // Type check -- at the moment, a strict match is required.
+            // OVERRIDE: Use RustVariant for direct memory marshalling.
+            unsafe fn rust_to_variant_inplace_same_type(&self, variant: &mut Variant) {
+                RustVariant::view_mut(variant)
+                    .set_value(*self)
+                    .expect("type matches, overwrite must succeed");
+            }
+
+            fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+                if variant.get_type() != Self::VARIANT_TYPE.variant_as_nil() {
+                    return Err(FromVariantError::BadType {
+                        expected: Self::VARIANT_TYPE.variant_as_nil(),
+                        actual: variant.get_type(),
+                    }
+                    .into_error(variant.clone()));
+                }
+
+                let result = unsafe {
+                    Self::new_with_uninit(|self_ptr| {
+                        let converter = sys::builtin_fn!($to_fn);
+                        converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+                    })
+                };
+
+                Ok(result)
+            }
+
+            // FFI-ONLY PATH: Always uses FFI, never RustMarshal.
+            fn rust_to_variant_ffi(&self) -> Variant {
+                unsafe {
+                    Variant::new_with_var_uninit(|variant_ptr| {
+                        let converter = sys::builtin_fn!($from_fn);
+                        converter(variant_ptr, sys::SysPtr::force_mut(self.sys()));
+                    })
+                }
+            }
+
+            fn rust_from_variant_ffi(variant: &Variant) -> Result<Self, ConvertError> {
                 if variant.get_type() != Self::VARIANT_TYPE.variant_as_nil() {
                     return Err(FromVariantError::BadType {
                         expected: Self::VARIANT_TYPE.variant_as_nil(),
@@ -69,6 +120,57 @@ macro_rules! impl_ffi_variant {
             }
         }
 
+        impl_ffi_variant!(@shared_impls $by_ref_or_val; $T $(, $GodotTy)?);
+    };
+
+    // Implementation without RustVariant (standard FFI only).
+    (@ffi_only_impls $by_ref_or_val:ident; $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+        impl GodotFfiVariant for $T {
+            fn rust_to_variant(&self) -> Variant {
+                unsafe {
+                    Variant::new_with_var_uninit(|variant_ptr| {
+                        let converter = sys::builtin_fn!($from_fn);
+                        converter(variant_ptr, sys::SysPtr::force_mut(self.sys()));
+                    })
+                }
+            }
+
+            // No override - uses default implementation (calls rust_to_variant).
+
+            fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+                if variant.get_type() != Self::VARIANT_TYPE.variant_as_nil() {
+                    return Err(FromVariantError::BadType {
+                        expected: Self::VARIANT_TYPE.variant_as_nil(),
+                        actual: variant.get_type(),
+                    }
+                    .into_error(variant.clone()));
+                }
+
+                let result = unsafe {
+                    Self::new_with_uninit(|self_ptr| {
+                        let converter = sys::builtin_fn!($to_fn);
+                        converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+                    })
+                };
+
+                Ok(result)
+            }
+
+            // For FFI-only types, both paths are identical.
+            fn rust_to_variant_ffi(&self) -> Variant {
+                self.rust_to_variant()
+            }
+
+            fn rust_from_variant_ffi(variant: &Variant) -> Result<Self, ConvertError> {
+                Self::rust_from_variant(variant)
+            }
+        }
+
+        impl_ffi_variant!(@shared_impls $by_ref_or_val; $T $(, $GodotTy)?);
+    };
+
+    // Shared implementations (GodotType, ArrayElement).
+    (@shared_impls $by_ref_or_val:ident; $T:ty $(, $GodotTy:ident)?) => {
         impl GodotType for $T {
             type Ffi = Self;
             impl_ffi_variant!(@assoc_to_ffi $by_ref_or_val);
@@ -127,26 +229,31 @@ mod impls {
     // IMPORTANT: the presence/absence of `ref` here should be aligned with the ArgPassing variant
     // used in codegen get_builtin_arg_passing().
 
-    impl_ffi_variant!(bool, bool_to_variant, bool_from_variant);
-    impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
-    impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
-    impl_ffi_variant!(Vector2, vector2_to_variant, vector2_from_variant);
-    impl_ffi_variant!(Vector3, vector3_to_variant, vector3_from_variant);
-    impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant);
-    impl_ffi_variant!(Vector2i, vector2i_to_variant, vector2i_from_variant);
-    impl_ffi_variant!(Vector3i, vector3i_to_variant, vector3i_from_variant);
-    impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
-    impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
+    // Types with RustVariant optimization (fit in Variant data, no destructors).
+    impl_ffi_variant!(bool, bool_to_variant, bool_from_variant, @rust_variant);
+    impl_ffi_variant!(i64, int_to_variant, int_from_variant; int, @rust_variant);
+    impl_ffi_variant!(f64, float_to_variant, float_from_variant; float, @rust_variant);
+    impl_ffi_variant!(Vector2i, vector2i_to_variant, vector2i_from_variant, @rust_variant);
+    impl_ffi_variant!(Vector3i, vector3i_to_variant, vector3i_from_variant, @rust_variant);
+    impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant, @rust_variant);
+    impl_ffi_variant!(Color, color_to_variant, color_from_variant, @rust_variant);
+    impl_ffi_variant!(Rect2i, rect2i_to_variant, rect2i_from_variant, @rust_variant);
+    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID, @rust_variant);
+
+    // Precision-dependent types with RustVariant optimization.
+    impl_ffi_variant!(Vector2, vector2_to_variant, vector2_from_variant, @rust_variant);
+    impl_ffi_variant!(Vector3, vector3_to_variant, vector3_from_variant, @rust_variant);
+    impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant, @rust_variant);
+    impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant, @rust_variant);
+    impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant, @rust_variant);
+    impl_ffi_variant!(Rect2, rect2_to_variant, rect2_from_variant, @rust_variant);
+
+    // Large types without RustVariant (use standard FFI).
     impl_ffi_variant!(Transform2D, transform_2d_to_variant, transform_2d_from_variant);
     impl_ffi_variant!(Transform3D, transform_3d_to_variant, transform_3d_from_variant);
     impl_ffi_variant!(Basis, basis_to_variant, basis_from_variant);
     impl_ffi_variant!(Projection, projection_to_variant, projection_from_variant);
-    impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
-    impl_ffi_variant!(Rect2, rect2_to_variant, rect2_from_variant);
-    impl_ffi_variant!(Rect2i, rect2i_to_variant, rect2i_from_variant);
     impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
-    impl_ffi_variant!(Color, color_to_variant, color_from_variant);
-    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID);
     impl_ffi_variant!(ref GString, string_to_variant, string_from_variant; String);
     impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
@@ -332,11 +439,11 @@ const _: () = {
 
 // Unit
 impl GodotFfiVariant for () {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         Variant::nil()
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         if variant.is_nil() {
             return Ok(());
         }
@@ -367,11 +474,11 @@ impl GodotType for () {
 }
 
 impl GodotFfiVariant for Variant {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         self.clone()
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         Ok(variant.clone())
     }
 }

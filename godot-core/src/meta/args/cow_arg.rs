@@ -208,14 +208,14 @@ macro_rules! impl_ffi_traits {
         where
             T: GodotFfiVariant,
         {
-            fn ffi_to_variant(&self) -> Variant {
+            fn rust_to_variant(&self) -> Variant {
                 match self {
-                    $($enum_pattern => $delegate.ffi_to_variant(),)*
+                    $($enum_pattern => $delegate.rust_to_variant(),)*
                 }
             }
 
-            fn ffi_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
-                wrong_direction!(ffi_from_variant)
+            fn rust_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
+                wrong_direction!(rust_from_variant)
             }
         }
     };

@@ -77,6 +77,8 @@ pub use signature::trace;
 #[doc(hidden)]
 pub use signature::*;
 pub use signed_range::{wrapped, SignedRange};
+#[doc(hidden)]
+pub use traits::GodotFfiVariant;
 pub use traits::{ArrayElement, GodotImmutable, GodotType, PackedArrayElement};
 pub use uniform_object_deref::UniformObjectDeref;
 
@@ -87,7 +89,7 @@ pub use crate::arg_into_owned;
 mod reexport_crate {
     pub(crate) use super::traits::{
         element_godot_type_name, element_variant_type, ffi_variant_type, ExtVariantType,
-        GodotFfiVariant, GodotNullableFfi,
+        GodotNullableFfi,
     };
     // Private imports for this module only.
     pub(super) use crate::registry::method::MethodParamOrReturnInfo;

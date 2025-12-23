@@ -612,7 +612,7 @@ pub trait ArgPassing: Sealed {
         T: EngineToGodot<Pass = Self>,
     {
         let ffi_result = Self::ref_to_ffi(value);
-        GodotFfiVariant::ffi_to_variant(&ffi_result)
+        GodotFfiVariant::rust_to_variant(&ffi_result)
     }
 }
 

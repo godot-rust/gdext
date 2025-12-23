@@ -209,6 +209,25 @@ fn collect_inputs() -> Vec<Input> {
     inputs
 }
 
+fn emit_variant_testing_cfg() {
+    println!(r#"cargo:rustc-check-cfg=cfg(variant_test_mode, values("ffi", "rust", "both"))"#);
+
+    let test_mode = std::env::var("VARIANT_TEST_MODE").unwrap_or_else(|_| "rust".to_string());
+
+    match test_mode.as_str() {
+        "ffi" => println!(r#"cargo:rustc-cfg=variant_test_mode="ffi""#),
+        "rust" => println!(r#"cargo:rustc-cfg=variant_test_mode="rust""#),
+        "both" => {
+            println!(r#"cargo:rustc-cfg=variant_test_mode="both""#);
+            println!(r#"cargo:rustc-cfg=variant_test_mode="ffi""#);
+            println!(r#"cargo:rustc-cfg=variant_test_mode="rust""#);
+        }
+        _ => panic!("Invalid VARIANT_TEST_MODE: {test_mode}. Use 'ffi', 'rust', or 'both'."),
+    }
+
+    println!("cargo:rerun-if-env-changed=VARIANT_TEST_MODE");
+}
+
 fn main() {
     let inputs = collect_inputs();
     let methods = generate_rust_methods(&inputs);
@@ -273,6 +292,7 @@ fn main() {
 
     godot_bindings::emit_godot_version_cfg();
     godot_bindings::emit_safeguard_levels();
+    emit_variant_testing_cfg();
 
     // The godot crate has a __codegen-full default feature that enables the godot-codegen/codegen-full feature. When compiling the entire
     // workspace itest also gets compiled with full codegen due to feature unification. This causes compiler errors since the

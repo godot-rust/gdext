@@ -133,7 +133,7 @@ pub trait FromGodot: Sized + GodotConvert {
 
     /// Performs the conversion from a [`Variant`], returning `Err` on failure.
     fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-        let ffi = <Self::Via as GodotType>::Ffi::ffi_from_variant(variant)?;
+        let ffi = <Self::Via as GodotType>::Ffi::rust_from_variant(variant)?;
 
         let via = Self::Via::try_from_ffi(ffi)?;
         Self::try_from_godot(via)

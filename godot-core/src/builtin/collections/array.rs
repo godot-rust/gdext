@@ -252,6 +252,14 @@ impl<T: ArrayElement> Array<T> {
         Self::default()
     }
 
+    /// Returns a raw pointer to the variant at the given index for internal use.
+    ///
+    /// # Panics
+    /// If `index` is out of bounds.
+    pub(crate) fn variant_ptr_mut(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
+        self.ptr_mut(index)
+    }
+
     /// ⚠️ Returns the value at the specified index.
     ///
     /// This replaces the `Index` trait, which cannot be implemented for `Array`, as it stores variants and not references.
@@ -458,13 +466,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`][AnyArray::shrink] instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
-        self.balanced_ensure_mutable();
-
-        let original_size = self.len();
-
-        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
-        // array are of type `T` still.
-        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        let original_size = self.resize_inner(new_size);
 
         meta::arg_into_ref!(value: T);
 
@@ -483,6 +485,30 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
+    /// Resizes the array, limited to certain element types and values.
+    ///
+    /// Limited to default-constructible `Copy` types, to allow efficient batch initialization. Use [`resize()`][Self::resize] if you need
+    /// more flexibility.
+    pub fn resize_default(&mut self, new_size: usize)
+    where
+        // Do not remove these bounds. Allowing e.g. Gd<RefCounted> would create null elements.
+        // Limiting to Copy only would be possible, but inconsistent for types like Plane that don't support default-initialization in Rust.
+        T: Default + Copy,
+    {
+        self.resize_inner(new_size);
+    }
+
+    fn resize_inner(&mut self, new_size: usize) -> usize {
+        self.balanced_ensure_mutable();
+
+        let original_size = self.len();
+
+        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
+        // array are of type `T` still.
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        original_size
+    }
+
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
     pub fn extend_array(&mut self, other: &Array<T>) {
         self.balanced_ensure_mutable();
@@ -491,6 +517,55 @@ impl<T: ArrayElement> Array<T> {
         // to be of type `T`.
         let mut inner_self = unsafe { self.as_inner_mut() };
         inner_self.append_array(other);
+    }
+
+    /// Fast extension using pre-allocation and direct variant assignment.
+    ///
+    /// This method is faster than the standard `extend()` by avoiding per-element FFI calls
+    /// for resizing. It pre-allocates space based on the iterator's size hint and assigns
+    /// variants directly.
+    ///
+    /// For iterators with inexact size hints, this uses the fast path for the lower bound,
+    /// then falls back to regular `extend()` for any remaining elements.
+    ///
+    /// # Performance
+    /// - Exact-size iterators (Vec, slice, array): Significantly faster than `extend()`
+    /// - Inexact-size iterators (filter, map): Fast path for lower bound + regular extend
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// let mut array = Array::<i64>::new();
+    /// array.extend_blaze(vec![1, 2, 3, 4, 5]);
+    /// ```
+    pub fn extend_blaze<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        self.balanced_ensure_mutable();
+
+        let mut iter = iter.into_iter();
+        let (lower, _upper) = iter.size_hint();
+
+        // Fast path: pre-allocate and fill until lower bound.
+        if lower > 0 {
+            let current_len = self.len();
+            let new_len = current_len + lower;
+
+            // Pre-allocate with default-constructed variants (already of type T if array is typed).
+            self.resize_inner(new_len);
+
+            // SAFETY: We just resized to new_len, so indices [current_len..new_len) are valid.
+            // Array is uniquely owned (ensured by balanced_ensure_mutable).
+            let new_elements =
+                unsafe { Variant::borrow_slice_mut(self.variant_ptr_mut(current_len), lower) };
+
+            // Assign converted variants for lower bound.
+            for (i, item) in iter.by_ref().take(lower).enumerate() {
+                let variant = item.to_variant();
+                new_elements[i] = variant;
+            }
+        }
+
+        // Regular extend for any remaining elements (or all if lower == 0)
+        self.extend(iter);
     }
 
     /// Returns a shallow copy, sharing reference types (`Array`, `Dictionary`, `Object`...) with the original array.
@@ -1088,7 +1163,7 @@ impl VarArray {
     /// - Variant must have type `VariantType::ARRAY`.
     /// - Subsequent operations on this array must not rely on the type of the array.
     pub(crate) unsafe fn from_variant_unchecked(variant: &Variant) -> Self {
-        // See also ffi_from_variant().
+        // See also rust_from_variant().
         Self::new_with_uninit(|self_ptr| {
             let array_from_variant = sys::builtin_fn!(array_from_variant);
             array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
@@ -1349,7 +1424,7 @@ impl<T: ArrayElement> GodotType for Array<T> {
 }
 
 impl<T: ArrayElement> GodotFfiVariant for Array<T> {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         unsafe {
             Variant::new_with_var_uninit(|variant_ptr| {
                 let array_to_variant = sys::builtin_fn!(array_to_variant);
@@ -1358,7 +1433,7 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
         }
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         // SAFETY: if conversion succeeds, we call with_checked_type() afterwards.
         let array = unsafe { Self::unchecked_from_variant(variant) }?;
 
