@@ -45,13 +45,13 @@ pub trait PackedElement: GodotType + Clone + ToGodot + FromGodot {
     // FFI operations
 
     #[doc(hidden)]
-    unsafe fn ffi_to_variant(
+    unsafe fn rust_to_variant(
         type_ptr: sys::GDExtensionConstTypePtr,
         variant_ptr: sys::GDExtensionVariantPtr,
     );
 
     #[doc(hidden)]
-    unsafe fn ffi_from_variant(
+    unsafe fn rust_from_variant(
         variant_ptr: sys::GDExtensionConstVariantPtr,
         type_ptr: sys::GDExtensionTypePtr,
     );
@@ -216,13 +216,13 @@ macro_rules! impl_packed_array_element {
             }
 
             #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
-            unsafe fn ffi_to_variant(type_ptr: sys::GDExtensionConstTypePtr, variant_ptr: sys::GDExtensionVariantPtr) {
+            unsafe fn rust_to_variant(type_ptr: sys::GDExtensionConstTypePtr, variant_ptr: sys::GDExtensionVariantPtr) {
                 let converter = sys::builtin_fn!($to_variant_fn);
                 converter(SysPtr::as_uninit(variant_ptr), SysPtr::force_mut(type_ptr));
             }
 
             #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
-            unsafe fn ffi_from_variant(variant_ptr: sys::GDExtensionConstVariantPtr, type_ptr: sys::GDExtensionTypePtr) {
+            unsafe fn rust_from_variant(variant_ptr: sys::GDExtensionConstVariantPtr, type_ptr: sys::GDExtensionTypePtr) {
                 let converter = sys::builtin_fn!($from_variant_fn);
                 converter(SysPtr::as_uninit(type_ptr), SysPtr::force_mut(variant_ptr));
             }

@@ -488,7 +488,7 @@ impl ToGodot for AnyDictionary {
     }
 
     fn to_variant(&self) -> Variant {
-        self.ffi_to_variant()
+        self.rust_to_variant()
     }
 }
 
@@ -532,11 +532,11 @@ impl GodotType for AnyDictionary {
 }
 
 impl GodotFfiVariant for AnyDictionary {
-    fn ffi_to_variant(&self) -> Variant {
-        VarDictionary::ffi_to_variant(&self.dict)
+    fn rust_to_variant(&self) -> Variant {
+        VarDictionary::rust_to_variant(&self.dict)
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         // SAFETY: All element types are valid for AnyDictionary.
         let result = unsafe { VarDictionary::unchecked_from_variant(variant) };
         result.map(|inner| Self { dict: inner })

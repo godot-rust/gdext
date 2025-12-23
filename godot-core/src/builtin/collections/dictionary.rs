@@ -878,7 +878,7 @@ impl<K: Element, V: Element> FromGodot for Dictionary<K, V> {
 }
 
 impl<K: Element, V: Element> meta::GodotFfiVariant for Dictionary<K, V> {
-    fn ffi_to_variant(&self) -> Variant {
+    fn rust_to_variant(&self) -> Variant {
         unsafe {
             Variant::new_with_var_uninit(|variant_ptr| {
                 let converter = sys::builtin_fn!(dictionary_to_variant);
@@ -887,7 +887,7 @@ impl<K: Element, V: Element> meta::GodotFfiVariant for Dictionary<K, V> {
         }
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, meta::error::ConvertError> {
+    fn rust_from_variant(variant: &Variant) -> Result<Self, meta::error::ConvertError> {
         // SAFETY: if conversion succeeds, we call with_checked_type() afterwards.
         let result = unsafe { Self::unchecked_from_variant(variant) }?;
 

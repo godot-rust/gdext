@@ -24,6 +24,7 @@ test-gdextension-dependency = ["dep:itest-dependency"]
 
 [dependencies]
 godot = { path = "../../godot", default-features = false, features = ["__trace"] }
+paste = "1.0"
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 pin-project-lite = { workspace = true }
