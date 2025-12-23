@@ -313,20 +313,21 @@ impl Callable {
         R: ToGodot,
         S: Into<CowStr>,
     {
-        Self::from_fn_wrapper_with_thread(
-            name,
-            rust_function,
-            linked_object_id,
-            #[cfg(safeguards_balanced)]
-            Some(std::thread::current().id()),
-        )
+        let thread_id = if cfg!(safeguards_balanced) {
+            Some(std::thread::current().id())
+        } else {
+            None // Thread not checked.
+        };
+
+        Self::from_fn_wrapper_with_thread(name, rust_function, linked_object_id, thread_id)
     }
 
     fn from_fn_wrapper_with_thread<F, R, S>(
         name: S,
         rust_function: F,
         linked_object_id: Option<InstanceId>,
-        #[cfg(safeguards_balanced)] thread_id: Option<std::thread::ThreadId>,
+        // No #[cfg] on param; would be converted to (invalid) #[doc(cfg)].
+        _thread_id: Option<std::thread::ThreadId>,
     ) -> Self
     where
         F: FnMut(&[&Variant]) -> R,
@@ -340,7 +341,7 @@ impl Callable {
             name,
             name_cached: OnceLock::new(),
             #[cfg(safeguards_balanced)]
-            thread_id,
+            thread_id: _thread_id,
             linked_object_id,
         };
 
