@@ -17,8 +17,6 @@ use crate::meta::{InParamTuple, ObjectToOwned, UniformObjectDeref};
 use crate::obj::{Gd, GodotClass, WithSignals};
 use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
 /// Type-safe version of a Godot signal.
 ///
 /// Short-lived type, only valid in the scope of its surrounding object type `C`, for lifetime `'c`. The generic argument `Ps` represents
@@ -26,7 +24,9 @@ use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalRec
 ///
 /// See the [Signals](https://godot-rust.github.io/book/register/signals.html) chapter in the book for a general introduction and examples.
 ///
-/// # Listing signals of a class
+/// # Using typed signals
+///
+/// ## Listing signals of a class
 /// The [`WithSignals::SignalCollection`] struct stores multiple signals with distinct, code-generated types, but they all implement
 /// `Deref` and `DerefMut` to `TypedSignal`. This allows you to either use the concrete APIs of the generated types, or the more generic
 /// ones of `TypedSignal`.
@@ -34,21 +34,97 @@ use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalRec
 /// You can access the signal collection of a class via [`self.signals()`][crate::obj::WithUserSignals::signals] or
 /// [`Gd::signals()`][Gd::signals].
 ///
-/// # Connecting a signal to a receiver
+/// ## Connecting a signal to a receiver
 /// Receiver functions are functions that are called when a signal is emitted. You can connect a signal in many different ways:
 /// - [`connect()`][Self::connect]: Connect a global/associated function or a closure.
 /// - [`connect_self()`][Self::connect_self]: Connect a method or closure that runs on the signal emitter.
 /// - [`connect_other()`][Self::connect_other]: Connect a method or closure that runs on a separate object.
 /// - [`builder()`][Self::builder] for more complex setups (such as choosing [`ConnectFlags`] or making thread-safe connections).
 ///
-/// # Emitting a signal
+/// ## Emitting a signal
 /// Code-generated signal types provide a method `emit(...)`, which adopts the names and types of the `#[signal]` parameter list.
 /// In most cases, that's the method you are looking for.
 ///
 /// For generic use, you can also use [`emit_tuple()`][Self::emit_tuple], which does not provide parameter names.
 ///
-/// # Generic programming and code reuse
+/// ## Generic programming and code reuse
 /// If you want to build higher-level abstractions that operate on `TypedSignal`, you will need the [`SignalReceiver`] trait.
+///
+/// # Availability
+// Keep in sync with https://godot-rust.github.io/book/register/signals.html#admonition-availability-of-signal-api.
+/// For typed signals to be available, you need:
+/// - A `#[godot_api] impl MyClass {}` block.
+///     - This must be an inherent impl, the `I*` trait `impl` won't be enough.
+///     - Leave the impl empty if necessary.
+/// - A `Base<T>` field.
+///
+/// Signals, typed or not, cannot be declared in secondary impl blocks (those annotated with `#[godot_api(secondary)]` attribute).
+///
+/// # Examples
+/// While the following code is not necessarily the best way to model player-enemy interactions, it demonstrates different ways of connecting
+/// signals.
+/// ```no_run
+/// # use godot::prelude::*;
+/// # use godot::classes::{Node, Control};
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node)]
+/// pub struct Player {
+///     enemy: OnEditor<Gd<Node>>,
+///     ui: OnEditor<Gd<Control>>,
+///     base: Base<Node>,
+/// }
+///
+/// #[godot_api]
+/// impl Player {
+///     #[signal]
+///     fn health_depleted();
+///
+///     fn on_player_defeated(&mut self) { /* ... */ }
+///     fn on_enemy_defeated(&mut self) { /* ... */ }
+/// }
+///
+/// impl Player {
+///     // Different actions when player HP reach zero (for game-over sequence, respawn...).
+///     fn setup_health_depleted_connections(&mut self) {
+///         // Connect to global function/closure (not bound to an object).
+///         // Signal flow: self -> global
+///         self.signals()
+///             .health_depleted()
+///             .connect(|| {
+///                 godot_print!("Player died.");
+///             });
+///
+///         // Connect to another method on self.
+///         // Signal flow: self -> self
+///         self.signals().health_depleted().connect_self(Self::on_player_defeated);
+///
+///         // Equivalent connection with a closure:
+///         self.signals()
+///             .health_depleted()
+///             .connect_self(|this| {
+///                 // this: &mut Player
+///                 this.on_player_defeated();
+///             });
+///     }
+///
+///     // Actions when enemy leaves the scene.
+///     fn setup_enemy_despawn_connections(&mut self) {
+///         // Signal flow: self.enemy -> self
+///         self.enemy
+///             .signals()
+///             .tree_exited()
+///             .connect_other(self, Self::on_enemy_defeated);
+///
+///         // Signal flow: self.enemy -> self.ui
+///         self.enemy
+///             .signals()
+///             .tree_exited()
+///             .connect_other(&*self.ui, |ui| {
+///                 // Update UI display here.
+///             });
+///     }
+/// }
+/// ```
 pub struct TypedSignal<'c, C: WithSignals, Ps> {
     /// In Godot, valid signals (unlike funcs) are _always_ declared in a class and become part of each instance. So there's always an object.
     object: C::__SignalObj<'c>,
@@ -214,7 +290,6 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     /// - Any `&Gd<OtherC>` (e.g.: `&Gd<Node>`, `&Gd<CustomUserClass>`).
     /// - `&OtherC`, as long as `OtherC` is a user class that contains a `base` field (it implements the
     ///   [`WithBaseField`][crate::obj::WithBaseField] trait).
-    ///
     /// ---
     ///
     /// - To connect to methods on the object that owns this signal, use [`connect_self()`][Self::connect_self].
