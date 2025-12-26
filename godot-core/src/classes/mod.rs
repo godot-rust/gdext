@@ -37,6 +37,18 @@ pub mod native {
     pub use crate::r#gen::native::*;
 }
 
+/// Type markers for server-internal RID types.
+///
+/// These marker types represent server-side resources that don't have corresponding Godot class types.
+/// They are intended for use with typed RID wrappers to provide type safety for low-level server APIs.
+///
+/// Examples include `TagCanvas`, `TagPhysicsSpace2D`, `TagNavigationMap`, etc.
+///
+/// See the [module documentation](rids) for details on each marker type.
+pub mod rids;
+
+pub use rids::*;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Crate-local utilities
 
