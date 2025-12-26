@@ -1379,3 +1379,121 @@ pub fn as_enum_bitmaskable(enum_: &Enum) -> Option<RustTy> {
     let rust_ty = to_enum_type_uncached(mapped, true);
     Some(rust_ty)
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// RID type markers
+
+/// Returns whether a (class, method_prefix) pair defines a RID type marker.
+///
+/// These mappings are used by codegen to generate type-safe RID marker enums.
+/// Methods starting with the prefix return RIDs of that particular resource type.
+///
+/// Tag naming rules (applied by codegen):
+/// - If prefix is unique across all classes: `{MethodPrefix}Tag` (e.g., `"canvas_"` -> `CanvasTag`)
+/// - If prefix appears in multiple classes: `{Class}{MethodPrefix}Tag` (e.g., `"space_"` on `PhysicsServer2D` -> `PhysicsServer2DSpaceTag`)
+#[rustfmt::skip]
+pub fn is_rid_method_prefix(class_name: &str, method_prefix: &str) -> bool {
+    match (class_name, method_prefix) {
+        // RenderingServer markers
+        | ("RenderingServer", "canvas_")
+        | ("RenderingServer", "scenario_")
+        | ("RenderingServer", "instance_")
+        | ("RenderingServer", "skeleton_")
+        | ("RenderingServer", "occluder_")
+        | ("RenderingServer", "lightmap_")
+        | ("RenderingServer", "compositor_")
+        | ("RenderingServer", "compositor_effect_")
+        | ("RenderingServer", "viewport_")
+
+        // PhysicsServer2D markers
+        | ("PhysicsServer2D", "space_")
+        | ("PhysicsServer2D", "area_")
+        | ("PhysicsServer2D", "body_")
+        | ("PhysicsServer2D", "joint_")
+
+        // PhysicsServer3D markers
+        | ("PhysicsServer3D", "space_")
+        | ("PhysicsServer3D", "area_")
+        | ("PhysicsServer3D", "body_")
+        | ("PhysicsServer3D", "soft_body_")
+        | ("PhysicsServer3D", "joint_")
+
+        // NavigationServer2D markers (shared with 3D)
+        | ("NavigationServer2D", "map_")
+        | ("NavigationServer2D", "region_")
+        | ("NavigationServer2D", "link_")
+        | ("NavigationServer2D", "agent_")
+        | ("NavigationServer2D", "obstacle_")
+        | ("NavigationServer2D", "source_geometry_parser_")
+
+        // NavigationServer3D markers (shared with 2D)
+        | ("NavigationServer3D", "map_")
+        | ("NavigationServer3D", "region_")
+        | ("NavigationServer3D", "link_")
+        | ("NavigationServer3D", "agent_")
+        | ("NavigationServer3D", "obstacle_")
+        | ("NavigationServer3D", "source_geometry_parser_")
+
+        // TextServer markers
+        | ("TextServer", "shaped_text_")
+
+        // DisplayServer markers
+        | ("DisplayServer", "accessibility_element_")
+
+        => true, _ => false
+    }
+}
+
+/// Returns all (class, method_prefix) pairs that define RID type markers.
+///
+/// Used by codegen to generate the complete list of RID tag enums.
+#[rustfmt::skip]
+pub fn get_all_rid_method_prefixes() -> &'static [(&'static str, &'static str)] {
+    &[
+        // RenderingServer markers
+        ("RenderingServer", "canvas_"),
+        ("RenderingServer", "scenario_"),
+        ("RenderingServer", "instance_"),
+        ("RenderingServer", "skeleton_"),
+        ("RenderingServer", "occluder_"),
+        ("RenderingServer", "lightmap_"),
+        ("RenderingServer", "compositor_"),
+        ("RenderingServer", "compositor_effect_"),
+        ("RenderingServer", "viewport_"),
+
+        // PhysicsServer2D markers
+        ("PhysicsServer2D", "space_"),
+        ("PhysicsServer2D", "area_"),
+        ("PhysicsServer2D", "body_"),
+        ("PhysicsServer2D", "joint_"),
+
+        // PhysicsServer3D markers
+        ("PhysicsServer3D", "space_"),
+        ("PhysicsServer3D", "area_"),
+        ("PhysicsServer3D", "body_"),
+        ("PhysicsServer3D", "soft_body_"),
+        ("PhysicsServer3D", "joint_"),
+
+        // NavigationServer2D markers (shared with 3D)
+        ("NavigationServer2D", "map_"),
+        ("NavigationServer2D", "region_"),
+        ("NavigationServer2D", "link_"),
+        ("NavigationServer2D", "agent_"),
+        ("NavigationServer2D", "obstacle_"),
+        ("NavigationServer2D", "source_geometry_parser_"),
+
+        // NavigationServer3D markers (shared with 2D)
+        ("NavigationServer3D", "map_"),
+        ("NavigationServer3D", "region_"),
+        ("NavigationServer3D", "link_"),
+        ("NavigationServer3D", "agent_"),
+        ("NavigationServer3D", "obstacle_"),
+        ("NavigationServer3D", "source_geometry_parser_"),
+
+        // TextServer markers
+        ("TextServer", "shaped_text_"),
+
+        // DisplayServer markers
+        ("DisplayServer", "accessibility_element_"),
+    ]
+}

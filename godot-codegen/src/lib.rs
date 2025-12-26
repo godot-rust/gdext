@@ -35,9 +35,10 @@ use crate::generator::extension_interface::generate_sys_interface_file;
 use crate::generator::native_structures::generate_native_structures_files;
 use crate::generator::utility_functions::generate_utilities_file;
 use crate::generator::{
-    generate_core_central_file, generate_core_mod_file, generate_sys_builtin_lifecycle_file,
-    generate_sys_builtin_methods_file, generate_sys_central_file, generate_sys_classes_file,
-    generate_sys_module_file, generate_sys_utilities_file, virtual_definitions,
+    generate_core_central_file, generate_core_mod_file, generate_core_rid_tags_file,
+    generate_sys_builtin_lifecycle_file, generate_sys_builtin_methods_file,
+    generate_sys_central_file, generate_sys_classes_file, generate_sys_module_file,
+    generate_sys_utilities_file, virtual_definitions,
 };
 use crate::models::domain::{ApiView, ExtensionApi};
 use crate::models::json::{JsonExtensionApi, load_extension_api};
@@ -202,6 +203,9 @@ pub fn generate_core_files(core_gen_path: &Path) {
 
     generate_utilities_file(&api, core_gen_path, &mut submit_fn);
     watch.record("generate_utilities_file");
+
+    generate_core_rid_tags_file(core_gen_path, &mut submit_fn);
+    watch.record("generate_rid_tags_file");
 
     // From 4.4 onward, generate table that maps all virtual methods to their known hashes.
     // This allows Godot to fall back to an older compatibility function if one is not supported.

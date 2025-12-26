@@ -42,12 +42,11 @@ pub mod native {
 /// These marker types represent server-side resources that don't have corresponding Godot class types.
 /// They are intended for use with typed RID wrappers to provide type safety for low-level server APIs.
 ///
-/// Examples include `TagCanvas`, `TagPhysicsSpace2D`, `TagNavigationMap`, etc.
+/// Examples include `CanvasTag`, `PhysicsServer2DSpaceTag`, `NavigationServer2DMapTag`, etc.
 ///
-/// See the [module documentation](rids) for details on each marker type.
-pub mod rids;
-
-pub use rids::*;
+/// See the [module documentation](rid_tags) for details on each marker type.
+pub use crate::gen::rid_tags as rids;
+pub use crate::gen::rid_tags::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Crate-local utilities

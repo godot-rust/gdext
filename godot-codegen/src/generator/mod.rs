@@ -28,6 +28,7 @@ pub mod lifecycle_builtins;
 pub mod method_tables;
 pub mod native_structures;
 pub mod notifications;
+pub mod rid_tags;
 pub mod signals;
 pub mod utility_functions;
 pub mod virtual_definitions;
@@ -126,9 +127,16 @@ pub fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) {
         pub mod utilities;
         pub mod native;
         pub mod virtuals;
+        pub mod rid_tags;
     };
 
     submit_fn(gen_path.join("mod.rs"), code);
+}
+
+pub fn generate_core_rid_tags_file(gen_path: &Path, submit_fn: &mut SubmitFn) {
+    let code = rid_tags::make_rid_tags_code();
+
+    submit_fn(gen_path.join("rid_tags.rs"), code);
 }
 
 pub fn generate_core_central_file(

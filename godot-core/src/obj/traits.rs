@@ -935,3 +935,18 @@ pub mod cap {
         fn __virtual_call(name: &str, hash: u32) -> sys::GDExtensionClassCallVirtual;
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// RID marker traits
+
+/// Marker trait for RID type tags.
+///
+/// This trait is implemented by all RID marker types and is used to provide type safety
+/// for [`TypedRid<T>`] when working with server-internal resources.
+///
+/// RID tags are uninhabitable enum types (enums with no variants) that serve as type-level
+/// markers. They are used with `TypedRid<T>` to distinguish between different kinds of
+/// server-side resources, such as canvases, physics spaces, or navigation maps.
+///
+/// This trait is sealed and cannot be implemented outside of godot-rust.
+pub trait TaggedRid: crate::meta::sealed::Sealed {}
