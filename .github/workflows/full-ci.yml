@@ -163,9 +163,12 @@ jobs:
           rust: ${{ matrix.rust-toolchain || 'stable' }}
           cache-key: ${{ matrix.rust-cache-key }} # only needed when rustc version is possibly the same
 
+      # Set Cargo features also to minimal; detects when doctests refer to API symbols outside the minimal codegen set.
       - name: "Install minimal dependency versions from Cargo"
         if: matrix.rust-special == '-minimal-deps'
-        run: cargo +nightly update -Z minimal-versions
+        run: |
+          cargo +nightly update -Z minimal-versions
+          echo "TEST_FEATURES=--no-default-features" >> $GITHUB_ENV
 
       - name: "Compile tests"
         run: cargo test $TEST_FEATURES --no-run ${{ matrix.rust-extra-args }}

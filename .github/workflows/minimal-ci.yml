@@ -127,6 +127,9 @@ jobs:
       - name: "Test"
         run: cargo test $TEST_FEATURES
 
+      - name: "Run doctest in minimal feature set"
+        run: cargo test --doc --no-default-features
+
 
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
