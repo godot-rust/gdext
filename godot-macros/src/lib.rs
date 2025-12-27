@@ -156,52 +156,45 @@ use crate::util::{bail, ident, KvParser};
 /// generates a trivial getter and setter named `get_my_field` and `set_my_field`, respectively.
 /// These are `pub` in Rust, since they're exposed from GDScript anyway.
 ///
-/// If you want to implement your own getter and/or setter, write those as a function on your Rust
-/// type, expose it using `#[func]`, and annotate the field with
-/// `#[var(get = ..., set = ...)]`:
+/// The `get` and `set` options are **orthogonal** as of godot-rust v0.5: specifying one does not affect the other.
+/// By default, both a getter and setter are generated, but you can customize either independently:
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init)]
 /// struct MyStruct {
-///     #[var(get = get_my_field, set = set_my_field)]
-///     my_field: i64,
+///     // Auto-generated getter and setter.
+///     #[var]
+///     a: i64,
+///
+///     // Looks for setter `set_b` defined by user. Name is derived from field name.
+///     #[var(set)]
+///     b: i64,
+///
+///     // Looks for custom-named setter `my_set_c` defined by user.
+///     #[var(set = my_set_c)]
+///     c: i64,
+///
+///     // No setter, default getter (read-only).
+///     #[var(no_set)]
+///     d: i64,
+///
+///     // Same principle for getters.
 /// }
 ///
 /// #[godot_api]
 /// impl MyStruct {
-///     #[func]
-///     pub fn get_my_field(&self) -> i64 {
-///         self.my_field
+///     #[func] // #[func] is needed to make function visible to Godot.
+///     pub fn set_b(&mut self, value: i64) {
+///         if value % 3 == 0 {  // Example: perform validation.
+///             self.b = value;
+///         }
 ///     }
 ///
 ///     #[func]
-///     pub fn set_my_field(&mut self, value: i64) {
-///         self.my_field = value;
-///     }
-/// }
-/// ```
-///
-/// If you specify only `get`, no setter is generated, making the field read-only. If you specify
-/// only `set`, no getter is generated, making the field write-only (rarely useful). To add a
-/// generated getter or setter in these cases anyway, use `get` or `set` without a value:
-///
-/// ```
-/// # use godot::prelude::*;
-/// #[derive(GodotClass)]
-/// # #[class(init)]
-/// struct MyStruct {
-///     // Default getter, custom setter.
-///     #[var(get, set = set_my_field)]
-///     my_field: i64,
-/// }
-///
-/// #[godot_api]
-/// impl MyStruct {
-///     #[func]
-///     pub fn set_my_field(&mut self, value: i64) {
-///         self.my_field = value;
+///     pub fn my_set_c(&mut self, value: i64) {
+///         self.c = value.max(0);  // Example: clamp to non-negative.
 ///     }
 /// }
 /// ```
