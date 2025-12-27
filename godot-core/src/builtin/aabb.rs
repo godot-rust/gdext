@@ -196,6 +196,22 @@ impl Aabb {
         self.position + self.size
     }
 
+    /// Returns the position of one of the 8 vertices that compose this bounding box.
+    ///
+    /// Matches GDScript's ordering for `get_endpoint`. With an `idx` of 0 this is the same as position, and an `idx` of 7 is the same as end.
+    ///
+    /// # Panics
+    /// If `idx` is greater than 7.
+    ///
+    /// _Godot equivalent: `get_endpoint`_
+    #[inline]
+    pub fn get_endpoint(&self, idx: usize) -> Vector3 {
+        *self
+            .endpoints()
+            .get(idx)
+            .expect("Tried to retrieve vertex no. {idx} from Aabb which has only 8 vertices")
+    }
+
     /// Set size based on desired end-point.
     ///
     /// NOTE: This does not make the AABB absolute, and `Aabb.abs()` should be called if the size becomes negative.
@@ -249,20 +265,27 @@ impl Aabb {
         self.size.x.min(self.size.y.min(self.size.z))
     }
 
+    #[inline]
+    #[deprecated = "renamed to `get_support`"]
+    pub fn support(self, dir: Vector3) -> Vector3 {
+        self.get_support(dir)
+    }
+
     /// Returns the support point in a given direction. This is useful for collision detection algorithms.
     #[inline]
-    #[doc(alias = "get_support")]
-    pub fn support(self, dir: Vector3) -> Vector3 {
-        let half_extents = self.size * 0.5;
-        let relative_center_point = self.position + half_extents;
+    pub fn get_support(self, dir: Vector3) -> Vector3 {
+        let mut support = self.position;
+        if dir.x > 0. {
+            support.x += self.size.x;
+        }
+        if dir.y > 0. {
+            support.y += self.size.y;
+        }
+        if dir.z > 0. {
+            support.z += self.size.z;
+        }
 
-        let signs = Vector3 {
-            x: dir.x.signum(),
-            y: dir.y.signum(),
-            z: dir.z.signum(),
-        };
-
-        half_extents * signs + relative_center_point
+        support
     }
 
     /// Checks whether two AABBs have at least one point in common.
@@ -302,20 +325,28 @@ impl Aabb {
             && end.z > b.position.z
     }
 
+    /// Returns the 8 vertices that compose this bounding box.
+    ///
+    /// The vertex ordering matches GDScript's ordering for `get_endpoint`. The first vertex is the same as `position`, and the last is the same as `end`.
+    #[inline]
+    pub fn endpoints(&self) -> [Vector3; 8] {
+        [
+            self.position,
+            self.position + Vector3::new(0.0, 0.0, self.size.z),
+            self.position + Vector3::new(0.0, self.size.y, 0.0),
+            self.position + Vector3::new(0.0, self.size.y, self.size.z),
+            self.position + Vector3::new(self.size.x, 0.0, 0.0),
+            self.position + Vector3::new(self.size.x, 0.0, self.size.z),
+            self.position + Vector3::new(self.size.x, self.size.y, 0.0),
+            self.position + self.size,
+        ]
+    }
+
     /// Returns `true` if the AABB is on both sides of a plane.
     #[inline]
     pub fn intersects_plane(self, plane: Plane) -> bool {
         // The set of the edges of the AABB.
-        let points = [
-            self.position,
-            self.position + Vector3::new(0.0, 0.0, self.size.z),
-            self.position + Vector3::new(0.0, self.size.y, 0.0),
-            self.position + Vector3::new(self.size.x, 0.0, 0.0),
-            self.position + Vector3::new(self.size.x, self.size.y, 0.0),
-            self.position + Vector3::new(self.size.x, 0.0, self.size.z),
-            self.position + Vector3::new(0.0, self.size.y, self.size.z),
-            self.position + self.size,
-        ];
+        let points = self.endpoints();
 
         let mut over = false;
         let mut under = false;

@@ -6,6 +6,7 @@
  */
 
 mod geometry {
+    mod aabb_test;
     mod basis_test;
     mod plane_test;
     mod projection_test;
