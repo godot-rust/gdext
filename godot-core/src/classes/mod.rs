@@ -15,6 +15,7 @@
 //! Noteworthy sub-modules of `godot::classes` are:
 //! * [`native`]: definition of _native structure_ types.
 //! * [`notify`]: all notification enums, used when working with the virtual callback to handle lifecycle notifications.
+//! * [`rids`]: type markers for server-internal RID types.
 
 mod class_runtime;
 mod manual_extensions;
@@ -45,8 +46,8 @@ pub mod native {
 /// Examples include `CanvasTag`, `PhysicsServer2DSpaceTag`, `NavigationServer2DMapTag`, etc.
 ///
 /// See the [module documentation](rid_tags) for details on each marker type.
-pub use crate::gen::rid_tags as rids;
-pub use crate::gen::rid_tags::*;
+pub use crate::r#gen::rid_tags as rids;
+pub use crate::r#gen::rid_tags::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Crate-local utilities
