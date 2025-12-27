@@ -135,7 +135,7 @@ macro_rules! setup_mock {
 
                 while let Some(guard) = guard_opt.take() {
                     if let Err(new_guard) = std::mem::ManuallyDrop::into_inner(guard).try_drop() {
-                        guard_opt = Some(new_guard);
+                        guard_opt = Some(std::mem::ManuallyDrop::new(new_guard));
                         std::hint::spin_loop()
                     }
                 }
