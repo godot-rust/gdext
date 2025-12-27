@@ -65,7 +65,7 @@ use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalRec
 /// signals.
 /// ```no_run
 /// # use godot::prelude::*;
-/// # use godot::classes::{Node, Control};
+/// # use godot::classes::Node as Control; // Minimal codegen lifehack.
 /// #[derive(GodotClass)]
 /// #[class(init, base=Node)]
 /// pub struct Player {
