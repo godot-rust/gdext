@@ -15,6 +15,10 @@ use crate::framework::itest;
 
 const ACCEPTED_NAME: &str = "touched";
 
+trait ForwardTrait {
+    fn forward(&mut self);
+}
+
 #[derive(GodotClass)]
 #[class(init,base=Node2D)]
 struct DeferredTestNode {
@@ -33,6 +37,10 @@ impl DeferredTestNode {
 
     fn accept_gd(mut this: Gd<Self>) {
         this.set_name(ACCEPTED_NAME);
+    }
+
+    fn accept_dyn_gd(mut this: DynGd<Object, dyn ForwardTrait>) {
+        this.dyn_bind_mut().forward();
     }
 
     fn create_assertion_task(&mut self) -> TaskHandle {
@@ -65,6 +73,13 @@ impl INode2D for DeferredTestNode {
     }
 }
 
+#[godot_dyn]
+impl ForwardTrait for DeferredTestNode {
+    fn forward(&mut self) {
+        self.accept();
+    }
+}
+
 #[itest(async)]
 fn call_deferred_untyped(ctx: &crate::framework::TestContext) -> TaskHandle {
     let mut test_node = DeferredTestNode::new_alloc();
@@ -86,8 +101,34 @@ fn run_deferred_user_class(ctx: &crate::framework::TestContext) -> TaskHandle {
 
     // Explicitly check that this can be invoked on &mut T.
     let godot_class_ref: &mut DeferredTestNode = guard.deref_mut();
-    godot_class_ref.run_deferred(DeferredTestNode::accept);
+    godot_class_ref.run_deferred(DeferredTestNode::forward);
 
+    guard.create_assertion_task()
+}
+
+#[itest(async)]
+fn run_deferred_dyn(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    // Explicitly check that this can be invoked on `DynGd` (NOT deref to &T).
+    let mut dyn_gd: DynGd<Object, dyn ForwardTrait> = test_node.clone().into_dyn().upcast();
+    dyn_gd.run_deferred(ForwardTrait::forward);
+
+    let mut guard = test_node.bind_mut();
+    guard.create_assertion_task()
+}
+
+#[itest(async)]
+fn run_deferred_dyn_gd(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    // Explicitly check that this can be invoked on `DynGd` (NOT deref to &T).
+    let mut dyn_gd: DynGd<Object, dyn ForwardTrait> = test_node.clone().into_dyn().upcast();
+    dyn_gd.run_deferred_gd(DeferredTestNode::accept_dyn_gd);
+
+    let mut guard = test_node.bind_mut();
     guard.create_assertion_task()
 }
 

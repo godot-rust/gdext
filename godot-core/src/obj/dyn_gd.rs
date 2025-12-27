@@ -7,7 +7,9 @@
 
 use std::{fmt, ops};
 
-use crate::builtin::Variant;
+use godot_ffi::is_main_thread;
+
+use crate::builtin::{Callable, Variant};
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
@@ -409,6 +411,34 @@ where
     /// See [`Gd::null_arg()`]
     pub fn null_arg() -> impl meta::AsArg<Option<DynGd<T, D>>> {
         meta::NullArg(std::marker::PhantomData)
+    }
+
+    /// Equivalent of [`Gd::run_deferred()`][crate::obj::Gd::run_deferred] for `DynGd`.
+    pub fn run_deferred<F>(&mut self, mut_self_method: F)
+    where
+        F: FnOnce(&mut D) + 'static,
+    {
+        self.run_deferred_gd(|mut gd| {
+            let mut guard = gd.dyn_bind_mut();
+            mut_self_method(&mut *guard);
+        });
+    }
+
+    /// Equivalent of [`Gd::run_deferred_gd()`][crate::obj::Gd::run_deferred_gd] for `DynGd`.
+    pub fn run_deferred_gd<F>(&mut self, gd_function: F)
+    where
+        F: FnOnce(DynGd<T, D>) + 'static,
+    {
+        let obj = self.clone();
+        assert!(
+            is_main_thread(),
+            "`run_deferred` must be called on the main thread"
+        );
+
+        let callable = Callable::from_once_fn("run_deferred", move |_| {
+            gd_function(obj);
+        });
+        callable.call_deferred(&[]);
     }
 }
 
