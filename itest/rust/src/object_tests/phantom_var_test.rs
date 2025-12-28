@@ -11,13 +11,13 @@ use godot::register::{godot_api, GodotClass};
 #[derive(GodotClass)]
 #[class(init)]
 struct HasPhantomVar {
-    #[var(get = get_read_only)]
+    #[var(get = get_read_only, no_set)]
     read_only: PhantomVar<i64>,
 
     #[var(get = get_read_write, set = set_read_write)]
     read_write: PhantomVar<i64>,
 
-    #[var(get = get_engine_enum,set = set_engine_enum)]
+    #[var(get = get_engine_enum, set = set_engine_enum)]
     read_write_engine_enum: PhantomVar<godot::global::VerticalAlignment>,
 
     #[var(get = get_bit_enum,set = set_bit_enum)]

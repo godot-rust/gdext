@@ -111,6 +111,22 @@ pub trait Export: Var {
 // this `MarkerTrait` serves as the intended solution to recognize aforementioned types.
 pub trait BuiltinExport {}
 
+/// This function only exists as a place to add doc-tests for the `Var` trait and `#[var]` attribute.
+///
+/// The `#[var(no_get, no_set)]` combination is not allowed; if you don't want a property, omit `#[var]` entirely:
+///
+/// ```compile_fail
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Foo {
+///     #[var(no_get, no_set)]
+///     field: i32,
+/// }
+/// ```
+fn __var_doctests() {}
+
 /// This function only exists as a place to add doc-tests for the `Export` trait.
 ///
 /// Test with export of exportable type should succeed:
@@ -173,8 +189,7 @@ pub trait BuiltinExport {}
 ///     array: Array<Gd<Object>>,
 /// }
 /// ```
-#[allow(dead_code)]
-fn export_doctests() {}
+fn __export_doctests() {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Blanket impls for Option<T>

@@ -320,7 +320,7 @@ impl INode for OnReadyWithImplWithoutReady {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// Class that has overriden ready with Gd<Self> receiver. Used to test whether variables are still initialized.
+// Class that has overridden ready() with Gd<Self> receiver. Used to test whether variables are still initialized.
 #[derive(GodotClass)]
 #[class(no_init, base=Node)]
 struct OnReadyWithImplGdSelf {
