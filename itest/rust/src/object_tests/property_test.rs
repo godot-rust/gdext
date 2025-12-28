@@ -8,15 +8,13 @@
 use godot::builtin::{
     vdict, vslice, Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType,
 };
-use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
+use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
 use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
-
-// No tests currently, tests using these classes are in Godot scripts.
 
 #[derive(GodotClass)]
 #[class(base=Node)]
@@ -28,10 +26,10 @@ struct HasProperty {
     object_val: Option<Gd<Object>>,
 
     #[var]
-    texture_val: OnEditor<Gd<Texture>>,
+    resource_var: OnEditor<Gd<Resource>>,
 
-    #[var(get = get_texture_val, set = set_texture_val, hint = RESOURCE_TYPE, hint_string = "Texture")]
-    texture_val_rw: Option<Gd<Texture>>,
+    #[var(get = get_resource_rw, set = set_resource_rw, hint = RESOURCE_TYPE, hint_string = "Resource")]
+    resource_rw: Option<Gd<Resource>>,
 
     #[var]
     packed_int_array: PackedInt32Array,
@@ -57,17 +55,17 @@ impl HasProperty {
     }
 
     #[func]
-    pub fn get_texture_val_rw(&self) -> Variant {
-        if let Some(texture_val) = self.texture_val_rw.as_ref() {
-            texture_val.to_variant()
+    pub fn get_resource_rw(&self) -> Variant {
+        if let Some(resource) = self.resource_rw.as_ref() {
+            resource.to_variant()
         } else {
             Variant::nil()
         }
     }
 
     #[func]
-    pub fn set_texture_val_rw(&mut self, val: Gd<Texture>) {
-        self.texture_val_rw = Some(val);
+    pub fn set_resource_rw(&mut self, val: Gd<Resource>) {
+        self.resource_rw = Some(val);
     }
 }
 
@@ -77,8 +75,8 @@ impl INode for HasProperty {
         HasProperty {
             string_val: GString::new(),
             object_val: None,
-            texture_val: OnEditor::default(),
-            texture_val_rw: None,
+            resource_var: OnEditor::default(),
+            resource_rw: None,
             packed_int_array: PackedInt32Array::new(),
             unused_name: GString::new(),
         }

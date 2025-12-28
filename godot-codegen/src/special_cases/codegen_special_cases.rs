@@ -168,7 +168,6 @@ const SELECTED_CLASSES: &[&str] = &[
     //
     // Example resources
     "PackedScene", // manual_extensions
-    "Texture",
     //
     // Meshes (virtual_methods_test)
     "Mesh",

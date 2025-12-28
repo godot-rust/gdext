@@ -81,13 +81,24 @@ func test_export():
 	obj.object_val = node
 	assert_eq(obj.object_val, node)
 
-	var texture_val_meta = obj.get_property_list().filter(
-		func(el): return el["name"] == "texture_val_rw"
+	# Test resource_var (OnEditor with default #[var]).
+	var res1 = Resource.new()
+	obj.resource_var = res1
+	assert_eq(obj.resource_var, res1)
+
+	# Test resource_rw (custom getter/setter).
+	var res2 = Resource.new()
+	obj.resource_rw = res2
+	assert_eq(obj.resource_rw, res2)
+
+	# Test resource_rw property metadata.
+	var resource_rw_meta = obj.get_property_list().filter(
+		func(el): return el["name"] == "resource_rw"
 	).front()
 
-	assert_that(texture_val_meta != null, "'texture_val_rw' is defined")
-	assert_eq(texture_val_meta["hint"], PropertyHint.PROPERTY_HINT_RESOURCE_TYPE)
-	assert_eq(texture_val_meta["hint_string"], "Texture")
+	assert_that(resource_rw_meta != null, "'resource_rw' is defined")
+	assert_eq(resource_rw_meta["hint"], PropertyHint.PROPERTY_HINT_RESOURCE_TYPE)
+	assert_eq(resource_rw_meta["hint_string"], "Resource")
 
 	obj.free()
 	node.free()
