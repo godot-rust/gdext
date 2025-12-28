@@ -689,6 +689,9 @@ pub fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod
         => Some(true),
 
         // Changed to mut.
+        | ("EditorImportPlugin", "_import")
+        => Some(false),
+
         // Needs some fixes to make sure _ex() builders have consistent signature, e.g. FileAccess::get_csv_line_full().
         /*
         | ("FileAccess", "get_16")
