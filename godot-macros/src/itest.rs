@@ -92,9 +92,8 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
 
     Ok(quote! {
         #(#other_attributes)*
-        pub fn #test_name(#param) #return_tokens {
+        pub fn #test_name(#param) #return_tokens
             #body
-        }
 
         ::godot::sys::plugin_add!(crate::framework::#plugin_name; #test_case_ty {
             name: #test_name_str,

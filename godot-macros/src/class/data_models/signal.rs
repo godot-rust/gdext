@@ -155,7 +155,10 @@ impl<'a> SignalDetails<'a> {
 
         let param_tuple = quote! { ( #( #param_types, )* ) };
         let signal_name = &fn_signature.name;
-        let individual_struct_name = format_ident!("__godot_Signal_{}_{}", class_name, signal_name);
+        let individual_struct_name = format_ident!(
+            "__godot_Signal_{class_name}_{signal_name}",
+            span = signal_name.span()
+        );
 
         let vis_marker = &fn_signature.vis_marker;
         let Some(_vis_classified) = SignalVisibility::try_parse(vis_marker.as_ref()) else {
@@ -251,6 +254,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
 
     let signal_parameters_count = param_names.len();
 
+    // Don't use quote_spanned! for the entire block -- the unsafe code should NOT be attributed to the user's signal definition.
     quote! {
         #(#signal_cfg_attrs)*
         unsafe {
@@ -441,7 +445,8 @@ fn make_signal_symbols(
     // We also provide opt-out via #[godot_api(no_typed_signals)].
 
     let declares_no_signals = collection_api.is_empty();
-    let collection_struct_name = format_ident!("__godot_Signals_{}", class_name);
+    let collection_struct_name =
+        format_ident!("__godot_Signals_{class_name}", span = class_name.span());
     let collection_struct_methods = &collection_api.provider_methods;
     let with_signals_impl = make_with_signals_impl(class_name, &collection_struct_name);
     let upcast_deref_impl = make_upcast_deref_impl(class_name, &collection_struct_name);
@@ -478,6 +483,10 @@ fn make_signal_symbols(
 
     let visibility_macro = util::format_class_visibility_macro(class_name);
 
+    // Span propagation: the visibility macro causes error messages for "method not found" on the signals collection to point to
+    // `#[derive(GodotClass)]` instead of `impl ClassName`. This is because `macro_rules!` hygiene overrides input token spans. Using
+    // `quote_spanned!` here doesn't help since spans are lost when passing through declarative macros (it works without surrounding macro).
+    // A proc-macro helper instead of `macro_rules!` could preserve spans, but adds complexity.
     let mut code = quote! {
         #visibility_macro! {
             #[allow(non_camel_case_types)]

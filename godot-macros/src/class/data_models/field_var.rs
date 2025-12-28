@@ -6,7 +6,7 @@
  */
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 
 use crate::class::{
     into_signature_info, make_existence_check, make_method_registration, Field, FieldHint,
@@ -145,7 +145,11 @@ impl GetterSetter {
             GetterSetter::Generated => Some(GetterSetterImpl::from_generated_impl(
                 class_name, kind, field, rename,
             )),
-            GetterSetter::Custom => Some(GetterSetterImpl::from_custom_impl(kind, &field.name)),
+            GetterSetter::Custom => Some(GetterSetterImpl::from_custom_impl(
+                kind,
+                &field.name,
+                rename,
+            )),
             GetterSetter::CustomRenamed(function_name) => {
                 Some(GetterSetterImpl::from_custom_impl_renamed(function_name))
             }
@@ -161,8 +165,15 @@ pub enum GetSet {
 }
 
 impl GetSet {
-    pub fn make_fn_name(self, property_name: &Ident) -> Ident {
-        format_ident!("{}{property_name}", self.prefix())
+    // TODO(v0.5): migrate `rename` -> Option<String> and propagate upwards.
+    pub fn make_fn_name(self, field_name: &Ident, rename: &Option<Ident>) -> Ident {
+        let prefix = self.prefix();
+
+        if let Some(rename) = rename {
+            format_ident!("{prefix}{rename}", span = field_name.span())
+        } else {
+            format_ident!("{prefix}{field_name}", span = field_name.span())
+        }
     }
 
     fn prefix(self) -> &'static str {
@@ -194,16 +205,19 @@ impl GetterSetterImpl {
             ..
         } = field;
 
-        let var_name = rename.as_ref().unwrap_or(field_name);
+        // Function name gets field's span for IDE navigation (get_foo -> foo field).
+        // Field type retains its original span for accurate type error locations.
 
-        let function_name = kind.make_fn_name(var_name);
+        let function_name = kind.make_fn_name(field_name, rename);
+        let field_span = field_name.span();
 
         let signature;
         let function_body;
 
         match kind {
             GetSet::Get => {
-                signature = quote! {
+                // Use field's span so errors point to the field, not the derive macro.
+                signature = quote_spanned! { field_span=>
                     fn #function_name(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via
                 };
                 function_body = quote! {
@@ -211,7 +225,8 @@ impl GetterSetterImpl {
                 };
             }
             GetSet::Set => {
-                signature = quote! {
+                // Use field's span so errors point to the field, not the derive macro.
+                signature = quote_spanned! { field_span=>
                     fn #function_name(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via)
                 };
                 function_body = quote! {
@@ -220,7 +235,7 @@ impl GetterSetterImpl {
             }
         }
 
-        let function_impl = quote! {
+        let function_impl = quote_spanned! { field_span=>
             pub #signature {
                 #function_body
             }
@@ -267,9 +282,9 @@ impl GetterSetterImpl {
         }
     }
 
-    /// Default name for propert.
-    fn from_custom_impl(kind: GetSet, var_name: &Ident) -> Self {
-        let function_name = kind.make_fn_name(var_name);
+    /// Default name for property.
+    fn from_custom_impl(kind: GetSet, field_name: &Ident, rename: &Option<Ident>) -> Self {
+        let function_name = kind.make_fn_name(field_name, rename);
         let export_token = make_existence_check(&function_name);
 
         Self {

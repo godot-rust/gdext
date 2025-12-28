@@ -122,8 +122,12 @@ pub fn transform_inherent_impl(
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
-    let method_storage_name = format_ident!("__registration_methods_{class_name}");
-    let constants_storage_name = format_ident!("__registration_constants_{class_name}");
+    // Internal idents unlikely to surface in user code; but span shouldn't hurt.
+    let class_span = class_name.span();
+    let method_storage_name =
+        format_ident!("__registration_methods_{class_name}", span = class_span);
+    let constants_storage_name =
+        format_ident!("__registration_constants_{class_name}", span = class_span);
 
     let fill_storage = {
         quote! {
@@ -448,7 +452,11 @@ fn add_virtual_script_call(
         });
 
     let class_name_str = class_name.to_string();
-    let early_bound_name = format_ident!("__earlybound_{}", &function.name);
+    let early_bound_name = format_ident!(
+        "__earlybound_{}",
+        function.name,
+        span = function.name.span()
+    );
 
     let method_name_str = match rename {
         Some(rename) => rename.clone(),

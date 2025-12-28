@@ -74,7 +74,10 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
     // Use this name because when typing a non-existent class, users will be met with the following error:
     //    could not find `inherit_from_OS__ensure_class_exists` in `class_macros`.
-    let inherits_macro_ident = format_ident!("inherit_from_{}__ensure_class_exists", base_ty);
+    let inherits_macro_ident = format_ident!(
+        "inherit_from_{base_ty}__ensure_class_exists",
+        span = base_ty.span()
+    );
 
     let godot_exports_impl = make_property_impl(class_name, &fields);
 
@@ -104,7 +107,10 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             modifiers.push(quote! { with_generated::<#class_name> });
         }
         InitStrategy::UserDefined => {
-            let fn_name = format_ident!("class_{}_must_have_an_init_method", class_name);
+            let fn_name = format_ident!(
+                "class_{class_name}_must_have_an_init_method",
+                span = class_name.span()
+            );
             init_expecter = quote! {
                 #[allow(non_snake_case)]
                 fn #fn_name() {
