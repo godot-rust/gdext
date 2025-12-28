@@ -1114,6 +1114,11 @@ pub fn get_derived_virtual_method_presence(class_name: &TyName, godot_method_nam
          | ("PrimitiveMesh", "_get_aabb")
          => VirtualMethodPresence::Override { is_required: false },
 
+         // Methods which are required but not marked as such.
+         // https://docs.godotengine.org/en/stable/classes/class_editorsyntaxhighlighter.html#class-editorsyntaxhighlighter-private-method-create
+         | ("EditorSyntaxHighlighter", "_create") // https://github.com/godot-rust/gdext/issues/1452.
+         => VirtualMethodPresence::Override { is_required: true },
+
          // Default: inherit presence from base class.
          _ => VirtualMethodPresence::Inherit,
     }

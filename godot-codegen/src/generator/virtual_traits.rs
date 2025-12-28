@@ -184,6 +184,7 @@ fn make_virtual_method(
     // Possibly change behavior of required/optional-ness of the virtual method in derived classes.
     // It's also possible that it's removed, which would not declare it at all in the `I*` trait.
     let is_virtual_required = match presence {
+        // `Inherit` now takes JSON again as source-of-truth; might need to consider if any base virtual method has `Override` or `Remove`?
         VirtualMethodPresence::Inherit => method.is_virtual_required(),
         VirtualMethodPresence::Override { is_required } => is_required,
         VirtualMethodPresence::Remove => return None,
@@ -219,8 +220,12 @@ fn make_all_virtual_methods(
     let mut all_tokens = TokenStream::new();
 
     for method in class.methods.iter() {
-        // Assumes that inner function filters on is_virtual.
-        if let Some(tokens) = make_virtual_method(method, VirtualMethodPresence::Inherit) {
+        // Assumes that inner function filters on `is_virtual`.
+        // Also check for presence overrides on the class' own virtual methods (not just inherited ones).
+        let presence =
+            special_cases::get_derived_virtual_method_presence(class.name(), method.godot_name());
+
+        if let Some(tokens) = make_virtual_method(method, presence) {
             all_tokens.extend(tokens);
         }
     }
