@@ -8,7 +8,7 @@
 use godot::builtin::{
     vdict, vslice, Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType,
 };
-use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
+use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
@@ -16,40 +16,20 @@ use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
 
-// No tests currently, tests using these classes are in Godot scripts.
-
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct HasProperty {
     #[var]
-    int_val: i32,
-
-    #[var(get = get_int_val_read)]
-    int_val_read: i32,
-
-    #[var(set = set_int_val_write)]
-    int_val_write: i32,
-
-    #[var(get = get_int_val_rw, set = set_int_val_rw)]
-    int_val_rw: i32,
-
-    #[var(get = get_int_val_getter, set)]
-    int_val_getter: i32,
-
-    #[var(get, set = set_int_val_setter)]
-    int_val_setter: i32,
-
-    #[var(get = get_string_val, set = set_string_val)]
     string_val: GString,
 
     #[var(get = get_object_val, set = set_object_val)]
     object_val: Option<Gd<Object>>,
 
     #[var]
-    texture_val: OnEditor<Gd<Texture>>,
+    resource_var: OnEditor<Gd<Resource>>,
 
-    #[var(get = get_texture_val, set = set_texture_val, hint = RESOURCE_TYPE, hint_string = "Texture")]
-    texture_val_rw: Option<Gd<Texture>>,
+    #[var(get = get_resource_rw, set = set_resource_rw, hint = RESOURCE_TYPE, hint_string = "Resource")]
+    resource_rw: Option<Gd<Resource>>,
 
     #[var]
     packed_int_array: PackedInt32Array,
@@ -60,52 +40,6 @@ struct HasProperty {
 
 #[godot_api]
 impl HasProperty {
-    #[func]
-    pub fn get_int_val_read(&self) -> i32 {
-        self.int_val_read
-    }
-
-    #[func]
-    pub fn set_int_val_write(&mut self, val: i32) {
-        self.int_val_write = val;
-    }
-
-    // Odd name to make sure it doesn't interfere with "get_*".
-    #[func]
-    pub fn retrieve_int_val_write(&mut self) -> i32 {
-        self.int_val_write
-    }
-
-    #[func]
-    pub fn get_int_val_rw(&self) -> i32 {
-        self.int_val_rw
-    }
-
-    #[func]
-    pub fn set_int_val_rw(&mut self, val: i32) {
-        self.int_val_rw = val;
-    }
-
-    #[func]
-    pub fn get_int_val_getter(&self) -> i32 {
-        self.int_val_getter
-    }
-
-    #[func]
-    pub fn set_int_val_setter(&mut self, val: i32) {
-        self.int_val_setter = val;
-    }
-
-    #[func]
-    pub fn get_string_val(&self) -> GString {
-        self.string_val.clone()
-    }
-
-    #[func]
-    pub fn set_string_val(&mut self, val: GString) {
-        self.string_val = val;
-    }
-
     #[func]
     pub fn get_object_val(&self) -> Variant {
         if let Some(object_val) = self.object_val.as_ref() {
@@ -121,17 +55,17 @@ impl HasProperty {
     }
 
     #[func]
-    pub fn get_texture_val_rw(&self) -> Variant {
-        if let Some(texture_val) = self.texture_val_rw.as_ref() {
-            texture_val.to_variant()
+    pub fn get_resource_rw(&self) -> Variant {
+        if let Some(resource) = self.resource_rw.as_ref() {
+            resource.to_variant()
         } else {
             Variant::nil()
         }
     }
 
     #[func]
-    pub fn set_texture_val_rw(&mut self, val: Gd<Texture>) {
-        self.texture_val_rw = Some(val);
+    pub fn set_resource_rw(&mut self, val: Gd<Resource>) {
+        self.resource_rw = Some(val);
     }
 }
 
@@ -139,16 +73,10 @@ impl HasProperty {
 impl INode for HasProperty {
     fn init(_base: Base<Node>) -> Self {
         HasProperty {
-            int_val: 0,
-            int_val_read: 2,
-            int_val_write: 0,
-            int_val_rw: 0,
-            int_val_getter: 0,
-            int_val_setter: 0,
-            object_val: None,
             string_val: GString::new(),
-            texture_val: OnEditor::default(),
-            texture_val_rw: None,
+            object_val: None,
+            resource_var: OnEditor::default(),
+            resource_rw: None,
             packed_int_array: PackedInt32Array::new(),
             unused_name: GString::new(),
         }
