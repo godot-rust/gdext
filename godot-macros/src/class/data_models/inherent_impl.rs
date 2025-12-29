@@ -286,13 +286,11 @@ fn process_godot_fns(
                 //   from function:     #[attr] pub fn foo(&self, a: i32) -> i32 { ... }
                 //   into signature:    fn foo(&self, a: i32) -> i32
                 let mut signature = util::reduce_to_signature(function);
-                let gd_self_parameter = if func.has_gd_self {
-                    // Removes Gd<Self> receiver from signature for further processing.
-                    let param_name = func::extract_gd_self(&mut signature, &attr.attr_name)?;
-                    Some(param_name)
-                } else {
-                    None
-                };
+                let gd_self_parameter = func::validate_receiver_extract_gdself(
+                    &mut signature,
+                    func.has_gd_self,
+                    &attr.attr_name,
+                )?;
 
                 // Clone might not strictly be necessary, but the 2 other callers of into_signature_info() are better off with pass-by-value.
                 let mut signature_info =

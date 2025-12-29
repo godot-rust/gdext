@@ -8,7 +8,7 @@
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
 use quote::{quote, ToTokens};
 
-use crate::class::data_models::func::extract_gd_self;
+use crate::class::data_models::func::validate_receiver_extract_gdself;
 use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, SignatureInfo};
 use crate::util::{bail, ident, KvParser};
 use crate::{util, ParseResult};
@@ -551,10 +551,7 @@ fn handle_regular_virtual_fn<'a>(
     // Using original span would cause IDE to show wrong semantic color for the original function definition.
     let method_name_ident = ident(method_name);
     let mut method = util::reduce_to_signature(original_method);
-
-    if has_gd_self {
-        extract_gd_self(&mut method, &original_method.name)?;
-    }
+    validate_receiver_extract_gdself(&mut method, has_gd_self, &original_method.name)?;
 
     // Godot-facing name begins with underscore.
     //

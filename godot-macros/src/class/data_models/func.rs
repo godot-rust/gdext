@@ -486,17 +486,14 @@ pub(crate) fn into_signature_info(
     for (index, (arg, _)) in signature.params.inner.into_iter().enumerate() {
         match arg {
             venial::FnParam::Receiver(recv) => {
-                if receiver_type == ReceiverType::GdSelf {
-                    // This shouldn't happen, as when has_gd_self is true the first function parameter should have been removed.
-                    // And the first parameter should be the only one that can be a Receiver.
-                    panic!("has_gd_self is true for a signature starting with a Receiver param.");
-                }
+                // Unsupported receivers (gd_self + receiver, or `self` by value) are validated before this function.
+                assert_ne!(receiver_type, ReceiverType::GdSelf);
+                assert!(recv.tk_ref.is_some());
+
                 receiver_type = if recv.tk_mut.is_some() {
                     ReceiverType::Mut
-                } else if recv.tk_ref.is_some() {
-                    ReceiverType::Ref
                 } else {
-                    panic!("Receiver not supported");
+                    ReceiverType::Ref
                 };
             }
             venial::FnParam::Typed(arg) => {
@@ -729,7 +726,44 @@ pub fn bail_attr<R>(attr_name: &Ident, msg: &str, method_name: &Ident) -> ParseR
     bail!(method_name, "#[{attr_name}]: {msg}")
 }
 
-pub fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
+/// Validates and processes receiver before `into_signature_info`.
+///
+/// - If `has_gd_self`: extracts `Gd<Self>` parameter, returns `Some(param_name)`.
+/// - Otherwise: validates receiver is `&self` or `&mut self`, returns `None`.
+pub fn validate_receiver_extract_gdself(
+    signature: &mut venial::Function,
+    has_gd_self: bool,
+    attr_name: &Ident,
+) -> ParseResult<Option<Ident>> {
+    let param_ident = if has_gd_self {
+        // #[func(gd_self)] case: extract Gd<Self> parameter.
+        // Note: parameter is explicitly NOT renamed (maybe_rename_parameter).
+        let ident = extract_gd_self(signature, attr_name)?;
+        Some(ident)
+    } else {
+        // Regular case: validate that receiver is `&self` or `&mut self`.
+        validate_ref_receiver(signature)?;
+        None
+    };
+
+    Ok(param_ident)
+}
+
+/// Validates that the function signature has a reference receiver (`&self` or `&mut self`).
+fn validate_ref_receiver(signature: &venial::Function) -> ParseResult<()> {
+    if let Some((venial::FnParam::Receiver(recv), _)) = signature.params.first() {
+        if recv.tk_ref.is_none() {
+            return bail!(
+                &recv.tk_self,
+                "#[func] does not support `self` receiver (by-value); use `&self` or `&mut self`"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
     if signature.params.is_empty() {
         return bail_attr(
             attr_name,
