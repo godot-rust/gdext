@@ -546,6 +546,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     let mut is_singleton = false;
     let mut is_internal = false;
     let mut rename: Option<Ident> = None;
+    #[allow(unused_mut)] // Avoid churn when having 0 deprecations.
     let mut deprecations = vec![];
 
     // #[class] attribute on struct
@@ -613,13 +614,16 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     let base_ty = base_field_or_default(base_ty, is_singleton);
 
     // Deprecated: #[class(no_init)] with base=EditorPlugin
-    if matches!(init_strategy, InitStrategy::Absent) && base_ty == ident("EditorPlugin") {
-        deprecations.push(quote! {
-            ::godot::__deprecated::emit_deprecated_warning!(class_no_init_editor_plugin);
-        });
+    if init_strategy == InitStrategy::Absent && base_ty == ident("EditorPlugin") {
+        return bail!(
+            class,
+            "\n#[class(no_init, base=EditorPlugin)] will crash when opened in the editor.\n\
+            EditorPlugin classes are automatically instantiated by Godot and require a default constructor.\n\
+            Use #[class(init)] instead, or provide a custom init() function in the IEditorPlugin impl."
+        );
     }
 
-    if matches!(init_strategy, InitStrategy::Absent) && is_singleton {
+    if init_strategy == InitStrategy::Absent && is_singleton {
         return bail!(
             class,
             "#[class(singleton)] can't be used with #[class(no_init)]",
