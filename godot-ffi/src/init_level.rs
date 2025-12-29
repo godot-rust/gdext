@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-/// Stage of the Godot initialization process.
+/// Step in the Godot initialization process.
 ///
 /// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
 /// a different amount of engine functionality is available. Deinitialization happens in reverse order.
@@ -68,7 +68,7 @@ impl InitLevel {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Extended initialization stage that includes both initialization levels and the main loop.
+/// Extended step in the initialization process, including both init-levels and the main loop.
 ///
 /// This enum extends [`InitLevel`] with a `MainLoop` variant, representing the fully initialized state of Godot
 /// after all initialization levels have been loaded and before any deinitialization begins.
@@ -99,7 +99,7 @@ pub enum InitStage {
     /// The main loop stage, representing the fully initialized state of Godot.
     ///
     /// This variant is only available in Godot 4.5+. In earlier versions, it will never be passed to callbacks.
-    #[cfg(since_api = "4.5")]
+    /// It is however unconditionally available, to avoid "infecting" user code with `#[cfg]`s.
     MainLoop,
 }
 
@@ -113,7 +113,6 @@ impl InitStage {
             Self::Servers => Some(InitLevel::Servers),
             Self::Scene => Some(InitLevel::Scene),
             Self::Editor => Some(InitLevel::Editor),
-            #[cfg(since_api = "4.5")]
             Self::MainLoop => None,
         }
     }
