@@ -323,11 +323,6 @@ impl Variant {
             .expect("Godot hashes are uint32_t")
     }
 
-    #[deprecated = "renamed to `hash_u32` and type changed to `u32`"]
-    pub fn hash(&self) -> i64 {
-        self.hash_u32().into()
-    }
-
     /// Interpret the `Variant` as `bool`.
     ///
     /// Returns `false` only if the variant's current value is the default value for its type. For example:

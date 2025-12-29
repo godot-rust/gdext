@@ -222,9 +222,6 @@ sys::static_assert_eq_size_align!(Array<i64>, VarArray);
 sys::static_assert_eq_size_align!(Array<GString>, VarArray);
 sys::static_assert_eq_size_align!(VarArray, AnyArray);
 
-#[deprecated = "Renamed to `VarArray`."]
-pub type VariantArray = Array<Variant>;
-
 /// Untyped Godot `Array`.
 pub type VarArray = Array<Variant>;
 
@@ -294,11 +291,6 @@ impl<T: ArrayElement> Array<T> {
     pub fn count(&self, value: impl AsArg<T>) -> usize {
         meta::arg_into_ref!(value: T);
         to_usize(self.as_inner().count(&value.to_variant()))
-    }
-
-    #[deprecated = "renamed to `hash_u32`"]
-    pub fn hash(&self) -> u32 {
-        self.as_inner().hash().try_into().unwrap()
     }
 
     /// Returns the first element in the array, or `None` if the array is empty.
@@ -696,11 +688,6 @@ impl<T: ArrayElement> Array<T> {
         }
 
         Err(index)
-    }
-
-    #[deprecated = "Moved to `functional_ops().bsearch_custom()`"]
-    pub fn bsearch_custom(&self, value: impl AsArg<T>, pred: &Callable) -> usize {
-        self.functional_ops().bsearch_custom(value, pred)
     }
 
     /// Sorts the array, using a type-safe comparator.

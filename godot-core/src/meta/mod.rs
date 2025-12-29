@@ -64,8 +64,7 @@ pub(crate) mod signed_range;
 
 // Public re-exports
 pub use args::*;
-#[expect(deprecated)]
-pub use class_id::{ClassId, ClassName};
+pub use class_id::ClassId;
 pub use element_type::{ElementScript, ElementType};
 pub use godot_convert::{EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, ToGodot};
 pub use method_info::MethodInfo;

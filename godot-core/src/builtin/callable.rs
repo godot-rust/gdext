@@ -122,15 +122,6 @@ impl Callable {
         callable
     }
 
-    #[deprecated = "Renamed to `from_class_static`."]
-    #[cfg(since_api = "4.4")]
-    pub fn from_local_static(
-        class_name: impl meta::AsArg<StringName>,
-        function_name: impl meta::AsArg<StringName>,
-    ) -> Self {
-        Self::from_class_static(class_name, function_name)
-    }
-
     fn default_callable_custom_info() -> CallableCustomInfo {
         CallableCustomInfo {
             callable_userdata: ptr::null_mut(),
@@ -182,25 +173,6 @@ impl Callable {
         S: Into<CowStr>,
     {
         Self::from_fn_wrapper(name, rust_function, Some(linked_object.instance_id()))
-    }
-
-    /// This constructor is being phased out in favor of [`from_fn()`][Self::from_fn], but kept through v0.4 for smoother migration.
-    ///
-    /// `from_fn()` accepts any `R: ToGodot` return type directly instead of requiring `Result<Variant, ()>`.
-    #[deprecated = "Migrate to `from_fn()`, which returns `R: ToGodot` directly."]
-    pub fn from_local_fn<F, S>(name: S, mut rust_function: F) -> Self
-    where
-        F: 'static + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: Into<CowStr>,
-    {
-        Self::from_fn_wrapper(
-            name,
-            move |args| {
-                // Ignore errors.
-                rust_function(args).unwrap_or_else(|()| Variant::nil())
-            },
-            None,
-        )
     }
 
     /// Create callable from **single-threaded** Rust function or closure that can only be called once.
@@ -463,11 +435,6 @@ impl Callable {
         /// Returns the 32-bit hash value of this callable's object.
         ///
         /// _Godot equivalent: `hash`_
-    }
-
-    #[deprecated = "renamed to `hash_u32`"]
-    pub fn hash(&self) -> u32 {
-        self.as_inner().hash().try_into().unwrap()
     }
 
     /// Returns true if this callable is a custom callable.
