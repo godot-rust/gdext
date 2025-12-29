@@ -8,7 +8,7 @@
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
 use quote::{quote, ToTokens};
 
-use crate::class::data_models::func::extract_gd_self;
+use crate::class::data_models::func::validate_receiver_extract_gdself;
 use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, SignatureInfo};
 use crate::util::{bail, ident, KvParser};
 use crate::{util, ParseResult};
@@ -547,12 +547,11 @@ fn handle_regular_virtual_fn<'a>(
     decls: &mut IDecls<'a>,
     has_gd_self: bool,
 ) -> ParseResult<Option<(venial::Punctuated<venial::FnParam>, Group)>> {
-    let method_name_ident = original_method.name.clone();
+    // Fresh ident for generated code (`virtuals::method_name` constant lookup).
+    // Using original span would cause IDE to show wrong semantic color for the original function definition.
+    let method_name_ident = ident(method_name);
     let mut method = util::reduce_to_signature(original_method);
-
-    if has_gd_self {
-        extract_gd_self(&mut method, &original_method.name)?;
-    }
+    validate_receiver_extract_gdself(&mut method, has_gd_self, &original_method.name)?;
 
     // Godot-facing name begins with underscore.
     //
@@ -572,10 +571,15 @@ fn handle_regular_virtual_fn<'a>(
         let mut param_name = None;
 
         let mut new_params = original_method.params.clone();
+        let mut original_ty_span = None;
+
         for (index, new_ty) in signature_info.modified_param_types.iter() {
             let venial::FnParam::Typed(typed) = &mut new_params.inner[*index].0 else {
                 panic!("unexpected parameter type: {new_params:?}");
             };
+
+            // Capture original type span before replacing (e.g. the user's `f32`).
+            original_ty_span = Some(typed.ty.span());
 
             typed.ty = new_ty.clone();
             param_name = Some(typed.name.clone());
@@ -583,14 +587,25 @@ fn handle_regular_virtual_fn<'a>(
 
         let original_body = &original_method.body;
         let param_name = param_name.expect("parameter had no name");
+        let original_ty_span = original_ty_span.expect("type had no span");
 
         // Currently hardcoded to f32/f64 exchange; can be generalized if needed.
+        // Create f32 ident with the original type's span for proper syntax highlighting. Works here because f64 uses same semantic color.
+        let f32_ty = Ident::new("f32", original_ty_span);
+
         let body_code = quote! {
-            let #param_name = #param_name as f32;
+            let #param_name = #param_name as #f32_ty;
             #original_body
         };
 
-        let wrapping_body = Group::new(Delimiter::Brace, body_code);
+        // Set span from original body, or fallback to method name span.
+        let span = match original_body {
+            Some(body) => body.span(),
+            None => original_method.name.span(),
+        };
+
+        let mut wrapping_body = Group::new(Delimiter::Brace, body_code);
+        wrapping_body.set_span(span);
 
         updated_function = Some((new_params, wrapping_body));
     }

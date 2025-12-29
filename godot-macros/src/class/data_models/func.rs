@@ -6,7 +6,7 @@
  */
 
 use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, quote_spanned};
 
 use crate::class::RpcAttr;
 use crate::util::{bail, bail_fn, ident, safe_ident, to_spanned_tuple};
@@ -102,6 +102,9 @@ pub fn make_method_registration(
     func_definition: FuncDefinition,
     interface_trait: Option<&venial::TypeExpr>,
 ) -> ParseResult<TokenStream> {
+    // Fresh ident, discarding span -- prevents IDE syntax highlighter from mapping generated unsafe code to user's class declaration.
+    let class_name = ident(&class_name.to_string());
+
     let signature_info = &func_definition.signature_info;
     let sig_params = signature_info.params_type();
     let sig_ret = &signature_info.return_type;
@@ -113,8 +116,8 @@ pub fn make_method_registration(
     };
 
     let forwarding_closure = make_forwarding_closure(
-        class_name,
-        class_name, // Not used in this case.
+        &class_name,
+        &class_name, // Not used in this case.
         signature_info,
         BeforeKind::Without,
         interface_trait,
@@ -331,7 +334,7 @@ fn make_forwarding_closure(
 
     let before_method_call = match before_kind {
         BeforeKind::WithBefore | BeforeKind::OnlyBefore => {
-            let before_method = format_ident!("__before_{}", method_name);
+            let before_method = format_ident!("__before_{method_name}", span = method_name.span());
             if let ReceiverType::GdSelf = signature_info.receiver_type {
                 // In case of GdSelf receiver use instance only to call the before_method.
                 quote! { ::godot::private::Storage::get_mut(storage).#before_method(); }
@@ -364,17 +367,10 @@ fn make_forwarding_closure(
 
                 sig_tuple_annotation = make_sig_tuple_annotation(trait_base_class, method_name);
 
-                let method_invocation = TokenStream::from_iter(
-                    quote! {<#class_name as #interface_trait>::#method_name}
-                        .into_iter()
-                        .map(|mut token| {
-                            token.set_span(signature_info.params_span);
-                            token
-                        }),
-                );
-
+                // Use fresh spans for generated code (class_name, interface_trait), but keep method_name's original span for proper
+                // IDE navigation to user's function.
                 method_call = quote! {
-                    #method_invocation( #instance_ref, #(#params),* )
+                    <#class_name as #interface_trait>::#method_name( #instance_ref, #(#params),* )
                 };
             } else {
                 // impl Class {...}
@@ -490,17 +486,14 @@ pub(crate) fn into_signature_info(
     for (index, (arg, _)) in signature.params.inner.into_iter().enumerate() {
         match arg {
             venial::FnParam::Receiver(recv) => {
-                if receiver_type == ReceiverType::GdSelf {
-                    // This shouldn't happen, as when has_gd_self is true the first function parameter should have been removed.
-                    // And the first parameter should be the only one that can be a Receiver.
-                    panic!("has_gd_self is true for a signature starting with a Receiver param.");
-                }
+                // Unsupported receivers (gd_self + receiver, or `self` by value) are validated before this function.
+                assert_ne!(receiver_type, ReceiverType::GdSelf);
+                assert!(recv.tk_ref.is_some());
+
                 receiver_type = if recv.tk_mut.is_some() {
                     ReceiverType::Mut
-                } else if recv.tk_ref.is_some() {
-                    ReceiverType::Ref
                 } else {
-                    panic!("Receiver not supported");
+                    ReceiverType::Ref
                 };
             }
             venial::FnParam::Typed(arg) => {
@@ -556,11 +549,10 @@ fn maybe_change_parameter_type(
         && param_ty.tokens[0].to_string() == "f32"
     {
         // Retain span of input parameter -> for error messages, IDE support, etc.
-        let mut f64_ident = ident("f64");
-        f64_ident.set_span(param_ty.span());
+        let f64_ty = Ident::new("f64", param_ty.span());
 
         Ok(venial::TypeExpr {
-            tokens: vec![TokenTree::Ident(f64_ident)],
+            tokens: vec![TokenTree::Ident(f64_ty)],
         })
     } else {
         Err(param_ty)
@@ -572,7 +564,7 @@ pub(crate) fn maybe_rename_parameter(param_ident: Ident, next_unnamed_index: &mu
     let param_str = param_ident.to_string(); // a pity that Ident has no string operations.
 
     if param_str == "_" {
-        let ident = format_ident!("__unnamed_{next_unnamed_index}");
+        let ident = format_ident!("__unnamed_{next_unnamed_index}", span = param_ident.span());
         *next_unnamed_index += 1;
         ident
     } else if let Some(remain) = param_str.strip_prefix('_') {
@@ -722,8 +714,10 @@ fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream
 /// thus `let params: ::godot::private::virtuals::Node::Sig_physics_process = ();`
 /// will not compile.
 fn make_sig_tuple_annotation(trait_base_class: &Ident, method_name: &Ident) -> TokenStream {
-    let rust_sig_name = format_ident!("Sig_{method_name}");
-    quote! {
+    let span = method_name.span();
+    let rust_sig_name = format_ident!("Sig_{method_name}", span = span);
+
+    quote_spanned! { span=>
         : ::godot::private::virtuals::#trait_base_class::#rust_sig_name
     }
 }
@@ -732,7 +726,44 @@ pub fn bail_attr<R>(attr_name: &Ident, msg: &str, method_name: &Ident) -> ParseR
     bail!(method_name, "#[{attr_name}]: {msg}")
 }
 
-pub fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
+/// Validates and processes receiver before `into_signature_info`.
+///
+/// - If `has_gd_self`: extracts `Gd<Self>` parameter, returns `Some(param_name)`.
+/// - Otherwise: validates receiver is `&self` or `&mut self`, returns `None`.
+pub fn validate_receiver_extract_gdself(
+    signature: &mut venial::Function,
+    has_gd_self: bool,
+    attr_name: &Ident,
+) -> ParseResult<Option<Ident>> {
+    let param_ident = if has_gd_self {
+        // #[func(gd_self)] case: extract Gd<Self> parameter.
+        // Note: parameter is explicitly NOT renamed (maybe_rename_parameter).
+        let ident = extract_gd_self(signature, attr_name)?;
+        Some(ident)
+    } else {
+        // Regular case: validate that receiver is `&self` or `&mut self`.
+        validate_ref_receiver(signature)?;
+        None
+    };
+
+    Ok(param_ident)
+}
+
+/// Validates that the function signature has a reference receiver (`&self` or `&mut self`).
+fn validate_ref_receiver(signature: &venial::Function) -> ParseResult<()> {
+    if let Some((venial::FnParam::Receiver(recv), _)) = signature.params.first() {
+        if recv.tk_ref.is_none() {
+            return bail!(
+                &recv.tk_self,
+                "#[func] does not support `self` receiver (by-value); use `&self` or `&mut self`"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> ParseResult<Ident> {
     if signature.params.is_empty() {
         return bail_attr(
             attr_name,

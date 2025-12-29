@@ -20,6 +20,12 @@ mod list_parser;
 pub(crate) use kv_parser::KvParser;
 pub(crate) use list_parser::ListParser;
 
+/// Creates an identifier with a fresh `Span::call_site()` span.
+///
+/// Use this to generate internal/synthetic identifiers that should *not* be attributed to user code. This prevents IDE features
+/// (like "unsafe call site" syntax highlighting) from pointing to unrelated user symbols.
+///
+/// For identifiers that *should* map back to user code (for navigation, error messages), use `format_ident!("...", span = original.span())`.
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
@@ -432,8 +438,18 @@ pub fn replace_class_in_path(path: venial::Path, new_class: Ident) -> venial::Pa
 
 /// Returns the name of the constant inside the func "collection" struct.
 pub fn format_funcs_collection_constant(_class_name: &Ident, func_name: &Ident) -> Ident {
-    format_ident!("{func_name}")
+    format_ident!("{func_name}", span = func_name.span())
 }
+
+/// Returns the name of the macro used to deny manual `init()` for incompatible init strategies.
+///
+/// Retains span because it's designed to appear in user-facing compile errors.
+pub fn format_class_deny_manual_init_macro(class_name: &Ident) -> Ident {
+    format_ident!("__deny_manual_init_{class_name}", span = class_name.span())
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Internal ident formatters. No span retained, as these are unlikely to surface in user-facing errors.
 
 /// Returns the name of the struct used as collection for all function name constants.
 pub fn format_funcs_collection_struct(class_name: &Ident) -> Ident {
@@ -448,9 +464,4 @@ pub fn format_class_visibility_macro(class_name: &Ident) -> Ident {
 /// Returns the name of the macro used to communicate whether the `struct` (class) contains a base field.
 pub fn format_class_base_field_macro(class_name: &Ident) -> Ident {
     format_ident!("__godot_{class_name}_has_base_field_macro")
-}
-
-/// Returns the name of the macro used to deny manual `init()` for incompatible init strategies.
-pub fn format_class_deny_manual_init_macro(class_name: &Ident) -> Ident {
-    format_ident!("__deny_manual_init_{class_name}")
 }

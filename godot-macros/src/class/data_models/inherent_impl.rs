@@ -122,8 +122,12 @@ pub fn transform_inherent_impl(
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
-    let method_storage_name = format_ident!("__registration_methods_{class_name}");
-    let constants_storage_name = format_ident!("__registration_constants_{class_name}");
+    // Internal idents unlikely to surface in user code; but span shouldn't hurt.
+    let class_span = class_name.span();
+    let method_storage_name =
+        format_ident!("__registration_methods_{class_name}", span = class_span);
+    let constants_storage_name =
+        format_ident!("__registration_constants_{class_name}", span = class_span);
 
     let fill_storage = {
         quote! {
@@ -282,13 +286,11 @@ fn process_godot_fns(
                 //   from function:     #[attr] pub fn foo(&self, a: i32) -> i32 { ... }
                 //   into signature:    fn foo(&self, a: i32) -> i32
                 let mut signature = util::reduce_to_signature(function);
-                let gd_self_parameter = if func.has_gd_self {
-                    // Removes Gd<Self> receiver from signature for further processing.
-                    let param_name = func::extract_gd_self(&mut signature, &attr.attr_name)?;
-                    Some(param_name)
-                } else {
-                    None
-                };
+                let gd_self_parameter = func::validate_receiver_extract_gdself(
+                    &mut signature,
+                    func.has_gd_self,
+                    &attr.attr_name,
+                )?;
 
                 // Clone might not strictly be necessary, but the 2 other callers of into_signature_info() are better off with pass-by-value.
                 let mut signature_info =
@@ -448,7 +450,11 @@ fn add_virtual_script_call(
         });
 
     let class_name_str = class_name.to_string();
-    let early_bound_name = format_ident!("__earlybound_{}", &function.name);
+    let early_bound_name = format_ident!(
+        "__earlybound_{}",
+        function.name,
+        span = function.name.span()
+    );
 
     let method_name_str = match rename {
         Some(rename) => rename.clone(),
