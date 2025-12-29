@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
+use godot::global::godot_str;
 use godot::prelude::*;
 
 use crate::framework::itest;
@@ -41,11 +41,11 @@ struct VarAccessors {
     c_set: i32,
 
     // Custom getter (custom name), generated setter.
-    #[var(get = my_custom_get)]
+    #[var( get = my_custom_get)]
     d_myget: i32,
 
     // Generated getter, custom setter (custom name).
-    #[var(set = my_custom_set)]
+    #[var( set = my_custom_set)]
     e_myset: i32,
 
     // Read-only (no setter).
@@ -67,6 +67,15 @@ struct VarAccessors {
     // Custom getter (custom name), custom setter (custom name).
     #[var(get = my_custom_get, set = my_custom_set)]
     j_myget_myset: i32,
+
+    // Public generated getter + setter.
+    #[var(pub)]
+    k_pub: i32,
+
+    // Custom getter, public generated setter.
+    // FIXME(v0.5): `get = my_custom_get` compiles despite GString/i32 type mismatch.
+    #[var(pub, get = my_l_get)]
+    l_pub_get: GString,
 }
 
 #[godot_api]
@@ -87,6 +96,12 @@ impl VarAccessors {
     #[func]
     pub fn my_custom_get(&self) -> i32 {
         self.d_myget + self.h_myget_noset + self.j_myget_myset
+    }
+
+    // Custom getter for l).
+    #[func]
+    pub fn my_l_get(&self) -> GString {
+        godot_str!(".:{}:.", self.l_pub_get)
     }
 
     // Custom setter, shared by e), i), j).
@@ -115,43 +130,43 @@ fn var_orthogonal_getters_setters() {
     let mut obj = VarAccessors::new_alloc();
 
     // a) generated getter + setter.
-    obj.bind_mut().set_a_default(1);
-    assert_eq!(obj.bind().get_a_default(), 1);
+    obj.set("a_default", &1.to_variant());
+    assert_eq!(obj.get("a_default"), 1.to_variant());
     assert!(obj.has_method("get_a_default"));
     assert!(obj.has_method("set_a_default"));
 
     // b) explicit getter (default name), generated setter. GString for type coverage.
-    obj.bind_mut().set_b_get(GString::from("two"));
+    obj.bind_mut().b_get = GString::from("two");
     assert_eq!(obj.bind().get_b_get(), "two");
     assert!(obj.has_method("get_b_get"));
     assert!(obj.has_method("set_b_get"));
 
     // c) generated getter, explicit setter (default name).
     obj.bind_mut().set_c_set(3);
-    assert_eq!(obj.bind().get_c_set(), 3);
+    assert_eq!(obj.bind().c_set, 3);
     assert!(obj.has_method("get_c_set"));
     assert!(obj.has_method("set_c_set"));
 
     // d) custom getter (custom name), generated setter.
-    obj.bind_mut().set_d_myget(4);
+    obj.bind_mut().d_myget = 4;
     assert_eq!(obj.bind().my_custom_get(), 4); // d+h+j (h=j=0).
     assert!(obj.has_method("my_custom_get"));
     assert!(obj.has_method("set_d_myget"));
 
     // e) generated getter, custom setter (custom name).
     obj.bind_mut().my_custom_set(5); // Sets e, i, j to 5.
-    assert_eq!(obj.bind().get_e_myset(), 5);
+    assert_eq!(obj.bind().e_myset, 5);
     assert!(obj.has_method("get_e_myset"));
     assert!(obj.has_method("my_custom_set"));
 
     // f) read-only (no setter).
     obj.bind_mut().f_noset = 6;
-    assert_eq!(obj.bind().get_f_noset(), 6);
+    assert_eq!(obj.get("f_noset"), 6.to_variant()); // Dynamic (no Rust getter).
     assert!(obj.has_method("get_f_noset"));
     assert!(!obj.has_method("set_f_noset"));
 
     // g) write-only (no getter).
-    obj.bind_mut().set_g_noget(7);
+    obj.set("g_noget", &7.to_variant()); // Dynamic (no Rust setter).
     assert_eq!(obj.bind().g_noget, 7);
     assert!(obj.has_method("set_g_noget"));
     assert!(!obj.has_method("get_g_noget"));
@@ -173,6 +188,45 @@ fn var_orthogonal_getters_setters() {
     assert_eq!(obj.bind().my_custom_get(), 4 + 8 + 9); // d+h+j.
     assert!(obj.has_method("my_custom_get"));
     assert!(obj.has_method("my_custom_set"));
+
+    obj.free();
+}
+
+#[itest]
+fn var_pub_accessors() {
+    let mut obj = VarAccessors::new_alloc();
+
+    // k) #[var(pub)] - both generated, no deprecation warning.
+    obj.bind_mut().set_k_pub(10);
+    assert_eq!(obj.bind().get_k_pub(), 10);
+    assert!(obj.has_method("get_k_pub"));
+    assert!(obj.has_method("set_k_pub"));
+
+    // l) #[var(pub, get)] - custom getter visible, generated setter visible.
+    obj.bind_mut().h_myget_noset = 3;
+    obj.bind_mut().set_l_pub_get(GString::from("test")); // d+h+j (h=3).
+    assert_eq!(obj.get("l_pub_get"), ".:test:.".to_variant());
+    assert!(obj.has_method("my_l_get"));
+    assert!(obj.has_method("set_l_pub_get"));
+
+    obj.free();
+}
+
+#[itest]
+fn var_deprecated_accessors() {
+    let mut obj = VarAccessors::new_alloc();
+
+    // a) #[var] - still generates old setters for backwards compatibility.
+    #[expect(deprecated)]
+    obj.bind_mut().set_a_default(5);
+    #[expect(deprecated)]
+    let a = obj.bind().get_a_default();
+    assert_eq!(a, 5);
+
+    // c) #[var(set)].
+    #[expect(deprecated)]
+    let c = obj.bind_mut().get_c_set();
+    assert_eq!(c, 0);
 
     obj.free();
 }

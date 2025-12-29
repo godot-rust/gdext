@@ -34,7 +34,7 @@ struct HasProperty {
     #[var]
     packed_int_array: PackedInt32Array,
 
-    #[var(rename = renamed_variable)]
+    #[var(pub, rename = renamed_variable)]
     unused_name: GString,
 }
 
@@ -84,7 +84,7 @@ impl INode for HasProperty {
 }
 
 #[itest]
-fn test_renamed_var() {
+fn test_renamed_variable_reflection() {
     let mut obj = HasProperty::new_alloc();
 
     let prop_list = obj.get_property_list();
@@ -108,14 +108,16 @@ fn test_renamed_var() {
 }
 
 #[itest]
-fn test_renamed_var_getter_setter() {
-    let obj = HasProperty::new_alloc();
+fn test_renamed_variable_getter_setter() {
+    let mut obj = HasProperty::new_alloc();
+    obj.bind_mut()
+        .set_renamed_variable(GString::from("changed"));
 
     assert!(obj.has_method("get_renamed_variable"));
     assert!(obj.has_method("set_renamed_variable"));
     assert!(!obj.has_method("get_unused_name"));
     assert!(!obj.has_method("get_unused_name"));
-    assert_eq!(obj.bind().get_renamed_variable(), GString::new());
+    assert_eq!(obj.bind().get_renamed_variable(), "changed");
 
     obj.free();
 }
@@ -322,7 +324,7 @@ pub enum StrBehavior {
 #[derive(GodotClass)]
 #[class(no_init)]
 pub struct DeriveProperty {
-    #[var]
+    #[var(pub)]
     pub my_enum: TestEnum,
 }
 

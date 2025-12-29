@@ -388,14 +388,14 @@ pub fn make_funcs_collection_constants(
 /// a constant is used as indirection.
 pub fn make_funcs_collection_constant(
     class_name: &Ident,
-    func_name: &Ident,
+    rust_function_name: &Ident,
     registered_name: Option<&String>,
     attributes: &[&venial::Attribute],
 ) -> TokenStream {
-    let const_name = format_funcs_collection_constant(class_name, func_name);
-    let const_value = match &registered_name {
+    let const_name = format_funcs_collection_constant(class_name, rust_function_name);
+    let const_value = match registered_name {
         Some(renamed) => renamed.to_string(),
-        None => func_name.to_string(),
+        None => rust_function_name.to_string(),
     };
 
     quote! {
