@@ -152,10 +152,26 @@ use crate::util::{bail, ident, KvParser};
 /// }
 /// ```
 ///
-/// This makes the field accessible in GDScript using `my_struct.my_field` syntax. Additionally, it
-/// generates a trivial getter and setter named `get_my_field` and `set_my_field`, respectively.
-/// These are `pub` in Rust, since they're exposed from GDScript anyway.
+/// This makes the field accessible in GDScript using `obj.my_field` syntax. In addition to direct property access, GDScript can use
+/// explicit getter and setter notation: `obj.get_my_field()` and `obj.set_my_field()`.
 ///
+/// If you want to access those getters/setters from Rust, you can use `#[var(pub)]`:
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyStruct {
+///     #[var(pub)]
+///     my_field: i64,
+/// }
+///
+/// fn use_accessors(obj: &MyStruct) {
+///     let f: i64 = obj.get_my_field();
+/// }
+/// ```
+///
+/// You can also customize getters and setters.
 /// The `get` and `set` options are **orthogonal** as of godot-rust v0.5: specifying one does not affect the other.
 /// By default, both a getter and setter are generated, but you can customize either independently:
 ///

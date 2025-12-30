@@ -82,6 +82,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             setter,
             hint,
             mut usage_flags,
+            rust_public,
             ..
         } = var;
 
@@ -117,6 +118,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         };
 
         let hint = match hint {
+            // TODO(v0.5): inline #field_type as FieldType alias.
             FieldHint::Inferred => {
                 if let Some(export_hint) = export_hint {
                     quote! { #export_hint }
@@ -150,15 +152,15 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
 
         // Note: {getter,setter}_tokens can be either a path `Class_Functions::constant_name` or an empty string `""`.
 
-        let getter_tokens = make_getter_setter(
-            getter.to_impl(class_name, GetSet::Get, field, &rename),
+        let getter_func_constant = make_accessor_func_constant(
+            getter.to_impl(class_name, GetSet::Get, field, &rename, rust_public),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,
             class_name,
         );
-        let setter_tokens = make_getter_setter(
-            setter.to_impl(class_name, GetSet::Set, field, &rename),
+        let setter_func_constant = make_accessor_func_constant(
+            setter.to_impl(class_name, GetSet::Set, field, &rename, rust_public),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,
@@ -177,8 +179,8 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             type FieldType = #field_type;
             ::godot::register::private::#registration_fn::<#class_name, FieldType>(
                 #field_name,
-                #getter_tokens,
-                #setter_tokens,
+                #getter_func_constant,
+                #setter_func_constant,
                 #hint,
                 #usage_flags,
             );
@@ -226,7 +228,10 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     }
 }
 
-fn make_getter_setter(
+/// Creates the path to the constant in the func collection struct, for the given getter or setter.
+///
+/// Fills provided output vectors with the necessary generated code.
+fn make_accessor_func_constant(
     getter_setter_impl: Option<GetterSetterImpl>,
     getter_setter_impls: &mut Vec<TokenStream>,
     func_name_consts: &mut Vec<TokenStream>,
@@ -244,7 +249,7 @@ fn make_getter_setter(
     // Getters/setters are, like #[func]s, subject to additional code generation: a constant inside a "funcs collection" struct
     // stores their Godot name and can be used as an indirection to refer to their true name from other procedural macros.
     let funcs_collection = format_funcs_collection_struct(class_name);
-    let constant = format_funcs_collection_constant(class_name, &gs.function_name);
+    let constant = format_funcs_collection_constant(class_name, &gs.rust_accessor);
 
     quote! { #funcs_collection::#constant }
 }
@@ -280,9 +285,9 @@ fn make_group_registration(
     };
 
     quote! {
-    ::godot::register::private::#register_fn::<#class_name>(
+        ::godot::register::private::#register_fn::<#class_name>(
             #name,
             #prefix
-    );
+        );
     }
 }

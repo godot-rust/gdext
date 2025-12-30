@@ -23,6 +23,7 @@ fn remove_test_file(file_name: &str) {
 #[derive(GodotClass)]
 #[class(base=Resource, init)]
 struct SavedGame {
+    #[var(pub)]
     #[export]
     level: u32,
 }
