@@ -122,14 +122,6 @@ impl NodePath {
         /// Returns a 32-bit integer hash value representing the node path.
     }
 
-    #[deprecated = "renamed to `hash_u32`"]
-    pub fn hash(&self) -> u32 {
-        self.as_inner()
-            .hash()
-            .try_into()
-            .expect("Godot hashes are uint32_t")
-    }
-
     /// Returns the range `begin..exclusive_end` as a new `NodePath`.
     ///
     /// The absolute value of `begin` and `exclusive_end` will be clamped to [`get_total_count()`][Self::get_total_count].

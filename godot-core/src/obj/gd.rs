@@ -295,7 +295,7 @@ impl<T: GodotClass> Gd<T> {
 
     /// Returns the dynamic class name of the object as `StringName`.
     ///
-    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_id()`][GodotClass::class_name]
+    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_id()`][GodotClass::class_id]
     /// if derived classes are involved.
     ///
     /// Unlike [`Object::get_class()`][crate::classes::Object::get_class], this returns `StringName` instead of `GString` and needs no
@@ -718,15 +718,6 @@ impl<T: GodotClass> Gd<T> {
             gd_function(obj);
         });
         callable.call_deferred(&[]);
-    }
-
-    #[deprecated = "Split into `run_deferred()` + `run_deferred_gd()`."]
-    pub fn apply_deferred<F>(&mut self, rust_function: F)
-    where
-        T: WithBaseField,
-        F: FnOnce(&mut T) + 'static,
-    {
-        self.run_deferred(rust_function)
     }
 }
 

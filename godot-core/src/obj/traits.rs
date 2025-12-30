@@ -39,11 +39,6 @@ where
     /// The name may deviate from the Rust struct name: `HttpRequest::class_id().to_cow_str() == "HTTPRequest"`.
     fn class_id() -> ClassId;
 
-    #[deprecated = "Renamed to `class_id()`"]
-    fn class_name() -> ClassId {
-        Self::class_id()
-    }
-
     /// Initialization level, during which this class should be initialized with Godot.
     ///
     /// The default is a good choice in most cases; override only if you have very specific initialization requirements.
@@ -549,14 +544,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         F: FnOnce(Gd<Self>) + 'static,
     {
         self.to_gd().run_deferred_gd(gd_function)
-    }
-
-    #[deprecated = "Split into `run_deferred()` + `run_deferred_gd()`."]
-    fn apply_deferred<F>(&mut self, rust_function: F)
-    where
-        F: FnOnce(&mut Self) + 'static,
-    {
-        self.run_deferred(rust_function)
     }
 }
 

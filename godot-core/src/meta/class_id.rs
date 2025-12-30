@@ -35,9 +35,6 @@ pub unsafe fn cleanup() {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[deprecated = "Renamed to `ClassId`"]
-pub type ClassName = ClassId;
-
 /// Globally unique ID of a class registered with Godot.
 ///
 /// This struct implements `Copy` and is very cheap to copy and compare with other `ClassId`s.
@@ -62,7 +59,7 @@ impl ClassId {
     /// Construct a new class name.
     ///
     /// You should typically only need this when implementing `GodotClass` manually, without `#[derive(GodotClass)]`, and overriding
-    /// `class_id()`. To access an existing type's class name, use [`<T as GodotClass>::class_id()`][crate::obj::GodotClass::class_name].
+    /// `class_id()`. To access an existing type's class name, use [`<T as GodotClass>::class_id()`][crate::obj::GodotClass::class_id].
     ///
     /// This function is expensive the first time it called for a given `T`, but will be cached for subsequent calls. It can make sense to
     /// store the result in a `static`, to further reduce lookup times, but it's not required.

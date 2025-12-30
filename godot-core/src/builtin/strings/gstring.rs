@@ -160,14 +160,6 @@ impl GString {
         /// Returns a 32-bit integer hash value representing the string.
     }
 
-    #[deprecated = "renamed to `hash_u32`"]
-    pub fn hash(&self) -> u32 {
-        self.as_inner()
-            .hash()
-            .try_into()
-            .expect("Godot hashes are uint32_t")
-    }
-
     /// Gets the UTF-32 character slice from a `GString`.
     pub fn chars(&self) -> &[char] {
         // SAFETY: Since 4.1, Godot ensures valid UTF-32, making interpreting as char slice safe.

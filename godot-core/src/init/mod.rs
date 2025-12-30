@@ -185,7 +185,7 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
 /// - The interface must have been initialized.
 /// - Must only be called once per level.
 #[deny(unsafe_op_in_unsafe_fn)]
-unsafe fn gdext_on_level_init(level: InitLevel, userdata: &InitUserData) {
+unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
     // TODO: in theory, a user could start a thread in one of the early levels, and run concurrent code that messes with the global state
     // (e.g. class registration). This would break the assumption that the load_class_method_table() calls are exclusive.
     // We could maybe protect globals with a mutex until initialization is complete, and then move it to a directly-accessible, read-only static.
@@ -198,8 +198,8 @@ unsafe fn gdext_on_level_init(level: InitLevel, userdata: &InitUserData) {
             #[cfg(since_api = "4.5")]
             unsafe {
                 sys::interface_fn!(register_main_loop_callbacks)(
-                    userdata.library,
-                    &raw const userdata.main_loop_callbacks,
+                    _userdata.library,
+                    &raw const _userdata.main_loop_callbacks,
                 )
             };
         }
@@ -286,7 +286,7 @@ fn gdext_on_level_deinit(level: InitLevel) {
 /// #[gdextension(entry_symbol = custom_name)]
 /// unsafe impl ExtensionLibrary for MyExtension {}
 /// ```
-/// Note that this only changes the name. You cannot provide your own function -- use the [`on_level_init()`][ExtensionLibrary::on_level_init]
+/// Note that this only changes the name. You cannot provide your own function -- use the [`on_stage_init()`][ExtensionLibrary::on_stage_init]
 /// hook for custom startup logic.
 ///
 /// # Availability of Godot APIs during init and deinit
@@ -344,17 +344,7 @@ pub unsafe trait ExtensionLibrary {
     /// # Panics
     /// If the overridden method panics, an error will be printed, but GDExtension loading is **not** aborted.
     #[allow(unused_variables)]
-    #[expect(deprecated)] // Fall back to older API.
-    fn on_stage_init(stage: InitStage) {
-        stage
-            .try_to_level()
-            .inspect(|&level| Self::on_level_init(level));
-
-        #[cfg(since_api = "4.5")] // Compat layer.
-        if stage == InitStage::MainLoop {
-            Self::on_main_loop_startup();
-        }
-    }
+    fn on_stage_init(stage: InitStage) {}
 
     /// Custom logic when a certain initialization stage is unloaded.
     ///
@@ -366,45 +356,7 @@ pub unsafe trait ExtensionLibrary {
     /// # Panics
     /// If the overridden method panics, an error will be printed, but GDExtension unloading is **not** aborted.
     #[allow(unused_variables)]
-    #[expect(deprecated)] // Fall back to older API.
-    fn on_stage_deinit(stage: InitStage) {
-        #[cfg(since_api = "4.5")] // Compat layer.
-        if stage == InitStage::MainLoop {
-            Self::on_main_loop_shutdown();
-        }
-
-        stage
-            .try_to_level()
-            .inspect(|&level| Self::on_level_deinit(level));
-    }
-
-    /// Old callback before [`on_stage_init()`][Self::on_stage_deinit] was added. Does not support `MainLoop` stage.
-    #[deprecated = "Use `on_stage_init()` instead, which also includes the MainLoop stage."]
-    #[allow(unused_variables)]
-    fn on_level_init(level: InitLevel) {
-        // Nothing by default.
-    }
-
-    /// Old callback before [`on_stage_deinit()`][Self::on_stage_deinit] was added. Does not support `MainLoop` stage.
-    #[deprecated = "Use `on_stage_deinit()` instead, which also includes the MainLoop stage."]
-    #[allow(unused_variables)]
-    fn on_level_deinit(level: InitLevel) {
-        // Nothing by default.
-    }
-
-    #[cfg(since_api = "4.5")]
-    #[deprecated = "Use `on_stage_init(InitStage::MainLoop)` instead."]
-    #[doc(hidden)] // Added by mistake -- works but don't advertise.
-    fn on_main_loop_startup() {
-        // Nothing by default.
-    }
-
-    #[cfg(since_api = "4.5")]
-    #[deprecated = "Use `on_stage_deinit(InitStage::MainLoop)` instead."]
-    #[doc(hidden)] // Added by mistake -- works but don't advertise.
-    fn on_main_loop_shutdown() {
-        // Nothing by default.
-    }
+    fn on_stage_deinit(stage: InitStage) {}
 
     /// Callback invoked for every process frame.
     ///
@@ -443,9 +395,7 @@ pub unsafe trait ExtensionLibrary {
     /// # Panics
     /// If the overridden method panics, an error will be printed, but execution continues.
     #[cfg(since_api = "4.5")]
-    fn on_main_loop_frame() {
-        // Nothing by default.
-    }
+    fn on_main_loop_frame() {}
 
     /// Whether to override the Wasm binary filename used by your GDExtension which the library should expect at runtime. Return `None`
     /// to use the default where gdext expects either `{YourCrate}.wasm` (default binary name emitted by Rust) or
@@ -470,15 +420,15 @@ pub unsafe trait ExtensionLibrary {
     /// #[gdextension]
     /// unsafe impl ExtensionLibrary for MyExtension {
     ///     fn override_wasm_binary() -> Option<&'static str> {
-    ///         // Binary name unchanged ("mycrate.wasm") without thread support.
-    ///         #[cfg(feature = "nothreads")]
-    ///         return None;
-    ///
-    ///         // Tell godot-rust we add a custom suffix to the binary with thread support.
-    ///         // Please note that this is not needed if "mycrate.threads.wasm" is used.
-    ///         // (You could return `None` as well in that particular case.)
-    ///         #[cfg(not(feature = "nothreads"))]
-    ///         Some("mycrate-with-threads.wasm")
+    ///         if cfg!(feature = "nothreads") {
+    ///             // Binary name unchanged ("mycrate.wasm") without thread support.
+    ///             None
+    ///         } else {
+    ///             // Tell godot-rust we add a custom suffix to the binary with thread support.
+    ///             // Please note that this is not needed if "mycrate.threads.wasm" is used.
+    ///             // (You could return `None` as well in that particular case.)
+    ///             Some("mycrate-with-threads.wasm")
+    ///         }
     ///     }
     /// }
     /// ```

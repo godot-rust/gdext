@@ -40,7 +40,7 @@ pub struct PropertyInfo {
     /// Which class this property is.
     ///
     /// This should be set to [`ClassId::none()`] unless the variant type is `Object`. You can use
-    /// [`GodotClass::class_id()`](crate::obj::GodotClass::class_name()) to get the right name to use here.
+    /// [`GodotClass::class_id()`] to get the right name to use here.
     pub class_id: ClassId,
 
     /// The name of this property in Godot.
