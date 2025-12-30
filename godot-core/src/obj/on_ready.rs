@@ -10,7 +10,7 @@ use std::mem;
 
 use crate::builtin::{GString, NodePath};
 use crate::classes::{Node, Resource};
-use crate::meta::{arg_into_owned, AsArg, GodotConvert};
+use crate::meta::{arg_into_owned, AsArg, GodotConvert, ShouldBePassedAsRef};
 use crate::obj::{Gd, Inherits};
 use crate::registry::property::Var;
 
@@ -131,7 +131,7 @@ impl<T: Inherits<Node>> OnReady<Gd<T>> {
     ///
     /// Note that the panic will only happen if and when the node enters the SceneTree for the first time
     /// (i.e. it receives the `READY` notification).
-    pub fn from_node(path: impl AsArg<NodePath>) -> Self {
+    pub fn from_node(path: impl AsArg<NodePath> + ShouldBePassedAsRef) -> Self {
         arg_into_owned!(path);
 
         Self::from_base_fn(move |base| base.get_node_as(&path))
@@ -152,7 +152,7 @@ impl<T: Inherits<Resource>> OnReady<Gd<T>> {
     ///
     /// Note that the panic will only happen if and when the node enters the SceneTree for the first time
     /// (i.e. it receives the `READY` notification).
-    pub fn from_loaded(path: impl AsArg<GString>) -> Self {
+    pub fn from_loaded(path: impl AsArg<GString> + ShouldBePassedAsRef) -> Self {
         arg_into_owned!(path);
 
         Self::new(move || crate::tools::load(&path))

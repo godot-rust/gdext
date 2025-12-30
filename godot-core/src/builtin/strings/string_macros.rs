@@ -37,7 +37,7 @@ macro_rules! impl_shared_string_api {
             /// Find first occurrence of `what` and return index, or `None` if not found.
             ///
             /// Check [`find_ex()`](Self::find_ex) for all custom options.
-            pub fn find(&self, what: impl AsArg<GString>) -> Option<usize> {
+            pub fn find(&self, what: impl AsArg<GString> + ShouldBePassedAsRef) -> Option<usize> {
                 self.find_ex(what).done()
             }
 
@@ -73,7 +73,7 @@ macro_rules! impl_shared_string_api {
             #[doc(alias = "findn", alias = "rfind", alias = "rfindn")]
             pub fn find_ex<'s, 'w>(
                 &'s self,
-                what: impl AsArg<GString> + 'w,
+                what: impl AsArg<GString> + ShouldBePassedAsRef + 'w,
             ) -> ExFind<'s, 'w> {
                 ExFind::new(self, what.into_arg())
             }
@@ -93,7 +93,7 @@ macro_rules! impl_shared_string_api {
             /// Splits the string according to `delimiter`.
             ///
             /// See [`split_ex()`][Self::split_ex] if you need further configuration.
-            pub fn split(&self, delimiter: impl AsArg<GString>) -> $crate::builtin::PackedStringArray {
+            pub fn split(&self, delimiter: impl AsArg<GString> + ShouldBePassedAsRef) -> $crate::builtin::PackedStringArray {
                 self.split_ex(delimiter).done()
             }
 
@@ -132,7 +132,7 @@ macro_rules! impl_shared_string_api {
             /// This is faster than [`split()`][Self::split], if you only need one substring.
             pub fn get_slice(
                 &self,
-                delimiter: impl AsArg<GString>,
+                delimiter: impl AsArg<GString> + ShouldBePassedAsRef,
                 slice: usize,
             ) -> Option<GString> {
                 let sliced = self.as_inner().get_slice(delimiter, slice as i64);
@@ -156,7 +156,7 @@ macro_rules! impl_shared_string_api {
             /// Returns the total number of slices, when the string is split with the given delimiter.
             ///
             /// See also [`split()`][Self::split] and [`get_slice()`][Self::get_slice].
-            pub fn get_slice_count(&self, delimiter: impl AsArg<GString>) -> usize {
+            pub fn get_slice_count(&self, delimiter: impl AsArg<GString> + ShouldBePassedAsRef) -> usize {
                 self.as_inner().get_slice_count(delimiter) as usize
             }
 
@@ -171,7 +171,7 @@ macro_rules! impl_shared_string_api {
             /// If the position is out of bounds, the string will be inserted at the end.
             ///
             /// Consider using [`format()`](Self::format) for more flexibility.
-            pub fn insert(&self, position: usize, what: impl AsArg<GString>) -> GString {
+            pub fn insert(&self, position: usize, what: impl AsArg<GString> + ShouldBePassedAsRef) -> GString {
                 self.as_inner().insert(position as i64, what)
             }
 
@@ -188,7 +188,7 @@ macro_rules! impl_shared_string_api {
             pub fn format_with_placeholder(
                 &self,
                 array_or_dict: &Variant,
-                placeholder: impl AsArg<GString>,
+                placeholder: impl AsArg<GString> + ShouldBePassedAsRef,
             ) -> GString {
                 self.as_inner().format(array_or_dict, placeholder)
             }
@@ -233,7 +233,7 @@ macro_rules! impl_shared_string_api {
             /// roughly matches the alphabetical order.
             ///
             /// See also [`nocasecmp_to()`](Self::nocasecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
-            pub fn casecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
+            pub fn casecmp_to(&self, to: impl AsArg<GString> + ShouldBePassedAsRef) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().casecmp_to(to))
             }
 
@@ -243,7 +243,7 @@ macro_rules! impl_shared_string_api {
             /// roughly matches the alphabetical order.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
-            pub fn nocasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
+            pub fn nocasecmp_to(&self, to: impl AsArg<GString> + ShouldBePassedAsRef) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().nocasecmp_to(to))
             }
 
@@ -260,7 +260,7 @@ macro_rules! impl_shared_string_api {
             /// if shorter.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalnocasecmp_to()`](Self::naturalnocasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
-            pub fn naturalcasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
+            pub fn naturalcasecmp_to(&self, to: impl AsArg<GString> + ShouldBePassedAsRef) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().naturalcasecmp_to(to))
             }
 
@@ -277,7 +277,7 @@ macro_rules! impl_shared_string_api {
             /// if shorter.
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
-            pub fn naturalnocasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
+            pub fn naturalnocasecmp_to(&self, to: impl AsArg<GString> + ShouldBePassedAsRef) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().naturalnocasecmp_to(to))
             }
 
@@ -288,7 +288,7 @@ macro_rules! impl_shared_string_api {
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filenocasecmp_to()`](Self::filenocasecmp_to).
             #[cfg(since_api = "4.3")]
-            pub fn filecasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
+            pub fn filecasecmp_to(&self, to: impl AsArg<GString> + ShouldBePassedAsRef) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().filecasecmp_to(to))
             }
 
@@ -299,7 +299,7 @@ macro_rules! impl_shared_string_api {
             ///
             /// See also [`casecmp_to()`](Self::casecmp_to), [`naturalcasecmp_to()`](Self::naturalcasecmp_to), [`filecasecmp_to()`](Self::filecasecmp_to).
             #[cfg(since_api = "4.3")]
-            pub fn filenocasecmp_to(&self, to: impl AsArg<GString>) -> std::cmp::Ordering {
+            pub fn filenocasecmp_to(&self, to: impl AsArg<GString> + ShouldBePassedAsRef) -> std::cmp::Ordering {
                 sys::i64_to_ordering(self.as_inner().filenocasecmp_to(to))
             }
 
@@ -310,7 +310,7 @@ macro_rules! impl_shared_string_api {
             ///
             /// Renamed from `match` because of collision with Rust keyword + possible confusion with `String::matches()` that can match regex.
             #[doc(alias = "match")]
-            pub fn match_glob(&self, pattern: impl AsArg<GString>) -> bool {
+            pub fn match_glob(&self, pattern: impl AsArg<GString> + ShouldBePassedAsRef) -> bool {
                 self.as_inner().match_(pattern)
             }
 
@@ -321,7 +321,7 @@ macro_rules! impl_shared_string_api {
             ///
             /// Renamed from `matchn` because of collision with Rust keyword + possible confusion with `String::matches()` that can match regex.
             #[doc(alias = "matchn")]
-            pub fn matchn_glob(&self, pattern: impl AsArg<GString>) -> bool {
+            pub fn matchn_glob(&self, pattern: impl AsArg<GString> + ShouldBePassedAsRef) -> bool {
                 self.as_inner().matchn(pattern)
             }
         }

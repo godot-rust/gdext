@@ -13,7 +13,7 @@ use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::classes::FileAccess;
 use crate::global::Error;
 use crate::meta::error::IoError;
-use crate::meta::{arg_into_ref, AsArg};
+use crate::meta::{arg_into_ref, AsArg, ShouldBePassedAsRef};
 use crate::obj::Gd;
 
 /// Open a file for reading or writing.
@@ -102,7 +102,10 @@ impl GFile {
     ///
     /// Opens a file located at `path`, creating new [`GFile`] object. For [`ModeFlags`] description check the [`GFile`]
     /// documentation.
-    pub fn open(path: impl AsArg<GString>, flags: ModeFlags) -> std::io::Result<Self> {
+    pub fn open<T>(path: T, flags: ModeFlags) -> std::io::Result<Self>
+    where
+        T: AsArg<GString> + ShouldBePassedAsRef,
+    {
         arg_into_ref!(path);
 
         let fa = FileAccess::open(path, flags).ok_or_else(|| {
@@ -119,8 +122,8 @@ impl GFile {
     ///
     /// Opens a compressed file located at `path`, creating new [`GFile`] object. Can read only files compressed by
     /// Godot compression formats. For [`ModeFlags`] description check the [`GFile`] documentation.
-    pub fn open_compressed(
-        path: impl AsArg<GString>,
+    pub fn open_compressed<T>(
+        path: impl AsArg<GString> + ShouldBePassedAsRef,
         flags: ModeFlags,
         compression_mode: CompressionMode,
     ) -> std::io::Result<Self> {
@@ -144,7 +147,7 @@ impl GFile {
     /// Opens a file encrypted by 32-byte long [`PackedByteArray`] located at `path`, creating new [`GFile`] object.
     /// For [`ModeFlags`] description check the [`GFile`] documentation.
     pub fn open_encrypted(
-        path: impl AsArg<GString>,
+        path: impl AsArg<GString> + ShouldBePassedAsRef,
         flags: ModeFlags,
         key: &PackedByteArray,
     ) -> std::io::Result<Self> {
@@ -165,9 +168,9 @@ impl GFile {
     /// Opens a file encrypted by a `password` located at `path`, creating new [`GFile`] object. For [`ModeFlags`]
     /// description check the [`GFile`] documentation.
     pub fn open_encrypted_with_pass(
-        path: impl AsArg<GString>,
+        path: impl AsArg<GString> + ShouldBePassedAsRef,
         flags: ModeFlags,
-        password: impl AsArg<GString>,
+        password: impl AsArg<GString> + ShouldBePassedAsRef,
     ) -> std::io::Result<Self> {
         arg_into_ref!(path);
         arg_into_ref!(password);
@@ -207,7 +210,7 @@ impl GFile {
 
     /// Get last modified time as a Unix timestamp.
     #[doc(alias = "get_modified_time")]
-    pub fn modified_time(path: impl AsArg<GString>) -> std::io::Result<u64> {
+    pub fn modified_time(path: impl AsArg<GString> + ShouldBePassedAsRef) -> std::io::Result<u64> {
         arg_into_ref!(path);
         let modified_time = FileAccess::get_modified_time(path);
 
@@ -222,7 +225,7 @@ impl GFile {
 
     /// Calculates the MD5 checksum of the file at the given path.
     #[doc(alias = "get_md5")]
-    pub fn md5(path: impl AsArg<GString>) -> std::io::Result<GString> {
+    pub fn md5(path: impl AsArg<GString> + ShouldBePassedAsRef) -> std::io::Result<GString> {
         arg_into_ref!(path);
         let md5 = FileAccess::get_md5(path);
 
@@ -237,7 +240,7 @@ impl GFile {
 
     /// Calculates the SHA-256 checksum of the file at the given path.
     #[doc(alias = "get_sha256")]
-    pub fn sha256(path: impl AsArg<GString>) -> std::io::Result<GString> {
+    pub fn sha256(path: impl AsArg<GString> + ShouldBePassedAsRef) -> std::io::Result<GString> {
         arg_into_ref!(path);
         let sha256 = FileAccess::get_sha256(path);
 
@@ -365,7 +368,7 @@ impl GFile {
     #[doc(alias = "get_csv_line")]
     pub fn read_csv_line(
         &mut self,
-        delim: impl AsArg<GString>,
+        delim: impl AsArg<GString> + ShouldBePassedAsRef,
     ) -> std::io::Result<PackedStringArray> {
         arg_into_ref!(delim);
 
@@ -551,7 +554,10 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-string).
     #[doc(alias = "store_string")]
-    pub fn write_gstring(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+    pub fn write_gstring(
+        &mut self,
+        value: impl AsArg<GString> + ShouldBePassedAsRef,
+    ) -> std::io::Result<()> {
         arg_into_ref!(value);
 
         self.fa.store_string(value);
@@ -571,7 +577,10 @@ impl GFile {
     /// - [Wikipedia article](https://en.wikipedia.org/wiki/String_(computer_science)#Length-prefixed)
     /// - [Godot `FileAccess::store_pascal_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-pascal-string)
     #[doc(alias = "store_pascal_string")]
-    pub fn write_pascal_string(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+    pub fn write_pascal_string(
+        &mut self,
+        value: impl AsArg<GString> + ShouldBePassedAsRef,
+    ) -> std::io::Result<()> {
         arg_into_ref!(value);
 
         self.fa.store_pascal_string(value);
@@ -585,7 +594,10 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_line`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-line).
     #[doc(alias = "store_line")]
-    pub fn write_gstring_line(&mut self, value: impl AsArg<GString>) -> std::io::Result<()> {
+    pub fn write_gstring_line(
+        &mut self,
+        value: impl AsArg<GString> + ShouldBePassedAsRef,
+    ) -> std::io::Result<()> {
         arg_into_ref!(value);
 
         self.fa.store_line(value);
@@ -604,7 +616,7 @@ impl GFile {
     pub fn write_csv_line(
         &mut self,
         values: &PackedStringArray,
-        delim: impl AsArg<GString>,
+        delim: impl AsArg<GString> + ShouldBePassedAsRef,
     ) -> std::io::Result<()> {
         arg_into_ref!(delim);
 

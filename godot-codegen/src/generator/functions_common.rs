@@ -477,8 +477,10 @@ pub(crate) fn make_param_or_field_type(
             special_ty = Some(quote! { CowArg<#lft, #ty> });
 
             match decl {
-                FnParamDecl::FnPublic => quote! { impl AsArg<#ty> },
-                FnParamDecl::FnPublicLifetime => quote! { impl AsArg<#ty> + 'ex },
+                FnParamDecl::FnPublic => quote! { impl AsArg<#ty> + ShouldBePassedAsRef },
+                FnParamDecl::FnPublicLifetime => {
+                    quote! { impl AsArg<#ty> + ShouldBePassedAsRef + 'ex }
+                }
                 FnParamDecl::FnInternal => quote! { CowArg<#ty> },
                 FnParamDecl::Field => quote! { CowArg<'ex, #ty> },
             }

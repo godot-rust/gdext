@@ -12,7 +12,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::{inner, AnyArray, CowStr, StringName, Variant};
-use crate::meta::{GodotType, ToGodot};
+use crate::meta::{GodotType, ShouldBePassedAsRef, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
 use crate::{classes, meta};
@@ -51,7 +51,7 @@ impl Callable {
     pub fn from_object_method<T, S>(object: &Gd<T>, method_name: S) -> Self
     where
         T: GodotClass, // + Inherits<Object>,
-        S: meta::AsArg<StringName>,
+        S: meta::AsArg<StringName> + ShouldBePassedAsRef,
     {
         meta::arg_into_ref!(method_name);
 
@@ -79,7 +79,7 @@ impl Callable {
     #[cfg(since_api = "4.3")]
     pub fn from_variant_method<S>(variant: &Variant, method_name: S) -> Self
     where
-        S: meta::AsArg<StringName>,
+        S: meta::AsArg<StringName> + ShouldBePassedAsRef,
     {
         meta::arg_into_ref!(method_name);
         inner::InnerCallable::create(variant, method_name)
@@ -94,8 +94,8 @@ impl Callable {
     /// reflection APIs at the moment.
     #[cfg(since_api = "4.4")]
     pub fn from_class_static(
-        class_name: impl meta::AsArg<StringName>,
-        function_name: impl meta::AsArg<StringName>,
+        class_name: impl meta::AsArg<StringName> + ShouldBePassedAsRef,
+        function_name: impl meta::AsArg<StringName> + ShouldBePassedAsRef,
     ) -> Self {
         meta::arg_into_owned!(class_name);
         meta::arg_into_owned!(function_name);
@@ -125,8 +125,8 @@ impl Callable {
     #[deprecated = "Renamed to `from_class_static`."]
     #[cfg(since_api = "4.4")]
     pub fn from_local_static(
-        class_name: impl meta::AsArg<StringName>,
-        function_name: impl meta::AsArg<StringName>,
+        class_name: impl meta::AsArg<StringName> + ShouldBePassedAsRef,
+        function_name: impl meta::AsArg<StringName> + ShouldBePassedAsRef,
     ) -> Self {
         Self::from_class_static(class_name, function_name)
     }

@@ -9,7 +9,7 @@ use crate::builtin::GString;
 use crate::classes::{Resource, ResourceLoader, ResourceSaver};
 use crate::global::Error as GodotError;
 use crate::meta::error::IoError;
-use crate::meta::{arg_into_ref, AsArg};
+use crate::meta::{arg_into_ref, AsArg, ShouldBePassedAsRef};
 use crate::obj::{Gd, Inherits, Singleton};
 
 /// ⚠️ Loads a resource from the filesystem located at `path`, panicking on error.
@@ -27,7 +27,7 @@ use crate::obj::{Gd, Inherits, Singleton};
 /// # Panics
 /// If the resource cannot be loaded, or is not of type `T` or inherited.
 #[inline]
-pub fn load<T>(path: impl AsArg<GString>) -> Gd<T>
+pub fn load<T>(path: impl AsArg<GString> + ShouldBePassedAsRef) -> Gd<T>
 where
     T: Inherits<Resource>,
 {
@@ -65,7 +65,7 @@ where
 /// }
 /// ```
 #[inline]
-pub fn try_load<T>(path: impl AsArg<GString>) -> Result<Gd<T>, IoError>
+pub fn try_load<T>(path: impl AsArg<GString> + ShouldBePassedAsRef) -> Result<Gd<T>, IoError>
 where
     T: Inherits<Resource>,
 {
@@ -89,7 +89,7 @@ where
 /// ```
 /// use godot::
 #[inline]
-pub fn save<T>(obj: &Gd<T>, path: impl AsArg<GString>)
+pub fn save<T>(obj: &Gd<T>, path: impl AsArg<GString> + ShouldBePassedAsRef)
 where
     T: Inherits<Resource>,
 {
@@ -126,7 +126,10 @@ where
 /// assert!(res.is_ok());
 /// ```
 #[inline]
-pub fn try_save<T>(obj: &Gd<T>, path: impl AsArg<GString>) -> Result<(), IoError>
+pub fn try_save<T>(
+    obj: &Gd<T>,
+    path: impl AsArg<GString> + ShouldBePassedAsRef,
+) -> Result<(), IoError>
 where
     T: Inherits<Resource>,
 {

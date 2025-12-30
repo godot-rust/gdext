@@ -17,7 +17,7 @@ use crate::classes::object::ConnectFlags;
 use crate::classes::scene_tree::GroupCallFlags;
 use crate::classes::{Object, SceneTree, Script};
 use crate::global::Error;
-use crate::meta::{arg_into_ref, AsArg, ToGodot};
+use crate::meta::{arg_into_ref, AsArg, ShouldBePassedAsRef, ToGodot};
 use crate::obj::{EngineBitfield, Gd};
 
 impl Object {
@@ -36,13 +36,17 @@ impl Object {
         self.raw_set_script(&script.to_variant());
     }
 
-    pub fn connect(&mut self, signal: impl AsArg<StringName>, callable: &Callable) -> Error {
+    pub fn connect(
+        &mut self,
+        signal: impl AsArg<StringName> + ShouldBePassedAsRef,
+        callable: &Callable,
+    ) -> Error {
         self.raw_connect(signal, callable)
     }
 
     pub fn connect_flags(
         &mut self,
-        signal: impl AsArg<StringName>,
+        signal: impl AsArg<StringName> + ShouldBePassedAsRef,
         callable: &Callable,
         flags: ConnectFlags,
     ) -> Error {
@@ -59,8 +63,8 @@ impl SceneTree {
     pub fn call_group_flags(
         &mut self,
         flags: GroupCallFlags,
-        group: impl AsArg<StringName>,
-        method: impl AsArg<StringName>,
+        group: impl AsArg<StringName> + ShouldBePassedAsRef,
+        method: impl AsArg<StringName> + ShouldBePassedAsRef,
         varargs: &[Variant],
     ) {
         self.raw_call_group_flags(flags.ord() as i64, group, method, varargs)
@@ -69,15 +73,19 @@ impl SceneTree {
     pub fn set_group_flags(
         &mut self,
         call_flags: GroupCallFlags,
-        group: impl AsArg<StringName>,
-        property: impl AsArg<GString>,
+        group: impl AsArg<StringName> + ShouldBePassedAsRef,
+        property: impl AsArg<GString> + ShouldBePassedAsRef,
         value: &Variant,
     ) {
         self.raw_set_group_flags(call_flags.ord() as u32, group, property, value)
     }
 
     /// Assumes notifications of `Node`. To relay those of derived constants, use [`NodeNotification::Unknown`].
-    pub fn notify_group(&mut self, group: impl AsArg<StringName>, notification: NodeNotification) {
+    pub fn notify_group(
+        &mut self,
+        group: impl AsArg<StringName> + ShouldBePassedAsRef,
+        notification: NodeNotification,
+    ) {
         self.raw_notify_group(group, notification.into())
     }
 
@@ -85,7 +93,7 @@ impl SceneTree {
     pub fn notify_group_flags(
         &mut self,
         call_flags: GroupCallFlags,
-        group: impl AsArg<StringName>,
+        group: impl AsArg<StringName> + ShouldBePassedAsRef,
         notification: NodeNotification,
     ) {
         self.raw_notify_group_flags(call_flags.ord() as u32, group, notification.into())

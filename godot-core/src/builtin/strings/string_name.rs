@@ -12,7 +12,7 @@ use sys::{ffi_methods, ExtVariantType, GodotFfi};
 
 use crate::builtin::{inner, Encoding, GString, NodePath, Variant};
 use crate::meta::error::StringError;
-use crate::meta::AsArg;
+use crate::meta::{AsArg, ShouldBePassedAsRef};
 use crate::{impl_shared_string_api, meta};
 
 /// A string optimized for unique names.

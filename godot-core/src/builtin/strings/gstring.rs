@@ -16,7 +16,7 @@ use sys::{ffi_methods, interface_fn, ExtVariantType, GodotFfi};
 use crate::builtin::strings::{pad_if_needed, Encoding};
 use crate::builtin::{inner, NodePath, StringName, Variant};
 use crate::meta::error::StringError;
-use crate::meta::AsArg;
+use crate::meta::{AsArg, ShouldBePassedAsRef};
 use crate::{impl_shared_string_api, meta};
 
 /// Godot's reference counted string type.

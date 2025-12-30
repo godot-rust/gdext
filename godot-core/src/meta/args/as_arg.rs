@@ -129,6 +129,61 @@ where
         CowArg::Owned(self)
     }
 }
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Diagnostic Marker traits
+// `diagnostic::on_unimplemented` can't be used for associated items, which results in very confusing error messages.
+// Therefore, we provide better error diagnostic using these two marker traits, supposed to be used in tandem with `AsArg<T>` as a bound.
+//
+// Additionally, `label` and `note`s are being overridden by compiler built-in help message, forcing us to put everything in `message` field.
+
+/// Marker trait used to provide better diagnostic.
+///
+/// Used to mark arguments which should be passed by reference.
+///
+/// Note that GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method instead.
+///
+/// See: [`AsArg`][AsArg], [`ToGodot::Pass`][crate::meta::ToGodot::Pass]
+// Leave in `label` and `note` fields are explicitly left out to easily notice when they will start working correctly.
+#[diagnostic::on_unimplemented(
+    message = "Argument of type `{Self}` cannot be passed to an impl AsArg<T> parameter. \
+    If you pass by value, consider borrowing instead.\n\
+    See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html",
+    label = "Given argument can't be passed as AsArg<T>.",
+    note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method.",
+    note = "Ignore `type mismatch resolving `<T as ToGodot>::Pass == ByValue` error which is a red herring.",
+    note = "see also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
+)]
+pub trait ShouldBePassedAsRef {}
+
+impl<T> ShouldBePassedAsRef for &T where T: ToGodot<Pass = ByRef> {}
+
+/// Marker trait used to provide better diagnostic.
+///
+/// Used to mark arguments which should be passed by value.
+///
+/// See: [`AsArg`][AsArg], [`ToGodot::Pass`][crate::meta::ToGodot::Pass]
+#[diagnostic::on_unimplemented(
+    message = "Argument of type `{Self}` cannot be passed to an impl AsArg<T> parameter. \
+    If you pass by reference, consider passing by value instead.\n\
+    See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
+)]
+pub trait ShouldBePassedByValue {}
+
+impl<T> ShouldBePassedByValue for T where T: ToGodot<Pass = ByValue> {}
+
+/// Marker trait used to provide better diagnostic.
+///
+/// Used to mark arguments passed as `impl AsArg<Option<...>>`.
+///
+/// See: [`AsArg`][AsArg], [`ToGodot::Pass`][crate::meta::ToGodot::Pass]
+#[diagnostic::on_unimplemented(
+    message = "Argument of type `{Self}` cannot be passed to an impl AsArg<Option<T>> parameter. \
+    If you pass Option<T> or Option<&mut T> consider using Option<&T> instead. n\
+    See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
+)]
+pub trait ShouldBePassedByOption {}
+
+impl<T> ShouldBePassedByOption for T where T: ToGodot<Pass = ByOption<T>> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Object (Gd + DynGd) impls
@@ -163,6 +218,9 @@ where
         FfiArg::FfiObject(arg)
     }
 }
+
+impl<T: GodotClass> ShouldBePassedAsRef for &Gd<T> {}
+impl<T: GodotClass> ShouldBePassedByOption for &Gd<T> {}
 
 /// Convert `DynGd` -> `DynGd` (with upcast).
 impl<T, D, Base> AsArg<DynGd<Base, D>> for &DynGd<T, D>
@@ -220,6 +278,20 @@ where
     }
 }
 
+impl<T, D> ShouldBePassedAsRef for &DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+}
+
+impl<T, D> ShouldBePassedByOption for &DynGd<T, D>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Null arguments
 
@@ -255,6 +327,8 @@ where
         CowArg::Owned(None)
     }
 }
+
+impl<T: GodotClass> ShouldBePassedByOption for NullArg<T> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Optional object (Gd + DynGd) impls
@@ -384,6 +458,15 @@ where
     }
 }
 
+impl<T> ShouldBePassedByOption for Option<&Gd<T>> where T: GodotClass {}
+
+impl<T, D> ShouldBePassedByOption for Option<&DynGd<T, D>>
+where
+    T: GodotClass,
+    D: ?Sized,
+{
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public helper functions (T|&T -> AsArg)
 
@@ -496,7 +579,7 @@ macro_rules! declare_arg_method {
         /// # Generic bounds
         /// The bounds are implementation-defined and may change at any time. Do not use this function in a generic context requiring `T`
         /// -- use the `From` trait or [`AsArg`][crate::meta::AsArg] in that case.
-        pub fn arg<T>(&self) -> impl $crate::meta::AsArg<T>
+        pub fn arg<T>(&self) -> impl $crate::meta::AsArg<T> + $crate::meta::ShouldBePassedAsRef
         where
             for<'a> T: From<&'a Self>
                 + $crate::meta::ToGodot
@@ -526,6 +609,8 @@ where
     }
 }
 
+impl<T> ShouldBePassedAsRef for CowArg<'_, T> where for<'r> T: ToGodot {}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GString
 
@@ -537,11 +622,15 @@ impl AsArg<GString> for &str {
     }
 }
 
+impl ShouldBePassedAsRef for &str {}
+
 impl AsArg<GString> for &String {
     fn into_arg<'arg>(self) -> CowArg<'arg, GString> {
         CowArg::Owned(GString::from(self))
     }
 }
+
+impl ShouldBePassedAsRef for &String {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // StringName

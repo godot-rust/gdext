@@ -15,7 +15,7 @@ use crate::classes::object::ConnectFlags;
 use crate::classes::Object;
 use crate::global::Error;
 use crate::meta;
-use crate::meta::{FromGodot, GodotType, ToGodot};
+use crate::meta::{FromGodot, GodotType, ShouldBePassedAsRef, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId};
 
@@ -42,7 +42,7 @@ impl Signal {
     pub fn from_object_signal<T, S>(object: &Gd<T>, signal_name: S) -> Self
     where
         T: GodotClass,
-        S: meta::AsArg<StringName>,
+        S: meta::AsArg<StringName> + ShouldBePassedAsRef,
     {
         meta::arg_into_ref!(signal_name);
 

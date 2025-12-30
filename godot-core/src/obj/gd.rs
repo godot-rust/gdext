@@ -16,7 +16,7 @@ use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
     ArrayElement, AsArg, ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg,
-    ToGodot,
+    ShouldBePassedAsRef, ShouldBePassedByOption, ToGodot,
 };
 use crate::obj::{
     bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -573,7 +573,7 @@ impl<T: GodotClass> Gd<T> {
     /// Returns a callable referencing a method from this object named `method_name`.
     ///
     /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
-    pub fn callable(&self, method_name: impl AsArg<StringName>) -> Callable {
+    pub fn callable(&self, method_name: impl AsArg<StringName> + ShouldBePassedAsRef) -> Callable {
         Callable::from_object_method(self, method_name)
     }
 
@@ -880,7 +880,7 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> impl AsArg<Option<Gd<T>>> {
+    pub fn null_arg() -> impl AsArg<Option<Gd<T>>> + ShouldBePassedByOption {
         meta::NullArg(std::marker::PhantomData)
     }
 }

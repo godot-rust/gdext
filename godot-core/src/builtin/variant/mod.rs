@@ -17,7 +17,7 @@ use crate::classes;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
     arg_into_ref, ffi_variant_type, ArrayElement, AsArg, EngineFromGodot, ExtVariantType,
-    FromGodot, GodotType, ToGodot,
+    FromGodot, GodotType, ShouldBePassedAsRef, ToGodot,
 };
 
 mod impls;
@@ -232,7 +232,11 @@ impl Variant {
     /// * If the method does not exist or the signature is not compatible with the passed arguments.
     /// * If the call causes an error.
     #[inline]
-    pub fn call(&self, method: impl AsArg<StringName>, args: &[Variant]) -> Variant {
+    pub fn call(
+        &self,
+        method: impl AsArg<StringName> + ShouldBePassedAsRef,
+        args: &[Variant],
+    ) -> Variant {
         arg_into_ref!(method);
         self.call_inner(method, args)
     }
