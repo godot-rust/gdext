@@ -143,7 +143,7 @@ where
 /// Note that GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method instead.
 ///
 /// See: [`AsArg`][AsArg], [`ToGodot::Pass`][crate::meta::ToGodot::Pass]
-// Leave in `label` and `note` fields are explicitly left out to easily notice when they will start working correctly.
+// `label` and `note` fields are explicitly left out to easily notice when (and if) they will start working correctly.
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an impl AsArg<T> parameter. \
     If you pass by value, consider borrowing instead.\n\
@@ -156,34 +156,6 @@ where
 pub trait ShouldBePassedAsRef {}
 
 impl<T> ShouldBePassedAsRef for &T where T: ToGodot<Pass = ByRef> {}
-
-/// Marker trait used to provide better diagnostic.
-///
-/// Used to mark arguments which should be passed by value.
-///
-/// See: [`AsArg`][AsArg], [`ToGodot::Pass`][crate::meta::ToGodot::Pass]
-#[diagnostic::on_unimplemented(
-    message = "Argument of type `{Self}` cannot be passed to an impl AsArg<T> parameter. \
-    If you pass by reference, consider passing by value instead.\n\
-    See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
-)]
-pub trait ShouldBePassedByValue {}
-
-impl<T> ShouldBePassedByValue for T where T: ToGodot<Pass = ByValue> {}
-
-/// Marker trait used to provide better diagnostic.
-///
-/// Used to mark arguments passed as `impl AsArg<Option<...>>`.
-///
-/// See: [`AsArg`][AsArg], [`ToGodot::Pass`][crate::meta::ToGodot::Pass]
-#[diagnostic::on_unimplemented(
-    message = "Argument of type `{Self}` cannot be passed to an impl AsArg<Option<T>> parameter. \
-    If you pass Option<T> or Option<&mut T> consider using Option<&T> instead. n\
-    See also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
-)]
-pub trait ShouldBePassedByOption {}
-
-impl<T> ShouldBePassedByOption for T where T: ToGodot<Pass = ByOption<T>> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Object (Gd + DynGd) impls
@@ -218,9 +190,6 @@ where
         FfiArg::FfiObject(arg)
     }
 }
-
-impl<T: GodotClass> ShouldBePassedAsRef for &Gd<T> {}
-impl<T: GodotClass> ShouldBePassedByOption for &Gd<T> {}
 
 /// Convert `DynGd` -> `DynGd` (with upcast).
 impl<T, D, Base> AsArg<DynGd<Base, D>> for &DynGd<T, D>
@@ -278,20 +247,6 @@ where
     }
 }
 
-impl<T, D> ShouldBePassedAsRef for &DynGd<T, D>
-where
-    T: GodotClass,
-    D: ?Sized,
-{
-}
-
-impl<T, D> ShouldBePassedByOption for &DynGd<T, D>
-where
-    T: GodotClass,
-    D: ?Sized,
-{
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Null arguments
 
@@ -327,8 +282,6 @@ where
         CowArg::Owned(None)
     }
 }
-
-impl<T: GodotClass> ShouldBePassedByOption for NullArg<T> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Optional object (Gd + DynGd) impls
@@ -456,15 +409,6 @@ where
         let arg = ObjectArg::from_option_gd(option_gd);
         FfiArg::FfiObject(arg)
     }
-}
-
-impl<T> ShouldBePassedByOption for Option<&Gd<T>> where T: GodotClass {}
-
-impl<T, D> ShouldBePassedByOption for Option<&DynGd<T, D>>
-where
-    T: GodotClass,
-    D: ?Sized,
-{
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

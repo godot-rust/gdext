@@ -20,7 +20,7 @@ mod ref_arg;
 pub(crate) use as_arg::NullArg;
 pub use as_arg::{
     owned_into_arg, ref_to_arg, ArgPassing, AsArg, ByObject, ByOption, ByRef, ByValue,
-    ShouldBePassedAsRef, ShouldBePassedByOption, ShouldBePassedByValue, ToArg,
+    ShouldBePassedAsRef, ToArg,
 };
 #[cfg(not(feature = "trace"))]
 pub(crate) use cow_arg::{CowArg, FfiArg};

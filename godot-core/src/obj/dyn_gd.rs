@@ -11,9 +11,7 @@ use godot_ffi::is_main_thread;
 
 use crate::builtin::{Callable, Variant};
 use crate::meta::error::ConvertError;
-use crate::meta::{
-    ClassId, FromGodot, GodotConvert, PropertyHintInfo, ShouldBePassedByOption, ToGodot,
-};
+use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor};
 use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
@@ -411,7 +409,7 @@ where
     /// Represents `null` when passing a dynamic object argument to Godot.
     ///
     /// See [`Gd::null_arg()`]
-    pub fn null_arg() -> impl meta::AsArg<Option<DynGd<T, D>>> + ShouldBePassedByOption {
+    pub fn null_arg() -> impl meta::AsArg<Option<DynGd<T, D>>> {
         meta::NullArg(std::marker::PhantomData)
     }
 

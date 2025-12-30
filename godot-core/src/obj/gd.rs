@@ -16,7 +16,7 @@ use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
     ArrayElement, AsArg, ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg,
-    ShouldBePassedAsRef, ShouldBePassedByOption, ToGodot,
+    ShouldBePassedAsRef, ToGodot,
 };
 use crate::obj::{
     bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -880,7 +880,7 @@ where
     ///
     /// let mut shape: Gd<Node> = some_node();
     /// shape.set_owner(Gd::null_arg());
-    pub fn null_arg() -> impl AsArg<Option<Gd<T>>> + ShouldBePassedByOption {
+    pub fn null_arg() -> impl AsArg<Option<Gd<T>>> {
         meta::NullArg(std::marker::PhantomData)
     }
 }

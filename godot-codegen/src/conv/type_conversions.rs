@@ -299,9 +299,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         // Use Option for `impl_as_object_arg` if nullable.
         let impl_as_object_arg = if is_nullable {
-            quote! { impl AsArg<Option<Gd<#qualified_class>>> + ShouldBePassedByOption }
+            quote! { impl AsArg<Option<Gd<#qualified_class>>> }
         } else {
-            quote! { impl AsArg<Gd<#qualified_class>> + ShouldBePassedAsRef }
+            quote! { impl AsArg<Gd<#qualified_class>> }
         };
 
         RustTy::EngineClass {
