@@ -24,7 +24,7 @@ use crate::obj::{
 };
 use crate::private::{callbacks, PanicPayload};
 use crate::registry::class::try_dynify_object;
-use crate::registry::property::{object_export_element_type_string, Export, Var};
+use crate::registry::property::{object_export_element_type_string, Export, SimpleVar, Var};
 use crate::{classes, meta, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -1045,15 +1045,7 @@ impl<T: GodotClass> Clone for Gd<T> {
     }
 }
 
-impl<T: GodotClass> Var for Gd<T> {
-    fn get_property(&self) -> Self::Via {
-        self.to_godot_owned()
-    }
-
-    fn set_property(&mut self, value: Self::Via) {
-        *self = FromGodot::from_godot(value)
-    }
-}
+impl<T: GodotClass> SimpleVar for Gd<T> {}
 
 /// See [`Gd` Exporting](struct.Gd.html#exporting) section.
 impl<T> Export for Option<Gd<T>>

@@ -73,7 +73,6 @@ struct VarAccessors {
     k_pub: i32,
 
     // Custom getter, public generated setter.
-    // FIXME(v0.5): `get = my_custom_get` compiles despite GString/i32 type mismatch.
     #[var(pub, get = my_l_get)]
     l_pub_get: GString,
 }

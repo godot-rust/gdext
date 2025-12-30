@@ -16,7 +16,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// instead. As a general "maybe initialized" type, `Option<Gd<T>>` is always available, even if more verbose.
 ///
 ///
-/// # What consitutes "initialized"?
+/// # What constitutes "initialized"?
 ///
 /// Whether a value is considered initialized or not depends on `T`.
 ///

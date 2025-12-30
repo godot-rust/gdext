@@ -30,6 +30,9 @@ pub use phantom_var::PhantomVar;
 /// This creates a copy of the value, according to copy semantics provided by `Clone`. For example, `Array`, `Dictionary` and `Gd` are
 /// returned by shared reference instead of copying the actual data.
 ///
+/// For types that use standard conversion via [`ToGodot`]/[`FromGodot`], consider implementing the [`SimpleVar`] marker trait instead,
+/// which provides a default implementation automatically.
+///
 /// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
 /// arguments/return types.
 ///
@@ -53,6 +56,32 @@ pub trait Var: GodotConvert {
     /// Specific property hints, only override if they deviate from [`GodotType::property_info`], e.g. for enums/newtypes.
     fn var_hint() -> PropertyHintInfo {
         Self::Via::property_hint_info()
+    }
+}
+
+/// Marker trait for types that use standard property conversion via [`ToGodot`] and [`FromGodot`].
+///
+/// Implementing this trait automatically provides a [`Var`] implementation that:
+/// - Uses [`ToGodot::to_godot_owned()`] for `get_property()`
+/// - Uses [`FromGodot::from_godot()`] for `set_property()`
+/// - Uses the default `var_hint()` from `Self::Via`
+///
+/// This trait is already implemented for all built-in Godot types like `Vector2`, `Color`, primitives, etc.
+///
+/// For custom types that already implement `ToGodot` and `FromGodot`, simply add `impl SimpleVar for YourType {}`
+/// to get a `Var` implementation automatically.
+pub trait SimpleVar: ToGodot + FromGodot {}
+
+impl<T: SimpleVar> Var for T
+where
+    T::Via: Clone,
+{
+    fn get_property(&self) -> Self::Via {
+        self.to_godot_owned()
+    }
+
+    fn set_property(&mut self, value: Self::Via) {
+        *self = FromGodot::from_godot(value);
     }
 }
 
@@ -89,8 +118,7 @@ pub trait Export: Var {
 
 /// Marker trait to identify `GodotType`s that can be directly used with an `#[export]`.
 ///
-/// Implemented pretty much for all the [`GodotTypes`][GodotType] that are not [`GodotClass`].
-/// Provides a few blanket implementations and, by itself, has no implications
+/// Implemented pretty much for all [`GodotType`]s that are not [`GodotClass`]. By itself, this trait has no implications
 /// for the [`Var`] or [`Export`] traits.
 ///
 /// Types which don't implement the `BuiltinExport` trait can't be used directly as an `#[export]`
@@ -557,25 +585,14 @@ mod export_impls {
 
     macro_rules! impl_property_by_godot_convert {
         ($Ty:ty, no_export) => {
-            impl_property_by_godot_convert!(@property $Ty);
+            // For types without Export (Callable, Signal, Rid).
+            impl SimpleVar for $Ty {}
         };
 
         ($Ty:ty) => {
-            impl_property_by_godot_convert!(@property $Ty);
+            impl SimpleVar for $Ty {}
             impl_property_by_godot_convert!(@export $Ty);
             impl_property_by_godot_convert!(@builtin $Ty);
-        };
-
-        (@property $Ty:ty) => {
-            impl Var for $Ty {
-                fn get_property(&self) -> Self::Via {
-                    self.to_godot_owned()
-                }
-
-                fn set_property(&mut self, value: Self::Via) {
-                    *self = FromGodot::from_godot(value);
-                }
-            }
         };
 
         (@export $Ty:ty) => {
