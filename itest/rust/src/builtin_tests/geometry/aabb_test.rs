@@ -53,10 +53,13 @@ fn aabb_equiv() {
     for i in 0..8 {
         assert_eq_approx!(
             inner.get_endpoint(i as i64),
-            outer.get_endpoint(i),
+            outer.get_corner(i),
             "index: {i}\n"
         );
     }
+
+    let intersecting_segment = (Vector3::new(-2.6, -1.0, 2.0), Vector3::new(3.0, 2.0, 2.0));
+    let non_intersecting_segment = (Vector3::new(-4.5, 0.0, 2.0), Vector3::new(-2.5, 0.0, 2.0));
 
     #[rustfmt::skip]
     let mappings_vector3 = [
@@ -79,6 +82,11 @@ fn aabb_equiv() {
             "support",
             inner.get_support(Vector3::UP),
             outer.get_support(Vector3::UP),
+        ),
+        (
+            "intersect_segment",
+            inner.intersects_segment(intersecting_segment.0, intersecting_segment.1).try_to().expect("Failed to intersect segment!"),
+            outer.intersect_segment(intersecting_segment.0, intersecting_segment.1).expect(" Failed to intersect segment!"),
         ),
     ];
 
@@ -115,6 +123,16 @@ fn aabb_equiv() {
             "intersects_plane",
             inner.intersects_plane(test_plane),
             outer.intersects_plane(test_plane),
+        ),
+        (
+            "intersects_segment",
+            !inner.intersects_segment(intersecting_segment.0, intersecting_segment.1).is_nil(),
+            outer.intersects_segment(intersecting_segment.0, intersecting_segment.1),
+        ),
+        (
+            "intersect_segment",
+            inner.intersects_segment(non_intersecting_segment.0, non_intersecting_segment.1).is_nil(),
+            outer.intersect_segment(non_intersecting_segment.0, non_intersecting_segment.1).is_none(),
         ),
         (
             "is_finite",
