@@ -67,11 +67,17 @@ impl Rect2i {
 
     /// Create a new `Rect2i` with the first corner at `position` and the opposite corner at `end`.
     #[inline]
-    pub fn from_corners(position: Vector2i, end: Vector2i) -> Self {
+    pub fn from_position_end(position: Vector2i, end: Vector2i) -> Self {
         Self {
             position,
             size: end - position,
         }
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `from_position_end`."]
+    pub fn from_corners(position: Vector2i, end: Vector2i) -> Self {
+        Self::from_position_end(position, end)
     }
 
     /// Create a new `Rect2` from a `Rect2i`, using `as` for `i32` to `real` conversions.
@@ -129,7 +135,7 @@ impl Rect2i {
 
         let begin = self.position;
         let end = self.end();
-        Self::from_corners(begin.coord_min(to), end.coord_max(to))
+        Self::from_position_end(begin.coord_min(to), end.coord_max(to))
     }
 
     /// Returns the area of the `Rect2i`.
@@ -157,7 +163,7 @@ impl Rect2i {
     #[inline]
     pub fn grow(self, amount: i32) -> Self {
         let amount_2d = Vector2i::new(amount, amount);
-        Self::from_corners(self.position - amount_2d, self.end() + amount_2d)
+        Self::from_position_end(self.position - amount_2d, self.end() + amount_2d)
     }
 
     /// Returns a copy of the `Rect2i` grown by the specified amount on each side individually.
@@ -168,7 +174,7 @@ impl Rect2i {
     pub fn grow_individual(self, left: i32, top: i32, right: i32, bottom: i32) -> Self {
         let top_left = Vector2i::new(left, top);
         let bottom_right = Vector2i::new(right, bottom);
-        Self::from_corners(self.position - top_left, self.end() + bottom_right)
+        Self::from_position_end(self.position - top_left, self.end() + bottom_right)
     }
 
     /// Returns a copy of the `Rect2i` grown by the specified `amount` on the specified `RectSide`.
@@ -231,7 +237,7 @@ impl Rect2i {
         let new_pos = b.position.coord_max(self.position);
         let new_end = b_end.coord_min(own_end);
 
-        Some(Self::from_corners(new_pos, new_end))
+        Some(Self::from_position_end(new_pos, new_end))
     }
 
     /// Returns `true` if the `Rect2i` overlaps with `b` (i.e. they have at least one
@@ -250,7 +256,7 @@ impl Rect2i {
         let new_pos = b.position.coord_min(self.position);
         let new_end = b.end().coord_max(self.end());
 
-        Self::from_corners(new_pos, new_end)
+        Self::from_position_end(new_pos, new_end)
     }
 
     /// Returns `true` if either of the coordinates of this `Rect2i`s `size` vector is negative.
@@ -310,7 +316,8 @@ mod test {
         let new = Rect2i::new(Vector2i::new(0, 100), Vector2i::new(1280, 720));
         let from_components = Rect2i::from_components(0, 100, 1280, 720);
         let from_rect2 = Rect2::from_components(0.1, 100.3, 1280.1, 720.42).cast_int();
-        let from_corners = Rect2i::from_corners(Vector2i::new(0, 100), Vector2i::new(1280, 820));
+        let from_position_end =
+            Rect2i::from_position_end(Vector2i::new(0, 100), Vector2i::new(1280, 820));
 
         assert_eq!(zero.position.x, 0);
         assert_eq!(zero.position.y, 0);
@@ -319,12 +326,12 @@ mod test {
 
         assert_eq!(new, from_components);
         assert_eq!(new, from_rect2);
-        assert_eq!(new, from_corners);
+        assert_eq!(new, from_position_end);
 
         assert_eq!(from_components, from_rect2);
-        assert_eq!(from_components, from_corners);
+        assert_eq!(from_components, from_position_end);
 
-        assert_eq!(from_rect2, from_corners);
+        assert_eq!(from_rect2, from_position_end);
     }
 
     #[test]
