@@ -52,9 +52,15 @@ impl Rect2 {
 
     /// Create a new `Rect2` with the first corner at `position` and the opposite corner at `end`.
     #[inline]
-    pub fn from_corners(position: Vector2, end: Vector2) -> Self {
+    pub fn from_position_end(position: Vector2, end: Vector2) -> Self {
         // Cannot use floating point arithmetic in const functions.
         Self::new(position, end - position)
+    }
+
+    #[inline]
+    #[deprecated = "Renamed to `from_position_end`."]
+    pub fn from_corners(position: Vector2, end: Vector2) -> Self {
+        Self::from_position_end(position, end)
     }
 
     /// Create a new `Rect2` from four reals representing position `(x,y)` and size `(width,height)`.
@@ -118,7 +124,7 @@ impl Rect2 {
         let position = self.position.coord_min(b.position);
         let end = self.end().coord_max(b.end());
 
-        Self::from_corners(position, end)
+        Self::from_position_end(position, end)
     }
 
     /// Returns the area of the rectangle.
