@@ -64,7 +64,7 @@ impl NoDefault {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(GodotConvert, Var, Export)]
+#[derive(Clone, GodotConvert, Var, Export)]
 #[godot(via = GString)]
 enum Planet {
     Earth,

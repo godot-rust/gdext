@@ -1205,12 +1205,22 @@ impl<T: ArrayElement> Clone for Array<T> {
 }
 
 impl<T: ArrayElement> Var for Array<T> {
-    fn get_property(&self) -> Self::Via {
-        self.to_godot_owned()
+    type PubType = Self;
+
+    fn var_get(field: &Self) -> Self::Via {
+        field.to_godot_owned()
     }
 
-    fn set_property(&mut self, value: Self::Via) {
-        *self = FromGodot::from_godot(value)
+    fn var_set(field: &mut Self, value: Self::Via) {
+        *field = FromGodot::from_godot(value);
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        field.clone()
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        *field = value;
     }
 
     fn var_hint() -> PropertyHintInfo {

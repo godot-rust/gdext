@@ -1081,12 +1081,23 @@ impl<T> Var for OnEditor<Gd<T>>
 where
     T: GodotClass,
 {
-    fn get_property(&self) -> Self::Via {
-        Self::get_property_inner(self)
+    // Not Option<...> -- accessing from Rust through Var trait should not expose larger API than OnEditor itself.
+    type PubType = <Gd<T> as GodotConvert>::Via;
+
+    fn var_get(field: &Self) -> Self::Via {
+        Self::get_property_inner(field)
     }
 
-    fn set_property(&mut self, value: Self::Via) {
-        Self::set_property_inner(self, value)
+    fn var_set(field: &mut Self, value: Self::Via) {
+        Self::set_property_inner(field, value);
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        Self::var_get(field).expect("generated #[var(pub)] getter: uninitialized OnEditor<Gd<T>>")
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        Self::var_set(field, Some(value))
     }
 }
 

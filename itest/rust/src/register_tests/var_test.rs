@@ -7,7 +7,7 @@
 use godot::global::godot_str;
 use godot::prelude::*;
 
-use crate::framework::itest;
+use crate::framework::{expect_panic, itest};
 
 #[derive(GodotClass)]
 #[class(init)]
@@ -227,5 +227,122 @@ fn var_deprecated_accessors() {
     let c = obj.bind_mut().get_c_set();
     assert_eq!(c, 0);
 
+    obj.free();
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Edge cases for #[var(pub)]
+
+#[derive(GodotClass)]
+#[class(base=Node)]
+struct VarPubEdgeCases {
+    base: Base<Node>,
+
+    #[var(pub)]
+    on_ready_int: OnReady<i32>,
+
+    #[var(pub)]
+    on_ready_node: OnReady<Gd<Node>>,
+
+    #[var(pub)]
+    on_editor_int: OnEditor<i32>,
+
+    #[var(pub)]
+    on_editor_node: OnEditor<Gd<Node>>,
+}
+
+#[godot_api]
+impl INode for VarPubEdgeCases {
+    fn init(base: Base<Node>) -> Self {
+        Self {
+            base,
+            on_ready_int: OnReady::manual(),
+            on_ready_node: OnReady::manual(),
+            on_editor_int: OnEditor::from_sentinel(-1),
+            on_editor_node: OnEditor::default(), // Option<Gd>::None.
+        }
+    }
+}
+
+#[itest]
+fn var_pub_access_on_ready_builtin() {
+    let mut obj = VarPubEdgeCases::new_alloc();
+    obj.bind_mut().on_ready_int.init(42);
+
+    assert_eq!(obj.bind().get_on_ready_int(), 42);
+
+    obj.bind_mut().set_on_ready_int(100);
+    assert_eq!(*obj.bind().on_ready_int, 100);
+
+    obj.free();
+}
+
+#[itest]
+fn var_pub_access_on_ready_gd() {
+    let mut obj = VarPubEdgeCases::new_alloc();
+    let first = Node::new_alloc();
+    let second = Node::new_alloc();
+
+    obj.bind_mut().on_ready_node.init(first.clone());
+    assert_eq!(obj.bind().get_on_ready_node(), first);
+    assert_eq!(&*obj.bind().on_ready_node, &first);
+
+    obj.bind_mut().set_on_ready_node(second.clone());
+    assert_eq!(obj.bind().get_on_ready_node(), second);
+
+    first.free();
+    second.free();
+    obj.free();
+}
+
+#[itest]
+fn var_pub_access_on_ready_panics() {
+    let mut obj = VarPubEdgeCases::new_alloc();
+    let node = Node::new_alloc();
+
+    expect_panic("get - OnReady<Gd<Node>>", || {
+        obj.bind().get_on_ready_node();
+    });
+    expect_panic("get - OnReady<i32>", || {
+        obj.bind().get_on_ready_int();
+    });
+    expect_panic("set - OnReady<Gd<Node>>", || {
+        obj.bind_mut().set_on_ready_node(node.clone());
+    });
+    expect_panic("set - OnReady<i32>", || {
+        obj.bind_mut().set_on_ready_int(42);
+    });
+
+    node.free();
+    obj.free();
+}
+
+#[itest]
+fn var_pub_access_on_editor_builtin() {
+    let mut obj = VarPubEdgeCases::new_alloc();
+
+    assert_eq!(obj.bind().get_on_editor_int(), -1);
+
+    obj.bind_mut().set_on_editor_int(42);
+    assert_eq!(obj.bind().get_on_editor_int(), 42);
+    assert_eq!(*obj.bind().on_editor_int, 42);
+
+    obj.free();
+}
+
+#[itest]
+fn var_pub_access_on_editor_gd() {
+    let mut obj = VarPubEdgeCases::new_alloc();
+    let node = Node::new_alloc();
+
+    expect_panic("get - OnEditor<Gd<Node>>", || {
+        obj.bind().get_on_editor_node();
+    });
+
+    obj.bind_mut().set_on_editor_node(node.clone());
+    assert_eq!(obj.bind().get_on_editor_node(), node.clone());
+    assert_eq!(&*obj.bind().on_editor_node, &node);
+
+    node.free();
     obj.free();
 }

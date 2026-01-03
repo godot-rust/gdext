@@ -22,23 +22,28 @@ mod phantom_var;
 pub use phantom_var::PhantomVar;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Trait definitions
+// Var trait
 
 // Note: HTML link for #[var] works if this symbol is inside prelude, but not in register::property.
-/// Trait implemented for types that can be used as [`#[var]`](../register/derive.GodotClass.html#properties-and-exports) fields.
+/// Trait for types used in [`#[var]`](../register/derive.GodotClass.html#properties-and-exports) fields.
 ///
-/// This creates a copy of the value, according to copy semantics provided by `Clone`. For example, `Array`, `Dictionary` and `Gd` are
-/// returned by shared reference instead of copying the actual data.
+/// Defines how a value is passed to/from Godot's property system, through [`var_get()`][Self::var_get] and [`var_set()`][Self::var_set]
+/// associated functions. Further customizes how generated Rust getters and setters operate, in fields annotated with `#[var(pub)]`, through
+/// [`var_pub_get()`][Self::var_pub_get] and [`var_pub_set()`][Self::var_pub_set].
 ///
-/// For types that use standard conversion via [`ToGodot`]/[`FromGodot`], consider implementing the [`SimpleVar`] marker trait instead,
-/// which provides a default implementation automatically.
+/// The `Var` trait does not require [`FromGodot`] or [`ToGodot`]: a value can be used as a property even if it can't be used in `#[func]`
+/// parameters or return types.
 ///
-/// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
-/// arguments/return types.
+/// See also [`Export`], a subtrait for properties exported to the editor UI using `#[export]`.
 ///
-/// See also [`Export`], a specialization of this trait for properties exported to the editor UI.
+/// # Implementing the trait
+/// Most godot-rust types implement `Var` out of the box, so you won't need to do anything. If a type doesn't support it, that's usually a sign
+/// that it shouldn't be used in property contexts.
 ///
-/// For enums, this trait can be derived using the [`#[derive(Var)]`](../derive.Var.html) macro.
+/// For enums, you can use the [`#[derive(Var)]`](../derive.Var.html) macro, in combination with `GodotConvert` as `#[derive(GodotConvert, Var)]`.
+///
+/// If you need to manually implement `Var` and your field type already supports `ToGodot` and `FromGodot`, just implement the [`SimpleVar`]
+/// trait instead of `Var`. It will automatically provide a reasonable standard implementation of `Var`.
 #[doc(alias = "property")]
 //
 // on_unimplemented: we also mention #[export] here, because we can't control the order of error messages.
@@ -49,41 +54,62 @@ pub use phantom_var::PhantomVar;
     note = "see also: https://godot-rust.github.io/book/register/properties.html"
 )]
 pub trait Var: GodotConvert {
-    fn get_property(&self) -> Self::Via;
+    /// Type used in generated Rust getters/setters for `#[var(pub)]`.
+    type PubType;
 
-    fn set_property(&mut self, value: Self::Via);
+    /// Get property value. Called when reading a property from Godot.
+    fn var_get(field: &Self) -> Self::Via;
 
-    /// Specific property hints, only override if they deviate from [`GodotType::property_info`], e.g. for enums/newtypes.
+    /// Set property value. Called when writing a property from Godot.
+    fn var_set(field: &mut Self, value: Self::Via);
+
+    /// Get property value in a Rust auto-generated getter, for fields annotated with `#[var(pub)]`.
+    fn var_pub_get(field: &Self) -> Self::PubType;
+
+    /// Set property value in a Rust auto-generated setter, for fields annotated with `#[var(pub)]`.
+    fn var_pub_set(field: &mut Self, value: Self::PubType);
+
+    /// Specific property hints. Only override if they deviate from [`GodotType::property_info`], e.g. for enums/newtypes.
     fn var_hint() -> PropertyHintInfo {
         Self::Via::property_hint_info()
     }
 }
 
-/// Marker trait for types that use standard property conversion via [`ToGodot`] and [`FromGodot`].
+/// Simplified way to implement the `Var` trait, for godot-convertible types.
 ///
-/// Implementing this trait automatically provides a [`Var`] implementation that:
-/// - Uses [`ToGodot::to_godot_owned()`] for `get_property()`
-/// - Uses [`FromGodot::from_godot()`] for `set_property()`
-/// - Uses the default `var_hint()` from `Self::Via`
+/// Implementing this trait will auto-implement [`Var`] in a standard way for types supporting [`ToGodot`] and [`FromGodot`].
 ///
-/// This trait is already implemented for all built-in Godot types like `Vector2`, `Color`, primitives, etc.
-///
-/// For custom types that already implement `ToGodot` and `FromGodot`, simply add `impl SimpleVar for YourType {}`
-/// to get a `Var` implementation automatically.
-pub trait SimpleVar: ToGodot + FromGodot {}
+/// Types implementing this trait will use `clone()` for the public getter and direct assignment for the public setter, with `PubType = Self`.
+/// This is the standard behavior for most types.
+pub trait SimpleVar: ToGodot + FromGodot + Clone {}
 
-impl<T: SimpleVar> Var for T
+/// Blanket impl for types with standard Godot conversion; see [`SimpleVar`] for details.
+impl<T> Var for T
 where
+    T: SimpleVar,
     T::Via: Clone,
 {
-    fn get_property(&self) -> Self::Via {
-        self.to_godot_owned()
+    type PubType = Self;
+
+    fn var_get(field: &Self) -> Self::Via {
+        <T as ToGodot>::to_godot_owned(field)
     }
 
-    fn set_property(&mut self, value: Self::Via) {
-        *self = FromGodot::from_godot(value);
+    fn var_set(field: &mut Self, value: Self::Via) {
+        *field = <T as FromGodot>::from_godot(value);
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        field.clone()
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        *field = value;
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Export trait
 
 // Note: HTML link for #[export] works if this symbol is inside prelude, but not in register::property.
 /// Trait implemented for types that can be used as [`#[export]`](../register/derive.GodotClass.html#properties-and-exports) fields.
@@ -138,6 +164,9 @@ pub trait Export: Var {
 // should be avoided. Since Rust does not yet support specialization (i.e. negative trait bounds),
 // this `MarkerTrait` serves as the intended solution to recognize aforementioned types.
 pub trait BuiltinExport {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Doctests to test compile errors
 
 /// This function only exists as a place to add doc-tests for the `Var` trait and `#[var]` attribute.
 ///
@@ -227,21 +256,29 @@ where
     T: Var + FromGodot,
     Option<T>: GodotConvert<Via = Option<T::Via>>,
 {
-    fn get_property(&self) -> Self::Via {
-        self.as_ref().map(Var::get_property)
+    type PubType = Option<T::Via>; // Same as Self::Via.
+
+    fn var_get(field: &Self) -> Self::Via {
+        field.as_ref().map(T::var_get)
     }
 
-    fn set_property(&mut self, value: Self::Via) {
+    fn var_set(field: &mut Self, value: Self::Via) {
         match value {
-            Some(value) => {
-                if let Some(current_value) = self {
-                    current_value.set_property(value)
-                } else {
-                    *self = Some(FromGodot::from_godot(value))
-                }
-            }
-            None => *self = None,
+            Some(via) => match field {
+                // If field is already set, delegate to setter (non-null) on field; otherwise assign new value.
+                Some(ref mut inner) => T::var_set(inner, via),
+                None => *field = Some(T::from_godot(via)),
+            },
+            None => *field = None,
         }
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        Self::var_get(field)
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        Self::var_set(field, value)
     }
 }
 

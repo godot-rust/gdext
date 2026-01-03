@@ -13,7 +13,7 @@ use crate::ParseResult;
 
 /// Derives `Var` for the given declaration.
 ///
-/// This uses `ToGodot` and `FromGodot` for the `get_property` and `set_property` implementations.
+/// This uses `ToGodot` and `FromGodot` for the `var_get` and `var_set` implementations.
 pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
     let convert = GodotConvert::parse_declaration(item)?;
 
@@ -23,12 +23,22 @@ pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
 
     Ok(quote! {
         impl ::godot::register::property::Var for #name {
-            fn get_property(&self) -> <Self as ::godot::meta::GodotConvert>::Via {
-                ::godot::meta::ToGodot::to_godot(self)
+            type PubType = Self;
+
+            fn var_get(field: &Self) -> <Self as ::godot::meta::GodotConvert>::Via {
+                ::godot::meta::ToGodot::to_godot(field)
             }
 
-            fn set_property(&mut self, value: <Self as ::godot::meta::GodotConvert>::Via) {
-                *self = ::godot::meta::FromGodot::from_godot(value);
+            fn var_set(field: &mut Self, value: <Self as ::godot::meta::GodotConvert>::Via) {
+                *field = ::godot::meta::FromGodot::from_godot(value);
+            }
+
+            fn var_pub_get(field: &Self) -> Self::PubType {
+                field.clone()
+            }
+
+            fn var_pub_set(field: &mut Self, value: Self::PubType) {
+                *field = value;
             }
 
             fn var_hint() -> ::godot::meta::PropertyHintInfo {
