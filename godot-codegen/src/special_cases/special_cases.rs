@@ -473,6 +473,7 @@ pub fn get_class_method_param_enum_replacement(
         ("CodeEdit", "add_code_completion_option") => {
             &[("location", "CodeEdit.CodeCompletionLocation", false)]
         }
+        #[cfg(before_api = "4.6")] // https://github.com/godotengine/godot/pull/114053.
         ("FileAccess", "create_temp") => &[("mode_flags", "FileAccess.ModeFlags", true)],
         ("GPUParticles2D", "emit_particle") => &[("flags", "GPUParticles2D.EmitFlags", true)],
         ("GPUParticles3D", "emit_particle") => &[("flags", "GPUParticles3D.EmitFlags", true)],
@@ -689,6 +690,9 @@ pub fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod
         => Some(true),
 
         // Changed to mut.
+        | ("EditorImportPlugin", "_import")
+        => Some(false),
+
         // Needs some fixes to make sure _ex() builders have consistent signature, e.g. FileAccess::get_csv_line_full().
         /*
         | ("FileAccess", "get_16")
