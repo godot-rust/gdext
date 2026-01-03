@@ -155,6 +155,15 @@ pub fn make_method_registration(
         .into_iter()
         .collect::<Vec<_>>();
 
+    // Statically check that all parameters implement FromGodot + return type implements ToGodot. Span to localize compile error.
+    let type_and_bounds_check = {
+        let sig_ret_span = signature_info.params_span; // Alternative: sig_ret's span (first token).
+
+        quote_spanned! { sig_ret_span=>
+            ::godot::meta::ensure_func_bounds::<CallParams, CallRet>();
+        }
+    };
+
     let registration = quote! {
         #(#cfg_attrs)*
         {
@@ -166,8 +175,7 @@ pub fn make_method_registration(
             type CallParams = #sig_params;
             type CallRet = #sig_ret;
 
-            // Statically check that all parameters implement FromGodot + return type implements ToGodot.
-            ::godot::meta::ensure_func_bounds::<CallParams, CallRet>();
+            #type_and_bounds_check
 
             let method_name = StringName::from(#method_name_str);
 
