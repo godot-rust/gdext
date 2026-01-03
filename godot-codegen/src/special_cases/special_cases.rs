@@ -473,6 +473,7 @@ pub fn get_class_method_param_enum_replacement(
         ("CodeEdit", "add_code_completion_option") => {
             &[("location", "CodeEdit.CodeCompletionLocation", false)]
         }
+        #[cfg(before_api = "4.6")] // https://github.com/godotengine/godot/pull/114053.
         ("FileAccess", "create_temp") => &[("mode_flags", "FileAccess.ModeFlags", true)],
         ("GPUParticles2D", "emit_particle") => &[("flags", "GPUParticles2D.EmitFlags", true)],
         ("GPUParticles3D", "emit_particle") => &[("flags", "GPUParticles3D.EmitFlags", true)],
