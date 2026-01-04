@@ -201,7 +201,8 @@ jobs:
             os: ubuntu-22.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features itest/codegen-full
+            rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
+            rust-extra-env: GODOT_RUST_MAIN_EXTENSION=IntegrationTests
             hot-reload: stable
 
           - name: linux-custom-api-json
@@ -305,6 +306,7 @@ jobs:
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+          rust-extra-env: ${{ matrix.rust-extra-env }}
           rust-target: ${{ matrix.rust-target }}
           rust-target-dir: ${{ matrix.rust-target-dir }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}

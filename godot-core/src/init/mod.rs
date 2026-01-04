@@ -286,8 +286,6 @@ where
 /// ```
 /// use godot::init::*;
 ///
-/// // This is just a type tag without any functionality.
-/// // Its name is irrelevant.
 /// struct MyExtension;
 ///
 /// #[gdextension]
@@ -336,6 +334,48 @@ where
 ///
 /// If you use the `disengaged` [safeguard level], you accept that UB becomes possible even **in safe Rust APIs**, if you use them wrong
 /// (e.g. accessing a destroyed object).
+///
+/// # Using other GDExtension libraries as dependencies
+///
+/// When using any other GDExtension library as a dependency, the implementor of the user-forwarding `ExtensionLibrary` must be specified
+/// via the `GODOT_RUST_MAIN_EXTENSION` environment variable. That _main_ crate will be responsible
+/// for loading all classes, as well as managing the `ExtensionLibrary` callbacks.
+///
+/// For example, you have a workspace with a crate `my-extension`, that uses libraries `lib-a` and `lib-b` as dependencies.
+/// If the `impl ExtensionLibrary` is called `MyExtension`, then you can build all crates in the workspace with:
+///
+/// ```bash
+/// GODOT_RUST_MAIN_EXTENSION="MyExtension" cargo build
+/// ```
+///
+/// ```ignore
+/// // lib.rs of my-extension crate.
+/// // Usage of other dependencies must be explicitly declared; otherwise, they won't be registered.
+/// extern crate lib_a;
+/// extern crate lib_b;
+///
+/// struct MyExtension;
+///
+/// #[gdextension]
+/// unsafe impl ExtensionLibrary for MyExtension {}
+/// ```
+///
+/// The name of the `ExtensionLibrary` implementor must be unique and different from those used by its dependencies.
+///
+/// Given dependencies must be compilable as `rlib`. That is, they either specify `rlib` as a possible crate-type in their `Cargo.toml`:
+///
+/// ```ignore
+/// # my_dependency/Cargo.toml
+///
+/// [lib]
+/// crate-type = ["cdylib", "rlib"]
+/// ```
+///
+/// Or do not specify `[lib]` at all (and are compiled with `cargo rustc --features ... --crate-type cdylib` instead).
+///
+/// Note that it is the user's responsibility to ensure that the same classes are not loaded twice –
+/// which might be a result of loading another extension in the project which already defines said classes.
+/// Do not use this feature to bundle dependencies to end-users unless it is necessary to do so.
 ///
 /// [gdextension]: attr.gdextension.html
 /// [safety]: https://godot-rust.github.io/book/gdext/advanced/safety.html
