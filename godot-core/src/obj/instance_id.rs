@@ -10,6 +10,7 @@ use std::num::NonZeroU64;
 
 use crate::meta::error::{ConvertError, FromGodotError};
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
+use crate::registry::property::SimpleVar;
 
 /// Represents a non-zero instance ID.
 ///
@@ -107,3 +108,5 @@ impl FromGodot for InstanceId {
         Self::try_from_i64(via).ok_or_else(|| FromGodotError::ZeroInstanceId.into_error(via))
     }
 }
+
+impl SimpleVar for InstanceId {}

@@ -115,16 +115,16 @@ pub fn make_enum_definition_with(
         let index_enum_impl = make_enum_index_impl(enum_);
         let bitwise_impls = make_enum_bitwise_operators(enum_, enum_bitmask.as_ref());
 
-        let var_trait_set_property = if enum_.is_exhaustive {
+        let var_trait_set = if enum_.is_exhaustive {
             quote! {
-                fn set_property(&mut self, value: Self::Via) {
-                    *self = <Self as #engine_trait>::from_ord(value);
+                fn var_set(field: &mut Self, value: Self::Via) {
+                    *field = <Self as #engine_trait>::from_ord(value);
                 }
             }
         } else {
             quote! {
-                fn set_property(&mut self, value: Self::Via) {
-                    self.ord = value;
+                fn var_set(field: &mut Self, value: Self::Via) {
+                    field.ord = value;
                 }
             }
         };
@@ -156,14 +156,24 @@ pub fn make_enum_definition_with(
             }
 
   impl crate::registry::property::Var for #name {
-      fn get_property(&self) -> Self::Via{
-          <Self as #engine_trait>::ord(*self)
+      type PubType = Self;
+
+      fn var_get(field: &Self) -> Self::Via {
+          <Self as #engine_trait>::ord(*field)
       }
 
-      #var_trait_set_property
+      #var_trait_set
 
-      fn var_hint() -> crate::meta::PropertyHintInfo{
-          crate::meta::PropertyHintInfo{
+      fn var_pub_get(field: &Self) -> Self::PubType {
+          *field
+      }
+
+      fn var_pub_set(field: &mut Self, value: Self::PubType) {
+          *field = value;
+      }
+
+      fn var_hint() -> crate::meta::PropertyHintInfo {
+          crate::meta::PropertyHintInfo {
               hint: #property_hint,
               hint_string: crate::builtin::GString::from(#enum_hint_string),
           }

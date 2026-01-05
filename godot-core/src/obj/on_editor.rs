@@ -16,8 +16,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// instead. As a general "maybe initialized" type, `Option<Gd<T>>` is always available, even if more verbose.
 ///
 ///
-/// # What consitutes "initialized"?
-///
+/// # What constitutes "initialized"?
 /// Whether a value is considered initialized or not depends on `T`.
 ///
 /// - For objects, a value is initialized if it is not null. Exported object propreties in Godot are nullable, but `Gd<T>` and `DynGd<T, D>` do
@@ -28,7 +27,6 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// More on this below (see also table-of-contents sidebar).
 ///
 /// # Initialization semantics
-///
 /// Panics during access (`Deref/DerefMut` impls) if uninitialized.
 ///
 /// When used inside a node class, `OnEditor` checks if a value has been set before `ready()` is run, and panics otherwise.
@@ -40,12 +38,10 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///
 ///
 /// # Using `OnEditor` with classes
-///
 /// You can wrap class smart pointers `Gd<T>` and `DynGd<T, D>` inside `OnEditor`, to make them exportable.
 /// `Gd<T>` itself does not implement the `Export` trait.
 ///
 /// ## Example: automatic init
-///
 /// This example uses the `Default` impl, which expects a non-null value to be provided.
 ///
 /// ```
@@ -69,7 +65,6 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// ```
 ///
 /// ## Example: user-defined init
-///
 /// Uninitialized `OnEditor<Gd<T>>` and `OnEditor<DynGd<T, D>>` can be created with `OnEditor::default()`.
 ///
 /// ```
@@ -128,7 +123,6 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// ```
 ///
 /// # Using `OnEditor` with built-in types
-///
 /// `OnEditor<T>` can be used with any `#[export]`-enabled builtins, to provide domain-specific validation logic.
 /// An example might be to check whether a game entity has been granted a non-zero ID.
 ///
@@ -169,20 +163,19 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// }
 /// ```
 ///
-///
 /// # Custom getters and setters for `OnEditor`
-///
-/// Custom setters and/or getters for `OnEditor` are declared as for any other `#[var]`.
-/// Use the default `OnEditor<T>` implementation to set/retrieve the value.
+/// Custom setters and/or getters for `OnEditor` are declared by accepting/returning the inner type.
+/// In their implementation, delegate to the `Var` trait methods, rather than dereferencing directly.
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init)]
 /// struct MyStruct {
-///     #[var(get = get_my_node, set = set_my_node)]
+///     #[var(get, set)]
 ///     my_node: OnEditor<Gd<Node>>,
-///     #[var(get = get_my_value, set = set_my_value)]
+///
+///     #[var(get, set)]
 ///     #[init(sentinel = -1)]
 ///     my_value: OnEditor<i32>,
 /// }
@@ -190,40 +183,40 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 /// #[godot_api]
 /// impl MyStruct {
 ///     #[func]
-///     pub fn get_my_node(&self) -> Option<Gd<Node>> {
-///         // Write your logic in between here...
-///         let ret = self.my_node.get_property();
-///         // ...and there.
+///     pub fn get_my_node(&self) -> Gd<Node> {
+///         let ret = Var::var_pub_get(&self.my_node);
+///         // Do something with the value...
 ///         ret
 ///     }
 ///
 ///     #[func]
-///     pub fn set_my_node(&mut self, value: Option<Gd<Node>>) {
-///         self.my_node.set_property(value);
+///     pub fn set_my_node(&mut self, value: Gd<Node>) {
+///         // Validate, pre-process, etc...
+///         Var::var_pub_set(&mut self.my_node, value);
 ///     }
 ///
 ///     #[func]
 ///     pub fn get_my_value(&self) -> i32 {
-///         self.my_value.get_property()
+///         let ret = Var::var_pub_get(&self.my_value);
+///         // Do something with the value...
+///         ret
 ///     }
 ///
 ///     #[func]
 ///     pub fn set_my_value(&mut self, value: i32) {
 ///         if value == 13 {
 ///             godot_warn!("13 is unlucky number.");
-///             return
+///             return;
 ///         }
 ///
-///         self.my_value.set_property(value);
+///         Var::var_pub_set(&mut self.my_value, value);
 ///     }
 /// }
 /// ```
 ///
 /// See also: [Register properties -- `#[var]`](../register/derive.GodotClass.html#register-properties--var)
 ///
-///
 /// # Using `OnEditor` with `#[class(tool)]`
-///
 /// When used with `#[class(tool)]`, the before-ready checks are omitted.
 /// Otherwise, `OnEditor<T>` behaves the same — accessing an uninitialized value will cause a panic.
 #[derive(Debug)]
@@ -296,20 +289,20 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
         match &self.state {
             OnEditorState::UninitNull => None,
             OnEditorState::UninitSentinel(val) | OnEditorState::Initialized(val) => {
-                Some(val.get_property())
+                Some(T::var_get(val))
             }
         }
     }
 
-    /// [`Var::set_property`] implementation that works both for nullable and non-nullable types.
+    /// [`Var::var_set`] implementation that works both for nullable and non-nullable types.
     ///
     /// All the state transitions are valid, since it is being run only in the editor.
-    /// See also [`Option::set_property()`].
+    /// See also [`Option::var_set()`].
     pub(crate) fn set_property_inner(&mut self, value: Option<T::Via>) {
         match (value, &mut self.state) {
             (None, _) => self.state = OnEditorState::UninitNull,
             (Some(value), OnEditorState::Initialized(current_value)) => {
-                current_value.set_property(value);
+                T::var_set(current_value, value);
             }
             (Some(value), OnEditorState::UninitNull) => {
                 self.state = OnEditorState::Initialized(FromGodot::from_godot(value))
@@ -361,13 +354,24 @@ where
     T: Var + FromGodot + PartialEq,
     T::Via: BuiltinExport,
 {
-    fn get_property(&self) -> Self::Via {
-        // Will never fail – `PrimitiveGodotType` can not be represented by the `OnEditorState::UninitNull`.
-        OnEditor::<T>::get_property_inner(self).expect("DirectExport is not nullable.")
+    type PubType = T::Via;
+
+    fn var_get(field: &Self) -> Self::Via {
+        field
+            .get_property_inner()
+            .expect("OnEditor field of non-nullable type must be initialized before access")
     }
 
-    fn set_property(&mut self, value: T::Via) {
-        OnEditor::<T>::set_property_inner(self, Some(value));
+    fn var_set(field: &mut Self, value: Self::Via) {
+        field.set_property_inner(Some(value));
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        Self::var_get(field)
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        Self::var_set(field, value)
     }
 }
 

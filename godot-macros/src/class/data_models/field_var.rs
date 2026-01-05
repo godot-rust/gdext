@@ -226,79 +226,99 @@ impl GetterSetterImpl {
             ..
         } = field;
 
-        // For #[var] without #[var(pub)], use mangled name for the actual implementation and register that with Godot.
+        // Use field's span so errors point to the field, not the derive macro. Separate type span for trait errors, e.g.:
+        //
+        //   328 |     pub my_enum: TestEnum,
+        //       |                  ^^^^^^^^ the trait `Clone` is not implemented for `TestEnum`
+        //       |
+        //       = note: required for `TestEnum` to implement `Var` (Clone bound for blanket impl)
+        let field_ty_span = field_type.span();
+        let field_span = field_name.span();
+
+        // Godot-registered function name is always the user-facing name.
+        let godot_function_name = kind.make_pub_fn_name(field_name, rename);
+
+        // For #[var(pub)], use the nice name and Var::PubType (Clone-based semantics for blanket impl).
+        // Otherwise, use a mangled internal name, Var::Via (GodotConvert-based semantics),
+        // and generate a deprecated forwarding function.
         // TODO(v0.6): remove deprecated forwarding functions.
-        let (rust_accessor, rust_deprecated_accessor, doc_hidden, godot_function_name);
-        if rust_public {
-            rust_accessor = kind.make_pub_fn_name(field_name, rename);
-            godot_function_name = rust_accessor.clone();
-            rust_deprecated_accessor = None;
-            doc_hidden = TokenStream::new();
-        } else {
-            let prefix = kind.prefix();
-
-            let normal_accessor = kind.make_pub_fn_name(field_name, rename);
-            godot_function_name = normal_accessor.clone(); // Has field's span.
-            rust_accessor = format_ident!("__godot_{prefix}{field_name}", span = field_name.span());
-            rust_deprecated_accessor = Some(normal_accessor);
-            doc_hidden = quote! { #[doc(hidden)] };
-        };
-
-        // Separate signature + body, because former is used later for registration.
-        // Quotes used to be `quote_spanned! { field_span=> `, but didn't seem to make difference in IDE navigation or errors.
-        // #registered_accessor already has field span set.
+        let rust_accessor;
+        let doc_hidden;
+        let deprecated_function;
         let signature;
         let function_body;
-        match kind {
-            GetSet::Get => {
-                // Use field's span so errors point to the field, not the derive macro.
-                signature = quote! {
-                    fn #rust_accessor(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via
-                };
-                function_body = quote! {
-                    <#field_type as ::godot::register::property::Var>::get_property(&self.#field_name)
-                };
-            }
-            GetSet::Set => {
-                // Use field's span so errors point to the field, not the derive macro.
-                signature = quote! {
-                    fn #rust_accessor(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via)
-                };
-                function_body = quote! {
-                    <#field_type as ::godot::register::property::Var>::set_property(&mut self.#field_name, #field_name);
-                };
-            }
-        }
 
-        let deprecated_function = if let Some(deprecated_accessor) = rust_deprecated_accessor {
-            // Generate both the actual implementation and a deprecated forwarding function.
+        if rust_public {
+            rust_accessor = godot_function_name.clone();
+            doc_hidden = TokenStream::new();
+            deprecated_function = TokenStream::new();
+
+            match kind {
+                GetSet::Get => {
+                    signature = quote_spanned! { field_ty_span=>
+                        fn #rust_accessor(&self) -> <#field_type as ::godot::register::property::Var>::PubType
+                    };
+                    function_body = quote_spanned! { field_ty_span=>
+                        <#field_type as ::godot::register::property::Var>::var_pub_get(&self.#field_name)
+                    };
+                }
+                GetSet::Set => {
+                    signature = quote_spanned! { field_ty_span=>
+                        fn #rust_accessor(&mut self, #field_name: <#field_type as ::godot::register::property::Var>::PubType)
+                    };
+                    function_body = quote_spanned! { field_ty_span=>
+                        <#field_type as ::godot::register::property::Var>::var_pub_set(&mut self.#field_name, #field_name)
+                    };
+                }
+            }
+        } else {
+            let prefix = kind.prefix();
+            rust_accessor = format_ident!("__godot_{prefix}{field_name}", span = field_span);
+            doc_hidden = quote! { #[doc(hidden)] };
+
             let deprecated_fn = match kind {
-                GetSet::Get => quote! {
-                    pub fn #deprecated_accessor(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via {
+                GetSet::Get => quote_spanned! { field_ty_span=>
+                    pub fn #godot_function_name(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via {
                         self.#rust_accessor()
                     }
                 },
-                GetSet::Set => quote! {
-                    pub fn #deprecated_accessor(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via) {
+                GetSet::Set => quote_spanned! { field_ty_span=>
+                    pub fn #godot_function_name(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via) {
                         self.#rust_accessor(#field_name)
                     }
                 },
             };
 
-            quote! {
+            deprecated_function = quote! {
                 // Deprecated forwarding function with the nice name.
                 #[deprecated = "Auto-generated Rust getters/setters for `#[var]` are being phased out until v0.6.\n\
                     If you need them, opt in with #[var(pub)]."]
                 #[allow(dead_code)] // These functions are not used for registration; pub fns in private modules remain unused.
                 #deprecated_fn
+            };
+
+            match kind {
+                GetSet::Get => {
+                    signature = quote_spanned! { field_ty_span=>
+                        fn #rust_accessor(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via
+                    };
+                    function_body = quote_spanned! { field_ty_span=>
+                        <#field_type as ::godot::register::property::Var>::var_get(&self.#field_name)
+                    };
+                }
+                GetSet::Set => {
+                    signature = quote_spanned! { field_ty_span=>
+                        fn #rust_accessor(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via)
+                    };
+                    function_body = quote_spanned! { field_ty_span=>
+                        <#field_type as ::godot::register::property::Var>::var_set(&mut self.#field_name, #field_name)
+                    };
+                }
             }
-        } else {
-            TokenStream::new()
-        };
+        }
 
         // Assign all tokens to field's span. Supposed to help IDE navigation (get_foo -> foo field), but did not work out in testing.
         // The function names already have the correct spans, so simple quote! might also work here.
-        let field_span = field_name.span();
         let function_impl = quote_spanned! { field_span=>
             #doc_hidden
             pub #signature {

@@ -136,17 +136,27 @@ impl GodotConvert for SomeCStyleEnum {
 }
 
 impl Var for SomeCStyleEnum {
-    fn get_property(&self) -> Self::Via {
-        (*self) as i64
+    type PubType = Self;
+
+    fn var_get(field: &Self) -> Self::Via {
+        (*field) as i64
     }
 
-    fn set_property(&mut self, value: Self::Via) {
+    fn var_set(field: &mut Self, value: Self::Via) {
         match value {
-            0 => *self = Self::A,
-            1 => *self = Self::B,
-            2 => *self = Self::C,
+            0 => *field = Self::A,
+            1 => *field = Self::B,
+            2 => *field = Self::C,
             other => panic!("unexpected variant {other}"),
         }
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        *field
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        *field = value;
     }
 }
 
@@ -159,7 +169,7 @@ impl Export for SomeCStyleEnum {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct NotExportable {
     a: i64,
     b: i64,
@@ -170,19 +180,29 @@ impl GodotConvert for NotExportable {
 }
 
 impl Var for NotExportable {
-    fn get_property(&self) -> Self::Via {
+    type PubType = Self;
+
+    fn var_get(field: &Self) -> Self::Via {
         vdict! {
-            "a": self.a,
-            "b": self.b
+            "a": field.a,
+            "b": field.b
         }
     }
 
-    fn set_property(&mut self, value: Self::Via) {
+    fn var_set(field: &mut Self, value: Self::Via) {
         let a = value.get("a").unwrap().to::<i64>();
         let b = value.get("b").unwrap().to::<i64>();
 
-        self.a = a;
-        self.b = b;
+        field.a = a;
+        field.b = b;
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        field.clone()
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        *field = value;
     }
 }
 
@@ -296,7 +316,9 @@ struct CheckAllExports {
     color_no_alpha: Color,
 }
 
-#[derive(GodotConvert, Var, Export, Eq, PartialEq, Debug)]
+// TODO(v0.5): consider if the below enums all need Clone -- they didn't in v0.4.
+// Reason is that #[derive(Var)] implements Var::var_pub_get() in a way that requires cloning, effectively requiring Clone.
+#[derive(GodotConvert, Var, Export, Clone, Eq, PartialEq, Debug)]
 #[godot(via = i64)]
 #[repr(i64)]
 pub enum TestEnum {
@@ -305,7 +327,7 @@ pub enum TestEnum {
     C = 2,
 }
 
-#[derive(GodotConvert, Var)]
+#[derive(Clone, GodotConvert, Var)]
 #[godot(via = i64)]
 pub enum Behavior {
     Peaceful,
@@ -313,7 +335,7 @@ pub enum Behavior {
     Aggressive = (3 + 4),
 }
 
-#[derive(GodotConvert, Var)]
+#[derive(Clone, GodotConvert, Var)]
 #[godot(via = GString)]
 pub enum StrBehavior {
     Peaceful,
@@ -323,20 +345,40 @@ pub enum StrBehavior {
 
 #[derive(GodotClass)]
 #[class(no_init)]
-pub struct DeriveProperty {
+pub struct EnumVars {
     #[var(pub)]
     pub my_enum: TestEnum,
+
+    #[var]
+    pub legacy_enum: TestEnum,
 }
 
 #[itest]
-fn derive_property() {
-    let mut class = DeriveProperty {
+fn property_enum_var() {
+    let mut obj = EnumVars {
         my_enum: TestEnum::B,
+        legacy_enum: TestEnum::B,
     };
-    assert_eq!(class.get_my_enum(), TestEnum::B as i64);
 
-    class.set_my_enum(TestEnum::C as i64);
-    assert_eq!(class.my_enum, TestEnum::C);
+    // From v0.5 and #[var(pub)] getters/setters use the Rust type directly (not Via type).
+    assert_eq!(obj.get_my_enum(), TestEnum::B);
+
+    obj.set_my_enum(TestEnum::C);
+    assert_eq!(obj.my_enum, TestEnum::C);
+}
+
+#[itest]
+#[expect(deprecated)]
+fn property_enum_var_legacy() {
+    let mut obj = EnumVars {
+        my_enum: TestEnum::B,
+        legacy_enum: TestEnum::B,
+    };
+
+    assert_eq!(obj.get_legacy_enum(), TestEnum::B as i64);
+
+    obj.set_legacy_enum(TestEnum::A as i64);
+    assert_eq!(obj.legacy_enum, TestEnum::A);
 }
 
 // Regression test for https://github.com/godot-rust/gdext/issues/1009.

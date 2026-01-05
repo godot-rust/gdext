@@ -10,7 +10,7 @@ use std::mem;
 
 use crate::builtin::{GString, NodePath};
 use crate::classes::{Node, Resource};
-use crate::meta::{arg_into_owned, AsArg, GodotConvert};
+use crate::meta::{arg_into_owned, AsArg, FromGodot, GodotConvert};
 use crate::obj::{Gd, Inherits};
 use crate::registry::property::Var;
 
@@ -293,15 +293,32 @@ impl<T: GodotConvert> GodotConvert for OnReady<T> {
     type Via = T::Via;
 }
 
-impl<T: Var> Var for OnReady<T> {
-    fn get_property(&self) -> Self::Via {
-        let deref: &T = self;
-        deref.get_property()
+impl<T> Var for OnReady<T>
+where
+    T: Var<PubType = T> + FromGodot,
+{
+    type PubType = T;
+
+    // All following functions: Deref/DerefMut panics if not initialized, preserving the "single init point" invariant.
+
+    fn var_get(field: &Self) -> Self::Via {
+        let deref: &T = field;
+        T::var_get(deref)
     }
 
-    fn set_property(&mut self, value: Self::Via) {
-        let deref: &mut T = self;
-        deref.set_property(value);
+    fn var_set(field: &mut Self, value: Self::Via) {
+        let deref: &mut T = field;
+        T::var_set(deref, value);
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        let deref: &T = field;
+        T::var_pub_get(deref)
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        let deref: &mut T = field;
+        T::var_pub_set(deref, value);
     }
 }
 

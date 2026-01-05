@@ -17,6 +17,7 @@ use crate::meta::error::ConvertError;
 use crate::meta::{
     ArrayElement, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
+use crate::registry::property::SimpleVar;
 
 /// Covariant `Array` that can be either typed or untyped.
 ///
@@ -510,6 +511,8 @@ impl FromGodot for AnyArray {
         Ok(via)
     }
 }
+
+impl SimpleVar for AnyArray {}
 
 impl fmt::Debug for AnyArray {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

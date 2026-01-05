@@ -658,13 +658,23 @@ where
     T: GodotClass,
     D: ?Sized + 'static,
 {
-    fn get_property(&self) -> Self::Via {
-        self.obj.get_property()
+    type PubType = Self;
+
+    fn var_get(field: &Self) -> Self::Via {
+        <Gd<T> as Var>::var_get(&field.obj)
     }
 
-    fn set_property(&mut self, value: Self::Via) {
-        // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
-        *self = <Self as FromGodot>::from_godot(value);
+    fn var_set(field: &mut Self, value: Self::Via) {
+        // `var_set` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
+        *field = <Self as FromGodot>::from_godot(value);
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        field.clone()
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        *field = value;
     }
 }
 
@@ -707,13 +717,25 @@ where
     T: GodotClass,
     D: ?Sized + 'static,
 {
-    fn get_property(&self) -> Self::Via {
-        Self::get_property_inner(self)
+    // Not Option<...> -- accessing from Rust through Var trait should not expose larger API than OnEditor itself.
+    type PubType = <DynGd<T, D> as GodotConvert>::Via;
+
+    fn var_get(field: &Self) -> Self::Via {
+        Self::get_property_inner(field)
     }
 
-    fn set_property(&mut self, value: Self::Via) {
-        // `set_property` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
-        Self::set_property_inner(self, value)
+    fn var_set(field: &mut Self, value: Self::Via) {
+        // `var_set` can't be delegated to Gd<T>, since we have to set `erased_obj` as well.
+        Self::set_property_inner(field, value);
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        Self::var_get(field)
+            .expect("generated #[var(pub)] getter: uninitialized OnEditor<DynGd<T, D>>")
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        Self::var_set(field, Some(value))
     }
 }
 
