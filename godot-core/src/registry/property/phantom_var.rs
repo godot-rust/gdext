@@ -64,7 +64,9 @@ impl<T: GodotConvert + Var> GodotConvert for PhantomVar<T> {
 // `PhantomVar` supports only part of `Var`, but it has to implement it, otherwise we cannot implement `Export` either.
 // The `GodotClass` derive macro should ensure that the `Var` implementation is not used.
 impl<T: GodotConvert + Var> Var for PhantomVar<T> {
-    type PubType = std::convert::Infallible;
+    // Needs to be the inner type, because type-checking on user-defined getters/setters is based on this associated type.
+    // In practice, #[var(pub)] cannot be used with PhantomVar.
+    type PubType = T;
 
     fn var_get(_field: &Self) -> Self::Via {
         unreachable!("PhantomVar requires custom getter")
