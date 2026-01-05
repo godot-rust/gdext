@@ -41,31 +41,23 @@ struct HasProperty {
 #[godot_api]
 impl HasProperty {
     #[func]
-    pub fn get_object_val(&self) -> Variant {
-        if let Some(object_val) = self.object_val.as_ref() {
-            object_val.to_variant()
-        } else {
-            Variant::nil()
-        }
+    pub fn get_object_val(&self) -> Option<Gd<Object>> {
+        self.object_val.clone()
     }
 
     #[func]
-    pub fn set_object_val(&mut self, val: Gd<Object>) {
-        self.object_val = Some(val);
+    pub fn set_object_val(&mut self, val: Option<Gd<Object>>) {
+        self.object_val = val;
     }
 
     #[func]
-    pub fn get_resource_rw(&self) -> Variant {
-        if let Some(resource) = self.resource_rw.as_ref() {
-            resource.to_variant()
-        } else {
-            Variant::nil()
-        }
+    pub fn get_resource_rw(&self) -> Option<Gd<Resource>> {
+        self.resource_rw.clone()
     }
 
     #[func]
-    pub fn set_resource_rw(&mut self, val: Gd<Resource>) {
-        self.resource_rw = Some(val);
+    pub fn set_resource_rw(&mut self, val: Option<Gd<Resource>>) {
+        self.resource_rw = val;
     }
 }
 

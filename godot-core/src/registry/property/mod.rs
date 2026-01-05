@@ -182,6 +182,42 @@ pub trait BuiltinExport {}
 ///     field: i32,
 /// }
 /// ```
+///
+/// Custom getter must return the correct type (matching the field's `PubType`):
+///
+/// ```compile_fail
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Foo {
+///     #[var(get = my_getter)]
+///     field: GString,
+/// }
+///
+/// #[godot_api]
+/// impl Foo {
+///     fn my_getter(&self) -> i32 { 42 }
+/// }
+/// ```
+///
+/// Custom setter must accept the correct type (matching the field's `PubType`):
+///
+/// ```compile_fail
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Foo {
+///     #[var(set = my_setter)]
+///     field: GString,
+/// }
+///
+/// #[godot_api]
+/// impl Foo {
+///     fn my_setter(&mut self, value: i32) {}
+/// }
+/// ```
 fn __var_doctests() {}
 
 /// This function only exists as a place to add doc-tests for the `Export` trait.

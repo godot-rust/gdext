@@ -14,13 +14,13 @@ struct HasPhantomVar {
     #[var(get = get_read_only, no_set)]
     read_only: PhantomVar<i64>,
 
-    #[var(get = get_read_write, set = set_read_write)]
+    #[var(get, set)]
     read_write: PhantomVar<i64>,
 
     #[var(get = get_engine_enum, set = set_engine_enum)]
     read_write_engine_enum: PhantomVar<godot::global::VerticalAlignment>,
 
-    #[var(get = get_bit_enum,set = set_bit_enum)]
+    #[var(get = get_bit_enum, set = set_bit_enum)]
     read_write_bit_enum: PhantomVar<godot::global::KeyModifierMask>,
 
     value: i64,

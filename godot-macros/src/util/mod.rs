@@ -30,6 +30,12 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
+pub fn ident_respan(existing_ident: &Ident, span: Span) -> Ident {
+    let mut ident = existing_ident.clone();
+    ident.set_span(span);
+    ident
+}
+
 pub fn c_str(string: &str) -> Literal {
     let c_string = std::ffi::CString::new(string).expect("CString::new() failed");
     Literal::c_string(&c_string)

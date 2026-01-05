@@ -16,7 +16,8 @@ use crate::class::{
     FieldExport, FieldVar, GetterSetter, SignatureInfo,
 };
 use crate::util::{
-    bail, error, format_funcs_collection_struct, ident, path_ends_with_complex, KvParser,
+    bail, error, format_funcs_collection_struct, ident, ident_respan, path_ends_with_complex,
+    KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
@@ -312,12 +313,38 @@ fn make_deny_manual_init_macro(class_name: &Ident, init_strategy: InitStrategy) 
     }
 }
 
-/// Checks at compile time that a function with the given name exists on `Self`.
-#[must_use]
-pub fn make_existence_check(ident: &Ident) -> TokenStream {
-    quote! {
-        #[allow(path_statements)]
-        Self::#ident;
+/// Checks at compile time that a custom (user-defined) getter or setter has the correct signature.
+///
+/// The following signature is expected, with `T = Var::PubType`.
+/// - Getter: `fn(&self) -> T`
+/// - Setter: `fn(&mut self, T)`
+pub fn make_accessor_type_check(
+    class_name: &Ident,
+    accessor_name: &Ident,
+    field_type: &venial::TypeExpr,
+    kind: crate::class::GetSet,
+) -> TokenStream {
+    use crate::class::GetSet;
+
+    // Makes sure the span points to the ident in the macro:
+    //
+    // 76 |     #[var(pub, get = my_custom_get)]
+    //    |                      ^^^^^^^^^^^^^ expected fn pointer, found fn item
+    let accessor_span = accessor_name.span();
+    let class_name = ident_respan(class_name, accessor_span);
+
+    match kind {
+        GetSet::Get => quote_spanned! { accessor_span=>
+            ::godot::private::typecheck_getter::<#class_name, #field_type>(
+                #class_name::#accessor_name
+            )
+        },
+        GetSet::Set => quote_spanned! { accessor_span=>
+            ::godot::private::typecheck_setter::<#class_name, #field_type>(
+                #[allow(clippy::redundant_closure)] // Passing fn ref instead of closure deteriorates error message.
+                |this, val| #class_name::#accessor_name(this, val)
+            )
+        },
     }
 }
 

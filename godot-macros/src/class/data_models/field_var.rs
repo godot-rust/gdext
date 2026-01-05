@@ -9,7 +9,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
 
 use crate::class::{
-    into_signature_info, make_existence_check, make_method_registration, Field, FieldHint,
+    into_signature_info, make_accessor_type_check, make_method_registration, Field, FieldHint,
     FuncDefinition,
 };
 use crate::util::{make_funcs_collection_constant, KvParser};
@@ -165,13 +165,11 @@ impl GetterSetter {
                 rust_public,
             )),
             GetterSetter::Custom => Some(GetterSetterImpl::from_custom_impl(
-                kind,
-                &field.name,
-                rename,
+                class_name, kind, field, rename,
             )),
-            GetterSetter::CustomRenamed(function_name) => {
-                Some(GetterSetterImpl::from_custom_impl_renamed(function_name))
-            }
+            GetterSetter::CustomRenamed(function_name) => Some(
+                GetterSetterImpl::from_custom_impl_renamed(class_name, kind, field, function_name),
+            ),
         }
     }
 }
@@ -364,19 +362,31 @@ impl GetterSetterImpl {
     }
 
     /// User-defined name.
-    fn from_custom_impl_renamed(function_name: &Ident) -> Self {
+    fn from_custom_impl_renamed(
+        class_name: &Ident,
+        kind: GetSet,
+        field: &Field,
+        function_name: &Ident,
+    ) -> Self {
+        let export_token = make_accessor_type_check(class_name, function_name, &field.ty, kind);
+
         Self {
             rust_accessor: function_name.clone(),
             function_impl: TokenStream::new(),
-            export_token: make_existence_check(function_name),
+            export_token,
             funcs_collection_constant: TokenStream::new(),
         }
     }
 
     /// Default name for property.
-    fn from_custom_impl(kind: GetSet, field_name: &Ident, rename: &Option<Ident>) -> Self {
-        let function_name = kind.make_pub_fn_name(field_name, rename);
-        let export_token = make_existence_check(&function_name);
+    fn from_custom_impl(
+        class_name: &Ident,
+        kind: GetSet,
+        field: &Field,
+        rename: &Option<Ident>,
+    ) -> Self {
+        let function_name = kind.make_pub_fn_name(&field.name, rename);
+        let export_token = make_accessor_type_check(class_name, &function_name, &field.ty, kind);
 
         Self {
             rust_accessor: function_name,
