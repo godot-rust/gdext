@@ -16,6 +16,7 @@ use crate::global::godot_error;
 use crate::meta::error::{CallError, CallResult};
 use crate::meta::CallContext;
 use crate::obj::Gd;
+use crate::registry::property::Var;
 use crate::{classes, sys};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -187,6 +188,14 @@ pub trait You_forgot_the_attribute__godot_api {}
 pub struct ClassConfig {
     pub is_tool: bool,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Type-checkers for user-defined getters/setters in Var
+
+// These functions are used to generate nice error messages if a #[var(get)], [var(get = my_getter)] etc. mismatches types.
+// Don't modify without thorough UX testing; the use of `impl Fn` vs. `fn` is deliberate.
+pub fn typecheck_getter<C, T: Var>(_getter: impl Fn(&C) -> T::PubType) {}
+pub fn typecheck_setter<C, T: Var>(_setter: fn(&mut C, T::PubType)) {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Capability queries and internal access
