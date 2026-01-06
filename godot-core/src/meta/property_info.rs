@@ -15,11 +15,40 @@ use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
 
-/// Describes a property in Godot.
+/// Describes a property's type, name and metadata for Godot.
 ///
-/// Abstraction of the low-level `sys::GDExtensionPropertyInfo`.
+/// `PropertyInfo` is used throughout the Godot binding to describe properties, method parameters and return types.
 ///
-/// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
+/// This is a high-level abstraction over the low-level FFI type `sys::GDExtensionPropertyInfo`. Unlike the FFI version which only stores
+/// pointers, `PropertyInfo` owns its data, ensuring it remains valid for the lifetime of the struct.
+///
+/// See also [`MethodInfo`](crate::meta::MethodInfo) for describing method signatures and [`ClassId`] for type-IDs of Godot classes.
+///
+/// # Construction
+/// For most use cases, prefer the convenience constructors:
+/// - [`new_var::<T>()`](Self::new_var) -- creates property info for a `#[var]` attribute.
+/// - [`new_export::<T>()`](Self::new_export) -- for an `#[export]` attribute.
+/// - [`new_group()`](Self::new_group) / [`new_subgroup()`](Self::new_subgroup) -- for editor groups.
+///
+/// # Example
+/// ```no_run
+/// use godot::meta::{PropertyInfo, PropertyHintInfo, ClassId};
+/// use godot::builtin::{StringName, VariantType};
+/// use godot::global::PropertyUsageFlags;
+///
+/// // Integer property without a specific class
+/// let count_property = PropertyInfo {
+///     variant_type: VariantType::INT,
+///     class_id: ClassId::none(),  // Only OBJECT types need a real class ID.
+///     property_name: StringName::from("count"),
+///     hint_info: PropertyHintInfo::none(),
+///     usage: PropertyUsageFlags::DEFAULT,
+/// };
+/// ```
+///
+/// Here, `class_id` is set to [`ClassId::none()`] because integer properties do not require a specific class. For objects, you can use
+/// [`ClassId::new_cached::<T>(...)`][ClassId::new_cached] if you have a Rust type, or [`ClassId::new_dynamic(...)`][ClassId::new_dynamic]
+/// for dynamic contexts and script classes.
 #[derive(Clone, Debug)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 // Note: There was an idea of a high-level representation of the following, but it's likely easier and more efficient to use introspection
@@ -30,46 +59,65 @@ use crate::{classes, sys};
 //     Object { class_id: ClassId },
 // }
 pub struct PropertyInfo {
-    /// Which type this property has.
+    /// Type of the property.
     ///
-    /// For objects this should be set to [`VariantType::OBJECT`], and the `class_name` field to the actual name of the class.
-    ///
-    /// For [`Variant`][crate::builtin::Variant], this should be set to [`VariantType::NIL`].
+    /// For objects, this should be set to [`VariantType::OBJECT`] and use the `class_id` field to specify the actual class.  \
+    /// For generic [`Variant`](crate::builtin::Variant) properties, use [`VariantType::NIL`].
     pub variant_type: VariantType,
 
-    /// Which class this property is.
+    /// The specific class identifier for object-typed properties in Godot.
     ///
-    /// This should be set to [`ClassId::none()`] unless the variant type is `Object`. You can use
-    /// [`GodotClass::class_id()`] to get the right name to use here.
+    /// This is only relevant when `variant_type` is set to [`VariantType::OBJECT`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::meta::ClassId;
+    /// use godot::classes::Node3D;
+    /// use godot::obj::GodotClass; // Trait method ::class_id().
+    ///
+    /// let none_id = ClassId::none();                      // For built-ins (not classes).
+    /// let static_id = Node3D::class_id();                 // For classes with a Rust type.
+    /// let dynamic_id = ClassId::new_dynamic("MyScript");  // For runtime class names.
+    /// ```
     pub class_id: ClassId,
 
-    /// The name of this property in Godot.
+    /// The name of this property as it appears in Godot's object system.
     pub property_name: StringName,
 
-    /// Additional type information for this property, e.g. about array types or enum values. Split into `hint` and `hint_string` members.
+    /// Additional type information and validation constraints for this property.
     ///
-    /// See also [`PropertyHint`] in the Godot docs.
+    /// Use functions from [`export_info_functions`](crate::registry::property::export_info_functions) to create common hints,
+    /// or [`PropertyHintInfo::none()`] for no hints.
+    ///
+    /// See [`PropertyHintInfo`] struct in Rust, as well as [`PropertyHint`] in the official Godot documentation.
     ///
     /// [`PropertyHint`]: https://docs.godotengine.org/en/latest/classes/class_%40globalscope.html#enum-globalscope-propertyhint
     pub hint_info: PropertyHintInfo,
 
-    /// How this property should be used. See [`PropertyUsageFlags`] in Godot for the meaning.
+    /// Flags controlling how this property should be used and displayed by the Godot engine.
+    ///
+    /// Common values:
+    /// - [`PropertyUsageFlags::DEFAULT`] -- standard property (readable, writable, saved, appears in editor).
+    /// - [`PropertyUsageFlags::STORAGE`] -- persisted, but not shown in editor.
+    /// - [`PropertyUsageFlags::EDITOR`] -- shown in editor, but not persisted.
+    ///
+    /// See also [`PropertyUsageFlags`] in the official Godot documentation for a complete list of flags.
     ///
     /// [`PropertyUsageFlags`]: https://docs.godotengine.org/en/latest/classes/class_%40globalscope.html#enum-globalscope-propertyusageflags
     pub usage: PropertyUsageFlags,
 }
 
 impl PropertyInfo {
-    /// Create a new `PropertyInfo` representing a property named `property_name` with type `T`.
+    /// Create a new `PropertyInfo` representing a property named `property_name` with type `T` automatically.
     ///
-    /// This will generate property info equivalent to what a `#[var]` attribute would.
+    /// This will generate property info equivalent to what a `#[var]` attribute would produce.
     pub fn new_var<T: Var>(property_name: &str) -> Self {
         T::Via::property_info(property_name).with_hint_info(T::var_hint())
     }
 
-    /// Create a new `PropertyInfo` representing an exported property named `property_name` with type `T`.
+    /// Create a new `PropertyInfo` for an exported property named `property_name` with type `T` automatically.
     ///
-    /// This will generate property info equivalent to what an `#[export]` attribute would.
+    /// This will generate property info equivalent to what an `#[export]` attribute would produce.
     pub fn new_export<T: Export>(property_name: &str) -> Self {
         T::Via::property_info(property_name).with_hint_info(T::export_hint())
     }
@@ -79,8 +127,7 @@ impl PropertyInfo {
     /// See [`export_info_functions`](crate::registry::property::export_info_functions) for functions that return appropriate `PropertyHintInfo`s for
     /// various Godot annotations.
     ///
-    /// # Examples
-    ///
+    /// # Example
     /// Creating an `@export_range` property.
     ///
     // TODO: Make this nicer to use.
@@ -156,6 +203,7 @@ impl PropertyInfo {
     // FFI conversion functions
 
     /// Converts to the FFI type. Keep this object allocated while using that!
+    #[doc(hidden)]
     pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {
         use crate::obj::{EngineBitfield as _, EngineEnum as _};
 
@@ -169,6 +217,7 @@ impl PropertyInfo {
         }
     }
 
+    #[doc(hidden)]
     pub fn empty_sys() -> sys::GDExtensionPropertyInfo {
         use crate::obj::{EngineBitfield as _, EngineEnum as _};
 
@@ -265,6 +314,13 @@ impl PropertyInfo {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Info needed by Godot, for how to export a type to the editor.
+///
+/// Property hints provide extra metadata about the property, such as:
+/// - Range constraints for numeric values.
+/// - Enum value lists.
+/// - File/directory paths.
+/// - Resource types.
+/// - Array element types.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PropertyHintInfo {
     pub hint: PropertyHint,
