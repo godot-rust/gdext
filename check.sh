@@ -181,8 +181,48 @@ function cmd_test() {
 
 function cmd_itest() {
     findGodot && \
-        run cargo build -p itest "${extraCargoArgs[@]}" && \
-        run "$godotBin" $GODOT_ARGS --path itest/godot --headless -- "[${extraArgs[@]}]"
+        run cargo build -p itest "${extraCargoArgs[@]}" || return 1
+
+    # Logic to abort immediately if Godot outputs certain keywords (would otherwise fail only in CI).
+    # Keep in sync with: .github/composite/godot-itest/action.yml (steps "Run Godot integration tests" and "Check for memory leaks").
+
+    local logFile
+    logFile=$(mktemp)
+
+    cd itest/godot
+
+    # Explanation:
+    # * tee:      still output logs while scanning for errors.
+    # * grep -q:  no output, use exit code 0 if found -> thus also &&.
+    # * pkill:    stop Godot execution (since it hangs in headless mode); simple 'head -1' did not work as expected
+    #             since it's not available on Windows, use taskkill in that case.
+    # * exit:     the terminated process would return 143, but this is more explicit and future-proof.
+    "$godotBin" --headless -- "[${extraArgs[@]}]" 2>&1 \
+    | tee "$logFile" \
+    | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library" -q && {
+      printf "\n${RED}Error: Script or dlopen error, abort...${END}\n" >&2;
+      # Unlike CI; do not kill processes called "godot" on user machine.
+      exit 2
+    })
+
+    local exitCode=$?
+
+    # Check for unrecoverable errors in log.
+    if grep -qE "SCRIPT ERROR:|Can't open dynamic library" "$logFile"; then
+      log -e "\n${RED}Error: Unrecoverable Godot error detected in logs.${END}"
+      exitCode=2
+    fi
+
+    # Check for memory leaks.
+    if grep -q "ObjectDB instances leaked at exit" "$logFile"; then
+      log -e "\n${RED}Error: Memory leak detected.${END}"
+      exitCode=3
+    fi
+
+    rm -f "$logFile"
+    cd ../..
+
+    return $exitCode
 }
 
 function cmd_doc() {
