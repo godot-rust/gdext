@@ -172,3 +172,17 @@ fn class_name_alloc_panic() {
         });
     }
 }
+
+#[itest]
+fn class_id_none() {
+    let none = ClassId::none();
+    assert_eq!(none.to_string(), "");
+    assert_eq!(none, ClassId::none());
+}
+
+#[itest]
+fn class_id_new_dynamic() {
+    let class_id = ClassId::new_dynamic("Someクラス名");
+    assert_eq!(class_id.to_string(), "Someクラス名");
+    assert_eq!(class_id, ClassId::new_dynamic("Someクラス名"));
+}
