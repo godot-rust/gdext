@@ -67,7 +67,8 @@ impl ClassId {
     /// We discourage calling this function from different places for the same `T`. But if you do so, `init_fn` must return the same string.
     ///
     /// # Panics
-    /// If the string is not ASCII and the Godot version is older than 4.4. From Godot 4.4 onwards, class names can be Unicode.
+    /// If the string contains non-ASCII characters and the Godot version is older than 4.4. From Godot 4.4 onwards, class names can be Unicode;
+    /// See <https://github.com/godotengine/godot/pull/96501>.
     pub fn new_cached<T: GodotClass>(init_fn: impl FnOnce() -> String) -> Self {
         Self::new_cached_inner::<T>(init_fn)
     }
@@ -94,14 +95,29 @@ impl ClassId {
         cache.insert_class_id(Cow::Owned(name), Some(type_id), false)
     }
 
-    /// Create a `ClassId` from a runtime string (for dynamic class names).
+    /// Create a `ClassId` from a class name only known at runtime.
     ///
-    /// Will reuse existing `ClassId` entries if the string is recognized.
-    // Deliberately not public.
-    pub(crate) fn new_dynamic(class_name: String) -> Self {
+    /// Unlike [`ClassId::new_cached()`], this doesn't require a static type parameter. Useful for classes defined outside Rust code, e.g. in
+    /// scripts.
+    ///
+    /// Multiple calls with the same name return equal `ClassId` instances (but may need a lookup).
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::meta::ClassId;
+    ///
+    /// let a = ClassId::new_dynamic("MyGDScriptClass");
+    /// let b = ClassId::new_dynamic("MyGDScriptClass");
+    /// assert_eq!(a, b);
+    /// ```
+    ///
+    /// # Panics
+    /// If the string contains non-ASCII characters and the Godot version is older than 4.4. From Godot 4.4 onwards, class names can be Unicode;
+    /// See <https://github.com/godotengine/godot/pull/96501>.
+    pub fn new_dynamic(class_name: impl Into<CowStr>) -> Self {
         let mut cache = CLASS_ID_CACHE.lock();
 
-        cache.insert_class_id(Cow::Owned(class_name), None, false)
+        cache.insert_class_id(class_name.into(), None, false)
     }
 
     // Test-only APIs.
@@ -117,7 +133,10 @@ impl ClassId {
         Self::new_dynamic(class_name.to_string())
     }
 
-    #[doc(hidden)]
+    /// Returns a `ClassId` representing "no class" (empty class name) for non-object property types.
+    ///
+    /// This is used for properties that don't have an associated class, e.g. built-in types like `i32`, `GString`, `Vector3` etc.
+    /// When constructing a [`PropertyInfo`](crate::meta::PropertyInfo) for non-class types, you can use `ClassId::none()` for the `class_id` field.
     pub fn none() -> Self {
         // First element is always the empty string name.
         Self { global_index: 0 }

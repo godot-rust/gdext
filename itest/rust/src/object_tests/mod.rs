@@ -7,7 +7,7 @@
 
 mod base_test;
 mod call_deferred_test;
-mod class_name_test;
+mod class_id_test;
 mod class_rename_test;
 mod dyn_gd_test;
 mod dynamic_call_test;
