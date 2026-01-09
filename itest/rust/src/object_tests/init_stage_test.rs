@@ -5,8 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::panic;
+use std::sync::Once;
+
 use godot::builtin::{Rid, Variant};
-use godot::classes::{Engine, IObject, RenderingServer};
+use godot::classes::{Engine, IObject, Os, RenderingServer, Time};
 use godot::init::InitStage;
 use godot::obj::{Base, GodotClass, NewAlloc, Singleton};
 use godot::register::{godot_api, GodotClass};
@@ -15,6 +18,7 @@ use godot::sys::Global;
 use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
 
 static STAGES_SEEN: Global<Vec<InitStage>> = Global::default();
+static STAGES_PANICKED: Global<Vec<InitStage>> = Global::default();
 
 #[derive(GodotClass)]
 #[class(base = Object, init)]
@@ -56,20 +60,41 @@ fn init_level_observed_all() {
     assert_eq!(actual_stages, expected_stages);
 }
 
+// Ensure that no init stages panicked.
+#[itest]
+fn init_level_no_panics() {
+    let panicked_stages = STAGES_PANICKED.lock().clone();
+
+    assert!(
+        panicked_stages.is_empty(),
+        "Init stages panicked: {:?}",
+        panicked_stages
+    );
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Stage-specific callbacks
 
 pub fn on_stage_init(stage: InitStage) {
     STAGES_SEEN.lock().push(stage);
 
-    match stage {
-        InitStage::Core => on_init_core(),
-        InitStage::Servers => on_init_servers(),
-        InitStage::Scene => on_init_scene(),
-        InitStage::Editor => on_init_editor(),
+    let stage_fn = match stage {
+        InitStage::Core => on_init_core as fn(),
+        InitStage::Servers => on_init_servers,
+        InitStage::Scene => on_init_scene,
+        InitStage::Editor => on_init_editor,
         #[cfg(since_api = "4.5")]
-        InitStage::MainLoop => on_init_main_loop(),
-        _ => { /* Needed due to #[non_exhaustive] */ }
+        InitStage::MainLoop => on_init_main_loop,
+        _ => return, // Needed due to #[non_exhaustive].
+    };
+
+    // Catch panics to track which stages fail.
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(stage_fn));
+
+    if let Err(panic_payload) = result {
+        STAGES_PANICKED.lock().push(stage);
+        // Re-panic to preserve original behavior.
+        panic::resume_unwind(panic_payload);
     }
 }
 
@@ -88,13 +113,13 @@ fn on_init_core() {
         );
     }
 
-    let engine = godot::classes::Engine::singleton();
+    let engine = Engine::singleton();
     assert!(engine.get_physics_ticks_per_second() > 0);
 
-    let os = godot::classes::Os::singleton();
+    let os = Os::singleton();
     assert!(!os.get_name().is_empty());
 
-    let time = godot::classes::Time::singleton();
+    let time = Time::singleton();
     assert!(time.get_ticks_usec() <= time.get_ticks_usec());
 }
 
@@ -107,7 +132,7 @@ fn on_init_scene() {
     // https://github.com/godotengine/godot-cpp/issues/1180#issuecomment-3074351805
     suppress_godot_print(|| {
         expect_panic("Singletons not loaded during Scene init level", || {
-            let _ = godot::classes::RenderingServer::singleton();
+            let _ = RenderingServer::singleton();
         });
     });
 }
@@ -148,11 +173,36 @@ fn on_init_main_loop() {
 }
 
 pub fn on_stage_deinit(stage: InitStage) {
-    match stage {
+    // Clear panics at the start of the deinit sequence, so we can collect again during the sequence.
+    // First stage can be either MainLoop (>=4.5) or Scene/Editor (<4.5, depending on where itest runs), so easier to use static.
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        STAGES_PANICKED.lock().clear();
+    });
+
+    let stage_fn: Option<fn()> = match stage {
         #[cfg(since_api = "4.5")]
-        InitStage::MainLoop => on_deinit_main_loop(),
-        _ => {
-            // Nothing for other stages yet.
+        InitStage::MainLoop => Some(on_deinit_main_loop),
+        InitStage::Core => Some(on_deinit_core),
+        _ => None, // Nothing for other stages yet.
+    };
+
+    if let Some(stage_fn) = stage_fn {
+        // Catch panics to track which stages fail.
+        let result = panic::catch_unwind(panic::AssertUnwindSafe(stage_fn));
+
+        if let Err(_panic_payload) = result {
+            STAGES_PANICKED.lock().push(stage);
+            // Don't re-panic during deinit - continue to other stages.
+        }
+    }
+
+    // Core is last deinit stage -- if anything panicked, report and exit immediately (at this point, it's difficult to communicate to Godot).
+    if stage == InitStage::Core {
+        let panicked_stages = STAGES_PANICKED.lock();
+        if !panicked_stages.is_empty() {
+            godot::global::godot_error!("godot-rust einit stages panicked: {:?}", *panicked_stages);
+            std::process::exit(177);
         }
     }
 }
@@ -163,10 +213,13 @@ fn on_deinit_main_loop() {
         .get_singleton(&MainLoopCallbackSingleton::class_id().to_string_name())
         .unwrap()
         .cast::<MainLoopCallbackSingleton>();
+
     Engine::singleton()
         .unregister_singleton(&MainLoopCallbackSingleton::class_id().to_string_name());
+
     let tex = singleton.bind().tex;
     assert!(tex.is_valid());
+
     RenderingServer::singleton().free_rid(tex);
     singleton.free();
 }
@@ -176,9 +229,13 @@ fn on_deinit_main_loop() {
     // Nothing on older API versions.
 }
 
+fn on_deinit_core() {
+    // Nothing yet - exit logic happens in on_stage_deinit.
+}
+
 #[cfg(since_api = "4.5")]
 pub fn on_main_loop_frame() {
-    // Nothing yet.
+    // Nothing yet. Panics here are currently ignored.
 }
 
 #[cfg(not(since_api = "4.5"))]
