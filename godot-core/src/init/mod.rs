@@ -29,17 +29,29 @@ struct InitUserData {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
-    E::on_stage_init(InitStage::MainLoop);
+    let ctx = || "failed during MainLoop initialization".to_string();
+
+    swallow_panics(ctx, || {
+        E::on_stage_init(InitStage::MainLoop);
+    });
 }
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
-    E::on_main_loop_frame();
+    let ctx = || "failed during MainLoop frame".to_string();
+
+    swallow_panics(ctx, || {
+        E::on_main_loop_frame();
+    });
 }
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
-    E::on_stage_deinit(InitStage::MainLoop);
+    let ctx = || "failed during MainLoop deinitialization".to_string();
+
+    swallow_panics(ctx, || {
+        E::on_stage_deinit(InitStage::MainLoop);
+    });
 }
 
 #[doc(hidden)]
@@ -149,8 +161,8 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
         E::on_stage_init(level.to_stage());
     }
 
-    // Swallow panics. TODO consider crashing if gdext init fails.
-    let _ = crate::private::handle_panic(ctx, || {
+    // TODO consider crashing if gdext init fails.
+    swallow_panics(ctx, || {
         try_load::<E>(level, userdata);
     });
 }
@@ -162,8 +174,7 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
     let level = InitLevel::from_sys(init_level);
     let ctx = || format!("failed to deinitialize GDExtension level `{level:?}`");
 
-    // Swallow panics.
-    let _ = crate::private::handle_panic(ctx, || {
+    swallow_panics(ctx, || {
         if level == InitLevel::Core {
             // Once the CORE api is unloaded, reset the flag to initial state.
             LEVEL_SERVERS_CORE_LOADED.store(false, Ordering::Relaxed);
@@ -246,6 +257,15 @@ fn gdext_on_level_deinit(level: InitLevel) {
             sys::deinitialize();
         }
     }
+}
+
+/// Catches panics without propagating them further. Prints error messages.
+fn swallow_panics<E, F>(error_context: E, code: F)
+where
+    E: Fn() -> String,
+    F: FnOnce() + std::panic::UnwindSafe,
+{
+    let _ = crate::private::handle_panic(error_context, code);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
