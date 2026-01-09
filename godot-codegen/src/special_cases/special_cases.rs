@@ -1169,7 +1169,7 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
 
         // See register_early_core_singletons() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
         // which is called before Core level is initialized.
-        | "ProjectSettings" | "Engine" | "OS" | "Time"
+        | "ProjectSettings" | "Engine" | "OS" | "Time" | "ClassDB"
         => ClassCodegenLevel::Core,
 
         // See initialize_openxr_module() in https://github.com/godotengine/godot/blob/master/modules/openxr/register_types.cpp
