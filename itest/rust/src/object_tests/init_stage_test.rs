@@ -15,6 +15,7 @@ use godot::obj::{Base, GodotClass, NewAlloc, Singleton};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::Global;
 
+use crate::engine_tests::check_classdb_full_api;
 use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
 
 static STAGES_SEEN: Global<Vec<InitStage>> = Global::default();
@@ -77,6 +78,9 @@ fn init_level_no_panics() {
 
 pub fn on_stage_init(stage: InitStage) {
     STAGES_SEEN.lock().push(stage);
+
+    // For every level, check whether ClassDB API is available -- see https://github.com/godot-rust/gdext/pull/1474.
+    check_classdb_full_api();
 
     let stage_fn = match stage {
         InitStage::Core => on_init_core as fn(),
