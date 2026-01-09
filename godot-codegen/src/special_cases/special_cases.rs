@@ -1169,6 +1169,8 @@ pub fn classify_codegen_level(class_name: &str) -> Option<ClassCodegenLevel> {
 
         // See register_early_core_singletons() in https://github.com/godotengine/godot/blob/master/core/register_core_types.cpp,
         // which is called before Core level is initialized.
+        // ClassDB is available, however its *singleton* will be registered at Core level only from Godot 4.7 on, see
+        // https://github.com/godot-rust/gdext/pull/1474. Its function pointers can already be fetched in Core before; there's just no instance.
         | "ProjectSettings" | "Engine" | "OS" | "Time" | "ClassDB"
         => ClassCodegenLevel::Core,
 
