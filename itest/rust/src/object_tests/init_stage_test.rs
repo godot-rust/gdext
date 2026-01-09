@@ -99,6 +99,7 @@ pub fn on_stage_init(stage: InitStage) {
 }
 
 // Runs during core init level to ensure we can access core singletons.
+#[cfg(since_api = "4.4")] // Singletons aren't available in older versions.
 fn on_init_core() {
     // Ensure we can create and use an Object-derived class during Core init level.
     SomeObject::test();
@@ -122,6 +123,9 @@ fn on_init_core() {
     let time = Time::singleton();
     assert!(time.get_ticks_usec() <= time.get_ticks_usec());
 }
+
+#[cfg(before_api = "4.4")]
+fn on_init_core() {}
 
 fn on_init_servers() {
     // Nothing yet.
