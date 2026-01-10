@@ -225,6 +225,13 @@ compile_error!(
 compile_error!("The feature `double-precision` currently requires `api-custom` or `api-custom-json` due to incompatibilities in the GDExtension API JSON. \
 See: https://github.com/godotengine/godot/issues/86346");
 
+// On non-Emscripen targets, wasm-ld will insert a call to __wasm_call_ctors (which calls all constructors) to the start all exported functions,
+// if it detects that __wasm_call_ctors is never called and not exported. This could cause constructors to run multiple times.
+// Emscripen should always export __wasm_call_ctors and call it at runtime.
+// See https://github.com/godot-rust/gdext/pull/1476 for more info and links.
+#[cfg(all(target_family = "wasm", not(target_os = "emscripten")))]
+compile_error!("Wasm targets not using Emscripten are not supported.");
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Modules
 
