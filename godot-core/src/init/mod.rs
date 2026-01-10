@@ -34,6 +34,9 @@ unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
     swallow_panics(ctx, || {
         E::on_stage_init(InitStage::MainLoop);
     });
+
+    // Now that editor UI is ready, display all warnings/error collected so far.
+    sys::print_deferred_startup_messages();
 }
 
 #[cfg(since_api = "4.5")]

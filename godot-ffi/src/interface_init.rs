@@ -14,6 +14,10 @@
 //!
 //! Relevant upstream PR: <https://github.com/godotengine/godot/pull/76406>.
 
+// TODO(v0.6): in this file, raw functions to the interface are fetched repeatedly in very verbose ways.
+// With the JSON interface, generating a nicer API should be possible. Could even be a separate API for (fallibly)
+// querying a handful of core functions, and then a non-null model for the full interface, once initialized.
+
 use crate as sys;
 #[cfg(not(target_family = "wasm"))]
 use crate::toolbox::read_version_string;
@@ -93,7 +97,7 @@ pub fn ensure_static_runtime_compatibility(
     let static_version = crate::GdextBuild::godot_static_version_triple();
 
     // SAFETY: We are now reasonably sure the runtime version is 4.2+.
-    let runtime_version_raw = unsafe { runtime_version_inner(get_proc_address) };
+    let (runtime_version_raw, _) = unsafe { runtime_version(get_proc_address) };
 
     // SAFETY: Godot provides this version struct.
     let runtime_version = (
@@ -117,13 +121,8 @@ pub fn ensure_static_runtime_compatibility(
     }
 }
 
-pub unsafe fn runtime_version(
-    get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
-) -> sys::GDExtensionGodotVersion {
-    let get_proc_address = get_proc_address.expect("get_proc_address unexpectedly null");
-
-    runtime_version_inner(get_proc_address)
-}
+type GetProcAddress =
+    unsafe extern "C" fn(*const std::ffi::c_char) -> sys::GDExtensionInterfaceFunctionPtr;
 
 /// Generic helper to fetch and call a version function.
 ///
@@ -133,9 +132,7 @@ pub unsafe fn runtime_version(
 ///   the version struct.
 #[deny(unsafe_op_in_unsafe_fn)]
 unsafe fn fetch_version<V>(
-    get_proc_address: unsafe extern "C" fn(
-        *const std::ffi::c_char,
-    ) -> sys::GDExtensionInterfaceFunctionPtr,
+    get_proc_address: GetProcAddress,
     fn_name: &std::ffi::CStr,
 ) -> Option<V> {
     // SAFETY: `get_proc_address` is a valid function pointer.
@@ -156,17 +153,19 @@ unsafe fn fetch_version<V>(
     Some(unsafe { version.assume_init() })
 }
 
+/// Returns `(version, supports_deprecated_apis)`.
 #[deny(unsafe_op_in_unsafe_fn)]
-unsafe fn runtime_version_inner(
-    get_proc_address: unsafe extern "C" fn(
-        *const std::ffi::c_char,
-    ) -> sys::GDExtensionInterfaceFunctionPtr,
-) -> sys::GDExtensionGodotVersion {
+pub(crate) unsafe fn runtime_version(
+    get_proc_address: GetProcAddress,
+) -> (sys::GDExtensionGodotVersion, bool) {
     // Try get_godot_version first (available in all versions, unless Godot built with deprecated features).
 
     // SAFETY: `get_proc_address` is valid, function has signature fn(*mut GDExtensionGodotVersion).
-    if let Some(version1) = unsafe { fetch_version(get_proc_address, c"get_godot_version") } {
-        return version1;
+    let version1: Option<sys::GDExtensionGodotVersion> =
+        unsafe { fetch_version(get_proc_address, c"get_godot_version") };
+
+    if let Some(version1) = version1 {
+        return (version1, false);
     }
 
     // Fall back to get_godot_version2 for 4.5+ builds that have removed the original function.
@@ -178,12 +177,13 @@ unsafe fn runtime_version_inner(
 
         if let Some(version2) = version2 {
             // Convert to old "common denominator" struct.
-            return sys::GDExtensionGodotVersion {
+            let version = sys::GDExtensionGodotVersion {
                 major: version2.major,
                 minor: version2.minor,
                 patch: version2.patch,
                 string: version2.string,
             };
+            return (version, false);
         }
     }
 
