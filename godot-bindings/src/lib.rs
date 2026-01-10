@@ -129,6 +129,7 @@ mod depend_on_prebuilt {
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
         watch.record("write_header_h");
 
+        #[allow(deprecated)]
         let rs_contents = prebuilt::load_gdextension_header_rs();
         std::fs::write(rs_path, rs_contents.as_ref())
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
