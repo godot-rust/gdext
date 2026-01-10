@@ -58,14 +58,6 @@ macro_rules! plugin_execute_pre_main {
                 }
                 __inner_init
             };
-
-            // On non-Emscripen targets, wasm-ld will insert a call to __wasm_call_ctors
-            // (which calls all constructors) to the start all exported functions, if it
-            // detects that __wasm_call_ctors is never called and not exported.
-            // This could cause constructors to run multiple times. Emscripen should always
-            // export __wasm_call_ctors and call it at runtime.
-            #[cfg(all(target_family = "wasm", not(target_os = "emscripten")))]
-            compile_error!("Wasm targets not using Emscripten are not supported.");
         };
     };
 }
