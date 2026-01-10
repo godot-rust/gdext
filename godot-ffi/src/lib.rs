@@ -127,9 +127,11 @@ struct StartupMessage {
     level: StartupMessageLevel,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum StartupMessageLevel {
-    Warning,
+    /// Warning with an ID that can be suppressed via `GODOT_RUST_NOWARN`.
+    Warn { id: &'static str },
+    /// Error that cannot be suppressed.
     Error,
 }
 
@@ -316,12 +318,23 @@ fn safeguards_level_string() -> &'static str {
 /// Internal function to collect a message for deferred display in Godot editor UI. Called by macros.
 #[doc(hidden)]
 pub fn collect_startup_message(
-    message: String,
+    mut message: String,
     level: StartupMessageLevel,
     file: &str,
     line: u32,
     module_path: &str,
 ) {
+    // Check if this warning should be suppressed (only warnings can be suppressed, not errors).
+    if let StartupMessageLevel::Warn { id } = &level {
+        if is_message_suppressed(id) {
+            return;
+        } else {
+            message = format!(
+                "{message}\n(Suppress this warning with env-var `GODOT_RUST_NOWARN={id},...`)"
+            );
+        }
+    }
+
     let msg = StartupMessage {
         message: std::ffi::CString::new(message).expect("message contains null byte"),
         function: std::ffi::CString::new(module_path).expect("module_path contains null byte"),
@@ -331,6 +344,17 @@ pub fn collect_startup_message(
     };
 
     STARTUP_MESSAGES.lock().push(msg);
+}
+
+/// Check if a message ID is suppressed via the `GODOT_RUST_NOWARN` environment variable.
+fn is_message_suppressed(id: &str) -> bool {
+    if let Ok(nowarn) = std::env::var("GODOT_RUST_NOWARN") {
+        nowarn
+            .split(',')
+            .any(|suppressed_id| suppressed_id.trim() == id)
+    } else {
+        false
+    }
 }
 
 /// Flush all deferred messages to the Godot editor. Called during `MainLoop` initialization, when editor UI is ready.
@@ -343,7 +367,7 @@ pub fn print_deferred_startup_messages() {
 
     for msg in messages.iter() {
         let print_fn = match msg.level {
-            StartupMessageLevel::Warning => interface_fn!(print_warning),
+            StartupMessageLevel::Warn { .. } => interface_fn!(print_warning),
             StartupMessageLevel::Error => interface_fn!(print_error),
         };
 
@@ -438,10 +462,11 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
             let supports_deprecated_apis = unsafe { runtime_metadata() }.supports_deprecated_apis();
             if !supports_deprecated_apis {
                 defer_startup_warn!(
+                    id: "GodotWithoutDeprecated",
                     "Your Godot version has disabled deprecated APIs (compiled with `deprecated=no`).\n\
                     This is generally a bad idea, as Godot can no longer run extensions compiled with older\n\
-                    versions (e.g. from the asset store). Furthermore, godot-rust sometimes uses such APIs\n\
-                    itself for a wider compatibility range. This may become a hard error in the future.\n\
+                    versions (e.g. from the asset store). Furthermore, godot-rust does not officially support\n\
+                    non-standard builds and can break unexpectedly. This warning may become a hard error.\n\
                     To fix this, use an official stable release, or compile the engine with `deprecated=yes`."
                 );
             }
@@ -623,20 +648,23 @@ macro_rules! interface_fn {
 /// Store a warning for deferred display in Godot editor UI.
 ///
 /// Captured during startup, displayed at `MainLoop` init. Will be visible in Godot editor's _Output_ tab.
+/// Warnings can be suppressed via the `GODOT_RUST_NOWARN` environment variable.
 ///
 /// # Example
 /// ```no_run
-/// if deprecated_feature_used {
-///     defer_startup_warn!("Feature X is deprecated and will be removed");
-/// }
+/// use godot_ffi::defer_startup_warn;
+/// # fn example() {
+/// // Warning with ID (can be suppressed via GODOT_RUST_NOWARN env var).
+/// defer_startup_warn!(id: "FeatureDeprecated", "Feature X is deprecated");
+/// # }
 /// ```
 #[macro_export]
 macro_rules! defer_startup_warn {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {{
+    (id: $id:literal, $fmt:literal $(, $args:expr)* $(,)?) => {{
         let message = format!($fmt $(, $args)*);
         $crate::collect_startup_message(
             message,
-            $crate::StartupMessageLevel::Warning,
+            $crate::StartupMessageLevel::Warn { id: $id },
             file!(),
             line!(),
             module_path!(),
@@ -647,12 +675,15 @@ macro_rules! defer_startup_warn {
 /// Store an error for deferred display in Godot editor UI.
 ///
 /// Captured during startup, displayed at `MainLoop` init. Will be visible in Godot editor's _Output_ tab.
+/// Errors cannot be suppressed.
 ///
 /// # Example
 /// ```no_run
-/// if critical_initialization_failed {
-///     defer_startup_error!("Failed to initialize: {reason}");
-/// }
+/// use godot_ffi::defer_startup_error;
+/// # fn example() {
+/// # let reason = "some reason";
+/// defer_startup_error!("Failed to initialize: {reason}");
+/// # }
 /// ```
 #[macro_export]
 macro_rules! defer_startup_error {

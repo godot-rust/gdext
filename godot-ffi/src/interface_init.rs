@@ -165,7 +165,7 @@ pub(crate) unsafe fn runtime_version(
         unsafe { fetch_version(get_proc_address, c"get_godot_version") };
 
     if let Some(version1) = version1 {
-        return (version1, true);
+        return (version1, false);
     }
 
     // Fall back to get_godot_version2 for 4.5+ builds that have removed the original function.
