@@ -122,6 +122,34 @@ mod depend_on_prebuilt {
         prebuilt::load_gdextension_json()
     }
 
+    /// Determines the **target** (e.g. cross-compilation).
+    ///
+    /// The target is different from the host platform where the build is running. In build scripts, it needs to be evaluated at "runtime"
+    /// (aka. build execution time) via environment variables. Using `#[cfg(...)]` attributes would yield the host platform instead.
+    fn select_target_platform() -> prebuilt::TargetPlatform {
+        let target_os =
+            std::env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS must be set by Cargo");
+
+        match target_os.as_str() {
+            // Windows.
+            "windows" => prebuilt::TargetPlatform::Windows,
+
+            // MacOS, including iOS.
+            "ios" | "macos" => prebuilt::TargetPlatform::MacOS,
+
+            // Linux, including other Unix-like systems such as BSD and Android.
+            "android" | "dragonfly" | "freebsd" | "linux" | "netbsd" | "openbsd" => {
+                prebuilt::TargetPlatform::Linux
+            }
+
+            // WebAssembly: Godot requires Emscripten.
+            "emscripten" => prebuilt::TargetPlatform::Wasm,
+
+            // Others are currently unsupported. If needed, better to add explicit than accidental support.
+            other => panic!("Unsupported target OS `{other}`."),
+        }
+    }
+
     pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
         // Note: prebuilt artifacts just return a static str.
         let h_contents = prebuilt::load_gdextension_header_h();
@@ -129,8 +157,8 @@ mod depend_on_prebuilt {
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
         watch.record("write_header_h");
 
-        #[allow(deprecated)]
-        let rs_contents = prebuilt::load_gdextension_header_rs();
+        let platform = select_target_platform();
+        let rs_contents = prebuilt::load_gdextension_header_rs_for_platform(platform);
         std::fs::write(rs_path, rs_contents.as_ref())
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
         watch.record("write_header_rs");
