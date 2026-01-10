@@ -62,18 +62,6 @@ mod plugins;
 mod string_cache;
 mod toolbox;
 
-#[doc(hidden)]
-#[cfg(target_family = "wasm")]
-pub use godot_macros::wasm_declare_init_fn;
-
-// No-op otherwise.
-#[doc(hidden)]
-#[cfg(not(target_family = "wasm"))]
-#[macro_export]
-macro_rules! wasm_declare_init_fn {
-    () => {};
-}
-
 // Other
 pub use extras::*;
 pub use gen::central::*;
