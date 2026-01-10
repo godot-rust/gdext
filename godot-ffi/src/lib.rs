@@ -113,26 +113,49 @@ use binding::{
 static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::new();
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deferred editor messages
+
+/// Warnings/errors collected during startup, and deferred until editor UI is ready.
+static STARTUP_MESSAGES: Global<Vec<StartupMessage>> = Global::default();
+
+/// A message to be displayed in the Godot editor once UI is ready.
+struct StartupMessage {
+    message: std::ffi::CString,
+    function: std::ffi::CString,
+    file: std::ffi::CString,
+    line: i32,
+    level: StartupMessageLevel,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum StartupMessageLevel {
+    Warning,
+    Error,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct GdextRuntimeMetadata {
     version_string: String,
     version_triple: (u8, u8, u8),
+    supports_deprecated_apis: bool,
 }
 
 impl GdextRuntimeMetadata {
-    pub fn load(sys_version: GDExtensionGodotVersion) -> Self {
+    pub fn load(version: GDExtensionGodotVersion, supports_deprecated_apis: bool) -> Self {
         // SAFETY: GDExtensionGodotVersion always contains valid string.
-        let version_string = unsafe { read_version_string(sys_version.string) };
+        let version_string = unsafe { read_version_string(version.string) };
 
         let version_triple = (
-            sys_version.major as u8,
-            sys_version.minor as u8,
-            sys_version.patch as u8,
+            version.major as u8,
+            version.minor as u8,
+            version.patch as u8,
         );
 
         Self {
             version_string,
             version_triple,
+            supports_deprecated_apis,
         }
     }
 
@@ -143,6 +166,10 @@ impl GdextRuntimeMetadata {
 
     pub fn version_triple(&self) -> (u8, u8, u8) {
         self.version_triple
+    }
+
+    pub fn supports_deprecated_apis(&self) -> bool {
+        self.supports_deprecated_apis
     }
 }
 
@@ -182,9 +209,13 @@ pub unsafe fn initialize(
     // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
     interface_init::ensure_static_runtime_compatibility(get_proc_address);
 
-    // SAFETY: `ensure_static_runtime_compatibility` succeeded.
-    let version = unsafe { interface_init::runtime_version(get_proc_address) };
-    out!("Godot version of GDExtension API at runtime: {version:?}");
+    let (version, supports_deprecated_apis) = {
+        let get_proc_address2 = get_proc_address.expect("get_proc_address unexpectedly null");
+        // SAFETY: `ensure_static_runtime_compatibility` succeeded.
+        unsafe { interface_init::runtime_version(get_proc_address2) }
+    };
+
+    out!("Godot version of GDExtension API at runtime: {:?}", version);
 
     // SAFETY: `ensure_static_runtime_compatibility` succeeded.
     let interface = unsafe { interface_init::load_interface(get_proc_address) };
@@ -201,7 +232,7 @@ pub unsafe fn initialize(
         unsafe { UtilityFunctionTable::load(&interface, &mut string_names) };
     out!("Loaded utility function table.");
 
-    let runtime_metadata = GdextRuntimeMetadata::load(version);
+    let runtime_metadata = GdextRuntimeMetadata::load(version, supports_deprecated_apis);
 
     let builtin_method_table = {
         #[cfg(feature = "codegen-lazy-fptrs")]
@@ -282,6 +313,55 @@ fn safeguards_level_string() -> &'static str {
     }
 }
 
+/// Internal function to collect a message for deferred display in Godot editor UI. Called by macros.
+#[doc(hidden)]
+pub fn collect_startup_message(
+    message: String,
+    level: StartupMessageLevel,
+    file: &str,
+    line: u32,
+    module_path: &str,
+) {
+    let msg = StartupMessage {
+        message: std::ffi::CString::new(message).expect("message contains null byte"),
+        function: std::ffi::CString::new(module_path).expect("module_path contains null byte"),
+        file: std::ffi::CString::new(file).expect("file contains null byte"),
+        line: line as i32,
+        level,
+    };
+
+    STARTUP_MESSAGES.lock().push(msg);
+}
+
+/// Flush all deferred messages to the Godot editor. Called during `MainLoop` initialization, when editor UI is ready.
+pub fn print_deferred_startup_messages() {
+    let mut messages = STARTUP_MESSAGES.lock();
+
+    if messages.is_empty() {
+        return;
+    }
+
+    for msg in messages.iter() {
+        let print_fn = match msg.level {
+            StartupMessageLevel::Warning => interface_fn!(print_warning),
+            StartupMessageLevel::Error => interface_fn!(print_error),
+        };
+
+        // SAFETY: The binding has been initialized, so we can use interface functions.
+        unsafe {
+            print_fn(
+                msg.message.as_ptr(),
+                msg.function.as_ptr(),
+                msg.file.as_ptr(),
+                msg.line,
+                conv::SYS_TRUE, // Notify editor.
+            );
+        }
+    }
+
+    messages.clear();
+}
+
 fn print_preamble(version: GDExtensionGodotVersion) {
     // SAFETY: GDExtensionGodotVersion always contains valid string.
     let runtime_version = unsafe { read_version_string(version.string) };
@@ -352,6 +432,19 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
             }
             class_count = ClassSceneMethodTable::CLASS_COUNT;
             method_count = ClassSceneMethodTable::METHOD_COUNT;
+
+            // Check if we need to warn about deprecated APIs.
+            // SAFETY: The binding has been initialized, so we can access runtime metadata.
+            let supports_deprecated_apis = unsafe { runtime_metadata() }.supports_deprecated_apis();
+            if !supports_deprecated_apis {
+                defer_startup_warn!(
+                    "Your Godot version has disabled deprecated APIs (compiled with `deprecated=no`).\n\
+                    This is generally a bad idea, as Godot can no longer run extensions compiled with older\n\
+                    versions (e.g. from the asset store). Furthermore, godot-rust sometimes uses such APIs\n\
+                    itself for a wider compatibility range. This may become a hard error in the future.\n\
+                    To fix this, use an official stable release, or compile the engine with `deprecated=yes`."
+                );
+            }
         }
         InitLevel::Editor => {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
@@ -366,6 +459,8 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
             }
             class_count = ClassEditorMethodTable::CLASS_COUNT;
             method_count = ClassEditorMethodTable::METHOD_COUNT;
+
+            // Note: Deprecated API warning will be emitted at MainLoop init (Godot 4.5+).
         }
     }
 
@@ -519,5 +614,56 @@ macro_rules! builtin_call {
 macro_rules! interface_fn {
     ($name:ident) => {{
         unsafe { $crate::get_interface().$name.unwrap_unchecked() }
+    }};
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deferred editor message macros
+
+/// Store a warning for deferred display in Godot editor UI.
+///
+/// Captured during startup, displayed at `MainLoop` init. Will be visible in Godot editor's _Output_ tab.
+///
+/// # Example
+/// ```no_run
+/// if deprecated_feature_used {
+///     defer_startup_warn!("Feature X is deprecated and will be removed");
+/// }
+/// ```
+#[macro_export]
+macro_rules! defer_startup_warn {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {{
+        let message = format!($fmt $(, $args)*);
+        $crate::collect_startup_message(
+            message,
+            $crate::StartupMessageLevel::Warning,
+            file!(),
+            line!(),
+            module_path!(),
+        );
+    }};
+}
+
+/// Store an error for deferred display in Godot editor UI.
+///
+/// Captured during startup, displayed at `MainLoop` init. Will be visible in Godot editor's _Output_ tab.
+///
+/// # Example
+/// ```no_run
+/// if critical_initialization_failed {
+///     defer_startup_error!("Failed to initialize: {reason}");
+/// }
+/// ```
+#[macro_export]
+macro_rules! defer_startup_error {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {{
+        let message = format!($fmt $(, $args)*);
+        $crate::collect_startup_message(
+            message,
+            $crate::StartupMessageLevel::Error,
+            file!(),
+            line!(),
+            module_path!(),
+        );
     }};
 }

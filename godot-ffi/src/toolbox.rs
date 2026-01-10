@@ -41,7 +41,7 @@ macro_rules! out {
 ///
 /// ```ignore
 ///  let get_godot_version = get_proc_address(sys::c_str(b"get_godot_version\0"));
-///  let get_godot_version = sys::cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
+///  let get_godot_version = sys::unsafe_cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
 /// ```
 ///
 /// # Safety
