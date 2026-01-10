@@ -703,7 +703,8 @@ pub trait Singleton: GodotClass {
 /// #[gdextension]
 /// unsafe impl ExtensionLibrary for MyExtension {
 ///     fn on_stage_init(stage: InitStage) {
-///         if stage == InitStage::MainLoop {
+///         // Singleton should be registered before the MainLoop startup – otherwise it won't be recognized by the GDScriptParser.
+///         if stage == InitStage::Scene {
 ///             let obj = MyEngineSingleton::new_alloc();
 ///             Engine::singleton()
 ///                 .register_singleton(&MyEngineSingleton::class_id().to_string_name(), &obj);
@@ -711,7 +712,7 @@ pub trait Singleton: GodotClass {
 ///     }
 ///
 ///     fn on_stage_deinit(stage: InitStage) {
-///         if stage == InitStage::MainLoop {
+///         if stage == InitStage::Scene {
 ///             let obj = MyEngineSingleton::singleton();
 ///             Engine::singleton()
 ///                 .unregister_singleton(&MyEngineSingleton::class_id().to_string_name());
