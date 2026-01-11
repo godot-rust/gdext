@@ -45,6 +45,11 @@ macro_rules! plugin_execute_pre_main {
             #[cfg_attr(target_os = "linux", link_section = ".init_array")]
             #[cfg_attr(target_os = "netbsd", link_section = ".init_array")]
             #[cfg_attr(target_os = "openbsd", link_section = ".init_array")]
+            // Emscripten
+            #[cfg_attr(
+                all(target_family = "wasm", target_os = "emscripten"),
+                link_section = ".init_array"
+            )]
             static __init: extern "C" fn() = {
                 #[cfg_attr(target_os = "android", link_section = ".text.startup")]
                 #[cfg_attr(target_os = "linux", link_section = ".text.startup")]
@@ -53,8 +58,6 @@ macro_rules! plugin_execute_pre_main {
                 }
                 __inner_init
             };
-
-            $crate::wasm_declare_init_fn!();
         };
     };
 }

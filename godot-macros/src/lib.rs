@@ -14,7 +14,6 @@ mod bench;
 mod class;
 mod derive;
 mod docs;
-mod ffi_macros;
 mod gdextension;
 mod itest;
 mod util;
@@ -1300,16 +1299,6 @@ pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
         input,
         gdextension::attribute_gdextension,
     )
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Used by godot-ffi
-
-/// Creates an initialization block for Wasm.
-#[proc_macro]
-#[cfg(feature = "experimental-wasm")]
-pub fn wasm_declare_init_fn(input: TokenStream) -> TokenStream {
-    translate_functional(input, ffi_macros::wasm_declare_init_fn)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
