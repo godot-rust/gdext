@@ -75,6 +75,11 @@ struct VarAccessors {
     // Custom getter, public generated setter.
     #[var(pub, get = my_l_get)]
     l_pub_get: GString,
+
+    // A field named `instance` caused compilation error in versions before 0.5.
+    // See: https://github.com/godot-rust/gdext/pull/1481.
+    #[var]
+    instance: i32,
 }
 
 #[godot_api]
