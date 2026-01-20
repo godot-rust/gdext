@@ -492,7 +492,7 @@ pub fn register_user_rpcs<T: cap::ImplementsGodotApi>(object: &mut dyn Any) {
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe fn dynify_fn<T, D>(obj: Gd<Object>) -> ErasedDynGd
 where
-    T: GodotClass + Inherits<Object> + AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
+    T: Inherits<Object> + AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,
     D: ?Sized + 'static,
 {
     // SAFETY: `obj` is castable to `T`.
