@@ -389,20 +389,23 @@ impl BuiltinMethod {
         let is_exposed_in_outer =
             special_cases::is_builtin_method_exposed(builtin_name, &method.name);
 
-        // Use inner class name (Inner*) for private methods, outer class name for exposed methods
-        // For outer class, need to use conv::to_rust_type to get correct mapping (String -> GString)
-        let surrounding_class = if is_exposed_in_outer {
-            let RustTy::BuiltinIdent { ty, .. } =
-                conv::to_rust_type(&builtin_name.godot_ty, None, None, ctx)
-            else {
-                panic!("Builtin type should map to BuiltinIdent");
+        // Construct surrounding_class with correct type names:
+        // * godot_ty: Always the real Godot type (e.g. "String").
+        // * rust_ty: Rust struct where the method is declared ("GString" for exposed, "InnerString" for private one).
+        let surrounding_class = {
+            let rust_ty = if is_exposed_in_outer {
+                match conv::to_rust_type(&builtin_name.godot_ty, None, None, ctx) {
+                    RustTy::BuiltinIdent { ty, .. } => ty,
+                    _ => panic!("Builtin type should map to BuiltinIdent"),
+                }
+            } else {
+                inner_class_name.rust_ty.clone()
             };
+
             TyName {
                 godot_ty: builtin_name.godot_ty.clone(),
-                rust_ty: ty,
+                rust_ty,
             }
-        } else {
-            inner_class_name.clone()
         };
 
         Some(Self {

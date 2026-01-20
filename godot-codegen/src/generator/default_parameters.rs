@@ -137,20 +137,9 @@ pub fn make_function_definition_with_defaults(
 }
 
 pub fn function_uses_default_params(sig: &dyn Function) -> bool {
-    // For builtin types, strip "Inner" prefix, while avoiding collision with classes that might start with "Inner".
-    let class_or_builtin = sig.surrounding_class().map(|ty| {
-        let rust_name = ty.rust_ty.to_string();
-
-        // If it’s builtin and starts with "Inner", drop that prefix; otherwise keep original string.
-        match (sig.is_builtin(), rust_name.strip_prefix("Inner")) {
-            (true, Some(rest)) => rest.to_string(),
-            _ => rust_name,
-        }
-    });
-
     let fn_declares_default_params = sig.params().iter().any(|arg| arg.default_value.is_some())
         && !special_cases::is_method_excluded_from_default_params(
-            class_or_builtin.as_deref(),
+            sig.surrounding_class(),
             sig.name(),
         );
 

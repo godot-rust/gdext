@@ -405,21 +405,20 @@ pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
     match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
         // Already covered by manual APIs
         | ("Object", "to_string")
+        | ("Object", "notification")
         | ("RefCounted", "init_ref")
         | ("RefCounted", "reference")
         | ("RefCounted", "unreference")
-        | ("Object", "notification")
 
         => true, _ => false
     }
 }
 
 /// Lists methods that are replaced with manual, more type-safe equivalents. See `type_safe_replacements.rs`.
-/// 
+///
 /// See also [`get_class_method_enum_param_replacement()`] for a more automated approach specifically for enum parameters.
 #[rustfmt::skip]
-pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_name: &str) -> bool {
-
+fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_name: &str) -> bool {
     match (class_ty.godot_ty.as_str(), godot_method_name) {
         // Variant -> Option<Gd<Script>>
         | ("Object", "get_script")
@@ -500,7 +499,7 @@ pub fn get_class_method_param_enum_replacement(
 }
 
 /// Returns whether a builtin method appears directly in the outer, public API (as opposed to private in `Inner*` structs).
-/// 
+///
 /// For methods with default parameters, this also changes the signature to have an `*_ex` overload + `Ex*` builder struct. This is not done for
 /// inner methods by default, to save on code generation.
 #[rustfmt::skip]
@@ -619,9 +618,16 @@ pub fn is_builtin_method_exposed(builtin_ty: &TyName, godot_method_name: &str) -
 }
 
 #[rustfmt::skip]
-pub fn is_method_excluded_from_default_params(class_name: Option<&str>, godot_method_name: &str) -> bool {
+pub fn is_method_excluded_from_default_params(class_or_builtin_ty: Option<&TyName>, godot_method_name: &str) -> bool {
     // Utility functions: use "" string.
-    let class_name = class_name.unwrap_or("");
+    let class_name = class_or_builtin_ty.map_or("", |ty| ty.godot_ty.as_str());
+
+    // Private methods don't need to generate extra code for default extender machinery.
+    if let Some(ty) = class_or_builtin_ty {
+        if is_method_private(ty, godot_method_name) {
+            return true;
+        }
+    }
 
     match (class_name, godot_method_name) {
         // Class exclusions.
