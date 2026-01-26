@@ -334,11 +334,18 @@ jobs:
           # Linux compat:
           # No hot-reload before 4.4, as the Godot project is 4.4+.
 
+          - name: linux-4.6
+            os: ubuntu-22.04
+            artifact-name: linux-4.6
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            #godot-prebuilt-patch: '4.6'
+            hot-reload: stable
+
           - name: linux-4.5
             os: ubuntu-22.04
             artifact-name: linux-4.5
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            #godot-prebuilt-patch: '4.5'
+            godot-prebuilt-patch: '4.5'
             hot-reload: stable
 
           - name: linux-4.4
