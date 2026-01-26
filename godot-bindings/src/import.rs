@@ -22,6 +22,7 @@ pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
     (4, 4, 0),
     (4, 5, 0),
     (4, 6, 0),
+    (4, 7, 0),
     // ]]
 ];
 
@@ -39,6 +40,8 @@ pub use gdextension_api::version_4_3 as prebuilt;
 pub use gdextension_api::version_4_4 as prebuilt;
 #[cfg(feature = "api-4-5")]
 pub use gdextension_api::version_4_5 as prebuilt;
+#[cfg(feature = "api-4-6")]
+pub use gdextension_api::version_4_6 as prebuilt;
 // ]]
 
 // If none of the api-* features are provided, use default prebuilt version (typically latest Godot stable release).
@@ -54,6 +57,7 @@ pub use gdextension_api::version_4_5 as prebuilt;
     feature = "api-4-3",
     feature = "api-4-4",
     feature = "api-4-5",
+    feature = "api-4-6",
     feature = "api-custom",
     feature = "api-custom-json",
 )))]
@@ -61,5 +65,5 @@ pub use gdextension_api::version_4_5 as prebuilt;
 // [version-sync] [[
 //  [include] current.minor
 //  [line] pub use gdextension_api::version_$snakeVersion as prebuilt;
-pub use gdextension_api::version_4_5 as prebuilt;
+pub use gdextension_api::version_4_6 as prebuilt;
 // ]]
