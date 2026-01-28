@@ -387,6 +387,15 @@ pub fn print_deferred_startup_messages() {
 }
 
 fn print_preamble(version: GDExtensionGodotVersion) {
+    // Check if `--quiet` flag is present in Godot's command line arguments, before `--` separator that separates Godot from application args.
+    let is_quiet = std::env::args()
+        .take_while(|arg| arg != "--")
+        .any(|arg| arg == "--quiet");
+
+    if is_quiet {
+        return;
+    }
+
     // SAFETY: GDExtensionGodotVersion always contains valid string.
     let runtime_version = unsafe { read_version_string(version.string) };
 
