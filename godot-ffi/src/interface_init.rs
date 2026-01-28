@@ -34,7 +34,7 @@ pub fn ensure_static_runtime_compatibility(
 pub fn ensure_static_runtime_compatibility(
     get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
 ) {
-    let static_version_str = crate::GdextBuild::godot_static_version_string();
+    let api_version_str = crate::GdextBuild::godot_static_version_string();
 
     // In Godot 4.0.x, before the new GetProcAddress mechanism, the init function looked as follows.
     // In place of the `get_proc_address` function pointer, the `p_interface` data pointer was passed.
@@ -83,8 +83,8 @@ pub fn ensure_static_runtime_compatibility(
             };
 
             panic!(
-                "gdext was compiled against a newer Godot version: {static_version_str}\n\
-                but loaded by legacy Godot binary, with version:  {runtime_version_str}\n\
+                "godot-rust compiled against a newer Godot version: {api_version_str}\n\
+                but loaded by legacy Godot binary, with version:   {runtime_version_str}\n\
                 \n\
                 Update your Godot engine version, or read https://godot-rust.github.io/book/toolchain/compatibility.html.\n\
                 \n"
@@ -109,12 +109,13 @@ pub fn ensure_static_runtime_compatibility(
     if runtime_version < static_version {
         // SAFETY: valid `runtime_version_raw`.
         let runtime_version_str = unsafe { read_version_string(runtime_version_raw.string) };
+        let runtime_minor = runtime_version.1;
 
         panic!(
-            "gdext was compiled against newer Godot version: {static_version_str}\n\
-            but loaded by older Godot binary, with version: {runtime_version_str}\n\
+            "godot-rust compiled against newer Godot version: {api_version_str}\n\
+            but loaded by older Godot binary, with version:  {runtime_version_str}\n\
             \n\
-            Update your Godot engine version, or compile gdext against an older version.\n\
+            Compile godot-rust with feature `api-4-{runtime_minor}` or update Godot engine.\n\
             For more information, read https://godot-rust.github.io/book/toolchain/compatibility.html.\n\
             \n"
         );
