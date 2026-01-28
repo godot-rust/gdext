@@ -13,7 +13,7 @@ use godot::classes::{Engine, IObject, Os, RenderingServer, Time};
 use godot::init::InitStage;
 use godot::obj::{Base, GodotClass, NewAlloc, Singleton};
 use godot::register::{godot_api, GodotClass};
-use godot::sys::Global;
+use godot::sys::{GdextBuild, Global};
 
 use crate::engine_tests::check_classdb_full_api;
 use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
@@ -80,9 +80,7 @@ pub fn on_stage_init(stage: InitStage) {
     STAGES_SEEN.lock().push(stage);
 
     // For every level, check whether ClassDB API is available -- see https://github.com/godot-rust/gdext/pull/1474.
-    // TODO(v0.6): Godot will only support this for >= 4.7. Make ClassDB checks unconditional by then.
-    if stage >= InitStage::Scene {
-        // #[cfg(since_api = "4.7")]
+    if GdextBuild::since_api("4.7") || stage >= InitStage::Scene {
         check_classdb_full_api();
     }
 

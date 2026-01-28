@@ -199,7 +199,7 @@ function cmd_itest() {
     # * exit:     the terminated process would return 143, but this is more explicit and future-proof.
     "$godotBin" --headless -- "[${extraArgs[@]}]" 2>&1 \
     | tee "$logFile" \
-    | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library" -q && {
+    | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library|Error loading extension" -q && {
       printf "\n${RED}Error: Script or dlopen error, abort...${END}\n" >&2;
       # Unlike CI; do not kill processes called "godot" on user machine.
       exit 2
