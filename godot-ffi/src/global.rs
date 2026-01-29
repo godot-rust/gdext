@@ -210,7 +210,12 @@ mod tests {
         assert_eq!(*vec, &[1, 2, 3, 4]);
     }
 
+    // TODO(v0.6): Figure out if this can be made to work, or if this is expected behavior in Wasm.
     #[test]
+    #[cfg_attr(
+        all(target_family = "wasm", not(target_feature = "atomics")),
+        ignore = "Single-threaded Wasm semantics differ"
+    )]
     fn test_global_would_block() {
         let vec = VEC.lock();
 

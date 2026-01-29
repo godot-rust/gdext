@@ -36,10 +36,17 @@ impl MyClass {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+// NOTE: We have to ignore each test individually, instead of using #[cfg(test)] on a module containing them, so that
+// `cargo test` still lists those tests, while indicating the reason why they were ignored.
+
 /// Call each method from different threads, allowing them to run in parallel.
 ///
 /// This should not cause borrow failures and should not lead to deadlocks.
 #[test]
+#[cfg_attr(
+    all(target_family = "wasm", not(target_feature = "atomics")),
+    ignore = "Threading not available"
+)]
 fn calls_parallel() {
     use std::thread;
 
@@ -72,6 +79,10 @@ fn calls_parallel() {
 /// Runs each method several times in a row. This should reduce the non-determinism that comes from
 /// scheduling of threads.
 #[test]
+#[cfg_attr(
+    all(target_family = "wasm", not(target_feature = "atomics")),
+    ignore = "Threading not available"
+)]
 fn calls_parallel_many_serial() {
     use std::thread;
 
@@ -106,6 +117,10 @@ fn calls_parallel_many_serial() {
 /// Runs all the tests several times. This is different from [`calls_parallel_many_serial`] as that calls the
 /// methods like AAA...BBB...CCC..., whereas this interleaves the methods like ABC...ABC...ABC...
 #[test]
+#[cfg_attr(
+    all(target_family = "wasm", not(target_feature = "atomics")),
+    ignore = "Threading not available"
+)]
 fn calls_parallel_many_parallel() {
     use std::thread;
 
@@ -142,6 +157,10 @@ fn calls_parallel_many_parallel() {
 /// a) Thread A holds mutable reference AND thread B holds no references.
 /// b) One or more threads hold shared references AND thread A holds no references
 #[test]
+#[cfg_attr(
+    all(target_family = "wasm", not(target_feature = "atomics")),
+    ignore = "Threading not available"
+)]
 fn non_blocking_reborrow() {
     use std::thread;
     let instance_id = MyClass::init();
@@ -172,6 +191,10 @@ fn non_blocking_reborrow() {
 /// This verifies that the thread which initialized the `GdCell` does not panic when it attempts to mutably borrow while there is already a
 /// shared borrow on an other thread.
 #[test]
+#[cfg_attr(
+    all(target_family = "wasm", not(target_feature = "atomics")),
+    ignore = "Threading not available"
+)]
 fn no_mut_panic_on_main() {
     use std::thread;
     let instance_id = MyClass::init();

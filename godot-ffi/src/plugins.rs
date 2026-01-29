@@ -110,7 +110,12 @@ mod tests {
     plugin_add!(V; "one");
     plugin_add!(V; "two");
 
+    // TODO(v0.6): unignore this test once plugins are added for Wasm
     #[test]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "Requires a plugin implementation for Wasm"
+    )]
     fn plugin_registry() {
         let expected = HashSet::from(["one", "two", "three", "four"]);
         let mut actual = HashSet::new();

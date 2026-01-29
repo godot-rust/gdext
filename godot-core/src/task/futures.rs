@@ -548,6 +548,10 @@ mod tests {
 
     // Test that dropping ThreadConfined<T> on another thread leaks the inner value.
     #[test]
+    #[cfg_attr(
+        all(target_family = "wasm", not(target_feature = "atomics")),
+        ignore = "Threading not available"
+    )]
     fn thread_confined_extract() {
         let confined = ThreadConfined::new(772);
         assert_eq!(confined.extract(), Some(772));
@@ -561,6 +565,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        all(target_family = "wasm", not(target_feature = "atomics")),
+        ignore = "Threading not available"
+    )]
     fn thread_confined_leak_on_other_thread() {
         static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
