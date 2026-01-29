@@ -84,7 +84,7 @@ jobs:
     - name: "Check rustdoc"
       env:
         RUSTDOCFLAGS: >
-          -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
+          -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes
           -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
           -D warnings
       run: cargo doc -p godot --ignore-rust-version
@@ -178,8 +178,17 @@ jobs:
 
 
   unit-test-web:
-    name: unit-test-web
+    name: unit-test-web (${{ matrix.name }})
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Threads
+            command: testwebThreads
+          - name: No threads
+            command: testwebNothreads
+
     steps:
       - uses: actions/checkout@v4
 
@@ -204,7 +213,7 @@ jobs:
           echo "$PATH" >> "$GITHUB_PATH"
 
       - name: "Test (Wasm)"
-        run: ./check.sh testweb 
+        run: ./check.sh ${{ matrix.command }}
 
 
   miri-test:
@@ -218,7 +227,7 @@ jobs:
         with:
           rust: nightly
           components: miri
-      
+
       - name: "Setup Miri"
         run: cargo miri setup
 
@@ -227,7 +236,7 @@ jobs:
 
       - name: "Test stacked borrows"
         run: cargo miri test -p godot-cell
-      
+
       - name: "Test tree borrows"
         run: MIRIFLAGS="-Zmiri-tree-borrows" cargo miri test -p godot-cell
 

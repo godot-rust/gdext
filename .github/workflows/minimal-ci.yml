@@ -78,7 +78,7 @@ jobs:
       - name: "Check rustdoc"
         env:
           RUSTDOCFLAGS: >
-            -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
+            -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes
             -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
         run: cargo doc -p godot --ignore-rust-version
 
@@ -107,7 +107,7 @@ jobs:
           -D clippy::todo \
           -D clippy::unimplemented \
           -D warnings
-          
+
 
   unit-test:
     name: unit-test
@@ -132,8 +132,17 @@ jobs:
 
 
   unit-test-web:
-    name: unit-test-web
+    name: unit-test-web (${{ matrix.name }})
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Threads
+            command: testwebThreads
+          - name: No threads
+            command: testwebNothreads
+
     steps:
       - uses: actions/checkout@v4
 
@@ -158,7 +167,7 @@ jobs:
           echo "$PATH" >> "$GITHUB_PATH"
 
       - name: "Test (Wasm)"
-        run: ./check.sh testweb 
+        run: ./check.sh ${{ matrix.command }}
 
 
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
@@ -338,7 +347,7 @@ jobs:
       - name: "Determine success or failure"
         run: |
           DEPENDENCIES='${{ toJson(needs) }}'
-          
+
           echo "Dependency jobs:"
           all_success=true
           for job in $(echo "$DEPENDENCIES" | jq -r 'keys[]'); do
@@ -348,7 +357,7 @@ jobs:
                   all_success=false
               fi
           done
-          
+
           if [[ "$all_success" == "false" ]]; then
               echo "One or more dependency jobs failed or were cancelled."
               exit 1
