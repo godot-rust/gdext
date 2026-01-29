@@ -337,6 +337,34 @@ where
 /// If you use the `disengaged` [safeguard level], you accept that UB becomes possible even **in safe Rust APIs**, if you use them wrong
 /// (e.g. accessing a destroyed object).
 ///
+/// # Using other GDExtension libraries as dependencies
+///
+/// When using any other GDExtension library as a dependency, the implementor of the user-forwarding `ExtensionLibrary` must be specified
+/// via the `GODOT_RUST_MAIN_EXTENSION` environment variable. Crate with `ExtensionLibrary` implementor specified by this environment variable
+/// will be responsible for loading all the classes, as well as managing the `ExtensionLibrary` callbacks.
+///
+/// For example, a crate called `mylibrary` with libraries `lib_b` and `lib_c` used as dependencies and an `ExtensionLibrary` implementor `MyUserExtension`
+/// can be built with `GODOT_RUST_MAIN_EXTENSION="MyUserExtension" cargo build`.
+///
+/// ```ignore
+/// // Crate mylibrary
+/// // Usage of other dependencies must be explicitly declared; otherwise, they won't be registered.
+/// extern crate lib_b;
+/// extern crate lib_c;
+///
+///
+/// struct MyUserExtension {}
+///
+/// #[gdextension]
+/// unsafe impl ExtensionLibrary for MyUserExtension {}
+/// ```
+///
+/// The name of the `ExtensionLibrary` implementor must be unique and different from those used by its dependencies.
+///
+/// Note that it is the user's responsibility to ensure that the same classes are not loaded twice –
+/// which might be a result of loading another extension in the project which already defines said classes.
+/// Do not use this feature to bundle dependencies to end-users unless it is necessary to do so.
+///
 /// [gdextension]: attr.gdextension.html
 /// [safety]: https://godot-rust.github.io/book/gdext/advanced/safety.html
 /// [safeguard level]: ../index.html#safeguard-levels
