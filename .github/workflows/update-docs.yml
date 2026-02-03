@@ -130,6 +130,7 @@ jobs:
           echo "DOCS_GENERATOR_TOKEN=github_pat_$token" >> $GITHUB_ENV
 
       - name: "Notify doc workflow"
+        if: false
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ env.DOCS_GENERATOR_TOKEN }}

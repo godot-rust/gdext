@@ -139,9 +139,9 @@ jobs:
       matrix:
         include:
           - name: Threads
-            command: testwebThreads
+            command: test-web-t
           - name: No threads
-            command: testwebNothreads
+            command: test-web-nt
 
     steps:
       - uses: actions/checkout@v4

@@ -28,7 +28,8 @@ Commands:
     fmt           format code, fail if bad
     test          run unit tests (no Godot needed)
     itest         run integration tests (from within Godot)
-    testweb       run unit tests on web environment (requires node.js and emcc)
+    test-web-t    run unit tests on web, threaded (requires node.js and emcc)
+    test-web-nt   run unit tests on web, nothreads (requires node.js and emcc)
     clippy        validate clippy lints
     klippy        validate + fix clippy
     doc           generate docs for 'godot' crate
@@ -226,30 +227,32 @@ function cmd_itest() {
     return $exitCode
 }
 
+# Usage: testweb <rustflags> <features>
 function testweb() {
-    # Add more debug symbols to build
-    commonFlags="-C link-args=-g"
+    local rustflags="$1 -C link-args=-g"
+    local features="$2,godot/experimental-wasm,godot/lazy-function-tables"
 
-    # Avoid problems with emcc potentially writing to read-only dir
-    cacheDir="$(realpath ./target)/emscripten_cache"
+    # Avoid problems with emcc potentially writing to read-only dir.
+    local cacheDir="$(realpath ./target)/emscripten_cache"
     mkdir -p "${cacheDir}"
 
-    # About the runner env var: See https://github.com/rust-lang/cargo/issues/7471
+    # For runner env var, see https://github.com/rust-lang/cargo/issues/7471.
+    # grep: filter out non-suppressable warnings about unstable Wasm features (atomics).
     run env CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node \
-    RUSTFLAGS="${THREADED_RUSTFLAGS}${commonFlags}" EM_CACHE="${cacheDir}" cargo +nightly test "${extraCargoArgs[@]}" \
-      --features "${NON_THREADED_FEATURE}godot/experimental-wasm,godot/lazy-function-tables" \
-      -Zbuild-std --target wasm32-unknown-emscripten
+        RUSTFLAGS="${rustflags}" EM_CACHE="${cacheDir}" \
+        cargo +nightly test "${extraCargoArgs[@]}" \
+        --features "${features}" \
+        -Zbuild-std --target wasm32-unknown-emscripten --color=always \
+        2>&1 | grep -vE "unstable feature specified for \`-Ctarget-feature\`|generated 1 warning"
 }
 
-function cmd_testwebThreads() {
-    # About memory: More memory (256 MiB) is needed for the parallel godot-cell tests which spawn 70 threads each.
-    THREADED_RUSTFLAGS="-C link-args=-pthread \
-        -C target-feature=+atomics \
-        -C link-args=-sINITIAL_MEMORY=268435456 " testweb
+function cmd_test_web_t() {
+    # More memory (256 MiB) needed for parallel godot-cell tests which spawn 70 threads each.
+    testweb "-C link-args=-pthread -C target-feature=+atomics -C link-args=-sINITIAL_MEMORY=268435456" ""
 }
 
-function cmd_testwebNothreads() {
-    NON_THREADED_FEATURE="godot/experimental-wasm-nothreads," testweb
+function cmd_test_web_nt() {
+    testweb "" "godot/experimental-wasm-nothreads"
 }
 
 function cmd_doc() {
@@ -284,7 +287,7 @@ while [[ $# -gt 0 ]]; do
         --double)
             extraCargoArgs+=("--features" "godot/double-precision,godot/api-custom")
             ;;
-        fmt | test | itest | testwebThreads | testwebNothreads | clippy | klippy | doc | dok)
+        fmt | test | itest | test-web-t | test-web-nt | clippy | klippy | doc | dok)
             cmds+=("$arg")
             ;;
         -f | --filter)
@@ -383,7 +386,7 @@ function compute_elapsed() {
 }
 
 for cmd in "${cmds[@]}"; do
-    "cmd_${cmd}" || {
+    "cmd_${cmd//-/_}" || {
         compute_elapsed
         log -ne "$RED\n=========================="
         log -ne "\ngodot-rust: checks FAILED."
