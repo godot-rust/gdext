@@ -84,7 +84,7 @@ jobs:
     - name: "Check rustdoc"
       env:
         RUSTDOCFLAGS: >
-          -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
+          -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes
           -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
           -D warnings
       run: cargo doc -p godot --ignore-rust-version
@@ -177,6 +177,45 @@ jobs:
         run: cargo test $TEST_FEATURES ${{ matrix.rust-extra-args }}
 
 
+  unit-test-web:
+    name: unit-test-web (${{ matrix.name }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Threads
+            command: test-web-t
+          - name: No threads
+            command: test-web-nt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Patch Cargo.toml to use nightly extension API"
+        run: .github/other/patch-prebuilt.sh nightly
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+        with:
+          rust: nightly
+          components: rust-src
+
+      - name: "Install emscripten"
+        env:
+          EMSCRIPTEN_SRC_REF: 4.0.13
+          EMSCRIPTEN_VERSION: 3.1.74
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch "$EMSCRIPTEN_SRC_REF" --single-branch
+          ./emsdk/emsdk install "$EMSCRIPTEN_VERSION"
+          ./emsdk/emsdk activate "$EMSCRIPTEN_VERSION"
+          source ./emsdk/emsdk_env.sh
+          echo "$PATH" >> "$GITHUB_PATH"
+
+      - name: "Test (Wasm)"
+        run: ./check.sh ${{ matrix.command }}
+
+
   miri-test:
     name: miri-test
     runs-on: ubuntu-22.04
@@ -188,7 +227,7 @@ jobs:
         with:
           rust: nightly
           components: miri
-      
+
       - name: "Setup Miri"
         run: cargo miri setup
 
@@ -197,7 +236,7 @@ jobs:
 
       - name: "Test stacked borrows"
         run: cargo miri test -p godot-cell
-      
+
       - name: "Test tree borrows"
         run: MIRIFLAGS="-Zmiri-tree-borrows" cargo miri test -p godot-cell
 

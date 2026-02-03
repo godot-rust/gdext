@@ -78,7 +78,7 @@ jobs:
       - name: "Check rustdoc"
         env:
           RUSTDOCFLAGS: >
-            -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
+            -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes
             -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
         run: cargo doc -p godot --ignore-rust-version
 
@@ -107,7 +107,7 @@ jobs:
           -D clippy::todo \
           -D clippy::unimplemented \
           -D warnings
-          
+
 
   unit-test:
     name: unit-test
@@ -129,6 +129,45 @@ jobs:
 
       - name: "Run doctest in minimal feature set"
         run: cargo test --doc --no-default-features
+
+
+  unit-test-web:
+    name: unit-test-web (${{ matrix.name }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Threads
+            command: test-web-t
+          - name: No threads
+            command: test-web-nt
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Patch Cargo.toml to use nightly extension API"
+        run: .github/other/patch-prebuilt.sh nightly
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+        with:
+          rust: nightly
+          components: rust-src
+
+      - name: "Install emscripten"
+        env:
+          EMSCRIPTEN_SRC_REF: 4.0.13
+          EMSCRIPTEN_VERSION: 3.1.74
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git --depth 1 --branch "$EMSCRIPTEN_SRC_REF" --single-branch
+          ./emsdk/emsdk install "$EMSCRIPTEN_VERSION"
+          ./emsdk/emsdk activate "$EMSCRIPTEN_VERSION"
+          source ./emsdk/emsdk_env.sh
+          echo "$PATH" >> "$GITHUB_PATH"
+
+      - name: "Test (Wasm)"
+        run: ./check.sh ${{ matrix.command }}
 
 
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
@@ -315,7 +354,7 @@ jobs:
       - name: "Determine success or failure"
         run: |
           DEPENDENCIES='${{ toJson(needs) }}'
-          
+
           echo "Dependency jobs:"
           all_success=true
           for job in $(echo "$DEPENDENCIES" | jq -r 'keys[]'); do
@@ -325,7 +364,7 @@ jobs:
                   all_success=false
               fi
           done
-          
+
           if [[ "$all_success" == "false" ]]; then
               echo "One or more dependency jobs failed or were cancelled."
               exit 1

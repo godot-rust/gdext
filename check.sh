@@ -28,6 +28,8 @@ Commands:
     fmt           format code, fail if bad
     test          run unit tests (no Godot needed)
     itest         run integration tests (from within Godot)
+    test-web-t    run unit tests on web, threaded (requires node.js and emcc)
+    test-web-nt   run unit tests on web, nothreads (requires node.js and emcc)
     clippy        validate clippy lints
     klippy        validate + fix clippy
     doc           generate docs for 'godot' crate
@@ -225,6 +227,34 @@ function cmd_itest() {
     return $exitCode
 }
 
+# Usage: testweb <rustflags> <features>
+function testweb() {
+    local rustflags="$1 -C link-args=-g"
+    local features="$2,godot/experimental-wasm,godot/lazy-function-tables"
+
+    # Avoid problems with emcc potentially writing to read-only dir.
+    local cacheDir="$(realpath ./target)/emscripten_cache"
+    mkdir -p "${cacheDir}"
+
+    # For runner env var, see https://github.com/rust-lang/cargo/issues/7471.
+    # grep: filter out non-suppressable warnings about unstable Wasm features (atomics).
+    run env CARGO_TARGET_WASM32_UNKNOWN_EMSCRIPTEN_RUNNER=node \
+        RUSTFLAGS="${rustflags}" EM_CACHE="${cacheDir}" \
+        cargo +nightly test "${extraCargoArgs[@]}" \
+        --features "${features}" \
+        -Zbuild-std --target wasm32-unknown-emscripten --color=always \
+        2>&1 | grep -vE "unstable feature specified for \`-Ctarget-feature\`|generated 1 warning"
+}
+
+function cmd_test_web_t() {
+    # More memory (256 MiB) needed for parallel godot-cell tests which spawn 70 threads each.
+    testweb "-C link-args=-pthread -C target-feature=+atomics -C link-args=-sINITIAL_MEMORY=268435456" ""
+}
+
+function cmd_test_web_nt() {
+    testweb "" "godot/experimental-wasm-nothreads"
+}
+
 function cmd_doc() {
     run cargo doc --lib -p godot --no-deps "${extraCargoArgs[@]}"
 }
@@ -257,7 +287,7 @@ while [[ $# -gt 0 ]]; do
         --double)
             extraCargoArgs+=("--features" "godot/double-precision,godot/api-custom")
             ;;
-        fmt | test | itest | clippy | klippy | doc | dok)
+        fmt | test | itest | test-web-t | test-web-nt | clippy | klippy | doc | dok)
             cmds+=("$arg")
             ;;
         -f | --filter)
@@ -356,7 +386,7 @@ function compute_elapsed() {
 }
 
 for cmd in "${cmds[@]}"; do
-    "cmd_${cmd}" || {
+    "cmd_${cmd//-/_}" || {
         compute_elapsed
         log -ne "$RED\n=========================="
         log -ne "\ngodot-rust: checks FAILED."
