@@ -190,10 +190,17 @@ jobs:
 
           # Linux compat
 
+          - name: linux-4.6
+            os: ubuntu-22.04
+            artifact-name: linux-4.6
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            #godot-prebuilt-patch: '4.6'
+
           - name: linux-4.5
             os: ubuntu-22.04
             artifact-name: linux-4.5
             godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: '4.5'
 
           - name: linux-4.4
             os: ubuntu-22.04

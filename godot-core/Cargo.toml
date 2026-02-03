@@ -36,6 +36,7 @@ api-4-2-2 = ["godot-ffi/api-4-2-2"]
 api-4-3 = ["godot-ffi/api-4-3"]
 api-4-4 = ["godot-ffi/api-4-4"]
 api-4-5 = ["godot-ffi/api-4-5"]
+api-4-6 = ["godot-ffi/api-4-6"]
 # ]]
 
 # Safeguard levels (see godot/lib.rs for detailed documentation).

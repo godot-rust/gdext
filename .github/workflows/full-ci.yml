@@ -259,11 +259,12 @@ jobs:
 #            godot-binary: godot.macos.editor.dev.double.arm64
 #            rust-extra-args: --features godot/api-custom,godot/double-precision
 
-          - name: macos-arm-4.4
+          # Lag one version behind latest release.
+          - name: macos-arm-4.5
             os: macos-latest
-            artifact-name: macos-arm-4.4
+            artifact-name: macos-arm-4.5
             godot-binary: godot.macos.editor.dev.arm64
-            godot-prebuilt-patch: '4.4'
+            godot-prebuilt-patch: '4.5'
 
           # Windows
 
@@ -279,11 +280,12 @@ jobs:
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
             rust-extra-args: --features godot/api-custom,godot/double-precision
 
-          - name: windows-4.4
+          # Lag one version behind latest release.
+          - name: windows-4.5
             os: windows-latest
-            artifact-name: windows-4.4
+            artifact-name: windows-4.5
             godot-binary: godot.windows.editor.dev.x86_64.exe
-            godot-prebuilt-patch: '4.4'
+            godot-prebuilt-patch: '4.5'
 
           # Linux
 
@@ -334,12 +336,19 @@ jobs:
           # Linux compat:
           # No hot-reload before 4.4, as the Godot project is 4.4+.
 
+          - name: linux-4.6
+            os: ubuntu-22.04
+            artifact-name: linux-4.6
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            #godot-prebuilt-patch: '4.6'
+            hot-reload: stable
+
           - name: linux-4.5
             os: ubuntu-22.04
             artifact-name: linux-4.5
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            #godot-prebuilt-patch: '4.5'
-            hot-reload: stable
+            godot-prebuilt-patch: '4.5'
+            hot-reload: api-4-5
 
           - name: linux-4.4
             os: ubuntu-22.04

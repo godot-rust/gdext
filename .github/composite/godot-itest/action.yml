@@ -203,7 +203,7 @@ runs:
         echo "OUTCOME=itest" >> $GITHUB_ENV
         $GODOT4_BIN --headless -- --disallow-focus ${{ inputs.godot-args }} 2>&1 \
         | tee "${{ runner.temp }}/log.txt" \
-        | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library" -q && {
+        | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library|Error loading extension" -q && {
           printf "\n::error::godot-itest: unrecoverable Godot error, abort...\n";
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             taskkill -f -im godot*

@@ -23,6 +23,7 @@ fn main() {
     if cfg!(feature = "api-4-3") { count += 1; }
     if cfg!(feature = "api-4-4") { count += 1; }
     if cfg!(feature = "api-4-5") { count += 1; }
+    if cfg!(feature = "api-4-6") { count += 1; }
     // ]]
 
     assert!(count <= 1, "ERROR: at most one `api-*` feature can be enabled");
