@@ -175,6 +175,7 @@ pub fn make_function_definition(
 
     let maybe_func_generic_params = sig.return_value().generic_params();
     let maybe_func_generic_bounds = sig.return_value().where_clause();
+    let (maybe_deprecated, _maybe_expect_deprecated) = make_deprecation_attribute(sig);
 
     let call_sig_decl = {
         let return_ty = &sig.return_value().type_tokens();
@@ -194,9 +195,10 @@ pub fn make_function_definition(
 
     let receiver_param = &code.receiver.param;
     let primary_function = if sig.is_virtual() {
-        // Virtual functions
+        // Virtual functions.
 
         quote! {
+            #maybe_deprecated
             #maybe_safety_doc
             #maybe_unsafe fn #primary_fn_name (
                 #receiver_param
@@ -204,14 +206,15 @@ pub fn make_function_definition(
             ) #return_decl #fn_body
         }
     } else if sig.is_vararg() {
-        // Varargs (usually varcall, but not necessarily -- utilities use ptrcall)
+        // Varargs (usually varcall, but not necessarily -- utilities use ptrcall).
 
-        // If the return type is not Variant, then convert to concrete target type
+        // If the return type is not Variant, then convert to concrete target type.
         let varcall_invocation = &code.varcall_invocation;
 
         // TODO Utility functions: update as well.
         if !code.is_varcall_fallible {
             quote! {
+                #maybe_deprecated
                 #maybe_safety_doc
                 #vis #maybe_unsafe fn #primary_fn_name (
                     #receiver_param
@@ -241,6 +244,7 @@ pub fn make_function_definition(
             } = make_params_exprs(sig.params().iter(), FnKind::DelegateTry);
 
             quote! {
+                #maybe_deprecated
                 /// # Panics
                 /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
                 /// It can detect call failures and will panic in such a case.
@@ -254,6 +258,7 @@ pub fn make_function_definition(
                         .unwrap_or_else(|e| panic!("{e}"))
                 }
 
+                #maybe_deprecated
                 /// # Return type
                 /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
                 /// It can detect call failures and will return `Err` in such a case.
@@ -279,6 +284,7 @@ pub fn make_function_definition(
         let ptrcall_invocation = &code.ptrcall_invocation;
 
         quote! {
+            #maybe_deprecated
             #maybe_safety_doc
             #vis #maybe_unsafe fn #primary_fn_name #maybe_func_generic_params (
                 #receiver_param
@@ -339,6 +345,20 @@ pub fn make_vis(is_private: bool) -> TokenStream {
     } else {
         quote! { pub }
     }
+}
+
+pub fn make_deprecation_attribute(sig: &dyn Function) -> (Option<TokenStream>, TokenStream) {
+    let deprecated = sig.common().deprecation_msg.map(|msg| {
+        quote! { #[deprecated = #msg] }
+    });
+
+    let expect_deprecated = if deprecated.is_some() {
+        quote! { #[expect(deprecated)] }
+    } else {
+        quote! {}
+    };
+
+    (deprecated, expect_deprecated)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

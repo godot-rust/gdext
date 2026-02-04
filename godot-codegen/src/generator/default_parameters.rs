@@ -60,6 +60,7 @@ pub fn make_function_definition_with_defaults(
     );
 
     let return_decl = &sig.return_value().decl;
+    let (maybe_deprecated, maybe_expect_deprecated) = fns::make_deprecation_attribute(sig);
 
     // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
     // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'ex self.
@@ -96,6 +97,7 @@ pub fn make_function_definition_with_defaults(
             #( #builder_methods )*
 
             #[inline]
+            #maybe_expect_deprecated
             pub fn done(self) #return_decl {
                 let Self { _phantom, #( #builder_field_names, )* } = self;
                 #surround_class_path::#full_fn_name(
@@ -108,6 +110,8 @@ pub fn make_function_definition_with_defaults(
     let functions = quote! {
         // Simple function:
         // Lifetime is set if any parameter is a reference.
+        #maybe_deprecated
+        #maybe_expect_deprecated
         #[doc = #default_parameter_usage]
         #[inline]
         #vis fn #simple_fn_name (
@@ -121,6 +125,7 @@ pub fn make_function_definition_with_defaults(
 
         // _ex() function:
         // Lifetime is set if any parameter is a reference OR if the method is not static/global (and thus can refer to self).
+        #maybe_deprecated
         #[inline]
         #vis fn #extended_fn_name<'ex> (
             #extended_receiver_param

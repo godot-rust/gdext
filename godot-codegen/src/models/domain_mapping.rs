@@ -422,6 +422,7 @@ impl BuiltinMethod {
                 direction: FnDirection::Outbound {
                     hash: method.hash.expect("hash absent for builtin method"),
                 },
+                deprecation_msg: None, // Builtin methods are not deprecated yet.
             },
             qualifier: FnQualifier::from_const_static(method.is_const, method.is_static),
             surrounding_class,
@@ -588,6 +589,8 @@ impl ClassMethod {
             rust_method_name.to_string()
         };
 
+        let deprecation_msg = special_cases::get_class_method_deprecation(class_name, method);
+
         Some(Self {
             common: FunctionCommon {
                 name: rust_method_name,
@@ -599,6 +602,7 @@ impl ClassMethod {
                 is_virtual_required,
                 is_unsafe,
                 direction,
+                deprecation_msg,
             },
             qualifier,
             surrounding_class: class_name.clone(),
@@ -691,6 +695,7 @@ impl UtilityFunction {
                 direction: FnDirection::Outbound {
                     hash: function.hash,
                 },
+                deprecation_msg: None, // Utility functions are not deprecated.
             },
         })
     }

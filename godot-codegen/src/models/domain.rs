@@ -287,6 +287,8 @@ pub struct FunctionCommon {
     /// Whether raw pointers appear in signature. Affects safety, and in case of virtual methods, the name.
     pub is_unsafe: bool,
     pub direction: FnDirection,
+    /// Deprecation message, if the method is deprecated.
+    pub deprecation_msg: Option<&'static str>,
 }
 
 pub trait Function: fmt::Display {
