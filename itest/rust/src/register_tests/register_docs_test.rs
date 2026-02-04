@@ -158,23 +158,29 @@ pub struct FairlyDocumented {
     #[doc = r#"this is very documented"#]
     #[var]
     item: f32,
+
     #[doc = "@deprecated use on your own risk!!"]
     #[doc = ""]
     #[doc = "not to be confused with B!"]
     #[export]
     a: i32,
+
     /// Some docs…
     /// @experimental idk.
     #[export]
     b: i64,
+
     /// is it documented?
     #[var]
     item_2: i64,
+
     #[var]
     /// this docstring has < a special character
     item_xml: GString,
-    /// this isnt documented
+
+    /// this isn't documented
     _other_item: (),
+
     /// nor this
     base: Base<Node>,
 }
@@ -287,6 +293,10 @@ impl FairlyDocumented {
     #[signal]
     fn documented_signal(p: Vector3, w: f64, node: Gd<Node>);
 
+    /// Won't appear in editor, as it starts with underscore.
+    #[signal]
+    fn _hidden_signal(p: Vector2);
+
     /// My signal
     ///
     /// @deprecated – use other_signal instead.
@@ -319,7 +329,7 @@ impl FairlyDocumented {
     fn tertiary_but_documented(&self, _smth: i64) {}
 }
 
-#[itest]
+#[itest(focus)]
 fn test_register_docs() {
     let actual_xml = find_class_docs("FairlyDocumented");
 
