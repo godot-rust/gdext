@@ -487,7 +487,6 @@ fn check_async_test_task(
 
     ctx.scene_tree
         .get_tree()
-        .expect("The itest scene tree node is part of a Godot SceneTree")
         .connect_flags("process_frame", &deferred, ConnectFlags::ONE_SHOT);
 }
 

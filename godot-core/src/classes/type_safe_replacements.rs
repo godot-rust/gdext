@@ -15,7 +15,7 @@ use crate::builtin::{Callable, GString, StringName, Variant};
 use crate::classes::notify::NodeNotification;
 use crate::classes::object::ConnectFlags;
 use crate::classes::scene_tree::GroupCallFlags;
-use crate::classes::{Object, SceneTree, Script};
+use crate::classes::{Node, Object, SceneTree, Script};
 use crate::global::Error;
 use crate::meta::{arg_into_ref, AsArg, ToGodot};
 use crate::obj::{EngineBitfield, Gd};
@@ -49,6 +49,24 @@ impl Object {
         self.raw_connect_ex(signal, callable)
             .flags(flags.ord() as u32)
             .done()
+    }
+}
+
+impl Node {
+    /// ⚠️ Assuming the node is inside a scene tree, obtains the latter.
+    ///
+    /// # Panics
+    /// If the node is not inside the scene tree. If you're unsure, use [`get_tree_or_null()`][Self::get_tree_or_null].
+    pub fn get_tree(&self) -> Gd<SceneTree> {
+        // Don't call get_tree_or_null() to avoid extra FFI call.
+        // If the invariant is wrong, this panics and Godot additionally prints its own error.
+        self.raw_get_tree()
+            .unwrap_or_else(|| panic!("node outside scene tree; use get_tree_or_null() instead"))
+    }
+
+    /// Fallibly obtains the scene tree containing the node, or `None`.
+    pub fn get_tree_or_null(&self) -> Option<Gd<SceneTree>> {
+        self.is_inside_tree().then(|| self.get_tree())
     }
 }
 
