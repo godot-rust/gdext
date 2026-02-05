@@ -64,7 +64,7 @@ fn node_path_from_str(ctx: &TestContext) {
 #[itest]
 fn node_call_group(ctx: &TestContext) {
     let mut node = ctx.scene_tree.clone();
-    let mut tree = node.get_tree().unwrap();
+    let mut tree = node.get_tree();
 
     node.add_to_group("group");
 

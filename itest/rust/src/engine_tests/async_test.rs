@@ -81,7 +81,7 @@ fn async_task_array() -> TaskHandle {
 
 #[itest]
 fn cancel_async_task(ctx: &TestContext) {
-    let tree = ctx.scene_tree.get_tree().unwrap();
+    let tree = ctx.scene_tree.get_tree();
     let signal = Signal::from_object_signal(&tree, "process_frame");
 
     let handle = task::spawn(async move {

@@ -396,6 +396,9 @@ pub fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_nam
 ///
 /// Builtin class methods are all private by default, due to being declared in an `Inner*` struct. A separate mechanism is used
 /// to make them public, see [`is_builtin_method_exposed`].
+///
+/// This does not rename the method. For methods that are replaced with type-safe equivalents, use
+/// [`is_class_method_replaced_with_type_safe()`] instead.
 #[rustfmt::skip]
 pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
     if is_class_method_replaced_with_type_safe(class_or_builtin_ty, godot_method_name) {
@@ -426,6 +429,9 @@ fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_name:
 
         // u32 -> ConnectFlags
         | ("Object", "connect")
+
+        // godot-rust provides optional + required APIs.
+        | ("Node", "get_tree")
 
         // i32 -> CallGroupFlags
         // Some of those (not the notifications) could be handled by automated enum replacement, but keeping them together is simpler.
