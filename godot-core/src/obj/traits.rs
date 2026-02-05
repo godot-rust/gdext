@@ -553,7 +553,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
 ///
 /// User-defined classes with `#[signal]` additionally implement [`WithUserSignals`].
 // Inherits bound makes some up/downcasting in signals impl easier.
-pub trait WithSignals: GodotClass + Inherits<crate::classes::Object> {
+pub trait WithSignals: Inherits<crate::classes::Object> {
     /// The associated struct listing all signals of this class.
     ///
     /// Parameters:

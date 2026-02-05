@@ -272,7 +272,7 @@ impl Aabb {
     }
 
     #[inline]
-    #[deprecated = "renamed to `get_support`"]
+    #[deprecated = "Renamed to `get_support`."]
     pub fn support(self, dir: Vector3) -> Vector3 {
         self.get_support(dir)
     }

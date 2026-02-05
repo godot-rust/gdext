@@ -87,6 +87,24 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
     }
 }
 
+/// Returns `Some(message)` if a class method deprecated, `None` otherwise.
+#[rustfmt::skip]
+pub fn get_class_method_deprecation(class_name: &TyName, method: &JsonClassMethod) -> Option<&'static str> {
+    let deprecation_msg = match (class_name.godot_ty.as_str(), method.name.as_str()) {
+        | ("Node", "duplicate")
+        | ("Node", "duplicate_ex") => "Use `Gd::duplicate_node()` or `Gd::duplicate_node_ex()`.",
+
+        | ("Resource", "duplicate")
+        | ("Resource", "duplicate_ex")
+        | ("Resource", "duplicate_deep")
+        | ("Resource", "duplicate_deep_ex") => "Use `Gd::duplicate_resource()` or `Gd::duplicate_resource_ex()`.",
+
+        _ => return None,
+    };
+    
+    Some(deprecation_msg)
+}
+
 pub fn is_class_deleted(class_name: &TyName) -> bool {
     codegen_special_cases::is_class_excluded(&class_name.godot_ty)
         || is_godot_type_deleted(&class_name.godot_ty)

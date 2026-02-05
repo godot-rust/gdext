@@ -244,7 +244,7 @@ impl<T: GodotClass> IntoVirtualMethodReceiver<T> for RecvMut {
 
 impl<T> IntoVirtualMethodReceiver<T> for RecvGdSelf
 where
-    T: GodotClass + Inherits<<T as GodotClass>::Base>,
+    T: Inherits<<T as GodotClass>::Base>,
 {
     fn instance<'a, 'b: 'a>(storage: &'b InstanceStorage<T>) -> VirtualMethodReceiver<'a, T> {
         VirtualMethodReceiver {

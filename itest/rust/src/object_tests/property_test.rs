@@ -705,7 +705,7 @@ fn test_duplicate_retains_properties() {
     }
 
     // Create duplicate and verify all properties are copied correctly.
-    let duplicated: Gd<Duplicator> = original.duplicate().unwrap().cast();
+    let duplicated: Gd<Duplicator> = original.duplicate_node();
     {
         let duplicated = duplicated.bind();
         assert_eq!(duplicated.int_export, 5);
