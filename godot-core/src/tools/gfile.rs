@@ -325,31 +325,14 @@ impl GFile {
 
     /// Reads the whole file as UTF-8 [`GString`].
     ///
-    /// If `skip_cr` is set to `true`, carriage return (`'\r'`) will be ignored, and only line feed (`'\n'`) indicates a new line.
-    ///
     /// To retrieve the file as [`String`] instead, use the [`Read`] trait method
     /// [`read_to_string()`](https://doc.rust-lang.org/std/io/trait.Read.html#method.read_to_string).
     ///
     /// Underlying Godot method:
     /// [`FileAccess::get_as_text`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-as-text).
-    // For Godot versions before `skip_cr` has been removed, see: https://github.com/godotengine/godot/pull/110867.
+    /// Note that Godot 4.6 removed `skip_cr` parameter in [PR #110867](https://github.com/godotengine/godot/pull/110867). This high-level
+    /// API does not provide it for any version, to avoid case differentiation.
     #[doc(alias = "get_as_text")]
-    #[cfg(before_api = "4.6")]
-    pub fn read_as_gstring_entire(&mut self, skip_cr: bool) -> std::io::Result<GString> {
-        let val = self.fa.get_as_text_ex().skip_cr(skip_cr).done();
-        self.check_error()?;
-        Ok(val)
-    }
-
-    /// Reads the whole file as UTF-8 [`GString`].
-    ///
-    /// To retrieve the file as [`String`] instead, use the [`Read`] trait method
-    /// [`read_to_string()`](https://doc.rust-lang.org/std/io/trait.Read.html#method.read_to_string).
-    ///
-    /// Underlying Godot method:
-    /// [`FileAccess::get_as_text`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-as-text).
-    #[doc(alias = "get_as_text")]
-    #[cfg(since_api = "4.6")]
     pub fn read_as_gstring_entire(&mut self) -> std::io::Result<GString> {
         let val = self.fa.get_as_text();
         self.check_error()?;
