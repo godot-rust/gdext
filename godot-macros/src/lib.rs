@@ -14,7 +14,6 @@ mod bench;
 mod class;
 mod derive;
 mod docs;
-mod ffi_macros;
 mod gdextension;
 mod itest;
 mod util;
@@ -1303,16 +1302,6 @@ pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Used by godot-ffi
-
-/// Creates an initialization block for Wasm.
-#[proc_macro]
-#[cfg(feature = "experimental-wasm")]
-pub fn wasm_declare_init_fn(input: TokenStream) -> TokenStream {
-    translate_functional(input, ffi_macros::wasm_declare_init_fn)
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
 type ParseResult<T> = Result<T, venial::Error>;
@@ -1353,7 +1342,7 @@ where
 }
 
 /// For `#[proc_macro]` function-style macros.
-#[cfg(feature = "experimental-wasm")]
+#[expect(dead_code)]
 fn translate_functional<F>(input: TokenStream, transform: F) -> TokenStream
 where
     F: FnOnce(TokenStream2) -> ParseResult<TokenStream2>,

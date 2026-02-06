@@ -40,10 +40,6 @@ safeguards-release-disengaged = ["godot-bindings/safeguards-release-disengaged"]
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
 
-[target.'cfg(target_family = "wasm")'.dependencies]
-# Only needed for WASM identifier generation.
-godot-macros = { path = "../godot-macros", version = "=0.4.4", features = ["experimental-wasm"] }
-
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings", version = "=0.4.4" }
 godot-codegen = { path = "../godot-codegen", version = "=0.4.4" }
