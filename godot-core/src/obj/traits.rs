@@ -184,7 +184,7 @@ pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
 }
 
 /// Auto-implemented for all engine-provided enums.
-pub trait EngineEnum: Copy {
+pub trait EngineEnum: Copy + 'static {
     fn try_from_ord(ord: i32) -> Option<Self>;
 
     /// Ordinal value of the enumerator, as specified in Godot.
@@ -244,7 +244,7 @@ pub trait EngineEnum: Copy {
 }
 
 /// Auto-implemented for all engine-provided bitfields.
-pub trait EngineBitfield: Copy {
+pub trait EngineBitfield: Copy + 'static {
     fn try_from_ord(ord: u64) -> Option<Self>;
 
     /// Ordinal value of the bit flag, as specified in Godot.
