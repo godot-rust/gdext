@@ -12,7 +12,7 @@
 /// Returned by [`EngineEnum::all_constants()`][crate::obj::EngineEnum::all_constants] and
 /// [`EngineBitfield::all_constants()`][crate::obj::EngineBitfield::all_constants].
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct EnumConstant<T: Copy + 'static> {
+pub struct EnumConstant<T> {
     rust_name: &'static str,
     godot_name: &'static str,
     value: T,
@@ -20,7 +20,7 @@ pub struct EnumConstant<T: Copy + 'static> {
 
 impl<T> EnumConstant<T>
 where
-    T: Copy + Eq + PartialEq + 'static,
+    T: Copy,
 {
     /// Creates a new enum constant metadata entry.
     pub(crate) const fn new(rust_name: &'static str, godot_name: &'static str, value: T) -> Self {

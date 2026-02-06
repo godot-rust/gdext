@@ -242,6 +242,11 @@ fn make_enum_debug_impl(enum_: &Enum, use_as_str: bool) -> TokenStream {
             if enumerator.is_empty() {
                 #enumerator_not_found
             }
+            f.write_str(enumerator)
+        }
+    } else if enum_.is_bitfield {
+        quote! {
+            crate::classes::debug_bitfield(*self, f)
         }
     } else {
         let enumerators = make_enum_to_str_cases(enum_);
@@ -256,6 +261,7 @@ fn make_enum_debug_impl(enum_: &Enum, use_as_str: bool) -> TokenStream {
                     #enumerator_not_found
                 }
             };
+            f.write_str(enumerator)
         }
     };
 
@@ -263,7 +269,6 @@ fn make_enum_debug_impl(enum_: &Enum, use_as_str: bool) -> TokenStream {
         impl std::fmt::Debug for #enum_name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 #function_body
-                f.write_str(enumerator)
             }
         }
     }

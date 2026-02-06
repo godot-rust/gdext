@@ -7,8 +7,10 @@
 
 //! Runtime checks and inspection of Godot classes.
 
+use std::fmt::Write;
+
 use crate::builtin::{GString, StringName, Variant};
-use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId, RawGd};
+use crate::obj::{bounds, Bounds, EngineBitfield, Gd, GodotClass, InstanceId, RawGd};
 use crate::sys;
 
 #[cfg(safeguards_strict)]
@@ -28,6 +30,9 @@ mod balanced {
 use balanced::*;
 #[cfg(safeguards_strict)]
 use strict::*;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Debug/Display support for classes and enums
 
 pub(crate) fn debug_string<T: GodotClass>(
     obj: &Gd<T>,
@@ -173,6 +178,56 @@ pub(crate) fn display_string<T: GodotClass>(
     let string: GString = obj.raw.as_object_ref().to_string();
     <GString as std::fmt::Display>::fmt(&string, f)
 }
+
+/// Format bitfield for `Debug` impl.
+// Make public doc-hidden in the future, once user bitfields are supported.
+pub(crate) fn debug_bitfield<T: EngineBitfield>(
+    bitfield: T,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let value_bits = bitfield.ord();
+    let mut remaining_bits = value_bits;
+    let mut string = String::new();
+    let mut first = true;
+
+    for &c in T::all_constants() {
+        let mask = c.value().ord();
+
+        // Include zero bits only if the entire value is zero.
+        // Example: if value is 0, then set NONE.
+        if mask == 0 && value_bits != 0 {
+            continue;
+        }
+
+        // Include all bits that are *fully* represented in bitfield's value.
+        // Example: NONE(0), FAST(1), GOOD(2), CHEAP(4), DEFAULT(3) = FAST|GOOD.
+        //   If value is 3, then include all of FAST|GOOD|DEFAULT.
+        if value_bits & mask == mask {
+            remaining_bits &= !mask;
+
+            if first {
+                first = false;
+            } else {
+                string.push_str(" | ");
+            }
+            string.push_str(c.rust_name());
+        }
+    }
+
+    if remaining_bits != 0 {
+        if !first {
+            string.push_str(" | ");
+        }
+
+        write!(string, "Unknown(0x{remaining_bits:X})")?;
+    }
+
+    let bitfield_name = sys::short_type_name::<T>();
+    write!(f, "{bitfield_name} {{ {string} }}")
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Object lifetime and validity
 
 pub(crate) fn object_ptr_from_id(instance_id: InstanceId) -> sys::GDExtensionObjectPtr {
     // SAFETY: Godot looks up ID in ObjectDB and returns null if not found.

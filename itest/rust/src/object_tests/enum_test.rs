@@ -68,10 +68,10 @@ fn enum_hash() {
     assert_eq!(months.len(), 12, "hash collisions in constants");
 }
 
-// Testing https://github.com/godot-rust/gdext/issues/335
+// Tests https://github.com/godot-rust/gdext/issues/335.
 // This fails upon calling the function, we don't actually need to make a good call.
 #[itest]
-fn add_surface_from_arrays() {
+fn enum_add_surface_from_arrays() {
     let mut mesh = ArrayMesh::new_gd();
     mesh.add_surface_from_arrays(PrimitiveType::TRIANGLES, &varray![]);
 }
