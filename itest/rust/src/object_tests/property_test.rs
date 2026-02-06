@@ -10,6 +10,7 @@ use godot::builtin::{
 };
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
 use godot::global::{PropertyHint, PropertyUsageFlags};
+use godot::init::GdextBuild;
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
 use godot::register::property::{Export, Var};
@@ -525,38 +526,36 @@ fn check_property(property: &VarDictionary, key: &str, expected: impl ToGodot) {
 // Guaranteed order is necessary to make groups and subgroups work properly.
 #[itest]
 fn guaranteed_ordering() {
+    // Common flag combinations.
+    let editor_storage = PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE;
+
+    // In Godot 4.7, the INTERNAL flag was added to the script property.
+    let script_flags = if GdextBuild::since_api("4.7") {
+        PropertyUsageFlags::NEVER_DUPLICATE
+            | PropertyUsageFlags::EDITOR
+            | PropertyUsageFlags::STORAGE
+            | PropertyUsageFlags::INTERNAL
+    } else {
+        PropertyUsageFlags::NEVER_DUPLICATE
+            | PropertyUsageFlags::EDITOR
+            | PropertyUsageFlags::STORAGE
+    };
+
     let expected_order = [
         // Note: Category, displayed at the very top of the inspector.
         ("ExportOverride", PropertyUsageFlags::CATEGORY),
         ("some group", PropertyUsageFlags::GROUP),
-        (
-            "first",
-            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
-        ),
+        ("first", editor_storage),
         // Breaks out of some group.
         ("", PropertyUsageFlags::GROUP),
-        (
-            "broke_out_of_some_group",
-            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
-        ),
+        ("broke_out_of_some_group", editor_storage),
         ("some subgroup", PropertyUsageFlags::SUBGROUP),
-        (
-            "b_second",
-            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
-        ),
+        ("b_second", editor_storage),
         ("resource", PropertyUsageFlags::GROUP),
-        (
-            "last",
-            PropertyUsageFlags::EDITOR | PropertyUsageFlags::STORAGE,
-        ),
+        ("last", editor_storage),
         // Inherited from RefCounted – category and script.
         ("RefCounted", PropertyUsageFlags::CATEGORY),
-        (
-            "script",
-            PropertyUsageFlags::NEVER_DUPLICATE
-                | PropertyUsageFlags::EDITOR
-                | PropertyUsageFlags::STORAGE,
-        ),
+        ("script", script_flags),
     ];
 
     let class = ExportOverride::new_gd();
