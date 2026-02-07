@@ -429,6 +429,122 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// **Note**: As in GDScript, the class must be marked as a `tool` to be accessible in the editor (e.g., for use by editor plugins and inspectors).
 ///
+/// ## Export tool button
+///
+/// If you need to create a clickable inspector button on your tool class, you can use `#[export_tool_button]`.
+/// This exports a Callable property as a clickable button. When the button is pressed, the callable is called.
+///
+/// You can specify a custom icon name with `#[export_tool_button(..., icon="...")]`,
+/// which must match one of the icon file names from the [editor/icons] folder of the Godot source repository (case-sensitive).
+/// You can also browse the editor icons using the [Godot editor icons website].
+///
+/// A class with `#[export_tool_button]` fields must have a base field and must be a tool.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// // Not a tool.
+/// #[class(init, base = Node)]
+/// struct MyStruct {
+///     #[export_tool_button(name = "my tool button)]
+///     tool_button: Callable,
+///     base: Base<Node>
+/// }
+/// ```
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct MyStruct {
+///     #[export_tool_button(name = "my tool button)]
+///     tool_button: Callable,
+///     // Base field is absent.
+/// }
+/// ```
+///
+/// The `name` attribute is required:
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, tool, base = Node)]
+/// struct MyStruct {
+///     // A button with no name.
+///     #[export_tool_button]
+///     tool_button: Callable,
+///     base: Base<Node>
+/// }
+/// ```
+///
+/// `#[export_tool_button]` can be created from the static function (`#[export_tool_button(fn = ... )]`,
+/// a function with a `Self` receiver (`#[export_tool_button(fn_self= ... )]`) or a Godot class method (`#[export_tool_button(method = "...", ...)]`).
+/// If no source is specified, the Callable will be left invalid.
+///
+/// ```
+/// # use godot::prelude::*;
+/// # use godot::classes::notify::NodeNotification;
+/// #[derive(GodotClass)]
+/// #[class(init, tool, base = Node)]
+/// struct MyStruct {
+///     #[export_tool_button(fn=my_static_fn, name = "Static fn")]
+///     static_fn: Callable,
+///
+///     #[export_tool_button(fn_self=Self::my_method, name = "Self method")]
+///     self_fn: Callable,
+///
+///     #[export_tool_button(fn_self=dyn_trait_fn, name = "Trait method")]
+///     dyn_fn: Callable,
+///
+///     #[export_tool_button(method="gd_self_method", name = "GdSelf Method")]
+///     gdself_method_fn: Callable,
+///
+///     #[export_tool_button(method="queue_free", name = "Base method")]
+///     base_method_fn: Callable,
+///
+///     #[export_tool_button(name = "Manual tool button")]
+///     manual_tool_button: Callable,
+///
+///     base: Base<Node>
+/// }
+///
+/// fn my_static_fn() {  }
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func(gd_self)]
+///     fn gd_self_method(this: Gd<Self>) { }
+///
+///     fn my_method(&mut self) { }
+/// }
+///
+/// # trait ExampleTrait {}
+/// impl ExampleTrait for MyStruct {}
+///
+/// // Shared function which takes dereference of Self.
+/// fn dyn_trait_fn(this: &mut dyn ExampleTrait) { }
+///
+/// #[godot_api]
+/// impl INode for MyStruct {
+///     fn on_notification(&mut self, what: NodeNotification) {
+///         match what {
+///             NodeNotification::ENTER_TREE | NodeNotification::EXTENSION_RELOADED => {
+///                 self.manual_tool_button = Callable::from_fn("manual fn", |_| {
+///                     godot_print!("hello from manual tool button!")
+///                 });
+///             }
+///             _ => {}
+///         }
+///     }
+/// }
+/// ```
+///
+/// See also in Godot docs:
+/// [`@export_tool_button`](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html#export-tool-button)
+///
+/// [editor/icons]: https://github.com/godotengine/godot/tree/master/editor/icons
+/// [Godot editor icons website]: https://godotengine.github.io/editor-icons/
+///
 /// ## Editor plugins
 ///
 /// Classes inheriting `EditorPlugin` will be automatically instantiated and added
@@ -612,7 +728,17 @@ use crate::util::{bail, ident, KvParser};
 )]
 #[proc_macro_derive(
     GodotClass,
-    attributes(class, base, hint, var, export, export_group, export_subgroup, init)
+    attributes(
+        class,
+        base,
+        hint,
+        var,
+        export,
+        export_group,
+        export_tool_button,
+        export_subgroup,
+        init
+    )
 )]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)

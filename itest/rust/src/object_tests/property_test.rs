@@ -4,14 +4,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+use std::cell::Cell;
+use std::rc::Rc;
 
 use godot::builtin::{
-    vdict, vslice, Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType,
+    vdict, vslice, Callable, Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType,
 };
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
-use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
+use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor, WithBaseField};
 use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
@@ -719,4 +721,63 @@ fn test_duplicate_retains_properties() {
     oneditor_node.free();
     duplicated.free();
     original.free();
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(init, tool)]
+struct ToolButtonExporter {
+    #[init(val = Default::default())]
+    counter: Rc<Cell<i32>>,
+
+    #[export_tool_button(fn = tool_button_static_fn, name = "tool button Static Fn")]
+    static_fn_tool_button: Callable,
+
+    #[export_tool_button(fn_self = Self::tool_button_self_fn, name="tool button Self::fn")]
+    self_fn_tool_button: Callable,
+
+    #[export_tool_button(method = "tool_button_func_fn", name = "tool button func fn")]
+    func_fn_tool_button: Callable,
+
+    #[export_tool_button(name = "manual fn")]
+    manual_fn_tool_button: Callable,
+
+    base: Base<RefCounted>,
+}
+
+fn tool_button_static_fn() {
+    // Throw your hands in the air - there isn't much we can do to test it really.
+}
+
+#[godot_api]
+impl ToolButtonExporter {
+    fn tool_button_self_fn(&mut self) {
+        self.counter.replace(42);
+    }
+
+    #[func(gd_self)]
+    fn tool_button_func_fn(mut this: Gd<Self>) {
+        this.bind_mut().counter.replace(33);
+    }
+}
+
+#[itest]
+fn test_tool_button() {
+    let obj = ToolButtonExporter::new_gd();
+    let counter = obj.bind().counter.clone();
+
+    let static_callable = obj.get("static_fn_tool_button").to::<Callable>();
+    assert!(static_callable.is_valid());
+
+    let self_fn_callable = obj.get("self_fn_tool_button").to::<Callable>();
+    self_fn_callable.call(&[]);
+    assert_eq!(42, counter.get());
+
+    let func_fn_callable = obj.get("func_fn_tool_button").to::<Callable>();
+    func_fn_callable.call(&[]);
+    assert_eq!(33, counter.get());
+
+    let manual_callable = obj.get("manual_fn_tool_button").to::<Callable>();
+    assert!(!manual_callable.is_valid());
 }

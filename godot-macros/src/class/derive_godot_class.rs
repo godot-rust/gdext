@@ -41,6 +41,21 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let mut struct_cfg = parse_struct_attributes(class)?;
     let mut fields = parse_fields(named_fields, struct_cfg.init_strategy)?;
 
+    if fields.has_tool_button {
+        if !struct_cfg.is_tool {
+            return bail!(
+                &class.name,
+                "`#[export_tool_button]` requires `#[class(tool)]`.",
+            );
+        }
+        if fields.base_field.is_none() {
+            return bail!(
+                &class.name,
+                "`#[export_tool_button]` requires the `Base<T>` field.",
+            );
+        }
+    }
+
     if struct_cfg.is_editor_plugin() {
         modifiers.push(quote! { with_editor_plugin })
     }
@@ -680,6 +695,7 @@ fn parse_fields(
     #[allow(unused_mut)] // Less chore when adding/removing deprecations.
     let mut deprecations = vec![];
     let mut errors = vec![];
+    let mut has_tool_button = false;
 
     // Attributes on struct fields
     for (named_field, _punct) in named_fields {
@@ -802,6 +818,26 @@ fn parse_fields(
             parser.finish()?;
         }
 
+        // #[export_tool_button(fn = ... | fn_self = ... | method = "...")]
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_tool_button")? {
+            if field.export.is_some() || field.var.is_some() {
+                return bail!(
+                    parser.span(),
+                    "`#[export_tool_button]` is mutably exclusive with `#[export]` and `#[var]`!"
+                );
+            }
+
+            let var = FieldVar::new_tool_button_from_kv(&mut parser)?;
+            field.var = Some(var);
+            field.default_val = Some(FieldDefault {
+                default_val: quote! { ::godot::builtin::Callable::invalid() },
+                span: parser.span(),
+            });
+            has_tool_button = true;
+
+            parser.finish()?;
+        }
+
         // #[hint] to override type inference (must be at the end).
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "hint")? {
             if let Some(override_base) = handle_opposite_keys(&mut parser, "base", "hint")? {
@@ -843,6 +879,7 @@ fn parse_fields(
         base_field,
         deprecations,
         errors,
+        has_tool_button,
     })
 }
 
@@ -911,7 +948,7 @@ fn validate_phantomvar_field(field: &Field, errors: &mut Vec<Error>) {
                 use #[var(get, ...)] and provide get_fieldname() fn."
             ));
         }
-        GetterSetter::Custom | GetterSetter::CustomRenamed(_) => {}
+        GetterSetter::ToolButton(_) | GetterSetter::Custom | GetterSetter::CustomRenamed(_) => {}
         GetterSetter::Disabled => {
             errors.push(error!(
                 field_var.span,
@@ -929,7 +966,7 @@ fn validate_phantomvar_field(field: &Field, errors: &mut Vec<Error>) {
                 use #[var(set, ...)] and provide set_fieldname() fn; or disable with #[var(no_set, ...)]."
             ));
         }
-        GetterSetter::Custom | GetterSetter::CustomRenamed(_) => {}
+        GetterSetter::ToolButton(_) | GetterSetter::Custom | GetterSetter::CustomRenamed(_) => {}
         GetterSetter::Disabled => {}
     }
 }

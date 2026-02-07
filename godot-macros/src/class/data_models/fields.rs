@@ -23,6 +23,9 @@ pub struct Fields {
 
     /// Errors during macro evaluation that shouldn't abort the execution of the macro.
     pub errors: Vec<venial::Error>,
+
+    /// True if any `#[export_tool_button]` has been declared.
+    pub has_tool_button: bool,
 }
 
 /// Fetches data for all named fields for a struct.
