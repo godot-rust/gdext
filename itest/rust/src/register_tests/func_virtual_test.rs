@@ -143,7 +143,7 @@ func _get_thing():
     return thing
 "#;
 
-    let mut script = create_gdscript(code);
+    let script = create_gdscript(code);
 
     let methods = script
         .get_script_method_list()

@@ -702,6 +702,10 @@ pub fn is_method_excluded_from_default_params(class_or_builtin_ty: Option<&TyNam
 
 /// Return `true` if a method should have `&self` receiver in Rust, `false` if `&mut self` and `None` if original qualifier should be kept.
 ///
+/// Applies a heuristic: `get_*`/`is_*`/`has_*` methods are treated as const (pure reads), unless they appear in an explicit deny-list
+/// of false positives (methods that actually mutate state, e.g. stream reads advancing a cursor). Reason for this is that Godot's advertised
+/// const-ness is often wrong, causing unnecessary `mut` bindings in Rust code.
+///
 /// In cases where the method falls under some general category (like getters) that have their own const-qualification overrides, `Some`
 /// should be returned to take precedence over general rules. Example: `FileAccess::get_pascal_string()` is mut, but would be const-qualified
 /// since it looks like a getter.
@@ -710,47 +714,53 @@ pub fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod
     match (class_name.godot_ty.as_str(), godot_method.name.as_str()) {
         // Changed to const.
         | ("Object", "to_string")
-        | ("MultiplayerApi", "has_multiplayer_peer")
-        | ("MultiplayerApi", "get_multiplayer_peer")
-        | ("MultiplayerApi", "get_unique_id")
-        | ("MultiplayerApi", "is_server")
-        | ("MultiplayerApi", "get_remote_sender_id")
-        | ("MultiplayerApi", "get_peers")
-        | ("MultiplayerApi", "get_default_interface")
         => Some(true),
 
         // Changed to mut.
         | ("EditorImportPlugin", "_import")
-        => Some(false),
+        // StreamPeer: read from stream, advancing cursor.
+        | ("StreamPeer", "get_8" | "get_16" | "get_32" | "get_64")
+        | ("StreamPeer", "get_u8" | "get_u16" | "get_u32" | "get_u64")
+        | ("StreamPeer", "get_half" | "get_float" | "get_double")
+        | ("StreamPeer", "get_string" | "get_utf8_string")
+        | ("StreamPeer", "get_data" | "get_partial_data")
+        | ("StreamPeer", "get_var")
 
-        // Needs some fixes to make sure _ex() builders have consistent signature, e.g. FileAccess::get_csv_line_full().
-        /*
-        | ("FileAccess", "get_16")
-        | ("FileAccess", "get_32")
-        | ("FileAccess", "get_64")
-        | ("FileAccess", "get_8")
-        | ("FileAccess", "get_csv_line")
-        | ("FileAccess", "get_real")
-        | ("FileAccess", "get_float")
-        | ("FileAccess", "get_double")
+        // PacketPeer: consume packet/variant from buffer.
+        | ("PacketPeer", "get_packet")
+        | ("PacketPeer", "get_var")
+
+        // FileAccess: read from file, advancing cursor.
+        // (get_as_text does not affect cursor).
+        | ("FileAccess", "get_8" | "get_16" | "get_32" | "get_64")
+        | ("FileAccess", "get_half" | "get_float" | "get_double" | "get_real" )
         | ("FileAccess", "get_var")
         | ("FileAccess", "get_line")
-        | ("FileAccess", "get_pascal_string") // already mut.
-        | ("StreamPeer", "get_8")
-        | ("StreamPeer", "get_16")
-        | ("StreamPeer", "get_32")
-        | ("StreamPeer", "get_64")
-        | ("StreamPeer", "get_float")
-        | ("StreamPeer", "get_double")
-        => Some(false),
-        */
-        
-        _ => {
-            // TODO Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
-            // As a default, set those to const.
+        | ("FileAccess", "get_csv_line")
+        | ("FileAccess", "get_buffer")
+        | ("FileAccess", "get_pascal_string")
 
-            None
-        },
+        // DirAccess: advance directory listing.
+        | ("DirAccess", "get_next")
+
+        // NavigationAgent2D/3D: updates internal path logic as side effect.
+        | ("NavigationAgent2D", "get_next_path_position")
+        | ("NavigationAgent3D", "get_next_path_position")
+
+        // GridMap: may trigger mesh baking as side effect -- internal fn make_baked_meshes() is mutable.
+        | ("GridMap", "get_bake_meshes")
+
+        // Node3D: creates interpolation pump on first call.
+        | ("Node3D", "get_global_transform_interpolated")
+        => Some(false),
+
+        // Heuristic: many Godot getters are not const-qualified despite being pure reads. Override get_*/is_*/has_* methods to const.
+        // Exceptions with actual side effects are listed as explicit Some(false) arms above.
+        _ if !godot_method.is_const && !godot_method.is_static && !godot_method.is_virtual
+            && ["get_", "is_", "has_"].iter().any(|p| godot_method.name.starts_with(p))
+        => Some(true),
+        
+        _ => None,
     }
 }
 
