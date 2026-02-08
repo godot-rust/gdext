@@ -17,7 +17,7 @@ use crate::class::{
 };
 use crate::util::{
     bail, error, format_funcs_collection_struct, ident, ident_respan, path_ends_with_complex,
-    KvParser,
+    require_api_version, KvParser,
 };
 use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
@@ -722,6 +722,12 @@ fn parse_fields(
             field.is_phantomvar = true;
         }
 
+        // ExportToolButton - `PhantomVar<Callable>` type inference
+        if path_ends_with_complex(&field.ty, "ExportToolButton") {
+            field.is_phantomvar = true;
+            has_tool_button = true;
+        }
+
         // #[init]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "init")? {
             // #[init] on fields is useless if there is no generated constructor.
@@ -818,8 +824,10 @@ fn parse_fields(
             parser.finish()?;
         }
 
-        // #[export_tool_button(fn = ... | fn_self = ... | method = "...")]
+        // #[export_tool_button(fn = ..., icon = "..", name = "..")]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_tool_button")? {
+            require_api_version!("4.4", parser.span(), "#[func(virtual)]")?;
+
             if field.export.is_some() || field.var.is_some() {
                 return bail!(
                     parser.span(),
@@ -827,14 +835,14 @@ fn parse_fields(
                 );
             }
 
-            let var = FieldVar::new_tool_button_from_kv(&mut parser)?;
+            let var = FieldVar::new_tool_button_from_kv(&mut parser, &field.name)?;
+
             field.var = Some(var);
             field.default_val = Some(FieldDefault {
-                default_val: quote! { ::godot::builtin::Callable::invalid() },
+                default_val: quote! { ::godot::register::property::PhantomVar::default() },
                 span: parser.span(),
             });
             has_tool_button = true;
-
             parser.finish()?;
         }
 
