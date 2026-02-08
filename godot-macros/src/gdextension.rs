@@ -6,9 +6,9 @@
  */
 
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 
-use crate::util::{bail, ident, validate_impl, KvParser};
+use crate::util::{bail, extract_typename, ident, validate_impl, KvParser};
 use crate::ParseResult;
 
 pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
@@ -26,6 +26,11 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
     }
 
     let drained_attributes = std::mem::take(&mut impl_decl.attributes);
+
+    if is_dependency_gdextension(&impl_decl.self_ty) {
+        return Ok(impl_decl.to_token_stream());
+    }
+
     let mut parser = KvParser::parse_required(&drained_attributes, "gdextension", &impl_decl)?;
     let entry_point = parser.handle_ident("entry_point")?;
     let entry_symbol = parser.handle_ident("entry_symbol")?;
@@ -75,4 +80,17 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
         #[cfg(target_os = "linux")]
         ::godot::sys::register_hot_reload_workaround!();
     })
+}
+
+/// Returns `true` if given crate is being used as a dependency for some other GDExtension.
+///
+/// Dependencies shouldn't generate any code related to library registration (such as Wasm preregistration, entry point, hotreload workaround),
+/// delegating this burden to the specified "main" GDExtension library instead.
+fn is_dependency_gdextension(implementor_ty: &venial::TypeExpr) -> bool {
+    let Some(main_gdextension) = option_env!("GODOT_RUST_MAIN_EXTENSION") else {
+        return false;
+    };
+    let typename =
+        extract_typename(implementor_ty).expect("`impl ExtensionLibrary` must have a typename");
+    typename.ident != main_gdextension
 }

@@ -165,7 +165,10 @@ fn delimiter_opening_char(delimiter: Delimiter) -> char {
 /// declaration of the form `impl MyTrait for SomeType`. The type `SomeType` is irrelevant in this example.
 pub(crate) fn is_impl_named(original_impl: &venial::Impl, name: &str) -> bool {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-    extract_typename(trait_name).is_some_and(|seg| seg.ident == name)
+    let implementor =
+        extract_typename(trait_name).expect("`impl ExtensionLibrary` must have a typename");
+
+    implementor.ident == name
 }
 
 /// Validates either:

@@ -13,6 +13,7 @@ members = [
     "itest/rust",
     "itest/repo-tweak",
     "itest/hot-reload/rust",
+    "itest/itest-dependency"
 ]
 
 # All dependencies except own crates of this project should be specified here, independently of whether they're dev, build or

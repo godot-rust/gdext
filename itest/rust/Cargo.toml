@@ -17,6 +17,7 @@ codegen-full-experimental = ["codegen-full", "godot/experimental-godot-api"]
 experimental-threads = ["godot/experimental-threads"]
 register-docs = ["godot/register-docs"]
 serde = ["dep:serde", "dep:serde_json", "godot/serde"]
+test-gdextension-dependency = ["dep:itest-dependency"]
 
 # Do not add features here that are 1:1 forwarded to the `godot` crate, unless they are needed by itest itself.
 # Instead, compile itest with `--features godot/my-feature`.
@@ -26,6 +27,9 @@ godot = { path = "../../godot", default-features = false, features = ["__trace"]
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 pin-project-lite = { workspace = true }
+# Required to test using another GDExtension as a dependency.
+# Requires compiling with `GODOT_RUST_MAIN_EXTENSION="IntegrationTests` env variable set.
+itest-dependency = { path = "../itest-dependency", optional = true }
 
 [build-dependencies]
 godot-bindings = { path = "../../godot-bindings" } # emit_godot_version_cfg

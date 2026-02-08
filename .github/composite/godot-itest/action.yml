@@ -51,6 +51,11 @@ inputs:
     default: ''
     description: "Extra values for the RUSTFLAGS env var"
 
+  rust-extra-env:
+    required: false
+    default: ''
+    description: "Extra env values to be passed during cargo build"
+
   rust-target:
     required: false
     default: ''
@@ -164,7 +169,7 @@ runs:
         fi
         
         # Keep `--no-default-features` even if it's currently redundant. Features may change.
-        cargo build -p itest --no-default-features ${{ inputs.rust-extra-args }} $targetArgs
+        ${{ inputs.rust-extra-env }} cargo build -p itest --no-default-features ${{ inputs.rust-extra-args }} $targetArgs
         
         # Instead of modifying .gdextension, rename the output directory.
         if [[ -n "$TARGET" ]]; then

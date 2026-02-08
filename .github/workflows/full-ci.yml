@@ -337,7 +337,8 @@ jobs:
             os: ubuntu-22.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features itest/codegen-full
+            rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
+            rust-extra-env: GODOT_RUST_MAIN_EXTENSION=IntegrationTests
             hot-reload: api-custom
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
@@ -472,6 +473,7 @@ jobs:
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+          rust-extra-env: ${{ matrix.rust-extra-env }}
           rust-target: ${{ matrix.rust-target }}
           rust-target-dir: ${{ matrix.rust-target-dir }}
           rust-cache-key: ${{ matrix.rust-cache-key }}
