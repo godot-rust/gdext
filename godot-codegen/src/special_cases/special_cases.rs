@@ -512,14 +512,26 @@ pub fn get_class_method_param_enum_replacement(
         ("Tree", "get_drop_mode_flags") => &[("", "Tree.DropModeFlags", true)],
         ("Tree", "set_drop_mode_flags") => &[("flags", "Tree.DropModeFlags", true)],
 
-        // TODO(v0.5):
-        // ("FBXDocument" | "GLTFDocument" | , "append_from_buffer" | "append_from_file" | "append_from_scene") => {
-        //    Maps to a "quasy-bitfield": EditorSceneFormatImporter has constants such as IMPORT_USE_NAMED_SKIN_BEADS, but not an actual enum.
-        //    See https://godot-rust.github.io/docs/gdext/master/godot/classes/struct.EditorSceneFormatImporter.html.
-        //    Note that FBXDocument inherits GLTFDocument, but the methods are exposed twice.
-        // }
         _ => &[],
     }
+
+    // TODO(v0.7): some Godot classes have loose constants (not proper enums) that act as bitfield flags, passed as `int` parameters.
+    // In addition to the method-param mapping above, such "quasi-bitfields" could be created based on class, e.g.:
+    //   "ClassName" => &[("TheBitfield", "PREFIX_")]
+    //
+    // Known cases:
+    // - EditorSceneFormatImporter.IMPORT_* (7 constants, values 1..64)
+    //   Used by GLTFDocument + FBXDocument methods: append_from_buffer, append_from_file, append_from_scene (param `flags`).
+    //   Note: FBXDocument inherits GLTFDocument, but the methods are exposed twice.
+    //
+    // - ENetPacketPeer.FLAG_* (FLAG_RELIABLE, FLAG_UNSEQUENCED, FLAG_UNRELIABLE_FRAGMENT)
+    //   Used by ENetPacketPeer::send (param `flags`).
+    //
+    // - RenderingServer.PARTICLES_EMIT_FLAG_* (5 constants, values 1..16)
+    //   Used by RenderingServer::particles_emit (param `emit_flags`).
+    //
+    // TileSetAtlasSource has bitfield-like constants (TRANSFORM_FLIP_H/V, TRANSFORM_TRANSPOSE), but those are OR'd into
+    // alternative tile IDs by the user, not passed as method parameters -- so they don't qualify here.
 }
 
 /// Returns whether a builtin method appears directly in the outer, public API (as opposed to private in `Inner*` structs).
