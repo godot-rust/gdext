@@ -344,6 +344,9 @@ pub fn safe_ident(s: &str) -> Ident {
 
         // Reserved 2018+
         | "try"
+
+        // Reserved 2024+
+        | "gen"
            => format_ident!("{}_", s),
 
          _ => ident(s)
