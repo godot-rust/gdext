@@ -20,7 +20,7 @@ pub use super::obj::{
     AsDyn, Base, DynGd, DynGdMut, DynGdRef, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId,
     OnEditor, OnReady, UserSingleton,
 };
-pub use super::register::property::{Export, PhantomVar, Var};
+pub use super::register::property::{Export, ExportToolButton, PhantomVar, Var};
 // Re-export macros.
 pub use super::register::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
 pub use super::tools::{load, save, try_load, try_save, GFile};

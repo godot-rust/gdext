@@ -428,6 +428,77 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// **Note**: As in GDScript, the class must be marked as a `tool` to be accessible in the editor (e.g., for use by editor plugins and inspectors).
 ///
+/// ## Export tool button
+///
+/// If you need to create a clickable inspector button on your tool class, you can use [`ExportToolButton`](../prelude/struct.ExportToolButton.html) with `#[export_tool_button]`.
+/// This exports a Callable property as a clickable button. When the button is pressed, the callable is called.
+///
+/// You can specify a custom icon name with `#[export_tool_button(..., icon="...")]`,
+/// which must match one of the icon file names from the [editor/icons] folder of the Godot source repository (case-sensitive).
+/// You can also browse the editor icons using the [Godot editor icons website].
+///
+/// ```
+/// # use godot::prelude::*;
+/// use godot::register::property::ExportToolButton;
+/// use godot::obj::WithBaseField;
+///
+/// #[derive(GodotClass)]
+/// #[class(init, tool, base = Node)]
+/// struct MyStruct {
+///     #[export_tool_button(fn = Self::my_fn, icon = "2DNodes")]
+///     tool_button: ExportToolButton,
+///     #[export_tool_button(fn = generic_fn, name = "My custom Name for Tool Button")]
+///     my_other_tool_button: ExportToolButton,
+///
+///     base: Base<Node>
+/// }
+///
+/// impl MyStruct {
+///     fn my_fn(&mut self) {
+///         // ..
+///     }
+/// }
+///
+/// fn generic_fn<T: GodotClass<Base=Node> + WithBaseField>(this: &mut T) {
+///     let mut node = Node::new_alloc();
+///     this.base_mut().add_child(&node);
+///     // ..
+/// }
+/// ```
+///
+/// A class with `#[export_tool_button]` fields must have a base field and must be a tool.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// // Not a tool.
+/// #[class(init, base = Node)]
+/// struct MyStruct {
+///     #[export_tool_button(fn = |_|)]
+///     tool_button: ExportToolButton,
+///     base: Base<Node>
+/// }
+/// ```
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base = Node)]
+/// struct MyStruct {
+///     #[export_tool_button(fn = |_|)]
+///     tool_button: ExportToolButton,
+///     // Base field is absent.
+/// }
+/// ```
+///
+/// This feature requires at least Godot 4.3.
+///
+/// See also in Godot docs:
+/// [`@export_tool_button`](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html#export-tool-button)
+///
+/// [editor/icons]: https://github.com/godotengine/godot/tree/master/editor/icons
+/// [Godot editor icons website]: https://godotengine.github.io/editor-icons/
+///
 /// ## Editor plugins
 ///
 /// Classes inheriting `EditorPlugin` will be automatically instantiated and added
@@ -611,7 +682,17 @@ use crate::util::{bail, ident, KvParser};
 )]
 #[proc_macro_derive(
     GodotClass,
-    attributes(class, base, hint, var, export, export_group, export_subgroup, init)
+    attributes(
+        class,
+        base,
+        hint,
+        var,
+        export,
+        export_group,
+        export_tool_button,
+        export_subgroup,
+        init
+    )
 )]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)

@@ -4,9 +4,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
-use godot::register::property::PhantomVar;
+use godot::builtin::Callable;
+use godot::classes::RefCounted;
+use godot::obj::{Base, NewGd, WithBaseField};
+use godot::register::property::{ExportToolButton, PhantomVar};
 use godot::register::{godot_api, GodotClass};
+
+use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(init)]
@@ -67,5 +71,44 @@ impl HasPhantomVar {
     #[func]
     fn set_bit_enum(&mut self, value: godot::global::KeyModifierMask) {
         self.bit_enum_value = value;
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[cfg(since_api = "4.4")]
+mod export_tool_button_test {
+    use super::*;
+    #[derive(GodotClass)]
+    #[class(init, tool)]
+    struct ToolButtonExporter {
+        #[export_tool_button(fn = |this: &mut Self| this.val = 42)]
+        my_tool_button: ExportToolButton,
+
+        #[export_tool_button(fn = Self::my_fn)]
+        other_tool_button: ExportToolButton,
+
+        val: i32,
+        base: Base<RefCounted>,
+    }
+
+    impl ToolButtonExporter {
+        fn my_fn(&mut self) {
+            self.val = 33;
+        }
+    }
+
+    #[itest]
+    fn test_tool_button() {
+        let tool_button_exporter = ToolButtonExporter::new_gd();
+        let tool_button_callable = tool_button_exporter.get("my_tool_button").to::<Callable>();
+        tool_button_callable.call(&[]);
+        assert_eq!(tool_button_exporter.bind().val, 42);
+
+        let tool_button_callable = tool_button_exporter
+            .get("other_tool_button")
+            .to::<Callable>();
+        tool_button_callable.call(&[]);
+        assert_eq!(tool_button_exporter.bind().val, 33);
     }
 }

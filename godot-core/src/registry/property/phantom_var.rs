@@ -237,3 +237,8 @@ unsafe impl<T: GodotConvert + Var> Sync for PhantomVar<T> {}
 /// ```
 #[allow(dead_code)]
 struct PhantomVarDoctests;
+
+/// A convenience wrapper for [`PhantomVar`], to be used with `#[export_tool_button]`.
+///
+/// See [`GodotClass`](../register/derive.GodotClass.html#export-tool-button) for more details.
+pub type ExportToolButton = PhantomVar<crate::builtin::Callable>;
