@@ -11,7 +11,7 @@ use quote::{format_ident, quote};
 
 use crate::generator::functions_common;
 use crate::generator::functions_common::{
-    make_arg_expr, make_param_or_field_type, FnArgExpr, FnCode, FnKind, FnParamDecl,
+    FnArgExpr, FnCode, FnKind, FnParamDecl, make_arg_expr, make_param_or_field_type,
 };
 use crate::models::domain::{FnParam, FnQualifier, Function, RustTy, TyName};
 use crate::util::{ident, safe_ident};
@@ -30,7 +30,9 @@ pub fn make_function_definition_with_defaults(
 
     let simple_fn_name = safe_ident(sig.name());
     let extended_fn_name = format_ident!("{}_ex", simple_fn_name);
-    let default_parameter_usage = format!("To set the default parameters, use [`Self::{extended_fn_name}`] and its builder methods.  See [the book](https://godot-rust.github.io/book/godot-api/functions.html#default-parameters) for detailed usage instructions.");
+    let default_parameter_usage = format!(
+        "To set the default parameters, use [`Self::{extended_fn_name}`] and its builder methods.  See [the book](https://godot-rust.github.io/book/godot-api/functions.html#default-parameters) for detailed usage instructions."
+    );
     let vis = functions_common::make_vis(sig.is_private());
 
     let (builder_doc, surround_class_path) = make_extender_doc(sig, &extended_fn_name);

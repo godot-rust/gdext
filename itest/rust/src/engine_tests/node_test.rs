@@ -7,11 +7,11 @@
 
 use std::str::FromStr;
 
-use godot::builtin::{vslice, NodePath};
+use godot::builtin::{NodePath, vslice};
 use godot::classes::{Node, Node3D};
 use godot::obj::NewAlloc;
 
-use crate::framework::{itest, TestContext};
+use crate::framework::{TestContext, itest};
 
 #[itest]
 fn node_get_node() {

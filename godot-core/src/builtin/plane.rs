@@ -8,10 +8,10 @@
 use std::ops::Neg;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{ApproxEq, FloatExt};
-use crate::builtin::{real, Vector3};
+use crate::builtin::{Vector3, real};
 
 /// 3D plane in [Hessian normal form](https://mathworld.wolfram.com/HessianNormalForm.html).
 ///

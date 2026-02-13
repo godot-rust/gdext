@@ -11,9 +11,9 @@ use std::{fmt, ptr};
 
 use godot_ffi as sys;
 use sys::types::OpaqueDictionary;
-use sys::{ffi_methods, interface_fn, GodotFfi};
+use sys::{GodotFfi, ffi_methods, interface_fn};
 
-use crate::builtin::{inner, VarArray, Variant};
+use crate::builtin::{VarArray, Variant, inner};
 use crate::meta::{ElementType, ExtVariantType, FromGodot, ToGodot};
 
 #[deprecated = "Renamed to `VarDictionary`; `Dictionary` will be reserved for typed dictionaries in the future."]
@@ -884,7 +884,7 @@ fn u8_to_bool(u: u8) -> bool {
 /// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
 #[macro_export]
 macro_rules! vdict {
-    ($($key:tt: $value:expr),* $(,)?) => {
+    ($($key:tt: $value:expr_2021),* $(,)?) => {
         {
             let mut d = $crate::builtin::VarDictionary::new();
             $(
@@ -901,7 +901,7 @@ macro_rules! vdict {
 #[macro_export]
 #[deprecated = "Migrate to `vdict!`. The name `dict!` will be used in the future for typed dictionaries."]
 macro_rules! dict {
-    ($($key:tt: $value:expr),* $(,)?) => {
+    ($($key:tt: $value:expr_2021),* $(,)?) => {
         $crate::vdict!(
             $($key: $value),*
         )

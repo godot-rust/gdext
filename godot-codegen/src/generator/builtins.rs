@@ -18,7 +18,7 @@ use crate::models::domain::{
     BuiltinClass, BuiltinMethod, ClassLike, ExtensionApi, FlowDirection, FnDirection, Function,
     ModName, RustTy, TyName,
 };
-use crate::{conv, util, SubmitFn};
+use crate::{SubmitFn, conv, util};
 
 // Shared with native_structures.rs.
 pub struct GeneratedBuiltin {

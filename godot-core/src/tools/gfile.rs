@@ -8,12 +8,12 @@
 use std::cmp;
 use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
 
-use crate::builtin::{real, GString, PackedByteArray, PackedStringArray, Variant};
-use crate::classes::file_access::{CompressionMode, ModeFlags};
+use crate::builtin::{GString, PackedByteArray, PackedStringArray, Variant, real};
 use crate::classes::FileAccess;
+use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::global::Error;
 use crate::meta::error::IoError;
-use crate::meta::{arg_into_ref, AsArg};
+use crate::meta::{AsArg, arg_into_ref};
 use crate::obj::Gd;
 
 /// Open a file for reading or writing.

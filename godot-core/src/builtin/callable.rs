@@ -9,9 +9,9 @@ use std::sync::OnceLock;
 use std::{fmt, ptr};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-use crate::builtin::{inner, AnyArray, CowStr, StringName, Variant};
+use crate::builtin::{AnyArray, CowStr, StringName, Variant, inner};
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
@@ -583,6 +583,7 @@ mod custom_callable {
 
         /// # Safety
         /// Returns an unbounded reference. `void_ptr` must be a valid pointer to a `CallableUserdata`.
+        #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
         unsafe fn inner_from_raw<'a>(void_ptr: *mut std::ffi::c_void) -> &'a mut T {
             let ptr = void_ptr as *mut CallableUserdata<T>;
             &mut (*ptr).inner
@@ -654,19 +655,25 @@ mod custom_callable {
         r_return: sys::GDExtensionVariantPtr,
         r_error: *mut sys::GDExtensionCallError,
     ) {
-        let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
+        // SAFETY (whole function):
+        // all pointers are valid per Godot GDExtension calling convention; callable_userdata set during construction.
+
+        let arg_refs: &[&Variant] =
+            unsafe { Variant::borrow_ref_slice(p_args, p_argument_count as usize) };
 
         let name = {
-            let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
+            let c: &C = unsafe { CallableUserdata::inner_from_raw(callable_userdata) };
             c.callable_name()
         };
         let ctx = meta::CallContext::custom_callable(name.as_ref());
 
-        crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
-            // Get the RustCallable again inside closure so it doesn't have to be UnwindSafe.
-            let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
+        let err = unsafe { &mut *r_error };
+        crate::private::handle_fallible_varcall(&ctx, err, move || {
+            // Re-borrow inside closure so C doesn't have to be UnwindSafe.
+            let c: &mut C = unsafe { CallableUserdata::inner_from_raw(callable_userdata) };
             let result = c.invoke(arg_refs);
-            meta::varcall_return_checked(Ok(result), r_return, r_error);
+
+            unsafe { meta::varcall_return_checked(Ok(result), r_return, r_error) };
             Ok(())
         });
     }
@@ -681,14 +688,20 @@ mod custom_callable {
         F: FnMut(&[&Variant]) -> R,
         R: ToGodot,
     {
-        let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
+        // SAFETY (whole function):
+        // all pointers are valid per Godot GDExtension calling convention; callable_userdata set during construction.
 
-        let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
+        let arg_refs: &[&Variant] =
+            unsafe { Variant::borrow_ref_slice(p_args, p_argument_count as usize) };
+
+        let w: &FnWrapper<F> = unsafe { CallableUserdata::inner_from_raw(callable_userdata) };
         let ctx = meta::CallContext::custom_callable(&w.name);
 
-        crate::private::handle_fallible_varcall(&ctx, &mut *r_error, move || {
-            // Get the FnWrapper again inside closure so the FnMut doesn't have to be UnwindSafe.
-            let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
+        let err = unsafe { &mut *r_error };
+        crate::private::handle_fallible_varcall(&ctx, err, move || {
+            // Re-borrow inside closure so FnMut doesn't have to be UnwindSafe.
+            let w: &mut FnWrapper<F> =
+                unsafe { CallableUserdata::inner_from_raw(callable_userdata) };
 
             // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
             // See comments in itest callable_call() for details.
@@ -700,26 +713,29 @@ mod custom_callable {
             );
 
             let result = (w.rust_function)(arg_refs).to_variant();
-            meta::varcall_return_checked(Ok(result), r_return, r_error);
+            unsafe { meta::varcall_return_checked(Ok(result), r_return, r_error) };
             Ok(())
         });
     }
 
-    /** `T` here is entire object stored in [`CallableUserdata`], not just the actual [`RustCallable`] or closure instance. */
+    /// `T` here is entire object stored in [`CallableUserdata`], not just the actual [`RustCallable`] or closure instance.
     pub unsafe extern "C" fn rust_callable_destroy<T>(callable_userdata: *mut std::ffi::c_void) {
         let rust_ptr = callable_userdata as *mut CallableUserdata<T>;
-        let _drop = Box::from_raw(rust_ptr);
+
+        // SAFETY: pointer was extracted using Box::into_raw().
+        let _drop = unsafe { Box::from_raw(rust_ptr) };
     }
 
     pub unsafe extern "C" fn rust_callable_hash<C: RustCallable + Hash>(
         callable_userdata: *mut std::ffi::c_void,
     ) -> u32 {
-        let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
+        let c: &C = unsafe { CallableUserdata::inner_from_raw(callable_userdata) };
 
         // Just cut off top bits, not best-possible hash.
         sys::hash_value(c) as u32
     }
 
+    #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
     pub unsafe extern "C" fn rust_callable_equal<C: RustCallable + PartialEq>(
         callable_userdata_a: *mut std::ffi::c_void,
         callable_userdata_b: *mut std::ffi::c_void,
@@ -730,6 +746,7 @@ mod custom_callable {
         sys::conv::bool_to_sys(a == b)
     }
 
+    #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
     pub unsafe extern "C" fn rust_callable_to_string_display<C: RustCallable + fmt::Display>(
         callable_userdata: *mut std::ffi::c_void,
         r_is_valid: *mut sys::GDExtensionBool,
@@ -743,6 +760,7 @@ mod custom_callable {
         *r_is_valid = sys::conv::SYS_TRUE;
     }
 
+    #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
     pub unsafe extern "C" fn rust_callable_to_string_named<F>(
         callable_userdata: *mut std::ffi::c_void,
         r_is_valid: *mut sys::GDExtensionBool,
@@ -760,7 +778,7 @@ mod custom_callable {
     pub unsafe extern "C" fn rust_callable_is_valid_custom<C: RustCallable>(
         callable_userdata: *mut std::ffi::c_void,
     ) -> sys::GDExtensionBool {
-        let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
+        let c: &C = unsafe { CallableUserdata::inner_from_raw(callable_userdata) };
         let valid = c.is_valid();
 
         sys::conv::bool_to_sys(valid)

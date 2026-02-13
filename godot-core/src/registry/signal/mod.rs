@@ -32,7 +32,7 @@ pub mod re_export {
 // Used in `godot::private` module.
 pub mod priv_re_export {
     pub use super::signal_object::{
-        signal_collection_to_base, signal_collection_to_base_mut, UserSignalObject,
+        UserSignalObject, signal_collection_to_base, signal_collection_to_base_mut,
     };
 }
 

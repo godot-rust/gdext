@@ -143,11 +143,7 @@ impl<'a, T> InaccessibleGuardBlocking<'a, T> {
             self.inner.can_drop()
         };
 
-        if !can_drop {
-            Err(self)
-        } else {
-            Ok(())
-        }
+        if !can_drop { Err(self) } else { Ok(()) }
     }
 }
 

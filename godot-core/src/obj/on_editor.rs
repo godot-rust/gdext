@@ -250,7 +250,9 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
                 };
             }
             OnEditorState::Initialized(_) => {
-                panic!("Given OnEditor value has been already initialized; did you call init() more than once?")
+                panic!(
+                    "Given OnEditor value has been already initialized; did you call init() more than once?"
+                )
             }
         }
     }

@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{to_usize, Array, Callable, VarArray, Variant};
+use crate::builtin::{Array, Callable, VarArray, Variant, to_usize};
 use crate::meta::{ArrayElement, AsArg};
 use crate::{meta, sys};
 

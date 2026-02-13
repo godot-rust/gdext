@@ -13,9 +13,9 @@ use crate::builtin::{Callable, Variant};
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
-use crate::obj::{bounds, AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor};
+use crate::obj::{AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor, bounds};
 use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
-use crate::registry::property::{object_export_element_type_string, Export, Var};
+use crate::registry::property::{Export, Var, object_export_element_type_string};
 use crate::{meta, sys};
 
 /// Smart pointer integrating Rust traits via `dyn` dispatch.

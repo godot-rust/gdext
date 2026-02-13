@@ -76,7 +76,7 @@ pub use raw_ptr::{FfiRawPointer, RawPtr};
 pub use signature::trace;
 #[doc(hidden)]
 pub use signature::*;
-pub use signed_range::{wrapped, SignedRange};
+pub use signed_range::{SignedRange, wrapped};
 pub use traits::{ArrayElement, GodotImmutable, GodotType, PackedArrayElement};
 pub use uniform_object_deref::UniformObjectDeref;
 
@@ -86,8 +86,8 @@ pub use crate::arg_into_owned;
 // Crate-local re-exports
 mod reexport_crate {
     pub(crate) use super::traits::{
-        element_godot_type_name, element_variant_type, ffi_variant_type, ExtVariantType,
-        GodotFfiVariant, GodotNullableFfi,
+        ExtVariantType, GodotFfiVariant, GodotNullableFfi, element_godot_type_name,
+        element_variant_type, ffi_variant_type,
     };
     // Private imports for this module only.
     pub(super) use crate::registry::method::MethodParamOrReturnInfo;
@@ -102,5 +102,7 @@ pub(crate) use reexport_crate::*;
 /// # Safety
 /// Must not use meta facilities (e.g. `ClassId`) after this call.
 pub(crate) unsafe fn cleanup() {
-    class_id::cleanup();
+    unsafe {
+        class_id::cleanup();
+    }
 }

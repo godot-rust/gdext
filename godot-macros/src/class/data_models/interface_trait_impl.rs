@@ -6,12 +6,12 @@
  */
 
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use crate::class::data_models::func::validate_receiver_extract_gdself;
-use crate::class::{into_signature_info, make_virtual_callback, BeforeKind, SignatureInfo};
-use crate::util::{bail, ident, KvParser};
-use crate::{util, ParseResult};
+use crate::class::{BeforeKind, SignatureInfo, into_signature_info, make_virtual_callback};
+use crate::util::{KvParser, bail, ident};
+use crate::{ParseResult, util};
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`.
 pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<TokenStream> {
@@ -698,12 +698,13 @@ fn make_inner_virtual_method_call(
 }
 
 fn is_gd_self(attributes: &[venial::Attribute]) -> ParseResult<bool> {
-    if let Some(mut parser) = KvParser::parse(attributes, "func")? {
-        let has_gd_self = parser.handle_alone("gd_self")?;
-        parser.finish()?;
-        Ok(has_gd_self)
-    } else {
-        Ok(false)
+    match KvParser::parse(attributes, "func")? {
+        Some(mut parser) => {
+            let has_gd_self = parser.handle_alone("gd_self")?;
+            parser.finish()?;
+            Ok(has_gd_self)
+        }
+        _ => Ok(false),
     }
 }
 

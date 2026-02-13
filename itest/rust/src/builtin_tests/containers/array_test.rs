@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::meta::{wrapped, ElementType};
+use godot::meta::{ElementType, wrapped};
 use godot::prelude::*;
 
 use crate::framework::{assert_match, create_gdscript, expect_panic, itest};
@@ -653,7 +653,9 @@ fn array_resize() {
     assert_eq!(a.len(), 10);
     assert_eq!(
         a,
-        array!["hello", "bar", "mixed", "baz", "meow", &new, &new, &new, &new, &new]
+        array![
+            "hello", "bar", "mixed", "baz", "meow", &new, &new, &new, &new, &new
+        ]
     );
 
     a.resize(2, &new);

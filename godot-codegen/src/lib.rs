@@ -40,7 +40,7 @@ use crate::generator::{
     generate_sys_module_file, generate_sys_utilities_file, virtual_definitions,
 };
 use crate::models::domain::{ApiView, ExtensionApi};
-use crate::models::json::{load_extension_api, JsonExtensionApi};
+use crate::models::json::{JsonExtensionApi, load_extension_api};
 
 pub type SubmitFn = dyn FnMut(PathBuf, TokenStream);
 
@@ -83,7 +83,7 @@ mod rustfmt {
         for files in out_files.chunks(20) {
             let mut command = Command::new("rustfmt");
             command.arg("--edition");
-            command.arg("2021");
+            command.arg("2024");
 
             for file in files {
                 command.arg(file);

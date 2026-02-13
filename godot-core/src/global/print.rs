@@ -25,22 +25,24 @@ macro_rules! inner_function {
 #[doc(hidden)]
 macro_rules! inner_godot_msg {
     // FIXME expr needs to be parenthesised, see usages
-    ($godot_fn:ident; $fmt:literal $(, $args:expr)* $(,)?) => {
+    ($godot_fn:ident; $fmt:literal $(, $args:expr_2021)* $(,)?) => {
     //($($args:tt),* $(,)?) => {
-        unsafe {
+        {
             let msg = format!("{}\0", format_args!($fmt $(, $args)*));
             // Godot supports Unicode messages, not only ASCII. See `do_panic` test.
 
             // Check whether engine is loaded, otherwise fall back to stderr.
             if $crate::sys::is_initialized() {
                 let function = format!("{}\0", $crate::inner_function!());
-                $crate::sys::interface_fn!($godot_fn)(
+                // SAFETY: interface_fn! returns valid function pointer; string pointers are valid for the call duration.
+                #[allow(unused_unsafe)]
+                unsafe { $crate::sys::interface_fn!($godot_fn)(
                     $crate::sys::c_str_from_str(&msg),
                     $crate::sys::c_str_from_str(&function),
                     $crate::sys::c_str_from_str(concat!(file!(), "\0")),
                     line!() as i32,
                     false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
-                );
+                ) };
             } else {
                 eprintln!("[{}] {}", stringify!($godot_fn), &msg[..msg.len() - 1]);
             }
@@ -58,7 +60,7 @@ macro_rules! inner_godot_msg {
 /// _Godot equivalent: [`@GlobalScope.push_warning()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-warning)_.
 #[macro_export]
 macro_rules! godot_warn {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {
+    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
         $crate::inner_godot_msg!(print_warning; $fmt $(, $args)*);
     };
 }
@@ -74,7 +76,7 @@ macro_rules! godot_warn {
 /// _Godot equivalent: [`@GlobalScope.push_error()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-error)_.
 #[macro_export]
 macro_rules! godot_error {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {
+    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
         $crate::inner_godot_msg!(print_error; $fmt $(, $args)*);
     };
 }
@@ -89,7 +91,7 @@ macro_rules! godot_error {
 ///
 #[macro_export]
 macro_rules! godot_script_error {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {
+    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
         $crate::inner_godot_msg!(print_script_error; $fmt $(, $args)*);
     };
 }
@@ -115,7 +117,7 @@ macro_rules! godot_script_error {
 /// _Godot equivalent: [`@GlobalScope.print()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print)_.
 #[macro_export]
 macro_rules! godot_print {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {
+    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
         $crate::global::print(&[
             $crate::builtin::Variant::from(
                 format!($fmt $(, $args)*)
@@ -131,7 +133,7 @@ macro_rules! godot_print {
 /// _Godot equivalent: [`@GlobalScope.print_rich()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print-rich)_.
 #[macro_export]
 macro_rules! godot_print_rich {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {
+    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
         $crate::global::print_rich(&[
             $crate::builtin::Variant::from(
                 format!($fmt $(, $args)*)
@@ -160,7 +162,7 @@ macro_rules! godot_print_rich {
 /// _Godot equivalent: [`@GlobalScope.str()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-str)_.
 #[macro_export]
 macro_rules! godot_str {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {
+    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
         $crate::global::str(&[
             $crate::builtin::Variant::from(
                 format!($fmt $(, $args)*)

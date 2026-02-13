@@ -21,7 +21,7 @@ use crate::models::domain::{
     ModName, TyName,
 };
 use crate::util::{ident, make_string_name};
-use crate::{util, SubmitFn};
+use crate::{SubmitFn, util};
 
 pub fn generate_class_files(
     api: &ExtensionApi,

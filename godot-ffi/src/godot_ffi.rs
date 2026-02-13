@@ -237,19 +237,19 @@ macro_rules! ffi_methods_one {
     // type $Ptr = *mut Self
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_from_sys:ident = new_from_sys) => {
         $( #[$attr] )? $vis
-        unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self {
+        unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self { unsafe {
             let borrowed = &*ptr.cast::<Self>();
             borrowed.clone()
-        }
+        }}
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_uninit:ident = new_with_uninit) => {
         $( #[$attr] )? $vis
-        unsafe fn $new_with_uninit(init: impl FnOnce(<$Ptr as $crate::SysPtr>::Uninit)) -> Self {
+        unsafe fn $new_with_uninit(init: impl FnOnce(<$Ptr as $crate::SysPtr>::Uninit)) -> Self { unsafe {
             let mut raw = std::mem::MaybeUninit::<Self>::uninit();
             init(raw.as_mut_ptr().cast());
 
             raw.assume_init()
-        }
+        }}
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
@@ -273,15 +273,15 @@ macro_rules! ffi_methods_one {
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self { unsafe {
             Self::new_from_sys(ptr.cast())
-        }
+        }}
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $move_return_ptr(self, dst: $Ptr, _call_type: $crate::PtrcallType) {
+        unsafe fn $move_return_ptr(self, dst: $Ptr, _call_type: $crate::PtrcallType) { unsafe {
             *(dst.cast::<Self>()) = self
-        }
+        }}
     };
 }
 

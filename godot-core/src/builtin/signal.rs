@@ -8,11 +8,11 @@
 use std::{fmt, ptr};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-use crate::builtin::{inner, Array, Callable, StringName, VarDictionary, Variant};
-use crate::classes::object::ConnectFlags;
+use crate::builtin::{Array, Callable, StringName, VarDictionary, Variant, inner};
 use crate::classes::Object;
+use crate::classes::object::ConnectFlags;
 use crate::global::Error;
 use crate::meta;
 use crate::meta::{FromGodot, GodotType, ToGodot};

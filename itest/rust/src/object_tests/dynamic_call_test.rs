@@ -8,7 +8,7 @@
 use std::error::Error;
 use std::sync::{Arc, Mutex};
 
-use godot::builtin::{vslice, Variant, Vector3};
+use godot::builtin::{Variant, Vector3, vslice};
 use godot::classes::{Node, Node3D, Object};
 use godot::init::GdextBuild;
 use godot::meta::error::CallError;

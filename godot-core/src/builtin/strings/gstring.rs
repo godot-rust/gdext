@@ -11,12 +11,12 @@ use std::fmt::Write;
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
-use sys::{ffi_methods, interface_fn, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods, interface_fn};
 
-use crate::builtin::strings::{pad_if_needed, Encoding};
-use crate::builtin::{inner, NodePath, StringName, Variant};
-use crate::meta::error::StringError;
+use crate::builtin::strings::{Encoding, pad_if_needed};
+use crate::builtin::{NodePath, StringName, Variant, inner};
 use crate::meta::AsArg;
+use crate::meta::error::StringError;
 use crate::{impl_shared_string_api, meta};
 
 /// Godot's reference counted string type.
@@ -235,8 +235,10 @@ impl GString {
     /// - `ptr` must point to a live `GString` for the duration of `'a`.
     /// - Must be exclusive - no other reference to given `GString` instance can exist for the duration of `'a`.
     pub(crate) unsafe fn borrow_string_sys_mut<'a>(ptr: sys::GDExtensionStringPtr) -> &'a mut Self {
-        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
-        &mut *(ptr.cast::<GString>())
+        unsafe {
+            sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
+            &mut *(ptr.cast::<GString>())
+        }
     }
 
     /// Moves this string into a string sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
@@ -245,9 +247,11 @@ impl GString {
     ///
     /// `dst` must be a valid string pointer.
     pub(crate) unsafe fn move_into_string_ptr(self, dst: sys::GDExtensionStringPtr) {
-        let dst: sys::GDExtensionTypePtr = dst.cast();
+        unsafe {
+            let dst: sys::GDExtensionTypePtr = dst.cast();
 
-        self.move_return_ptr(dst, sys::PtrcallType::Standard);
+            self.move_return_ptr(dst, sys::PtrcallType::Standard);
+        }
     }
 
     meta::declare_arg_method! {

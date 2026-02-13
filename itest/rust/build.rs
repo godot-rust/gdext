@@ -29,13 +29,13 @@ struct Input {
 macro_rules! pushs {
     (
         $inputs:ident;
-        $GDScriptTy:expr,
+        $GDScriptTy:expr_2021,
         $RustTy:ty,
-        $gdscript_val:expr,
-        $rust_val:expr,
-        $property:expr,
-        $export:expr,
-        $initializer:expr
+        $gdscript_val:expr_2021,
+        $rust_val:expr_2021,
+        $property:expr_2021,
+        $export:expr_2021,
+        $initializer:expr_2021
         $(; $($extra:tt)* )?
     ) => {
         $inputs.push(Input {
@@ -57,25 +57,25 @@ macro_rules! pushs {
 
 /// Push simple GDScript expression, outside string
 macro_rules! push {
-    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $val:expr) => {
+    ($inputs:ident; $GDScriptTy:expr_2021, $RustTy:ty, $val:expr_2021) => {
         push!($inputs; $GDScriptTy, $RustTy, $val, $val);
     };
 
-    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $gdscript_val:expr, $rust_val:expr) => {
+    ($inputs:ident; $GDScriptTy:expr_2021, $RustTy:ty, $gdscript_val:expr_2021, $rust_val:expr_2021) => {
         pushs!($inputs; $GDScriptTy, $RustTy, stringify!($gdscript_val), $rust_val, true, true, None);
     };
 }
 
 macro_rules! push_newtype {
-    ($inputs:ident; $GDScriptTy:expr, $name:ident($T:ty), $val:expr) => {
+    ($inputs:ident; $GDScriptTy:expr_2021, $name:ident($T:ty), $val:expr_2021) => {
         push_newtype!($inputs; $GDScriptTy, $name($T), $val, $name($val));
     };
 
-    ($inputs:ident; $GDScriptTy:expr, $name:ident($T:ty), $gdscript_val:expr, $rust_val:expr) => {
+    ($inputs:ident; $GDScriptTy:expr_2021, $name:ident($T:ty), $gdscript_val:expr_2021, $rust_val:expr_2021) => {
         push_newtype!(@s $inputs; $GDScriptTy, $name($T), stringify!($gdscript_val), $rust_val);
     };
 
-    (@s $inputs:ident; $GDScriptTy:expr, $name:ident($T:ty), $gdscript_val:expr, $rust_val:expr) => {
+    (@s $inputs:ident; $GDScriptTy:expr_2021, $name:ident($T:ty), $gdscript_val:expr_2021, $rust_val:expr_2021) => {
         pushs!(
             $inputs; $GDScriptTy, $name, $gdscript_val, $rust_val, false, false, None;
 
@@ -293,7 +293,7 @@ fn rustfmt_if_needed(out_files: Vec<std::path::PathBuf>) {
         .arg("run")
         .arg("stable")
         .arg("rustfmt")
-        .arg("--edition=2021");
+        .arg("--edition=2024");
 
     for file in out_files {
         //println!("Format {file:?}");

@@ -7,9 +7,9 @@
 
 use proc_macro2::{Punct, TokenStream};
 
+use crate::ParseResult;
 use crate::class::Field;
 use crate::util::bail;
-use crate::ParseResult;
 
 pub struct Fields {
     /// All fields except `base_field`.

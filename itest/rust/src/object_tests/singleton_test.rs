@@ -8,7 +8,7 @@
 use godot::builtin::GString;
 use godot::classes::{Input, Os};
 use godot::obj::{Gd, Singleton};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
 

@@ -9,7 +9,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
 use crate::util::bail;
-use crate::{util, ParseResult};
+use crate::{ParseResult, util};
 
 pub struct ConstDefinition {
     pub raw_constant: venial::Constant,

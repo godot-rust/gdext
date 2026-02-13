@@ -16,6 +16,10 @@ members = [
     "itest/itest-dependency"
 ]
 
+[workspace.package]
+edition = "2024"
+rust-version = "1.87"
+
 # All dependencies except own crates of this project should be specified here, independently of whether they're dev, build or
 # regular dependencies. Sort alphabetically within each section; comments about a dependency come on the section header.
 [workspace.dependencies]

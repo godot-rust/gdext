@@ -15,9 +15,9 @@ use godot::classes::{
 use godot::global::{Error, MethodFlags};
 use godot::meta::error::CallErrorType;
 use godot::meta::{ClassId, FromGodot, MethodInfo, PropertyInfo, RawPtr, ToGodot};
-use godot::obj::script::{create_script_instance, ScriptInstance, SiMut};
+use godot::obj::script::{ScriptInstance, SiMut, create_script_instance};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
 
@@ -41,9 +41,9 @@ impl IScriptExtension for TestScript {
         true
     }
 
-    unsafe fn instance_create_rawptr(&self, for_object: Gd<Object>) -> RawPtr<*mut c_void> {
+    unsafe fn instance_create_rawptr(&self, for_object: Gd<Object>) -> RawPtr<*mut c_void> { unsafe {
         create_script_instance(TestScriptInstance::new(self.to_gd().upcast()), for_object)
-    }
+    }}
 
     fn get_language(&self) -> Option<Gd<ScriptLanguage>> {
         Some(self.language.clone().upcast())

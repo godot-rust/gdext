@@ -9,10 +9,10 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{GlamConv, GlamType};
-use crate::builtin::{inner, real, RVec2, Vector2, Vector2Axis};
+use crate::builtin::{RVec2, Vector2, Vector2Axis, inner, real};
 
 /// Vector used for 2D math using integer coordinates.
 ///

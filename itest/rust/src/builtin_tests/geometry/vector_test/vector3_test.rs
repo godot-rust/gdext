@@ -6,9 +6,9 @@
  */
 
 use godot::builtin::inner::InnerVector3;
-use godot::builtin::math::{assert_eq_approx, ApproxEq};
+use godot::builtin::math::{ApproxEq, assert_eq_approx};
 use godot::builtin::real_consts::{FRAC_PI_4, PI};
-use godot::builtin::{real, Vector3, Vector3Axis};
+use godot::builtin::{Vector3, Vector3Axis, real};
 
 use crate::framework::itest;
 

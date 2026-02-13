@@ -6,9 +6,9 @@
  */
 
 use godot::builtin::Variant;
-use godot::prelude::{varray, Callable, RustCallable};
+use godot::prelude::{Callable, RustCallable, varray};
 
-use crate::framework::{bench, bench_measure, BenchResult};
+use crate::framework::{BenchResult, bench, bench_measure};
 
 #[bench(manual)]
 fn callable_callv_rust_fn() -> BenchResult {

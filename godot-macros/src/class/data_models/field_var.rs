@@ -6,15 +6,15 @@
  */
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, quote_spanned, ToTokens};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
 use venial::TypeExpr;
 
 use crate::class::{
-    into_signature_info, make_accessor_type_check, make_method_registration, Field, FieldHint,
-    FuncDefinition,
+    Field, FieldHint, FuncDefinition, into_signature_info, make_accessor_type_check,
+    make_method_registration,
 };
-use crate::util::{ident, make_funcs_collection_constant, KvParser};
-use crate::{util, ParseResult};
+use crate::util::{KvParser, ident, make_funcs_collection_constant};
+use crate::{ParseResult, util};
 
 /// Store info from `#[var]` attribute.
 #[derive(Clone, Debug)]
@@ -66,18 +66,19 @@ impl FieldVar {
             FieldHint::Inferred
         };
 
-        let usage_flags = if let Some(mut parser) = parser.handle_array("usage_flags")? {
-            let mut flags = Vec::new();
+        let usage_flags = match parser.handle_array("usage_flags")? {
+            Some(mut parser) => {
+                let mut flags = Vec::new();
 
-            while let Some(flag) = parser.next_ident()? {
-                flags.push(flag)
+                while let Some(flag) = parser.next_ident()? {
+                    flags.push(flag)
+                }
+
+                parser.finish()?;
+
+                UsageFlags::Custom(flags)
             }
-
-            parser.finish()?;
-
-            UsageFlags::Custom(flags)
-        } else {
-            UsageFlags::Inferred
+            _ => UsageFlags::Inferred,
         };
 
         Ok(FieldVar {
@@ -459,7 +460,7 @@ impl GetterSetterImpl {
 
         let function_body = quote_spanned! { field_ty_span=>
             let mut obj = self.to_gd();
-            #[allow(clippy::redundant_closure_call)]
+            #[allow(clippy::redundant_closure_call, clippy::explicit_auto_deref)]
             Callable::from_fn(#callable_name, move |_args| (#tool_button_fn)(&mut *obj.bind_mut()))
         };
 

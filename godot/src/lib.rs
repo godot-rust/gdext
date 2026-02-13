@@ -222,8 +222,10 @@ compile_error!(
     not(feature = "api-custom"),
     not(feature = "api-custom-json")
 ))]
-compile_error!("The feature `double-precision` currently requires `api-custom` or `api-custom-json` due to incompatibilities in the GDExtension API JSON. \
-See: https://github.com/godotengine/godot/issues/86346");
+compile_error!(
+    "The feature `double-precision` currently requires `api-custom` or `api-custom-json` due to incompatibilities in the GDExtension API JSON. \
+See: https://github.com/godotengine/godot/issues/86346"
+);
 
 // On non-Emscripen targets, wasm-ld will insert a call to __wasm_call_ctors (which calls all constructors) to the start all exported functions,
 // if it detects that __wasm_call_ctors is never called and not exported. This could cause constructors to run multiple times.
@@ -251,11 +253,11 @@ pub mod init {
 
 /// Register/export Rust symbols to Godot: classes, methods, enums...
 pub mod register {
-    pub use godot_core::registry::property;
-    pub use godot_core::registry::signal::re_export::*;
     #[cfg(feature = "__codegen-full")]
     pub use godot_core::registry::RpcConfig;
-    pub use godot_macros::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
+    pub use godot_core::registry::property;
+    pub use godot_core::registry::signal::re_export::*;
+    pub use godot_macros::{Export, GodotClass, GodotConvert, Var, godot_api, godot_dyn};
 
     /// Re-exports used by proc-macro API.
     #[doc(hidden)]

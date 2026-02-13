@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{real, Vector3Axis, Vector3i};
+use godot::builtin::{Vector3Axis, Vector3i, real};
 
 use crate::framework::itest;
 

@@ -308,7 +308,7 @@ impl fmt::Display for FromFfiError {
         let target = match self {
             Self::NullRawGd => return write!(f, "`Gd` cannot be null"),
             Self::WrongObjectType => {
-                return write!(f, "given object cannot be cast to target type")
+                return write!(f, "given object cannot be cast to target type");
             }
             Self::I8 => "i8",
             Self::U8 => "u8",

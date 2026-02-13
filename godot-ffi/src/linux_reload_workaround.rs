@@ -35,7 +35,7 @@ pub fn default_set_hot_reload() {
 #[macro_export]
 macro_rules! register_hot_reload_workaround {
     () => {
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #[doc(hidden)]
         pub unsafe extern "C" fn __cxa_thread_atexit_impl(
             func: *mut ::std::ffi::c_void,

@@ -4,11 +4,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use godot::builtin::Callable;
 use godot::classes::RefCounted;
-use godot::obj::{Base, NewGd, WithBaseField};
+use godot::obj::Base;
 use godot::register::property::{ExportToolButton, PhantomVar};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
 
@@ -78,7 +79,10 @@ impl HasPhantomVar {
 
 #[cfg(since_api = "4.4")]
 mod export_tool_button_test {
+    use godot::obj::{NewGd, WithBaseField};
+
     use super::*;
+
     #[derive(GodotClass)]
     #[class(init, tool)]
     struct ToolButtonExporter {

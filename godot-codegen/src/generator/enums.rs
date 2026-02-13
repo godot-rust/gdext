@@ -13,7 +13,7 @@ use std::collections::HashSet;
 
 use heck::ToPascalCase;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use crate::models::domain::{Enum, Enumerator, EnumeratorValue, RustTy};
 use crate::special_cases;

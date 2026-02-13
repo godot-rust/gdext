@@ -131,7 +131,8 @@ mod global_guard {
                 mutex_guard.get().is_some(),
                 "safety precondition violated: cell not initialized"
             );
-            Self::new(mutex_guard).unwrap_unchecked()
+
+            unsafe { Self::new(mutex_guard).unwrap_unchecked() }
         }
     }
 

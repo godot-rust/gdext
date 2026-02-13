@@ -10,10 +10,10 @@ use std::fmt;
 use std::fmt::Display;
 
 use godot::builtin::{
-    array, varray, vdict, vslice, Array, Basis, Color, GString, NodePath, PackedInt32Array,
-    PackedStringArray, Projection, Quaternion, Signal, StringName, Transform2D, Transform3D,
-    VarArray, VarDictionary, Variant, VariantOperator, VariantType, Vector2, Vector2i, Vector3,
-    Vector3i,
+    Array, Basis, Color, GString, NodePath, PackedInt32Array, PackedStringArray, Projection,
+    Quaternion, Signal, StringName, Transform2D, Transform3D, VarArray, VarDictionary, Variant,
+    VariantOperator, VariantType, Vector2, Vector2i, Vector3, Vector3i, array, varray, vdict,
+    vslice,
 };
 use godot::classes::{Node, Node2D, Resource};
 use godot::meta::{FromGodot, ToGodot};

@@ -9,13 +9,13 @@ use std::collections::HashMap;
 use std::{any, ptr};
 
 use godot_ffi::join_with;
-use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
+use sys::{Global, GlobalGuard, GlobalLockError, interface_fn, out};
 
 use crate::classes::ClassDb;
 use crate::init::InitLevel;
-use crate::meta::error::FromGodotError;
 use crate::meta::ClassId;
-use crate::obj::{cap, DynGd, Gd, GodotClass, Singleton};
+use crate::meta::error::FromGodotError;
+use crate::obj::{DynGd, Gd, GodotClass, Singleton, cap};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
@@ -27,8 +27,8 @@ use crate::{classes, godot_error, godot_warn, sys};
 /// calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
 /// Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
 /// side and analysis required to adopt these changes.
-fn global_loaded_classes_by_init_level(
-) -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
+fn global_loaded_classes_by_init_level()
+-> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
     static LOADED_CLASSES_BY_INIT_LEVEL: Global<
         HashMap<InitLevel, Vec<LoadedClass>>, //.
     > = Global::default();
@@ -678,7 +678,9 @@ fn lock_or_panic<T>(global: &'static Global<T>, ctx: &str) -> GlobalGuard<'stati
             GlobalLockError::Poisoned { .. } => panic!(
                 "global lock for {ctx} poisoned; class registration or deregistration may have panicked"
             ),
-            GlobalLockError::WouldBlock => panic!("unexpected concurrent access to global lock for {ctx}"),
+            GlobalLockError::WouldBlock => {
+                panic!("unexpected concurrent access to global lock for {ctx}")
+            }
             GlobalLockError::InitFailed => unreachable!("global lock for {ctx} not initialized"),
         },
     }

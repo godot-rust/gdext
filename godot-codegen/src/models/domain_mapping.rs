@@ -367,18 +367,17 @@ impl BuiltinMethod {
             return None;
         }
 
-        let return_value = if let Some(generic) =
-            special_cases::builtin_method_generic_ret(builtin_name, method)
-        {
-            generic
-        } else {
-            let return_value = &method
-                .return_type
-                .as_deref()
-                .map(JsonMethodReturn::from_type_no_meta);
+        let return_value = match special_cases::builtin_method_generic_ret(builtin_name, method) {
+            Some(generic) => generic,
+            _ => {
+                let return_value = &method
+                    .return_type
+                    .as_deref()
+                    .map(JsonMethodReturn::from_type_no_meta);
 
-            // Builtin methods are always outbound (not virtual), thus flow for return type is Godot -> Rust.
-            FnReturn::new(return_value, FlowDirection::GodotToRust, ctx)
+                // Builtin methods are always outbound (not virtual), thus flow for return type is Godot -> Rust.
+                FnReturn::new(return_value, FlowDirection::GodotToRust, ctx)
+            }
         };
 
         // For parameters in builtin methods, flow is always Rust -> Godot.
@@ -820,7 +819,8 @@ fn validate_enum_replacements(
 
     for (param_name, enum_name, _) in replacements {
         if param_name.is_empty() {
-            assert!(has_return_type,
+            assert!(
+                has_return_type,
                 "Method `{class}.{godot_method_name}` has no return type, but replacement with `{enum_name}` is declared",
                 class = class_ty.godot_ty
             );
@@ -834,7 +834,8 @@ fn validate_enum_replacements(
             panic!(
                 "Method `{class}.{godot_method_name}` has no parameter `{param_name}`, but a replacement with `{enum_name}` is declared\n\
                 \n{count} parameters available:\n{available_params}\n",
-                class = class_ty.godot_ty, count = method_arguments.len(),
+                class = class_ty.godot_ty,
+                count = method_arguments.len(),
             );
         }
     }

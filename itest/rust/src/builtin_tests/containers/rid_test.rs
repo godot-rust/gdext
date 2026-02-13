@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::inner::InnerRid;
 use godot::builtin::Rid;
+use godot::builtin::inner::InnerRid;
 use godot::classes::RenderingServer;
 use godot::obj::Singleton;
 

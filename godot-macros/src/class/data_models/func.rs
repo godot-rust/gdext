@@ -10,7 +10,7 @@ use quote::{format_ident, quote, quote_spanned};
 
 use crate::class::RpcAttr;
 use crate::util::{bail, bail_fn, ident, safe_ident, to_spanned_tuple};
-use crate::{util, ParseResult};
+use crate::{ParseResult, util};
 
 /// Information used for registering a Rust function with Godot.
 pub struct FuncDefinition {
@@ -787,7 +787,7 @@ fn extract_gd_self(signature: &mut venial::Function, attr_name: &Ident) -> Parse
         return bail_attr(
             attr_name,
             "with attribute key `gd_self`, the first parameter must be Gd<Self> (not a `self` receiver)",
-             &signature.name
+            &signature.name,
         );
     };
 

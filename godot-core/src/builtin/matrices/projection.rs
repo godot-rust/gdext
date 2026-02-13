@@ -8,12 +8,12 @@
 use std::ops::Mul;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{ApproxEq, GlamConv, GlamType};
 use crate::builtin::{
-    inner, real, Aabb, Plane, RMat4, RealConv, Rect2, Transform3D, Vector2, Vector3, Vector4,
-    Vector4Axis,
+    Aabb, Plane, RMat4, RealConv, Rect2, Transform3D, Vector2, Vector3, Vector4, Vector4Axis,
+    inner, real,
 };
 
 /// A 4x4 matrix used for 3D projective transformations.
@@ -1035,7 +1035,10 @@ mod test {
                             let near = f(near_i);
                             for far in (near_i + 1..=20).map(f) {
                                 assert!(
-                                    Projection::create_orthogonal(left, right, bottom, top, near, far).is_orthogonal(),
+                                    Projection::create_orthogonal(
+                                        left, right, bottom, top, near, far
+                                    )
+                                    .is_orthogonal(),
                                     "projection should be orthogonal: left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
                                 );
                             }
@@ -1054,7 +1057,8 @@ mod test {
                         let near = near_i as real;
                         for far in (near_i + 1..=20).map(|v| v as real) {
                             assert!(
-                                !Projection::create_perspective(fov, aspect, near, far, false).is_orthogonal(),
+                                !Projection::create_perspective(fov, aspect, near, far, false)
+                                    .is_orthogonal(),
                                 "projection should be perspective: fov={fov} aspect={aspect} near={near} far={far}",
                             );
                         }
@@ -1074,7 +1078,10 @@ mod test {
                             let near = (near_i as real) * 0.5;
                             for far in (near_i + 1..=20).map(|v| (v as real) * 0.5) {
                                 assert!(
-                                    !Projection::create_frustum(left, right, bottom, top, near, far).is_orthogonal(),
+                                    !Projection::create_frustum(
+                                        left, right, bottom, top, near, far
+                                    )
+                                    .is_orthogonal(),
                                     "projection should be perspective: left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
                                 );
                             }
@@ -1093,11 +1100,22 @@ mod test {
                         let near = near_i as real;
                         for far in (near_i + 1..=20).map(|v| v as real) {
                             assert!(
-                                Projection::create_orthogonal_aspect(size, aspect, near, far, false).is_orthogonal(),
+                                Projection::create_orthogonal_aspect(
+                                    size, aspect, near, far, false
+                                )
+                                .is_orthogonal(),
                                 "projection should be orthogonal: (size={size} aspect={aspect} near={near} far={far}",
                             );
                             assert!(
-                                !Projection::create_frustum_aspect(size, aspect, Vector2::ZERO, near, far, false).is_orthogonal(),
+                                !Projection::create_frustum_aspect(
+                                    size,
+                                    aspect,
+                                    Vector2::ZERO,
+                                    near,
+                                    far,
+                                    false
+                                )
+                                .is_orthogonal(),
                                 "projection should be perspective: (size={size} aspect={aspect} near={near} far={far}",
                             );
                         }

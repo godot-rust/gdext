@@ -191,7 +191,7 @@ impl<T: ScriptInstance> ScriptInstanceData<T> {
     ///
     /// `ptr` must point to a live `ScriptInstanceData<T>` for the duration of `'a`.
     unsafe fn borrow_script_sys<'a>(ptr: sys::GDExtensionScriptInstanceDataPtr) -> &'a Self {
-        &*(ptr.cast::<ScriptInstanceData<T>>())
+        unsafe { &*(ptr.cast::<ScriptInstanceData<T>>()) }
     }
 
     fn borrow(&self) -> RefGuard<'_, T> {
@@ -605,7 +605,7 @@ mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
 
-    use sys::conv::{bool_to_sys, SYS_FALSE, SYS_TRUE};
+    use sys::conv::{SYS_FALSE, SYS_TRUE, bool_to_sys};
     #[cfg(since_api = "4.3")]
     use sys::conv::{ptr_list_from_sys, ptr_list_into_sys};
 

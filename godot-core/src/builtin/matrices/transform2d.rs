@@ -9,11 +9,11 @@ use std::fmt::Display;
 use std::ops::{Mul, MulAssign};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-use crate::builtin::math::{assert_ne_approx, ApproxEq, FloatExt, GlamConv, GlamType, XformInv};
+use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType, XformInv, assert_ne_approx};
 use crate::builtin::real_consts::PI;
-use crate::builtin::{real, RAffine2, RMat2, Rect2, Vector2};
+use crate::builtin::{RAffine2, RMat2, Rect2, Vector2, real};
 
 /// Affine 2D transform (2x3 matrix).
 ///

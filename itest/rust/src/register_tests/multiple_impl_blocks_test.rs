@@ -7,7 +7,7 @@
 
 use godot::classes::IObject;
 use godot::obj::{Base, Gd, NewAlloc};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
 

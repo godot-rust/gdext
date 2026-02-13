@@ -16,7 +16,7 @@ use crate::out;
 mod reexport_pub {
     #[cfg(not(wasm_nothreads))]
     pub use super::sys::main_thread_id;
-    pub use super::sys::{is_main_thread, GdextBuild, InitStage};
+    pub use super::sys::{GdextBuild, InitStage, is_main_thread};
 }
 pub use reexport_pub::*;
 
@@ -138,57 +138,61 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let userdata = userdata.cast::<InitUserData>().as_ref().unwrap();
-    let level = InitLevel::from_sys(init_level);
-    let ctx = || format!("failed to initialize GDExtension level `{level:?}`");
+    unsafe {
+        let userdata = userdata.cast::<InitUserData>().as_ref().unwrap();
+        let level = InitLevel::from_sys(init_level);
+        let ctx = || format!("failed to initialize GDExtension level `{level:?}`");
 
-    fn try_load<E: ExtensionLibrary>(level: InitLevel, userdata: &InitUserData) {
-        // Workaround for https://github.com/godot-rust/gdext/issues/629:
-        // When using editor plugins, Godot may unload all levels but only reload from Scene upward.
-        // Manually run initialization of lower levels.
+        fn try_load<E: ExtensionLibrary>(level: InitLevel, userdata: &InitUserData) {
+            // Workaround for https://github.com/godot-rust/gdext/issues/629:
+            // When using editor plugins, Godot may unload all levels but only reload from Scene upward.
+            // Manually run initialization of lower levels.
 
-        // TODO: Remove this workaround once after the upstream issue is resolved.
-        if level == InitLevel::Scene {
-            if !LEVEL_SERVERS_CORE_LOADED.load(Ordering::Relaxed) {
-                try_load::<E>(InitLevel::Core, userdata);
-                try_load::<E>(InitLevel::Servers, userdata);
+            // TODO: Remove this workaround once after the upstream issue is resolved.
+            if level == InitLevel::Scene {
+                if !LEVEL_SERVERS_CORE_LOADED.load(Ordering::Relaxed) {
+                    try_load::<E>(InitLevel::Core, userdata);
+                    try_load::<E>(InitLevel::Servers, userdata);
+                }
+            } else if level == InitLevel::Core {
+                // When it's normal initialization, the `Servers` level is normally initialized.
+                LEVEL_SERVERS_CORE_LOADED.store(true, Ordering::Relaxed);
             }
-        } else if level == InitLevel::Core {
-            // When it's normal initialization, the `Servers` level is normally initialized.
-            LEVEL_SERVERS_CORE_LOADED.store(true, Ordering::Relaxed);
+
+            // SAFETY: Godot will call this from the main thread, after `__gdext_load_library` where the library is initialized,
+            // and only once per level.
+            unsafe { gdext_on_level_init(level, userdata) };
+            E::on_stage_init(level.to_stage());
         }
 
-        // SAFETY: Godot will call this from the main thread, after `__gdext_load_library` where the library is initialized,
-        // and only once per level.
-        unsafe { gdext_on_level_init(level, userdata) };
-        E::on_stage_init(level.to_stage());
+        // TODO consider crashing if gdext init fails.
+        swallow_panics(ctx, || {
+            try_load::<E>(level, userdata);
+        });
     }
-
-    // TODO consider crashing if gdext init fails.
-    swallow_panics(ctx, || {
-        try_load::<E>(level, userdata);
-    });
 }
 
 unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
     userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let level = InitLevel::from_sys(init_level);
-    let ctx = || format!("failed to deinitialize GDExtension level `{level:?}`");
+    unsafe {
+        let level = InitLevel::from_sys(init_level);
+        let ctx = || format!("failed to deinitialize GDExtension level `{level:?}`");
 
-    swallow_panics(ctx, || {
-        if level == InitLevel::Core {
-            // Once the CORE api is unloaded, reset the flag to initial state.
-            LEVEL_SERVERS_CORE_LOADED.store(false, Ordering::Relaxed);
+        swallow_panics(ctx, || {
+            if level == InitLevel::Core {
+                // Once the CORE api is unloaded, reset the flag to initial state.
+                LEVEL_SERVERS_CORE_LOADED.store(false, Ordering::Relaxed);
 
-            // Drop the userdata.
-            drop(Box::from_raw(userdata.cast::<InitUserData>()));
-        }
+                // Drop the userdata.
+                drop(Box::from_raw(userdata.cast::<InitUserData>()));
+            }
 
-        E::on_stage_deinit(level.to_stage());
-        gdext_on_level_deinit(level);
-    });
+            E::on_stage_deinit(level.to_stage());
+            gdext_on_level_deinit(level);
+        });
+    }
 }
 
 /// Tasks needed to be done by gdext internally upon loading an initialization level. Called before user code.
@@ -534,13 +538,7 @@ unsafe fn ensure_godot_features_compatible() {
         is_double
     };
 
-    let s = |is_double: bool| -> &'static str {
-        if is_double {
-            "double"
-        } else {
-            "single"
-        }
-    };
+    let s = |is_double: bool| -> &'static str { if is_double { "double" } else { "single" } };
 
     out!(
         "Is double precision: Godot={}, gdext={}",
@@ -552,7 +550,8 @@ unsafe fn ensure_godot_features_compatible() {
         panic!(
             "Godot runs with {} precision, but gdext was compiled with {} precision.\n\
             Cargo feature `double-precision` must be used if and only if Godot is compiled with `precision=double`.\n",
-            s(godot_is_double), s(gdext_is_double),
+            s(godot_is_double),
+            s(gdext_is_double),
         );
     }
 }

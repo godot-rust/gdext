@@ -195,9 +195,12 @@ fn wrap_in_xml_block(tag: &str, mut blocks: Vec<&'static str>) -> String {
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 pub unsafe fn register() {
     for xml in gather_xml_docs() {
-        crate::sys::interface_fn!(editor_help_load_xml_from_utf8_chars_and_len)(
-            xml.as_ptr() as *const std::ffi::c_char,
-            xml.len() as i64,
-        );
+        // SAFETY: `xml` being String means it's valid UTF-8. It's not null-terminated, but we provide its length.
+        unsafe {
+            crate::sys::interface_fn!(editor_help_load_xml_from_utf8_chars_and_len)(
+                xml.as_ptr() as *const std::ffi::c_char,
+                xml.len() as i64,
+            );
+        }
     }
 }

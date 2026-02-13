@@ -7,8 +7,8 @@
 
 use godot::builtin::{CowStr, GString, StringName};
 use godot::meta::ClassId;
-use godot::obj::bounds::implement_godot_bounds;
 use godot::obj::GodotClass;
+use godot::obj::bounds::implement_godot_bounds;
 use godot::sys;
 
 use crate::framework::itest;

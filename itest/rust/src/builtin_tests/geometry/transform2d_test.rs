@@ -6,7 +6,7 @@
  */
 
 use godot::builtin::inner::InnerTransform2D;
-use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2, XformInv};
+use godot::builtin::{RealConv, Rect2, Transform2D, VariantOperator, Vector2, XformInv, real};
 use godot::private::class_macros::assert_eq_approx;
 
 use crate::builtin_tests::common::assert_evaluate_approx_eq;

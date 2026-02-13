@@ -6,10 +6,10 @@
  */
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{ApproxEq, FloatExt};
-use crate::builtin::{real, Plane, Vector3, Vector3Axis};
+use crate::builtin::{Plane, Vector3, Vector3Axis, real};
 
 /// Axis-aligned bounding box in 3D space.
 ///

@@ -37,7 +37,9 @@ pub fn make_class_doc(
     if has_sidecar_module {
         let module = ModName::from_godot(&class_name.godot_ty).rust_mod;
 
-        sidecar_signal_lines = format!("* [`{module}`][crate::classes::{module}]: sidecar module with related enum/flag types\n");
+        sidecar_signal_lines = format!(
+            "* [`{module}`][crate::classes::{module}]: sidecar module with related enum/flag types\n"
+        );
         module_name = Some(module);
     } else {
         sidecar_signal_lines = String::new();
@@ -54,7 +56,9 @@ pub fn make_class_doc(
     };
 
     let notify_line = if has_notification_enum {
-        format!("* [`{rust_ty}Notification`][crate::classes::notify::{rust_ty}Notification]: notification type\n")
+        format!(
+            "* [`{rust_ty}Notification`][crate::classes::notify::{rust_ty}Notification]: notification type\n"
+        )
     } else {
         String::new()
     };
@@ -117,8 +121,7 @@ pub fn make_virtual_trait_doc(
             let part = if *is_generated {
                 format!("[`{trait_name}`][crate::classes::{trait_name}]")
             } else {
-                strikethrough_explanation =
-                    "  \n(Strike-through means some intermediate Godot classes are marked final, \
+                strikethrough_explanation = "  \n(Strike-through means some intermediate Godot classes are marked final, \
                     and can thus not be inherited by GDExtension.)\n\n";
                 format!("~~`{trait_name}`~~")
             };

@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use proc_macro2::{Delimiter, Ident, Literal, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 
-use super::{bail, error, ident, is_punct, path_is_single, ListParser};
+use super::{ListParser, bail, error, ident, is_punct, path_is_single};
 use crate::ParseResult;
 
 pub(crate) type KvMap = HashMap<Ident, Option<KvValue>>;
@@ -412,7 +412,9 @@ impl<'a> ParserState<'a> {
                 _ => {
                     let parens_hint = if prev_expr_complex {
                         let attr = &self.attr_name;
-                        format!("\nnote: the preceding `,` is interpreted as a separator between arguments to `#[{attr}]`; if you meant the `,` as part of an expression, surround the expression with parentheses")
+                        format!(
+                            "\nnote: the preceding `,` is interpreted as a separator between arguments to `#[{attr}]`; if you meant the `,` as part of an expression, surround the expression with parentheses"
+                        )
                     } else {
                         "".to_owned()
                     };
@@ -445,7 +447,9 @@ impl<'a> ParserState<'a> {
             Some(tt) => {
                 let parens_hint = if prev_expr_complex {
                     let attr = &self.attr_name;
-                    format!("\nnote: `{key}` is interpreted as the next argument to `#[{attr}]`; if you meant it as part of an expression, surround the expression with parentheses")
+                    format!(
+                        "\nnote: `{key}` is interpreted as the next argument to `#[{attr}]`; if you meant it as part of an expression, surround the expression with parentheses"
+                    )
                 } else {
                     "".to_owned()
                 };
@@ -505,7 +509,7 @@ mod tests {
 
     macro_rules! kv_map {
         (
-            $($key:ident => $value:expr),*
+            $($key:ident => $value:expr_2021),*
             $(,)?
         ) => {
             {

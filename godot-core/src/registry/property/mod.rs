@@ -302,7 +302,7 @@ where
         match value {
             Some(via) => match field {
                 // If field is already set, delegate to setter (non-null) on field; otherwise assign new value.
-                Some(ref mut inner) => T::var_set(inner, via),
+                Some(inner) => T::var_set(inner, via),
                 None => *field = Some(T::from_godot(via)),
             },
             None => *field = None,

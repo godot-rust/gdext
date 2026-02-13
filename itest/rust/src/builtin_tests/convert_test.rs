@@ -6,8 +6,8 @@
  */
 
 use godot::builtin::{
-    array, vdict, Array, GString, NodePath, StringName, VarArray, VarDictionary, Variant, Vector2,
-    Vector2Axis,
+    Array, GString, NodePath, StringName, VarArray, VarDictionary, Variant, Vector2, Vector2Axis,
+    array, vdict,
 };
 use godot::classes::{Node, Resource};
 use godot::meta;

@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::math::{assert_eq_approx, ApproxEq};
-use godot::builtin::{real, Vector4, Vector4Axis};
+use godot::builtin::math::{ApproxEq, assert_eq_approx};
+use godot::builtin::{Vector4, Vector4Axis, real};
 
 use crate::framework::itest;
 

@@ -106,11 +106,7 @@ fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
     let mut item = 0;
     PackedInt32Array::from_iter(std::iter::from_fn(|| {
         item += 1;
-        if item <= 100 {
-            Some(item)
-        } else {
-            None
-        }
+        if item <= 100 { Some(item) } else { None }
     }))
 }
 

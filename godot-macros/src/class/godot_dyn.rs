@@ -8,8 +8,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::util::bail;
 use crate::ParseResult;
+use crate::util::bail;
 
 pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let venial::Item::Impl(decl) = input_decl else {

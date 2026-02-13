@@ -11,8 +11,8 @@ use std::{any, fmt};
 use crate::init::InitLevel;
 use crate::meta::ClassId;
 use crate::obj::{
-    bounds, cap, Bounds, DynGd, Gd, GodotClass, Inherits, NewAlloc, Singleton, UserClass,
-    UserSingleton,
+    Bounds, DynGd, Gd, GodotClass, Inherits, NewAlloc, Singleton, UserClass, UserSingleton, bounds,
+    cap,
 };
 use crate::registry::callbacks;
 use crate::registry::class::GodotGetVirtual;

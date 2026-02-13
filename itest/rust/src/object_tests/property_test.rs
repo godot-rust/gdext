@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 use godot::builtin::{
-    vdict, vslice, Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType,
+    Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType, vdict, vslice,
 };
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
 use godot::global::{PropertyHint, PropertyUsageFlags};
@@ -13,7 +13,7 @@ use godot::init::GdextBuild;
 use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
 use godot::register::property::{Export, Var};
-use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
+use godot::register::{Export, GodotClass, GodotConvert, Var, godot_api};
 use godot::test::itest;
 
 #[derive(GodotClass)]
@@ -80,12 +80,16 @@ fn test_renamed_variable_reflection() {
     let mut obj = HasProperty::new_alloc();
 
     let prop_list = obj.get_property_list();
-    assert!(prop_list
-        .iter_shared()
-        .any(|d| d.get("name") == Some("renamed_variable".to_variant())));
-    assert!(!prop_list
-        .iter_shared()
-        .any(|d| d.get("name") == Some("unused_name".to_variant())));
+    assert!(
+        prop_list
+            .iter_shared()
+            .any(|d| d.get("name") == Some("renamed_variable".to_variant()))
+    );
+    assert!(
+        !prop_list
+            .iter_shared()
+            .any(|d| d.get("name") == Some("unused_name".to_variant()))
+    );
 
     assert_eq!(obj.get("renamed_variable"), GString::new().to_variant());
     assert_eq!(obj.get("unused_name"), Variant::nil());

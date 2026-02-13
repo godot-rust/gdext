@@ -11,13 +11,13 @@
 
 use std::ptr;
 
-use godot::builtin::{vslice, Rect2, Rid, VarDictionary};
+use godot::builtin::{Rect2, Rid, VarDictionary, vslice};
 use godot::classes::native::{CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult};
 use godot::classes::text_server::Direction;
 use godot::classes::{IRefCounted, Node3D, RefCounted};
 use godot::meta::RawPtr;
 use godot::obj::{Base, NewAlloc, NewGd};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use super::native_structures_test::sample_glyph;
 use crate::framework::itest;

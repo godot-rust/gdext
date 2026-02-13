@@ -13,8 +13,8 @@ use std::sync::atomic;
 use sys::Global;
 
 use crate::global::godot_error;
-use crate::meta::error::{CallError, CallResult};
 use crate::meta::CallContext;
+use crate::meta::error::{CallError, CallResult};
 use crate::obj::Gd;
 use crate::registry::property::Var;
 use crate::{classes, sys};
@@ -25,8 +25,8 @@ use crate::{classes, sys};
 mod reexport_pub {
     #[cfg(all(since_api = "4.3", feature = "register-docs"))]
     pub use crate::docs::{DocsItem, DocsPlugin, InherentImplDocs, StructDocs};
-    pub use crate::gen::classes::class_macros;
-    pub use crate::gen::virtuals; // virtual fn names, hashes, signatures
+    pub use crate::r#gen::classes::class_macros;
+    pub use crate::r#gen::virtuals; // virtual fn names, hashes, signatures
     #[cfg(feature = "trace")]
     pub use crate::meta::trace;
     pub use crate::obj::rtti::ObjectRtti;
@@ -37,8 +37,8 @@ mod reexport_pub {
     };
     pub use crate::registry::signal::priv_re_export::*;
     pub use crate::storage::{
-        as_storage, IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage,
-        VirtualMethodReceiver,
+        IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage, VirtualMethodReceiver,
+        as_storage,
     };
     pub use crate::sys::out;
 }
@@ -119,8 +119,7 @@ impl CallErrors {
 fn call_error_insert(err: CallError) -> i32 {
     // Wraps around if entire i32 is depleted. If this happens in practice (unlikely, users need to deliberately ignore errors that are printed),
     // we just overwrite the oldest errors, should still work.
-    let id = CALL_ERRORS.lock().insert(err);
-    id
+    CALL_ERRORS.lock().insert(err)
 }
 
 pub(crate) fn call_error_remove(in_error: &sys::GDExtensionCallError) -> Option<CallError> {
@@ -209,7 +208,10 @@ pub unsafe fn has_virtual_script_method(
     object_ptr: sys::GDExtensionObjectPtr,
     method_sname: sys::GDExtensionConstStringNamePtr,
 ) -> bool {
-    sys::interface_fn!(object_has_script_method)(sys::to_const_ptr(object_ptr), method_sname) != 0
+    unsafe {
+        sys::interface_fn!(object_has_script_method)(sys::to_const_ptr(object_ptr), method_sname)
+            != 0
+    }
 }
 
 /// Ensure `T` is an editor plugin.
@@ -307,7 +309,7 @@ pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
 #[cfg(safeguards_strict)]
 #[macro_export]
 macro_rules! format_backtrace {
-    ($prefix:expr, $backtrace:expr) => {{
+    ($prefix:expr_2021, $backtrace:expr_2021) => {{
         use std::backtrace::BacktraceStatus;
 
         let backtrace = $backtrace;
@@ -325,7 +327,7 @@ macro_rules! format_backtrace {
         }
     }};
 
-    ($prefix:expr) => {
+    ($prefix:expr_2021) => {
         $crate::format_backtrace!($prefix, std::backtrace::Backtrace::capture())
     };
 }

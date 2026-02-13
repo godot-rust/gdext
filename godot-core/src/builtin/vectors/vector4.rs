@@ -9,10 +9,10 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::{inner, real, RVec4, Vector4Axis, Vector4i};
+use crate::builtin::{RVec4, Vector4Axis, Vector4i, inner, real};
 
 /// Vector used for 4D math using floating point coordinates.
 ///

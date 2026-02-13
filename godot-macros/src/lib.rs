@@ -21,7 +21,7 @@ mod util;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 
-use crate::util::{bail, ident, KvParser};
+use crate::util::{KvParser, bail, ident};
 
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
 /// Derive macro for [`GodotClass`](../obj/trait.GodotClass.html) on structs.
@@ -42,7 +42,7 @@ use crate::util::{bail, ident, KvParser};
 /// This constructor is made available to Godot and lets you call `MyStruct.new()` from GDScript. To enable it, annotate your
 /// struct with `#[class(init)]`:
 ///
-/// ```
+/// ```no_run
 /// # use godot_macros::GodotClass;
 /// #[derive(GodotClass)]
 /// #[class(init)]
@@ -54,7 +54,7 @@ use crate::util::{bail, ident, KvParser};
 /// The generated `init` function will initialize each struct field (except the field of type `Base<T>`, if any)
 /// using `Default::default()`. To assign some other value, annotate the field with `#[init(val = ...)]`:
 ///
-/// ```
+/// ```no_run
 /// # use godot_macros::GodotClass;
 /// #[derive(GodotClass)]
 /// #[class(init)]
@@ -70,7 +70,7 @@ use crate::util::{bail, ident, KvParser};
 /// inside any pair of `(...)`, `[...]` or `{...}` (even if it is, for example, inside `<...>` or
 /// `|...|`). A contrived example:
 ///
-/// ```
+/// ```no_run
 /// # use godot_macros::GodotClass;
 /// # use std::collections::HashMap;
 /// # #[derive(GodotClass)]
@@ -85,7 +85,7 @@ use crate::util::{bail, ident, KvParser};
 /// You can also _disable_ construction from GDScript. This needs to be explicit via `#[class(no_init)]`.
 /// Simply omitting the `init`/`no_init` keys and not overriding your own constructor will cause a compile error.
 ///
-/// ```
+/// ```no_run
 /// # use godot_macros::GodotClass;
 /// #[derive(GodotClass)]
 /// #[class(no_init)]
@@ -104,7 +104,7 @@ use crate::util::{bail, ident, KvParser};
 /// To specify a different class to inherit from, add `#[class(base = Base)]` as an annotation on
 /// your `struct`:
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init, base=Node2D)]
@@ -116,7 +116,7 @@ use crate::util::{bail, ident, KvParser};
 /// If you need a reference to the base class, you can add a field of type `Base<T>`. The derive macro will pick this up and wire
 /// your object accordingly. You can access it through `self.base()` and `self.base_mut()` methods.
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init, base=Node2D)]
@@ -141,7 +141,7 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// To create a property, you can use the `#[var]` annotation, which supports types implementing [`Var`](../register/property/trait.Var.html).
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// # #[class(init)]
@@ -216,7 +216,7 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// If you want the field to have a different name in Godot and Rust, you can use `rename`:
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// # #[class(init)]
@@ -238,7 +238,7 @@ use crate::util::{bail, ident, KvParser};
 /// To export properties to the editor, you can use the `#[export]` attribute, which supports types implementing
 /// [`Export`](../register/property/trait.Export.html):
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::{GodotClass, Node3D, Gd, OnEditor};
 /// #[derive(GodotClass)]
 /// # #[class(init)]
@@ -267,7 +267,7 @@ use crate::util::{bail, ident, KvParser};
 ///
 /// As an example of different export attributes:
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// # #[class(init)]
@@ -314,7 +314,7 @@ use crate::util::{bail, ident, KvParser};
 /// Most values in syntax such as `key = value` can be arbitrary expressions. For example, you can use constants, function calls or
 /// other Rust expressions that are valid in that context.
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// const MAX_HEALTH: f64 = 100.0;
 ///

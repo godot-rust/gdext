@@ -194,5 +194,5 @@ pub(crate) unsafe fn runtime_version(
 pub unsafe fn load_interface(
     get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
 ) -> sys::GDExtensionInterface {
-    sys::GDExtensionInterface::load(get_proc_address)
+    unsafe { sys::GDExtensionInterface::load(get_proc_address) }
 }

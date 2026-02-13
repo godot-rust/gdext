@@ -157,7 +157,10 @@ impl fmt::Display for SaverError {
         let path = &self.path;
         let godot_error = &self.godot_error;
 
-        write!(f, "can't save resource of class: '{class}' to path: '{path}'; Godot error: {godot_error:?}")
+        write!(
+            f,
+            "can't save resource of class: '{class}' to path: '{path}'; Godot error: {godot_error:?}"
+        )
     }
 }
 

@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 
 use crate::context::Context;
 use crate::conv;

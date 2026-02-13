@@ -10,7 +10,7 @@
 use std::fmt::Write;
 
 use crate::builtin::{GString, StringName, Variant};
-use crate::obj::{bounds, Bounds, EngineBitfield, Gd, GodotClass, InstanceId, RawGd};
+use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId, RawGd, bounds};
 use crate::sys;
 
 #[cfg(safeguards_strict)]
@@ -255,8 +255,11 @@ pub(crate) unsafe fn singleton_unchecked<T>(class_name: &StringName) -> Gd<T>
 where
     T: GodotClass,
 {
-    let object_ptr = unsafe { sys::interface_fn!(global_get_singleton)(class_name.string_sys()) };
-    Gd::<T>::from_obj_sys(object_ptr)
+    // SAFETY: class_name validity upheld by caller; binding is initialized.
+    unsafe {
+        let object_ptr = sys::interface_fn!(global_get_singleton)(class_name.string_sys());
+        Gd::<T>::from_obj_sys(object_ptr)
+    }
 }
 
 /// Checks that the object with the given instance ID is still alive and that the pointer is valid.

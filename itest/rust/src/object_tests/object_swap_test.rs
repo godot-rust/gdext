@@ -16,9 +16,9 @@
 use godot::builtin::GString;
 use godot::classes::{Node, Node3D, Object};
 use godot::obj::{Gd, NewAlloc, NewGd};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
-use crate::framework::{expect_panic, itest, TestContext};
+use crate::framework::{TestContext, expect_panic, itest};
 use crate::object_tests::object_test::ObjPayload;
 
 /// Swaps `lhs` and `rhs`, then frees both.

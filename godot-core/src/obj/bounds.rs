@@ -304,15 +304,17 @@ impl DynMemory for MemDynamic {
     }
 
     unsafe fn maybe_dec_ref<T: GodotClass>(obj: &mut RawGd<T>) -> bool {
-        out!("  MemDyn::dec:   {obj:?}");
-        if obj
-            .instance_id_unchecked()
-            .is_some_and(|id| id.is_ref_counted())
-        {
-            // Will call `RefCounted::unreference()` which checks for liveness.
-            MemRefCounted::maybe_dec_ref(obj)
-        } else {
-            false
+        unsafe {
+            out!("  MemDyn::dec:   {obj:?}");
+            if obj
+                .instance_id_unchecked()
+                .is_some_and(|id| id.is_ref_counted())
+            {
+                // Will call `RefCounted::unreference()` which checks for liveness.
+                MemRefCounted::maybe_dec_ref(obj)
+            } else {
+                false
+            }
         }
     }
 
@@ -413,7 +415,7 @@ impl Declarer for DeclUser {
     where
         T: GodotClass + Bounds<Declarer = Self>,
     {
-        obj.storage().unwrap_unchecked().is_bound()
+        unsafe { obj.storage().unwrap_unchecked().is_bound() }
     }
 
     fn create_gd<T>() -> Gd<T>

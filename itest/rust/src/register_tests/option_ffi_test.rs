@@ -8,7 +8,7 @@
 use godot::classes::{Node, Object, RefCounted, Resource};
 use godot::meta::GodotType;
 use godot::obj::{Gd, NewAlloc, NewGd, RawGd};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 use godot::sys::GodotFfi;
 
 use crate::framework::itest;

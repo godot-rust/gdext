@@ -8,7 +8,7 @@
 use std::{fmt, ptr};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, interface_fn, GodotFfi};
+use sys::{GodotFfi, ffi_methods, interface_fn};
 
 use crate::builtin::{
     GString, StringName, VarArray, VariantDispatch, VariantOperator, VariantType,
@@ -16,8 +16,8 @@ use crate::builtin::{
 use crate::classes;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
-    arg_into_ref, ffi_variant_type, ArrayElement, AsArg, EngineFromGodot, ExtVariantType,
-    FromGodot, GodotType, ToGodot,
+    ArrayElement, AsArg, EngineFromGodot, ExtVariantType, FromGodot, GodotType, ToGodot,
+    arg_into_ref, ffi_variant_type,
 };
 
 mod impls;
@@ -285,11 +285,7 @@ impl Variant {
             })
         };
 
-        if is_valid == 1 {
-            Some(result)
-        } else {
-            None
-        }
+        if is_valid == 1 { Some(result) } else { None }
     }
 
     pub(crate) fn sys_type(&self) -> sys::GDExtensionVariantType {

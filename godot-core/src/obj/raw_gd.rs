@@ -8,17 +8,17 @@
 use std::{fmt, ptr};
 
 use godot_ffi as sys;
-use sys::{interface_fn, ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
+use sys::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType, interface_fn};
 
 use crate::builtin::{Variant, VariantType};
-use crate::meta::error::{ConvertError, FromVariantError};
 #[cfg(safeguards_balanced)]
 use crate::meta::CallContext;
+use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{ClassId, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
 use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::casts::CastSuccess;
 use crate::obj::rtti::ObjectRtti;
-use crate::obj::{bounds, Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
+use crate::obj::{Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId, bounds};
 use crate::storage::{InstanceCache, InstanceStorage, Storage};
 use crate::{classes, meta, out};
 
@@ -81,7 +81,7 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// `obj` must be a valid object pointer or a null pointer.
     pub(super) unsafe fn from_obj_sys(obj: sys::GDExtensionObjectPtr) -> Self {
-        Self::from_obj_sys_weak(obj).with_inc_refcount()
+        unsafe { Self::from_obj_sys_weak(obj).with_inc_refcount() }
     }
 
     /// Returns `self` but with initialized ref-count.
@@ -207,7 +207,9 @@ impl<T: GodotClass> RawGd<T> {
         match self.try_with_ref_counted(apply) {
             Ok(result) => result,
             Err(()) if self.is_null() => {
-                panic!("RawGd::with_ref_counted(): expected to inherit RefCounted, encountered null pointer");
+                panic!(
+                    "RawGd::with_ref_counted(): expected to inherit RefCounted, encountered null pointer"
+                );
             }
             Err(()) => {
                 // SAFETY: this branch implies non-null.
@@ -275,29 +277,31 @@ impl<T: GodotClass> RawGd<T> {
         // DeclEngine needed for sound transmute; in case we add Rust-defined base classes.
         Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
     {
-        self.ensure_valid_upcast::<Base>();
+        unsafe {
+            self.ensure_valid_upcast::<Base>();
 
-        // SAFETY:
-        // Every engine object is a struct like:
-        //
-        // #[repr(C)]
-        // struct Node3D {
-        //     object_ptr: sys::GDExtensionObjectPtr,
-        //     rtti: Option<ObjectRtti>,
-        // }
-        //
-        // and `RawGd` looks like:
-        //
-        // #[repr(C)]
-        // pub struct RawGd<T: GodotClass> {
-        //     obj: *mut T,
-        //     cached_rtti: Option<ObjectRtti>,
-        //     cached_storage_ptr: InstanceCache, // ZST for engine classes.
-        // }
-        //
-        // The pointers have the same meaning despite different types, and so the whole struct is layout-compatible.
-        // In addition, Gd<T> as opposed to RawGd<T> will have the Option always set to Some.
-        std::mem::transmute::<&Self, &Base>(self)
+            // SAFETY:
+            // Every engine object is a struct like:
+            //
+            // #[repr(C)]
+            // struct Node3D {
+            //     object_ptr: sys::GDExtensionObjectPtr,
+            //     rtti: Option<ObjectRtti>,
+            // }
+            //
+            // and `RawGd` looks like:
+            //
+            // #[repr(C)]
+            // pub struct RawGd<T: GodotClass> {
+            //     obj: *mut T,
+            //     cached_rtti: Option<ObjectRtti>,
+            //     cached_storage_ptr: InstanceCache, // ZST for engine classes.
+            // }
+            //
+            // The pointers have the same meaning despite different types, and so the whole struct is layout-compatible.
+            // In addition, Gd<T> as opposed to RawGd<T> will have the Option always set to Some.
+            std::mem::transmute::<&Self, &Base>(self)
+        }
     }
 
     /// # Panics
@@ -314,16 +318,18 @@ impl<T: GodotClass> RawGd<T> {
         // DeclEngine needed for sound transmute; in case we add Rust-defined base classes.
         Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
     {
-        self.ensure_valid_upcast::<Base>();
+        unsafe {
+            self.ensure_valid_upcast::<Base>();
 
-        // SAFETY: see also `as_upcast_ref()`.
-        //
-        // We have a mutable reference to self, and thus it's safe to transmute that into a
-        // mutable reference to a compatible type.
-        //
-        // There cannot be aliasing on the same internal Base object, as every Gd<T> has a different such object -- aliasing
-        // of the internal object would thus require multiple &mut Gd<T>, which cannot happen.
-        std::mem::transmute::<&mut Self, &mut Base>(self)
+            // SAFETY: see also `as_upcast_ref()`.
+            //
+            // We have a mutable reference to self, and thus it's safe to transmute that into a
+            // mutable reference to a compatible type.
+            //
+            // There cannot be aliasing on the same internal Base object, as every Gd<T> has a different such object -- aliasing
+            // of the internal object would thus require multiple &mut Gd<T>, which cannot happen.
+            std::mem::transmute::<&mut Self, &mut Base>(self)
+        }
     }
 
     /// # Panics
@@ -567,17 +573,21 @@ where
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::OBJECT);
 
     unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self {
-        Self::from_obj_sys_weak(ptr as sys::GDExtensionObjectPtr)
+        unsafe { Self::from_obj_sys_weak(ptr as sys::GDExtensionObjectPtr) }
     }
 
     unsafe fn new_with_uninit(init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
-        let obj = raw_object_init(init);
-        Self::from_obj_sys_weak(obj)
+        unsafe {
+            let obj = raw_object_init(init);
+            Self::from_obj_sys_weak(obj)
+        }
     }
 
     unsafe fn new_with_init(init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        // `new_with_uninit` creates an initialized pointer.
-        Self::new_with_uninit(|return_ptr| init(sys::SysPtr::force_init(return_ptr)))
+        unsafe {
+            // `new_with_uninit` creates an initialized pointer.
+            Self::new_with_uninit(|return_ptr| init(sys::SysPtr::force_init(return_ptr)))
+        }
     }
 
     fn sys(&self) -> sys::GDExtensionConstTypePtr {
@@ -598,32 +608,36 @@ where
     }
 
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
-        if ptr.is_null() {
-            return Self::null();
+        unsafe {
+            if ptr.is_null() {
+                return Self::null();
+            }
+
+            let obj_ptr = if T::DynMemory::pass_as_ref(call_type) {
+                // ptr is `Ref<T>*`
+                // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
+                interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
+            } else {
+                // ptr is `T**` from Godot 4.1 onwards, also in virtual functions.
+                *(ptr as *mut sys::GDExtensionObjectPtr)
+            };
+
+            // obj_ptr is `T*`
+            Self::from_obj_sys(obj_ptr)
         }
-
-        let obj_ptr = if T::DynMemory::pass_as_ref(call_type) {
-            // ptr is `Ref<T>*`
-            // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
-            interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
-        } else {
-            // ptr is `T**` from Godot 4.1 onwards, also in virtual functions.
-            *(ptr as *mut sys::GDExtensionObjectPtr)
-        };
-
-        // obj_ptr is `T*`
-        Self::from_obj_sys(obj_ptr)
     }
 
     unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
-        if T::DynMemory::pass_as_ref(call_type) {
-            // ref_set_object creates a new Ref<T> in the engine and increments the reference count. We have to drop our Gd<T> to decrement
-            // the reference count again.
-            interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys());
-        } else {
-            ptr::write(ptr as *mut _, self.obj);
-            // We've passed ownership to caller.
-            std::mem::forget(self);
+        unsafe {
+            if T::DynMemory::pass_as_ref(call_type) {
+                // ref_set_object creates a new Ref<T> in the engine and increments the reference count. We have to drop our Gd<T> to decrement
+                // the reference count again.
+                interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys());
+            } else {
+                ptr::write(ptr as *mut _, self.obj);
+                // We've passed ownership to caller.
+                std::mem::forget(self);
+            }
         }
     }
 }

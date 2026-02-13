@@ -8,8 +8,8 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
 
-use crate::util::{bail, KvParser};
 use crate::ParseResult;
+use crate::util::{KvParser, bail};
 
 /// Stores data related to the `#[godot(...)]` attribute.
 pub enum GodotAttribute {
@@ -70,9 +70,18 @@ pub enum ViaType {
 impl ViaType {
     fn parse_ident(ident: Ident) -> ParseResult<Self> {
         let via_type = match ident.to_string().as_str() {
-            "GString" => ViaType::GString { gstring_ident: ident },
-            "i8" |"i16" | "i32" | "i64" | "u8" | "u16" | "u32" => ViaType::Int { int_ident: ident },
-            other => return bail!(ident, "Via type `{other}` is not supported, expected one of: GString, i8, i16, i32, i64, u8, u16, u32")
+            "GString" => ViaType::GString {
+                gstring_ident: ident,
+            },
+            "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" => {
+                ViaType::Int { int_ident: ident }
+            }
+            other => {
+                return bail!(
+                    ident,
+                    "Via type `{other}` is not supported, expected one of: GString, i8, i16, i32, i64, u8, u16, u32"
+                );
+            }
         };
 
         Ok(via_type)

@@ -8,8 +8,8 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
-use crate::util::bail;
 use crate::ParseResult;
+use crate::util::bail;
 
 /// Stores info from the field of a newtype struct for use in deriving `GodotConvert` and other related traits.
 pub struct NewtypeStruct {
@@ -28,25 +28,42 @@ impl NewtypeStruct {
     /// This will fail if the struct doesn't have exactly one field.
     pub fn parse_struct(struct_: &venial::Struct) -> ParseResult<NewtypeStruct> {
         match &struct_.fields {
-            venial::Fields::Unit => bail!(&struct_.fields, "GodotConvert expects a struct with a single field, unit structs are currently not supported"),
+            venial::Fields::Unit => bail!(
+                &struct_.fields,
+                "GodotConvert expects a struct with a single field, unit structs are currently not supported"
+            ),
             venial::Fields::Tuple(fields) => {
                 if fields.fields.len() != 1 {
-                    return bail!(&fields.fields, "GodotConvert expects a struct with a single field, not {} fields", fields.fields.len())
+                    return bail!(
+                        &fields.fields,
+                        "GodotConvert expects a struct with a single field, not {} fields",
+                        fields.fields.len()
+                    );
                 }
 
                 let (field, _) = fields.fields[0].clone();
 
-                Ok(NewtypeStruct { name: None, ty: field.ty })
-            },
+                Ok(NewtypeStruct {
+                    name: None,
+                    ty: field.ty,
+                })
+            }
             venial::Fields::Named(fields) => {
                 if fields.fields.len() != 1 {
-                    return bail!(&fields.fields, "GodotConvert expects a struct with a single field, not {} fields", fields.fields.len())
+                    return bail!(
+                        &fields.fields,
+                        "GodotConvert expects a struct with a single field, not {} fields",
+                        fields.fields.len()
+                    );
                 }
 
                 let (field, _) = fields.fields[0].clone();
 
-                Ok(NewtypeStruct { name: Some(field.name), ty: field.ty })
-            },
+                Ok(NewtypeStruct {
+                    name: Some(field.name),
+                    ty: field.ty,
+                })
+            }
         }
     }
 

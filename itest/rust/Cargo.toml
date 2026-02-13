@@ -1,8 +1,8 @@
 [package]
 name = "itest"
 version = "0.0.0"
-edition = "2021"
-rust-version = "1.87"
+edition.workspace = true
+rust-version.workspace = true
 license = "MPL-2.0"
 publish = false
 

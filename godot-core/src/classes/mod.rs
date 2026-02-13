@@ -22,7 +22,7 @@ mod match_class;
 mod type_safe_replacements;
 
 // Re-exports all generated classes, interface traits and sidecar modules.
-pub use crate::gen::classes::*;
+pub use crate::r#gen::classes::*;
 // Macro re-export.
 pub use crate::match_class;
 
@@ -34,7 +34,7 @@ pub use crate::match_class;
 /// There is unfortunately not much official documentation available; you may need to look at Godot source code.
 /// Most users will not need native structures, as they are very specialized.
 pub mod native {
-    pub use crate::gen::native::*;
+    pub use crate::r#gen::native::*;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

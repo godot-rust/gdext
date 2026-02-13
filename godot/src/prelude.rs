@@ -7,13 +7,13 @@
 
 pub use super::builtin::__prelude_reexport::*;
 pub use super::classes::{
-    match_class, INode, INode2D, INode3D, IObject, IPackedScene, IRefCounted, IResource,
-    ISceneTree, Node, Node2D, Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
+    INode, INode2D, INode3D, IObject, IPackedScene, IRefCounted, IResource, ISceneTree, Node,
+    Node2D, Node3D, Object, PackedScene, RefCounted, Resource, SceneTree, match_class,
 };
 pub use super::global::{
     godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,
 };
-pub use super::init::{gdextension, ExtensionLibrary, InitLevel, InitStage};
+pub use super::init::{ExtensionLibrary, InitLevel, InitStage, gdextension};
 pub use super::meta::error::{ConvertError, IoError};
 pub use super::meta::{FromGodot, GodotConvert, ToGodot};
 pub use super::obj::{
@@ -22,8 +22,8 @@ pub use super::obj::{
 };
 pub use super::register::property::{Export, ExportToolButton, PhantomVar, Var};
 // Re-export macros.
-pub use super::register::{godot_api, godot_dyn, Export, GodotClass, GodotConvert, Var};
-pub use super::tools::{load, save, try_load, try_save, GFile};
+pub use super::register::{Export, GodotClass, GodotConvert, Var, godot_api, godot_dyn};
+pub use super::tools::{GFile, load, save, try_load, try_save};
 
 // Make trait methods available.
 #[rustfmt::skip] // One per line.

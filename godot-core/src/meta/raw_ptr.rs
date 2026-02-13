@@ -6,7 +6,7 @@
  */
 
 use crate::meta::error::ConvertError;
-use crate::meta::{sealed, FromGodot, GodotConvert, GodotType, ToGodot};
+use crate::meta::{FromGodot, GodotConvert, GodotType, ToGodot, sealed};
 
 /// Wrapper around a raw pointer, providing `ToGodot`/`FromGodot` for FFI passing.
 ///
@@ -56,7 +56,7 @@ impl<P: FfiRawPointer> RawPtr<P> {
     /// You must ensure that Godot can handle null pointers in the specific Godot API where this value will be used.
     #[inline]
     pub unsafe fn null() -> Self {
-        RawPtr::new(P::ptr_from_i64(0))
+        unsafe { RawPtr::new(P::ptr_from_i64(0)) }
     }
 
     /// Returns the wrapped raw pointer.

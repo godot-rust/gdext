@@ -12,8 +12,8 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::quote;
 use regex::Regex;
 
-use crate::util::{ident, make_load_safety_doc};
 use crate::SubmitFn;
+use crate::util::{ident, make_load_safety_doc};
 
 pub fn generate_sys_interface_file(
     h_path: &Path,
@@ -90,6 +90,8 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
             ) -> Self {
                 let get_proc_address = get_proc_address.expect("invalid get_proc_address function pointer");
 
+                // SAFETY: transmute relies on GDExtensionInterfaceFunctionPtr and specific function pointer types
+                // having the same layout (both are Option<unsafe extern "C" fn(...)>).
                 Self {
                     #( #fptr_inits )*
                 }

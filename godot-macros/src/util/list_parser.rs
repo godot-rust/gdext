@@ -11,9 +11,9 @@ use std::collections::VecDeque;
 
 use proc_macro2::{Delimiter, Ident, Span, TokenStream, TokenTree};
 
-use crate::util::kv_parser::KvValue;
-use crate::util::{bail, delimiter_opening_char, is_punct, KvParser};
 use crate::ParseResult;
+use crate::util::kv_parser::KvValue;
+use crate::util::{KvParser, bail, delimiter_opening_char, is_punct};
 
 /// Parses a list of tokens as an ordered list of values. Unlike [`KvParser`] which treats the tokens as a
 /// set of values.
@@ -40,7 +40,7 @@ impl ListParser {
                 return Ok(Some(Self {
                     lists: VecDeque::new(),
                     span_close: key.span(),
-                }))
+                }));
             }
             // Key with list -> exists, must check list format
             Some((_, Some(tokens))) => tokens.into_tokens(),
@@ -175,13 +175,14 @@ impl ListParser {
     pub(crate) fn try_next_key_value(&mut self) -> Option<(Ident, KvValue)> {
         let kv = self.peek()?;
 
-        if let Ok((key, value)) = kv.as_key_value() {
-            // If peek() parsed successfully, we consume the next element
-            _ = self.pop_next();
+        match kv.as_key_value() {
+            Ok((key, value)) => {
+                // If peek() parsed successfully, we consume the next element
+                _ = self.pop_next();
 
-            Some((key, value))
-        } else {
-            None
+                Some((key, value))
+            }
+            _ => None,
         }
     }
 

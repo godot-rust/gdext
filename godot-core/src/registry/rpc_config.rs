@@ -6,9 +6,9 @@
  */
 
 use crate::builtin::{StringName, VarDictionary};
+use crate::classes::Node;
 use crate::classes::multiplayer_api::RpcMode;
 use crate::classes::multiplayer_peer::TransferMode;
-use crate::classes::Node;
 use crate::meta::{AsArg, ToGodot};
 use crate::{arg_into_ref, vdict};
 

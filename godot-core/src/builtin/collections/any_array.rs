@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
+use sys::{GodotFfi, ffi_methods};
 
 use crate::builtin::iter::ArrayFunctionalOps;
 use crate::builtin::*;
@@ -465,6 +465,7 @@ unsafe impl GodotFfi for AnyArray {
         self.array.sys_mut()
     }
 
+    #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
     unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: sys::PtrcallType) {
         self.array.move_return_ptr(dst, call_type)
     }

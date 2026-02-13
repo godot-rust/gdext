@@ -8,13 +8,13 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use godot::builtin::{vslice, GString, Signal, StringName};
+use godot::builtin::{GString, Signal, StringName, vslice};
 use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
 use godot::meta::{FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
 use godot::prelude::ConvertError;
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 use godot::sys::Global;
 
 use crate::framework::itest;
@@ -686,15 +686,15 @@ impl PubClassPrivSignal {
 // Custom callables
 
 mod custom_callable {
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
 
-    use godot::builtin::{vslice, Callable, Signal, Variant};
+    use godot::builtin::{Callable, Signal, Variant, vslice};
     use godot::classes::Node;
     use godot::obj::{Gd, NewAlloc};
 
     use crate::builtin_tests::containers::callable_test::custom_callable::PanicCallable;
-    use crate::framework::{itest, TestContext};
+    use crate::framework::{TestContext, itest};
 
     #[itest]
     fn signal_panic_user_from_fn() {

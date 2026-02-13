@@ -76,7 +76,7 @@
 // https://crates.io/crates/clean-macro-docs.
 // Earlier syntax expected curly braces, i.e.:  ($subject:expr, { $($tt:tt)* }) => {{ ... }};
 macro_rules! match_class {
-    ($subject:expr, $($tt:tt)*) => {{
+    ($subject:expr_2021, $($tt:tt)*) => {{
         let subject = $subject;
         $crate::match_class_muncher!(subject, $($tt)*)
     }};
@@ -86,7 +86,7 @@ macro_rules! match_class {
 #[macro_export]
 macro_rules! match_class_muncher {
     // mut variable @ Class => { ... }.
-    ($subject:ident, mut $var:ident @ $Ty:ty => $block:expr, $($rest:tt)*) => {{
+    ($subject:ident, mut $var:ident @ $Ty:ty => $block:expr_2021, $($rest:tt)*) => {{
         match $subject.try_cast::<$Ty>() {
             Ok(mut $var) => $block,
             Err(__obj) => {
@@ -96,7 +96,7 @@ macro_rules! match_class_muncher {
     }};
 
     // variable @ Class => { ... }.
-    ($subject:ident, $var:ident @ $Ty:ty => $block:expr, $($rest:tt)*) => {{
+    ($subject:ident, $var:ident @ $Ty:ty => $block:expr_2021, $($rest:tt)*) => {{
         match $subject.try_cast::<$Ty>() {
             Ok($var) => $block,
             Err(__obj) => {
@@ -106,7 +106,7 @@ macro_rules! match_class_muncher {
     }};
 
     // _ @ Class => { ... }.
-    ($subject:ident, _ @ $Ty:ty => $block:expr, $($rest:tt)*) => {{
+    ($subject:ident, _ @ $Ty:ty => $block:expr_2021, $($rest:tt)*) => {{
         match $subject.try_cast::<$Ty>() {
             Ok(_) => $block,
             Err(__obj) => {
@@ -116,20 +116,20 @@ macro_rules! match_class_muncher {
     }};
 
     // mut variable => { ... }.
-    ($subject:ident, mut $var:ident => $block:expr $(,)?) => {{
+    ($subject:ident, mut $var:ident => $block:expr_2021 $(,)?) => {{
         let mut $var = $subject;
         $block
     }};
 
     // variable => { ... }.
-    ($subject:ident, $var:ident => $block:expr $(,)?) => {{
+    ($subject:ident, $var:ident => $block:expr_2021 $(,)?) => {{
         let $var = $subject;
         $block
     }};
 
     // _ => { ... }
     // or nothing, if fallback is absent and overall expression being ().
-    ($subject:ident, $(_ => $block:expr $(,)?)?) => {{
+    ($subject:ident, $(_ => $block:expr_2021 $(,)?)?) => {{
         $($block)?
     }};
 }

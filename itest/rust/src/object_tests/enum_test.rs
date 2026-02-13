@@ -11,7 +11,7 @@ use godot::builtin::varray;
 use godot::classes::input::CursorShape;
 use godot::classes::mesh::PrimitiveType;
 use godot::classes::window::LayoutDirection;
-use godot::classes::{time, ArrayMesh};
+use godot::classes::{ArrayMesh, time};
 use godot::global::{Key, Orientation};
 use godot::obj::{EngineEnum, NewGd};
 

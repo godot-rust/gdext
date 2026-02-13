@@ -270,7 +270,9 @@ impl<T> CellState<T> {
     /// - There can't be any active reference to `CellState`.
     #[allow(clippy::mut_from_ref)]
     pub(crate) unsafe fn borrow_state(cell_state: &UnsafeCell<Self>) -> &mut BorrowState {
-        &mut cell_state.get().as_mut().unwrap().borrow_state
+        // SAFETY: Caller guarantees cell_state is valid, properly aligned, with no active references.
+        let state = unsafe { cell_state.get().as_mut().unwrap() };
+        &mut state.borrow_state
     }
 }
 

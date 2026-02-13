@@ -8,11 +8,11 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-use crate::builtin::{inner, Encoding, GString, NodePath, Variant};
-use crate::meta::error::StringError;
+use crate::builtin::{Encoding, GString, NodePath, Variant, inner};
 use crate::meta::AsArg;
+use crate::meta::error::StringError;
 use crate::{impl_shared_string_api, meta};
 
 /// A string optimized for unique names.
@@ -240,8 +240,10 @@ impl StringName {
     pub(crate) unsafe fn borrow_string_sys<'a>(
         ptr: sys::GDExtensionConstStringNamePtr,
     ) -> &'a StringName {
-        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
-        &*(ptr.cast::<StringName>())
+        unsafe {
+            sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
+            &*(ptr.cast::<StringName>())
+        }
     }
 
     /// Convert a `StringName` sys pointer to a mutable reference with unbounded lifetime.
@@ -253,8 +255,10 @@ impl StringName {
     pub(crate) unsafe fn borrow_string_sys_mut<'a>(
         ptr: sys::GDExtensionStringNamePtr,
     ) -> &'a mut StringName {
-        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
-        &mut *(ptr.cast::<StringName>())
+        unsafe {
+            sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
+            &mut *(ptr.cast::<StringName>())
+        }
     }
 
     #[doc(hidden)]

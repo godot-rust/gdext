@@ -5,15 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{vslice, Variant};
+use godot::builtin::{Variant, vslice};
 use godot::classes::{ClassDb, Node, RefCounted, ResourceFormatLoader, ResourceLoader};
 use godot::global;
 use godot::meta::ToGodot;
 use godot::obj::{Gd, NewAlloc, NewGd, Singleton};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::{create_gdscript, itest};
-use crate::object_tests::object_test::{user_refc_instance, RefcPayload};
+use crate::object_tests::object_test::{RefcPayload, user_refc_instance};
 
 /*
 #[itest]
@@ -242,10 +242,10 @@ mod engine_api_tests {
     use std::cell::Cell;
 
     use godot::builtin::{Rid, Variant};
-    use godot::classes::{base_material_3d, ITexture2D, StandardMaterial3D, Texture2D};
+    use godot::classes::{ITexture2D, StandardMaterial3D, Texture2D, base_material_3d};
     use godot::meta::ToGodot;
     use godot::obj::{Base, Gd, NewGd, WithBaseField};
-    use godot::register::{godot_api, GodotClass};
+    use godot::register::{GodotClass, godot_api};
 
     use crate::framework::itest;
 

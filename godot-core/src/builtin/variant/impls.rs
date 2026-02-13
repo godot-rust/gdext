@@ -15,7 +15,7 @@ use crate::meta::sealed::Sealed;
 use crate::meta::{
     ArrayElement, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo, RefArg,
 };
-use crate::task::{impl_dynamic_send, DynamicSend, IntoDynamicSend, ThreadConfined};
+use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_send};
 
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
 
@@ -228,8 +228,8 @@ const _: () = {
     use crate::classes::Object;
     use crate::obj::{Gd, IndexEnum};
 
-    const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + ArrayElement>(
-    ) -> VariantType {
+    const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + ArrayElement>()
+    -> VariantType {
         <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()
     }
 
