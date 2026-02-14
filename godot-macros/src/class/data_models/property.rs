@@ -239,8 +239,7 @@ fn make_accessor_func_constant(
     func_name_consts.push(gs.funcs_collection_constant);
     export_tokens.push(gs.export_token);
 
-    // The constant stores the Godot name and is used as indirection from other procedural macros.
-    // Placed on the class itself (not a separate struct), so it's accessible cross-module.
+    // Indirection constant for the Godot-registered name. Placed on the class (not the Funcs struct), so it's accessible cross-module.
     let constant = format_funcs_collection_constant(class_name, &gs.rust_accessor);
 
     quote! { #class_name::#constant }

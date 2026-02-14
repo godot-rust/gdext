@@ -18,8 +18,7 @@ use crate::framework::itest;
 #[class(base=Object)]
 pub struct MultipleImplBlocks {
     #[var(get = get_i32, no_set)]
-    field: PhantomVar<i32>
-
+    field: PhantomVar<i32>,
 }
 
 #[godot_api]
@@ -72,5 +71,3 @@ fn godot_api_multiple_impl_blocks() {
 
     obj.free();
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -93,7 +93,9 @@ pub fn transform_inherent_impl(
     let inherent_impl_docs =
         crate::docs::make_trait_docs_registration(&funcs, &consts, &signals, &class_name, &prv);
 
-    // For each #[func] in this impl block, create one constant (on the class itself).
+    // For each #[func], create a name constant as associated const on the class itself (not on the separate __godot_*_Funcs struct).
+    // This allows secondary blocks in other modules to emit constants without needing the Funcs struct in scope.
+    // Trade-off: constants use `__func_` prefix to avoid collision with methods; the Funcs struct remains declared but unused for this purpose.
     let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
     let (signal_registrations, signal_symbol_types) = make_signal_registrations(
         &signals,
@@ -134,9 +136,9 @@ pub fn transform_inherent_impl(
     if !meta.secondary {
         // We are the primary `impl` block.
 
-        // Storage for registration functions from all `#[godot_api]` impl blocks (primary + secondary).
-        // Accessed through the class type so secondary blocks in other modules can find it.
-        // Tuple: (method+signal registrations, constant registrations).
+        // Storage for registration functions, shared across all `#[godot_api]` impl blocks (primary + secondary).
+        // Uses associated fn on the class (not free statics) so secondary blocks in other modules can access it via `ClassName::__registration_storage()`.
+        // Alternative: free `static`s would be simpler but require cross-module imports of generated symbols.
         let storage = quote! {
             impl #class_name {
                 #[doc(hidden)]
