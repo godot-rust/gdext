@@ -122,22 +122,15 @@ pub fn transform_inherent_impl(
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
-    // Internal idents unlikely to surface in user code; but span shouldn't hurt.
-    let class_span = class_name.span();
-    let method_storage_name =
-        format_ident!("__registration_methods_{class_name}", span = class_span);
-    let constants_storage_name =
-        format_ident!("__registration_constants_{class_name}", span = class_span);
-
     let fill_storage = {
         quote! {
             ::godot::sys::plugin_execute_pre_main!({
-                #method_storage_name.lock().unwrap().push(|| {
+                #class_name::__registration_methods_storage().lock().unwrap().push(|| {
                     #( #method_registrations )*
                     #( #signal_registrations )*
                 });
 
-                #constants_storage_name.lock().unwrap().push(|| {
+                #class_name::__registration_constants_storage().lock().unwrap().push(|| {
                     #constant_registration
                 });
 
@@ -149,26 +142,32 @@ pub fn transform_inherent_impl(
         // We are the primary `impl` block.
 
         let storage = quote! {
-            #[allow(non_upper_case_globals)]
-            #[doc(hidden)]
-            static #method_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+            impl #class_name {
+                #[doc(hidden)]
+                pub fn __registration_methods_storage() -> &'static std::sync::Mutex<Vec<fn()>> {
+                    static STORAGE: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+                    &STORAGE
+                }
 
-            #[allow(non_upper_case_globals)]
-            #[doc(hidden)]
-            static #constants_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+                #[doc(hidden)]
+                pub fn __registration_constants_storage() -> &'static std::sync::Mutex<Vec<fn()>> {
+                    static STORAGE: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+                    &STORAGE
+                }
+            }
         };
 
         let trait_impl = quote! {
             impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
                 fn __register_methods() {
-                    let guard = #method_storage_name.lock().unwrap();
+                    let guard = #class_name::__registration_methods_storage().lock().unwrap();
                     for f in guard.iter() {
                         f();
                     }
                 }
 
                 fn __register_constants() {
-                    let guard = #constants_storage_name.lock().unwrap();
+                    let guard = #class_name::__registration_constants_storage().lock().unwrap();
                     for f in guard.iter() {
                         f();
                     }
@@ -202,12 +201,13 @@ pub fn transform_inherent_impl(
         // We are in a secondary `impl` block, so most of the work has already been done,
         // and we just need to add our registration functions in the storage defined by the primary `impl` block.
 
+        // Note: we do NOT emit `impl #funcs_collection { ... }` here.
+        // The Funcs struct lives in the same module as the class definition, and a secondary block
+        // may be in a different module where the struct isn't in scope. The func name constants are
+        // a convenience for IDE completion and property resolution; they aren't needed for registration.
         let result = quote! {
             #impl_block
             #fill_storage
-            impl #funcs_collection {
-                #( #func_name_constants )*
-            }
             #inherent_impl_docs
         };
 
