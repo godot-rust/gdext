@@ -8,7 +8,7 @@
 use godot::builtin::{GString, PackedStringArray};
 use godot::classes::{IEditorExportPlugin, Node, Resource};
 use godot::obj::Gd;
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 #[derive(GodotClass)]
 #[class(base=EditorExportPlugin, init, tool)]

@@ -10,9 +10,9 @@ use godot_ffi as sys;
 use crate::builder::ClassBuilder;
 use crate::builtin::GString;
 use crate::init::InitLevel;
-use crate::meta::inspect::EnumConstant;
 use crate::meta::ClassId;
-use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
+use crate::meta::inspect::EnumConstant;
+use crate::obj::{Base, BaseMut, BaseRef, Bounds, Gd, bounds};
 use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 

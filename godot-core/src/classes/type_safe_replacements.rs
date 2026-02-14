@@ -17,7 +17,7 @@ use crate::classes::object::ConnectFlags;
 use crate::classes::scene_tree::GroupCallFlags;
 use crate::classes::{Node, Object, SceneTree, Script};
 use crate::global::Error;
-use crate::meta::{arg_into_ref, AsArg, ToGodot};
+use crate::meta::{AsArg, ToGodot, arg_into_ref};
 use crate::obj::{EngineBitfield, Gd};
 
 impl Object {

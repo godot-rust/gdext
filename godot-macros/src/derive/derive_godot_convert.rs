@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use proc_macro2::{Ident, TokenStream, TokenTree};
 use quote::quote;
 
+use crate::ParseResult;
 use crate::derive::data_models::GodotConvert;
 use crate::derive::{make_fromgodot, make_togodot};
-use crate::ParseResult;
 
 /// Derives `GodotConvert` for the given declaration.
 ///

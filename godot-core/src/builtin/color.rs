@@ -8,13 +8,13 @@
 use std::ops;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::color_hsv::rgba_to_hsva;
 use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
 use crate::builtin::{ColorHsv, GString};
-use crate::meta::{arg_into_ref, AsArg};
+use crate::meta::{AsArg, arg_into_ref};
 
 /// Color built-in type, in floating-point RGBA format.
 ///
@@ -126,11 +126,7 @@ impl Color {
         );
 
         // Assumption: the implementation of `from_string` in the engine will never return any NaN upon success.
-        if color.r.is_nan() {
-            None
-        } else {
-            Some(color)
-        }
+        if color.r.is_nan() { None } else { Some(color) }
     }
 
     /// Constructs a `Color` from an [HSV profile](https://en.wikipedia.org/wiki/HSL_and_HSV) using
@@ -319,7 +315,9 @@ impl Color {
     /// Fallible `Color` conversion into [`ColorHsv`]. See also [`Color::to_hsv`].
     pub fn try_to_hsv(self) -> Result<ColorHsv, String> {
         if !self.is_normalized() {
-            return Err(format!("RGBA values need to be in range `0.0..=1.0` before conversion, but were {self:?}. See: `Color::normalized()` method."));
+            return Err(format!(
+                "RGBA values need to be in range `0.0..=1.0` before conversion, but were {self:?}. See: `Color::normalized()` method."
+            ));
         }
         let (h, s, v, a) = rgba_to_hsva(self.r, self.g, self.b, self.a);
 

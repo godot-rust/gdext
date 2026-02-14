@@ -5,10 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use sys::{interface_fn, GodotFfi, SysPtr};
+use sys::{GodotFfi, SysPtr, interface_fn};
 
-use crate::builtin::collections::extend_buffer::{ExtendBuffer, ExtendBufferTrait};
 use crate::builtin::PackedArray;
+use crate::builtin::collections::extend_buffer::{ExtendBuffer, ExtendBufferTrait};
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{CowArg, FromGodot, GodotType, ToGodot};
 use crate::registry::property::builtin_type_string;
@@ -171,11 +171,7 @@ pub trait PackedArrayElement: GodotType + Clone + ToGodot + FromGodot {
 
 /// Helper because `usize::max()` is not const.
 const fn const_max(a: usize, b: usize) -> usize {
-    if a > b {
-        a
-    } else {
-        b
-    }
+    if a > b { a } else { b }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -210,44 +206,52 @@ macro_rules! impl_packed_array_element {
                 const_max(1, 2048 / std::mem::size_of::<$Element>())
             }>;
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_default(type_ptr: sys::GDExtensionTypePtr) {
                 let constructor = sys::builtin_fn!($default_fn);
                 constructor(SysPtr::as_uninit(type_ptr), std::ptr::null_mut());
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_copy(src_ptr: sys::GDExtensionConstTypePtr, dst_ptr: sys::GDExtensionTypePtr) {
                 let constructor = sys::builtin_fn!($copy_fn);
                 let args = [src_ptr];
                 constructor(SysPtr::as_uninit(dst_ptr), args.as_ptr());
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_destroy(type_ptr: sys::GDExtensionTypePtr) {
                 let destructor = sys::builtin_fn!($destroy_fn @1);
                 destructor(type_ptr);
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_to_variant(type_ptr: sys::GDExtensionConstTypePtr, variant_ptr: sys::GDExtensionVariantPtr) {
                 let converter = sys::builtin_fn!($to_variant_fn);
                 converter(SysPtr::as_uninit(variant_ptr), SysPtr::force_mut(type_ptr));
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_from_variant(variant_ptr: sys::GDExtensionConstVariantPtr, type_ptr: sys::GDExtensionTypePtr) {
                 let converter = sys::builtin_fn!($from_variant_fn);
                 converter(SysPtr::as_uninit(type_ptr), SysPtr::force_mut(variant_ptr));
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_to_array(from_packed: sys::GDExtensionConstTypePtr, to_uninit_array: sys::GDExtensionUninitializedTypePtr) {
                 let converter = sys::builtin_fn!($to_array_fn);
                 let args = [from_packed];
                 converter(to_uninit_array, args.as_ptr())
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_from_array(from_array: sys::GDExtensionConstTypePtr, to_uninit_packed: sys::GDExtensionUninitializedTypePtr) {
                 let converter = sys::builtin_fn!($from_array_fn);
                 let args = [from_array];
                 converter(to_uninit_packed, args.as_ptr())
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_equals(left_ptr: sys::GDExtensionConstTypePtr, right_ptr: sys::GDExtensionConstTypePtr) -> bool {
                 let mut result = false;
                 sys::builtin_call! {
@@ -256,16 +260,14 @@ macro_rules! impl_packed_array_element {
                 result
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_index_const(type_ptr: sys::GDExtensionConstTypePtr, index: i64) -> *const Self::Indexed {
-                unsafe {
-                    interface_fn!($index_const_fn)(type_ptr, index)
-                }
+                interface_fn!($index_const_fn)(type_ptr, index)
             }
 
+            #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
             unsafe fn ffi_index_mut(type_ptr: sys::GDExtensionTypePtr, index: i64) -> *mut Self::Indexed {
-                unsafe {
-                    interface_fn!($index_mut_fn)(type_ptr, index)
-                }
+                interface_fn!($index_mut_fn)(type_ptr, index)
             }
 
             fn op_has(inner: Self::Inner<'_>, value: CowArg<'_, Self>) -> bool {

@@ -8,8 +8,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::derive::data_models::GodotConvert;
 use crate::ParseResult;
+use crate::derive::data_models::GodotConvert;
 
 /// Derives `Export` for the declaration.
 ///

@@ -80,7 +80,7 @@ pub const SYS_FALSE: sys::GDExtensionBool = bool_to_sys(false);
 
 #[cfg(test)]
 mod test {
-    use crate::conv::{bool_to_sys, u32_to_usize, SYS_FALSE, SYS_TRUE};
+    use crate::conv::{SYS_FALSE, SYS_TRUE, bool_to_sys, u32_to_usize};
 
     #[test]
     fn sys_bool() {

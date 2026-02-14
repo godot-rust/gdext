@@ -6,7 +6,7 @@
  */
 
 use super::ApproxEq;
-use crate::builtin::{real, RealConv, Vector2};
+use crate::builtin::{RealConv, Vector2, real};
 
 mod private {
     pub trait Sealed {}

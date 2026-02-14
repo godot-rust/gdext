@@ -9,11 +9,11 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector3Axis;
-use crate::builtin::{inner, real, Basis, RVec3, Vector2, Vector3i};
+use crate::builtin::{Basis, RVec3, Vector2, Vector3i, inner, real};
 
 /// Vector used for 3D math using floating point coordinates.
 ///

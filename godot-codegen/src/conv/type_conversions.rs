@@ -10,7 +10,7 @@
 use std::fmt;
 
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use crate::context::Context;
 use crate::conv;
@@ -366,7 +366,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         "false" => return quote! { false },
         "[]" | "{}" if is_inner => return quote! {},
         "[]" if matches!(ty, RustTy::BuiltinIdent { ty, .. } if ty == "AnyArray") => {
-            return quote! { AnyArray::new_untyped() }
+            return quote! { AnyArray::new_untyped() };
         }
         "[]" => return quote! { Array::new() }, // VarArray or Array<T>
         "{}" => return quote! { VarDictionary::new() },
@@ -379,7 +379,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
                     quote! { Gd::null_arg() }
                 }
                 _ => panic!("null not representable in target type {ty:?}"),
-            }
+            };
         }
         "RID()" | "Callable()" if !is_inner => {
             return match ty {
@@ -388,7 +388,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
                     quote! { Callable::invalid() }
                 }
                 _ => panic!("empty string not representable in target type {ty:?}"),
-            }
+            };
         }
         _ => {}
     }

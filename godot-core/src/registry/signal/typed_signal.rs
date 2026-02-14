@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 
-use super::{make_callable_name, make_godot_fn, ConnectBuilder, ConnectHandle, SignalObject};
+use super::{ConnectBuilder, ConnectHandle, SignalObject, make_callable_name, make_godot_fn};
 use crate::builtin::{Callable, CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;

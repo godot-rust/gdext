@@ -9,7 +9,7 @@
 // See also integration tests: itest/engine_tests/codegen_[enums_]test.rs.
 
 use crate::conv;
-use crate::generator::native_structures::{parse_native_structures_format, NativeStructuresField};
+use crate::generator::native_structures::{NativeStructuresField, parse_native_structures_format};
 
 #[test]
 fn test_pascal_conversion() {
@@ -155,7 +155,7 @@ fn test_parse_native_structures_format() {
     );
 
     let actual = parse_native_structures_format(
-        "Vector3 position;Vector3 normal[5];Vector3 collider_velocity;Vector3 collider_angular_velocity;real_t depth;int local_shape;ObjectID collider_id;RID collider;int collider_shape"
+        "Vector3 position;Vector3 normal[5];Vector3 collider_velocity;Vector3 collider_angular_velocity;real_t depth;int local_shape;ObjectID collider_id;RID collider;int collider_shape",
     );
     let expected = vec![
         native("Vector3", "position"),

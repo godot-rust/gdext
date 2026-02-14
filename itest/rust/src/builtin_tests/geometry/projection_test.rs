@@ -9,7 +9,7 @@
 
 use godot::builtin::inner::InnerProjection;
 use godot::builtin::math::assert_eq_approx;
-use godot::builtin::{real, Aabb, Projection, RealConv, Rect2, Vector2, Vector3};
+use godot::builtin::{Aabb, Projection, RealConv, Rect2, Vector2, Vector3, real};
 
 use crate::framework::itest;
 

@@ -20,10 +20,10 @@ use crate::builder::ClassBuilder;
 use crate::builtin::{StringName, Variant};
 use crate::classes::Object;
 use crate::meta::PropertyInfo;
-use crate::obj::{bounds, cap, AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass};
-use crate::private::{handle_panic, IntoVirtualMethodReceiver, PanicPayload};
+use crate::obj::{AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass, bounds, cap};
+use crate::private::{IntoVirtualMethodReceiver, PanicPayload, handle_panic};
 use crate::registry::plugin::ErasedDynGd;
-use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
+use crate::storage::{InstanceStorage, Storage, StorageRefCounted, as_storage};
 
 /// Godot FFI default constructor.
 ///
@@ -183,12 +183,15 @@ pub unsafe extern "C" fn free<T: GodotClass>(
     _class_user_data: *mut std::ffi::c_void,
     instance: sys::GDExtensionClassInstancePtr,
 ) {
-    {
-        let storage = as_storage::<T>(instance);
-        storage.mark_destroyed_by_godot();
-    } // Ref no longer valid once next statement is executed.
+    // SAFETY: Pointer valid for callback duration (Godot contract).
+    unsafe {
+        {
+            let storage = as_storage::<T>(instance);
+            storage.mark_destroyed_by_godot();
+        } // Ref no longer valid once next statement is executed.
 
-    crate::storage::destroy_storage::<T>(instance);
+        crate::storage::destroy_storage::<T>(instance);
+    }
 }
 
 #[cfg(since_api = "4.4")]
@@ -197,11 +200,13 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     name: sys::GDExtensionConstStringNamePtr,
     hash: u32,
 ) -> sys::GDExtensionClassCallVirtual {
-    // This string is not ours, so we cannot call the destructor on it.
-    let borrowed_string = StringName::borrow_string_sys(name);
-    let method_name = borrowed_string.to_string();
+    unsafe {
+        // This string is not ours, so we cannot call the destructor on it.
+        let borrowed_string = StringName::borrow_string_sys(name);
+        let method_name = borrowed_string.to_string();
 
-    T::__virtual_call(method_name.as_str(), hash)
+        T::__virtual_call(method_name.as_str(), hash)
+    }
 }
 
 #[cfg(before_api = "4.4")]
@@ -222,11 +227,13 @@ pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     name: sys::GDExtensionConstStringNamePtr,
     hash: u32,
 ) -> sys::GDExtensionClassCallVirtual {
-    // This string is not ours, so we cannot call the destructor on it.
-    let borrowed_string = StringName::borrow_string_sys(name);
-    let method_name = borrowed_string.to_string();
+    unsafe {
+        // This string is not ours, so we cannot call the destructor on it.
+        let borrowed_string = StringName::borrow_string_sys(name);
+        let method_name = borrowed_string.to_string();
 
-    T::__default_virtual_call(method_name.as_str(), hash)
+        T::__default_virtual_call(method_name.as_str(), hash)
+    }
 }
 
 #[cfg(before_api = "4.4")]
@@ -246,16 +253,18 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     is_valid: *mut sys::GDExtensionBool,
     out_string: sys::GDExtensionStringPtr,
 ) {
-    // Note: to_string currently always succeeds, as it is only provided for classes that have a working implementation.
+    unsafe {
+        // Note: to_string currently always succeeds, as it is only provided for classes that have a working implementation.
 
-    let storage = as_storage::<T>(instance);
-    let string = T::__godot_to_string(T::Recv::instance(storage));
+        let storage = as_storage::<T>(instance);
+        let string = T::__godot_to_string(T::Recv::instance(storage));
 
-    // Transfer ownership to Godot
-    string.move_into_string_ptr(out_string);
+        // Transfer ownership to Godot
+        string.move_into_string_ptr(out_string);
 
-    // Note: is_valid comes uninitialized and must be set.
-    *is_valid = sys::conv::SYS_TRUE;
+        // Note: is_valid comes uninitialized and must be set.
+        *is_valid = sys::conv::SYS_TRUE;
+    }
 }
 
 pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
@@ -263,10 +272,12 @@ pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
     what: i32,
     _reversed: sys::GDExtensionBool,
 ) {
-    let storage = as_storage::<T>(instance);
-    let mut instance = storage.get_mut();
+    unsafe {
+        let storage = as_storage::<T>(instance);
+        let mut instance = storage.get_mut();
 
-    T::__godot_notification(&mut *instance, what);
+        T::__godot_notification(&mut *instance, what);
+    }
 }
 
 pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
@@ -274,16 +285,18 @@ pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
     name: sys::GDExtensionConstStringNamePtr,
     ret: sys::GDExtensionVariantPtr,
 ) -> sys::GDExtensionBool {
-    let storage = as_storage::<T>(instance);
-    let instance = T::Recv::instance(storage);
-    let property = StringName::new_from_string_sys(name);
+    unsafe {
+        let storage = as_storage::<T>(instance);
+        let instance = T::Recv::instance(storage);
+        let property = StringName::new_from_string_sys(name);
 
-    match T::__godot_get_property(instance, property) {
-        Some(value) => {
-            value.move_into_var_ptr(ret);
-            sys::conv::SYS_TRUE
+        match T::__godot_get_property(instance, property) {
+            Some(value) => {
+                value.move_into_var_ptr(ret);
+                sys::conv::SYS_TRUE
+            }
+            None => sys::conv::SYS_FALSE,
         }
-        None => sys::conv::SYS_FALSE,
     }
 }
 
@@ -292,23 +305,29 @@ pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
     name: sys::GDExtensionConstStringNamePtr,
     value: sys::GDExtensionConstVariantPtr,
 ) -> sys::GDExtensionBool {
-    let storage = as_storage::<T>(instance);
-    let instance = T::Recv::instance(storage);
+    unsafe {
+        let storage = as_storage::<T>(instance);
+        let instance = T::Recv::instance(storage);
 
-    let property = StringName::new_from_string_sys(name);
-    let value = Variant::new_from_var_sys(value);
+        let property = StringName::new_from_string_sys(name);
+        let value = Variant::new_from_var_sys(value);
 
-    sys::conv::bool_to_sys(T::__godot_set_property(instance, property, value))
+        sys::conv::bool_to_sys(T::__godot_set_property(instance, property, value))
+    }
 }
 
 pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
-    let storage = as_storage::<T>(instance);
-    storage.on_inc_ref();
+    unsafe {
+        let storage = as_storage::<T>(instance);
+        storage.on_inc_ref();
+    }
 }
 
 pub unsafe extern "C" fn unreference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
-    let storage = as_storage::<T>(instance);
-    storage.on_dec_ref();
+    unsafe {
+        let storage = as_storage::<T>(instance);
+        storage.on_dec_ref();
+    }
 }
 
 /// # Safety

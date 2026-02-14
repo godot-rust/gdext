@@ -8,7 +8,7 @@
 use std::fmt;
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 
 use crate::context::Context;
 use crate::generator::lifecycle_builtins;

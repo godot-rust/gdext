@@ -7,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use godot::builtin::{static_sname, Encoding, GString, NodePath, StringName};
+use godot::builtin::{Encoding, GString, NodePath, StringName, static_sname};
 
 #[cfg(since_api = "4.5")]
 use super::string_test_macros::{APPLE_CHARS, APPLE_STR};

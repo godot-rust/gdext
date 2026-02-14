@@ -17,13 +17,13 @@ mod vector4i;
 mod vector_axis;
 mod vector_swizzle;
 
+pub use vector_axis::*;
+pub use vector_swizzle::*;
 pub use vector2::*;
 pub use vector2i::*;
 pub use vector3::*;
 pub use vector3i::*;
 pub use vector4::*;
 pub use vector4i::*;
-pub use vector_axis::*;
-pub use vector_swizzle::*;
 
 pub use crate::swizzle;

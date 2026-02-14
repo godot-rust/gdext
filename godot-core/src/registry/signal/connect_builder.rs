@@ -12,7 +12,7 @@ use crate::builtin::{CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned};
-use crate::obj::{bounds, Bounds, Gd, GodotClass, WithSignals};
+use crate::obj::{Bounds, Gd, GodotClass, WithSignals, bounds};
 use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 use crate::registry::signal::{ConnectHandle, TypedSignal};
 

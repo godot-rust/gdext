@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use std::{cmp, fmt};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, interface_fn, GodotFfi};
+use sys::{GodotFfi, ffi_methods, interface_fn};
 
 use crate::builtin::iter::ArrayFunctionalOps;
 use crate::builtin::*;
@@ -18,11 +18,11 @@ use crate::meta;
 use crate::meta::error::{ArrayMismatch, ConvertError, FromGodotError, FromVariantError};
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{
-    element_godot_type_name, element_variant_type, ArrayElement, AsArg, ClassId, ElementType,
-    ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, PropertyHintInfo, RefArg,
-    ToGodot,
+    ArrayElement, AsArg, ClassId, ElementType, ExtVariantType, FromGodot, GodotConvert,
+    GodotFfiVariant, GodotType, PropertyHintInfo, RefArg, ToGodot, element_godot_type_name,
+    element_variant_type,
 };
-use crate::obj::{bounds, Bounds, DynGd, Gd, GodotClass};
+use crate::obj::{Bounds, DynGd, Gd, GodotClass, bounds};
 use crate::registry::property::{BuiltinExport, Export, Var};
 
 /// Godot's `Array` type.
@@ -886,8 +886,7 @@ impl<T: ArrayElement> Array<T> {
     /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
     #[cfg(safeguards_strict)]
     unsafe fn assume_type_ref<U: ArrayElement>(&self) -> &Array<U> {
-        // The memory layout of `Array<T>` does not depend on `T`.
-        std::mem::transmute::<&Array<T>, &Array<U>>(self)
+        unsafe { std::mem::transmute::<&Array<T>, &Array<U>>(self) }
     }
 
     fn as_any_ref(&self) -> &AnyArray {
@@ -1057,11 +1056,14 @@ impl<T: ArrayElement> Array<T> {
     /// Should be used only in scenarios where the caller can guarantee that the resulting array will have the correct type,
     /// or when an incorrect Rust type is acceptable (passing raw arrays to Godot FFI).
     pub(super) unsafe fn clone_unchecked(&self) -> Self {
-        let result = Self::new_with_uninit(|self_ptr| {
-            let ctor = sys::builtin_fn!(array_construct_copy);
-            let args = [self.sys()];
-            ctor(self_ptr, args.as_ptr());
-        });
+        let result = unsafe {
+            Self::new_with_uninit(|self_ptr| {
+                let ctor = sys::builtin_fn!(array_construct_copy);
+                let args = [self.sys()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        };
+
         result.with_cache(self)
     }
 
@@ -1088,11 +1090,13 @@ impl VarArray {
     /// - Variant must have type `VariantType::ARRAY`.
     /// - Subsequent operations on this array must not rely on the type of the array.
     pub(crate) unsafe fn from_variant_unchecked(variant: &Variant) -> Self {
-        // See also ffi_from_variant().
-        Self::new_with_uninit(|self_ptr| {
-            let array_from_variant = sys::builtin_fn!(array_from_variant);
-            array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
-        })
+        unsafe {
+            // See also ffi_from_variant().
+            Self::new_with_uninit(|self_ptr| {
+                let array_from_variant = sys::builtin_fn!(array_from_variant);
+                array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+            })
+        }
     }
 }
 
@@ -1548,7 +1552,7 @@ impl<T: ArrayElement> PartialOrd for Array<T> {
 /// For dictionaries, a similar macro [`vdict!`] exists.
 #[macro_export]
 macro_rules! array {
-    ($($elements:expr),* $(,)?) => {
+    ($($elements:expr_2021),* $(,)?) => {
         {
             let mut array = $crate::builtin::Array::default();
             $(
@@ -1578,7 +1582,7 @@ macro_rules! array {
 #[macro_export]
 macro_rules! varray {
     // Note: use to_variant() and not Variant::from(), as that works with both references and values
-    ($($elements:expr),* $(,)?) => {
+    ($($elements:expr_2021),* $(,)?) => {
         {
             use $crate::meta::ToGodot as _;
             let mut array = $crate::builtin::VarArray::default();
@@ -1626,14 +1630,9 @@ macro_rules! varray {
 /// For dictionaries, a similar macro [`vdict!`] exists.
 #[macro_export]
 macro_rules! vslice {
-    // Note: use to_variant() and not Variant::from(), as that works with both references and values
-    ($($elements:expr),* $(,)?) => {
-        {
-            use $crate::meta::ToGodot as _;
-            &[
-                $( $elements.to_variant(), )*
-            ]
-        }
+    // Note: use to_variant() and not Variant::from(), as that works with both references and values.
+    ($($elements:expr_2021),* $(,)?) => {
+        &[$( $crate::meta::ToGodot::to_variant(&$elements), )*]
     };
 }
 

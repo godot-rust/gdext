@@ -42,8 +42,10 @@ impl<T: GodotClass> PassiveGd<T> {
     /// The caller must ensure that the underlying object remains valid for the entire lifetime of this `PassiveGd`.
     pub unsafe fn from_strong_ref(gd: &Gd<T>) -> Self {
         // SAFETY: clone_weak() creates valid weak reference; caller ensures object validity.
-        let weak_gd = gd.clone_weak();
-        unsafe { Self::new(weak_gd) }
+        unsafe {
+            let weak_gd = gd.clone_weak();
+            Self::new(weak_gd)
+        }
     }
 
     /// Creates a passive reference directly from a raw object pointer.

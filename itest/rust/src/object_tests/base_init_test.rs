@@ -5,13 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::real_consts::FRAC_PI_3;
 use godot::builtin::Vector2;
+use godot::builtin::real_consts::FRAC_PI_3;
 use godot::classes::notify::ObjectNotification;
 use godot::classes::{ClassDb, IRefCounted, RefCounted};
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, InstanceId, NewGd, Singleton, WithBaseField};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 use godot::task::TaskHandle;
 
 #[cfg(safeguards_balanced)]

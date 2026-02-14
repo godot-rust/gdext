@@ -13,10 +13,10 @@ use std::process::{Command, Output};
 
 use regex::Regex;
 
+use crate::GodotVersion;
 use crate::godot_version::{parse_godot_version, validate_godot_version};
 use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
-use crate::GodotVersion;
 
 // Note: CARGO_BUILD_TARGET_DIR and CARGO_TARGET_DIR are not set.
 // OUT_DIR would be standing to reason, but it's an unspecified path that cannot be referenced by CI.
@@ -121,7 +121,9 @@ pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
     //
     // Thus, we check early and exit with a helpful message.
     if !is_godot_debug_build(godot_bin) {
-        panic!("`api-custom` needs a Godot debug build (editor or debug export template); detected release build");
+        panic!(
+            "`api-custom` needs a Godot debug build (editor or debug export template); detected release build"
+        );
     }
 
     version

@@ -13,15 +13,15 @@ use std::rc::Rc;
 
 use godot::builtin::{Array, GString, StringName, Variant, Vector3};
 use godot::classes::{
-    file_access, Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted,
+    Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted, file_access,
 };
 use godot::global::godot_str;
 use godot::meta::{FromGodot, GodotType, ToGodot};
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton};
-use godot::register::{godot_api, GodotClass};
-use godot::sys::{self, interface_fn, GodotFfi};
+use godot::register::{GodotClass, godot_api};
+use godot::sys::{self, GodotFfi, interface_fn};
 
-use crate::framework::{expect_panic, expect_panic_or_ub, itest, TestContext};
+use crate::framework::{TestContext, expect_panic, expect_panic_or_ub, itest};
 
 // TODO:
 // * make sure that ptrcalls are used when possible (i.e. when type info available; maybe GDScript integration test)

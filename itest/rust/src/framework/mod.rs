@@ -346,7 +346,7 @@ pub fn create_gdscript(code: &str) -> Gd<GDScript> {
 /// Clippy however complains, yet the suggested `#[allow(clippy::eq_op)]` cannot be used to suppress the Clippy warning (likely a bug).
 #[macro_export]
 macro_rules! assert_eq_self {
-    ($a:expr) => {{
+    ($a:expr_2021) => {{
         if !($a == $a) {
             panic!("assertion failed: `(a == a)`");
         }
@@ -376,7 +376,7 @@ pub use crate::{assert_eq_self, assert_match};
 #[macro_export]
 macro_rules! assert_match {
     // Default message, show the unexpected value (requires Debug).
-    ($expr:expr, $pat:pat $(,)?) => {
+    ($expr:expr_2021, $pat:pat $(,)?) => {
         let __expr = $expr;
         let $pat = __expr else {
             panic!(
@@ -387,7 +387,7 @@ macro_rules! assert_match {
     };
 
     // Custom panic message (format args supported).
-    ($expr:expr, $pat:pat, $($arg:tt)+) => {
+    ($expr:expr_2021, $pat:pat, $($arg:tt)+) => {
         let __expr = $expr;
         let $pat = __expr else {
             panic!($($arg)+);

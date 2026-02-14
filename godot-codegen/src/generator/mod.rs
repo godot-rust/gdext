@@ -9,9 +9,9 @@ use std::path::Path;
 
 use quote::quote;
 
+use crate::SubmitFn;
 use crate::context::Context;
 use crate::models::domain::{ClassCodegenLevel, ExtensionApi};
-use crate::SubmitFn;
 
 pub mod builtins;
 pub mod central_files;

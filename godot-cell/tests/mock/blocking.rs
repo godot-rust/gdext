@@ -179,11 +179,17 @@ fn non_blocking_reborrow() {
 
     let panic_a = thread_a.join().err();
 
-    assert_eq!(panic_a.unwrap().downcast_ref::<String>().unwrap(), "called `Result::unwrap()` on an `Err` value: Custom(\"cannot borrow mutable while shared borrow exists\")");
+    assert_eq!(
+        panic_a.unwrap().downcast_ref::<String>().unwrap(),
+        "called `Result::unwrap()` on an `Err` value: Custom(\"cannot borrow mutable while shared borrow exists\")"
+    );
 
     let panic_b = thread_b.join().err();
 
-    assert_eq!(panic_b.unwrap().downcast_ref::<String>().unwrap(), "called `Result::unwrap()` on an `Err` value: Custom(\"cannot borrow mutable while shared borrow exists\")");
+    assert_eq!(
+        panic_b.unwrap().downcast_ref::<String>().unwrap(),
+        "called `Result::unwrap()` on an `Err` value: Custom(\"cannot borrow mutable while shared borrow exists\")"
+    );
 }
 
 /// Mutable borrow on main thread with shared borrow on others.

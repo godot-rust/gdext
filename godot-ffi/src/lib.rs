@@ -13,6 +13,27 @@
 //! # Contributor docs
 //!
 //! Low level bindings to the provided C core API.
+//!
+//! ## Unsafe handling strategy (Rust 2024)
+//!
+//! The crate uses a thin unsafe boundary at the FFI layer, with safety delegated to the Godot C API contract.
+//! Generated FFI code in `mod r#gen` uses `#[allow(unsafe_op_in_unsafe_fn)]` since the safety of these thin wrappers
+//! is entirely tied to Godot's C API guarantees.
+//!
+//! Hand-written unsafe code follows these patterns:
+//! - **Thin delegation functions**: Use `#[allow(unsafe_op_in_unsafe_fn)]` with per-function SAFETY comments
+//!   (e.g., `binding/mod.rs` getter functions forward preconditions directly).
+//! - **Multi-op functions**: Group operations by their shared invariant with a single SAFETY comment.
+//!
+//! Common SAFETY comment families (for consistency):
+//! - `// SAFETY: Godot FFI pointer valid per C API contract.`
+//! - `// SAFETY: Layout-compatible types per #[repr(C)] guarantee.`
+//! - `// SAFETY: Pointer valid for callback duration (Godot contract).`
+//! - `// SAFETY: Binding initialized; caller upholds preconditions.`
+//! - `// SAFETY: Ref-count managed by Godot during ptrcall.`
+//! - `// SAFETY: One-time init on main thread; not yet initialized.`
+//!
+//! **TODO(v0.7)**: Revisit once JSON-based C API is ready.
 
 #![cfg_attr(test, allow(unused))]
 
@@ -43,8 +64,9 @@ compile_error!("Cannot use 'experimental-threads' with a nothreads Wasm build ye
     non_snake_case,
     deref_nullptr,
     clippy::redundant_static_lifetimes,
+    unsafe_op_in_unsafe_fn, // FFI delegation, safety delegated to Godot C API contract
 )]
-pub(crate) mod gen {
+pub(crate) mod r#gen {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
@@ -64,17 +86,17 @@ mod toolbox;
 
 // Other
 pub use extras::*;
-pub use gen::central::*;
-pub use gen::gdextension_interface::*;
-pub use gen::interface::*;
+pub use r#gen::central::*;
+pub use r#gen::gdextension_interface::*;
+pub use r#gen::interface::*;
 // Method tables
-pub use gen::table_builtins::*;
-pub use gen::table_builtins_lifecycle::*;
-pub use gen::table_core_classes::*;
-pub use gen::table_editor_classes::*;
-pub use gen::table_scene_classes::*;
-pub use gen::table_servers_classes::*;
-pub use gen::table_utilities::*;
+pub use r#gen::table_builtins::*;
+pub use r#gen::table_builtins_lifecycle::*;
+pub use r#gen::table_core_classes::*;
+pub use r#gen::table_editor_classes::*;
+pub use r#gen::table_scene_classes::*;
+pub use r#gen::table_servers_classes::*;
+pub use r#gen::table_utilities::*;
 pub use global::*;
 pub use init_level::*;
 pub use string_cache::StringCache;
@@ -282,13 +304,15 @@ pub unsafe fn initialize(
 /// # Safety
 /// See [`initialize`].
 pub unsafe fn deinitialize() {
-    deinitialize_binding();
+    unsafe {
+        deinitialize_binding();
 
-    // MACOS-PARTIAL-RELOAD: Clear the main thread ID to allow re-initialization during hot reload.
-    #[cfg(not(wasm_nothreads))]
-    {
-        if MAIN_THREAD_ID.is_initialized() {
-            MAIN_THREAD_ID.clear();
+        // MACOS-PARTIAL-RELOAD: Clear the main thread ID to allow re-initialization during hot reload.
+        #[cfg(not(wasm_nothreads))]
+        {
+            if MAIN_THREAD_ID.is_initialized() {
+                MAIN_THREAD_ID.clear();
+            }
         }
     }
 }
@@ -389,7 +413,9 @@ fn print_preamble(version: GDExtensionGodotVersion) {
 
     let api_version: &'static str = GdextBuild::godot_static_version_string();
     let safeguards_level = safeguards_level_string();
-    println!("Initialize godot-rust (API {api_version}, runtime {runtime_version}, safeguards {safeguards_level})");
+    println!(
+        "Initialize godot-rust (API {api_version}, runtime {runtime_version}, safeguards {safeguards_level})"
+    );
 }
 
 /// # Safety
@@ -606,10 +632,13 @@ pub unsafe fn classdb_construct_object(
     class_name: GDExtensionConstStringNamePtr,
 ) -> GDExtensionObjectPtr {
     #[cfg(before_api = "4.4")]
-    return interface_fn!(classdb_construct_object)(class_name);
+    let f = interface_fn!(classdb_construct_object);
 
     #[cfg(since_api = "4.4")]
-    return interface_fn!(classdb_construct_object2)(class_name);
+    let f = interface_fn!(classdb_construct_object2);
+
+    // SAFETY: function pointer is valid since binding is initialized; class_name validity is upheld by caller.
+    unsafe { f(class_name) }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -626,7 +655,7 @@ macro_rules! builtin_fn {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! builtin_call {
-        ($name:ident ( $($args:expr),* $(,)? )) => {
+        ($name:ident ( $($args:expr_2021),* $(,)? )) => {
             ($crate::builtin_lifecycle_api().$name)( $($args),* )
         };
     }
@@ -634,9 +663,7 @@ macro_rules! builtin_call {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! interface_fn {
-    ($name:ident) => {{
-        unsafe { $crate::get_interface().$name.unwrap_unchecked() }
-    }};
+    ($name:ident) => {{ unsafe { $crate::get_interface().$name.unwrap_unchecked() } }};
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -657,7 +684,7 @@ macro_rules! interface_fn {
 /// ```
 #[macro_export]
 macro_rules! defer_startup_warn {
-    (id: $id:literal, $fmt:literal $(, $args:expr)* $(,)?) => {{
+    (id: $id:literal, $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
         let message = format!($fmt $(, $args)*);
         $crate::collect_startup_message(
             message,
@@ -684,7 +711,7 @@ macro_rules! defer_startup_warn {
 /// ```
 #[macro_export]
 macro_rules! defer_startup_error {
-    ($fmt:literal $(, $args:expr)* $(,)?) => {{
+    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {{
         let message = format!($fmt $(, $args)*);
         $crate::collect_startup_message(
             message,

@@ -110,10 +110,10 @@ where
     T::Via: Clone,
     // T::Via must be a Godot nullable type (to support the None case).
     for<'f> T::Via: GodotType<
-        // Associated types need to be nullable.
-        Ffi: GodotNullableFfi,
-        ToFfi<'f>: GodotNullableFfi,
-    >,
+            // Associated types need to be nullable.
+            Ffi: GodotNullableFfi,
+            ToFfi<'f>: GodotNullableFfi,
+        >,
     // Previously used bound, not needed right now but don't remove: Option<T::Via>: GodotType,
 {
     // Basically ByRef, but allows Option<T> -> Option<&T::Via> conversion.
@@ -181,7 +181,7 @@ where
 // Scalars
 
 macro_rules! impl_godot_scalar {
-    ($T:ty as $Via:ty, $err:path, $param_metadata:expr) => {
+    ($T:ty as $Via:ty, $err:path, $param_metadata:expr_2021) => {
         impl GodotType for $T {
             type Ffi = $Via;
             type ToFfi<'f> = $Via;
@@ -215,7 +215,7 @@ macro_rules! impl_godot_scalar {
         impl_godot_scalar!(@shared_traits; $T);
     };
 
-    ($T:ty as $Via:ty, $param_metadata:expr; lossy) => {
+    ($T:ty as $Via:ty, $param_metadata:expr_2021; lossy) => {
         impl GodotType for $T {
             type Ffi = $Via;
             type ToFfi<'f> = $Via;
@@ -241,7 +241,7 @@ macro_rules! impl_godot_scalar {
         impl_godot_scalar!(@shared_traits; $T);
     };
 
-    (@shared_fns; $Via:ty, $param_metadata:expr) => {
+    (@shared_fns; $Via:ty, $param_metadata:expr_2021) => {
         fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
             $param_metadata
         }

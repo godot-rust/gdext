@@ -7,7 +7,7 @@
 
 use godot::builtin::inner::InnerRect2;
 use godot::builtin::math::assert_eq_approx;
-use godot::builtin::{real, reals, RealConv, Rect2, Side, Vector2};
+use godot::builtin::{RealConv, Rect2, Side, Vector2, real, reals};
 
 use crate::framework::itest;
 

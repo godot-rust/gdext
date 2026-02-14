@@ -53,7 +53,8 @@ compile_error!("Generating editor docs for Rust symbols requires at least Godot 
 #[allow(clippy::upper_case_acronyms)] // TODO remove this line once we transform names
 #[allow(clippy::needless_lifetimes)]  // the following explicit lifetimes could be elided: 'a
 #[allow(unreachable_code, clippy::unimplemented)] // TODO remove once #153 is implemented
-mod gen {
+#[allow(unsafe_op_in_unsafe_fn)] // FFI delegation, safety delegated to Godot C API contract
+mod r#gen {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 

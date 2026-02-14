@@ -400,9 +400,11 @@ unsafe fn varcall_return<R: EngineToGodot>(
     ret: sys::GDExtensionVariantPtr,
     err: *mut sys::GDExtensionCallError,
 ) {
-    let ret_variant = ret_val.engine_to_variant();
-    *(ret as *mut Variant) = ret_variant;
-    (*err).error = sys::GDEXTENSION_CALL_OK;
+    unsafe {
+        let ret_variant = ret_val.engine_to_variant();
+        *(ret as *mut Variant) = ret_variant;
+        (*err).error = sys::GDEXTENSION_CALL_OK;
+    }
 }
 
 /// Moves `ret_val` into `ret`, if it is `Ok(...)`. Otherwise sets an error.
@@ -414,11 +416,13 @@ pub(crate) unsafe fn varcall_return_checked<R: ToGodot>(
     ret: sys::GDExtensionVariantPtr,
     err: *mut sys::GDExtensionCallError,
 ) {
-    if let Ok(ret_val) = ret_val {
-        varcall_return(ret_val, ret, err);
-    } else {
-        *err = sys::default_call_error();
-        (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT;
+    unsafe {
+        if let Ok(ret_val) = ret_val {
+            varcall_return(ret_val, ret, err);
+        } else {
+            *err = sys::default_call_error();
+            (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT;
+        }
     }
 }
 
@@ -433,11 +437,13 @@ unsafe fn ptrcall_return<R: EngineToGodot<Via: Clone>>(
     _call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) {
-    // Needs a value (no ref) to be moved; can't use engine_to_godot() + to_ffi().
-    let val = ret_val.engine_to_godot_owned();
-    let ffi = val.into_ffi();
+    unsafe {
+        // Needs a value (no ref) to be moved; can't use engine_to_godot() + to_ffi().
+        let val = ret_val.engine_to_godot_owned();
+        let ffi = val.into_ffi();
 
-    ffi.move_return_ptr(ret, call_type);
+        ffi.move_return_ptr(ret, call_type);
+    }
 }
 
 fn return_error<R>(call_ctx: &CallContext, err: ConvertError) -> ! {

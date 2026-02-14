@@ -10,8 +10,8 @@ use std::collections::{HashMap, HashSet};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
-use crate::util::{bail, ident, KvParser, ListParser};
 use crate::ParseResult;
+use crate::util::{KvParser, ListParser, bail, ident};
 
 pub struct FieldExport {
     pub export_type: ExportType,
@@ -235,7 +235,7 @@ impl ExportType {
                 return Ok(Self::File {
                     global: false,
                     kind: FileKind::File { filter: None },
-                })
+                });
             }
             Some(Some(kv)) => {
                 return Ok(Self::File {
@@ -243,7 +243,7 @@ impl ExportType {
                     kind: FileKind::File {
                         filter: Some(kv.expr()?),
                     },
-                })
+                });
             }
             None => (),
         }
@@ -253,7 +253,7 @@ impl ExportType {
                 return Ok(Self::File {
                     global: true,
                     kind: FileKind::File { filter: None },
-                })
+                });
             }
             Some(Some(kv)) => {
                 return Ok(Self::File {
@@ -261,7 +261,7 @@ impl ExportType {
                     kind: FileKind::File {
                         filter: Some(kv.expr()?),
                     },
-                })
+                });
             }
             None => (),
         }

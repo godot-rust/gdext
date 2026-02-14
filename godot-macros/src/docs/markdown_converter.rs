@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use markdown::{mdast as md, to_mdast, ParseOptions};
+use markdown::{ParseOptions, mdast as md, to_mdast};
 
 /// Converts the provided Markdown string to BBCode suitable for Godot's docs renderer.
 /// Simulates any missing features (e.g. tables) with a best-effort approach.

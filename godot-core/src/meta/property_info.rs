@@ -9,8 +9,8 @@ use godot_ffi::VariantType;
 
 use crate::builtin::{GString, StringName};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{element_godot_type_name, ArrayElement, ClassId, GodotType, PackedArrayElement};
-use crate::obj::{bounds, Bounds, EngineBitfield, EngineEnum, GodotClass};
+use crate::meta::{ArrayElement, ClassId, GodotType, PackedArrayElement, element_godot_type_name};
+use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
 use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
@@ -274,17 +274,19 @@ impl PropertyInfo {
         self,
         property_info_ptr: *mut sys::GDExtensionPropertyInfo,
     ) {
-        let ptr = &mut *property_info_ptr;
+        unsafe {
+            let ptr = &mut *property_info_ptr;
 
-        ptr.usage = u32::try_from(self.usage.ord()).expect("usage.ord()");
-        ptr.hint = u32::try_from(self.hint_info.hint.ord()).expect("hint.ord()");
-        ptr.type_ = self.variant_type.sys();
+            ptr.usage = u32::try_from(self.usage.ord()).expect("usage.ord()");
+            ptr.hint = u32::try_from(self.hint_info.hint.ord()).expect("hint.ord()");
+            ptr.type_ = self.variant_type.sys();
 
-        *StringName::borrow_string_sys_mut(ptr.name) = self.property_name;
-        *GString::borrow_string_sys_mut(ptr.hint_string) = self.hint_info.hint_string;
+            *StringName::borrow_string_sys_mut(ptr.name) = self.property_name;
+            *GString::borrow_string_sys_mut(ptr.hint_string) = self.hint_info.hint_string;
 
-        if self.class_id != ClassId::none() {
-            *StringName::borrow_string_sys_mut(ptr.class_name) = self.class_id.to_string_name();
+            if self.class_id != ClassId::none() {
+                *StringName::borrow_string_sys_mut(ptr.class_name) = self.class_id.to_string_name();
+            }
         }
     }
 
@@ -296,17 +298,19 @@ impl PropertyInfo {
     pub(crate) unsafe fn new_from_sys(
         property_info_ptr: *mut sys::GDExtensionPropertyInfo,
     ) -> Self {
-        let ptr = *property_info_ptr;
+        unsafe {
+            let ptr = *property_info_ptr;
 
-        Self {
-            variant_type: VariantType::from_sys(ptr.type_),
-            class_id: ClassId::none(),
-            property_name: StringName::new_from_string_sys(ptr.name),
-            hint_info: PropertyHintInfo {
-                hint: PropertyHint::from_ord(ptr.hint.to_owned() as i32),
-                hint_string: GString::new_from_string_sys(ptr.hint_string),
-            },
-            usage: PropertyUsageFlags::from_ord(ptr.usage as u64),
+            Self {
+                variant_type: VariantType::from_sys(ptr.type_),
+                class_id: ClassId::none(),
+                property_name: StringName::new_from_string_sys(ptr.name),
+                hint_info: PropertyHintInfo {
+                    hint: PropertyHint::from_ord(ptr.hint.to_owned() as i32),
+                    hint_string: GString::new_from_string_sys(ptr.hint_string),
+                },
+                usage: PropertyUsageFlags::from_ord(ptr.usage as u64),
+            }
         }
     }
 }

@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
 use godot_ffi::is_main_thread;
-use sys::{static_assert_eq_size_align, SysPtr as _};
+use sys::{SysPtr as _, static_assert_eq_size_align};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
@@ -19,12 +19,12 @@ use crate::meta::{
     ToGodot,
 };
 use crate::obj::{
-    bounds, cap, Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    OnEditor, RawGd, WithBaseField, WithSignals,
+    Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnEditor, RawGd,
+    WithBaseField, WithSignals, bounds, cap,
 };
-use crate::private::{callbacks, PanicPayload};
+use crate::private::{PanicPayload, callbacks};
 use crate::registry::class::try_dynify_object;
-use crate::registry::property::{object_export_element_type_string, Export, SimpleVar, Var};
+use crate::registry::property::{Export, SimpleVar, Var, object_export_element_type_string};
 use crate::{classes, meta, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -599,10 +599,12 @@ impl<T: GodotClass> Gd<T> {
     pub(crate) unsafe fn from_obj_sys_or_none(
         ptr: sys::GDExtensionObjectPtr,
     ) -> Result<Self, ConvertError> {
-        // Used to have a flag to select RawGd::from_obj_sys_weak(ptr) for Base::to_init_gd(), but solved differently in the end.
-        let obj = RawGd::from_obj_sys(ptr);
+        unsafe {
+            // Used to have a flag to select RawGd::from_obj_sys_weak(ptr) for Base::to_init_gd(), but solved differently in the end.
+            let obj = RawGd::from_obj_sys(ptr);
 
-        Self::try_from_ffi(obj)
+            Self::try_from_ffi(obj)
+        }
     }
 
     /// Initializes this `Gd<T>` from the object pointer as a **strong ref**, meaning
@@ -611,28 +613,30 @@ impl<T: GodotClass> Gd<T> {
     /// This is the default for most initializations from FFI. In cases where reference counter
     /// should explicitly **not** be updated, [`Self::from_obj_sys_weak`] is available.
     pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
-        sys::strict_assert!(
-            !ptr.is_null(),
-            "Gd::from_obj_sys() called with null pointer"
-        );
+        unsafe {
+            sys::strict_assert!(
+                !ptr.is_null(),
+                "Gd::from_obj_sys() called with null pointer"
+            );
 
-        Self::from_obj_sys_or_none(ptr).unwrap()
+            Self::from_obj_sys_or_none(ptr).unwrap()
+        }
     }
 
     pub(crate) unsafe fn from_obj_sys_weak_or_none(
         ptr: sys::GDExtensionObjectPtr,
     ) -> Result<Self, ConvertError> {
-        Self::try_from_ffi(RawGd::from_obj_sys_weak(ptr))
+        unsafe { Self::try_from_ffi(RawGd::from_obj_sys_weak(ptr)) }
     }
 
     pub(crate) unsafe fn from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
-        Self::from_obj_sys_weak_or_none(ptr).unwrap()
+        unsafe { Self::from_obj_sys_weak_or_none(ptr).unwrap() }
     }
 
     #[cfg(feature = "trace")] // itest only.
     #[doc(hidden)]
     pub unsafe fn __from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
-        Self::from_obj_sys_weak(ptr)
+        unsafe { Self::from_obj_sys_weak(ptr) }
     }
 
     #[doc(hidden)]
@@ -658,18 +662,20 @@ impl<T: GodotClass> Gd<T> {
     /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
     #[doc(hidden)]
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
-        // TODO(uninit) - should we use GDExtensionUninitializedTypePtr instead? Then update all the builtin codegen...
-        let init_fn = |ptr| {
-            init_fn(sys::SysPtr::force_init(ptr));
-        };
+        unsafe {
+            // TODO(uninit) - should we use GDExtensionUninitializedTypePtr instead? Then update all the builtin codegen...
+            let init_fn = |ptr| {
+                init_fn(sys::SysPtr::force_init(ptr));
+            };
 
-        // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
+            // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
-        // Initialize pointer with given function, return Some(ptr) on success and None otherwise
-        let object_ptr = super::raw_object_init(init_fn);
+            // Initialize pointer with given function, return Some(ptr) on success and None otherwise
+            let object_ptr = super::raw_object_init(init_fn);
 
-        // Do not increment ref-count; assumed to be return value from FFI.
-        sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
+            // Do not increment ref-count; assumed to be return value from FFI.
+            sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
+        }
     }
 
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).

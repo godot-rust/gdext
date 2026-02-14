@@ -10,11 +10,11 @@ use std::fmt::Display;
 use std::ops::{Mul, MulAssign};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType, XformInv};
 use crate::builtin::real_consts::FRAC_PI_2;
-use crate::builtin::{real, EulerOrder, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
+use crate::builtin::{EulerOrder, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3, real};
 
 /// A 3x3 matrix, typically used as an orthogonal basis for [`Transform3D`](crate::builtin::Transform3D).
 ///
@@ -164,19 +164,23 @@ impl Basis {
     }
 
     const fn to_rows_array(self) -> [real; 9] {
-        let [Vector3 {
-            x: ax,
-            y: bx,
-            z: cx,
-        }, Vector3 {
-            x: ay,
-            y: by,
-            z: cy,
-        }, Vector3 {
-            x: az,
-            y: bz,
-            z: cz,
-        }] = self.rows;
+        let [
+            Vector3 {
+                x: ax,
+                y: bx,
+                z: cx,
+            },
+            Vector3 {
+                x: ay,
+                y: by,
+                z: cy,
+            },
+            Vector3 {
+                x: az,
+                y: bz,
+                z: cz,
+            },
+        ] = self.rows;
         [ax, bx, cx, ay, by, cy, az, bz, cz]
     }
 

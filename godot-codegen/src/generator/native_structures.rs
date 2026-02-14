@@ -14,7 +14,7 @@ use crate::context::Context;
 use crate::generator::builtins;
 use crate::models::domain::{ExtensionApi, ModName, NativeStructure, TyName};
 use crate::util::ident;
-use crate::{conv, special_cases, util, SubmitFn};
+use crate::{SubmitFn, conv, special_cases, util};
 
 pub fn generate_native_structures_files(
     api: &ExtensionApi,

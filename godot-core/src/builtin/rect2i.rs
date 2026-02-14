@@ -8,7 +8,7 @@
 use std::cmp;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::{Rect2, Side, Vector2i};
 

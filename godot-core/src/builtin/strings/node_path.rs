@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, ExtVariantType, GdextBuild, GodotFfi};
+use godot_ffi::{ExtVariantType, GdextBuild, GodotFfi, ffi_methods};
 
 use super::{GString, StringName};
 use crate::builtin::inner;

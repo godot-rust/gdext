@@ -12,7 +12,7 @@ use godot::builtin::{Rid, Variant};
 use godot::classes::{Engine, IObject, Os, RenderingServer, Time};
 use godot::init::InitStage;
 use godot::obj::{Base, GodotClass, NewAlloc, Singleton};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 use godot::sys::{GdextBuild, Global};
 
 use crate::engine_tests::check_classdb_full_api;

@@ -9,10 +9,10 @@
 
 use proc_macro2::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::spanned::Spanned;
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 
-use crate::class::FuncDefinition;
 use crate::ParseResult;
+use crate::class::FuncDefinition;
 
 mod kv_parser;
 mod list_parser;
@@ -57,13 +57,13 @@ where
 }
 
 macro_rules! bail {
-    ($tokens:expr, $format_string:literal $($rest:tt)*) => {
+    ($tokens:expr_2021, $format_string:literal $($rest:tt)*) => {
         $crate::util::bail_fn(format!($format_string $($rest)*), $tokens)
     }
 }
 
 macro_rules! require_api_version {
-    ($min_version:literal, $span:expr, $attribute:literal) => {
+    ($min_version:literal, $span:expr_2021, $attribute:literal) => {
         if !cfg!(since_api = $min_version) {
             bail!(
                 $span,
@@ -89,7 +89,7 @@ pub fn error_fn<T: Spanned>(msg: impl AsRef<str>, tokens: T) -> venial::Error {
 }
 
 macro_rules! error {
-    ($tokens:expr, $format_string:literal $($rest:tt)*) => {
+    ($tokens:expr_2021, $format_string:literal $($rest:tt)*) => {
         $crate::util::error_fn(format!($format_string $($rest)*), $tokens)
     }
 }
@@ -222,20 +222,23 @@ pub(crate) fn validate_trait_impl_virtual(
 }
 
 fn validate_self(original_impl: &venial::Impl, attr: &str) -> ParseResult<Ident> {
-    if let Some(segment) = extract_typename(&original_impl.self_ty) {
-        if segment.generic_args.is_none() {
-            Ok(segment.ident)
-        } else {
+    match extract_typename(&original_impl.self_ty) {
+        Some(segment) => {
+            if segment.generic_args.is_none() {
+                Ok(segment.ident)
+            } else {
+                bail!(
+                    original_impl,
+                    "#[{attr}] for does currently not support generic arguments",
+                )
+            }
+        }
+        _ => {
             bail!(
                 original_impl,
-                "#[{attr}] for does currently not support generic arguments",
+                "#[{attr}] requires Self type to be a simple path",
             )
         }
-    } else {
-        bail!(
-            original_impl,
-            "#[{attr}] requires Self type to be a simple path",
-        )
     }
 }
 
@@ -341,6 +344,9 @@ pub fn safe_ident(s: &str) -> Ident {
 
         // Reserved 2018+
         | "try"
+
+        // Reserved 2024+
+        | "gen"
            => format_ident!("{}_", s),
 
          _ => ident(s)

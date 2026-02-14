@@ -14,9 +14,11 @@
 //! [extended documentation page](../__docs/index.html#builtin-api-design).
 
 // Re-export generated enums.
-pub use crate::gen::central::global_reexported_enums::{Corner, EulerOrder, Side, VariantOperator};
 // Not yet public.
-pub(crate) use crate::gen::central::VariantDispatch;
+pub(crate) use crate::r#gen::central::VariantDispatch;
+pub use crate::r#gen::central::global_reexported_enums::{
+    Corner, EulerOrder, Side, VariantOperator,
+};
 pub use crate::sys::VariantType;
 // Re-export macros.
 #[allow(deprecated)] // dict
@@ -60,12 +62,12 @@ pub mod __prelude_reexport {
     pub use crate::static_sname;
 }
 
-pub use crate::gen::builtin_classes::*;
+pub use crate::r#gen::builtin_classes::*;
 
 /// Manual symbols and default extenders for builtin type [`GString`].
 pub mod gstring {
     pub use crate::builtin::strings::{GStringExFind as ExFind, GStringExSplit as ExSplit};
-    pub use crate::gen::builtin_classes::gstring::*;
+    pub use crate::r#gen::builtin_classes::gstring::*;
 }
 
 /// Manual symbols and default extenders for builtin type [`StringName`].
@@ -73,7 +75,7 @@ pub mod string_name {
     pub use crate::builtin::strings::{
         StringNameExFind as ExFind, StringNameExSplit as ExSplit, TransientStringNameOrd,
     };
-    pub use crate::gen::builtin_classes::string_name::*;
+    pub use crate::r#gen::builtin_classes::string_name::*;
 }
 
 pub use __prelude_reexport::*;
@@ -121,7 +123,7 @@ mod real_inner;
 
 #[doc(hidden)]
 pub mod inner {
-    pub use crate::gen::builtin_classes::*;
+    pub use crate::r#gen::builtin_classes::*;
 }
 
 #[macro_export]

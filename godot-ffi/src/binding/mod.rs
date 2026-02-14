@@ -86,17 +86,20 @@ unsafe impl Send for ClassLibraryPtr {}
 
 /// # Safety
 /// The table must not have been initialized yet.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 unsafe fn initialize_table<T>(table: &ManualInitCell<T>, value: T, _what: &str) {
     crate::strict_assert!(
         !table.is_initialized(),
         "method table for {_what} should only be initialized once"
     );
 
+    // SAFETY: One-time, non-shared access during init.
     table.set(value)
 }
 
 /// # Safety
 /// The table must have been initialized.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 unsafe fn get_table<T>(table: &'static ManualInitCell<T>, _msg: &str) -> &'static T {
     crate::strict_assert!(table.is_initialized(), "{_msg}");
 
@@ -112,6 +115,7 @@ unsafe fn get_table<T>(table: &'static ManualInitCell<T>, _msg: &str) -> &'stati
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn get_interface() -> &'static GDExtensionInterface {
     &get_binding().interface
 }
@@ -122,6 +126,7 @@ pub unsafe fn get_interface() -> &'static GDExtensionInterface {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn get_library() -> crate::GDExtensionClassLibraryPtr {
     get_binding().library.0
 }
@@ -132,6 +137,7 @@ pub unsafe fn get_library() -> crate::GDExtensionClassLibraryPtr {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn builtin_lifecycle_api() -> &'static BuiltinLifecycleTable {
     &get_binding().global_method_table
 }
@@ -143,6 +149,7 @@ pub unsafe fn builtin_lifecycle_api() -> &'static BuiltinLifecycleTable {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn class_servers_api() -> &'static ClassServersMethodTable {
     get_table(
         &get_binding().class_server_method_table,
@@ -157,6 +164,7 @@ pub unsafe fn class_servers_api() -> &'static ClassServersMethodTable {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn class_core_api() -> &'static ClassCoreMethodTable {
     get_table(
         &get_binding().class_core_method_table,
@@ -171,6 +179,7 @@ pub unsafe fn class_core_api() -> &'static ClassCoreMethodTable {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn class_scene_api() -> &'static ClassSceneMethodTable {
     get_table(
         &get_binding().class_scene_method_table,
@@ -185,6 +194,7 @@ pub unsafe fn class_scene_api() -> &'static ClassSceneMethodTable {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
     get_table(
         &get_binding().class_editor_method_table,
@@ -199,6 +209,7 @@ pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
     get_table(
         &get_binding().builtin_method_table,
@@ -212,6 +223,7 @@ pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
     &get_binding().utility_function_table
 }
@@ -222,6 +234,7 @@ pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn config() -> &'static GdextConfig {
     &get_binding().config
 }
@@ -244,6 +257,7 @@ pub fn is_initialized() -> bool {
 /// is not enabled.
 ///
 /// If "experimental-threads" is enabled, then must be called from the main thread.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn initialize_binding(binding: GodotBinding) {
     BindingStorage::initialize(binding);
 }
@@ -253,6 +267,7 @@ pub(crate) unsafe fn initialize_binding(binding: GodotBinding) {
 /// # Safety
 ///
 /// See [`initialize_binding`].
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn deinitialize_binding() {
     BindingStorage::deinitialize();
 }
@@ -263,6 +278,7 @@ pub(crate) unsafe fn deinitialize_binding() {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn get_binding() -> &'static GodotBinding {
     BindingStorage::get_binding_unchecked()
 }
@@ -273,6 +289,7 @@ pub(crate) unsafe fn get_binding() -> &'static GodotBinding {
 /// - Must only be called once.
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn initialize_class_core_method_table(table: ClassCoreMethodTable) {
     initialize_table(
         &get_binding().class_core_method_table,
@@ -287,6 +304,7 @@ pub(crate) unsafe fn initialize_class_core_method_table(table: ClassCoreMethodTa
 /// - Must only be called once.
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn initialize_class_server_method_table(table: ClassServersMethodTable) {
     initialize_table(
         &get_binding().class_server_method_table,
@@ -301,6 +319,7 @@ pub(crate) unsafe fn initialize_class_server_method_table(table: ClassServersMet
 /// - Must only be called once.
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn initialize_class_scene_method_table(table: ClassSceneMethodTable) {
     initialize_table(
         &get_binding().class_scene_method_table,
@@ -315,6 +334,7 @@ pub(crate) unsafe fn initialize_class_scene_method_table(table: ClassSceneMethod
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
     &get_binding().runtime_metadata
 }
@@ -325,6 +345,7 @@ pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
 /// - Must only be called once.
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn initialize_class_editor_method_table(table: ClassEditorMethodTable) {
     initialize_table(
         &get_binding().class_editor_method_table,
@@ -339,6 +360,7 @@ pub(crate) unsafe fn initialize_class_editor_method_table(table: ClassEditorMeth
 /// - Must only be called once.
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn initialize_builtin_method_table(table: BuiltinMethodTable) {
     initialize_table(&get_binding().builtin_method_table, table, "builtins")
 }

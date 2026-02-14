@@ -6,11 +6,11 @@
  */
 
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{FieldExport, FieldVar};
-use crate::util::{error, KvParser};
+use crate::util::{KvParser, error};
 
 pub struct Field {
     pub name: Ident,

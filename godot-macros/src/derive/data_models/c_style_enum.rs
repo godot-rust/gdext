@@ -8,10 +8,10 @@
 use std::fmt::Write;
 
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
-use crate::util::bail;
 use crate::ParseResult;
+use crate::util::bail;
 
 /// Stores info from C-style enums for use in deriving `GodotConvert` and other related traits.
 #[derive(Clone, Debug)]
@@ -151,7 +151,7 @@ impl CStyleEnumerator {
                 return bail!(
                     &enum_variant.fields,
                     "GodotConvert only supports C-style enums"
-                )
+                );
             }
         }
 

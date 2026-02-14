@@ -14,10 +14,10 @@
 // https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html#panic-in-const-contexts
 #[macro_export]
 macro_rules! static_assert {
-    ($cond:expr) => {
+    ($cond:expr_2021) => {
         const _: () = assert!($cond);
     };
-    ($cond:expr, $msg:literal) => {
+    ($cond:expr_2021, $msg:literal) => {
         const _: () = assert!($cond, $msg);
     };
 }
@@ -55,11 +55,11 @@ macro_rules! strict_assert {
 /// Acts like `assert_eq!` when `safeguards_strict` is enabled (default in debug builds), and becomes a no-op otherwise.
 #[macro_export]
 macro_rules! strict_assert_eq {
-    ($actual:expr, $expected:expr) => {
+    ($actual:expr_2021, $expected:expr_2021) => {
         #[cfg(safeguards_strict)]
         assert_eq!($actual, $expected);
     };
-    ($actual:expr, $expected:expr, $($arg:tt)*) => {
+    ($actual:expr_2021, $expected:expr_2021, $($arg:tt)*) => {
         #[cfg(safeguards_strict)]
         assert_eq!($actual, $expected, $($arg)*);
     };
@@ -68,11 +68,11 @@ macro_rules! strict_assert_eq {
 /// Acts like `assert_ne!` when `safeguards_strict` is enabled (default in debug builds), and becomes a no-op otherwise.
 #[macro_export]
 macro_rules! strict_assert_ne {
-    ($actual:expr, $expected:expr) => {
+    ($actual:expr_2021, $expected:expr_2021) => {
         #[cfg(safeguards_strict)]
         assert_ne!($actual, $expected);
     };
-    ($actual:expr, $expected:expr, $($arg:tt)*) => {
+    ($actual:expr_2021, $expected:expr_2021, $($arg:tt)*) => {
         #[cfg(safeguards_strict)]
         assert_ne!($actual, $expected, $($arg)*);
     };
@@ -93,11 +93,11 @@ macro_rules! balanced_assert {
 /// Acts like `assert_eq!` when `safeguards_balanced` is enabled, and becomes a no-op otherwise.
 #[macro_export]
 macro_rules! balanced_assert_eq {
-    ($actual:expr, $expected:expr) => {
+    ($actual:expr_2021, $expected:expr_2021) => {
         #[cfg(safeguards_balanced)]
         assert_eq!($actual, $expected);
     };
-    ($actual:expr, $expected:expr, $($arg:tt)*) => {
+    ($actual:expr_2021, $expected:expr_2021, $($arg:tt)*) => {
         #[cfg(safeguards_balanced)]
         assert_eq!($actual, $expected, $($arg)*);
     };
@@ -106,11 +106,11 @@ macro_rules! balanced_assert_eq {
 /// Acts like `assert_ne!` when `safeguards_balanced` is enabled, and becomes a no-op otherwise.
 #[macro_export]
 macro_rules! balanced_assert_ne {
-    ($actual:expr, $expected:expr) => {
+    ($actual:expr_2021, $expected:expr_2021) => {
         #[cfg(safeguards_balanced)]
         assert_ne!($actual, $expected);
     };
-    ($actual:expr, $expected:expr, $($arg:tt)*) => {
+    ($actual:expr_2021, $expected:expr_2021, $($arg:tt)*) => {
         #[cfg(safeguards_balanced)]
         assert_ne!($actual, $expected, $($arg)*);
     };

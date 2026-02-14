@@ -6,10 +6,10 @@
  */
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::ApproxEq;
-use crate::builtin::{real, Rect2i, Side, Vector2};
+use crate::builtin::{Rect2i, Side, Vector2, real};
 
 /// 2D axis-aligned bounding box.
 ///

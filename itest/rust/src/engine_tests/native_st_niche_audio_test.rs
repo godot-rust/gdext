@@ -21,7 +21,7 @@ use godot::classes::{
 };
 use godot::meta::RawPtr;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, Singleton};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
 

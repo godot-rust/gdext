@@ -9,7 +9,7 @@ use std::fmt;
 
 use crate::builtin::VariantType;
 use crate::classes::Script;
-use crate::meta::traits::{element_variant_type, GodotType};
+use crate::meta::traits::{GodotType, element_variant_type};
 use crate::meta::{ArrayElement, ClassId};
 use crate::obj::{Gd, InstanceId};
 
@@ -125,10 +125,9 @@ impl ElementType {
 
                 // If there's a script associated, the class is interpreted as the native base class of the script.
                 let script_variant = get_script_variant();
-                if let Some(script) = Self::script_from_variant(&script_variant) {
-                    ElementType::ScriptClass(ElementScript::new(script))
-                } else {
-                    ElementType::Class(class_name)
+                match Self::script_from_variant(&script_variant) {
+                    Some(script) => ElementType::ScriptClass(ElementScript::new(script)),
+                    _ => ElementType::Class(class_name),
                 }
             } else {
                 ElementType::Builtin(variant_type)

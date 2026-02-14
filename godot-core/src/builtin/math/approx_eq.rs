@@ -23,23 +23,23 @@ pub trait ApproxEq: PartialEq {
 /// For comparison, this uses `ApproxEq::approx_eq` by default, or the provided `fn = ...` function.
 #[macro_export]
 macro_rules! assert_eq_approx {
-    ($actual:expr, $expected:expr, fn = $func:expr $(,)?) => {
+    ($actual:expr_2021, $expected:expr_2021, fn = $func:expr_2021 $(,)?) => {
         match ($actual, $expected) {
             (a, b) => assert!(($func)(&a, &b), "\n  left: {:?},\n right: {:?}", $actual, $expected)
         }
     };
-    ($actual:expr, $expected:expr, fn = $func:expr, $($t:tt)+) => {
+    ($actual:expr_2021, $expected:expr_2021, fn = $func:expr_2021, $($t:tt)+) => {
         match ($actual, $expected) {
             (a, b) => assert!(($func)(&a, &b), "\n  left: {:?},\n right: {:?}{}", $actual, $expected, format_args!($($t)+) )
         }
     };
-    ($actual:expr, $expected:expr $(,)?) => {
+    ($actual:expr_2021, $expected:expr_2021 $(,)?) => {
         match ($actual, $expected) {
              (a, b) => assert!($crate::builtin::math::ApproxEq::approx_eq(&a, &b), "\n  left: {:?},\n right: {:?}", $actual, $expected),
             // (a, b) => $crate::assert_eq_approx!($actual, $expected, fn = $crate::builtin::ApproxEq::approx_eq),
         }
     };
-    ($actual:expr, $expected:expr, $($t:tt)+) => {
+    ($actual:expr_2021, $expected:expr_2021, $($t:tt)+) => {
         match ($actual, $expected) {
             (a, b) => assert!($crate::builtin::math::ApproxEq::approx_eq(&a, &b), "\n  left: {:?},\n right: {:?},\n{}", $actual, $expected, format_args!($($t)+)),
             // (a, b) => $crate::assert_eq_approx!($actual, $expected, fn = $crate::builtin::ApproxEq::approx_eq, $($t)+),
@@ -51,14 +51,14 @@ macro_rules! assert_eq_approx {
 /// `func` for equality checking.
 #[macro_export]
 macro_rules! assert_ne_approx {
-    ($actual:expr, $expected:expr, fn = $func:expr $(, $($t:tt)* )?) => {
+    ($actual:expr_2021, $expected:expr_2021, fn = $func:expr_2021 $(, $($t:tt)* )?) => {
         #[allow(clippy::redundant_closure_call)]
         {
             $crate::assert_eq_approx!($actual, $expected, fn = |a,b| !($func)(a, b) $(, $($t)* )?)
         }
     };
 
-    ($actual:expr, $expected:expr $(, $($t:tt)* )?) => {
+    ($actual:expr_2021, $expected:expr_2021 $(, $($t:tt)* )?) => {
         #[allow(clippy::redundant_closure_call)]
         {
             $crate::assert_eq_approx!($actual, $expected, fn = |a, b| !$crate::builtin::math::ApproxEq::approx_eq(a, b) $(, $($t)* )?)

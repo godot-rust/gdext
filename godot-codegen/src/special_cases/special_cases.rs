@@ -31,6 +31,7 @@ use std::borrow::Cow;
 
 use proc_macro2::Ident;
 
+use crate::Context;
 use crate::conv::to_enum_type_uncached;
 use crate::models::domain::{
     ClassCodegenLevel, Enum, EnumReplacements, FnReturn, RustTy, TyName, VirtualMethodPresence,
@@ -38,7 +39,6 @@ use crate::models::domain::{
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonSignal, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::util::option_as_slice;
-use crate::Context;
 
 #[rustfmt::skip]
 pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ctx: &mut Context) -> bool {
@@ -922,17 +922,17 @@ pub fn maybe_rename_virtual_method<'m>(
 
 pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
     match class_name.godot_ty.as_str() {
-        "FileAccess" => {
-            Some("The gdext library provides a higher-level abstraction, which should be preferred: [`GFile`][crate::tools::GFile].")
-        }
+        "FileAccess" => Some(
+            "The godot-rust library provides a higher-level abstraction, which should be preferred: [`GFile`][crate::tools::GFile].",
+        ),
         "ScriptExtension" => {
             Some("Use this in combination with the [`obj::script` module][crate::obj::script].")
         }
-        "ResourceFormatLoader" => {
-            Some("Enable the `experimental-threads` feature when using custom `ResourceFormatLoader`s. \
+        "ResourceFormatLoader" => Some(
+            "Enable the `experimental-threads` feature when using custom `ResourceFormatLoader`s. \
             Otherwise the application will panic when the custom `ResourceFormatLoader` is used by Godot \
-            in a thread other than the main thread.")
-        }
+            in a thread other than the main thread.",
+        ),
         _ => None,
     }
 }

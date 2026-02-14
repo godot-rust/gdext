@@ -14,7 +14,7 @@
 
 use crate::builtin::NodePath;
 use crate::classes::{Node, PackedScene};
-use crate::meta::{arg_into_ref, AsArg};
+use crate::meta::{AsArg, arg_into_ref};
 use crate::obj::{Gd, Inherits};
 
 /// Manual extensions for the `Node` class.

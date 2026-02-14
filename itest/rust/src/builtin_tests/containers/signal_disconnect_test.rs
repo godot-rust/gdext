@@ -8,7 +8,7 @@
 use godot::builtin::{Callable, Signal};
 use godot::classes::Object;
 use godot::obj::{Base, Gd, NewAlloc};
-use godot::register::{godot_api, ConnectHandle, GodotClass};
+use godot::register::{ConnectHandle, GodotClass, godot_api};
 
 use crate::framework::{expect_panic, expect_panic_or_nothing, itest};
 

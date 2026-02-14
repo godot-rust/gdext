@@ -8,7 +8,7 @@
 // Note: in the past, we had is_instance_valid() -- we also tested that godot-rust is not susceptible to the godot-cpp issue
 // https://github.com/godotengine/godot-cpp/issues/1390.
 
-use godot::builtin::{vslice, GString, Variant};
+use godot::builtin::{GString, Variant, vslice};
 use godot::global::*;
 
 use crate::framework::itest;

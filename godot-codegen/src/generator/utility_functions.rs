@@ -13,7 +13,7 @@ use quote::quote;
 use crate::generator::functions_common;
 use crate::generator::functions_common::{FnCode, FnReceiver};
 use crate::models::domain::{ExtensionApi, Function, UtilityFunction};
-use crate::{util, SubmitFn};
+use crate::{SubmitFn, util};
 
 pub(crate) fn generate_utilities_file(
     api: &ExtensionApi,

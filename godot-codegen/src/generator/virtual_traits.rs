@@ -284,11 +284,7 @@ fn make_all_virtual_methods(
 }
 
 fn format_required(is_required: bool) -> &'static str {
-    if is_required {
-        "required"
-    } else {
-        "optional"
-    }
+    if is_required { "required" } else { "optional" }
 }
 
 fn format_method_name(method: &ClassMethod) -> &str {

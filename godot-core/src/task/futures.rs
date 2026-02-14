@@ -16,8 +16,8 @@ use std::thread::ThreadId;
 use crate::builtin::{Callable, RustCallable, Signal, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::global::godot_error;
-use crate::meta::sealed::Sealed;
 use crate::meta::InParamTuple;
+use crate::meta::sealed::Sealed;
 use crate::obj::{Gd, GodotClass, WithSignals};
 use crate::registry::signal::TypedSignal;
 use crate::sys;
@@ -238,7 +238,9 @@ impl<R: InParamTuple + IntoDynamicSend> FallibleSignalFuture<R> {
             SignalFutureState::Dead => Poll::Ready(Err(FallibleSignalFutureError)),
             SignalFutureState::Ready(value) => {
                 let Some(value) = DynamicSend::extract_if_safe(value) else {
-                    panic!("the awaited signal was not emitted on the main-thread, but contained a non Send argument");
+                    panic!(
+                        "the awaited signal was not emitted on the main-thread, but contained a non Send argument"
+                    );
                 };
 
                 Poll::Ready(Ok(value))
@@ -524,8 +526,8 @@ macro_rules! impl_dynamic_send {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::thread;
 
     use super::{SignalFutureResolver, ThreadConfined};

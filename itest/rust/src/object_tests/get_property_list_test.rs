@@ -12,7 +12,7 @@ use godot::classes::{IObject, Node};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::meta::PropertyInfo;
 use godot::obj::{Gd, NewAlloc};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 use godot::test::itest;
 
 #[derive(GodotClass)]

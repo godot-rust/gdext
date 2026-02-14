@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use godot::builtin::{varray, vdict, VarDictionary, Variant, VariantType};
+use godot::builtin::{VarDictionary, Variant, VariantType, varray, vdict};
 use godot::classes::RefCounted;
 use godot::meta::{ElementType, FromGodot, ToGodot};
 use godot::obj::NewGd;
@@ -603,18 +603,27 @@ fn dictionary_iter_simultaneous() {
     let mut nils = 0;
 
     for v in map.iter().flat_map(|(_, (v1, v2))| [v1, v2]) {
-        if let Ok(b) = bool::try_from_variant(v) {
-            assert!(b);
-            trues += 1;
-        } else if let Ok(i) = i64::try_from_variant(v) {
-            assert_eq!(i, 10);
-            tens += 1;
-        } else if let Ok(s) = String::try_from_variant(v) {
-            assert_eq!(s.as_str(), "foobar");
-            foobars += 1;
-        } else {
-            assert!(v.is_nil());
-            nils += 1;
+        match bool::try_from_variant(v) {
+            Ok(b) => {
+                assert!(b);
+                trues += 1;
+            }
+            _ => match i64::try_from_variant(v) {
+                Ok(i) => {
+                    assert_eq!(i, 10);
+                    tens += 1;
+                }
+                _ => match String::try_from_variant(v) {
+                    Ok(s) => {
+                        assert_eq!(s.as_str(), "foobar");
+                        foobars += 1;
+                    }
+                    _ => {
+                        assert!(v.is_nil());
+                        nils += 1;
+                    }
+                },
+            },
         }
     }
 

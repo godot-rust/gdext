@@ -6,12 +6,12 @@
  */
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
-use crate::util::{
-    bail, extract_typename, ident, path_ends_with, retain_attributes_except, KvParser,
-};
 use crate::ParseResult;
+use crate::util::{
+    KvParser, bail, extract_typename, ident, path_ends_with, retain_attributes_except,
+};
 
 pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
     let func = match input_item {

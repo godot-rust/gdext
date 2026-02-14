@@ -158,7 +158,9 @@ fn dyn_gd_debug() {
         .into_gd()
         .into_dyn::<dyn InstanceIdProvider<Id = InstanceId>>();
     let actual = format!(".:{node:?}:.");
-    let expected = format!(".:DynGd {{ id: {id}, class: NodeHealth, trait: dyn InstanceIdProvider<Id = InstanceId> }}:.");
+    let expected = format!(
+        ".:DynGd {{ id: {id}, class: NodeHealth, trait: dyn InstanceIdProvider<Id = InstanceId> }}:."
+    );
 
     assert_eq!(actual, expected);
 
@@ -500,7 +502,9 @@ fn dyn_gd_error_unregistered_trait() {
 
     // Variant Debug uses "VariantGd" prefix.
     let err = back.expect_err("DynGd::try_to() should have failed");
-    let expected_err = format!("trait `dyn InstanceIdProvider<Id = i32>` has not been registered with #[godot_dyn]: Variant{node:?}");
+    let expected_err = format!(
+        "trait `dyn InstanceIdProvider<Id = i32>` has not been registered with #[godot_dyn]: Variant{node:?}"
+    );
 
     assert_eq!(err.to_string(), expected_err);
 

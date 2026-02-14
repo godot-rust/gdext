@@ -13,7 +13,7 @@ use std::iter::FromIterator;
 use std::{fmt, ops, ptr};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi, SysPtr};
+use sys::{ExtVariantType, GodotFfi, SysPtr, ffi_methods};
 
 use crate::builtin::collections::extend_buffer::ExtendBufferTrait;
 use crate::builtin::*;
@@ -453,11 +453,15 @@ impl<T: PackedArrayElement> PackedArray<T> {
         let ptr = self.ptr_mut(dst);
         sys::strict_assert_eq!(len, self.len() - dst, "length precondition violated");
 
-        // Drops all elements in place. Drop impl must not panic.
-        ptr::drop_in_place(ptr::slice_from_raw_parts_mut(ptr, len));
+        // SAFETY: Valid slice. Drop impl must not panic.
+        unsafe {
+            ptr::drop_in_place(ptr::slice_from_raw_parts_mut(ptr, len));
+        }
 
-        // Copy is okay since all elements are dropped.
-        ptr.copy_from_nonoverlapping(src, len);
+        // SAFETY: Copy is okay since all elements are dropped.
+        unsafe {
+            ptr.copy_from_nonoverlapping(src, len);
+        }
     }
 }
 
@@ -1097,9 +1101,5 @@ impl PackedByteArray {
 }
 
 fn populated_or_err(array: PackedByteArray) -> Result<PackedByteArray, ()> {
-    if array.is_empty() {
-        Err(())
-    } else {
-        Ok(array)
-    }
+    if array.is_empty() { Err(()) } else { Ok(array) }
 }

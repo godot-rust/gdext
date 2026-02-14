@@ -160,7 +160,9 @@ where
     }
 
     fn sys_mut(&mut self) -> sys::GDExtensionTypePtr {
-        unreachable!("RefArg::sys_mut() currently not used by FFI marshalling layer, but only by specific functions");
+        unreachable!(
+            "RefArg::sys_mut() currently not used by FFI marshalling layer, but only by specific functions"
+        );
     }
 
     // This function must be overridden; the default delegating to sys() is wrong for e.g. RawGd<T>.
@@ -178,7 +180,9 @@ where
 
     unsafe fn move_return_ptr(self, _dst: sys::GDExtensionTypePtr, _call_type: PtrcallType) {
         // This one is implemented, because it's used for return types implementing ToGodot.
-        unreachable!("Calling RefArg::move_return_ptr is a mistake, as RefArg is intended only for arguments. Use the underlying value type.");
+        unreachable!(
+            "Calling RefArg::move_return_ptr is a mistake, as RefArg is intended only for arguments. Use the underlying value type."
+        );
     }
 }
 

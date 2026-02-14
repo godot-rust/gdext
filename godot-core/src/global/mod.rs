@@ -43,8 +43,8 @@
 mod print;
 
 // Some enums are directly re-exported from crate::builtin.
-pub use crate::gen::central::global_enums::*;
-pub use crate::gen::utilities::*;
+pub use crate::r#gen::central::global_enums::*;
+pub use crate::r#gen::utilities::*;
 pub use crate::{
     godot_error, godot_print, godot_print_rich, godot_script_error, godot_str, godot_warn,
 };

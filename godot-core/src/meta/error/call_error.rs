@@ -442,9 +442,5 @@ fn join_args(args: impl Iterator<Item = Variant>) -> String {
 }
 
 fn plural(count: usize) -> &'static str {
-    if count == 1 {
-        ""
-    } else {
-        "s"
-    }
+    if count == 1 { "" } else { "s" }
 }

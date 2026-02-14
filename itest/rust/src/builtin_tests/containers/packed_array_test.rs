@@ -8,11 +8,12 @@
 use std::fmt;
 
 use godot::builtin::{
-    array, varray, vdict, Array, Color, GString, PackedArray, PackedByteArray, PackedFloat32Array,
-    PackedInt32Array, PackedStringArray, VarArray, Variant, VariantType, Vector2, Vector3, Vector4,
+    Array, Color, GString, PackedArray, PackedByteArray, PackedFloat32Array, PackedInt32Array,
+    PackedStringArray, VarArray, Variant, VariantType, Vector2, Vector3, Vector4, array, varray,
+    vdict,
 };
 use godot::global::godot_str;
-use godot::meta::{owned_into_arg, ref_to_arg, wrapped, ElementType, PackedArrayElement, ToGodot};
+use godot::meta::{ElementType, PackedArrayElement, ToGodot, owned_into_arg, ref_to_arg, wrapped};
 
 use crate::assert_match;
 use crate::framework::{expect_panic, itest};
@@ -43,7 +44,7 @@ fn packed_array_clone() {
         let mut original = T::packed_n(3);
         let clone = original.clone();
 
-        original[0] = T::gen(99);
+        original[0] = T::r#gen(99);
 
         // CoW means original and clone are independent after modification.
         assert_eq!(clone.to_vec(), T::vec_n(3));
@@ -79,8 +80,8 @@ fn packed_array_into_iterator() {
 fn packed_array_get() {
     fn test<T: Generator>() {
         let array = T::packed_n(2);
-        assert_eq!(array.get(0), Some(T::gen(0)));
-        assert_eq!(array.get(1), Some(T::gen(1)));
+        assert_eq!(array.get(0), Some(T::r#gen(0)));
+        assert_eq!(array.get(1), Some(T::r#gen(1)));
         assert_eq!(array.get(2), None);
 
         let empty = T::packed_n(0);
@@ -131,8 +132,8 @@ fn packed_array_contains() {
 fn packed_array_find_contains() {
     fn test<T: Generator>() {
         let array = T::packed_n(4);
-        let present = T::gen(2);
-        let absent = T::gen(4); // Generator period >= 5.
+        let present = T::r#gen(2);
+        let absent = T::r#gen(4); // Generator period >= 5.
 
         // contains().
         assert!(array.contains(ref_to_arg(&present)));
@@ -326,7 +327,7 @@ fn packed_array_resize_fill() {
     fn test<T: Generator>() {
         let mut array = PackedArray::<T>::new();
         let mut vec = Vec::<T>::new();
-        let elem = T::gen(0);
+        let elem = T::r#gen(0);
 
         // resize() growing.
         // PackedArray::resize() fills with default-constructed values. Compensate for it in vec.
@@ -408,7 +409,7 @@ fn packed_array_extend_generic() {
     fn test<T: Generator>() {
         // extend().
         let mut array = T::packed_n(3);
-        array.extend([T::gen(3), T::gen(4)]);
+        array.extend([T::r#gen(3), T::r#gen(4)]);
         assert_eq!(array.to_vec(), T::vec_n(5));
     }
 
@@ -422,20 +423,20 @@ fn packed_array_extend_array() {
         let mut array = T::packed_n(2);
         array.extend_array(&array.clone()); // clone() to avoid aliasing issues.
         assert_eq!(array.len(), 4);
-        assert_eq!(array[0], T::gen(0));
-        assert_eq!(array[1], T::gen(1));
-        assert_eq!(array[2], T::gen(0));
-        assert_eq!(array[3], T::gen(1));
+        assert_eq!(array[0], T::r#gen(0));
+        assert_eq!(array[1], T::r#gen(1));
+        assert_eq!(array[2], T::r#gen(0));
+        assert_eq!(array[3], T::r#gen(1));
 
         // extend_array() with another array.
         let mut array = T::packed_n(2);
         array.extend_array(&T::packed_n(3));
         assert_eq!(array.len(), 5);
-        assert_eq!(array[0], T::gen(0));
-        assert_eq!(array[1], T::gen(1));
-        assert_eq!(array[2], T::gen(0));
-        assert_eq!(array[3], T::gen(1));
-        assert_eq!(array[4], T::gen(2));
+        assert_eq!(array[0], T::r#gen(0));
+        assert_eq!(array[1], T::r#gen(1));
+        assert_eq!(array[2], T::r#gen(0));
+        assert_eq!(array[3], T::r#gen(1));
+        assert_eq!(array[4], T::r#gen(2));
     }
 
     test!(u8, i32, GString, Color);
@@ -536,16 +537,16 @@ fn packed_array_find_rfind_comprehensive() {
         // Pattern: [gen(0), gen(1), gen(0), gen(2), gen(1), gen(0)], with deliberate duplicates.
         let pattern = [0, 1, 0, 2, 1, 0];
         for &idx in &pattern {
-            let val = T::gen(idx);
+            let val = T::r#gen(idx);
             array.push(ref_to_arg(&val));
             vec.push(val);
         }
 
         assert_eq!(array.to_vec(), vec);
 
-        let val0 = T::gen(0);
-        let val1 = T::gen(1);
-        let val_nonexistent = T::gen(3); // Non-existent value.
+        let val0 = T::r#gen(0);
+        let val1 = T::r#gen(1);
+        let val_nonexistent = T::r#gen(3); // Non-existent value.
 
         assert_eq!(array.find(ref_to_arg(&val0), None), Some(0)); // find(None) -> first occurrence.
         assert_eq!(array.rfind(ref_to_arg(&val0), None), Some(5)); // rfind(None) -> last occurrence.
@@ -587,7 +588,7 @@ fn packed_array_bsearch() {
         assert_eq!(array_result, 3);
 
         // bsearch(absent value) -> correct insertion point.
-        let non_existent = T::gen(values.len() + 10);
+        let non_existent = T::r#gen(values.len() + 10);
         let array_insertion = array.bsearch(ref_to_arg(&non_existent));
         let vec_insertion = vec
             .binary_search(&non_existent)
@@ -732,7 +733,7 @@ fn packed_array_from_vec() {
 #[itest]
 fn packed_array_from_array() {
     fn test<T: Generator>() {
-        let values = [T::gen(0), T::gen(1), T::gen(2)];
+        let values = [T::r#gen(0), T::r#gen(1), T::r#gen(2)];
         let array = PackedArray::<T>::from(values.clone());
 
         assert_eq!(array.len(), values.len());
@@ -814,14 +815,14 @@ trait Generator: PackedArrayElement + Default + PartialEq + fmt::Debug {
     /// Deterministically generate a value depending on the index.
     ///
     /// Values may repeat, but the period must be at least 5.
-    fn gen(index: usize) -> Self;
+    fn r#gen(index: usize) -> Self;
 
     /// Generate a `Vec` of `gen(0)`, `gen(1)`, ..., `gen(n-1)`.
     fn vec_n(n: usize) -> Vec<Self>
     where
         Self: Sized,
     {
-        (0..n).map(|i| Self::gen(i)).collect()
+        (0..n).map(|i| Self::r#gen(i)).collect()
     }
 
     /// Generate a `PackedArray` of `gen(0)`, `gen(1)`, ..., `gen(n-1)`.
@@ -829,31 +830,31 @@ trait Generator: PackedArrayElement + Default + PartialEq + fmt::Debug {
     where
         Self: Sized,
     {
-        let iter = (0..n).map(|i| Self::gen(i));
+        let iter = (0..n).map(|i| Self::r#gen(i));
         PackedArray::from_iter(iter)
     }
 }
 
 impl Generator for u8 {
-    fn gen(index: usize) -> Self {
+    fn r#gen(index: usize) -> Self {
         index as u8
     }
 }
 
 impl Generator for i32 {
-    fn gen(index: usize) -> Self {
+    fn r#gen(index: usize) -> Self {
         index as i32
     }
 }
 
 impl Generator for GString {
-    fn gen(index: usize) -> Self {
+    fn r#gen(index: usize) -> Self {
         godot_str!("test_{}", index)
     }
 }
 
 impl Generator for Color {
-    fn gen(index: usize) -> Self {
+    fn r#gen(index: usize) -> Self {
         let colors = [
             Color::RED,
             Color::GREEN,

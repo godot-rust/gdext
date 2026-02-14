@@ -15,7 +15,7 @@ use godot::classes::{
 use godot::obj::Singleton;
 use godot::prelude::*;
 
-use crate::framework::{itest, TestContext};
+use crate::framework::{TestContext, itest};
 use crate::object_tests::virtual_methods_test::VirtualInputTest;
 
 #[derive(GodotClass, Debug)]

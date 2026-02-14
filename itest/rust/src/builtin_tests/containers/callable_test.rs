@@ -9,14 +9,14 @@ use std::hash::Hasher;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use godot::builtin::{
-    array, varray, vdict, vslice, Array, Callable, Color, GString, NodePath, StringName, VarArray,
-    Variant, Vector2,
+    Array, Callable, Color, GString, NodePath, StringName, VarArray, Variant, Vector2, array,
+    varray, vdict, vslice,
 };
 use godot::classes::{Node2D, Object, RefCounted};
 use godot::init::GdextBuild;
 use godot::meta::ToGodot;
 use godot::obj::{Gd, NewAlloc, NewGd};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
 
@@ -379,7 +379,7 @@ pub mod custom_callable {
     use godot::sys::GdextBuild;
 
     use super::*;
-    use crate::framework::{assert_eq_self, quick_thread, suppress_panic_log, ThreadCrosser};
+    use crate::framework::{ThreadCrosser, assert_eq_self, quick_thread, suppress_panic_log};
 
     #[itest]
     fn callable_from_fn() {

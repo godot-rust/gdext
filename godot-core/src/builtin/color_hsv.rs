@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::math::{ApproxEq, FloatExt};
 use super::Color;
+use super::math::{ApproxEq, FloatExt};
 
 /// HSVA floating-number Color representation.
 ///
@@ -185,7 +185,9 @@ impl ColorHsv {
     /// Fallible `ColorHsv` conversion into [`Color`]. See also: [`ColorHsv::to_rgb`].
     pub fn try_to_rgb(self) -> Result<Color, String> {
         if !self.is_normalized() {
-            return Err(format!("HSVA values need to be in range `0.0..=1.0` before conversion, but were {self:?}. See: `ColorHsv::normalized_*()` methods."));
+            return Err(format!(
+                "HSVA values need to be in range `0.0..=1.0` before conversion, but were {self:?}. See: `ColorHsv::normalized_*()` methods."
+            ));
         }
 
         let (r, g, b, a) = hsva_to_rgba(self.h, self.s, self.v, self.a);

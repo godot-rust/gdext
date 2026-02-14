@@ -8,10 +8,10 @@
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
-use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, RealConv, Vector3};
+use crate::builtin::{Basis, EulerOrder, RQuat, RealConv, Vector3, inner, real};
 
 /// Unit quaternion to represent 3D rotations.
 ///

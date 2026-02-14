@@ -316,11 +316,11 @@ fn changed_enum_apis() {
 #[itest(skip)]
 fn changed_editor_api() {
     // Enums moved to base class in Godot: https://github.com/godotengine/godot/pull/111212.
+    use godot::classes::EditorFileDialog;
     #[cfg(before_api = "4.6")]
     use godot::classes::editor_file_dialog::{Access, DisplayMode, FileMode};
     #[cfg(since_api = "4.6")]
     use godot::classes::file_dialog::{Access, DisplayMode, FileMode};
-    use godot::classes::EditorFileDialog;
 
     let mut dialog = EditorFileDialog::new_alloc();
 

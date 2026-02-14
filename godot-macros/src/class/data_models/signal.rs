@@ -8,10 +8,10 @@
 // Some duplication with godot-codegen/signals.rs; see comments there.
 
 use proc_macro2::{Delimiter, Ident, TokenStream, TokenTree};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 
 use crate::util::bail;
-use crate::{util, ParseResult};
+use crate::{ParseResult, util};
 
 /// Holds information known from a signal's definition
 pub struct SignalDefinition {

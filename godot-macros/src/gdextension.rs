@@ -6,10 +6,10 @@
  */
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
-use crate::util::{bail, extract_typename, ident, validate_impl, KvParser};
 use crate::ParseResult;
+use crate::util::{KvParser, bail, extract_typename, ident, validate_impl};
 
 pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
     let mut impl_decl = match item {
@@ -59,7 +59,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
         #deprecation
         #impl_decl
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C" fn #entry_point(
             get_proc_address: ::godot::sys::GDExtensionInterfaceGetProcAddress,
             library: ::godot::sys::GDExtensionClassLibraryPtr,

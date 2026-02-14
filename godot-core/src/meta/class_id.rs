@@ -278,6 +278,18 @@ impl ClassIdCache {
         expect_first: bool,
     ) -> ClassId {
         if expect_first {
+            // From Rust edition 2024+, doctests are merged. Even with ```no_run, the link step (registration of class ID)
+            // still happens on test startup, so classes in other codeblocks with the same name cause panics in tests. To address this, we
+            // rely on the fact that Godot is not run during unit-tests, and thus is_initialized() is false. We then return the existing ID,
+            // which is wrong but doesn't matter as there's no runtime logic being performed. We do not support unit-tests without ```no_run.
+            if !sys::is_initialized() {
+                if let Some(&existing_index) = self.string_to_index.get(source.as_ref()) {
+                    return ClassId {
+                        global_index: existing_index,
+                    };
+                }
+            }
+
             // Debug verification that we're indeed the first to register this string.
             sys::balanced_assert!(
                 !self.string_to_index.contains_key(source.as_ref()),

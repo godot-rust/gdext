@@ -7,8 +7,8 @@
 
 //! Extra functionality to enrich low-level C API.
 
-use crate::gen::gdextension_interface::*;
 use crate::VariantType;
+use crate::r#gen::gdextension_interface::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Static checks

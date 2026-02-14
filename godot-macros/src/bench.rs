@@ -8,8 +8,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::util::{bail, retain_attributes_except, KvParser};
 use crate::ParseResult;
+use crate::util::{KvParser, bail, retain_attributes_except};
 
 const DEFAULT_REPETITIONS: usize = 100;
 

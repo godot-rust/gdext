@@ -411,11 +411,9 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     let current_thread = thread::current().id();
 
     assert_eq!(
-        godot_waker.thread_id,
-        current_thread,
+        godot_waker.thread_id, current_thread,
         "trying to poll future on a different thread!\n  Current thread: {:?}\n  Future thread: {:?}",
-        current_thread,
-        godot_waker.thread_id,
+        current_thread, godot_waker.thread_id,
     );
 
     let waker = Waker::from(godot_waker.clone());

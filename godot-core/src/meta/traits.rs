@@ -12,7 +12,7 @@ use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{
-    sealed, ClassId, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
+    ClassId, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot, sealed,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
 use crate::registry::property::builtin_type_string;

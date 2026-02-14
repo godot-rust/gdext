@@ -6,13 +6,13 @@
  */
 
 use godot::builtin::{
-    real, varray, vslice, AnyArray, Color, GString, PackedByteArray, PackedColorArray,
-    PackedFloat32Array, PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv,
-    StringName, Variant, Vector2, Vector3,
+    AnyArray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
+    PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv, StringName, Variant,
+    Vector2, Vector3, real, varray, vslice,
 };
-use godot::classes::notify::NodeNotification;
 #[cfg(feature = "codegen-full")]
 use godot::classes::Material;
+use godot::classes::notify::NodeNotification;
 use godot::classes::{
     IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, InputEvent, InputEventAction, Node,
     Node2D, Object, PrimitiveMesh, RefCounted, Window,
@@ -21,9 +21,9 @@ use godot::global::godot_str;
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::private::class_macros::assert_eq_approx;
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
-use crate::framework::{itest, TestContext};
+use crate::framework::{TestContext, itest};
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]

@@ -13,8 +13,8 @@
 
 use proc_macro2::Literal;
 
-use crate::util::{bail, KvParser};
 use crate::ParseResult;
+use crate::util::{KvParser, bail};
 
 /// Specifies group or subgroup which starts with a given field.
 /// Group membership for properties in Godot is based on the order of their registration –

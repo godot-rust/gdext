@@ -16,7 +16,7 @@ use godot::global::PropertyUsageFlags;
 use godot::prelude::*;
 use godot::sys::GdextBuild;
 
-use crate::framework::{itest, TestContext};
+use crate::framework::{TestContext, itest};
 use crate::register_tests::gen_ffi::PropertyTestsRust;
 
 #[itest]

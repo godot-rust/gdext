@@ -7,13 +7,13 @@
 
 use std::ops::Deref;
 
-use godot::builtin::{array, vslice, Array, Callable, Signal};
+use godot::builtin::{Array, Callable, Signal, array, vslice};
 use godot::classes::{Object, RefCounted};
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
-use godot::prelude::{godot_api, GodotClass};
-use godot::task::{self, create_test_signal_future_resolver, SignalFuture, TaskHandle};
+use godot::prelude::{GodotClass, godot_api};
+use godot::task::{self, SignalFuture, TaskHandle, create_test_signal_future_resolver};
 
-use crate::framework::{expect_async_panic, itest, TestContext};
+use crate::framework::{TestContext, expect_async_panic, itest};
 
 #[derive(GodotClass)]
 #[class(init)]

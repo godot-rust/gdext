@@ -45,15 +45,15 @@
 /// ```
 #[macro_export]
 macro_rules! swizzle {
-    ($vec:expr => $a:ident, $b:ident) => {{
+    ($vec:expr_2021 => $a:ident, $b:ident) => {{
         let expr = $vec;
         $crate::builtin::SwizzleToVector::swizzle_to_vector((expr.$a, expr.$b))
     }};
-    ($vec:expr => $a:ident, $b:ident, $c:ident) => {{
+    ($vec:expr_2021 => $a:ident, $b:ident, $c:ident) => {{
         let expr = $vec;
         $crate::builtin::SwizzleToVector::swizzle_to_vector((expr.$a, expr.$b, expr.$c))
     }};
-    ($vec:expr => $a:ident, $b:ident, $c:ident, $d:ident) => {{
+    ($vec:expr_2021 => $a:ident, $b:ident, $c:ident, $d:ident) => {{
         let expr = $vec;
         $crate::builtin::SwizzleToVector::swizzle_to_vector((expr.$a, expr.$b, expr.$c, expr.$d))
     }};

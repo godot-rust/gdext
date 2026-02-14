@@ -9,10 +9,10 @@ use std::fmt::Display;
 use std::ops::Mul;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, ExtVariantType, GodotFfi};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::math::{ApproxEq, GlamConv, GlamType, XformInv};
-use crate::builtin::{real, Aabb, Basis, Plane, Projection, RAffine3, Vector3};
+use crate::builtin::{Aabb, Basis, Plane, Projection, RAffine3, Vector3, real};
 
 /// Affine 3D transform (3x4 matrix).
 ///

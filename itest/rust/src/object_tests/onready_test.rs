@@ -13,7 +13,7 @@ use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node};
 use godot::obj::{Gd, NewAlloc, OnReady};
 use godot::prelude::{Base, ToGodot};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::{expect_panic, itest};
 

@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::init::{gdextension, ExtensionLibrary, InitLevel, InitStage};
+use godot::init::{ExtensionLibrary, InitLevel, InitStage, gdextension};
 
 mod benchmarks;
 mod builtin_tests;

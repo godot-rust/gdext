@@ -7,19 +7,19 @@
 
 use proc_macro2::{Delimiter, Group, Ident, Span, TokenStream};
 use quote::spanned::Spanned;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 
 use crate::class::data_models::func;
 use crate::class::{
-    into_signature_info, make_constant_registration, make_method_registration,
-    make_signal_registrations, ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition,
-    SignatureInfo, TransferMode,
+    ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition, SignatureInfo,
+    TransferMode, into_signature_info, make_constant_registration, make_method_registration,
+    make_signal_registrations,
 };
 use crate::util::{
-    bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
-    replace_class_in_path, require_api_version, KvParser,
+    KvParser, bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
+    replace_class_in_path, require_api_version,
 };
-use crate::{handle_mutually_exclusive_keys, util, ParseResult};
+use crate::{ParseResult, handle_mutually_exclusive_keys, util};
 
 /// Attribute for user-declared function.
 enum ItemAttrType {
@@ -365,7 +365,7 @@ fn process_godot_fns(
                 return bail!(
                     function,
                     "#[constant] can only be used on associated constant",
-                )
+                );
             }
         }
     }
@@ -396,10 +396,10 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
         if let Some(attr) = parse_attributes(constant)? {
             match attr.ty {
                 ItemAttrType::Func(_, _) => {
-                    return bail!(constant, "#[func] and #[rpc] can only be used on functions")
+                    return bail!(constant, "#[func] and #[rpc] can only be used on functions");
                 }
                 ItemAttrType::Signal(_, _) => {
-                    return bail!(constant, "#[signal] can only be used on functions")
+                    return bail!(constant, "#[signal] can only be used on functions");
                 }
                 ItemAttrType::Const(_) => {
                     if constant.initializer.is_none() {
@@ -570,7 +570,10 @@ fn parse_attributes_inner(
 
             // We found two incompatible attributes.
             (Some((found_name, _)), _) => {
-                return bail!(full_item_span, "attributes `{found_name}` and `{attr_name}` cannot be used in the same declaration");
+                return bail!(
+                    full_item_span,
+                    "attributes `{found_name}` and `{attr_name}` cannot be used in the same declaration"
+                );
             }
         };
 
@@ -638,15 +641,20 @@ fn parse_rpc_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseResu
     let item_span = parser.span();
     parser.finish()?;
 
-    let rpc_attr = match (config_expr, (&rpc_mode, &transfer_mode, &call_local, &channel)) {
+    let rpc_attr = match (
+        config_expr,
+        (&rpc_mode, &transfer_mode, &call_local, &channel),
+    ) {
         // Ok: Only `config = [expr]` is present.
         (Some(expr), (None, None, None, None)) => RpcAttr::Expression(expr),
 
         // Err: `config = [expr]` is present along other parameters, which is not allowed.
-        (Some(_), _) => return bail!(
-            item_span,
-            "`#[rpc(config = ...)]` is mutually exclusive with any other parameters(`any_peer`, `reliable`, `call_local`, `channel = 0`)"
-        ),
+        (Some(_), _) => {
+            return bail!(
+                item_span,
+                "`#[rpc(config = ...)]` is mutually exclusive with any other parameters(`any_peer`, `reliable`, `call_local`, `channel = 0`)"
+            );
+        }
 
         // Ok: `config` is not present, any combination of the other parameters is allowed.
         _ => RpcAttr::SeparatedArgs {
@@ -654,7 +662,7 @@ fn parse_rpc_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseResu
             transfer_mode,
             call_local,
             channel,
-        }
+        },
     };
 
     Ok(AttrParseResult::Rpc(rpc_attr))

@@ -9,17 +9,17 @@ use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
 use venial::Error;
 
-use crate::class::data_models::fields::{named_fields, Fields};
+use crate::class::data_models::fields::{Fields, named_fields};
 use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{
-    make_property_impl, make_virtual_callback, BeforeKind, Field, FieldCond, FieldDefault,
-    FieldExport, FieldVar, GetterSetter, SignatureInfo,
+    BeforeKind, Field, FieldCond, FieldDefault, FieldExport, FieldVar, GetterSetter, SignatureInfo,
+    make_property_impl, make_virtual_callback,
 };
 use crate::util::{
-    bail, error, format_funcs_collection_struct, ident, ident_respan, path_ends_with_complex,
-    require_api_version, KvParser,
+    KvParser, bail, error, format_funcs_collection_struct, ident, ident_respan,
+    path_ends_with_complex, require_api_version,
 };
-use crate::{handle_mutually_exclusive_keys, util, ParseResult};
+use crate::{ParseResult, handle_mutually_exclusive_keys, util};
 
 pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class = item.as_struct().ok_or_else(|| {

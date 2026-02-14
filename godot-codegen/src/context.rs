@@ -8,7 +8,7 @@
 use std::collections::{HashMap, HashSet};
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, ToTokens};
+use quote::{ToTokens, format_ident};
 
 use crate::generator::method_tables::MethodTableKey;
 use crate::generator::notifications;
@@ -17,7 +17,7 @@ use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
 };
 use crate::util::option_as_slice;
-use crate::{special_cases, util, JsonExtensionApi};
+use crate::{JsonExtensionApi, special_cases, util};
 
 #[derive(Default)]
 pub struct Context<'a> {

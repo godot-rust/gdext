@@ -10,7 +10,7 @@
 //! See also generator/enums.rs for functions related to turning enums into `TokenStream`s.
 
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use crate::models::domain::TyName;
 use crate::util::ident;

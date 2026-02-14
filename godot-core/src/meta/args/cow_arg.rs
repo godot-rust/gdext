@@ -158,7 +158,7 @@ where
 /// Debug and null constructors are implemented manually since they're distinct enough.
 macro_rules! impl_ffi_traits {
     ($ArgType:ident {
-        $($enum_pattern:pat => $delegate:expr),* $(,)?
+        $($enum_pattern:pat => $delegate:expr_2021),* $(,)?
     }) => {
         // SAFETY: delegated to inner values.
         unsafe impl<T> GodotFfi for $ArgType<'_, T>

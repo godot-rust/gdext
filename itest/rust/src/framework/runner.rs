@@ -7,15 +7,15 @@
 
 use std::time::{Duration, Instant};
 
-use godot::builtin::{vslice, Array, Callable, GString, VarArray, Variant};
+use godot::builtin::{Array, Callable, GString, VarArray, Variant, vslice};
 use godot::classes::{Engine, Node, Os};
 use godot::global::godot_error;
 use godot::obj::{Gd, Singleton};
-use godot::register::{godot_api, GodotClass};
+use godot::register::{GodotClass, godot_api};
 
 use super::AsyncRustTestCase;
 use crate::framework::{
-    bencher, passes_filter, BenchResult, RustBenchmark, RustTestCase, TestContext,
+    BenchResult, RustBenchmark, RustTestCase, TestContext, bencher, passes_filter,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -618,11 +618,7 @@ enum TestOutcome {
 
 impl TestOutcome {
     fn from_bool(success: bool) -> Self {
-        if success {
-            Self::Passed
-        } else {
-            Self::Failed
-        }
+        if success { Self::Passed } else { Self::Failed }
     }
 }
 

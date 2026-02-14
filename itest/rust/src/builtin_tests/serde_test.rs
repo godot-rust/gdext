@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::{array, Array, Color, ColorHsv, GString, NodePath, StringName, Vector2i};
+use godot::builtin::{Array, Color, ColorHsv, GString, NodePath, StringName, Vector2i, array};
 use serde::{Deserialize, Serialize};
 
 use crate::framework::itest;
