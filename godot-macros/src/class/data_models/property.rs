@@ -13,7 +13,7 @@ use quote::quote;
 use crate::class::data_models::fields::Fields;
 use crate::class::data_models::group_export::FieldGroup;
 use crate::class::{Field, FieldVar, GetSet, GetterSetterImpl, UsageFlags};
-use crate::util::{format_funcs_collection_constant, format_funcs_collection_struct, ident};
+use crate::util::{format_funcs_collection_constant, ident};
 
 #[derive(Default, Clone, Debug)]
 pub enum FieldHint {
@@ -202,17 +202,10 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         }
     };
 
-    // For each generated #[func], add a const declaration.
-    // This is the name of the container struct, which is declared by #[derive(GodotClass)].
-    let class_functions_name = format_funcs_collection_struct(class_name);
-
     quote! {
         impl #class_name {
             #(#getter_setter_impls)*
             #phantom_var_dummy_use_fn
-        }
-
-        impl #class_functions_name {
             #(#func_name_consts)*
         }
 
@@ -246,12 +239,11 @@ fn make_accessor_func_constant(
     func_name_consts.push(gs.funcs_collection_constant);
     export_tokens.push(gs.export_token);
 
-    // Getters/setters are, like #[func]s, subject to additional code generation: a constant inside a "funcs collection" struct
-    // stores their Godot name and can be used as an indirection to refer to their true name from other procedural macros.
-    let funcs_collection = format_funcs_collection_struct(class_name);
+    // The constant stores the Godot name and is used as indirection from other procedural macros.
+    // Placed on the class itself (not a separate struct), so it's accessible cross-module.
     let constant = format_funcs_collection_constant(class_name, &gs.rust_accessor);
 
-    quote! { #funcs_collection::#constant }
+    quote! { #class_name::#constant }
 }
 
 /// Generates registrations for declared group and subgroup and pushes them to export tokens.

@@ -16,8 +16,7 @@ use crate::class::{
     make_signal_registrations,
 };
 use crate::util::{
-    KvParser, bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
-    replace_class_in_path, require_api_version,
+    KvParser, bail, c_str, ident, make_funcs_collection_constants, require_api_version,
 };
 use crate::{ParseResult, handle_mutually_exclusive_keys, util};
 
@@ -81,7 +80,7 @@ pub(crate) struct InherentImplAttr {
 pub fn transform_inherent_impl(
     meta: InherentImplAttr,
     mut impl_block: venial::Impl,
-    self_path: venial::Path,
+    _self_path: venial::Path,
 ) -> ParseResult<TokenStream> {
     let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
@@ -94,14 +93,7 @@ pub fn transform_inherent_impl(
     let inherent_impl_docs =
         crate::docs::make_trait_docs_registration(&funcs, &consts, &signals, &class_name, &prv);
 
-    // Container struct holding names of all registered #[func]s.
-    // The struct is declared by #[derive(GodotClass)].
-    let funcs_collection = {
-        let struct_name = format_funcs_collection_struct(&class_name);
-        replace_class_in_path(self_path, struct_name)
-    };
-
-    // For each #[func] in this impl block, create one constant.
+    // For each #[func] in this impl block, create one constant (on the class itself).
     let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
     let (signal_registrations, signal_symbol_types) = make_signal_registrations(
         &signals,
@@ -188,7 +180,7 @@ pub fn transform_inherent_impl(
             #trait_impl
             #fill_storage
             #class_registration
-            impl #funcs_collection {
+            impl #class_name {
                 #( #func_name_constants )*
             }
             #signal_symbol_types
@@ -200,13 +192,12 @@ pub fn transform_inherent_impl(
         // We are in a secondary `impl` block, so most of the work has already been done,
         // and we just need to add our registration functions in the storage defined by the primary `impl` block.
 
-        // Note: we do NOT emit `impl #funcs_collection { ... }` here.
-        // The Funcs struct lives in the same module as the class definition, and a secondary block
-        // may be in a different module where the struct isn't in scope. The func name constants are
-        // a convenience for IDE completion and property resolution; they aren't needed for registration.
         let result = quote! {
             #impl_block
             #fill_storage
+            impl #class_name {
+                #( #func_name_constants )*
+            }
             #inherent_impl_docs
         };
 

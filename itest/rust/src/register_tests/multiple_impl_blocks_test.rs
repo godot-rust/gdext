@@ -7,6 +7,7 @@
 
 use godot::classes::IObject;
 use godot::obj::{Base, Gd, NewAlloc};
+use godot::prelude::PhantomVar;
 use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
@@ -15,12 +16,18 @@ use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(base=Object)]
-pub struct MultipleImplBlocks {}
+pub struct MultipleImplBlocks {
+    #[var(get = get_i32, no_set)]
+    field: PhantomVar<i32>
+
+}
 
 #[godot_api]
 impl IObject for MultipleImplBlocks {
     fn init(_base: Base<Self::Base>) -> Self {
-        Self {}
+        Self {
+            field: PhantomVar::default(),
+        }
     }
 }
 

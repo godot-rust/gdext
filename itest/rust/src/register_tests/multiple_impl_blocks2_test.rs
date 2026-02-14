@@ -8,4 +8,9 @@ impl MultipleImplBlocks {
     fn third(&self) -> String {
         "3rd result".to_string()
     }
+
+    #[func]
+    pub fn get_i32(&self) -> i32 {
+        123
+    }
 }

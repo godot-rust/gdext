@@ -7,7 +7,7 @@
 
 // Note: some code duplication with godot-codegen crate.
 
-use proc_macro2::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, Ident, Literal, Span, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 
@@ -421,39 +421,12 @@ pub fn make_funcs_collection_constant(
     }
 }
 
-/// Converts `path::class` to `path::new_class`.
-pub fn replace_class_in_path(path: venial::Path, new_class: Ident) -> venial::Path {
-    match path.segments.as_slice() {
-        // Can't happen, you have at least one segment (the class name).
-        [] => unreachable!("empty path"),
-
-        [_single] => venial::Path {
-            segments: vec![venial::PathSegment {
-                ident: new_class,
-                generic_args: None,
-                tk_separator_colons: None,
-            }],
-        },
-
-        [path @ .., _last] => {
-            let mut segments = vec![];
-            segments.extend(path.iter().cloned());
-            segments.push(venial::PathSegment {
-                ident: new_class,
-                generic_args: None,
-                tk_separator_colons: Some([
-                    Punct::new(':', Spacing::Joint),
-                    Punct::new(':', Spacing::Alone),
-                ]),
-            });
-            venial::Path { segments }
-        }
-    }
-}
-
-/// Returns the name of the constant inside the func "collection" struct.
+/// Returns the name of the constant for a registered function.
+///
+/// The constant is placed directly on the class (as an associated constant), so it needs a prefix to avoid
+/// colliding with user-defined methods. The prefix `__func_` is used.
 pub fn format_funcs_collection_constant(_class_name: &Ident, func_name: &Ident) -> Ident {
-    format_ident!("{func_name}", span = func_name.span())
+    format_ident!("__func_{func_name}", span = func_name.span())
 }
 
 /// Returns the name of the macro used to deny manual `init()` for incompatible init strategies.
