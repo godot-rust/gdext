@@ -125,15 +125,16 @@ pub fn transform_inherent_impl(
     let fill_storage = {
         quote! {
             ::godot::sys::plugin_execute_pre_main!({
-                #class_name::__registration_methods_storage().lock().unwrap().push(|| {
+                let mut guard = #class_name::__registration_storage().lock().unwrap();
+
+                guard.0.push(|| {
                     #( #method_registrations )*
                     #( #signal_registrations )*
                 });
 
-                #class_name::__registration_constants_storage().lock().unwrap().push(|| {
+                guard.1.push(|| {
                     #constant_registration
                 });
-
             });
         }
     };
@@ -141,17 +142,15 @@ pub fn transform_inherent_impl(
     if !meta.secondary {
         // We are the primary `impl` block.
 
+        // Storage for registration functions from all `#[godot_api]` impl blocks (primary + secondary).
+        // Accessed through the class type so secondary blocks in other modules can find it.
+        // Tuple: (method+signal registrations, constant registrations).
         let storage = quote! {
             impl #class_name {
                 #[doc(hidden)]
-                pub fn __registration_methods_storage() -> &'static std::sync::Mutex<Vec<fn()>> {
-                    static STORAGE: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
-                    &STORAGE
-                }
-
-                #[doc(hidden)]
-                pub fn __registration_constants_storage() -> &'static std::sync::Mutex<Vec<fn()>> {
-                    static STORAGE: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+                pub fn __registration_storage() -> &'static std::sync::Mutex<(Vec<fn()>, Vec<fn()>)> {
+                    static STORAGE: std::sync::Mutex<(Vec<fn()>, Vec<fn()>)>
+                        = std::sync::Mutex::new((Vec::new(), Vec::new()));
                     &STORAGE
                 }
             }
@@ -160,15 +159,15 @@ pub fn transform_inherent_impl(
         let trait_impl = quote! {
             impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
                 fn __register_methods() {
-                    let guard = #class_name::__registration_methods_storage().lock().unwrap();
-                    for f in guard.iter() {
+                    let guard = #class_name::__registration_storage().lock().unwrap();
+                    for f in guard.0.iter() {
                         f();
                     }
                 }
 
                 fn __register_constants() {
-                    let guard = #class_name::__registration_constants_storage().lock().unwrap();
-                    for f in guard.iter() {
+                    let guard = #class_name::__registration_storage().lock().unwrap();
+                    for f in guard.1.iter() {
                         f();
                     }
                 }
