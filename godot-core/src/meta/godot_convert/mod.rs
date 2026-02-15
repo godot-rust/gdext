@@ -265,4 +265,16 @@ macro_rules! impl_godot_as_self {
             }
         }
     };
+
+    (@to_godot $T:ty: ByVariant) => {
+        impl $crate::meta::ToGodot for $T {
+            type Pass = $crate::meta::ByVariant;
+
+            #[inline]
+            fn to_godot(&self) -> &Self::Via {
+                self
+            }
+        }
+    };
+
 }
