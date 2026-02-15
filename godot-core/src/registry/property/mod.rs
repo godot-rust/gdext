@@ -710,9 +710,6 @@ mod export_impls {
     impl_property_by_godot_convert!(NodePath);
 
     impl_property_by_godot_convert!(Color);
-
-    // Dictionary: will need to be done manually once they become typed.
-    impl_property_by_godot_convert!(VarDictionary);
     impl_property_by_godot_convert!(Variant);
 
     // Primitives
