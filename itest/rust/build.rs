@@ -517,12 +517,26 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
         }
     };
 
+    // Only available in Godot 4.4+.
+    let rust_exports_4_4 = if godot_bindings::before_api("4.4") {
+        TokenStream::new()
+    } else {
+        quote! {
+            #[var]
+            var_dict_string_int: Dictionary<GString, i32>,
+
+            #[export]
+            export_dict_string_int: Dictionary<GString, i32>,
+        }
+    };
+
     let rust = quote! {
         #[derive(GodotClass)]
         #[class(base = Node, init)]
         pub struct PropertyTestsRust {
             #(#rust,)*
             #rust_exports_4_3
+            #rust_exports_4_4
 
             // All the @export_file/dir variants, with GString, Array<GString> and PackedStringArray.
             #[export(file)]
@@ -625,10 +639,20 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 @export_global_dir var export_global_dir_parray: PackedStringArray
     "#;
 
+    // Only available in Godot 4.4+.
+    let advanced_exports_4_4 = r#"
+var var_dict_string_int: Dictionary[String, int]
+@export var export_dict_string_int: Dictionary[String, int]
+    "#;
+
     let mut gdscript = format!("{basic_exports}\n{advanced_exports}");
     if godot_bindings::since_api("4.3") {
         gdscript.push('\n');
         gdscript.push_str(advanced_exports_4_3);
+    }
+    if godot_bindings::since_api("4.4") {
+        gdscript.push('\n');
+        gdscript.push_str(advanced_exports_4_4);
     }
 
     PropertyTests { rust, gdscript }
