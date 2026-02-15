@@ -61,7 +61,14 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<Ident> {
             Some(FlowDirection::GodotToRust) => "VarArray",
             None => "_unused__Array_must_not_appear_in_idents",
         },
-        ("Dictionary", None) => "VarDictionary",
+
+        // For Dictionary, use AnyDictionary/VarDictionary with flow differentiation:
+        // * VarDictionary is always untyped (Dictionary<Variant, Variant>).
+        // * AnyDictionary is covariant and can hold typed or untyped dictionaries.
+        ("Dictionary", None) => match full_ty.flow {
+            Some(FlowDirection::RustToGodot) => "AnyDictionary",
+            Some(FlowDirection::GodotToRust) | None => "VarDictionary",
+        },
 
         // Types needed for native structures mapping
         ("uint8_t", None) => "u8",

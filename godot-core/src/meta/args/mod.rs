@@ -17,9 +17,12 @@ mod ref_arg;
 // Internal APIs
 
 // Solely public for itest/convert_test.rs.
+#[doc(hidden)]
+pub use as_arg::DisjointVArg;
 pub(crate) use as_arg::NullArg;
 pub use as_arg::{
-    ArgPassing, AsArg, ByObject, ByOption, ByRef, ByValue, ToArg, owned_into_arg, ref_to_arg,
+    ArgPassing, AsArg, AsVArg, ByObject, ByOption, ByRef, ByValue, ByVariant, ToArg,
+    owned_into_arg, ref_to_arg,
 };
 #[cfg(not(feature = "trace"))]
 pub(crate) use cow_arg::{CowArg, FfiArg};

@@ -150,7 +150,6 @@ mod impls {
     impl_ffi_variant!(ref GString, string_to_variant, string_from_variant; String);
     impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
-    impl_ffi_variant!(ref VarDictionary, dictionary_to_variant, dictionary_from_variant; Dictionary);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
 }

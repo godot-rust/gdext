@@ -560,11 +560,11 @@ pub mod custom_callable {
 
         let mut dict = VarDictionary::new();
 
-        dict.set(a, "hello");
+        dict.set(&a, "hello");
         assert_eq!(hash_count(&at), 1, "hash needed for a dict key");
         assert_eq!(eq_count(&at), 0, "eq not needed if dict bucket is empty");
 
-        dict.set(b, "hi");
+        dict.set(&b, "hi");
         assert_eq!(hash_count(&at), 1, "hash for a untouched if b is inserted");
         assert_eq!(hash_count(&bt), 1, "hash needed for b dict key");
 

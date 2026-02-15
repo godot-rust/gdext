@@ -79,6 +79,43 @@ impl ElementType {
         }
     }
 
+    /// Returns the class name sys pointer for FFI calls like `array_set_typed` / `dictionary_set_typed`.
+    ///
+    /// If `self` has a class ID, returns its `string_sys()`. Otherwise, returns `fallback.string_sys()`.
+    /// The caller must keep `fallback` (typically `StringName::default()`) alive while the returned pointer is in use.
+    pub(crate) fn class_name_sys_or(
+        &self,
+        fallback: &crate::builtin::StringName,
+    ) -> crate::sys::GDExtensionConstStringNamePtr {
+        if let Some(class_id) = self.class_id() {
+            class_id.string_sys()
+        } else {
+            fallback.string_sys()
+        }
+    }
+
+    /// Checks if `self` (runtime type) is compatible with `expected` (compile-time type).
+    ///
+    /// Returns `true` if:
+    /// - The types match exactly, OR
+    /// - `self` is a `ScriptClass` and `expected` is its native base `Class`
+    ///
+    /// This allows an `Array[Enemy]` from GDScript (where `Enemy extends RefCounted`) to be used as `Array<Gd<RefCounted>>` in Rust.
+    /// TODO(v0.6): this breaks covariance -- consider using generic AnyArray<Gd<RefCounted>> instead.
+    pub(crate) fn is_compatible_with(&self, expected: &ElementType) -> bool {
+        // Exact match.
+        if self == expected {
+            return true;
+        }
+
+        // Script class (runtime) matches its native base class (compile-time).
+        matches!(
+            (self, expected),
+            (ElementType::ScriptClass(_), ElementType::Class(expected_class))
+                if self.class_id().is_some_and(|id| id == *expected_class)
+        )
+    }
+
     /// Transfer cached element type from source to destination, preserving type info.
     ///
     /// Used by clone-like operations like `duplicate()`, `slice()`, etc. where we want to preserve cached type information to avoid
