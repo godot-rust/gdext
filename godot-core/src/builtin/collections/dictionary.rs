@@ -615,7 +615,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     /// Only performs runtime checks on Godot 4.4+, where typed dictionaries are supported by the engine.
     /// Before 4.4, this always succeeds since there are no engine-side types to check against.
     #[cfg(since_api = "4.4")]
-    fn with_checked_type(self) -> Result<Self, crate::meta::error::ConvertError> {
+    fn with_checked_type(self) -> Result<Self, meta::error::ConvertError> {
         use crate::meta::error::{DictionaryMismatch, FromGodotError};
 
         let actual_key = self.key_element_type();
@@ -658,7 +658,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     // Visibility: shared with AnyDictionary.
     pub(super) unsafe fn unchecked_from_variant(
         variant: &Variant,
-    ) -> Result<Self, crate::meta::error::ConvertError> {
+    ) -> Result<Self, meta::error::ConvertError> {
         use crate::builtin::VariantType;
         use crate::meta::error::FromVariantError;
 
@@ -789,7 +789,7 @@ impl<K: ArrayElement, V: ArrayElement> Default for Dictionary<K, V> {
         unsafe {
             Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(dictionary_construct_default);
-                ctor(self_ptr, std::ptr::null_mut())
+                ctor(self_ptr, ptr::null_mut())
             })
         }
     }
@@ -882,29 +882,29 @@ impl<K: ArrayElement, V: ArrayElement> FromIterator<(K, V)> for Dictionary<K, V>
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GodotConvert/ToGodot/FromGodot for Dictionary<K, V>
 
-impl<K: ArrayElement, V: ArrayElement> crate::meta::sealed::Sealed for Dictionary<K, V> {}
+impl<K: ArrayElement, V: ArrayElement> meta::sealed::Sealed for Dictionary<K, V> {}
 
-impl<K: ArrayElement, V: ArrayElement> crate::meta::GodotConvert for Dictionary<K, V> {
+impl<K: ArrayElement, V: ArrayElement> meta::GodotConvert for Dictionary<K, V> {
     type Via = Self;
 }
 
-impl<K: ArrayElement, V: ArrayElement> crate::meta::ToGodot for Dictionary<K, V> {
-    type Pass = crate::meta::ByRef;
+impl<K: ArrayElement, V: ArrayElement> ToGodot for Dictionary<K, V> {
+    type Pass = meta::ByRef;
 
     fn to_godot(&self) -> &Self::Via {
         self
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> crate::meta::FromGodot for Dictionary<K, V> {
-    fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
+impl<K: ArrayElement, V: ArrayElement> FromGodot for Dictionary<K, V> {
+    fn try_from_godot(via: Self::Via) -> Result<Self, meta::error::ConvertError> {
         // For typed dictionaries, we should validate that the types match.
         // VarDictionary (K=V=Variant) always matches.
         Ok(via)
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> crate::meta::GodotFfiVariant for Dictionary<K, V> {
+impl<K: ArrayElement, V: ArrayElement> meta::GodotFfiVariant for Dictionary<K, V> {
     fn ffi_to_variant(&self) -> Variant {
         unsafe {
             Variant::new_with_var_uninit(|variant_ptr| {
@@ -914,7 +914,7 @@ impl<K: ArrayElement, V: ArrayElement> crate::meta::GodotFfiVariant for Dictiona
         }
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, crate::meta::error::ConvertError> {
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, meta::error::ConvertError> {
         // SAFETY: if conversion succeeds, we call with_checked_type() afterwards.
         let result = unsafe { Self::unchecked_from_variant(variant) }?;
 
@@ -929,28 +929,39 @@ impl<K: ArrayElement, V: ArrayElement> crate::meta::GodotFfiVariant for Dictiona
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> crate::meta::GodotType for Dictionary<K, V> {
+impl<K: ArrayElement, V: ArrayElement> meta::GodotType for Dictionary<K, V> {
     type Ffi = Self;
 
     type ToFfi<'f>
-        = crate::meta::RefArg<'f, Dictionary<K, V>>
+        = meta::RefArg<'f, Dictionary<K, V>>
     where
         Self: 'f;
 
     fn to_ffi(&self) -> Self::ToFfi<'_> {
-        crate::meta::RefArg::new(self)
+        meta::RefArg::new(self)
     }
 
     fn into_ffi(self) -> Self::Ffi {
         self
     }
 
-    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, crate::meta::error::ConvertError> {
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, meta::error::ConvertError> {
         Ok(ffi)
     }
 
     fn godot_type_name() -> String {
         "Dictionary".to_string()
+    }
+
+    fn property_hint_info() -> meta::PropertyHintInfo {
+        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint.
+        #[cfg(since_api = "4.4")]
+        if is_dictionary_typed::<K, V>() {
+            return meta::PropertyHintInfo::var_dictionary_element::<K, V>();
+        }
+
+        // Untyped dictionary or before 4.4: no hints.
+        meta::PropertyHintInfo::none()
     }
 }
 
@@ -975,7 +986,7 @@ impl<K: ArrayElement, V: ArrayElement> crate::registry::property::Var for Dictio
     }
 
     fn var_set(field: &mut Self, value: Self::Via) {
-        *field = crate::meta::FromGodot::from_godot(value)
+        *field = value;
     }
 
     fn var_pub_get(field: &Self) -> Self::PubType {
@@ -986,10 +997,15 @@ impl<K: ArrayElement, V: ArrayElement> crate::registry::property::Var for Dictio
         *field = value;
     }
 
-    fn var_hint() -> crate::meta::PropertyHintInfo {
-        // For dictionary #[var], we currently use no hint for typed dictionaries.
-        // TODO: Once Godot supports dictionary type hints, implement proper hints similar to arrays.
-        crate::meta::PropertyHintInfo::none()
+    fn var_hint() -> meta::PropertyHintInfo {
+        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint.
+        #[cfg(since_api = "4.4")]
+        if is_dictionary_typed::<K, V>() {
+            return meta::PropertyHintInfo::var_dictionary_element::<K, V>();
+        }
+
+        // Untyped dictionary or before 4.4: no hints.
+        meta::PropertyHintInfo::none()
     }
 }
 
@@ -998,18 +1014,19 @@ where
     K: ArrayElement + crate::registry::property::Export,
     V: ArrayElement + crate::registry::property::Export,
 {
-    fn export_hint() -> crate::meta::PropertyHintInfo {
-        // For dictionary #[export], we return the type name for now.
-        // TODO: Once Godot supports dictionary type hints, implement proper hints similar to arrays.
-        if element_variant_type::<K>() == VariantType::NIL
-            && element_variant_type::<V>() == VariantType::NIL
-        {
-            // VarDictionary: use "Dictionary".
-            crate::meta::PropertyHintInfo::type_name::<VarDictionary>()
-        } else {
-            // Typed Dictionary<K, V>: use no hint for now.
-            crate::meta::PropertyHintInfo::none()
+    fn export_hint() -> meta::PropertyHintInfo {
+        // VarDictionary: use "Dictionary".
+        if !is_dictionary_typed::<K, V>() {
+            return meta::PropertyHintInfo::type_name::<VarDictionary>();
         }
+
+        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint for export.
+        #[cfg(since_api = "4.4")]
+        return meta::PropertyHintInfo::export_dictionary_element::<K, V>();
+
+        // Before 4.4, no engine-side typed dictionary hints.
+        #[cfg(before_api = "4.4")]
+        meta::PropertyHintInfo::none()
     }
 }
 

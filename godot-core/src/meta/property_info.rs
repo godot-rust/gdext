@@ -13,7 +13,7 @@ use crate::meta::{ArrayElement, ClassId, GodotType, PackedArrayElement, element_
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
 use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
-use crate::{classes, sys};
+use crate::{classes, godot_str, sys};
 
 /// Describes a property's type, name and metadata for Godot.
 ///
@@ -371,6 +371,30 @@ impl PropertyHintInfo {
         Self {
             hint: PropertyHint::TYPE_STRING,
             hint_string: GString::from(&T::element_type_string()),
+        }
+    }
+
+    /// Use for `#[var]` properties on Godot 4.4+ -- [`PROPERTY_HINT_DICTIONARY_TYPE`](PropertyHint::DICTIONARY_TYPE) with
+    /// `"key_type;value_type"` as hint string.
+    #[cfg(since_api = "4.4")]
+    pub fn var_dictionary_element<K: ArrayElement, V: ArrayElement>() -> Self {
+        Self {
+            hint: PropertyHint::DICTIONARY_TYPE,
+            hint_string: godot_str!(
+                "{};{}",
+                element_godot_type_name::<K>(),
+                element_godot_type_name::<V>()
+            ),
+        }
+    }
+
+    /// Use for `#[export]` properties on Godot 4.4+ -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with
+    /// `"key_type_string;value_type_string"` as hint string.
+    #[cfg(since_api = "4.4")]
+    pub fn export_dictionary_element<K: ArrayElement, V: ArrayElement>() -> Self {
+        Self {
+            hint: PropertyHint::TYPE_STRING,
+            hint_string: godot_str!("{};{}", K::element_type_string(), V::element_type_string()),
         }
     }
 
