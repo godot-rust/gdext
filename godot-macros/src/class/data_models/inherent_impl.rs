@@ -94,15 +94,37 @@ pub fn transform_inherent_impl(
     let inherent_impl_docs =
         crate::docs::make_trait_docs_registration(&funcs, &consts, &signals, &class_name, &prv);
 
-    // Container struct holding names of all registered #[func]s.
-    // The struct is declared by #[derive(GodotClass)].
-    let funcs_collection = {
-        let struct_name = format_funcs_collection_struct(&class_name);
-        replace_class_in_path(self_path, struct_name)
+    // Generate constants for the funcs collection struct (only primary impl).
+    //
+    // Today, secondary impl blocks don't add to the funcs collection (access from #[var(get = ...)] etc. not supported).
+    // Could potentially be added. What was tried:
+    //     trait WithFuncs { type FuncCollection; }
+    // instead of the collection being a struct with a "conventional" name. However, it's not possible to
+    //     impl <MyClass as WithFuncs>::FuncCollection { ... }
+    // because Rust requires a nominal type for `impl` blocks. Even type aliases to associated types don't qualify. Compile error:
+    //     error[E0118]: no nominal type found for inherent implementation
+    //
+    // One alternative would be to add func name constants directly on the class itself as `impl Class { const __func_... }`, however
+    // this would slightly pollute the user-facing namespace. Another option is to pass the MyStruct path explicitly as an attribute argument,
+    // e.g. `#[godot_api(secondary_from = crate::my_mod)]`).
+    let funcs_collection_impl = if meta.secondary {
+        TokenStream::new()
+    } else {
+        let func_consts = make_funcs_collection_constants(&funcs, &class_name);
+        if func_consts.is_empty() {
+            TokenStream::new()
+        } else {
+            let struct_name = format_funcs_collection_struct(&class_name);
+            let funcs_path = replace_class_in_path(self_path, struct_name);
+
+            quote! {
+                impl #funcs_path {
+                    #(#func_consts)*
+                }
+            }
+        }
     };
 
-    // For each #[func] in this impl block, create one constant.
-    let func_name_constants = make_funcs_collection_constants(&funcs, &class_name);
     let (signal_registrations, signal_symbol_types) = make_signal_registrations(
         &signals,
         &class_name,
@@ -122,25 +144,19 @@ pub fn transform_inherent_impl(
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
 
-    // Internal idents unlikely to surface in user code; but span shouldn't hurt.
-    let class_span = class_name.span();
-    let method_storage_name =
-        format_ident!("__registration_methods_{class_name}", span = class_span);
-    let constants_storage_name =
-        format_ident!("__registration_constants_{class_name}", span = class_span);
-
     let fill_storage = {
         quote! {
             ::godot::sys::plugin_execute_pre_main!({
-                #method_storage_name.lock().unwrap().push(|| {
+                let mut guard = #class_name::__registration_storage().lock().unwrap();
+
+                guard.0.push(|| {
                     #( #method_registrations )*
                     #( #signal_registrations )*
                 });
 
-                #constants_storage_name.lock().unwrap().push(|| {
+                guard.1.push(|| {
                     #constant_registration
                 });
-
             });
         }
     };
@@ -148,28 +164,32 @@ pub fn transform_inherent_impl(
     if !meta.secondary {
         // We are the primary `impl` block.
 
+        // Storage for registration functions from all `#[godot_api]` impl blocks (primary + secondary).
+        // Accessed through the class type so secondary blocks in other modules can find it.
+        // Tuple: (method+signal registrations, constant registrations).
         let storage = quote! {
-            #[allow(non_upper_case_globals)]
-            #[doc(hidden)]
-            static #method_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
-
-            #[allow(non_upper_case_globals)]
-            #[doc(hidden)]
-            static #constants_storage_name: std::sync::Mutex<Vec<fn()>> = std::sync::Mutex::new(Vec::new());
+            impl #class_name {
+                #[doc(hidden)]
+                pub fn __registration_storage() -> &'static std::sync::Mutex<(Vec<fn()>, Vec<fn()>)> {
+                    static STORAGE: std::sync::Mutex<(Vec<fn()>, Vec<fn()>)>
+                        = std::sync::Mutex::new((Vec::new(), Vec::new()));
+                    &STORAGE
+                }
+            }
         };
 
         let trait_impl = quote! {
             impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
                 fn __register_methods() {
-                    let guard = #method_storage_name.lock().unwrap();
-                    for f in guard.iter() {
+                    let guard = #class_name::__registration_storage().lock().unwrap();
+                    for f in guard.0.iter() {
                         f();
                     }
                 }
 
                 fn __register_constants() {
-                    let guard = #constants_storage_name.lock().unwrap();
-                    for f in guard.iter() {
+                    let guard = #class_name::__registration_storage().lock().unwrap();
+                    for f in guard.1.iter() {
                         f();
                     }
                 }
@@ -186,13 +206,11 @@ pub fn transform_inherent_impl(
 
         let result = quote! {
             #impl_block
+            #funcs_collection_impl
             #storage
             #trait_impl
             #fill_storage
             #class_registration
-            impl #funcs_collection {
-                #( #func_name_constants )*
-            }
             #signal_symbol_types
             #inherent_impl_docs
         };
@@ -204,10 +222,8 @@ pub fn transform_inherent_impl(
 
         let result = quote! {
             #impl_block
+            #funcs_collection_impl
             #fill_storage
-            impl #funcs_collection {
-                #( #func_name_constants )*
-            }
             #inherent_impl_docs
         };
 

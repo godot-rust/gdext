@@ -422,6 +422,8 @@ pub fn make_funcs_collection_constant(
 }
 
 /// Converts `path::class` to `path::new_class`.
+///
+/// Used to derive the funcs collection path from the class path (e.g. `nested::__godot_MyClass_Funcs`).
 pub fn replace_class_in_path(path: venial::Path, new_class: Ident) -> venial::Path {
     match path.segments.as_slice() {
         // Can't happen, you have at least one segment (the class name).

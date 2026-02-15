@@ -15,7 +15,7 @@ use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(base=Object)]
-struct MultipleImplBlocks {}
+pub struct MultipleImplBlocks {}
 
 #[godot_api]
 impl IObject for MultipleImplBlocks {
@@ -37,14 +37,6 @@ impl MultipleImplBlocks {
     #[func]
     fn second(&self) -> String {
         "2nd result".to_string()
-    }
-}
-
-#[godot_api(secondary)]
-impl MultipleImplBlocks {
-    #[func]
-    fn third(&self) -> String {
-        "3rd result".to_string()
     }
 }
 
@@ -73,5 +65,3 @@ fn godot_api_multiple_impl_blocks() {
 
     obj.free();
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
