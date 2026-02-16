@@ -741,7 +741,7 @@ pub struct GodotTy {
     pub ty: String,
     pub meta: Option<String>,
 
-    // None if flow doesn't matter (most types except "Array").
+    // None if flow doesn't matter (most types except "Array" and "Dictionary").
     pub flow: Option<FlowDirection>,
 }
 
@@ -771,6 +771,22 @@ pub enum RustTy {
 
         #[allow(dead_code)] // Only read in minimal config.
         elem_class: String,
+    },
+
+    /// `Dictionary<i32, Color>` where both key and value are builtin types.
+    BuiltinDictionary { dict_type: TokenStream },
+
+    /// `Dictionary<K, V>` where at least key or value is an engine class. Never contains `Option` elements.
+    EngineDictionary {
+        tokens: TokenStream,
+
+        /// Class name for the key type, `None` if builtin.
+        #[allow(dead_code)] // Only read in minimal config.
+        key_class: Option<String>,
+
+        /// Class name for the value type, `None` if builtin.
+        #[allow(dead_code)] // Only read in minimal config.
+        val_class: Option<String>,
     },
 
     /// `module::Enum` or `module::Bitfield`
@@ -864,6 +880,8 @@ impl ToTokens for RustTy {
                 is_const: false,
             } => quote! { crate::meta::RawPtr<*mut #inner> }.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::BuiltinDictionary { dict_type } => dict_type.to_tokens(tokens),
+            RustTy::EngineDictionary { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass {
                 is_nullable,

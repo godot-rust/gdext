@@ -400,10 +400,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     ///
     /// _Godot equivalent: `dict.duplicate(true)`_
     pub fn duplicate_deep(&self) -> Self {
-        self.as_inner()
-            .duplicate(true)
-            .upcast_any_dictionary()
-            .cast_dictionary::<K, V>()
+        self.as_inner().duplicate(true).cast_dictionary::<K, V>()
     }
 
     /// Shallow copy, copying elements but sharing nested collections.
@@ -416,10 +413,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_
     pub fn duplicate_shallow(&self) -> Self {
-        self.as_inner()
-            .duplicate(false)
-            .upcast_any_dictionary()
-            .cast_dictionary::<K, V>()
+        self.as_inner().duplicate(false).cast_dictionary::<K, V>()
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.

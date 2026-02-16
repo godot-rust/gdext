@@ -62,6 +62,13 @@ impl AnyDictionary {
         Self { dict: inner }
     }
 
+    /// Creates an empty untyped `AnyDictionary`.
+    pub(crate) fn new_untyped() -> Self {
+        Self {
+            dict: VarDictionary::default(),
+        }
+    }
+
     fn from_opaque(opaque: sys::types::OpaqueDictionary) -> Self {
         Self {
             dict: VarDictionary::from_opaque(opaque),
@@ -184,10 +191,7 @@ impl AnyDictionary {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> AnyDictionary {
-        self.dict
-            .as_inner()
-            .duplicate(false)
-            .upcast_any_dictionary()
+        self.dict.as_inner().duplicate(false)
     }
 
     /// Returns a deep copy, duplicating nested `Array`/`Dictionary` elements but keeping `Object` elements shared.
@@ -197,7 +201,7 @@ impl AnyDictionary {
     /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        self.dict.as_inner().duplicate(true).upcast_any_dictionary()
+        self.dict.as_inner().duplicate(true)
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
