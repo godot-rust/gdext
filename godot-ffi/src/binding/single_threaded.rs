@@ -105,9 +105,7 @@ impl BindingStorage {
         unsafe { storage.set_initialized(false) };
 
         // SAFETY: We are the only thread that can access the binding, and we know that it's initialized.
-        unsafe {
-            storage.binding.clear();
-        }
+        unsafe { storage.binding.clear() };
     }
 
     /// Get the binding from the binding storage.

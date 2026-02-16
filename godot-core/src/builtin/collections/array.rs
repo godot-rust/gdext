@@ -886,6 +886,7 @@ impl<T: ArrayElement> Array<T> {
     /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
     #[cfg(safeguards_strict)]
     unsafe fn assume_type_ref<U: ArrayElement>(&self) -> &Array<U> {
+        // SAFETY: per function precondition.
         unsafe { std::mem::transmute::<&Array<T>, &Array<U>>(self) }
     }
 

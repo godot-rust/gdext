@@ -304,15 +304,15 @@ pub unsafe fn initialize(
 /// # Safety
 /// See [`initialize`].
 pub unsafe fn deinitialize() {
-    unsafe {
-        deinitialize_binding();
+    // SAFETY: unique caller, from main thread.
+    unsafe { deinitialize_binding() };
 
-        // MACOS-PARTIAL-RELOAD: Clear the main thread ID to allow re-initialization during hot reload.
-        #[cfg(not(wasm_nothreads))]
-        {
-            if MAIN_THREAD_ID.is_initialized() {
-                MAIN_THREAD_ID.clear();
-            }
+    // MACOS-PARTIAL-RELOAD: Clear the main thread ID to allow re-initialization during hot reload.
+    #[cfg(not(wasm_nothreads))]
+    {
+        if MAIN_THREAD_ID.is_initialized() {
+            // SAFETY: initialized + unique caller.
+            unsafe { MAIN_THREAD_ID.clear() };
         }
     }
 }

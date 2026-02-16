@@ -35,14 +35,16 @@ macro_rules! inner_godot_msg {
             if $crate::sys::is_initialized() {
                 let function = format!("{}\0", $crate::inner_function!());
                 // SAFETY: interface_fn! returns valid function pointer; string pointers are valid for the call duration.
-                #[allow(unused_unsafe)]
-                unsafe { $crate::sys::interface_fn!($godot_fn)(
-                    $crate::sys::c_str_from_str(&msg),
-                    $crate::sys::c_str_from_str(&function),
-                    $crate::sys::c_str_from_str(concat!(file!(), "\0")),
-                    line!() as i32,
-                    false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
-                ) };
+                #[allow(unused_unsafe)] // False positive; omitting `unsafe` causes compile error.
+                unsafe {
+                    $crate::sys::interface_fn!($godot_fn)(
+                        $crate::sys::c_str_from_str(&msg),
+                        $crate::sys::c_str_from_str(&function),
+                        $crate::sys::c_str_from_str(concat!(file!(), "\0")),
+                        line!() as i32,
+                        $crate::sys::conv::SYS_FALSE, // Whether to create a toast notification in editor.
+                    )
+                };
             } else {
                 eprintln!("[{}] {}", stringify!($godot_fn), &msg[..msg.len() - 1]);
             }

@@ -317,17 +317,13 @@ pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
 }
 
 pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
-    unsafe {
-        let storage = as_storage::<T>(instance);
-        storage.on_inc_ref();
-    }
+    let storage = unsafe { as_storage::<T>(instance) };
+    storage.on_inc_ref();
 }
 
 pub unsafe extern "C" fn unreference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
-    unsafe {
-        let storage = as_storage::<T>(instance);
-        storage.on_dec_ref();
-    }
+    let storage = unsafe { as_storage::<T>(instance) };
+    storage.on_dec_ref();
 }
 
 /// # Safety

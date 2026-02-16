@@ -190,8 +190,9 @@ impl<T: ScriptInstance> ScriptInstanceData<T> {
     /// # Safety
     ///
     /// `ptr` must point to a live `ScriptInstanceData<T>` for the duration of `'a`.
+    #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
     unsafe fn borrow_script_sys<'a>(ptr: sys::GDExtensionScriptInstanceDataPtr) -> &'a Self {
-        unsafe { &*(ptr.cast::<ScriptInstanceData<T>>()) }
+        &*(ptr.cast::<ScriptInstanceData<T>>())
     }
 
     fn borrow(&self) -> RefGuard<'_, T> {

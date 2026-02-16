@@ -96,19 +96,18 @@ impl<T: GodotClass> Base<T> {
     /// `base` must be alive at the time of invocation, i.e. user `init()` (which could technically destroy it) must not have run yet.
     /// If `base` is destroyed while the returned `Base<T>` is in use, that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_base(base: &Base<T>) -> Base<T> {
-        unsafe {
-            sys::balanced_assert!(
-                base.obj.is_instance_valid(),
-                "Cannot construct Base; was object freed during initialization?"
-            );
+        sys::balanced_assert!(
+            base.obj.is_instance_valid(),
+            "Cannot construct Base; was object freed during initialization?"
+        );
 
-            let obj = Gd::from_obj_sys_weak(base.obj.obj_sys());
+        // SAFETY:
+        let obj = unsafe { Gd::from_obj_sys_weak(base.obj.obj_sys()) };
 
-            Self {
-                obj: ManuallyDrop::new(obj),
-                #[cfg(safeguards_balanced)]
-                init_state: Rc::clone(&base.init_state),
-            }
+        Self {
+            obj: ManuallyDrop::new(obj),
+            #[cfg(safeguards_balanced)]
+            init_state: Rc::clone(&base.init_state),
         }
     }
 
@@ -120,12 +119,12 @@ impl<T: GodotClass> Base<T> {
     /// `gd` must be alive at the time of invocation. If it is destroyed while the returned `Base<T>` is in use, that constitutes a logic
     /// error, not a safety issue.
     pub(crate) unsafe fn from_script_gd(gd: &Gd<T>) -> Self {
-        unsafe {
-            sys::balanced_assert!(gd.is_instance_valid());
+        sys::balanced_assert!(gd.is_instance_valid());
 
-            let obj = Gd::from_obj_sys_weak(gd.obj_sys());
-            base_from_obj!(obj, InitState::Script)
-        }
+        // SAFETY: pointer is valid and remains alive while in use.
+        let obj = unsafe { Gd::from_obj_sys_weak(gd.obj_sys()) };
+
+        base_from_obj!(obj, InitState::Script)
     }
 
     /// Create new base from raw Godot object.
@@ -136,19 +135,18 @@ impl<T: GodotClass> Base<T> {
     /// `base_ptr` must point to a valid, live object at the time of invocation. If it is destroyed while the returned `Base<T>` is in use,
     /// that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_sys(base_ptr: sys::GDExtensionObjectPtr) -> Self {
-        unsafe {
-            sys::balanced_assert!(!base_ptr.is_null(), "instance base is null pointer");
+        sys::balanced_assert!(!base_ptr.is_null(), "instance base is null pointer");
 
-            // Initialize only as weak pointer (don't increment reference count).
-            let obj = Gd::from_obj_sys_weak(base_ptr);
+        // Initialize only as weak pointer (don't increment reference count).
+        // SAFETY: pointer is valid and remains alive while in use.
+        let obj = unsafe { Gd::from_obj_sys_weak(base_ptr) };
 
-            // This obj does not contribute to the strong count, otherwise we create a reference cycle:
-            // 1. RefCounted (dropped in GDScript)
-            // 2. holds user T (via extension instance and storage)
-            // 3. holds Base<T> RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
-            // Note that if late-init never happened on self, we have the same behavior (still a raw pointer instead of weak Gd)
-            base_from_obj!(obj, InitState::ObjectConstructing)
-        }
+        // This obj does not contribute to the strong count, otherwise we create a reference cycle:
+        // 1. RefCounted (dropped in GDScript)
+        // 2. holds user T (via extension instance and storage)
+        // 3. holds Base<T> RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
+        // Note that if late-init never happened on self, we have the same behavior (still a raw pointer instead of weak Gd)
+        base_from_obj!(obj, InitState::ObjectConstructing)
     }
 
     #[cfg(safeguards_balanced)]
