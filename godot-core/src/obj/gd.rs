@@ -607,28 +607,33 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
-    /// Initializes this `Gd<T>` from the object pointer as a **strong ref**, meaning
-    /// it initializes/increments the reference counter and keeps the object alive.
+    /// Initializes this `Gd<T>` from the object pointer as a **strong ref**, meaning it initializes/increments the reference counter and keeps
+    /// the object alive.
     ///
-    /// This is the default for most initializations from FFI. In cases where reference counter
-    /// should explicitly **not** be updated, [`Self::from_obj_sys_weak`] is available.
+    /// This is the default for most initializations from FFI. In cases where the reference counter should explicitly **not** be updated,
+    /// [`Self::from_obj_sys_weak`] is available.
+    ///
+    /// # Safety
+    /// `ptr` must point to a valid object of this type.
     pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
-        unsafe {
-            sys::strict_assert!(
-                !ptr.is_null(),
-                "Gd::from_obj_sys() called with null pointer"
-            );
+        sys::strict_assert!(
+            !ptr.is_null(),
+            "Gd::from_obj_sys() called with null pointer"
+        );
 
-            Self::from_obj_sys_or_none(ptr).unwrap()
-        }
+        unsafe { Self::from_obj_sys_or_none(ptr) }.unwrap()
     }
 
+    /// # Safety
+    /// `ptr` must point to a valid object of this type, or null.
     pub(crate) unsafe fn from_obj_sys_weak_or_none(
         ptr: sys::GDExtensionObjectPtr,
     ) -> Result<Self, ConvertError> {
         unsafe { Self::try_from_ffi(RawGd::from_obj_sys_weak(ptr)) }
     }
 
+    /// # Safety
+    /// `ptr` must point to a valid object of this type.
     pub(crate) unsafe fn from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
         unsafe { Self::from_obj_sys_weak_or_none(ptr).unwrap() }
     }
@@ -662,20 +667,19 @@ impl<T: GodotClass> Gd<T> {
     /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
     #[doc(hidden)]
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
-        unsafe {
-            // TODO(uninit) - should we use GDExtensionUninitializedTypePtr instead? Then update all the builtin codegen...
-            let init_fn = |ptr| {
-                init_fn(sys::SysPtr::force_init(ptr));
-            };
+        // TODO(uninit) - should we use GDExtensionUninitializedTypePtr instead? Then update all the builtin codegen...
+        let init_fn = |ptr| {
+            init_fn(sys::SysPtr::force_init(ptr));
+        };
 
-            // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
+        // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
-            // Initialize pointer with given function, return Some(ptr) on success and None otherwise
-            let object_ptr = super::raw_object_init(init_fn);
+        // Initialize pointer with given function. Return Some(ptr) on success, and None otherwise.
+        // SAFETY: init_fn takes a type-ptr pointing to an object-ptr.
+        let object_ptr = unsafe { super::raw_object_init(init_fn) };
 
-            // Do not increment ref-count; assumed to be return value from FFI.
-            sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
-        }
+        // Do not increment ref-count; assumed to be return value from FFI.
+        sys::ptr_then(object_ptr, |ptr| unsafe { Gd::from_obj_sys_weak(ptr) })
     }
 
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).

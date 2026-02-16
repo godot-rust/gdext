@@ -56,7 +56,8 @@ impl<P: FfiRawPointer> RawPtr<P> {
     /// You must ensure that Godot can handle null pointers in the specific Godot API where this value will be used.
     #[inline]
     pub unsafe fn null() -> Self {
-        unsafe { RawPtr::new(P::ptr_from_i64(0)) }
+        let ptr = P::ptr_from_i64(0);
+        unsafe { RawPtr::new(ptr) }
     }
 
     /// Returns the wrapped raw pointer.

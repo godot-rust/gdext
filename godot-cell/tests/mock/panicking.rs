@@ -43,18 +43,15 @@ fn call_works() {
 fn all_calls_work() {
     let instance_id = MyClass::init();
 
-    unsafe {
-        assert_id_is(instance_id, 0);
-    }
+    unsafe { assert_id_is(instance_id, 0) };
 
     // We're not running in parallel, so it will never fail to increment completely.
     for (f, _, expected_increment) in CALLS {
-        let start = unsafe { get_int(instance_id) };
+        // All 3 statements are unsafe.
         unsafe {
+            let start = get_int(instance_id);
             f(instance_id).unwrap();
-        }
-        unsafe {
             assert_id_is(instance_id, start + *expected_increment);
-        }
+        };
     }
 }

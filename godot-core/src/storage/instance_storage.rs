@@ -270,55 +270,55 @@ pub unsafe fn as_storage<'u, T: GodotClass>(
 /// # Safety
 /// `instance_ptr` is assumed to point to a valid instance. This function must only be invoked once for a pointer.
 pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
-    unsafe {
-        let raw = instance_ptr as *mut InstanceStorage<T>;
+    let raw = instance_ptr as *mut InstanceStorage<T>;
+    // SAFETY: valid pointer, only invoked by one caller at a time.
+    let storage = unsafe { &mut *raw };
 
-        // We cannot panic here, since this code is invoked from a C callback. Panicking would mean unwinding into C code, which is UB.
-        // We have the following options:
-        // 1. Print an error as a best-effort, knowing that UB is likely to occur whenever the user will access &T or &mut T. (Technically, the
-        //    mere existence of these references is UB since the T is dead.)
-        // 2. Abort the process. This is the safest option, but a very drastic measure, and not what gdext does elsewhere.
-        //    We can use Godot's OS.crash() API here.
-        // 3. Change everything to "C-unwind" API. Would make the FFI unwinding safe, but still not clear if Godot would handle it appropriately.
-        //    Even if yes, it's likely the same behavior as OS.crash().
-        // 4. Prevent destruction of the Rust part (InstanceStorage). This would solve the immediate problem of &T and &mut T becoming invalid,
-        //    but it would leave a zombie object behind, where all base operations and Godot interactions suddenly fail, which likely creates
-        //    its own set of edge cases. It would _also_ make the problem less observable, since the user can keep interacting with the Rust
-        //    object and slowly accumulate memory leaks.
-        //    - Letting Gd<T> and InstanceStorage<T> know about this specific object state and panicking in the next Rust call might be an option,
-        //      but we still can't control direct access to the T.
-        //
-        // For now we choose option 2 in strict+balanced levels, and 4 in disengaged level.
-        let mut leak_rust_object = false;
-        if (*raw).is_bound() {
-            let error = format!(
-                "Destroyed an object from Godot side, while a bind() or bind_mut() call was active.\n  \
+    // We cannot panic here, since this code is invoked from a C callback. Panicking would mean unwinding into C code, which is UB.
+    // We have the following options:
+    // 1. Print an error as a best-effort, knowing that UB is likely to occur whenever the user will access &T or &mut T. (Technically, the
+    //    mere existence of these references is UB since the T is dead.)
+    // 2. Abort the process. This is the safest option, but a very drastic measure, and not what gdext does elsewhere.
+    //    We can use Godot's OS.crash() API here.
+    // 3. Change everything to "C-unwind" API. Would make the FFI unwinding safe, but still not clear if Godot would handle it appropriately.
+    //    Even if yes, it's likely the same behavior as OS.crash().
+    // 4. Prevent destruction of the Rust part (InstanceStorage). This would solve the immediate problem of &T and &mut T becoming invalid,
+    //    but it would leave a zombie object behind, where all base operations and Godot interactions suddenly fail, which likely creates
+    //    its own set of edge cases. It would _also_ make the problem less observable, since the user can keep interacting with the Rust
+    //    object and slowly accumulate memory leaks.
+    //    - Letting Gd<T> and InstanceStorage<T> know about this specific object state and panicking in the next Rust call might be an option,
+    //      but we still can't control direct access to the T.
+    //
+    // For now we choose option 2 in strict+balanced levels, and 4 in disengaged level.
+    let mut leak_rust_object = false;
+    if storage.is_bound() {
+        let error = format!(
+            "Destroyed an object from Godot side, while a bind() or bind_mut() call was active.\n  \
             This is a bug in your code that may cause UB and logic errors. Make sure that objects are not\n  \
             destroyed while you still hold a Rust reference to them, or use Gd::free() which is safe.\n  \
             object: {:?}",
-                (*raw).base()
-            );
+            storage.base()
+        );
 
-            // In strict+balanced level, crash which may trigger breakpoint.
-            // In disengaged level, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
-            if cfg!(safeguards_balanced) {
-                let error = crate::builtin::GString::from(&error);
-                crate::classes::Os::singleton().crash(&error);
-            } else {
-                leak_rust_object = true;
-                godot_error!("{}", error);
-            }
+        // In strict+balanced level, crash which may trigger breakpoint.
+        // In disengaged level, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
+        if cfg!(safeguards_balanced) {
+            let error = crate::builtin::GString::from(&error);
+            crate::classes::Os::singleton().crash(&error);
+        } else {
+            leak_rust_object = true;
+            godot_error!("{}", error);
         }
+    }
 
-        if !leak_rust_object {
-            // SAFETY:
-            // `leak_rust_object` is false, meaning that `is_bound()` returned `false`. Because if it were `true`
-            // then the process would either be aborted, or we set `leak_rust_object = true`.
-            //
-            // Therefore, we can safely drop this storage as per the safety contract of `Storage`. Which we know
-            // `InstanceStorage<T>` implements because of `_INSTANCE_STORAGE_IMPLEMENTS_STORAGE`.
-            let _drop = Box::from_raw(raw);
-        }
+    if !leak_rust_object {
+        // SAFETY:
+        // `leak_rust_object` is false, meaning that `is_bound()` returned `false`. Because if it were `true`
+        // then the process would either be aborted, or we set `leak_rust_object = true`.
+        //
+        // Therefore, we can safely drop this storage as per the safety contract of `Storage`. Which we know
+        // `InstanceStorage<T>` implements because of `_INSTANCE_STORAGE_IMPLEMENTS_STORAGE`.
+        let _drop = unsafe { Box::from_raw(storage) };
     }
 }
 

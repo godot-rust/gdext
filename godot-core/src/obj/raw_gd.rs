@@ -572,22 +572,21 @@ where
 
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::OBJECT);
 
+    #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
     unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self {
-        unsafe { Self::from_obj_sys_weak(ptr as sys::GDExtensionObjectPtr) }
+        Self::from_obj_sys_weak(ptr as sys::GDExtensionObjectPtr)
     }
 
+    #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
     unsafe fn new_with_uninit(init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
-        unsafe {
-            let obj = raw_object_init(init);
-            Self::from_obj_sys_weak(obj)
-        }
+        let obj = raw_object_init(init);
+        Self::from_obj_sys_weak(obj)
     }
 
+    #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
     unsafe fn new_with_init(init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        unsafe {
-            // `new_with_uninit` creates an initialized pointer.
-            Self::new_with_uninit(|return_ptr| init(sys::SysPtr::force_init(return_ptr)))
-        }
+        // `new_with_uninit` creates an initialized pointer.
+        Self::new_with_uninit(|return_ptr| init(sys::SysPtr::force_init(return_ptr)))
     }
 
     fn sys(&self) -> sys::GDExtensionConstTypePtr {
@@ -608,36 +607,32 @@ where
     }
 
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
-        unsafe {
-            if ptr.is_null() {
-                return Self::null();
-            }
-
-            let obj_ptr = if T::DynMemory::pass_as_ref(call_type) {
-                // ptr is `Ref<T>*`
-                // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
-                interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
-            } else {
-                // ptr is `T**` from Godot 4.1 onwards, also in virtual functions.
-                *(ptr as *mut sys::GDExtensionObjectPtr)
-            };
-
-            // obj_ptr is `T*`
-            Self::from_obj_sys(obj_ptr)
+        if ptr.is_null() {
+            return Self::null();
         }
+
+        let obj_ptr = if T::DynMemory::pass_as_ref(call_type) {
+            // ptr is `Ref<T>*`.
+            // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
+            unsafe { interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr) }
+        } else {
+            // SAFETY: TypePtr == ObjectPtr* == T** (from Godot 4.1 onwards, also in virtual functions.)
+            unsafe { *(ptr as *mut sys::GDExtensionObjectPtr) }
+        };
+
+        // SAFETY: obj_ptr is `T*`.
+        unsafe { Self::from_obj_sys(obj_ptr) }
     }
 
     unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
-        unsafe {
-            if T::DynMemory::pass_as_ref(call_type) {
-                // ref_set_object creates a new Ref<T> in the engine and increments the reference count. We have to drop our Gd<T> to decrement
-                // the reference count again.
-                interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys());
-            } else {
-                ptr::write(ptr as *mut _, self.obj);
-                // We've passed ownership to caller.
-                std::mem::forget(self);
-            }
+        if T::DynMemory::pass_as_ref(call_type) {
+            // ref_set_object creates a new Ref<T> in the engine and increments the reference count. We have to drop our Gd<T> to decrement
+            // the reference count again.
+            unsafe { interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys()) };
+        } else {
+            unsafe { ptr::write(ptr as *mut *mut T, self.obj) };
+            // We've passed ownership to caller.
+            std::mem::forget(self);
         }
     }
 }

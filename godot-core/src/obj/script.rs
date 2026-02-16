@@ -190,8 +190,9 @@ impl<T: ScriptInstance> ScriptInstanceData<T> {
     /// # Safety
     ///
     /// `ptr` must point to a live `ScriptInstanceData<T>` for the duration of `'a`.
+    #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
     unsafe fn borrow_script_sys<'a>(ptr: sys::GDExtensionScriptInstanceDataPtr) -> &'a Self {
-        unsafe { &*(ptr.cast::<ScriptInstanceData<T>>()) }
+        &*(ptr.cast::<ScriptInstanceData<T>>())
     }
 
     fn borrow(&self) -> RefGuard<'_, T> {
@@ -576,7 +577,6 @@ mod bounded_ptr_list {
         /// - `ptr` must not have been used in a call to this function before.
         /// - `ptr` must not have been mutated since the call to `list_into_sys`.
         /// - `ptr` must not be accessed after calling this function.
-        #[deny(unsafe_op_in_unsafe_fn)]
         pub unsafe fn list_from_sys(&self, ptr: *const T) -> Box<[T]> {
             let ptr: *mut T = ptr.cast_mut();
             let len = self
@@ -600,7 +600,6 @@ mod bounded_ptr_list {
 #[cfg(before_api = "4.3")]
 use self::bounded_ptr_list::BoundedPtrList;
 
-#[deny(unsafe_op_in_unsafe_fn)]
 mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;

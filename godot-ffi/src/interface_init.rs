@@ -131,7 +131,6 @@ type GetProcAddress =
 /// - `get_proc_address` must be a valid function pointer from Godot.
 /// - The function pointer associated with `fn_name` must be valid, have signature `unsafe extern "C" fn(*mut V)` and initialize
 ///   the version struct.
-#[deny(unsafe_op_in_unsafe_fn)]
 unsafe fn fetch_version<V>(
     get_proc_address: GetProcAddress,
     fn_name: &std::ffi::CStr,
@@ -155,7 +154,6 @@ unsafe fn fetch_version<V>(
 }
 
 /// Returns `(version, supports_deprecated_apis)`.
-#[deny(unsafe_op_in_unsafe_fn)]
 pub(crate) unsafe fn runtime_version(
     get_proc_address: GetProcAddress,
 ) -> (sys::GDExtensionGodotVersion, bool) {

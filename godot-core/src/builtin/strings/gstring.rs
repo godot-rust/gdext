@@ -10,7 +10,6 @@ use std::fmt;
 use std::fmt::Write;
 
 use godot_ffi as sys;
-use sys::types::OpaqueString;
 use sys::{ExtVariantType, GodotFfi, ffi_methods, interface_fn};
 
 use crate::builtin::strings::{Encoding, pad_if_needed};
@@ -69,7 +68,7 @@ use crate::{impl_shared_string_api, meta};
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]
 pub struct GString {
-    _opaque: OpaqueString,
+    _opaque: sys::types::OpaqueString,
 }
 
 // SAFETY: The Godot implementation of String uses an atomic copy on write pointer, making this thread-safe as we never write to it unless we own it.
@@ -216,7 +215,6 @@ impl GString {
     ///
     /// * Must only be used on a pointer returned from a call to [`into_owned_string_sys`](Self::into_owned_string_sys).
     /// * Must not be called more than once on the same pointer.
-    #[deny(unsafe_op_in_unsafe_fn)]
     pub(crate) unsafe fn from_owned_string_sys(ptr: sys::GDExtensionStringPtr) -> Self {
         sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
 
@@ -235,10 +233,9 @@ impl GString {
     /// - `ptr` must point to a live `GString` for the duration of `'a`.
     /// - Must be exclusive - no other reference to given `GString` instance can exist for the duration of `'a`.
     pub(crate) unsafe fn borrow_string_sys_mut<'a>(ptr: sys::GDExtensionStringPtr) -> &'a mut Self {
-        unsafe {
-            sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
-            &mut *(ptr.cast::<GString>())
-        }
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
+
+        unsafe { &mut *(ptr.cast::<GString>()) }
     }
 
     /// Moves this string into a string sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
@@ -247,11 +244,9 @@ impl GString {
     ///
     /// `dst` must be a valid string pointer.
     pub(crate) unsafe fn move_into_string_ptr(self, dst: sys::GDExtensionStringPtr) {
-        unsafe {
-            let dst: sys::GDExtensionTypePtr = dst.cast();
+        let dst: sys::GDExtensionTypePtr = dst.cast();
 
-            self.move_return_ptr(dst, sys::PtrcallType::Standard);
-        }
+        unsafe { self.move_return_ptr(dst, sys::PtrcallType::Standard) };
     }
 
     meta::declare_arg_method! {

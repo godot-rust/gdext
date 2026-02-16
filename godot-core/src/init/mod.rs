@@ -58,7 +58,6 @@ unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
 }
 
 #[doc(hidden)]
-#[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
     library: sys::GDExtensionClassLibraryPtr,
@@ -202,7 +201,6 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
 /// - Must be called from the main thread.
 /// - The interface must have been initialized.
 /// - Must only be called once per level.
-#[deny(unsafe_op_in_unsafe_fn)]
 unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
     // TODO: in theory, a user could start a thread in one of the early levels, and run concurrent code that messes with the global state
     // (e.g. class registration). This would break the assumption that the load_class_method_table() calls are exclusive.
@@ -502,7 +500,6 @@ pub use sys::InitLevel;
 /// - Must be called from the main thread.
 /// - The interface must be initialized.
 /// - The `Scene` api level must have been initialized.
-#[deny(unsafe_op_in_unsafe_fn)]
 unsafe fn ensure_godot_features_compatible() {
     // The reason why we don't simply call Os::has_feature() here is that we might move the high-level engine classes out of godot-core
     // later, and godot-core would only depend on godot-sys. This makes future migrations easier. We still have access to builtins though.
