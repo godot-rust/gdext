@@ -332,10 +332,6 @@ pub trait Function: fmt::Display {
         matches!(self.direction(), FnDirection::Virtual { .. })
     }
 
-    fn is_generic(&self) -> bool {
-        matches!(self.return_value().type_, Some(RustTy::GenericArray))
-    }
-
     fn direction(&self) -> FnDirection {
         self.common().direction
     }
@@ -681,13 +677,6 @@ impl FnReturn {
         Self::with_enum_replacements(return_value, &[], flow, ctx)
     }
 
-    pub fn with_generic_builtin(generic_type: RustTy) -> Self {
-        Self {
-            decl: generic_type.return_decl(),
-            type_: Some(generic_type),
-        }
-    }
-
     pub fn with_enum_replacements(
         return_value: &Option<JsonMethodReturn>,
         replacements: EnumReplacements,
@@ -728,14 +717,6 @@ impl FnReturn {
             Some(ty) => ty.to_token_stream(),
             _ => quote! { () },
         }
-    }
-
-    pub fn generic_params(&self) -> Option<TokenStream> {
-        self.type_.as_ref()?.generic_params()
-    }
-
-    pub fn where_clause(&self) -> Option<TokenStream> {
-        self.type_.as_ref()?.where_clause()
     }
 
     pub fn call_result_decl(&self) -> TokenStream {
@@ -780,11 +761,6 @@ pub enum RustTy {
     ///
     /// Untyped arrays are either `BuiltinIdent("AnyArray")` for outbound methods, or `BuiltinIdent("Array")` for virtual methods.
     BuiltinArray { elem_type: TokenStream },
-
-    /// Will be included as `Array<T>` in the generated source.
-    ///
-    /// Set by [`builtin_method_generic_ret`](crate::special_cases::builtin_method_generic_ret)
-    GenericArray,
 
     /// C-style raw pointer to a `RustTy`.
     RawPointer { inner: Box<RustTy>, is_const: bool },
@@ -840,10 +816,7 @@ impl RustTy {
     }
 
     pub fn return_decl(&self) -> TokenStream {
-        match self {
-            Self::GenericArray => quote! { -> Array<Ret> },
-            _ => quote! { -> #self },
-        }
+        quote! { -> #self }
     }
 
     /// Returns tokens without `Option<T>` wrapper, even for nullable engine classes.
@@ -854,25 +827,6 @@ impl RustTy {
         match self {
             Self::EngineClass { gd_tokens, .. } => gd_tokens.clone(),
             other => other.to_token_stream(),
-        }
-    }
-
-    pub fn generic_params(&self) -> Option<TokenStream> {
-        if matches!(self, Self::GenericArray) {
-            Some(quote! { < Ret > })
-        } else {
-            None
-        }
-    }
-
-    pub fn where_clause(&self) -> Option<TokenStream> {
-        if matches!(self, Self::GenericArray) {
-            Some(quote! {
-                where
-                    Ret: crate::meta::ArrayElement,
-            })
-        } else {
-            None
         }
     }
 
@@ -924,7 +878,6 @@ impl ToTokens for RustTy {
                 }
             }
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
-            RustTy::GenericArray => quote! { Array<Ret> }.to_tokens(tokens),
             RustTy::SysPointerType { tokens: path } => path.to_tokens(tokens),
         }
     }

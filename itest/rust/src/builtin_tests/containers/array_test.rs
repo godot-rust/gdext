@@ -94,7 +94,7 @@ fn array_hash() {
 }
 
 #[itest]
-fn array_share() {
+fn array_clone() {
     let mut array = array![1, 2];
     let shared = array.clone();
     array.set(0, 3);
@@ -104,23 +104,48 @@ fn array_share() {
 #[itest]
 fn array_duplicate_shallow() {
     let subarray = array![2, 3];
+    assert_eq!(
+        subarray.duplicate_shallow().element_type(),
+        ElementType::Builtin(VariantType::INT)
+    );
+
     let array = varray![1, subarray];
     let duplicate = array.duplicate_shallow();
-    Array::<i64>::try_from_variant(&duplicate.at(1))
-        .unwrap()
-        .set(0, 4);
+    assert_eq!(duplicate.element_type(), ElementType::Untyped);
+
+    Array::<i64>::from_variant(&duplicate.at(1)).set(0, 4);
     assert_eq!(subarray.at(0), 4);
 }
 
 #[itest]
 fn array_duplicate_deep() {
     let subarray = array![2, 3];
+    assert_eq!(
+        subarray.duplicate_deep().element_type(),
+        ElementType::Builtin(VariantType::INT)
+    );
+
     let array = varray![1, subarray];
     let duplicate = array.duplicate_deep();
-    Array::<i64>::try_from_variant(&duplicate.at(1))
-        .unwrap()
-        .set(0, 4);
+    assert_eq!(duplicate.element_type(), ElementType::Untyped);
+
+    Array::<i64>::from_variant(&duplicate.at(1)).set(0, 4);
     assert_eq!(subarray.at(0), 2);
+}
+
+#[itest]
+fn array_any_duplicate_deep() {
+    let typed = array![2, 3].upcast_any_array();
+    assert_eq!(
+        typed.duplicate_deep().element_type(),
+        ElementType::Builtin(VariantType::INT)
+    );
+
+    let untyped = varray![1, typed].upcast_any_array();
+    assert_eq!(
+        untyped.duplicate_deep().element_type(),
+        ElementType::Untyped
+    );
 }
 
 #[itest]

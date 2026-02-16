@@ -232,34 +232,6 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
     }
 }
 
-/// Get the safety docs of an unsafe method, or `None` if it is safe.
-fn method_safety_doc(class_name: &TyName, method: &BuiltinMethod) -> Option<TokenStream> {
-    if class_name.godot_ty == "Array" {
-        if method.is_generic() {
-            return Some(quote! {
-               /// # Safety
-               /// You must ensure that the returned array fulfils the safety invariants of [`Array`](crate::builtin::Array), this being:
-               /// - Any values written to the array must match the runtime type of the array.
-               /// - Any values read from the array must be convertible to the type `T`.
-               ///
-               /// If the safety invariant of `Array` is intact, which it must be for any publicly accessible arrays, then `T` must match
-               /// the runtime type of the array. This then implies that both of the conditions above hold. This means that you only need
-               /// to keep the above conditions in mind if you are intentionally violating the safety invariant of `Array`.
-               ///
-               /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
-            });
-        } else if &method.return_value().type_tokens().to_string() == "VarArray" {
-            return Some(quote! {
-                /// # Safety
-                ///
-                /// You must ensure that the returned array fulfils the safety invariants of [`Array`](crate::builtin::Array).
-            });
-        }
-    }
-
-    None
-}
-
 fn make_builtin_method_definition(
     builtin_class: &BuiltinClass,
     variant_shout_name: &Ident,
@@ -302,13 +274,11 @@ fn make_builtin_method_definition(
     let receiver = functions_common::make_receiver(method.qualifier(), ffi_arg_in);
     let object_ptr = &receiver.ffi_arg;
 
-    let maybe_generic_params = method.return_value().generic_params();
-
     let ptrcall_invocation = quote! {
         let method_bind = sys::builtin_method_table().#fptr_access;
 
 
-        Signature::<CallParams, CallRet #maybe_generic_params>::out_builtin_ptrcall(
+        Signature::<CallParams, CallRet>::out_builtin_ptrcall(
             method_bind,
             #builtin_name_str,
             #method_name_str,
@@ -330,8 +300,6 @@ fn make_builtin_method_definition(
         )
     };
 
-    let safety_doc = method_safety_doc(builtin_class.name(), method);
-
     functions_common::make_function_definition(
         method,
         &FnCode {
@@ -341,7 +309,6 @@ fn make_builtin_method_definition(
             is_virtual_required: false,
             is_varcall_fallible: false,
         },
-        safety_doc,
         &TokenStream::new(),
     )
 }

@@ -635,7 +635,6 @@ fn make_class_method_definition(
             is_virtual_required: false,
             is_varcall_fallible: true,
         },
-        None,
         cfg_attributes,
     )
 }

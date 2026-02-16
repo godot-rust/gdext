@@ -889,7 +889,7 @@ func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
 
 #[cfg(since_api = "4.4")]
 mod typed_dictionary_tests {
-    use godot::builtin::dict;
+    use godot::builtin::{array, dict};
 
     use super::*;
 
@@ -943,18 +943,36 @@ mod typed_dictionary_tests {
         assert_eq!(d.get("num"), Some(23.to_variant()));
     }
 
-    #[itest(skip)] // TODO(v0.5): fix {keys,values}_array and re-enable.
-    #[expect(clippy::dbg_macro)]
+    #[itest]
     fn dictionary_typed_kv_array() {
-        // Value type needs to be specified for now, due to GString/StringName/NodePath ambiguity.
-        let dict: Dictionary<GString, i32> = dict! {
+        // Key type needs to be specified for now, due to GString/StringName/NodePath ambiguity.
+        let dict: Dictionary<GString, _> = dict! {
             "key1": 10,
             "key2": 20,
         };
 
-        dbg!(dict.keys_array());
-        dbg!(dict.keys_array().element_type());
-        dbg!(dict.values_array());
-        dbg!(dict.values_array().element_type());
+        assert_eq!(dict.keys_array(), array!["key1", "key2"]);
+        assert_eq!(
+            dict.keys_array().element_type(),
+            ElementType::Builtin(VariantType::STRING)
+        );
+        assert_eq!(dict.values_array(), array![10, 20]);
+        assert_eq!(
+            dict.values_array().element_type(),
+            ElementType::Builtin(VariantType::INT)
+        );
+    }
+
+    #[itest]
+    fn dictionary_typed_duplicate() {
+        let dict = Dictionary::<GString, i64>::new();
+
+        let shallow = dict.duplicate_shallow();
+        assert_eq!(shallow.key_element_type(), dict.key_element_type());
+        assert_eq!(shallow.value_element_type(), dict.value_element_type());
+
+        let deep = dict.duplicate_deep();
+        assert_eq!(deep.key_element_type(), dict.key_element_type());
+        assert_eq!(deep.value_element_type(), dict.value_element_type());
     }
 }

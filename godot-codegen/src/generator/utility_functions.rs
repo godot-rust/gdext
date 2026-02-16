@@ -75,7 +75,6 @@ pub(crate) fn make_utility_function_definition(function: &UtilityFunction) -> To
             is_virtual_required: false,
             is_varcall_fallible: false,
         },
-        None,
         &TokenStream::new(),
     );
 

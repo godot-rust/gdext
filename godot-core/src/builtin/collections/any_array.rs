@@ -209,17 +209,17 @@ impl AnyArray {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> AnyArray {
-        self.array.duplicate_shallow().upcast_any_array()
+        self.array.as_inner().duplicate(false)
     }
 
     /// Returns a deep copy, duplicating nested `Array`/`Dictionary` elements but keeping `Object` elements shared.
     ///
     /// This operation retains the dynamic [element type][Self::element_type]: copying `Array<T>` will yield another `Array<T>`.
     ///
-    /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
+    /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        self.array.duplicate_deep().upcast_any_array()
+        self.array.as_inner().duplicate(true)
     }
 
     /// Returns a sub-range as a new array.
@@ -231,8 +231,7 @@ impl AnyArray {
     /// _Godot equivalent: `slice`_
     #[doc(alias = "slice")]
     pub fn subarray_shallow(&self, range: impl meta::SignedRange, step: Option<i32>) -> Self {
-        let sliced = self.array.subarray_shallow(range, step);
-        sliced.upcast_any_array()
+        self.subarray_impl(range, step, false)
     }
 
     /// Returns a sub-range as a new `Array`.
@@ -244,8 +243,16 @@ impl AnyArray {
     /// _Godot equivalent: `slice` with `deep: true`_
     #[doc(alias = "slice")]
     pub fn subarray_deep(&self, range: impl meta::SignedRange, step: Option<i32>) -> Self {
-        let sliced = self.array.subarray_deep(range, step);
-        sliced.upcast_any_array()
+        self.subarray_impl(range, step, true)
+    }
+
+    fn subarray_impl(&self, range: impl meta::SignedRange, step: Option<i32>, deep: bool) -> Self {
+        let step = step.unwrap_or(1);
+        assert_ne!(step, 0, "subarray: step cannot be zero");
+        let (begin, end) = range.signed();
+        let end = end.unwrap_or(i32::MAX as i64);
+
+        self.array.as_inner().slice(begin, end, step as i64, deep)
     }
 
     /// Returns an non-exclusive iterator over the elements of the `Array`.
@@ -436,7 +443,23 @@ impl AnyArray {
         self.try_cast_array::<Variant>()
     }
 
-    // If we add direct-conversion methods that panic, we can use meta::element_godot_type_name::<T>() to mention type in case of mismatch.
+    /// Converts to `Array<T>` if the runtime type matches, panics otherwise.
+    ///
+    /// This is a convenience method that panics with a descriptive message if the cast fails.
+    /// Use [`try_cast_array()`][Self::try_cast_array] for a non-panicking version.
+    ///
+    /// # Panics
+    /// If the array's dynamic element type does not match `T`.
+    pub(crate) fn cast_array<T: ArrayElement>(self) -> Array<T> {
+        let from_type = self.element_type();
+        self.try_cast_array::<T>().unwrap_or_else(|_| {
+            panic!(
+                "cast_array_or_panic: expected element type {:?}, got {:?}",
+                ElementType::of::<T>(),
+                from_type,
+            )
+        })
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -449,11 +472,12 @@ impl AnyArray {
 unsafe impl GodotFfi for AnyArray {
     const VARIANT_TYPE: sys::ExtVariantType = sys::ExtVariantType::Concrete(VariantType::ARRAY);
 
-    // No Default trait, thus manually defining this and ffi_methods!.
+    // Constructs a valid Godot array as ptrcall destination, without caching the element type.
+    // See Array::new_with_init for rationale.
     unsafe fn new_with_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::new_untyped();
-        init_fn(result.sys_mut());
-        result
+        let array = VarArray::new_uncached_type(init_fn);
+
+        Self { array }
     }
 
     // Manually forwarding these, since no Opaque.
