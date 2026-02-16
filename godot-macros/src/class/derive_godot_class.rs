@@ -156,13 +156,15 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         modifiers.push(quote! { with_tool })
     }
 
-    // Declares a "funcs collection" struct that, for holds a constant for each #[func].
+    // Declares a "funcs collection" struct that holds a constant for each #[func].
     // That constant maps the Rust name (constant ident) to the Godot registered name (string value).
+    // Adopt visibility of class (could be relevant if ever #[godot_api(secondary)] support is added).
     let funcs_collection_struct_name = format_funcs_collection_struct(class_name);
+    let class_vis = class.vis_marker.as_ref();
     let funcs_collection_struct = quote! {
         #[doc(hidden)]
         #[allow(non_camel_case_types)]
-        pub struct #funcs_collection_struct_name {}
+        #class_vis struct #funcs_collection_struct_name {}
     };
 
     // Note: one limitation is that macros don't work for `impl nested::MyClass` blocks.

@@ -1110,6 +1110,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// `#[signal]` and `#[rpc]` attributes are not currently supported in secondary `impl` blocks.
+/// Additionally, `#[var(get = ..., set = ...)]` on fields cannot reference `#[func]` methods defined in secondary blocks.
 ///
 ///```compile_fail
 /// # use godot::prelude::*;
