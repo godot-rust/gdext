@@ -577,7 +577,6 @@ mod bounded_ptr_list {
         /// - `ptr` must not have been used in a call to this function before.
         /// - `ptr` must not have been mutated since the call to `list_into_sys`.
         /// - `ptr` must not be accessed after calling this function.
-        #[deny(unsafe_op_in_unsafe_fn)]
         pub unsafe fn list_from_sys(&self, ptr: *const T) -> Box<[T]> {
             let ptr: *mut T = ptr.cast_mut();
             let len = self
@@ -601,7 +600,6 @@ mod bounded_ptr_list {
 #[cfg(before_api = "4.3")]
 use self::bounded_ptr_list::BoundedPtrList;
 
-#[deny(unsafe_op_in_unsafe_fn)]
 mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;

@@ -164,7 +164,6 @@ impl MethodInfo {
     /// * Must only be used on a struct returned from a call to `into_owned_method_sys`, without modification.
     /// * Must not be called more than once on a `sys::GDExtensionMethodInfo` struct.
     #[doc(hidden)]
-    #[deny(unsafe_op_in_unsafe_fn)]
     pub unsafe fn free_owned_method_sys(info: sys::GDExtensionMethodInfo) {
         // Destructure info to ensure all fields are used.
         let sys::GDExtensionMethodInfo {

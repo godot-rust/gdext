@@ -361,7 +361,6 @@ impl Variant {
 // All manually implemented unsafe functions on `Variant`.
 // Deny `unsafe_op_in_unsafe_fn` so we don't forget to check safety invariants.
 #[doc(hidden)]
-#[deny(unsafe_op_in_unsafe_fn)]
 impl Variant {
     /// Moves this variant into a variant sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
     ///
@@ -507,7 +506,6 @@ impl Variant {
     ///
     /// * Must only be used on a pointer returned from a call to [`into_owned_var_sys`](Self::into_owned_var_sys).
     /// * Must not be called more than once on the same pointer.
-    #[deny(unsafe_op_in_unsafe_fn)]
     pub(crate) unsafe fn from_owned_var_sys(ptr: sys::GDExtensionVariantPtr) -> Self {
         sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
 

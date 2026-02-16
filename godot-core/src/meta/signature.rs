@@ -59,7 +59,6 @@ impl<Params: ParamTuple, Ret: GodotConvert> Signature<Params, Ret> {
 /// In-calls (varcall):
 ///
 /// Calls going from the Godot engine to Rust code, using varcall (for user `#[func]` methods with varargs/defaults).
-#[deny(unsafe_op_in_unsafe_fn)]
 impl<Params, Ret> Signature<Params, Ret>
 where
     Params: InParamTuple,
@@ -132,7 +131,6 @@ where
 /// Out-calls:
 ///
 /// Calls going from Rust code to the Godot engine.
-#[deny(unsafe_op_in_unsafe_fn)]
 impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// Make a varcall to the Godot engine for a class method.
     ///

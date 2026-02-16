@@ -329,7 +329,6 @@ pub unsafe extern "C" fn unreference<T: GodotClass>(instance: sys::GDExtensionCl
 /// # Safety
 ///
 /// Must only be called by Godot as a callback for `get_property_list` for a rust-defined class of type `T`.
-#[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
     instance: sys::GDExtensionClassInstancePtr,
     count: *mut u32,
@@ -359,7 +358,6 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
 ///
 /// - Must only be called by Godot as a callback for `free_property_list` for a rust-defined class of type `T`.
 /// - Must only be passed to Godot as a callback when [`get_property_list`] is the corresponding `get_property_list` callback.
-#[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
     _instance: sys::GDExtensionClassInstancePtr,
     list: *const sys::GDExtensionPropertyInfo,
@@ -392,7 +390,6 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
 ///
 /// * `instance` must be a valid `T` instance pointer for the duration of this function call.
 /// * `property_name` must be a valid `StringName` pointer for the duration of this function call.
-#[deny(unsafe_op_in_unsafe_fn)]
 unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
     instance: sys::GDExtensionClassInstancePtr,
     property_name: sys::GDExtensionConstStringNamePtr,
@@ -409,7 +406,6 @@ unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
 /// # Safety
 ///
 /// - Must only be called by Godot as a callback for `property_can_revert` for a rust-defined class of type `T`.
-#[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
     instance: sys::GDExtensionClassInstancePtr,
     property_name: sys::GDExtensionConstStringNamePtr,
@@ -423,7 +419,6 @@ pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
 /// # Safety
 ///
 /// - Must only be called by Godot as a callback for `property_get_revert` for a rust-defined class of type `T`.
-#[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
     instance: sys::GDExtensionClassInstancePtr,
     property_name: sys::GDExtensionConstStringNamePtr,
@@ -451,7 +446,6 @@ pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
 /// - Must only be called by Godot as a callback for `validate_property` for a rust-defined class of type `T`.
 /// - `property_info_ptr` must be valid for the whole duration of this function call (i.e. - can't be freed nor consumed).
 ///
-#[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn validate_property<T: cap::GodotValidateProperty>(
     instance: sys::GDExtensionClassInstancePtr,
     property_info_ptr: *mut sys::GDExtensionPropertyInfo,
@@ -504,7 +498,6 @@ pub fn register_user_rpcs<T: cap::ImplementsGodotApi>(object: &mut dyn Any) {
 /// # Safety
 ///
 /// `obj` must be castable to `T`.
-#[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe fn dynify_fn<T, D>(obj: Gd<Object>) -> ErasedDynGd
 where
     T: Inherits<Object> + AsDyn<D> + Bounds<Declarer = bounds::DeclUser>,

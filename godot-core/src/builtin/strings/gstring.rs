@@ -215,7 +215,6 @@ impl GString {
     ///
     /// * Must only be used on a pointer returned from a call to [`into_owned_string_sys`](Self::into_owned_string_sys).
     /// * Must not be called more than once on the same pointer.
-    #[deny(unsafe_op_in_unsafe_fn)]
     pub(crate) unsafe fn from_owned_string_sys(ptr: sys::GDExtensionStringPtr) -> Self {
         sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
 

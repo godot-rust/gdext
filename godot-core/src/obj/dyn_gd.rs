@@ -384,7 +384,6 @@ where
     /// # Safety
     /// The caller must ensure that the dynamic type of the object is `Derived` or a subclass of `Derived`.
     // Not intended for public use. The lack of bounds simplifies godot-rust implementation, but adds another unsafety layer.
-    #[deny(unsafe_op_in_unsafe_fn)]
     pub(crate) unsafe fn cast_unchecked<Derived>(self) -> DynGd<Derived, D>
     where
         Derived: GodotClass,
