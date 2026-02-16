@@ -6,6 +6,7 @@
  */
 
 mod any_array;
+mod any_dictionary;
 mod array;
 mod array_functional_ops;
 mod dictionary;
@@ -16,6 +17,7 @@ mod packed_array_element;
 // Re-export in godot::builtin.
 pub(crate) mod containers {
     pub use super::any_array::AnyArray;
+    pub use super::any_dictionary::AnyDictionary;
     pub use super::array::{Array, VarArray};
     #[allow(deprecated)]
     pub use super::dictionary::Dictionary;

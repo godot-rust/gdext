@@ -44,7 +44,6 @@ impl Sealed for Rect2i {}
 impl Sealed for Signal {}
 impl Sealed for Transform2D {}
 impl Sealed for Transform3D {}
-impl Sealed for VarDictionary {}
 impl Sealed for bool {}
 impl Sealed for i64 {}
 impl Sealed for i32 {}

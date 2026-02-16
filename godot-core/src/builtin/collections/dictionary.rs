@@ -13,31 +13,30 @@ use godot_ffi as sys;
 use sys::types::OpaqueDictionary;
 use sys::{GodotFfi, ffi_methods, interface_fn};
 
-use crate::builtin::{VarArray, Variant, inner};
-use crate::meta::{ElementType, ExtVariantType, FromGodot, ToGodot};
-
-#[deprecated = "Renamed to `VarDictionary`; `Dictionary` will be reserved for typed dictionaries in the future."]
-pub type Dictionary = VarDictionary;
+use super::any_dictionary::AnyDictionary;
+use crate::builtin::{Array, VarArray, Variant, VariantType, inner};
+use crate::meta;
+use crate::meta::{ArrayElement, AsVArg, ElementType, ExtVariantType, FromGodot, ToGodot};
 
 /// Godot's `Dictionary` type.
 ///
-/// Ordered associative hash-table, mapping keys to values.
+/// Ordered associative hash-table, mapping keys to values. Corresponds to GDScript type `Dictionary[K, V]`.
 ///
-/// The keys and values of the dictionary are all `Variant`s, so they can be of different types.
-/// Variants are designed to be generally cheap to clone. Typed dictionaries are planned in a future godot-rust version.
+/// `Dictionary<K, V>` can only hold keys of type `K` and values of type `V` (except for Godot < 4.4, see below).
+/// The key type `K` and value type `V` can be anything implementing the [`ArrayElement`] trait.
+/// Untyped dictionaries are represented as `Dictionary<Variant, Variant>`, which is aliased as [`VarDictionary`].
 ///
 /// Check out the [book](https://godot-rust.github.io/book/godot-api/builtins.html#arrays-and-dictionaries) for a tutorial on dictionaries.
 ///
-/// # Dictionary example
-///
+/// # Untyped example
 /// ```no_run
 /// # use godot::prelude::*;
-/// // Create empty dictionary and add key-values pairs.
+/// // Create untyped dictionary and add key-values pairs.
 /// let mut dict = VarDictionary::new();
 /// dict.set("str", "Hello");
 /// dict.set("num", 23);
 ///
-/// // Keys don't need to be strings.
+/// // For untyped dictionaries, keys don't need to be strings.
 /// let coord = Vector2i::new(0, 1);
 /// dict.set(coord, "Tile77");
 ///
@@ -53,13 +52,8 @@ pub type Dictionary = VarDictionary;
 /// let value: GString = dict.at("str").to(); // Variant::to() extracts GString.
 /// let maybe: Option<Variant> = dict.get("absent_key");
 ///
-/// // Iterate over key-value pairs as (Variant, Variant).
+/// // Iterate over key-value pairs as (K, V) -- here (Variant, Variant).
 /// for (key, value) in dict.iter_shared() {
-///     println!("{key} => {value}");
-/// }
-///
-/// // Use typed::<K, V>() to get typed iterators.
-/// for (key, value) in dict.iter_shared().typed::<GString, Variant>() {
 ///     println!("{key} => {value}");
 /// }
 ///
@@ -75,15 +69,46 @@ pub type Dictionary = VarDictionary;
 /// assert_eq!(dict.get("num"), None);
 /// ```
 ///
-/// # Thread safety
+// TODO(v0.5): support enums -- https://github.com/godot-rust/gdext/issues/353.
+// # Typed example
+// ```no_run
+// # use godot::prelude::*;
+//
+// // Define a Godot-exported enum.
+// #[derive(GodotConvert)]
+// #[godot(via = GString)]
+// enum Tile { GRASS, ROCK, WATER }
+//
+// let mut tiles = Dictionary::<Vector2i, Tile>::new();
+// tiles.set(Vector2i::new(1, 2), Tile::GRASS);
+// tiles.set(Vector2i::new(1, 3), Tile::WATER);
+//
+// // Create the same dictionary in a single expression.
+// let tiles = dict! {
+//    (Vector2i::new(1, 2)): Tile::GRASS,
+//    (Vector2i::new(1, 3)): Tile::WATER,
+// };
+//
+// // Element access is now strongly typed.
+// let value = dict.at(Vector2i::new(1, 3)); // type Tile.
+// ```
 ///
-/// The same principles apply as for [`VarArray`]. Consult its documentation for details.
+/// # Compatibility
+/// **Godot 4.4+**: Dictionaries are fully typed at compile time and runtime. Type information is enforced by GDScript
+/// and visible in the editor.
+///
+/// **Before Godot 4.4**: Type safety is enforced only on the Rust side. GDScript sees all dictionaries as untyped, and type information is not
+/// available in the editor. When assigning dictionaries from GDScript to typed Rust ones, panics may occur on access if the type is incorrect.
+/// For more defensive code, `VarDictionary` is recommended.
+///
+/// # Thread safety
+/// The same principles apply as for [`crate::builtin::Array`]. Consult its documentation for details.
 ///
 /// # Godot docs
-///
 /// [`Dictionary` (stable)](https://docs.godotengine.org/en/stable/classes/class_dictionary.html)
-pub struct VarDictionary {
+pub struct Dictionary<K: ArrayElement, V: ArrayElement> {
     opaque: OpaqueDictionary,
+    _phantom: PhantomData<(K, V)>,
 
     /// Lazily computed and cached element type information for the key type.
     cached_key_type: OnceCell<ElementType>,
@@ -92,67 +117,77 @@ pub struct VarDictionary {
     cached_value_type: OnceCell<ElementType>,
 }
 
-impl VarDictionary {
-    fn from_opaque(opaque: OpaqueDictionary) -> Self {
+/// Untyped Godot `Dictionary`.
+///
+/// Alias for `Dictionary<Variant, Variant>`. This provides an untyped dictionary that can store any key-value pairs.
+/// Available on all Godot versions.
+pub type VarDictionary = Dictionary<Variant, Variant>;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
+
+impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
+    pub(super) fn from_opaque(opaque: OpaqueDictionary) -> Self {
         Self {
             opaque,
+            _phantom: PhantomData,
             cached_key_type: OnceCell::new(),
             cached_value_type: OnceCell::new(),
         }
     }
 
-    /// Constructs an empty `Dictionary`.
+    /// Constructs an empty typed `Dictionary`.
     pub fn new() -> Self {
-        Self::default()
+        let mut dict = Self::default();
+        dict.init_inner_type();
+        dict
     }
 
     /// ⚠️ Returns the value for the given key, or panics.
     ///
-    /// If you want to check for presence, use [`get()`][Self::get] or [`get_or_nil()`][Self::get_or_nil].
+    /// If you want to check for presence, use [`get()`][Self::get]. For `V=Variant`, you can additionally use [`get_or_nil()`][Self::get_or_nil].
     ///
     /// # Panics
-    ///
     /// If there is no value for the given key. Note that this is distinct from a `NIL` value, which is returned as `Variant::nil()`.
-    pub fn at<K: ToGodot>(&self, key: K) -> Variant {
-        // Code duplication with get(), to avoid third clone (since K: ToGodot takes ownership).
-
-        let key = key.to_variant();
-        if self.contains_key(key.clone()) {
-            self.get_or_nil(key)
+    pub fn at(&self, key: impl AsVArg<K>) -> V {
+        meta::varg_into_ref!(key: K);
+        let key_variant = key.to_variant();
+        if self.as_inner().has(&key_variant) {
+            self.get_or_panic(key_variant)
         } else {
-            panic!("key {key:?} missing in dictionary: {self:?}")
+            panic!("key {key_variant:?} missing in dictionary: {self:?}")
         }
     }
 
     /// Returns the value for the given key, or `None`.
     ///
-    /// Note that `NIL` values are returned as `Some(Variant::nil())`, while absent values are returned as `None`.
+    /// Note that `NIL` values are returned as `Some(V::from_variant(...))`, while absent values are returned as `None`.
     /// If you want to treat both as `NIL`, use [`get_or_nil()`][Self::get_or_nil].
     ///
     /// When you are certain that a key is present, use [`at()`][`Self::at`] instead.
     ///
     /// This can be combined with Rust's `Option` methods, e.g. `dict.get(key).unwrap_or(default)`.
-    pub fn get<K: ToGodot>(&self, key: K) -> Option<Variant> {
-        // If implementation is changed, make sure to update at().
-
-        let key = key.to_variant();
-        if self.contains_key(key.clone()) {
-            Some(self.get_or_nil(key))
+    pub fn get(&self, key: impl AsVArg<K>) -> Option<V> {
+        meta::varg_into_ref!(key: K);
+        let key_variant = key.to_variant();
+        if self.as_inner().has(&key_variant) {
+            Some(self.get_or_panic(key_variant))
         } else {
             None
         }
     }
 
-    /// Returns the value at the key in the dictionary, or `NIL` otherwise.
-    ///
-    /// This method does not let you differentiate `NIL` values stored as values from absent keys.
-    /// If you need that, use [`get()`][`Self::get`] instead.
-    ///
-    /// When you are certain that a key is present, use [`at()`][`Self::at`] instead.
-    ///
-    /// _Godot equivalent: `dict.get(key, null)`_
-    pub fn get_or_nil<K: ToGodot>(&self, key: K) -> Variant {
-        self.as_inner().get(&key.to_variant(), &Variant::nil())
+    /// Returns the value at the key, converted to `V`. Panics on conversion failure.
+    fn get_or_panic(&self, key: Variant) -> V {
+        V::from_variant(&self.as_inner().get(&key, &Variant::nil()))
+    }
+
+    // TODO(v0.5): avoid double FFI round-trip (has + get); consider using get(key, sentinel) pattern.
+    /// Gets and removes the old value for a key, if it exists.
+    fn take_old_value(&self, key_variant: &Variant) -> Option<V> {
+        self.as_inner()
+            .has(key_variant)
+            .then(|| self.get_or_panic(key_variant.clone()))
     }
 
     /// Gets a value and ensures the key is set, inserting default if key is absent.
@@ -160,31 +195,38 @@ impl VarDictionary {
     /// If the `key` exists in the dictionary, this behaves like [`get()`][Self::get], and the existing value is returned.
     /// Otherwise, the `default` value is inserted and returned.
     ///
-    /// # Compatibility
-    /// This function is natively available from Godot 4.3 onwards, we provide a polyfill for older versions.
-    ///
     /// _Godot equivalent: `get_or_add`_
     #[doc(alias = "get_or_add")]
-    pub fn get_or_insert<K: ToGodot, V: ToGodot>(&mut self, key: K, default: V) -> Variant {
+    pub fn get_or_insert(&mut self, key: impl AsVArg<K>, default: impl AsVArg<V>) -> V {
         self.balanced_ensure_mutable();
 
+        meta::varg_into_ref!(key: K);
+        meta::varg_into_ref!(default: V);
+
         let key_variant = key.to_variant();
-        let default_variant = default.to_variant();
 
         // Godot 4.3+: delegate to native get_or_add().
         #[cfg(since_api = "4.3")]
         {
-            self.as_inner().get_or_add(&key_variant, &default_variant)
+            let default_variant = default.to_variant();
+
+            let result = self.as_inner().get_or_add(&key_variant, &default_variant);
+            V::from_variant(&result)
         }
 
         // Polyfill for Godot versions before 4.3.
         #[cfg(before_api = "4.3")]
         {
-            if let Some(existing_value) = self.get(key_variant.clone()) {
-                existing_value
+            if self.as_inner().has(&key_variant) {
+                self.get_or_panic(key_variant)
             } else {
-                self.set(key_variant, default_variant.clone());
-                default_variant
+                let default_variant = default.to_variant();
+
+                // SAFETY: K and V strongly typed.
+                unsafe { self.set_variant(key_variant, default_variant.clone()) };
+
+                // Variant roundtrip to avoid V: Clone bound. Inefficient but old Godot version.
+                V::from_variant(&default_variant)
             }
         }
     }
@@ -193,7 +235,8 @@ impl VarDictionary {
     ///
     /// _Godot equivalent: `has`_
     #[doc(alias = "has")]
-    pub fn contains_key<K: ToGodot>(&self, key: K) -> bool {
+    pub fn contains_key(&self, key: impl AsVArg<K>) -> bool {
+        meta::varg_into_ref!(key: K);
         let key = key.to_variant();
         self.as_inner().has(&key)
     }
@@ -221,18 +264,22 @@ impl VarDictionary {
 
     /// Reverse-search a key by its value.
     ///
-    /// Unlike Godot, this will return `None` if the key does not exist and `Some(Variant::nil())` the key is `NIL`.
+    /// Unlike Godot, this will return `None` if the key does not exist and `Some(key)` if found.
     ///
     /// This operation is rarely needed and very inefficient. If you find yourself needing it a lot, consider
     /// using a `HashMap` or `Dictionary` with the inverse mapping (`V` -> `K`).
     ///
     /// _Godot equivalent: `find_key`_
     #[doc(alias = "find_key")]
-    pub fn find_key_by_value<V: ToGodot>(&self, value: V) -> Option<Variant> {
+    pub fn find_key_by_value(&self, value: impl AsVArg<V>) -> Option<K>
+    where
+        K: FromGodot,
+    {
+        meta::varg_into_ref!(value: V);
         let key = self.as_inner().find_key(&value.to_variant());
 
-        if !key.is_nil() || self.contains_key(key.clone()) {
-            Some(key)
+        if !key.is_nil() || self.as_inner().has(&key) {
+            Some(K::from_variant(&key))
         } else {
             None
         }
@@ -241,7 +288,6 @@ impl VarDictionary {
     /// Removes all key-value pairs from the dictionary.
     pub fn clear(&mut self) {
         self.balanced_ensure_mutable();
-
         self.as_inner().clear()
     }
 
@@ -249,28 +295,36 @@ impl VarDictionary {
     ///
     /// If you are interested in the previous value, use [`insert()`][Self::insert] instead.
     ///
+    /// For `VarDictionary` (or partially-typed dictionaries with `Variant` key/value), this method
+    /// accepts any `impl ToGodot` for the Variant positions, thanks to blanket `AsVArg<Variant>` impls.
+    ///
     /// _Godot equivalent: `dict[key] = value`_
-    pub fn set<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) {
+    pub fn set(&mut self, key: impl AsVArg<K>, value: impl AsVArg<V>) {
         self.balanced_ensure_mutable();
 
-        let key = key.to_variant();
+        meta::varg_into_ref!(key: K);
+        meta::varg_into_ref!(value: V);
 
-        // SAFETY: `self.get_ptr_mut(key)` always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
-        unsafe {
-            value.to_variant().move_into_var_ptr(self.get_ptr_mut(key));
-        }
+        // SAFETY: K and V strongly typed.
+        unsafe { self.set_variant(key.to_variant(), value.to_variant()) };
     }
 
     /// Insert a value at the given key, returning the previous value for that key (if available).
     ///
     /// If you don't need the previous value, use [`set()`][Self::set] instead.
     #[must_use]
-    pub fn insert<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) -> Option<Variant> {
+    pub fn insert(&mut self, key: impl AsVArg<K>, value: impl AsVArg<V>) -> Option<V> {
         self.balanced_ensure_mutable();
 
-        let key = key.to_variant();
-        let old_value = self.get(key.clone());
-        self.set(key, value);
+        meta::varg_into_ref!(key: K);
+        meta::varg_into_ref!(value: V);
+
+        let key_variant = key.to_variant();
+        let old_value = self.take_old_value(&key_variant);
+
+        // SAFETY: K and V strongly typed.
+        unsafe { self.set_variant(key_variant, value.to_variant()) };
+
         old_value
     }
 
@@ -279,12 +333,14 @@ impl VarDictionary {
     ///
     /// _Godot equivalent: `erase`_
     #[doc(alias = "erase")]
-    pub fn remove<K: ToGodot>(&mut self, key: K) -> Option<Variant> {
+    pub fn remove(&mut self, key: impl AsVArg<K>) -> Option<V> {
         self.balanced_ensure_mutable();
 
-        let key = key.to_variant();
-        let old_value = self.get(key.clone());
-        self.as_inner().erase(&key);
+        meta::varg_into_ref!(key: K);
+
+        let key_variant = key.to_variant();
+        let old_value = self.take_old_value(&key_variant);
+        self.as_inner().erase(&key_variant);
         old_value
     }
 
@@ -296,7 +352,7 @@ impl VarDictionary {
     ///
     /// _Godot equivalent: `keys`_
     #[doc(alias = "keys")]
-    pub fn keys_array(&self) -> VarArray {
+    pub fn keys_array(&self) -> Array<K> {
         // SAFETY: keys() returns an untyped array with element type Variant.
         let out_array = self.as_inner().keys();
         unsafe { out_array.assume_type() }
@@ -306,7 +362,7 @@ impl VarDictionary {
     ///
     /// _Godot equivalent: `values`_
     #[doc(alias = "values")]
-    pub fn values_array(&self) -> VarArray {
+    pub fn values_array(&self) -> Array<V> {
         // SAFETY: values() returns an untyped array with element type Variant.
         let out_array = self.as_inner().values();
         unsafe { out_array.assume_type() }
@@ -321,7 +377,9 @@ impl VarDictionary {
     pub fn extend_dictionary(&mut self, other: &Self, overwrite: bool) {
         self.balanced_ensure_mutable();
 
-        self.as_inner().merge(other, overwrite)
+        // SAFETY: merge() will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
+        // to be of type K and V respectively.
+        self.as_inner().merge(other.as_var_dictionary(), overwrite)
     }
 
     /// Deep copy, duplicating nested collections.
@@ -329,12 +387,15 @@ impl VarDictionary {
     /// All nested arrays and dictionaries are duplicated and will not be shared with the original dictionary.
     /// Note that any `Object`-derived elements will still be shallow copied.
     ///
-    /// To create a shallow copy, use [`Self::duplicate_shallow()`] instead.  
+    /// To create a shallow copy, use [`Self::duplicate_shallow()`] instead.
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     ///
     /// _Godot equivalent: `dict.duplicate(true)`_
     pub fn duplicate_deep(&self) -> Self {
-        self.as_inner().duplicate(true).with_cache(self)
+        let dup = self.as_inner().duplicate(true);
+        // SAFETY: duplicate() returns a typed dictionary with the same type as Self, and all values are taken from `self` so have the right type.
+        let result = unsafe { Self::assume_type(dup) };
+        result.with_cache(self)
     }
 
     /// Shallow copy, copying elements but sharing nested collections.
@@ -347,7 +408,38 @@ impl VarDictionary {
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_
     pub fn duplicate_shallow(&self) -> Self {
-        self.as_inner().duplicate(false).with_cache(self)
+        let dup = self.as_inner().duplicate(false);
+        // SAFETY: duplicate() returns a typed dictionary with the same type as Self, and all values are taken from `self` so have the right type.
+        let result = unsafe { Self::assume_type(dup) };
+        result.with_cache(self)
+    }
+
+    /// Changes the type parameter without runtime checks, consuming the dictionary.
+    ///
+    /// # Safety
+    /// - Values written to dictionary must match runtime type.
+    /// - Values read must be convertible to types `K` and `V`.
+    /// - If runtime type matches `K` and `V`, both conditions hold automatically.
+    ///
+    /// This method has the same memory layout requirements as [`Array::assume_type`].
+    // TODO(v0.5): fragile manual field move + mem::forget; if a field is added, it must be moved here too.
+    // Consider transmute (requires #[repr(C)]) or ManuallyDrop + ptr::read. Same issue in Array::assume_type.
+    unsafe fn assume_type(dict: VarDictionary) -> Self {
+        let result = Self {
+            opaque: dict.opaque,
+            _phantom: PhantomData,
+            cached_key_type: OnceCell::new(),
+            cached_value_type: OnceCell::new(),
+        };
+
+        // Transfer cached types to avoid redundant FFI calls.
+        ElementType::transfer_cache(&dict.cached_key_type, &result.cached_key_type);
+        ElementType::transfer_cache(&dict.cached_value_type, &result.cached_value_type);
+
+        // Prevent drop of dict since we moved opaque.
+        std::mem::forget(dict);
+
+        result
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
@@ -360,7 +452,7 @@ impl VarDictionary {
     ///
     /// Use `dict.iter_shared().typed::<K, V>()` to iterate over `(K, V)` pairs instead.
     pub fn iter_shared(&self) -> Iter<'_> {
-        Iter::new(self)
+        Iter::new(self.as_var_dictionary())
     }
 
     /// Returns an iterator over the keys in a `Dictionary`.
@@ -373,7 +465,7 @@ impl VarDictionary {
     ///
     /// Use `dict.keys_shared().typed::<K>()` to iterate over `K` keys instead.
     pub fn keys_shared(&self) -> Keys<'_> {
-        Keys::new(self)
+        Keys::new(self.as_var_dictionary())
     }
 
     /// Turns the dictionary into a shallow-immutable dictionary.
@@ -382,15 +474,6 @@ impl VarDictionary {
     /// Does not apply to nested content, e.g. elements of nested dictionaries.
     ///
     /// In GDScript, dictionaries are automatically read-only if declared with the `const` keyword.
-    ///
-    /// # Semantics and alternatives
-    /// You can use this in Rust, but the behavior of mutating methods is only validated in a best-effort manner (more than in GDScript though):
-    /// some methods like `set()` panic in Debug mode, when used on a read-only dictionary. There is no guarantee that any attempts to change
-    /// result in feedback; some may silently do nothing.
-    ///
-    /// In Rust, you can use shared references (`&Dictionary`) to prevent mutation. Note however that `Clone` can be used to create another
-    /// reference, through which mutation can still occur. For deep-immutable dictionaries, you'll need to keep your `Dictionary` encapsulated
-    /// or directly use Rust data structures.
     ///
     /// _Godot equivalent: `make_read_only`_
     #[doc(alias = "make_read_only")]
@@ -407,6 +490,15 @@ impl VarDictionary {
         self.as_inner().is_read_only()
     }
 
+    /// Converts this typed `Dictionary<K, V>` into an `AnyDictionary`.
+    ///
+    /// Typically, you can use deref coercion to convert `&Dictionary<K, V>` to `&AnyDictionary`.
+    /// This method is useful if you need `AnyDictionary` by value.
+    /// It consumes `self` to avoid incrementing the reference count; use `clone()` if you use the original dictionary further.
+    pub fn upcast_any_dictionary(self) -> AnyDictionary {
+        AnyDictionary::from_typed_or_untyped(self)
+    }
+
     /// Best-effort mutability check.
     ///
     /// # Panics (safeguards-balanced)
@@ -420,110 +512,319 @@ impl VarDictionary {
 
     /// Returns the runtime element type information for keys in this dictionary.
     ///
-    /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
+    /// # Compatibility
     ///
-    /// The result is generally cached, so feel free to call this method repeatedly.
+    /// **Godot 4.4+**: Returns the type information stored in the Godot engine.
     ///
-    /// # Panics (Debug)
-    /// In the astronomically rare case where another extension in Godot modifies a dictionary's key type (which godot-rust already cached as `Untyped`)
-    /// via C function `dictionary_set_typed`, thus leading to incorrect cache values. Such bad practice of not typing dictionaries immediately on
-    /// construction is not supported, and will not be checked in Release mode.
-    #[cfg(since_api = "4.4")]
+    /// **Before Godot 4.4**: Returns the Rust-side compile-time type `K` as `ElementType::Untyped` for `Variant`,
+    /// or the appropriate typed `ElementType` for other types. Since typed dictionaries are not supported by the
+    /// engine before 4.4, all dictionaries appear untyped to Godot regardless of this value.
     pub fn key_element_type(&self) -> ElementType {
-        ElementType::get_or_compute_cached(
-            &self.cached_key_type,
-            || self.as_inner().get_typed_key_builtin(),
-            || self.as_inner().get_typed_key_class_name(),
-            || self.as_inner().get_typed_key_script(),
-        )
+        #[cfg(since_api = "4.4")]
+        {
+            ElementType::get_or_compute_cached(
+                &self.cached_key_type,
+                || self.as_inner().get_typed_key_builtin(),
+                || self.as_inner().get_typed_key_class_name(),
+                || self.as_inner().get_typed_key_script(),
+            )
+        }
+
+        #[cfg(before_api = "4.4")]
+        {
+            // Return Rust's compile-time type info (cached).
+            self.cached_key_type
+                .get_or_init(|| ElementType::of::<K>())
+                .clone()
+        }
     }
 
     /// Returns the runtime element type information for values in this dictionary.
     ///
-    /// Provides information about Godot typed dictionaries, even though godot-rust currently doesn't implement generics for those.
+    /// # Compatibility
     ///
-    /// The result is generally cached, so feel free to call this method repeatedly.
+    /// **Godot 4.4+**: Returns the type information stored in the Godot engine.
     ///
-    /// # Panics (Debug)
-    /// In the astronomically rare case where another extension in Godot modifies a dictionary's value type (which godot-rust already cached as `Untyped`)
-    /// via C function `dictionary_set_typed`, thus leading to incorrect cache values. Such bad practice of not typing dictionaries immediately on
-    /// construction is not supported, and will not be checked in Release mode.
-    #[cfg(since_api = "4.4")]
+    /// **Before Godot 4.4**: Returns the Rust-side compile-time type `V` as `ElementType::Untyped` for `Variant`,
+    /// or the appropriate typed `ElementType` for other types. Since typed dictionaries are not supported by the
+    /// engine before 4.4, all dictionaries appear untyped to Godot regardless of this value.
     pub fn value_element_type(&self) -> ElementType {
-        ElementType::get_or_compute_cached(
-            &self.cached_value_type,
-            || self.as_inner().get_typed_value_builtin(),
-            || self.as_inner().get_typed_value_class_name(),
-            || self.as_inner().get_typed_value_script(),
-        )
+        #[cfg(since_api = "4.4")]
+        {
+            ElementType::get_or_compute_cached(
+                &self.cached_value_type,
+                || self.as_inner().get_typed_value_builtin(),
+                || self.as_inner().get_typed_value_class_name(),
+                || self.as_inner().get_typed_value_script(),
+            )
+        }
+
+        #[cfg(before_api = "4.4")]
+        {
+            // Return Rust's compile-time type info (cached).
+            self.cached_value_type
+                .get_or_init(|| ElementType::of::<V>())
+                .clone()
+        }
     }
 
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerDictionary<'_> {
-        inner::InnerDictionary::from_outer(self)
+        inner::InnerDictionary::from_outer(self.as_var_dictionary())
+    }
+
+    /// Casts this dictionary to a reference to an untyped `VarDictionary`.
+    ///
+    /// # Safety
+    /// This method performs a simple pointer cast. The memory layout of `Dictionary<K, V>` is identical to `VarDictionary`.
+    /// However, operations that write to the resulting `VarDictionary` must ensure they write values compatible with `K` and `V`.
+    // FIXME(v0.5): unsound due to layout-incompatibility; no #[repr(C)]. Remove once engine APIs are migrated to accept &AnyDictionary instead of &VarDictionary.
+    fn as_var_dictionary(&self) -> &VarDictionary {
+        unsafe { &*(self as *const Self as *const VarDictionary) }
     }
 
     /// Get the pointer corresponding to the given key in the dictionary.
     ///
     /// If there exists no value at the given key, a `NIL` variant will be inserted for that key.
-    fn get_ptr_mut<K: ToGodot>(&mut self, key: K) -> sys::GDExtensionVariantPtr {
-        let key = key.to_variant();
-
+    fn get_ptr_mut(&mut self, key: Variant) -> sys::GDExtensionVariantPtr {
         // Never a null pointer, since entry either existed already or was inserted above.
         // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
         unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) }
     }
 
-    /// Execute a function that creates a new dictionary, transferring cached element types if available.
+    /// Sets a key-value pair at the variant level.
     ///
-    /// This is a convenience helper for methods that create new dictionary instances and want to preserve
-    /// cached type information to avoid redundant FFI calls.
+    /// # Safety
+    /// `key` must hold type `K` and `value` must hold type `V`.
+    unsafe fn set_variant(&mut self, key: Variant, value: Variant) {
+        let ptr = self.get_ptr_mut(key);
+
+        // SAFETY: `get_ptr_mut` always returns a valid pointer (creates entry if key is absent).
+        unsafe { value.move_into_var_ptr(ptr) };
+    }
+
+    /// Execute a function that creates a new dictionary, transferring cached element types if available.
     fn with_cache(self, source: &Self) -> Self {
-        // Transfer both key and value type caches independently
         ElementType::transfer_cache(&source.cached_key_type, &self.cached_key_type);
         ElementType::transfer_cache(&source.cached_value_type, &self.cached_value_type);
         self
+    }
+
+    /// Checks that the inner dictionary has the correct types set for storing keys of type `K` and values of type `V`.
+    ///
+    /// Only performs runtime checks on Godot 4.4+, where typed dictionaries are supported by the engine.
+    /// Before 4.4, this always succeeds since there are no engine-side types to check against.
+    #[cfg(since_api = "4.4")]
+    fn with_checked_type(self) -> Result<Self, meta::error::ConvertError> {
+        use crate::meta::error::{DictionaryMismatch, FromGodotError};
+
+        let actual_key = self.key_element_type();
+        let actual_value = self.value_element_type();
+        let expected_key = ElementType::of::<K>();
+        let expected_value = ElementType::of::<V>();
+
+        if actual_key.is_compatible_with(&expected_key)
+            && actual_value.is_compatible_with(&expected_value)
+        {
+            Ok(self)
+        } else {
+            let mismatch = DictionaryMismatch {
+                expected_key,
+                expected_value,
+                actual_key,
+                actual_value,
+            };
+            Err(FromGodotError::BadDictionaryType(mismatch).into_error(self))
+        }
+    }
+
+    fn as_any_ref(&self) -> &AnyDictionary {
+        // SAFETY:
+        // - Dictionary<K, V> and VarDictionary have identical memory layout.
+        // - AnyDictionary provides no "in" operations (moving data in) that could violate covariance.
+        unsafe { std::mem::transmute::<&Dictionary<K, V>, &AnyDictionary>(self) }
+    }
+
+    fn as_any_mut(&mut self) -> &mut AnyDictionary {
+        // SAFETY:
+        // - Dictionary<K, V> and VarDictionary have identical memory layout.
+        // - AnyDictionary is #[repr(transparent)] around VarDictionary.
+        // - Mutable operations on AnyDictionary work with Variant values, maintaining type safety through balanced_ensure_mutable() checks.
+        unsafe { std::mem::transmute::<&mut Dictionary<K, V>, &mut AnyDictionary>(self) }
+    }
+
+    /// # Safety
+    /// Does not validate the dictionary key/value types; `with_checked_type()` should be called afterward.
+    // Visibility: shared with AnyDictionary.
+    pub(super) unsafe fn unchecked_from_variant(
+        variant: &Variant,
+    ) -> Result<Self, meta::error::ConvertError> {
+        use crate::builtin::VariantType;
+        use crate::meta::error::FromVariantError;
+
+        let variant_type = variant.get_type();
+        if variant_type != VariantType::DICTIONARY {
+            return Err(FromVariantError::BadType {
+                expected: VariantType::DICTIONARY,
+                actual: variant_type,
+            }
+            .into_error(variant.clone()));
+        }
+
+        let result = unsafe {
+            Self::new_with_uninit(|self_ptr| {
+                let converter = sys::builtin_fn!(dictionary_from_variant);
+                converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+            })
+        };
+
+        Ok(result)
+    }
+
+    /// Initialize the typed dictionary with key and value type information.
+    ///
+    /// On Godot 4.4+, this calls `dictionary_set_typed()` to inform the engine about types.
+    /// On earlier versions, this only initializes the Rust-side type cache.
+    fn init_inner_type(&mut self) {
+        let key_elem_ty = ElementType::of::<K>();
+        let value_elem_ty = ElementType::of::<V>();
+
+        // Cache types on Rust side (for all versions) -- they are Copy.
+        self.cached_key_type.get_or_init(|| key_elem_ty);
+        self.cached_value_type.get_or_init(|| value_elem_ty);
+
+        // If both are untyped (Variant), skip initialization.
+        if !key_elem_ty.is_typed() && !value_elem_ty.is_typed() {
+            return;
+        }
+
+        // Godot 4.4+: Set type information in the engine.
+        #[cfg(since_api = "4.4")]
+        {
+            // Script is always nil for compile-time types (only relevant for GDScript class_name types).
+            let script = Variant::nil();
+
+            let empty_string_name = crate::builtin::StringName::default();
+            let key_class_name = key_elem_ty.class_name_sys_or(&empty_string_name);
+            let value_class_name = value_elem_ty.class_name_sys_or(&empty_string_name);
+
+            // SAFETY: Valid pointers are passed in.
+            // Relevant for correctness, not safety: the dictionary is a newly created, empty, untyped dictionary.
+            unsafe {
+                interface_fn!(dictionary_set_typed)(
+                    self.sys_mut(),
+                    key_elem_ty.variant_type().sys(),
+                    key_class_name,
+                    script.var_sys(),
+                    value_elem_ty.variant_type().sys(),
+                    value_class_name,
+                    script.var_sys(),
+                );
+            }
+        }
+
+        // Before Godot 4.4: No engine-side typing, only Rust-side (already cached above).
+        #[cfg(before_api = "4.4")]
+        {
+            // Types are already cached at the beginning of this function.
+            // No additional work needed - Rust-only type safety.
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// V=Variant specialization
+
+impl<K: ArrayElement> Dictionary<K, Variant> {
+    /// Returns the value for the given key, or `Variant::nil()` if the key is absent.
+    ///
+    /// This does _not_ distinguish between absent keys and keys mapped to `NIL` -- both return `Variant::nil()`.
+    /// Use [`get()`][Self::get] if you need to tell them apart.
+    ///
+    /// _Godot equivalent: `dict.get(key)` (1-arg overload)_
+    ///
+    /// # `AnyDictionary`
+    /// This method is deliberately absent from [`AnyDictionary`][super::AnyDictionary]. Because `Dictionary<K, V>` implements
+    /// `Deref<Target = AnyDictionary>`, any method on `AnyDictionary` is inherited by _all_ dictionaries -- including typed ones
+    /// like `Dictionary<K, i64>`, where a `Variant` return would be surprising.
+    pub fn get_or_nil(&self, key: impl AsVArg<K>) -> Variant {
+        meta::varg_into_ref!(key: K);
+        let key_variant = key.to_variant();
+        self.as_inner().get(&key_variant, &Variant::nil())
     }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Traits
 
-// SAFETY:
-// - `move_return_ptr`
-//   Nothing special needs to be done beyond a `std::mem::swap` when returning a dictionary.
-//   So we can just use `ffi_methods`.
-//
-// - `from_arg_ptr`
-//   Dictionaries are properly initialized through a `from_sys` call, but the ref-count should be
-//   incremented as that is the callee's responsibility. Which we do by calling
-//   `std::mem::forget(dictionary.clone())`.
-unsafe impl GodotFfi for VarDictionary {
+unsafe impl<K: ArrayElement, V: ArrayElement> GodotFfi for Dictionary<K, V> {
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::DICTIONARY);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-crate::meta::impl_godot_as_self!(VarDictionary: ByRef);
+impl<K: ArrayElement, V: ArrayElement> std::ops::Deref for Dictionary<K, V> {
+    type Target = AnyDictionary;
 
-impl_builtin_traits! {
-    for VarDictionary {
-        Default => dictionary_construct_default;
-        Drop => dictionary_destroy;
-        PartialEq => dictionary_operator_equal;
-        // No < operator for dictionaries.
-        // Hash could be added, but without Eq it's not that useful.
+    fn deref(&self) -> &Self::Target {
+        self.as_any_ref()
     }
 }
 
-impl fmt::Debug for VarDictionary {
+impl<K: ArrayElement, V: ArrayElement> std::ops::DerefMut for Dictionary<K, V> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_any_mut()
+    }
+}
+
+// Compile-time validation of layout compatibility.
+sys::static_assert_eq_size_align!(Dictionary<i64, bool>, VarDictionary);
+sys::static_assert_eq_size_align!(Dictionary<crate::builtin::GString, f32>, VarDictionary);
+sys::static_assert_eq_size_align!(VarDictionary, AnyDictionary);
+
+impl<K: ArrayElement, V: ArrayElement> Default for Dictionary<K, V> {
+    #[inline]
+    fn default() -> Self {
+        // Create an empty untyped dictionary first (typing happens in new()).
+        unsafe {
+            Self::new_with_uninit(|self_ptr| {
+                let ctor = sys::builtin_fn!(dictionary_construct_default);
+                ctor(self_ptr, ptr::null_mut())
+            })
+        }
+    }
+}
+
+impl<K: ArrayElement, V: ArrayElement> Drop for Dictionary<K, V> {
+    fn drop(&mut self) {
+        // SAFETY: destructor is valid for self.
+        unsafe { sys::builtin_fn!(dictionary_destroy)(self.sys_mut()) }
+    }
+}
+
+impl<K: ArrayElement, V: ArrayElement> PartialEq for Dictionary<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        // SAFETY: equality check is valid.
+        unsafe {
+            let mut result = false;
+            sys::builtin_call! {
+                dictionary_operator_equal(self.sys(), other.sys(), result.sys_mut())
+            }
+            result
+        }
+    }
+}
+
+// Note: PartialOrd is intentionally NOT implemented for Dictionary.
+// Unlike arrays, dictionaries do not have a natural ordering in Godot (no dictionary_operator_less).
+
+impl<K: ArrayElement, V: ArrayElement> fmt::Debug for Dictionary<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.to_variant().stringify())
+        write!(f, "{:?}", self.as_var_dictionary().to_variant().stringify())
     }
 }
 
-impl fmt::Display for VarDictionary {
-    /// Formats `Dictionary` to match Godot's string representation.
+impl<K: ArrayElement, V: ArrayElement> fmt::Display for Dictionary<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{ ")?;
         for (count, (key, value)) in self.iter_shared().enumerate() {
@@ -536,12 +837,7 @@ impl fmt::Display for VarDictionary {
     }
 }
 
-/// Creates a new reference to the data in this dictionary. Changes to the original dictionary will be
-/// reflected in the copy and vice versa.
-///
-/// To create a (mostly) independent copy instead, see [`VarDictionary::duplicate_shallow()`] and
-/// [`VarDictionary::duplicate_deep()`].
-impl Clone for VarDictionary {
+impl<K: ArrayElement, V: ArrayElement> Clone for Dictionary<K, V> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid dictionary, since we have a reference that keeps it alive.
         let result = unsafe {
@@ -558,41 +854,185 @@ impl Clone for VarDictionary {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion traits
 
-/// Creates a dictionary from the given iterator `I` over a `(&K, &V)` key-value pair.
-///
-/// Each key and value are converted to a `Variant`.
-impl<'a, 'b, K, V, I> From<I> for VarDictionary
-where
-    I: IntoIterator<Item = (&'a K, &'b V)>,
-    K: ToGodot + 'a,
-    V: ToGodot + 'b,
-{
-    fn from(iterable: I) -> Self {
-        iterable
-            .into_iter()
-            .map(|(key, value)| (key.to_variant(), value.to_variant()))
-            .collect()
-    }
-}
-
 /// Insert iterator range into dictionary.
 ///
 /// Inserts all key-value pairs from the iterator into the dictionary. Previous values for keys appearing
 /// in `iter` will be overwritten.
-impl<K: ToGodot, V: ToGodot> Extend<(K, V)> for VarDictionary {
+impl<K: ArrayElement, V: ArrayElement> Extend<(K, V)> for Dictionary<K, V> {
     fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
         for (k, v) in iter.into_iter() {
-            self.set(k.to_variant(), v.to_variant())
+            // Inline set logic to avoid generic owned_into_varg() (which can't resolve T::Pass).
+            self.balanced_ensure_mutable();
+
+            // SAFETY: K and V strongly typed.
+            unsafe { self.set_variant(k.to_variant(), v.to_variant()) };
         }
     }
 }
 
-impl<K: ToGodot, V: ToGodot> FromIterator<(K, V)> for VarDictionary {
+/// Creates a `Dictionary` from an iterator over key-value pairs.
+impl<K: ArrayElement, V: ArrayElement> FromIterator<(K, V)> for Dictionary<K, V> {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        let mut dict = VarDictionary::new();
+        let mut dict = Dictionary::new();
         dict.extend(iter);
         dict
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// GodotConvert/ToGodot/FromGodot for Dictionary<K, V>
+
+impl<K: ArrayElement, V: ArrayElement> meta::sealed::Sealed for Dictionary<K, V> {}
+
+impl<K: ArrayElement, V: ArrayElement> meta::GodotConvert for Dictionary<K, V> {
+    type Via = Self;
+}
+
+impl<K: ArrayElement, V: ArrayElement> ToGodot for Dictionary<K, V> {
+    type Pass = meta::ByRef;
+
+    fn to_godot(&self) -> &Self::Via {
+        self
+    }
+}
+
+impl<K: ArrayElement, V: ArrayElement> FromGodot for Dictionary<K, V> {
+    fn try_from_godot(via: Self::Via) -> Result<Self, meta::error::ConvertError> {
+        // For typed dictionaries, we should validate that the types match.
+        // VarDictionary (K=V=Variant) always matches.
+        Ok(via)
+    }
+}
+
+impl<K: ArrayElement, V: ArrayElement> meta::GodotFfiVariant for Dictionary<K, V> {
+    fn ffi_to_variant(&self) -> Variant {
+        unsafe {
+            Variant::new_with_var_uninit(|variant_ptr| {
+                let converter = sys::builtin_fn!(dictionary_to_variant);
+                converter(variant_ptr, sys::SysPtr::force_mut(self.sys()));
+            })
+        }
+    }
+
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, meta::error::ConvertError> {
+        // SAFETY: if conversion succeeds, we call with_checked_type() afterwards.
+        let result = unsafe { Self::unchecked_from_variant(variant) }?;
+
+        // On Godot 4.4+, check that the runtime types match the compile-time types.
+        #[cfg(since_api = "4.4")]
+        {
+            result.with_checked_type()
+        }
+
+        #[cfg(before_api = "4.4")]
+        Ok(result)
+    }
+}
+
+impl<K: ArrayElement, V: ArrayElement> meta::GodotType for Dictionary<K, V> {
+    type Ffi = Self;
+
+    type ToFfi<'f>
+        = meta::RefArg<'f, Dictionary<K, V>>
+    where
+        Self: 'f;
+
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
+        meta::RefArg::new(self)
+    }
+
+    fn into_ffi(self) -> Self::Ffi {
+        self
+    }
+
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, meta::error::ConvertError> {
+        Ok(ffi)
+    }
+
+    fn godot_type_name() -> String {
+        "Dictionary".to_string()
+    }
+
+    fn property_hint_info() -> meta::PropertyHintInfo {
+        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint.
+        #[cfg(since_api = "4.4")]
+        if is_dictionary_typed::<K, V>() {
+            return meta::PropertyHintInfo::var_dictionary_element::<K, V>();
+        }
+
+        // Untyped dictionary or before 4.4: no hints.
+        meta::PropertyHintInfo::none()
+    }
+}
+
+impl<K: ArrayElement, V: ArrayElement> ArrayElement for Dictionary<K, V> {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Var/Export implementations for Dictionary<K, V>
+
+/// Check if Dictionary<K, V> is typed (at least one of K or V is not Variant).
+#[inline]
+fn is_dictionary_typed<K: ArrayElement, V: ArrayElement>() -> bool {
+    // Nil means "untyped" or "Variant" in Godot.
+    meta::element_variant_type::<K>() != VariantType::NIL
+        || meta::element_variant_type::<V>() != VariantType::NIL
+}
+
+impl<K: ArrayElement, V: ArrayElement> crate::registry::property::Var for Dictionary<K, V> {
+    type PubType = Self;
+
+    fn var_get(field: &Self) -> Self::Via {
+        field.clone()
+    }
+
+    fn var_set(field: &mut Self, value: Self::Via) {
+        *field = value;
+    }
+
+    fn var_pub_get(field: &Self) -> Self::PubType {
+        field.clone()
+    }
+
+    fn var_pub_set(field: &mut Self, value: Self::PubType) {
+        *field = value;
+    }
+
+    fn var_hint() -> meta::PropertyHintInfo {
+        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint.
+        #[cfg(since_api = "4.4")]
+        if is_dictionary_typed::<K, V>() {
+            return meta::PropertyHintInfo::var_dictionary_element::<K, V>();
+        }
+
+        // Untyped dictionary or before 4.4: no hints.
+        meta::PropertyHintInfo::none()
+    }
+}
+
+impl<K, V> crate::registry::property::Export for Dictionary<K, V>
+where
+    K: ArrayElement + crate::registry::property::Export,
+    V: ArrayElement + crate::registry::property::Export,
+{
+    fn export_hint() -> meta::PropertyHintInfo {
+        // VarDictionary: use "Dictionary".
+        if !is_dictionary_typed::<K, V>() {
+            return meta::PropertyHintInfo::type_name::<VarDictionary>();
+        }
+
+        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint for export.
+        #[cfg(since_api = "4.4")]
+        return meta::PropertyHintInfo::export_dictionary_element::<K, V>();
+
+        // Before 4.4, no engine-side typed dictionary hints.
+        #[cfg(before_api = "4.4")]
+        meta::PropertyHintInfo::none()
+    }
+}
+
+impl<K: ArrayElement, V: ArrayElement> crate::registry::property::BuiltinExport
+    for Dictionary<K, V>
+{
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -633,7 +1073,7 @@ impl<'a> DictionaryIter<'a> {
 
     fn next_key_value(&mut self) -> Option<(Variant, Variant)> {
         let key = self.next_key()?;
-        if !self.dictionary.contains_key(key.clone()) {
+        if !self.dictionary.as_inner().has(&key) {
             return None;
         }
 
@@ -642,8 +1082,7 @@ impl<'a> DictionaryIter<'a> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        // Need to check for underflow in case any entry was removed while
-        // iterating (i.e. next_index > dicitonary.len())
+        // Check for underflow in case any entry was removed while iterating; i.e. next_index > dicitonary.len().
         let remaining = usize::saturating_sub(self.dictionary.len(), self.next_idx);
 
         (remaining, Some(remaining))
@@ -720,7 +1159,7 @@ impl<'a> Iter<'a> {
             iter: DictionaryIter::new(dictionary),
         }
     }
-
+    //
     /// Creates an iterator that converts each `(Variant, Variant)` key-value pair into a `(K, V)` key-value
     /// pair, panicking upon conversion failure.
     pub fn typed<K: FromGodot, V: FromGodot>(self) -> TypedIter<'a, K, V> {
@@ -861,6 +1300,51 @@ fn u8_to_bool(u: u8) -> bool {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Constructs typed [`Dictionary<K, V>`] literals, close to Godot's own syntax.
+///
+/// Any value can be used as a key, but to use an expression you need to surround it
+/// in `()` or `{}`.
+///
+/// # Type annotation
+/// The macro creates a typed `Dictionary<K, V>`. You must provide an explicit type annotation
+/// to specify `K` and `V`. Keys must implement `AsArg<K>` and values must implement `AsArg<V>`.
+///
+/// # Example
+/// ```no_run
+/// use godot::builtin::{dict, Dictionary, GString, Variant};
+///
+/// // Type annotation required
+/// let d: Dictionary<GString, i64> = dict! {
+///     "key1": 10,
+///     "key2": 20,
+/// };
+///
+/// // Works with Variant values too
+/// let d: Dictionary<GString, Variant> = dict! {
+///     "str": "Hello",
+///     "num": 23,
+/// };
+/// ```
+///
+/// # See also
+///
+/// For untyped dictionaries, use [`vdict!`][macro@crate::builtin::vdict].
+/// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
+#[macro_export]
+macro_rules! dict {
+    ($($key:tt: $value:expr),* $(,)?) => {
+        {
+            let mut d = $crate::builtin::Dictionary::new();
+            $(
+                // `cargo check` complains that `(1 + 2): true` has unused parentheses, even though it's not possible to omit those.
+                #[allow(unused_parens)]
+                d.set($key, $value);
+            )*
+            d
+        }
+    };
+}
+
 /// Constructs [`VarDictionary`] literals, close to Godot's own syntax.
 ///
 /// Any value can be used as a key, but to use an expression you need to surround it
@@ -881,29 +1365,22 @@ fn u8_to_bool(u: u8) -> bool {
 ///
 /// # See also
 ///
+/// For typed dictionaries, use [`dict!`][macro@crate::builtin::dict].
 /// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
+// TODO(v0.5): unify vdict!/dict! macro implementations; vdict! manually calls to_variant() while dict! uses AsVArg.
 #[macro_export]
 macro_rules! vdict {
     ($($key:tt: $value:expr_2021),* $(,)?) => {
         {
-            let mut d = $crate::builtin::VarDictionary::new();
+            use $crate::meta::ToGodot as _;
+            let mut dict = $crate::builtin::VarDictionary::new();
             $(
                 // `cargo check` complains that `(1 + 2): true` has unused parens, even though it's not
                 // possible to omit the parens.
                 #[allow(unused_parens)]
-                d.set($key, $value);
+                dict.set(&$key.to_variant(), &$value.to_variant());
             )*
-            d
+            dict
         }
-    };
-}
-
-#[macro_export]
-#[deprecated = "Migrate to `vdict!`. The name `dict!` will be used in the future for typed dictionaries."]
-macro_rules! dict {
-    ($($key:tt: $value:expr_2021),* $(,)?) => {
-        $crate::vdict!(
-            $($key: $value),*
-        )
     };
 }

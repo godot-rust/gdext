@@ -911,6 +911,8 @@ impl<T: ArrayElement> Array<T> {
     /// - Values written to array must match runtime type.
     /// - Values read must be convertible to type `U`.
     /// - If runtime type matches `U`, both conditions hold automatically.
+    // TODO(v0.5): fragile manual field move + mem::forget; if a field is added, it must be moved here too.
+    // Consider transmute (requires #[repr(C)]) or ManuallyDrop + ptr::read. Same issue in Dictionary::assume_type.
     pub(super) unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
         let result = Array::<U> {
             opaque: self.opaque,
@@ -957,31 +959,15 @@ impl<T: ArrayElement> Array<T> {
 
     /// Checks that the inner array has the correct type set on it for storing elements of type `T`.
     fn with_checked_type(self) -> Result<Self, ConvertError> {
-        let self_ty = self.element_type();
-        let target_ty = ElementType::of::<T>();
+        let actual = self.element_type();
+        let expected = ElementType::of::<T>();
 
-        // Exact match: check successful.
-        if self_ty == target_ty {
-            return Ok(self);
+        if actual.is_compatible_with(&expected) {
+            Ok(self)
+        } else {
+            let mismatch = ArrayMismatch { expected, actual };
+            Err(FromGodotError::BadArrayType(mismatch).into_error(self))
         }
-
-        // Check if script class (runtime) matches its native base class (compile-time).
-        // This allows an Array[Enemy] from GDScript to be used as Array<Gd<RefCounted>> in Rust.
-        if let (ElementType::ScriptClass(_), ElementType::Class(expected_class)) =
-            (&self_ty, &target_ty)
-        {
-            if let Some(actual_base_class) = self_ty.class_id() {
-                if actual_base_class == *expected_class {
-                    return Ok(self);
-                }
-            }
-        }
-
-        let mismatch = ArrayMismatch {
-            expected: target_ty,
-            actual: self_ty,
-        };
-        Err(FromGodotError::BadArrayType(mismatch).into_error(self))
     }
 
     /// Sets the type of the inner array.
