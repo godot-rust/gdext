@@ -409,7 +409,7 @@ jobs:
             os: ubuntu-22.04
             artifact-name: linux-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.2.2'
+            godot-prebuilt-patch: '4.2'
             hot-reload: api-4-2
 
           # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks. Always Linux.

@@ -108,7 +108,6 @@
 //! _Godot version and configuration:_
 //!
 //! * **`api-4-{minor}`**
-//! * **`api-4-{minor}-{patch}`**
 //! * **`api-custom`**
 //! * **`api-custom-json`**
 //!

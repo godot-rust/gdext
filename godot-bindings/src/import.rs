@@ -16,8 +16,6 @@ pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
     //  [include] past+current+future
     //  [line] \t$triple,
     (4, 2, 0),
-    (4, 2, 1),
-    (4, 2, 2),
     (4, 3, 0),
     (4, 4, 0),
     (4, 5, 0),
@@ -30,10 +28,6 @@ pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
 //  [line] #[cfg(feature = "api-$kebabVersion")]\npub use gdextension_api::version_$snakeVersion as prebuilt;
 #[cfg(feature = "api-4-2")]
 pub use gdextension_api::version_4_2 as prebuilt;
-#[cfg(feature = "api-4-2-1")]
-pub use gdextension_api::version_4_2_1 as prebuilt;
-#[cfg(feature = "api-4-2-2")]
-pub use gdextension_api::version_4_2_2 as prebuilt;
 #[cfg(feature = "api-4-3")]
 pub use gdextension_api::version_4_3 as prebuilt;
 #[cfg(feature = "api-4-4")]
@@ -52,8 +46,6 @@ pub use gdextension_api::version_4_6 as prebuilt;
 //  [post] \tfeature = "api-custom",\n\tfeature = "api-custom-json",\n)))]
 #[cfg(not(any(
     feature = "api-4-2",
-    feature = "api-4-2-1",
-    feature = "api-4-2-2",
     feature = "api-4-3",
     feature = "api-4-4",
     feature = "api-4-5",
