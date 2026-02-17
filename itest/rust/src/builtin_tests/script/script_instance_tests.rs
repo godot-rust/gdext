@@ -7,7 +7,7 @@
 
 use std::ffi::c_void;
 
-use godot::builtin::{Array, GString, StringName, VarArray, VarDictionary, Variant, VariantType};
+use godot::builtin::{AnyDictionary, Array, GString, StringName, VarArray, Variant, VariantType};
 use godot::classes::{
     IScriptExtension, IScriptLanguageExtension, Object, Script, ScriptExtension, ScriptLanguage,
     ScriptLanguageExtension,
@@ -60,21 +60,21 @@ impl IScriptExtension for TestScript {
     fn get_source_code(&self) -> GString { unreachable!() }
     fn set_source_code(&mut self, _code: GString) { unreachable!() }
     fn reload(&mut self, _keep_state: bool) -> Error { unreachable!() }
-    fn get_documentation(&self) -> Array<VarDictionary> { unreachable!() }
+    fn get_documentation(&self) -> Array<AnyDictionary> { unreachable!() }
     fn has_method(&self, _method: StringName) -> bool { unreachable!() }
     fn has_static_method(&self, _method: StringName) -> bool { unreachable!() }
-    fn get_method_info(&self, _method: StringName) -> VarDictionary { unreachable!() }
+    fn get_method_info(&self, _method: StringName) -> AnyDictionary { unreachable!() }
     fn is_tool(&self) -> bool { unreachable!() }
     fn is_valid(&self) -> bool { unreachable!() }
     fn has_script_signal(&self, _signall: StringName) -> bool { unreachable!() }
-    fn get_script_signal_list(&self) -> Array<VarDictionary> { unreachable!() }
+    fn get_script_signal_list(&self) -> Array<AnyDictionary> { unreachable!() }
     fn has_property_default_value(&self, _property: StringName) -> bool { unreachable!() }
     fn get_property_default_value(&self, _property: StringName) -> Variant { unreachable!() }
     fn update_exports(&mut self) { unreachable!() }
-    fn get_script_method_list(&self) -> Array<VarDictionary> { unreachable!() }
-    fn get_script_property_list(&self) -> Array<VarDictionary> { unreachable!() }
+    fn get_script_method_list(&self) -> Array<AnyDictionary> { unreachable!() }
+    fn get_script_property_list(&self) -> Array<AnyDictionary> { unreachable!() }
     fn get_member_line(&self, _member: StringName) -> i32 { unreachable!() }
-    fn get_constants(&self) -> VarDictionary { unreachable!() }
+    fn get_constants(&self) -> AnyDictionary { unreachable!() }
     fn get_members(&self) -> Array<StringName> { unreachable!() }
     fn is_placeholder_fallback_enabled(&self) -> bool { unreachable!() }
     fn get_rpc_config(&self) -> Variant { unreachable!() }
@@ -276,24 +276,24 @@ impl IScriptLanguageExtension for TestScriptLanguage {
     fn get_comment_delimiters(&self) -> godot::prelude::PackedStringArray { unreachable!() }
     fn get_string_delimiters(&self) -> godot::prelude::PackedStringArray { unreachable!() }
     fn make_template(&self, _template: GString, _class_name: GString, _base_class_name: GString) -> Option<Gd<Script>> { unreachable!() }
-    fn get_built_in_templates(&self, _object: StringName) -> Array<VarDictionary> { unreachable!() }
+    fn get_built_in_templates(&self, _object: StringName) -> Array<AnyDictionary> { unreachable!() }
     fn is_using_templates(&mut self) -> bool { unreachable!() }
-    fn validate(&self, _script: GString, _path: GString, _validate_functions: bool, _validate_errors: bool, _validate_warnings: bool, _validate_safe_lines: bool) -> VarDictionary { unreachable!() }
+    fn validate(&self, _script: GString, _path: GString, _validate_functions: bool, _validate_errors: bool, _validate_warnings: bool, _validate_safe_lines: bool) -> AnyDictionary { unreachable!() }
     fn validate_path(&self, _path: GString) -> GString { unreachable!() }
     fn create_script(&self) -> Option<Gd<Object>> { unreachable!() }
     fn has_named_classes(&self) -> bool { unreachable!() }
     fn supports_builtin_mode(&self) -> bool { unreachable!() }
     fn supports_documentation(&self) -> bool { unreachable!() }
     fn can_inherit_from_file(&self) -> bool { unreachable!() }
-    fn find_function(&self, _class_name: GString, _function_namee: GString) -> i32 { unreachable!() }
+    fn find_function(&self, _class_name: GString, _function_name: GString) -> i32 { unreachable!() }
     fn make_function(&self, _class_name: GString, _function_name: GString, _function_args: godot::prelude::PackedStringArray) -> GString { unreachable!() }
     fn open_in_external_editor(&mut self, _script: Option<Gd<Script>>, _line: i32, _column: i32) -> godot::global::Error { unreachable!() }
     fn overrides_external_editor(&mut self) -> bool { unreachable!() }
-    fn complete_code(&self, _code: GString,_pathh: GString, _ownerer: Option<Gd<Object>>) -> VarDictionary { unreachable!() }
-    fn lookup_code(&self, _code: GString, _symbol: GString, _path: GString, _owner: Option<Gd<Object>>) -> VarDictionary { unreachable!() }
+    fn complete_code(&self, _code: GString, _path: GString, _owner: Option<Gd<Object>>) -> AnyDictionary { unreachable!() }
+    fn lookup_code(&self, _code: GString, _symbol: GString, _path: GString, _owner: Option<Gd<Object>>) -> AnyDictionary { unreachable!() }
     fn auto_indent_code(&self, _code: GString, _from_linee: i32, _to_line: i32) -> GString { unreachable!() }
     fn add_global_constant(&mut self, _name: StringName,_valuee: Variant) { unreachable!() }
-    fn add_named_global_constant(&mut self, _name: StringName,_valuee: Variant) { unreachable!() }
+    fn add_named_global_constant(&mut self, _name: StringName, _value: Variant) { unreachable!() }
     fn remove_named_global_constant(&mut self, _name: StringName) { unreachable!() }
     fn thread_enter(&mut self) { unreachable!() }
     fn thread_exit(&mut self) { unreachable!() }
@@ -301,25 +301,25 @@ impl IScriptLanguageExtension for TestScriptLanguage {
     fn debug_get_stack_level_count(&self) -> i32 { unreachable!() }
     fn debug_get_stack_level_line(&self, _level: i32) -> i32 { unreachable!() }
     fn debug_get_stack_level_function(&self, _level: i32) -> GString { unreachable!() }
-    fn debug_get_stack_level_locals(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> VarDictionary { unreachable!() }
-    fn debug_get_stack_level_members(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> VarDictionary { unreachable!() }
+    fn debug_get_stack_level_locals(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> AnyDictionary { unreachable!() }
+    fn debug_get_stack_level_members(&mut self, _level: i32, _max_subitems: i32, _max_depth: i32) -> AnyDictionary { unreachable!() }
     unsafe fn debug_get_stack_level_instance_rawptr(&mut self, _level: i32) -> RawPtr<*mut c_void> { unreachable!() }
-    fn debug_get_globals(&mut self, _max_subitems: i32,_max_depthh: i32) -> VarDictionary { unreachable!() }
+    fn debug_get_globals(&mut self, _max_subitems: i32,_max_depthh: i32) -> AnyDictionary { unreachable!() }
     fn debug_parse_stack_level_expression(&mut self, _level: i32, _expression: GString, _max_subitems: i32, _max_depth: i32) -> GString { unreachable!() }
-    fn debug_get_current_stack_info(&mut self) -> Array<VarDictionary> { unreachable!() }
+    fn debug_get_current_stack_info(&mut self) -> Array<AnyDictionary> { unreachable!() }
     fn reload_all_scripts(&mut self) { unreachable!() }
-    fn reload_tool_script(&mut self, _script: Option<Gd<Script>>,_soft_reloadd: bool) { unreachable!() }
+    fn reload_tool_script(&mut self, _script: Option<Gd<Script>>, _soft_reload: bool) { unreachable!() }
     fn get_recognized_extensions(&self) -> godot::prelude::PackedStringArray { unreachable!() }
-    fn get_public_functions(&self) -> Array<VarDictionary> { unreachable!() }
-    fn get_public_constants(&self) -> VarDictionary { unreachable!() }
-    fn get_public_annotations(&self) -> Array<VarDictionary> { unreachable!() }
+    fn get_public_functions(&self) -> Array<AnyDictionary> { unreachable!() }
+    fn get_public_constants(&self) -> AnyDictionary { unreachable!() }
+    fn get_public_annotations(&self) -> Array<AnyDictionary> { unreachable!() }
     fn profiling_start(&mut self) { unreachable!() }
     fn profiling_stop(&mut self) { unreachable!() }
     unsafe fn profiling_get_accumulated_data_rawptr(&mut self, _info_array: RawPtr<*mut godot::classes::native::ScriptLanguageExtensionProfilingInfo>, _info_max: i32) -> i32 { unreachable!() }
     unsafe fn profiling_get_frame_data_rawptr(&mut self, _info_array: RawPtr<*mut godot::classes::native::ScriptLanguageExtensionProfilingInfo>, _info_max: i32) -> i32 { unreachable!() }
     fn frame(&mut self) { unreachable!() }
     fn handles_global_class_type(&self, _type_: GString) -> bool { unreachable!() }
-    fn get_global_class_name(&self, _path: GString) -> VarDictionary { unreachable!() }
+    fn get_global_class_name(&self, _path: GString) -> AnyDictionary { unreachable!() }
     #[cfg(since_api = "4.3")]
     fn profiling_set_save_native_calls(&mut self, _enable: bool) { unreachable!() }
     #[cfg(since_api = "4.3")]

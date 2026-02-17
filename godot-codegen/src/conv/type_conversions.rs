@@ -54,20 +54,17 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<Ident> {
         ("bool", None) => "bool",
         ("String", None) => "GString",
 
-        // Must remain "Array" because this is checked verbatim for later adjustments (e.g. to AnyArray).
+        // Arrays/Dictionaries use flexibility for parameters (Rust->Godot), and strong typing for returns (Godot->Rust).
         // Keep also in line with default-exprs e.g. `Array::new()`.
         ("Array", None) => match full_ty.flow {
             Some(FlowDirection::RustToGodot) => "AnyArray",
             Some(FlowDirection::GodotToRust) => "VarArray",
             None => "_unused__Array_must_not_appear_in_idents",
         },
-
-        // For Dictionary, use AnyDictionary/VarDictionary with flow differentiation:
-        // * VarDictionary is always untyped (Dictionary<Variant, Variant>).
-        // * AnyDictionary is covariant and can hold typed or untyped dictionaries.
         ("Dictionary", None) => match full_ty.flow {
             Some(FlowDirection::RustToGodot) => "AnyDictionary",
-            Some(FlowDirection::GodotToRust) | None => "VarDictionary",
+            Some(FlowDirection::GodotToRust) => "VarDictionary",
+            None => "_unused__Dictionary_must_not_appear_in_idents",
         },
 
         // Types needed for native structures mapping
@@ -156,12 +153,13 @@ pub(crate) fn to_rust_type<'a>(
     flow: Option<FlowDirection>,
     ctx: &mut Context,
 ) -> RustTy {
-    // Flow: don't-care for everything besides GDScript types Array or Array[Array].
-    // Do not panic if not set (used in to_temporary_rust_type()).
-    let flow = if json_ty == "Array" || json_ty == "typedarray::Array" {
-        flow
-    } else {
-        None
+    // Flow is only relevant for Array and Dictionary, which map to different Rust types depending on direction (e.g. AnyArray vs VarArray).
+    // For all other types, flow is don't-care and set to None. Nested collections like Array[Array] or Array[Dictionary] need flow preserved
+    // because the element type is recursively resolved via to_rust_type(), and the element itself may be Array or Dictionary.
+    let flow = match json_ty {
+        "Array" | "Dictionary" | "typedarray::Array" | "typedarray::Dictionary" => flow,
+        _ if json_ty.starts_with("typeddictionary::") => flow, // Hard to test, as of 4.6 there are no such methods in the JSON.
+        _ => None, // Do not panic if not set (used in to_temporary_rust_type()).
     };
 
     let full_ty = GodotTy {
@@ -237,7 +235,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     }
 
     // Only place where meta is relevant is here.
-    if !ty.starts_with("typedarray::") {
+    if !ty.starts_with("typedarray::") && !ty.starts_with("typeddictionary::") {
         if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
             return RustTy::BuiltinIdent {
                 ty: hardcoded,
@@ -267,19 +265,32 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             };
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
+        // In Array, store Gd and not Option<Gd> elements.
         let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), full_ty.flow, ctx);
-        return if ctx.is_builtin(elem_ty) {
-            RustTy::BuiltinArray {
-                elem_type: quote! { Array<#rust_elem_ty> },
-            }
-        } else {
-            // In Array, store Gd and not Option<Gd> elements.
-            let without_option = rust_elem_ty.tokens_non_null();
+        let tokens = rust_elem_ty.tokens_non_null();
 
-            RustTy::EngineArray {
-                tokens: quote! { Array<#without_option> },
-                elem_class: elem_ty.to_string(),
-            }
+        return RustTy::TypedArray {
+            tokens: quote! { Array<#tokens> },
+            #[cfg(not(feature = "codegen-full"))]
+            elem_class: (!ctx.is_builtin(elem_ty)).then(|| elem_ty.to_string()),
+        };
+    } else if let Some(kv_ty) = ty.strip_prefix("typeddictionary::") {
+        let (key_ty, value_ty) = kv_ty
+            .split_once(';')
+            .unwrap_or_else(|| panic!("typeddictionary missing ';' separator: {ty}"));
+
+        // In Dictionary, store Gd and not Option<Gd> elements.
+        let rust_key_ty = to_rust_type(key_ty, None, full_ty.flow, ctx);
+        let rust_value_ty = to_rust_type(value_ty, None, full_ty.flow, ctx);
+        let key_tokens = rust_key_ty.tokens_non_null();
+        let value_tokens = rust_value_ty.tokens_non_null();
+
+        return RustTy::TypedDictionary {
+            tokens: quote! { Dictionary<#key_tokens, #value_tokens> },
+            #[cfg(not(feature = "codegen-full"))]
+            key_class: (!ctx.is_builtin(key_ty)).then(|| key_ty.to_string()),
+            #[cfg(not(feature = "codegen-full"))]
+            value_class: (!ctx.is_builtin(value_ty)).then(|| value_ty.to_string()),
         };
     }
 
@@ -376,7 +387,10 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
             return quote! { AnyArray::new_untyped() };
         }
         "[]" => return quote! { Array::new() }, // VarArray or Array<T>
-        "{}" => return quote! { VarDictionary::new() },
+        "{}" if matches!(ty, RustTy::BuiltinIdent { ty, .. } if ty == "AnyDictionary") => {
+            return quote! { AnyDictionary::new_untyped() };
+        }
+        "{}" => return quote! { Dictionary::new() }, // VarDictionary or Dictionary<K, V>
         "null" => {
             return match ty {
                 RustTy::BuiltinIdent { ty: ident, .. } if ident == "Variant" => {
@@ -658,7 +672,7 @@ fn gdscript_to_rust_expr() {
         // Special literals
         ("true",                                           None,               quote! { true }),
         ("false",                                          None,               quote! { false }),
-        ("{}",                                             None,               quote! { VarDictionary::new() }),
+        ("{}",                                             None,               quote! { Dictionary::new() }),
         ("[]",                                             None,               quote! { Array::new() }),
 
         ("null",                                           ty_variant,         quote! { Variant::nil() }),
@@ -708,9 +722,10 @@ fn gdscript_to_rust_expr() {
 
     for (gdscript, ty, rust) in table {
         // Use arbitrary type if not specified -> should not be read
-        let ty_dontcare = RustTy::EngineArray {
+        let ty_dontcare = RustTy::TypedArray {
             tokens: TokenStream::new(),
-            elem_class: String::new(),
+            #[cfg(not(feature = "codegen-full"))]
+            elem_class: None,
         };
         let ty = ty.unwrap_or(&ty_dontcare);
 

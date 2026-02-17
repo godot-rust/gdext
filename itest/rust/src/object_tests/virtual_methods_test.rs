@@ -146,7 +146,7 @@ impl IPrimitiveMesh for VirtualReturnTest {
     fn surface_get_array_index_len(&self, _index: i32) -> i32 { unreachable!() }
     fn surface_get_arrays(&self, _index: i32) -> AnyArray { unreachable!() }
     fn surface_get_blend_shape_arrays(&self, _index: i32) -> godot::prelude::Array<AnyArray> { unreachable!() }
-    fn surface_get_lods(&self, _index: i32) -> godot::prelude::VarDictionary { unreachable!() }
+    fn surface_get_lods(&self, _index: i32) -> godot::builtin::AnyDictionary { unreachable!() }
     fn surface_get_format(&self, _index: i32) -> u32 { unreachable!() }
     fn surface_get_primitive_type(&self, _index: i32) -> u32 { unreachable!() }
     #[cfg(feature = "codegen-full")]
