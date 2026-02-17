@@ -14,18 +14,21 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-// Manual input.
-#[rustfmt::skip]
+// Manual input. Disabled for now, limiting `api-*` features to minor levels.
+/*#[rustfmt::skip]
 pub const GODOT_LATEST_PATCH_VERSIONS: &[&str] = &[
     // 4.0.4 no longer supported.
     // 4.1.4 no longer supported.
     "4.2.2",
     "4.3.0",
-    "4.4.0",
-    "4.5.0",
-    "4.6.0",
+    "4.4.1",
+    "4.5.1",
+    "4.6.1",
     "4.7.0", // Upcoming.
-];
+];*/
+
+/// `(Min supported version, next version)`. Read as `4.x`.
+pub const GODOT_VERSION_RANGE: (u8, u8) = (2, 7);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -187,6 +190,13 @@ fn apply_char_substitutions(s: &str) -> String {
         .replace("\\n", "\n")
 }
 
+// Limit to minor versions.
+fn latest_patch_versions() -> Vec<(u8, u8)> {
+    let (min, next) = GODOT_VERSION_RANGE;
+    (min..=next).map(|minor| (minor, 0)).collect()
+}
+
+/* Old disabled implementation that allowed patch versions.
 fn latest_patch_versions() -> Vec<(u8, u8)> {
     GODOT_LATEST_PATCH_VERSIONS
         .iter()
@@ -198,4 +208,4 @@ fn latest_patch_versions() -> Vec<(u8, u8)> {
             (minor, patch)
         })
         .collect()
-}
+}*/

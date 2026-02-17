@@ -34,7 +34,7 @@ inputs:
   godot-prebuilt-patch:
     required: false
     default: ''
-    description: "If specified, sets the branch name of the godot4-prebuilt crate to this value"
+    description: "If specified, sets the branch name of the godot4-prebuilt crate to this value. Example '4.2' or '4.2.2' (latter being currently disabled, https://github.com/godot-rust/gdext/pull/1505)"
 
   rust-toolchain:
     required: false
