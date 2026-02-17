@@ -49,7 +49,7 @@ use crate::registry::property::SimpleVar;
 #[derive(PartialEq)]
 #[repr(transparent)] // Guarantees same layout as VarDictionary, enabling Deref from Dictionary<K, V> (K/V have no influence on layout).
 pub struct AnyDictionary {
-    dict: VarDictionary,
+    pub(crate) dict: VarDictionary,
 }
 
 impl AnyDictionary {
@@ -60,13 +60,6 @@ impl AnyDictionary {
         let inner = unsafe { std::mem::transmute::<Dictionary<K, V>, VarDictionary>(dict) };
 
         Self { dict: inner }
-    }
-
-    /// Creates an empty untyped `AnyDictionary`.
-    pub(crate) fn new_untyped() -> Self {
-        Self {
-            dict: VarDictionary::default(),
-        }
     }
 
     fn from_opaque(opaque: sys::types::OpaqueDictionary) -> Self {
@@ -171,7 +164,7 @@ impl AnyDictionary {
     pub fn keys_array(&self) -> AnyArray {
         // Array can still be typed; so AnyArray is the only sound return type.
         // Do not use dict.keys_array() which assumes Variant typing.
-        self.dict.as_inner().keys().upcast_any_array()
+        self.dict.as_inner().keys()
     }
 
     /// Creates a new `Array` containing all the values currently in the dictionary.
@@ -181,7 +174,7 @@ impl AnyDictionary {
     pub fn values_array(&self) -> AnyArray {
         // Array can still be typed; so AnyArray is the only sound return type.
         // Do not use dict.values_array() which assumes Variant typing.
-        self.dict.as_inner().values().upcast_any_array()
+        self.dict.as_inner().values()
     }
 
     /// Returns a shallow copy, sharing reference types (`Array`, `Dictionary`, `Object`...) with the original dictionary.
@@ -191,7 +184,10 @@ impl AnyDictionary {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> AnyDictionary {
-        self.dict.duplicate_shallow().upcast_any_dictionary()
+        self.dict
+            .as_inner()
+            .duplicate(false)
+            .upcast_any_dictionary()
     }
 
     /// Returns a deep copy, duplicating nested `Array`/`Dictionary` elements but keeping `Object` elements shared.
@@ -201,7 +197,7 @@ impl AnyDictionary {
     /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        self.dict.duplicate_deep().upcast_any_dictionary()
+        self.dict.as_inner().duplicate(true).upcast_any_dictionary()
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
@@ -304,6 +300,27 @@ impl AnyDictionary {
     pub fn try_cast_var_dictionary(self) -> Result<VarDictionary, Self> {
         self.try_cast_dictionary::<Variant, Variant>()
     }
+
+    /// Converts to `Dictionary<K, V>` if the runtime types match, panics otherwise.
+    ///
+    /// This is a convenience method that panics with a descriptive message if the cast fails.
+    /// Use [`try_cast_dictionary()`][Self::try_cast_dictionary] for a non-panicking version.
+    ///
+    /// # Panics
+    /// If the dictionary's dynamic key or value types do not match `K` and `V`.
+    pub fn cast_dictionary<K: ArrayElement, V: ArrayElement>(self) -> Dictionary<K, V> {
+        let from_key = self.key_element_type();
+        let from_value = self.value_element_type();
+        self.try_cast_dictionary::<K, V>().unwrap_or_else(|_| {
+            panic!(
+                "cast_dictionary_or_panic: expected key type {:?} and value type {:?}, got {:?} and {:?}",
+                ElementType::of::<K>(),
+                ElementType::of::<V>(),
+                from_key,
+                from_value,
+            )
+        })
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -317,11 +334,12 @@ unsafe impl GodotFfi for AnyDictionary {
     const VARIANT_TYPE: sys::ExtVariantType =
         sys::ExtVariantType::Concrete(VariantType::DICTIONARY);
 
-    // No Default trait, thus manually defining this and ffi_methods!.
+    // Constructs a valid Godot dictionary as ptrcall destination, without caching element types.
+    // See Array::new_with_init for rationale.
     unsafe fn new_with_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::new_untyped();
-        init_fn(result.sys_mut());
-        result
+        let dict = VarDictionary::new_uncached_type(init_fn);
+
+        Self { dict }
     }
 
     // Manually forwarding these, since no Opaque.

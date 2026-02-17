@@ -136,6 +136,18 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
         }
     }
 
+    /// Creates a new dictionary for [`GodotFfi::new_with_init()`], without setting a type yet.
+    pub(super) fn new_uncached_type(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        let mut result = unsafe {
+            Self::new_with_uninit(|self_ptr| {
+                let ctor = sys::builtin_fn!(dictionary_construct_default);
+                ctor(self_ptr, std::ptr::null_mut());
+            })
+        };
+        init_fn(result.sys_mut());
+        result
+    }
+
     /// Constructs an empty typed `Dictionary`.
     pub fn new() -> Self {
         let mut dict = Self::default();
@@ -353,9 +365,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     /// _Godot equivalent: `keys`_
     #[doc(alias = "keys")]
     pub fn keys_array(&self) -> Array<K> {
-        // SAFETY: keys() returns an untyped array with element type Variant.
-        let out_array = self.as_inner().keys();
-        unsafe { out_array.assume_type() }
+        self.as_inner().keys().cast_array()
     }
 
     /// Creates a new `Array` containing all the values currently in the dictionary.
@@ -363,9 +373,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     /// _Godot equivalent: `values`_
     #[doc(alias = "values")]
     pub fn values_array(&self) -> Array<V> {
-        // SAFETY: values() returns an untyped array with element type Variant.
-        let out_array = self.as_inner().values();
-        unsafe { out_array.assume_type() }
+        self.as_inner().values().cast_array()
     }
 
     /// Copies all keys and values from `other` into `self`.
@@ -392,10 +400,10 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     ///
     /// _Godot equivalent: `dict.duplicate(true)`_
     pub fn duplicate_deep(&self) -> Self {
-        let dup = self.as_inner().duplicate(true);
-        // SAFETY: duplicate() returns a typed dictionary with the same type as Self, and all values are taken from `self` so have the right type.
-        let result = unsafe { Self::assume_type(dup) };
-        result.with_cache(self)
+        self.as_inner()
+            .duplicate(true)
+            .upcast_any_dictionary()
+            .cast_dictionary::<K, V>()
     }
 
     /// Shallow copy, copying elements but sharing nested collections.
@@ -408,38 +416,10 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_
     pub fn duplicate_shallow(&self) -> Self {
-        let dup = self.as_inner().duplicate(false);
-        // SAFETY: duplicate() returns a typed dictionary with the same type as Self, and all values are taken from `self` so have the right type.
-        let result = unsafe { Self::assume_type(dup) };
-        result.with_cache(self)
-    }
-
-    /// Changes the type parameter without runtime checks, consuming the dictionary.
-    ///
-    /// # Safety
-    /// - Values written to dictionary must match runtime type.
-    /// - Values read must be convertible to types `K` and `V`.
-    /// - If runtime type matches `K` and `V`, both conditions hold automatically.
-    ///
-    /// This method has the same memory layout requirements as [`Array::assume_type`].
-    // TODO(v0.5): fragile manual field move + mem::forget; if a field is added, it must be moved here too.
-    // Consider transmute (requires #[repr(C)]) or ManuallyDrop + ptr::read. Same issue in Array::assume_type.
-    unsafe fn assume_type(dict: VarDictionary) -> Self {
-        let result = Self {
-            opaque: dict.opaque,
-            _phantom: PhantomData,
-            cached_key_type: OnceCell::new(),
-            cached_value_type: OnceCell::new(),
-        };
-
-        // Transfer cached types to avoid redundant FFI calls.
-        ElementType::transfer_cache(&dict.cached_key_type, &result.cached_key_type);
-        ElementType::transfer_cache(&dict.cached_value_type, &result.cached_value_type);
-
-        // Prevent drop of dict since we moved opaque.
-        std::mem::forget(dict);
-
-        result
+        self.as_inner()
+            .duplicate(false)
+            .upcast_any_dictionary()
+            .cast_dictionary::<K, V>()
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
@@ -760,7 +740,21 @@ impl<K: ArrayElement> Dictionary<K, Variant> {
 unsafe impl<K: ArrayElement, V: ArrayElement> GodotFfi for Dictionary<K, V> {
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::DICTIONARY);
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn new_from_sys;
+        fn new_with_uninit;
+        fn sys;
+        fn sys_mut;
+        fn from_arg_ptr;
+        fn move_return_ptr;
+    }
+
+    /// Constructs a valid Godot dictionary as ptrcall destination, without caching the element types.
+    ///
+    /// See `Array::new_with_init` for rationale.
+    unsafe fn new_with_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        Self::new_uncached_type(init_fn)
+    }
 }
 
 impl<K: ArrayElement, V: ArrayElement> std::ops::Deref for Dictionary<K, V> {

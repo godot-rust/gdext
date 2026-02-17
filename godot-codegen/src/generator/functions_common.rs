@@ -103,7 +103,6 @@ pub struct FnParamTokens {
 pub fn make_function_definition(
     sig: &dyn Function,
     code: &FnCode,
-    safety_doc: Option<TokenStream>,
     cfg_attributes: &TokenStream,
 ) -> FnDefinition {
     let has_default_params = default_parameters::function_uses_default_params(sig);
@@ -120,20 +119,18 @@ pub fn make_function_definition(
     // to only use `unsafe` for pointers in parameters (for outbound calls), and in return values (for virtual calls). Or technically more
     // correct, make the entire trait unsafe as soon as one function can return pointers, but that's very unergonomic and non-local.
     // Thus, let's keep things simple and more conservative.
-    let (maybe_unsafe, maybe_safety_doc) = if let Some(safety_doc) = safety_doc {
-        (quote! { unsafe }, safety_doc)
-    } else if sig.common().is_unsafe {
-        (
-            quote! { unsafe },
-            quote! {
-                /// # Safety
-                ///
-                /// This method has automatically been marked `unsafe` because it accepts raw pointers as parameters.
-                /// If Godot does not document any safety requirements, make sure you understand the underlying semantics.
-            },
-        )
+    let (maybe_unsafe, maybe_safety_doc);
+    if sig.common().is_unsafe {
+        maybe_unsafe = quote! { unsafe };
+        maybe_safety_doc = quote! {
+            /// # Safety
+            ///
+            /// This method has automatically been marked `unsafe` because it accepts raw pointers as parameters.
+            /// If Godot does not document any safety requirements, make sure you understand the underlying semantics.
+        };
     } else {
-        (TokenStream::new(), TokenStream::new())
+        maybe_unsafe = TokenStream::new();
+        maybe_safety_doc = TokenStream::new();
     };
 
     let FnParamTokens {
@@ -173,15 +170,13 @@ pub fn make_function_definition(
         default_structs_code = TokenStream::new();
     };
 
-    let maybe_func_generic_params = sig.return_value().generic_params();
-    let maybe_func_generic_bounds = sig.return_value().where_clause();
     let (maybe_deprecated, _maybe_expect_deprecated) = make_deprecation_attribute(sig);
 
     let call_sig_decl = {
         let return_ty = &sig.return_value().type_tokens();
 
         quote! {
-            type CallRet #maybe_func_generic_params = #return_ty;
+            type CallRet = #return_ty;
             type CallParams #callsig_lifetime_args = (#(#param_types,)*);
         }
     };
@@ -286,11 +281,10 @@ pub fn make_function_definition(
         quote! {
             #maybe_deprecated
             #maybe_safety_doc
-            #vis #maybe_unsafe fn #primary_fn_name #maybe_func_generic_params (
+            #vis #maybe_unsafe fn #primary_fn_name  (
                 #receiver_param
                 #( #params, )*
             ) #return_decl
-            #maybe_func_generic_bounds
             {
                 #call_sig_decl
 
@@ -510,7 +504,6 @@ pub(crate) fn make_param_or_field_type(
             ..
         }
         | RustTy::BuiltinArray { .. }
-        | RustTy::GenericArray
         | RustTy::EngineArray { .. } => {
             let lft = lifetimes.next();
             special_ty = Some(quote! { RefArg<#lft, #ty> });

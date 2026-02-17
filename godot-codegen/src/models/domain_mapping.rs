@@ -367,26 +367,34 @@ impl BuiltinMethod {
             return None;
         }
 
-        let return_value = match special_cases::builtin_method_generic_ret(builtin_name, method) {
-            Some(generic) => generic,
-            _ => {
-                let return_value = &method
-                    .return_type
-                    .as_deref()
-                    .map(JsonMethodReturn::from_type_no_meta);
+        let is_exposed_in_outer =
+            special_cases::is_builtin_method_exposed(builtin_name, &method.name);
 
-                // Builtin methods are always outbound (not virtual), thus flow for return type is Godot -> Rust.
-                FnReturn::new(return_value, FlowDirection::GodotToRust, ctx)
-            }
+        let return_value = {
+            let return_value = &method
+                .return_type
+                .as_deref()
+                .map(JsonMethodReturn::from_type_no_meta);
+
+            // Builtin methods are always outbound (not virtual), thus flow for return type is Godot -> Rust.
+            // Exception: Inner{Array,Dictionary} methods return Any{Array,Dictionary} instead of Var{Array,Dictionary}. Reason is that
+            // arrays/dicts can be generic and store type info, thus typing returned collections differently. Thus use RustToGodot flow.
+            let flow = if !is_exposed_in_outer
+                && matches!(builtin_name.godot_ty.as_str(), "Array" | "Dictionary")
+                && matches!(method.return_type.as_deref(), Some("Array" | "Dictionary"))
+            {
+                FlowDirection::RustToGodot // AnyArray + AnyDictionary.
+            } else {
+                FlowDirection::GodotToRust
+            };
+
+            FnReturn::new(return_value, flow, ctx)
         };
 
         // For parameters in builtin methods, flow is always Rust -> Godot.
         // Enable default parameters for builtin classes, generating _ex builders.
         let parameters =
             FnParam::builder().build_many(&method.arguments, FlowDirection::RustToGodot, ctx);
-
-        let is_exposed_in_outer =
-            special_cases::is_builtin_method_exposed(builtin_name, &method.name);
 
         // Construct surrounding_class with correct type names:
         // * godot_ty: Always the real Godot type (e.g. "String").

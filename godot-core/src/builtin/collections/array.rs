@@ -500,11 +500,8 @@ impl<T: ArrayElement> Array<T> {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> Self {
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type
-        let duplicate: Self = unsafe { self.as_inner().duplicate(false) };
-
-        // Note: cache is being set while initializing the duplicate as a return value for above call.
-        duplicate
+        // duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        self.as_inner().duplicate(false).cast_array::<T>()
     }
 
     /// Returns a deep copy, duplicating nested `Array`/`Dictionary` elements but keeping `Object` elements shared.
@@ -512,11 +509,8 @@ impl<T: ArrayElement> Array<T> {
     /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type
-        let duplicate: Self = unsafe { self.as_inner().duplicate(true) };
-
-        // Note: cache is being set while initializing the duplicate as a return value for above call.
-        duplicate
+        // duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        self.as_inner().duplicate(true).cast_array::<T>()
     }
 
     /// Returns a sub-range `begin..end` as a new `Array`.
@@ -551,10 +545,9 @@ impl<T: ArrayElement> Array<T> {
         let (begin, end) = range.signed();
         let end = end.unwrap_or(i32::MAX as i64);
 
-        // SAFETY: slice() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
-        let subarray: Self = unsafe { self.as_inner().slice(begin, end, step as i64, deep) };
-
-        subarray
+        self.as_inner()
+            .slice(begin, end, step as i64, deep)
+            .cast_array::<T>()
     }
 
     /// Returns an non-exclusive iterator over the elements of the `Array`.
@@ -815,11 +808,10 @@ impl<T: ArrayElement> Array<T> {
 
     /// Returns a pointer to the element at the given index, or null if out of bounds.
     fn ptr_or_null(&self, index: usize) -> sys::GDExtensionConstVariantPtr {
+        let index = to_i64(index);
+
         // SAFETY: array_operator_index_const returns null for invalid indexes.
-        let variant_ptr = unsafe {
-            let index = to_i64(index);
-            interface_fn!(array_operator_index_const)(self.sys(), index)
-        };
+        let variant_ptr = unsafe { interface_fn!(array_operator_index_const)(self.sys(), index) };
 
         // Signature is wrong in GDExtension, semantically this is a const ptr
         sys::SysPtr::as_const(variant_ptr)
@@ -842,15 +834,13 @@ impl<T: ArrayElement> Array<T> {
 
     /// Returns a pointer to the element at the given index, or null if out of bounds.
     fn ptr_mut_or_null(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
+        let index = to_i64(index);
+
         // SAFETY: array_operator_index returns null for invalid indexes.
-        unsafe {
-            let index = to_i64(index);
-            interface_fn!(array_operator_index)(self.sys_mut(), index)
-        }
+        unsafe { interface_fn!(array_operator_index)(self.sys_mut(), index) }
     }
 
     /// # Safety
-    ///
     /// This has the same safety issues as doing `self.assume_type::<Variant>()` and so the relevant safety invariants from
     /// [`assume_type`](Self::assume_type) must be upheld.
     ///
@@ -873,7 +863,6 @@ impl<T: ArrayElement> Array<T> {
     /// that take a variant array even though we want to pass a typed one.
     ///
     /// # Safety
-    ///
     /// - Any values written to the array must match the runtime type of the array.
     /// - Any values read from the array must be convertible to the type `U`.
     ///
@@ -1013,6 +1002,18 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
+    /// Creates a new array for [`GodotFfi::new_with_init()`], without setting a type yet.
+    pub(super) fn new_uncached_type(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        let mut result = unsafe {
+            Self::new_with_uninit(|self_ptr| {
+                let ctor = sys::builtin_fn!(array_construct_default);
+                ctor(self_ptr, std::ptr::null_mut());
+            })
+        };
+        init_fn(result.sys_mut());
+        result
+    }
+
     /// # Safety
     /// Does not validate the array element type; `with_checked_type()` should be called afterward.
     // Visibility: shared with AnyArray.
@@ -1111,7 +1112,23 @@ impl VarArray {
 unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(VariantType::ARRAY);
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn new_from_sys;
+        fn new_with_uninit;
+        fn sys;
+        fn sys_mut;
+        fn from_arg_ptr;
+        fn move_return_ptr;
+    }
+
+    /// Constructs a valid Godot array as ptrcall destination, without caching the element type.
+    ///
+    /// Ptrcall may replace the underlying data with an array of a different type (e.g. `duplicate()` on a typed
+    /// array returns `VarArray` in codegen, but the actual data is typed). The cache is lazily populated on first
+    /// access from the actual Godot data.
+    unsafe fn new_with_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        Self::new_uncached_type(init_fn)
+    }
 }
 
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.

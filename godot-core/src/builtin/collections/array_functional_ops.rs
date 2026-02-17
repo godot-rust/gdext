@@ -50,8 +50,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// ```
     #[must_use]
     pub fn filter(&self, callable: &Callable) -> Array<T> {
-        // SAFETY: filter() returns array of same type as self.
-        unsafe { self.array.as_inner().filter(callable) }
+        self.array.as_inner().filter(callable).cast_array::<T>()
     }
 
     /// Returns a new untyped array with each element transformed by the callable.
@@ -72,8 +71,7 @@ impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
     /// ```
     #[must_use]
     pub fn map(&self, callable: &Callable) -> VarArray {
-        // SAFETY: map() returns an untyped array (element type Variant).
-        unsafe { self.array.as_inner().map(callable) }
+        self.array.as_inner().map(callable).cast_array()
     }
 
     /// Reduces the array to a single value by iteratively applying the callable.
