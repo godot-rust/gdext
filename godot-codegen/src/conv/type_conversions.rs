@@ -158,7 +158,7 @@ pub(crate) fn to_rust_type<'a>(
     // because the element type is recursively resolved via to_rust_type(), and the element itself may be Array or Dictionary.
     let flow = match json_ty {
         "Array" | "Dictionary" | "typedarray::Array" | "typedarray::Dictionary" => flow,
-        _ if json_ty.starts_with("typeddictionary::") => flow, // Hard to test, as of 4.6 there are no such methods in the JSON.        
+        _ if json_ty.starts_with("typeddictionary::") => flow, // Hard to test, as of 4.6 there are no such methods in the JSON.
         _ => None, // Do not panic if not set (used in to_temporary_rust_type()).
     };
 
@@ -265,53 +265,32 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             };
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
+        // In Array, store Gd and not Option<Gd> elements.
         let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), full_ty.flow, ctx);
-        return if ctx.is_builtin(elem_ty) {
-            RustTy::BuiltinArray {
-                elem_type: quote! { Array<#rust_elem_ty> },
-            }
-        } else {
-            // In Array, store Gd and not Option<Gd> elements.
-            let without_option = rust_elem_ty.tokens_non_null();
+        let tokens = rust_elem_ty.tokens_non_null();
 
-            RustTy::EngineArray {
-                tokens: quote! { Array<#without_option> },
-                elem_class: elem_ty.to_string(),
-            }
+        return RustTy::TypedArray {
+            tokens: quote! { Array<#tokens> },
+            #[cfg(not(feature = "codegen-full"))]
+            elem_class: (!ctx.is_builtin(elem_ty)).then(|| elem_ty.to_string()),
         };
     } else if let Some(kv_ty) = ty.strip_prefix("typeddictionary::") {
-        let (key_ty, val_ty) = kv_ty
+        let (key_ty, value_ty) = kv_ty
             .split_once(';')
             .unwrap_or_else(|| panic!("typeddictionary missing ';' separator: {ty}"));
 
+        // In Dictionary, store Gd and not Option<Gd> elements.
         let rust_key_ty = to_rust_type(key_ty, None, full_ty.flow, ctx);
-        let rust_val_ty = to_rust_type(val_ty, None, full_ty.flow, ctx);
+        let rust_value_ty = to_rust_type(value_ty, None, full_ty.flow, ctx);
+        let key_tokens = rust_key_ty.tokens_non_null();
+        let value_tokens = rust_value_ty.tokens_non_null();
 
-        let key_is_builtin = ctx.is_builtin(key_ty);
-        let val_is_builtin = ctx.is_builtin(val_ty);
-
-        return if key_is_builtin && val_is_builtin {
-            RustTy::BuiltinDictionary {
-                dict_type: quote! { Dictionary<#rust_key_ty, #rust_val_ty> },
-            }
-        } else {
-            // In Dictionary, store Gd and not Option<Gd> elements.
-            let rust_key = if key_is_builtin {
-                rust_key_ty.to_token_stream()
-            } else {
-                rust_key_ty.tokens_non_null()
-            };
-            let rust_val = if val_is_builtin {
-                rust_val_ty.to_token_stream()
-            } else {
-                rust_val_ty.tokens_non_null()
-            };
-
-            RustTy::EngineDictionary {
-                tokens: quote! { Dictionary<#rust_key, #rust_val> },
-                key_class: (!key_is_builtin).then(|| key_ty.to_string()),
-                val_class: (!val_is_builtin).then(|| val_ty.to_string()),
-            }
+        return RustTy::TypedDictionary {
+            tokens: quote! { Dictionary<#key_tokens, #value_tokens> },
+            #[cfg(not(feature = "codegen-full"))]
+            key_class: (!ctx.is_builtin(key_ty)).then(|| key_ty.to_string()),
+            #[cfg(not(feature = "codegen-full"))]
+            value_class: (!ctx.is_builtin(value_ty)).then(|| value_ty.to_string()),
         };
     }
 
@@ -743,9 +722,10 @@ fn gdscript_to_rust_expr() {
 
     for (gdscript, ty, rust) in table {
         // Use arbitrary type if not specified -> should not be read
-        let ty_dontcare = RustTy::EngineArray {
+        let ty_dontcare = RustTy::TypedArray {
             tokens: TokenStream::new(),
-            elem_class: String::new(),
+            #[cfg(not(feature = "codegen-full"))]
+            elem_class: None,
         };
         let ty = ty.unwrap_or(&ty_dontcare);
 

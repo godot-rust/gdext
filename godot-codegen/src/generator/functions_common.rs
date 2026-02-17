@@ -503,10 +503,8 @@ pub(crate) fn make_param_or_field_type(
             arg_passing: ArgPassing::ByRef,
             ..
         }
-        | RustTy::BuiltinArray { .. }
-        | RustTy::EngineArray { .. }
-        | RustTy::BuiltinDictionary { .. }
-        | RustTy::EngineDictionary { .. } => {
+        | RustTy::TypedArray { .. }
+        | RustTy::TypedDictionary { .. } => {
             let lft = lifetimes.next();
             special_ty = Some(quote! { RefArg<#lft, #ty> });
 
@@ -563,10 +561,8 @@ pub(crate) fn make_arg_expr(name: &Ident, ty: &RustTy, expr: FnArgExpr) -> Token
             arg_passing: ArgPassing::ByRef,
             ..
         }
-        | RustTy::BuiltinArray { .. }
-        | RustTy::EngineArray { .. }
-        | RustTy::BuiltinDictionary { .. }
-        | RustTy::EngineDictionary { .. } => match expr {
+        | RustTy::TypedArray { .. }
+        | RustTy::TypedDictionary { .. } => match expr {
             FnArgExpr::PassToFfi => quote! { RefArg::new(#name) },
             FnArgExpr::PassToFfiFromEx => quote! { #name.cow_as_arg() },
             FnArgExpr::Forward => quote! { #name },

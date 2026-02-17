@@ -753,40 +753,28 @@ pub enum RustTy {
     /// `bool`, `Vector3i`, `Array`, `GString`
     BuiltinIdent { ty: Ident, arg_passing: ArgPassing },
 
-    /// Pointers declared in `gdextension_interface` such as `sys::GDExtensionInitializationFunction`
-    /// used as parameters in some APIs.
-    SysPointerType { tokens: TokenStream },
-
-    /// `Array<i32>`
+    /// `Array<i32>` or `Array<Gd<Node>>`. Never contains `Option` elements.
     ///
     /// Untyped arrays are either `BuiltinIdent("AnyArray")` for outbound methods, or `BuiltinIdent("Array")` for virtual methods.
-    BuiltinArray { elem_type: TokenStream },
-
-    /// C-style raw pointer to a `RustTy`.
-    RawPointer { inner: Box<RustTy>, is_const: bool },
-
-    /// `Array<Gd<PhysicsBody3D>>`. Never contains `Option` elements.
-    EngineArray {
+    TypedArray {
         tokens: TokenStream,
 
-        #[allow(dead_code)] // Only read in minimal config.
-        elem_class: String,
+        /// Engine class name of the element type, `None` if builtin.
+        #[cfg(not(feature = "codegen-full"))]
+        elem_class: Option<String>,
     },
 
-    /// `Dictionary<i32, Color>` where both key and value are builtin types.
-    BuiltinDictionary { dict_type: TokenStream },
-
-    /// `Dictionary<K, V>` where at least key or value is an engine class. Never contains `Option` elements.
-    EngineDictionary {
+    /// `Dictionary<K, V>`. Never contains `Option` elements for engine class keys/values.
+    TypedDictionary {
         tokens: TokenStream,
 
-        /// Class name for the key type, `None` if builtin.
-        #[allow(dead_code)] // Only read in minimal config.
+        /// Engine class name for the key type, `None` if builtin.
+        #[cfg(not(feature = "codegen-full"))]
         key_class: Option<String>,
 
-        /// Class name for the value type, `None` if builtin.
-        #[allow(dead_code)] // Only read in minimal config.
-        val_class: Option<String>,
+        /// Engine class name for the value type, `None` if builtin.
+        #[cfg(not(feature = "codegen-full"))]
+        value_class: Option<String>,
     },
 
     /// `module::Enum` or `module::Bitfield`
@@ -816,6 +804,13 @@ pub enum RustTy {
         /// Defaults to true (nullable). Only false when meta="required".
         is_nullable: bool,
     },
+
+    /// C-style raw pointer to a `RustTy`.
+    RawPointer { inner: Box<RustTy>, is_const: bool },
+
+    /// Pointers declared in `gdextension_interface` such as `sys::GDExtensionInitializationFunction`
+    /// used as parameters in some APIs.
+    SysPointerType { tokens: TokenStream },
 
     /// Receiver type of default parameters extender constructor.
     ExtenderReceiver { tokens: TokenStream },
@@ -870,18 +865,8 @@ impl ToTokens for RustTy {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             RustTy::BuiltinIdent { ty: ident, .. } => ident.to_tokens(tokens),
-            RustTy::BuiltinArray { elem_type } => elem_type.to_tokens(tokens),
-            RustTy::RawPointer {
-                inner,
-                is_const: true,
-            } => quote! { crate::meta::RawPtr<*const #inner> }.to_tokens(tokens),
-            RustTy::RawPointer {
-                inner,
-                is_const: false,
-            } => quote! { crate::meta::RawPtr<*mut #inner> }.to_tokens(tokens),
-            RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::BuiltinDictionary { dict_type } => dict_type.to_tokens(tokens),
-            RustTy::EngineDictionary { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::TypedArray { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::TypedDictionary { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass {
                 is_nullable,
@@ -895,8 +880,16 @@ impl ToTokens for RustTy {
                     path.to_tokens(tokens)
                 }
             }
-            RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
+            RustTy::RawPointer {
+                inner,
+                is_const: true,
+            } => quote! { crate::meta::RawPtr<*const #inner> }.to_tokens(tokens),
+            RustTy::RawPointer {
+                inner,
+                is_const: false,
+            } => quote! { crate::meta::RawPtr<*mut #inner> }.to_tokens(tokens),
             RustTy::SysPointerType { tokens: path } => path.to_tokens(tokens),
+            RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
         }
     }
 }
