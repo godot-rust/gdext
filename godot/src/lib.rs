@@ -257,8 +257,9 @@ pub mod init {
 pub mod meta {
     pub use godot_core::meta::{
         AsArg, ClassId, Element, EngineFromGodot, EngineToGodot, FromGodot, GodotConvert,
-        GodotImmutable, GodotType, ObjectArg, PackedElement, SignedRange, ToArg, ToGodot,
-        element_variant_type, owned_into_arg, ref_to_arg, wrapped,
+        GodotImmutable, GodotType, NonThreadSafeArg, ObjectArg, PackedElement, SignedRange,
+        ThreadSafeArg, ThreadSafeArgContext, ThreadSafety, ToArg, ToGodot, element_variant_type,
+        owned_into_arg, ref_to_arg, wrapped,
     };
     #[doc(inline)]
     pub use godot_core::meta::{conv, error, inspect, shape};

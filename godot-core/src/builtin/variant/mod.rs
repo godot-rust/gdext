@@ -529,7 +529,7 @@ unsafe impl GodotFfi for Variant {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Variant: ByVariant);
+crate::meta::impl_godot_as_self!(Variant: ByVariant, NonThreadSafeArg);
 
 impl Default for Variant {
     fn default() -> Self {
