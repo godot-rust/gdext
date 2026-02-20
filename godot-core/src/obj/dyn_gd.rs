@@ -618,6 +618,7 @@ where
 {
     // Delegate to Gd<T> passing strategy.
     type Pass = <Gd<T> as ToGodot>::Pass;
+    type Threads = <Gd<T> as ToGodot>::Threads;
 
     fn to_godot(&self) -> &Self::Via {
         self.obj.to_godot()

@@ -7,7 +7,7 @@
 
 use crate::builtin::{AnyArray, AnyDictionary, Array, Dictionary, Variant};
 use crate::meta::sealed::Sealed;
-use crate::meta::{AsArg, ByValue, Element, ToGodot};
+use crate::meta::{AsArg, ByValue, Element, ThreadSafeArgContext, ThreadSafeSealed, ToGodot};
 use crate::obj::{Gd, GodotClass, NewAlloc, NewGd, bounds};
 
 /// Marker trait to make a type eligible to be used in `Unique<T>`.
@@ -438,4 +438,10 @@ where
 
         array
     }
+}
+
+impl<T: UniqueType> ThreadSafeSealed for Unique<T> {}
+
+impl<T: UniqueType> ThreadSafeArgContext for Unique<T> {
+    fn guarantee_thread_safe(&self) {}
 }

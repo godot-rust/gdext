@@ -9,6 +9,7 @@ mod as_arg;
 mod cow_arg;
 mod object_arg;
 mod ref_arg;
+mod thread_safety;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public APIs
@@ -29,3 +30,7 @@ pub(crate) use cow_arg::{CowArg, FfiArg};
 pub use cow_arg::{CowArg, FfiArg};
 pub use object_arg::ObjectArg;
 pub(crate) use ref_arg::RefArg;
+pub(crate) use thread_safety::ThreadSafeSealed;
+pub use thread_safety::{
+    ManualThreadSafeArg, NonThreadSafeArg, ThreadSafeArg, ThreadSafeArgContext, ThreadSafety,
+};
