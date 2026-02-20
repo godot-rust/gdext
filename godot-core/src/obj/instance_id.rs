@@ -102,6 +102,7 @@ impl GodotConvert for InstanceId {
 
 impl ToGodot for InstanceId {
     type Pass = crate::meta::ByValue;
+    type Threads = crate::meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> Self::Via {
         self.to_i64()

@@ -16,6 +16,8 @@ use sys::{GodotFfi, ffi_methods, interface_fn};
 use super::any_dictionary::AnyDictionary;
 use crate::builtin::{AnyArray, Array, VarArray, Variant, VariantType, inner};
 use crate::meta;
+#[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+use crate::meta::ThreadSafeArgContext;
 use crate::meta::inspect::ElementType;
 use crate::meta::shape::{GodotElementShape, GodotShape};
 use crate::meta::{AsArg, Element, ExtVariantType, FromGodot, ToGodot};
@@ -163,6 +165,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     /// # Panics
     /// If there is no value for the given key. Note that this is distinct from a `NIL` value, which is returned as `Variant::nil()`.
     pub fn at(&self, key: impl AsArg<K>) -> V {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key);
         meta::arg_into_ref!(key: K);
         let key_variant = key.to_variant();
         if self.as_inner().has(&key_variant) {
@@ -181,6 +185,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     ///
     /// This can be combined with Rust's `Option` methods, e.g. `dict.get(key).unwrap_or(default)`.
     pub fn get(&self, key: impl AsArg<K>) -> Option<V> {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key);
         meta::arg_into_ref!(key: K);
         let key_variant = key.to_variant();
         if self.as_inner().has(&key_variant) {
@@ -192,12 +198,16 @@ impl<K: Element, V: Element> Dictionary<K, V> {
 
     /// Returns the value at the key, converted to `V`. Panics on conversion failure.
     fn get_or_panic(&self, key: Variant) -> V {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key);
         V::from_variant(&self.as_inner().get(&key, &Variant::nil()))
     }
 
     // TODO(v0.6): avoid double FFI round-trip (has + get); consider using get(key, sentinel) pattern.
     /// Gets and removes the old value for a key, if it exists.
     fn take_old_value(&self, key_variant: &Variant) -> Option<V> {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key_variant);
         self.as_inner()
             .has(key_variant)
             .then(|| self.get_or_panic(key_variant.clone()))
@@ -213,7 +223,11 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     pub fn get_or_insert(&mut self, key: impl AsArg<K>, default: impl AsArg<V>) -> V {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key);
         meta::arg_into_ref!(key: K);
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&default);
         meta::arg_into_ref!(default: V);
 
         let key_variant = key.to_variant();
@@ -249,6 +263,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     /// _Godot equivalent: `has`_
     #[doc(alias = "has")]
     pub fn contains_key(&self, key: impl AsArg<K>) -> bool {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key);
         meta::arg_into_ref!(key: K);
         let key = key.to_variant();
         self.as_inner().has(&key)
@@ -259,6 +275,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     /// _Godot equivalent: `has_all`_
     #[doc(alias = "has_all")]
     pub fn contains_all_keys(&self, keys: &VarArray) -> bool {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&keys);
         self.as_inner().has_all(keys)
     }
 
@@ -315,6 +333,12 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     pub fn set(&mut self, key: impl AsArg<K>, value: impl AsArg<V>) {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            key.guarantee_thread_safe();
+            value.guarantee_thread_safe();
+        }
+
         meta::arg_into_ref!(key: K);
         meta::arg_into_ref!(value: V);
 
@@ -339,6 +363,12 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     pub fn insert(&mut self, key: impl AsArg<K>, value: impl AsArg<V>) -> Option<V> {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            key.guarantee_thread_safe();
+            value.guarantee_thread_safe();
+        }
+
         meta::arg_into_ref!(key: K);
         meta::arg_into_ref!(value: V);
 
@@ -359,6 +389,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     pub fn remove(&mut self, key: impl AsArg<K>) -> Option<V> {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key);
         meta::arg_into_ref!(key: K);
 
         let key_variant = key.to_variant();
@@ -683,6 +715,8 @@ impl<K: Element> Dictionary<K, Variant> {
     /// `Deref<Target = AnyDictionary>`, any method on `AnyDictionary` is inherited by _all_ dictionaries -- including typed ones
     /// like `Dictionary<K, i64>`, where a `Variant` return would be surprising.
     pub fn get_or_nil(&self, key: impl AsArg<K>) -> Variant {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&key);
         meta::arg_into_ref!(key: K);
         let key_variant = key.to_variant();
         self.as_inner().get(&key_variant, &Variant::nil())
@@ -863,6 +897,7 @@ impl<K: Element, V: Element> meta::GodotConvert for Dictionary<K, V> {
 
 impl<K: Element, V: Element> ToGodot for Dictionary<K, V> {
     type Pass = meta::ByRef;
+    type Threads = meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> &Self::Via {
         self
