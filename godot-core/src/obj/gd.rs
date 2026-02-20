@@ -1145,6 +1145,7 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 
 impl<T: GodotClass> ToGodot for Gd<T> {
     type Pass = meta::ByObject;
+    type Threads = meta::ManualThreadSafeArg;
 
     fn to_godot(&self) -> &Self {
         // Note: Gd<T> never null, so no need to check raw.is_null().
