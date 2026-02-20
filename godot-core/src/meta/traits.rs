@@ -10,7 +10,7 @@ use godot_ffi as sys;
 use crate::builtin;
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::ConvertError;
-use crate::meta::{FromGodot, GodotConvert, PropertyInfo, ToGodot, sealed};
+use crate::meta::{FromGodot, GodotConvert, PropertyInfo, ThreadSafeArgContext, ToGodot, sealed};
 use crate::registry::method::MethodParamOrReturnInfo;
 
 // Re-export sys traits in this module, so all are in one place.
@@ -162,7 +162,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     label = "has invalid element type"
 )]
 // TODO(v0.6): consider supertraits like PartialEq or Debug. For enums, align with #[derive(GodotConvert)].
-pub trait Element: ToGodot + FromGodot + 'static {
+pub trait Element: ToGodot + FromGodot + ThreadSafeArgContext + 'static {
     // Note: several indirections in `Element` and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).
 

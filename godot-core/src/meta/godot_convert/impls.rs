@@ -8,11 +8,11 @@
 use godot_ffi as sys;
 
 use crate::builtin::{Array, Variant};
-use crate::meta;
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError};
 use crate::meta::{Element, FromGodot, GodotConvert, GodotNullableFfi, GodotType, ToGodot};
 use crate::registry::method::MethodParamOrReturnInfo;
 use crate::registry::property::GodotShape;
+use crate::{impl_thread_safe_arg, meta};
 
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
 // - enum
@@ -300,6 +300,7 @@ impl_godot_scalar!(
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT;
     lossy
 );
+impl_thread_safe_arg!(i8, u8, i16, u16, i32, u32, f32);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // u64: manually implemented, to ensure that type is not altered during conversion.

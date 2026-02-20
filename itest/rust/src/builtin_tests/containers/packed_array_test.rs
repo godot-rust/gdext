@@ -13,7 +13,9 @@ use godot::builtin::{
     vdict,
 };
 use godot::global::godot_str;
-use godot::meta::{ElementType, PackedElement, ToGodot, owned_into_arg, ref_to_arg, wrapped};
+use godot::meta::{
+    ElementType, PackedElement, ThreadSafeArgContext, ToGodot, owned_into_arg, ref_to_arg, wrapped,
+};
 
 use crate::assert_match;
 use crate::framework::{expect_panic, itest};
@@ -747,7 +749,7 @@ fn packed_array_from_array() {
 
 #[itest]
 fn packed_array_all_types() {
-    fn test<T: PackedElement + Default + PartialEq + fmt::Debug>() {
+    fn test<T: PackedElement + Default + PartialEq + fmt::Debug + ThreadSafeArgContext>() {
         let val = T::default();
 
         let mut array: PackedArray<T> = PackedArray::new();
@@ -811,7 +813,7 @@ fn packed_array_array_conversions_gstring() {
 // Generator trait and implementations
 
 /// Deterministic value generator for tests.
-trait Generator: PackedElement + Default + PartialEq + fmt::Debug {
+trait Generator: PackedElement + Default + PartialEq + fmt::Debug + ThreadSafeArgContext {
     /// Deterministically generate a value depending on the index.
     ///
     /// Values may repeat, but the period must be at least 5.

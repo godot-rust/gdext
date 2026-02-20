@@ -354,3 +354,5 @@ impl<V: Element> AsArg<Variant> for Unique<Array<V>> {
         crate::meta::CowArg::Owned(self.inner.to_variant())
     }
 }
+
+impl_thread_safe_arg!([T: UniqueType] Unique<T>);

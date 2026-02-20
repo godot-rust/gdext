@@ -11,7 +11,7 @@ use sys::GodotFfi;
 use crate::builtin::*;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::sealed::Sealed;
-use crate::meta::{Element, GodotFfiVariant, GodotType, RefArg};
+use crate::meta::{Element, GodotFfiVariant, GodotType, RefArg, ThreadSafeArgContext};
 use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_send};
 
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
@@ -47,9 +47,9 @@ macro_rules! impl_ffi_variant {
 
             fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
                 // Type check -- at the moment, a strict match is required.
-                if variant.get_type() != Self::VARIANT_TYPE.variant_as_nil() {
+                if variant.get_type() != <Self as godot_ffi::GodotFfi>::VARIANT_TYPE.variant_as_nil() {
                     return Err(FromVariantError::BadType {
-                        expected: Self::VARIANT_TYPE.variant_as_nil(),
+                        expected: <Self as godot_ffi::GodotFfi>::VARIANT_TYPE.variant_as_nil(),
                         actual: variant.get_type(),
                     }
                     .into_error(variant.clone()));
@@ -105,36 +105,76 @@ macro_rules! impl_ffi_variant {
 #[rustfmt::skip]
 #[allow(clippy::module_inception)]
 mod impls {
+    use crate::{impl_non_thread_safe_arg, impl_thread_safe_arg};
+    use crate::builtin::{Vector2Axis, Vector3Axis, Vector4Axis};
+    use crate::meta::PackedElement;
+
     use super::*;
 
     // IMPORTANT: the presence/absence of `ref` here should be aligned with the ArgPassing variant
     // used in codegen get_builtin_arg_passing().
 
     impl_ffi_variant!(bool, bool_to_variant, bool_from_variant);
+    impl_thread_safe_arg!(bool);
     impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
+    impl_thread_safe_arg!(i64);
     impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
+    impl_thread_safe_arg!(f64);
     impl_ffi_variant!(Vector2, vector2_to_variant, vector2_from_variant);
+    impl_thread_safe_arg!(Vector2);
     impl_ffi_variant!(Vector3, vector3_to_variant, vector3_from_variant);
+    impl_thread_safe_arg!(Vector3);
     impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant);
+    impl_thread_safe_arg!(Vector4);
     impl_ffi_variant!(Vector2i, vector2i_to_variant, vector2i_from_variant);
+    impl_thread_safe_arg!(Vector2i);
     impl_ffi_variant!(Vector3i, vector3i_to_variant, vector3i_from_variant);
+    impl_thread_safe_arg!(Vector3i);
     impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
+    impl_thread_safe_arg!(Vector4i);
     impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
+    impl_thread_safe_arg!(Quaternion);
     impl_ffi_variant!(Transform2D, transform_2d_to_variant, transform_2d_from_variant);
+    impl_thread_safe_arg!(Transform2D);
     impl_ffi_variant!(Transform3D, transform_3d_to_variant, transform_3d_from_variant);
+    impl_thread_safe_arg!(Transform3D);
     impl_ffi_variant!(Basis, basis_to_variant, basis_from_variant);
+    impl_thread_safe_arg!(Basis);
     impl_ffi_variant!(Projection, projection_to_variant, projection_from_variant);
+    impl_thread_safe_arg!(Projection);
     impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
+    impl_thread_safe_arg!(Plane);
     impl_ffi_variant!(Rect2, rect2_to_variant, rect2_from_variant);
+    impl_thread_safe_arg!(Rect2);
     impl_ffi_variant!(Rect2i, rect2i_to_variant, rect2i_from_variant);
+    impl_thread_safe_arg!(Rect2i);
     impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
+    impl_thread_safe_arg!(Aabb);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
+    impl_thread_safe_arg!(Color);
     impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID);
+    impl_thread_safe_arg!(Rid);
     impl_ffi_variant!(ref GString, string_to_variant, string_from_variant; String);
+    impl_thread_safe_arg!(GString, &GString);
     impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
+    impl_thread_safe_arg!(StringName, &StringName);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
+    impl_non_thread_safe_arg!(NodePath);
+    impl_non_thread_safe_arg!(&NodePath);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
+    impl_non_thread_safe_arg!(Signal);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
+    impl_non_thread_safe_arg!(Callable, &Callable);
+    impl_non_thread_safe_arg!([K: Element, V: Element] Dictionary<K, V>);
+    impl_non_thread_safe_arg!([K: Element, V: Element] &Dictionary<K, V>);
+    impl_non_thread_safe_arg!(AnyDictionary, &AnyDictionary);
+    impl_non_thread_safe_arg!([T: Element] Array<T>);
+    impl_non_thread_safe_arg!( [T: Element] &Array<T>);
+    impl_non_thread_safe_arg!(AnyArray, &AnyArray);
+    impl_non_thread_safe_arg!([T: PackedElement] PackedArray<T>);
+    impl_non_thread_safe_arg!([T: PackedElement] &PackedArray<T>);
+    impl_non_thread_safe_arg!(Variant, &Variant);
+    impl_thread_safe_arg!(Vector2Axis, Vector3Axis, Vector4Axis);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -206,11 +246,14 @@ mod api_4_3 {
 // - DynamicSend
 // - GodotType
 // - Element
+// - ThreadSafeArg
 const _: () = {
     use crate::classes::Object;
     use crate::obj::{Gd, IndexEnum};
 
-    const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + Element>() -> VariantType {
+    const fn variant_type<
+        T: crate::task::IntoDynamicSend + GodotType + Element + ThreadSafeArgContext,
+    >() -> VariantType {
         <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()
     }
 

@@ -40,6 +40,8 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
 
         // Marker impl: defaults derive element metadata from shape().
         impl ::godot::meta::Element for #name {}
+
+        impl ::godot::meta::ThreadSafeArg for #name {}
     })
 }
 
