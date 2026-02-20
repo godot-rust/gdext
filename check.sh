@@ -196,7 +196,7 @@ function cmd_test() {
 
 function cmd_itest() {
     findGodot && \
-        run cargo build -p itest "${extraCargoArgs[@]}" || return 1
+        run cargo build -p itest --features itest/experimental-threads --features itest/codegen-full "${extraCargoArgs[@]}" || return 1
 
     # Keep in sync with: .github/composite/godot-itest/action.yml (steps "Run Godot integration tests" and "Check for memory leaks").
 
