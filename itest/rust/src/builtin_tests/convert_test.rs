@@ -113,6 +113,7 @@ impl GodotConvert for ConvertedStruct {
 
 impl ToGodot for ConvertedStruct {
     type Pass = godot::meta::conv::ByValue;
+    type Threads = godot::meta::ThreadSafeArg;
 
     fn to_godot(&self) -> Self::Via {
         vdict! {

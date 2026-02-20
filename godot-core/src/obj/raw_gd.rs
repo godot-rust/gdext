@@ -639,6 +639,7 @@ impl<T: GodotClass> GodotConvert for RawGd<T> {
 
 impl<T: GodotClass> ToGodot for RawGd<T> {
     type Pass = meta::ByRef;
+    type Threads = <Gd<T> as ToGodot>::Threads;
 
     fn to_godot(&self) -> &Self::Via {
         self

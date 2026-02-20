@@ -166,6 +166,7 @@ pub fn make_enum_definition_with(
 
             impl crate::meta::ToGodot for #name {
                 type Pass = crate::meta::ByValue;
+                type Threads = crate::meta::ThreadSafeArg;
 
                 fn to_godot(&self) -> Self::Via {
                     <Self as #engine_trait>::ord(*self)

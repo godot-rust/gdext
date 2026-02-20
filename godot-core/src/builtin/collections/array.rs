@@ -1161,6 +1161,7 @@ impl<T: Element> GodotConvert for Array<T> {
 
 impl<T: Element> ToGodot for Array<T> {
     type Pass = meta::ByRef;
+    type Threads = meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> &Self::Via {
         self

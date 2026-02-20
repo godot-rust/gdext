@@ -16,7 +16,7 @@ use crate::builtin::{Callable, CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned, UniformObjectDeref};
-use crate::obj::{Gd, GodotClass, WithSignals};
+use crate::obj::{EngineBitfield, Gd, GodotClass, WithSignals};
 
 /// Type-safe version of a Godot signal.
 ///
@@ -186,7 +186,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         let name = self.name.as_ref();
 
         self.object.with_object_mut(|obj| {
-            obj.emit_signal(name, &args.to_variant_array());
+            obj.raw_emit_signal(name, &args.to_variant_array());
         });
     }
 
@@ -226,9 +226,11 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         let mut owned_object = self.object.to_owned_object();
         owned_object.with_object_mut(|obj| {
             if let Some(flags) = flags {
-                obj.connect_flags(signal_name, &callable, flags);
+                obj.raw_connect_ex(signal_name, &callable)
+                    .flags(flags.ord() as u32)
+                    .done();
             } else {
-                obj.connect(signal_name, &callable);
+                obj.raw_connect(signal_name, &callable);
             }
         });
 

@@ -135,15 +135,25 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
 
     use crate::framework::ThreadCrosser;
 
-    let mut object = RefCounted::new_gd();
-    let signal = Signal::from_object_signal(&object, "custom_signal");
+    #[derive(GodotClass)]
+    #[class(base = RefCounted, init)]
+    struct SignalClass {
+        base: Base<RefCounted>,
+    }
 
-    object.add_user_signal("custom_signal");
+    #[godot_api]
+    impl SignalClass {
+        #[signal]
+        fn custom_signal(arg: Gd<RefCounted>);
+    }
+
+    let object = SignalClass::new_gd();
+    let signal = object.signals().custom_signal().to_future();
 
     let handle = task::spawn(expect_async_panic(
         "future should panic when the Gd<RefCounted> is sent between threads",
         async move {
-            signal.to_future::<(Gd<RefCounted>,)>().await;
+            signal.await;
         },
     ));
 
@@ -156,14 +166,14 @@ fn signal_future_non_send_arg_panic() -> TaskHandle {
     let object = ThreadCrosser::new(object);
 
     let thread = std::thread::spawn(move || {
-        let mut object = unsafe { object.extract() };
+        let object = unsafe { object.extract() };
 
         let arg = RefCounted::new_gd();
         // Eject the RefCounted before panic explodes the thread.
         *ESCAPE_POD.lock() = Some(ThreadCrosser::new(arg.clone()));
 
-        // This will panic:
-        object.emit_signal("custom_signal", vslice![arg])
+        // This will cause a panic on the main-thread:
+        object.signals().custom_signal().emit(&arg);
     });
 
     // Wait until thread concludes, also to avoid race conditions.

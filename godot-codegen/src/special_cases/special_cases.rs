@@ -452,6 +452,9 @@ pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_n
         | ("Object", "get_script")
         | ("Object", "set_script")
 
+        // thread_safe_unchecked
+        | ("Object", "emit_signal")
+
         // u32 -> ConnectFlags
         | ("Object", "connect")
 

@@ -13,7 +13,7 @@ use crate::builtin::{AnyArray, AnyDictionary, Array, Callable, Dictionary, Strin
 use crate::classes::class_db::ApiType;
 use crate::classes::{ClassDb, RefCounted};
 use crate::meta::sealed::Sealed;
-use crate::meta::{AsArg, Element, ToGodot};
+use crate::meta::{AsArg, Element, ThreadSafeArgContext, ThreadSafeSealed, ToGodot};
 use crate::obj::bounds::{self, DynMemory as _};
 use crate::obj::{Bounds, Gd, GodotClass, Inherits, NewAlloc, NewGd, Singleton as _};
 
@@ -352,4 +352,10 @@ impl<V: Element> AsArg<Variant> for Unique<Array<V>> {
     {
         crate::meta::CowArg::Owned(self.inner.to_variant())
     }
+}
+
+impl<T: UniqueType> ThreadSafeSealed for Unique<T> {}
+
+impl<T: UniqueType> ThreadSafeArgContext for Unique<T> {
+    fn guarantee_thread_safe(&self) {}
 }
