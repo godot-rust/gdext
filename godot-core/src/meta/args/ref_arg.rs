@@ -100,6 +100,7 @@ where
     T: ToGodot,
 {
     type Pass = T::Pass;
+    type Threads = T::Threads;
 
     fn to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
         let shared_ref = self

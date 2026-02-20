@@ -518,6 +518,7 @@ impl<T: PackedElement> GodotConvert for PackedArray<T> {
 
 impl<T: PackedElement> ToGodot for PackedArray<T> {
     type Pass = meta::ByRef;
+    type Threads = meta::ManualThreadSafeArg;
 
     fn to_godot(&self) -> &Self::Via {
         self
