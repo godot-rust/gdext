@@ -266,3 +266,5 @@ impl<T: GodotClass> AsArg<Option<Gd<T>>> for Unique<Gd<T>> {
         crate::meta::CowArg::Owned(Some(self.inner))
     }
 }
+
+impl_thread_safe_arg!([T: UniqueType] Unique<T>);

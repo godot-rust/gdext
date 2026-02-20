@@ -74,6 +74,9 @@ pub struct GString {
 // SAFETY: The Godot implementation of String uses an atomic copy on write pointer, making this thread-safe as we never write to it unless we own it.
 unsafe impl Send for GString {}
 
+// SAFETY: The Godot implementation of String uses an atomic copy on write pointer, making this Send as we never write to it unless we own it.
+unsafe impl Sync for GString {}
+
 impl GString {
     /// Construct a new empty `GString`.
     pub fn new() -> Self {
