@@ -828,12 +828,12 @@ fn parse_fields(
 
         // #[export_tool_button(fn = ..., icon = "..", name = "..")]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_tool_button")? {
-            require_api_version!("4.4", parser.span(), "#[func(virtual)]")?;
+            require_api_version!("4.4", parser.span(), "#[export_tool_button]")?;
 
             if field.export.is_some() || field.var.is_some() {
                 return bail!(
                     parser.span(),
-                    "`#[export_tool_button]` is mutably exclusive with `#[export]` and `#[var]`!"
+                    "`#[export_tool_button]` is mutually exclusive with `#[export]` and `#[var]`."
                 );
             }
 

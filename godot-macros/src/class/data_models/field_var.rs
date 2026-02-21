@@ -106,26 +106,23 @@ impl FieldVar {
             };
 
             if let Some(icon) = parser.handle_literal("icon", "String")? {
-                let hint_string = format!(
-                    "{},{}",
-                    name.to_string().trim_matches('\"'),
-                    icon.to_string().trim_matches('\"')
-                );
-                hint_string.to_token_stream()
+                let unquoted_name = name.to_string().trim_matches('\"');
+                let unquoted_icon = icon.to_string().trim_matches('\"');
+                format!("{},{}", unquoted_name, unquoted_icon)
             } else {
-                name.to_token_stream()
+                name
             }
         };
 
         let Some(tool_button_fn) = parser.handle_expr("fn")? else {
             return Err(util::error!(
                 span,
-                "`#[export_tool_button]` requires `fn attribute.\n \
-                    Tip: use `#[export_tool_button(fn=...)]`"
+                "`#[export_tool_button]` requires `fn` attribute.\n  \
+                 Tip: use `#[export_tool_button(fn = ...)]`."
             ));
         };
 
-        let hint = FieldHint::new(ident("TOOL_BUTTON"), Some(hint_string));
+        let hint = FieldHint::new(ident("TOOL_BUTTON"), Some(hint_string.to_token_stream()));
         Ok(FieldVar {
             rename: None,
             getter: GetterSetter::ToolButton(ToolButtonFn(tool_button_fn)),

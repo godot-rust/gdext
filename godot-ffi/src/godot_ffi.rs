@@ -325,7 +325,7 @@ macro_rules! ffi_methods_rest {
 ///   Implements FFI methods for a type implemented with standard Rust fields (not opaque).
 ///   The address of `Self` is directly reinterpreted as the sys pointer.
 ///   The size of the corresponding sys type (the `N` in `Opaque*<N>`) must not be bigger than `size_of::<Self>()`.
-///   This cannot be checked easily, because Self cannot be used in size_of(). There would of course be workarounds.
+///   This cannot be checked easily, because Self cannot be used in size_of(). There would certainly be workarounds.
 ///
 /// Using this macro as a complete implementation for [`GodotFfi`] is sound only when:
 ///

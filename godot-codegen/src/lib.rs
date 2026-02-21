@@ -167,7 +167,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
     // Deallocate all the JSON models; no longer needed for codegen.
     // drop(json_api);
 
-    // Class files -- currently output in godot-core; could maybe be separated cleaner
+    // Class files -- currently output in godot-core; could maybe be separated more cleanly.
     // Note: deletes entire generated directory!
     generate_class_files(
         &api,

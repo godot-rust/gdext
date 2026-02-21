@@ -279,7 +279,7 @@ pub fn is_cfg_or_cfg_attr(attr: &venial::Attribute) -> bool {
         return true;
     }
 
-    // #[cfg_attr(condition, attributes...)]. Multiple attributes can be seperated by comma.
+    // #[cfg_attr(condition, attributes...)]. Multiple attributes can be separated by comma.
     if attr_name == "cfg_attr" && attr.value.to_token_stream().to_string().contains("cfg(") {
         return true;
     }

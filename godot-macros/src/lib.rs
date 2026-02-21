@@ -491,7 +491,7 @@ use crate::util::{KvParser, bail, ident};
 /// }
 /// ```
 ///
-/// This feature requires at least Godot 4.3.
+/// This feature requires at least Godot 4.4.
 ///
 /// See also in Godot docs:
 /// [`@export_tool_button`](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html#export-tool-button)
