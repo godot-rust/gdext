@@ -9,7 +9,7 @@ use godot_ffi::VariantType;
 
 use crate::builtin::{GString, StringName};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{ArrayElement, ClassId, GodotType, PackedArrayElement, element_godot_type_name};
+use crate::meta::{ClassId, Element, GodotType, PackedElement, element_godot_type_name};
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
 use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
@@ -192,7 +192,7 @@ impl PropertyInfo {
 
     pub(crate) fn is_array_of_elem<T>(&self) -> bool
     where
-        T: ArrayElement,
+        T: Element,
     {
         self.variant_type == VariantType::ARRAY
             && self.hint_info.hint == PropertyHint::ARRAY_TYPE
@@ -359,7 +359,7 @@ impl PropertyHintInfo {
     }
 
     /// Use for `#[var]` properties -- [`PROPERTY_HINT_ARRAY_TYPE`](PropertyHint::ARRAY_TYPE) with the type name as hint string.
-    pub fn var_array_element<T: ArrayElement>() -> Self {
+    pub fn var_array_element<T: Element>() -> Self {
         Self {
             hint: PropertyHint::ARRAY_TYPE,
             hint_string: GString::from(&element_godot_type_name::<T>()),
@@ -367,7 +367,7 @@ impl PropertyHintInfo {
     }
 
     /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
-    pub fn export_array_element<T: ArrayElement>() -> Self {
+    pub fn export_array_element<T: Element>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
             hint_string: GString::from(&T::element_type_string()),
@@ -377,7 +377,7 @@ impl PropertyHintInfo {
     /// Use for `#[var]` properties on Godot 4.4+ -- [`PROPERTY_HINT_DICTIONARY_TYPE`](PropertyHint::DICTIONARY_TYPE) with
     /// `"key_type;value_type"` as hint string.
     #[cfg(since_api = "4.4")]
-    pub fn var_dictionary_element<K: ArrayElement, V: ArrayElement>() -> Self {
+    pub fn var_dictionary_element<K: Element, V: Element>() -> Self {
         Self {
             hint: PropertyHint::DICTIONARY_TYPE,
             hint_string: godot_str!(
@@ -391,7 +391,7 @@ impl PropertyHintInfo {
     /// Use for `#[export]` properties on Godot 4.4+ -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with
     /// `"key_type_string;value_type_string"` as hint string.
     #[cfg(since_api = "4.4")]
-    pub fn export_dictionary_element<K: ArrayElement, V: ArrayElement>() -> Self {
+    pub fn export_dictionary_element<K: Element, V: Element>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
             hint_string: godot_str!("{};{}", K::element_type_string(), V::element_type_string()),
@@ -399,7 +399,7 @@ impl PropertyHintInfo {
     }
 
     /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
-    pub fn export_packed_array_element<T: PackedArrayElement>() -> Self {
+    pub fn export_packed_array_element<T: PackedElement>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
             hint_string: GString::from(&T::element_type_string()),

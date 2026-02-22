@@ -408,7 +408,7 @@ where
 /// # Example
 /// ```
 /// use godot::prelude::*;
-/// use godot::meta::{ArrayElement, owned_into_arg};
+/// use godot::meta::{Element, owned_into_arg};
 ///
 /// // Creates random values, e.g. for fuzzing, property-based testing, etc.
 /// // Assume global state for simplicity.
@@ -418,7 +418,7 @@ where
 ///
 /// fn fill_randomly<T>(arr: &mut Array<T>, count: usize)
 /// where
-///     T: ArrayElement + ToGodot + Generator,
+///     T: Element + ToGodot + Generator,
 /// {
 ///     for _ in 0..count {
 ///         let value = T::next();
@@ -442,12 +442,12 @@ where
 /// # Example
 /// ```
 /// use godot::prelude::*;
-/// use godot::meta::{ArrayElement, ref_to_arg};
+/// use godot::meta::{Element, ref_to_arg};
 ///
 /// // Could use `impl AsArg<T>` and forward it, but let's demonstrate `&T` here.
 /// fn log_and_push<T>(arr: &mut Array<T>, value: &T)
 /// where
-///     T: ArrayElement + ToGodot + std::fmt::Debug,
+///     T: Element + ToGodot + std::fmt::Debug,
 /// {
 ///     println!("Add value: {value:?}");
 ///     arr.push(ref_to_arg(value));
@@ -965,7 +965,7 @@ impl_varg_variant!(ref_to_variant [] StringName);
 impl_varg_variant!(ref_to_variant [] NodePath);
 impl_varg_variant!(ref_to_variant [] Callable);
 impl_varg_variant!(ref_to_variant [] Signal);
-impl_varg_variant!(ref_to_variant [T: meta::ArrayElement] crate::builtin::Array<T>);
-impl_varg_variant!(ref_to_variant [K: meta::ArrayElement, V: meta::ArrayElement] crate::builtin::Dictionary<K, V>);
-impl_varg_variant!(ref_to_variant [T: meta::PackedArrayElement] crate::builtin::PackedArray<T>);
+impl_varg_variant!(ref_to_variant [T: meta::Element] crate::builtin::Array<T>);
+impl_varg_variant!(ref_to_variant [K: meta::Element, V: meta::Element] crate::builtin::Dictionary<K, V>);
+impl_varg_variant!(ref_to_variant [T: meta::PackedElement] crate::builtin::PackedArray<T>);
 impl_varg_variant!(ref_to_variant [T: GodotClass] Gd<T>);

@@ -17,9 +17,8 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{
-    ArrayElement, AsVArg, ElementType, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+    AsVArg, Element, ElementType, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
-use crate::registry::property::SimpleVar;
 
 /// Covariant `Dictionary` that can be typed or untyped.
 ///
@@ -46,6 +45,11 @@ use crate::registry::property::SimpleVar;
 /// ## Conversions
 /// - Use [`try_cast_dictionary::<K, V>()`][Self::try_cast_dictionary] to convert to a typed `Dictionary<K, V>`.
 /// - Use [`try_cast_var_dictionary()`][Self::try_cast_var_dictionary] to convert to an untyped `VarDictionary`.
+///
+/// ## `#[var]` and `#[export]`
+/// `AnyDictionary` intentionally does not implement `Var` or `Export` traits, so you cannot use it in properties. GDScript and the editor would
+/// treat this type as untyped `Dictionary`, which would break type safety if the dictionary is typed at runtime. Instead, use `VarDictionary`
+/// or `Dictionary<K, V>` directly.
 #[derive(PartialEq)]
 #[repr(transparent)] // Guarantees same layout as VarDictionary, enabling Deref from Dictionary<K, V> (K/V have no influence on layout).
 pub struct AnyDictionary {
@@ -53,9 +57,7 @@ pub struct AnyDictionary {
 }
 
 impl AnyDictionary {
-    pub(super) fn from_typed_or_untyped<K: ArrayElement, V: ArrayElement>(
-        dict: Dictionary<K, V>,
-    ) -> Self {
+    pub(super) fn from_typed_or_untyped<K: Element, V: Element>(dict: Dictionary<K, V>) -> Self {
         // SAFETY: Dictionary<Variant, Variant> is not accessed as such, but immediately wrapped in AnyDictionary.
         let inner = unsafe { std::mem::transmute::<Dictionary<K, V>, VarDictionary>(dict) };
 
@@ -212,7 +214,7 @@ impl AnyDictionary {
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     pub fn iter_shared(&self) -> Iter<'_> {
-        self.dict.iter_shared()
+        Iter::new(self)
     }
 
     /// Returns an iterator over the keys in the `Dictionary`.
@@ -223,7 +225,7 @@ impl AnyDictionary {
     /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     pub fn keys_shared(&self) -> Keys<'_> {
-        self.dict.keys_shared()
+        Keys::new(self)
     }
 
     /// Turns the dictionary into a shallow-immutable dictionary.
@@ -261,7 +263,6 @@ impl AnyDictionary {
         self.dict.value_element_type()
     }
 
-    // TODO(v0.5): rename to `as_inner_unchecked` for consistency; `_mut` is misleading since receiver is `&self`.
     /// # Safety
     /// Must not be used for any "input" operations, moving elements into the dictionary -- this would break covariance.
     #[doc(hidden)]
@@ -279,9 +280,7 @@ impl AnyDictionary {
     ///
     /// Consumes `self`, to avoid incrementing reference-count and to be only callable on `AnyDictionary`, not `Dictionary`.
     /// Use `clone()` if you need to keep the original.
-    pub fn try_cast_dictionary<K: ArrayElement, V: ArrayElement>(
-        self,
-    ) -> Result<Dictionary<K, V>, Self> {
+    pub fn try_cast_dictionary<K: Element, V: Element>(self) -> Result<Dictionary<K, V>, Self> {
         let from_key_type = self.dict.key_element_type();
         let from_value_type = self.dict.value_element_type();
         let to_key_type = ElementType::of::<K>();
@@ -312,7 +311,7 @@ impl AnyDictionary {
     ///
     /// # Panics
     /// If the dictionary's dynamic key or value types do not match `K` and `V`.
-    pub fn cast_dictionary<K: ArrayElement, V: ArrayElement>(self) -> Dictionary<K, V> {
+    pub fn cast_dictionary<K: Element, V: Element>(self) -> Dictionary<K, V> {
         let from_key = self.key_element_type();
         let from_value = self.value_element_type();
         self.try_cast_dictionary::<K, V>().unwrap_or_else(|_| {
@@ -376,7 +375,7 @@ impl Clone for AnyDictionary {
 
 impl meta::sealed::Sealed for AnyDictionary {}
 
-impl ArrayElement for AnyDictionary {}
+impl Element for AnyDictionary {}
 
 impl GodotConvert for AnyDictionary {
     type Via = Self;
@@ -399,11 +398,6 @@ impl meta::FromGodot for AnyDictionary {
         Ok(via)
     }
 }
-
-// TODO(v0.5): reconsider whether AnyDictionary should implement SimpleVar (and thus Var + Export).
-// It allows exporting AnyDictionary as a property, but VarDictionary already serves that purpose.
-// AnyArray has the same pattern -- if changed, update both.
-impl SimpleVar for AnyDictionary {}
 
 impl fmt::Debug for AnyDictionary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

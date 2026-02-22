@@ -11,7 +11,7 @@ use crate::builtin::{Array, Variant};
 use crate::meta;
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError};
 use crate::meta::{
-    ArrayElement, ClassId, FromGodot, GodotConvert, GodotNullableFfi, GodotType, PropertyHintInfo,
+    ClassId, Element, FromGodot, GodotConvert, GodotNullableFfi, GodotType, PropertyHintInfo,
     PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
@@ -206,7 +206,7 @@ macro_rules! impl_godot_scalar {
         }
 
         // For integer types, we can validate the conversion.
-        impl ArrayElement for $T {
+        impl Element for $T {
             fn debug_validate_elements(array: &Array<Self>) -> Result<(), ConvertError> {
                 array.debug_validate_int_elements()
             }
@@ -236,7 +236,7 @@ macro_rules! impl_godot_scalar {
         }
 
         // For f32, conversion from f64 is lossy but will always succeed. Thus no debug validation needed.
-        impl ArrayElement for $T {}
+        impl Element for $T {}
 
         impl_godot_scalar!(@shared_traits; $T);
     };
@@ -278,7 +278,7 @@ meta::impl_godot_as_self!(i64: ByValue);
 meta::impl_godot_as_self!(f64: ByValue);
 meta::impl_godot_as_self!((): ByValue);
 
-// Also implements ArrayElement.
+// Also implements Element.
 impl_godot_scalar!(
     i8 as i64,
     FromFfiError::I8,
@@ -367,11 +367,11 @@ impl meta::EngineFromGodot for u64 {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Collections
 
-impl<T: ArrayElement> GodotConvert for Vec<T> {
+impl<T: Element> GodotConvert for Vec<T> {
     type Via = Array<T>;
 }
 
-impl<T: ArrayElement> ToGodot for Vec<T> {
+impl<T: Element> ToGodot for Vec<T> {
     type Pass = meta::ByValue;
 
     fn to_godot(&self) -> Self::Via {
@@ -379,17 +379,17 @@ impl<T: ArrayElement> ToGodot for Vec<T> {
     }
 }
 
-impl<T: ArrayElement> FromGodot for Vec<T> {
+impl<T: Element> FromGodot for Vec<T> {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         Ok(via.iter_shared().collect())
     }
 }
 
-impl<T: ArrayElement, const LEN: usize> GodotConvert for [T; LEN] {
+impl<T: Element, const LEN: usize> GodotConvert for [T; LEN] {
     type Via = Array<T>;
 }
 
-impl<T: ArrayElement, const LEN: usize> ToGodot for [T; LEN] {
+impl<T: Element, const LEN: usize> ToGodot for [T; LEN] {
     type Pass = meta::ByValue;
 
     fn to_godot(&self) -> Self::Via {
@@ -397,7 +397,7 @@ impl<T: ArrayElement, const LEN: usize> ToGodot for [T; LEN] {
     }
 }
 
-impl<T: ArrayElement, const LEN: usize> FromGodot for [T; LEN] {
+impl<T: Element, const LEN: usize> FromGodot for [T; LEN] {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         let via_len = via.len(); // Caching this avoids an FFI call
         if via_len != LEN {
@@ -425,11 +425,11 @@ impl<T: ArrayElement, const LEN: usize> FromGodot for [T; LEN] {
     }
 }
 
-impl<T: ArrayElement> GodotConvert for &[T] {
+impl<T: Element> GodotConvert for &[T] {
     type Via = Array<T>;
 }
 
-impl<T: ArrayElement> ToGodot for &[T] {
+impl<T: Element> ToGodot for &[T] {
     type Pass = meta::ByValue;
 
     fn to_godot(&self) -> Self::Via {

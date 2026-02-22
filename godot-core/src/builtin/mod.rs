@@ -90,7 +90,7 @@ pub mod iter {
 }
 
 pub(crate) mod meta_reexport {
-    pub use super::collections::PackedArrayElement;
+    pub use super::collections::PackedElement;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

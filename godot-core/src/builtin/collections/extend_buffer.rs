@@ -19,7 +19,7 @@ use crate::sys;
 ///
 /// The public API is implemented via the trait [`ExtendBufferTrait<T>`]. This is a necessity for generic programming, since Rust does not
 /// permit using the const-generic `N` in generic functions.
-#[doc(hidden)] // Public; used in associated type [`PackedArrayElement::ExtendBuffer`][crate::meta::PackedArrayElement::ExtendBuffer].
+#[doc(hidden)] // Public; used in associated type [`PackedElement::ExtendBuffer`][crate::meta::PackedElement::ExtendBuffer].
 pub struct ExtendBuffer<T, const N: usize> {
     buf: [MaybeUninit<T>; N],
     len: usize,
@@ -131,7 +131,7 @@ fn test_extend_buffer_drop() {
 ///
 /// This is necessary because Rust can currently not use `N` const-generic in a generic function:
 /// `error[E0401]: can't use generic parameters from outer item`
-#[doc(hidden)] // Public; used in associated type [`PackedArrayElement::ExtendBuffer`][crate::meta::PackedArrayElement::ExtendBuffer].
+#[doc(hidden)] // Public; used in associated type [`PackedElement::ExtendBuffer`][crate::meta::PackedElement::ExtendBuffer].
 pub trait ExtendBufferTrait<T> {
     fn push(&mut self, value: T);
     fn is_full(&self) -> bool;

@@ -10,7 +10,7 @@ use std::fmt;
 use crate::builtin::VariantType;
 use crate::classes::Script;
 use crate::meta::traits::{GodotType, element_variant_type};
-use crate::meta::{ArrayElement, ClassId};
+use crate::meta::{ClassId, Element};
 use crate::obj::{Gd, InstanceId};
 
 /// Dynamic type information of Godot arrays and dictionaries.
@@ -43,7 +43,7 @@ pub enum ElementType {
 
 impl ElementType {
     /// Build element type info for a compile-time element `T`.
-    pub fn of<T: ArrayElement>() -> Self {
+    pub fn of<T: Element>() -> Self {
         let variant_type = element_variant_type::<T>();
         if variant_type == VariantType::NIL {
             ElementType::Untyped

@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::{Array, Callable, VarArray, Variant, to_usize};
-use crate::meta::{ArrayElement, AsArg};
+use crate::meta::{AsArg, Element};
 use crate::{meta, sys};
 
 /// Immutable, functional-programming operations for `Array`, based on Godot callables.
@@ -24,11 +24,11 @@ use crate::{meta, sys};
 ///
 /// In many cases, it is thus better to use [`Array::iter_shared()`] combined with iterator adapters. Check the individual method docs of
 /// this struct for concrete alternatives.
-pub struct ArrayFunctionalOps<'a, T: ArrayElement> {
+pub struct ArrayFunctionalOps<'a, T: Element> {
     array: &'a Array<T>,
 }
 
-impl<'a, T: ArrayElement> ArrayFunctionalOps<'a, T> {
+impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     pub(super) fn new(owner: &'a Array<T>) -> Self {
         Self { array: owner }
     }

@@ -631,7 +631,7 @@ where
 }
 */
 
-impl<T, D> meta::ArrayElement for DynGd<T, D>
+impl<T, D> meta::Element for DynGd<T, D>
 where
     T: GodotClass,
     D: ?Sized + 'static,
@@ -642,7 +642,7 @@ where
     }
 }
 
-impl<T, D> meta::ArrayElement for Option<DynGd<T, D>>
+impl<T, D> meta::Element for Option<DynGd<T, D>>
 where
     T: GodotClass,
     D: ?Sized + 'static,

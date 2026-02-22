@@ -12,9 +12,7 @@ use crate::builtin::*;
 use crate::global;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::sealed::Sealed;
-use crate::meta::{
-    ArrayElement, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo, RefArg,
-};
+use crate::meta::{Element, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo, RefArg};
 use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_send};
 
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
@@ -84,7 +82,7 @@ macro_rules! impl_ffi_variant {
             impl_ffi_variant!(@godot_type_name $T $(, $GodotTy)?);
         }
 
-        impl ArrayElement for $T {}
+        impl Element for $T {}
     };
 
     (@godot_type_name $T:ty) => {
@@ -157,16 +155,16 @@ mod impls {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Async trait support
 
-impl<T: ArrayElement> Sealed for ThreadConfined<Array<T>> {}
+impl<T: Element> Sealed for ThreadConfined<Array<T>> {}
 
-unsafe impl<T: ArrayElement> DynamicSend for ThreadConfined<Array<T>> {
+unsafe impl<T: Element> DynamicSend for ThreadConfined<Array<T>> {
     type Inner = Array<T>;
     fn extract_if_safe(self) -> Option<Self::Inner> {
         self.extract()
     }
 }
 
-impl<T: ArrayElement> IntoDynamicSend for Array<T> {
+impl<T: Element> IntoDynamicSend for Array<T> {
     type Target = ThreadConfined<Array<T>>;
     fn into_dynamic_send(self) -> Self::Target {
         ThreadConfined::new(self)
@@ -222,13 +220,12 @@ mod api_4_3 {
 // - IntoDynamicSend
 // - DynamicSend
 // - GodotType
-// - ArrayElement
+// - Element
 const _: () = {
     use crate::classes::Object;
     use crate::obj::{Gd, IndexEnum};
 
-    const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + ArrayElement>()
-    -> VariantType {
+    const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + Element>() -> VariantType {
         <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()
     }
 

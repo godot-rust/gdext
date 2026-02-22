@@ -10,7 +10,7 @@
 // To ensure the user does not implement `GodotType` for their own types.
 use crate::builtin::*;
 use crate::meta;
-use crate::meta::traits::{ArrayElement, GodotNullableFfi, GodotType};
+use crate::meta::traits::{Element, GodotNullableFfi, GodotType};
 use crate::obj::{DynGd, Gd, GodotClass, RawGd};
 
 pub trait Sealed {}
@@ -35,7 +35,7 @@ impl Sealed for NodePath {}
 use crate::builtin::PackedArray;
 
 // Implement Sealed for the generic PackedArray<T> type.
-impl<T: meta::PackedArrayElement> Sealed for PackedArray<T> {}
+impl<T: meta::PackedElement> Sealed for PackedArray<T> {}
 impl Sealed for Plane {}
 impl Sealed for Projection {}
 impl Sealed for Rid {}
@@ -57,7 +57,7 @@ impl Sealed for f64 {}
 impl Sealed for f32 {}
 impl Sealed for () {}
 impl Sealed for Variant {}
-impl<T: ArrayElement> Sealed for Array<T> {}
+impl<T: Element> Sealed for Array<T> {}
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> Sealed for RawGd<T> {}
 impl<T: GodotClass, D: ?Sized> Sealed for DynGd<T, D> {}
