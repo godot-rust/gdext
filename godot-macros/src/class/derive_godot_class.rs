@@ -827,7 +827,7 @@ fn parse_fields(
             if field.export.is_some() || field.var.is_some() {
                 return bail!(
                     parser.span(),
-                    "`#[export_tool_button]` is mutably exclusive with `#[export]` and `#[var]`!"
+                    "`#[export_tool_button]` is mutually exclusive with `#[export]` and `#[var]`."
                 );
             }
 
