@@ -140,7 +140,7 @@ fn make_builtin_class(
         pub(super) mod re_export {
             use super::*;
 
-            // Do *not* try to limit visibility, because inner types are used in PackedArrayElement::Inner<'a> associated type.
+            // Do *not* try to limit visibility, because inner types are used in PackedElement::Inner<'a> associated type.
             // Need to redesign that trait otherwise, and split into private/public parts.
             #[doc(hidden)]
             #[repr(transparent)]
@@ -219,7 +219,7 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
         quote! {
             pub fn from_outer_typed<T>(outer: &Array<T>) -> Self
                 where
-                    T: crate::meta::ArrayElement
+                    T: crate::meta::Element
             {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,
@@ -231,8 +231,8 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
         quote! {
             pub fn from_outer_typed<K, V>(outer: &Dictionary<K, V>) -> Self
                 where
-                    K: crate::meta::ArrayElement,
-                    V: crate::meta::ArrayElement,
+                    K: crate::meta::Element,
+                    V: crate::meta::Element,
             {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,

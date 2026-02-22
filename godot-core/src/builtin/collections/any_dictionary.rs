@@ -17,7 +17,7 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{
-    ArrayElement, AsVArg, ElementType, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+    AsVArg, Element, ElementType, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
 use crate::registry::property::SimpleVar;
 
@@ -53,9 +53,7 @@ pub struct AnyDictionary {
 }
 
 impl AnyDictionary {
-    pub(super) fn from_typed_or_untyped<K: ArrayElement, V: ArrayElement>(
-        dict: Dictionary<K, V>,
-    ) -> Self {
+    pub(super) fn from_typed_or_untyped<K: Element, V: Element>(dict: Dictionary<K, V>) -> Self {
         // SAFETY: Dictionary<Variant, Variant> is not accessed as such, but immediately wrapped in AnyDictionary.
         let inner = unsafe { std::mem::transmute::<Dictionary<K, V>, VarDictionary>(dict) };
 
@@ -278,9 +276,7 @@ impl AnyDictionary {
     ///
     /// Consumes `self`, to avoid incrementing reference-count and to be only callable on `AnyDictionary`, not `Dictionary`.
     /// Use `clone()` if you need to keep the original.
-    pub fn try_cast_dictionary<K: ArrayElement, V: ArrayElement>(
-        self,
-    ) -> Result<Dictionary<K, V>, Self> {
+    pub fn try_cast_dictionary<K: Element, V: Element>(self) -> Result<Dictionary<K, V>, Self> {
         let from_key_type = self.dict.key_element_type();
         let from_value_type = self.dict.value_element_type();
         let to_key_type = ElementType::of::<K>();
@@ -311,7 +307,7 @@ impl AnyDictionary {
     ///
     /// # Panics
     /// If the dictionary's dynamic key or value types do not match `K` and `V`.
-    pub fn cast_dictionary<K: ArrayElement, V: ArrayElement>(self) -> Dictionary<K, V> {
+    pub fn cast_dictionary<K: Element, V: Element>(self) -> Dictionary<K, V> {
         let from_key = self.key_element_type();
         let from_value = self.value_element_type();
         self.try_cast_dictionary::<K, V>().unwrap_or_else(|_| {
@@ -375,7 +371,7 @@ impl Clone for AnyDictionary {
 
 impl meta::sealed::Sealed for AnyDictionary {}
 
-impl ArrayElement for AnyDictionary {}
+impl Element for AnyDictionary {}
 
 impl GodotConvert for AnyDictionary {
     type Via = Self;

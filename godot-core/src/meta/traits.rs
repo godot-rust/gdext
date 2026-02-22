@@ -21,7 +21,7 @@ use crate::registry::property::builtin_type_string;
 #[rustfmt::skip] // Do not reorder.
 pub use sys::{ExtVariantType, GodotFfi, GodotNullableFfi};
 
-pub use crate::builtin::meta_reexport::PackedArrayElement;
+pub use crate::builtin::meta_reexport::PackedElement;
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
 #[doc(hidden)]
@@ -185,18 +185,18 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 /// consider using packed arrays (e.g. `PackedByteArray`) instead.
 //
 #[diagnostic::on_unimplemented(
-    message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
+    message = "Element type not supported in Godot collections (no nesting).",
     label = "has invalid element type"
 )]
-pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + 'static {
-    // Note: several indirections in `ArrayElement` and the global `element_*` functions go through `GodotConvert::Via`,
+pub trait Element: ToGodot + FromGodot + sealed::Sealed + 'static {
+    // Note: several indirections in `Element` and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).
 
     /// Returns the representation of this type as a type string, e.g. `"4:"` for string, or `"24:34/MyClass"` for objects.
     ///
     /// (`4` and `24` are variant type ords; `34` is `PropertyHint::NODE_TYPE` ord).
     ///
-    /// Used for elements in arrays (the latter despite `ArrayElement` not having a direct relation).
+    /// Used for elements in arrays (the latter despite `Element` not having a direct relation).
     ///
     /// See [`PropertyHint::TYPE_STRING`] and
     /// [upstream docs](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint).
@@ -217,7 +217,7 @@ pub trait ArrayElement: ToGodot + FromGodot + sealed::Sealed + 'static {
 // Non-polymorphic helper functions, to avoid constant `<T::Via as GodotType>::` in the code.
 
 #[doc(hidden)]
-pub(crate) const fn element_variant_type<T: ArrayElement>() -> VariantType {
+pub(crate) const fn element_variant_type<T: Element>() -> VariantType {
     <T::Via as GodotType>::Ffi::VARIANT_TYPE.variant_as_nil()
 }
 
@@ -228,12 +228,12 @@ pub(crate) const fn ffi_variant_type<T: GodotConvert>() -> ExtVariantType {
 }
 
 #[doc(hidden)]
-pub(crate) fn element_godot_type_name<T: ArrayElement>() -> String {
+pub(crate) fn element_godot_type_name<T: Element>() -> String {
     <T::Via as GodotType>::godot_type_name()
 }
 
 // #[doc(hidden)]
-// pub(crate)  fn element_godot_type_name<T: ArrayElement>() -> String {
+// pub(crate)  fn element_godot_type_name<T: Element>() -> String {
 //     <T::Via as GodotType>::godot_type_name()
 // }
 
@@ -267,7 +267,7 @@ pub unsafe trait GodotImmutable: GodotConvert + Sized {
 mod godot_immutable_impls {
     use super::GodotImmutable;
     use crate::builtin::*;
-    use crate::meta::ArrayElement;
+    use crate::meta::Element;
 
     unsafe impl GodotImmutable for bool {}
     unsafe impl GodotImmutable for i8 {}
@@ -314,7 +314,7 @@ mod godot_immutable_impls {
 
     unsafe impl<T> GodotImmutable for Array<T>
     where
-        T: GodotImmutable + ArrayElement,
+        T: GodotImmutable + Element,
     {
         fn into_runtime_immutable(self) -> Self {
             self.into_read_only()

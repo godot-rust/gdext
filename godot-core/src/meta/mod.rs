@@ -77,7 +77,7 @@ pub use signature::trace;
 #[doc(hidden)]
 pub use signature::*;
 pub use signed_range::{SignedRange, wrapped};
-pub use traits::{ArrayElement, GodotImmutable, GodotType, PackedArrayElement};
+pub use traits::{Element, GodotImmutable, GodotType, PackedElement};
 pub use uniform_object_deref::UniformObjectDeref;
 
 // Public due to signals emit() needing it. Should be made pub(crate) again if that changes.

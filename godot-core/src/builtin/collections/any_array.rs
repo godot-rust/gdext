@@ -15,7 +15,7 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{
-    ArrayElement, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+    Element, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
 use crate::registry::property::SimpleVar;
 
@@ -48,7 +48,7 @@ pub struct AnyArray {
 }
 
 impl AnyArray {
-    pub(super) fn from_typed_or_untyped<T: ArrayElement>(array: Array<T>) -> Self {
+    pub(super) fn from_typed_or_untyped<T: Element>(array: Array<T>) -> Self {
         // SAFETY: Array<Variant> is not accessed as such, but immediately wrapped in AnyArray.
         let inner = unsafe { array.assume_type::<Variant>() };
 
@@ -416,7 +416,7 @@ impl AnyArray {
     /// Consumes `self`, to avoid incrementing reference-count. Use `clone()` if you need to keep the original. Using `self` also has the nice
     /// side effect that this method cannot be called on concrete `Array<T>` types, as `Deref` only operates on references, not values.
     // Naming: not `try_into_typed` because T can be Variant.
-    pub fn try_cast_array<T: ArrayElement>(self) -> Result<Array<T>, Self> {
+    pub fn try_cast_array<T: Element>(self) -> Result<Array<T>, Self> {
         let from_type = self.array.element_type();
         let to_type = ElementType::of::<T>();
 
@@ -450,7 +450,7 @@ impl AnyArray {
     ///
     /// # Panics
     /// If the array's dynamic element type does not match `T`.
-    pub(crate) fn cast_array<T: ArrayElement>(self) -> Array<T> {
+    pub(crate) fn cast_array<T: Element>(self) -> Array<T> {
         let from_type = self.element_type();
         self.try_cast_array::<T>().unwrap_or_else(|_| {
             panic!(
@@ -513,7 +513,7 @@ impl Clone for AnyArray {
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
 impl meta::sealed::Sealed for AnyArray {}
 
-impl ArrayElement for AnyArray {}
+impl Element for AnyArray {}
 
 impl GodotConvert for AnyArray {
     type Via = Self;

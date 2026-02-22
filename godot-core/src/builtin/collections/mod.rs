@@ -37,4 +37,4 @@ pub(crate) mod iterators {
 }
 
 // Re-export in godot::meta.
-pub use packed_array_element::PackedArrayElement;
+pub use packed_array_element::PackedElement;

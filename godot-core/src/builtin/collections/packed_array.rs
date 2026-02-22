@@ -20,7 +20,7 @@ use crate::builtin::*;
 use crate::classes::file_access::CompressionMode;
 use crate::meta;
 use crate::meta::signed_range::SignedRange;
-use crate::meta::{AsArg, FromGodot, GodotConvert, PackedArrayElement, ToGodot};
+use crate::meta::{AsArg, FromGodot, GodotConvert, PackedElement, ToGodot};
 use crate::obj::EngineEnum;
 use crate::registry::property::{Export, SimpleVar};
 
@@ -59,7 +59,7 @@ pub type PackedColorArray = PackedArray<Color>;
 /// of the original. Under the hood, Godot uses copy-on-write, so copies are still cheap to make.
 ///
 /// # Type aliases
-/// This generic type can be instantiated for a finite number of element types, which all implement [`PackedArrayElement`].  \
+/// This generic type can be instantiated for a finite number of element types, which all implement [`PackedElement`].  \
 /// Here is the exhaustive list:
 ///
 /// | Type alias             | Element     | Godot docs                              |
@@ -90,13 +90,13 @@ pub type PackedColorArray = PackedArray<Color>;
 ///
 /// # Element type and conversions
 /// See the [corresponding section in `Array`](struct.Array.html#conversions-between-arrays).
-pub struct PackedArray<T: PackedArrayElement> {
+pub struct PackedArray<T: PackedElement> {
     // All packed arrays have same memory layout.
     opaque: sys::types::OpaquePackedByteArray,
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<T: PackedArrayElement> PackedArray<T> {
+impl<T: PackedElement> PackedArray<T> {
     fn from_opaque(opaque: sys::types::OpaquePackedByteArray) -> Self {
         Self {
             opaque,
@@ -347,7 +347,7 @@ impl<T: PackedArrayElement> PackedArray<T> {
     // Must remain internal. godot-rust convention is to use to_*, into_*, cast* for conversions between types of the library.
     pub(crate) fn from_typed_array(array: &Array<T>) -> Self
     where
-        T: meta::ArrayElement,
+        T: meta::Element,
     {
         unsafe {
             Self::new_with_uninit(|self_ptr| {
@@ -366,7 +366,7 @@ impl<T: PackedArrayElement> PackedArray<T> {
     // Naming: not called to_array() because the result is NEVER untyped, as it's impossible to have T=Variant.
     pub fn to_typed_array(&self) -> Array<T>
     where
-        T: meta::ArrayElement, // Could technically be a subtrait of PackedArrayElement; for now they're unrelated.
+        T: meta::Element, // Could technically be a subtrait of PackedElement; for now they're unrelated.
     {
         // TODO(v0.5) use iterators once available.
         self.as_slice().iter().cloned().collect()
@@ -466,7 +466,7 @@ impl<T: PackedArrayElement> PackedArray<T> {
 }
 
 // Generic trait implementations for PackedArray<T> using PackedTraits delegation
-impl<T: PackedArrayElement> Default for PackedArray<T> {
+impl<T: PackedElement> Default for PackedArray<T> {
     fn default() -> Self {
         unsafe {
             Self::new_with_uninit(|self_ptr| {
@@ -476,7 +476,7 @@ impl<T: PackedArrayElement> Default for PackedArray<T> {
     }
 }
 
-impl<T: PackedArrayElement> Clone for PackedArray<T> {
+impl<T: PackedElement> Clone for PackedArray<T> {
     fn clone(&self) -> Self {
         unsafe {
             Self::new_with_uninit(|self_ptr| {
@@ -486,32 +486,32 @@ impl<T: PackedArrayElement> Clone for PackedArray<T> {
     }
 }
 
-impl<T: PackedArrayElement> Drop for PackedArray<T> {
+impl<T: PackedElement> Drop for PackedArray<T> {
     fn drop(&mut self) {
         unsafe { T::ffi_destroy(self.sys_mut()) };
     }
 }
 
-impl<T: PackedArrayElement> PartialEq for PackedArray<T> {
+impl<T: PackedElement> PartialEq for PackedArray<T> {
     fn eq(&self, other: &Self) -> bool {
         unsafe { T::ffi_equals(self.sys(), other.sys()) }
     }
 }
 
-impl<T: PackedArrayElement> Eq for PackedArray<T> {}
+impl<T: PackedElement> Eq for PackedArray<T> {}
 
-unsafe impl<T: PackedArrayElement> GodotFfi for PackedArray<T> {
+unsafe impl<T: PackedElement> GodotFfi for PackedArray<T> {
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(T::VARIANT_TYPE);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 // Generic trait implementations for PackedArray<T>
-impl<T: PackedArrayElement> GodotConvert for PackedArray<T> {
+impl<T: PackedElement> GodotConvert for PackedArray<T> {
     type Via = Self;
 }
 
-impl<T: PackedArrayElement> ToGodot for PackedArray<T> {
+impl<T: PackedElement> ToGodot for PackedArray<T> {
     type Pass = meta::ByRef;
 
     fn to_godot(&self) -> &Self::Via {
@@ -519,15 +519,15 @@ impl<T: PackedArrayElement> ToGodot for PackedArray<T> {
     }
 }
 
-impl<T: PackedArrayElement> FromGodot for PackedArray<T> {
+impl<T: PackedElement> FromGodot for PackedArray<T> {
     fn try_from_godot(via: Self::Via) -> Result<Self, meta::error::ConvertError> {
         Ok(via)
     }
 }
 
-impl<T: PackedArrayElement> meta::ArrayElement for PackedArray<T> {}
+impl<T: PackedElement> meta::Element for PackedArray<T> {}
 
-impl<T: PackedArrayElement> meta::GodotType for PackedArray<T> {
+impl<T: PackedElement> meta::GodotType for PackedArray<T> {
     type Ffi = Self;
     type ToFfi<'f>
         = meta::RefArg<'f, PackedArray<T>>
@@ -564,7 +564,7 @@ impl<T: PackedArrayElement> meta::GodotType for PackedArray<T> {
     }
 }
 
-impl<T: PackedArrayElement> meta::GodotFfiVariant for PackedArray<T> {
+impl<T: PackedElement> meta::GodotFfiVariant for PackedArray<T> {
     fn ffi_to_variant(&self) -> Variant {
         unsafe {
             Variant::new_with_var_uninit(|variant_ptr| {
@@ -584,7 +584,7 @@ impl<T: PackedArrayElement> meta::GodotFfiVariant for PackedArray<T> {
 }
 
 // Generic Index implementation for PackedArray<T> where T: Clone
-impl<T: PackedArrayElement> ops::Index<usize> for PackedArray<T> {
+impl<T: PackedElement> ops::Index<usize> for PackedArray<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -594,7 +594,7 @@ impl<T: PackedArrayElement> ops::Index<usize> for PackedArray<T> {
     }
 }
 
-impl<T: PackedArrayElement> ops::IndexMut<usize> for PackedArray<T> {
+impl<T: PackedElement> ops::IndexMut<usize> for PackedArray<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let ptr = self.ptr_mut(index);
         // SAFETY: `ptr` checked bounds.
@@ -605,9 +605,9 @@ impl<T: PackedArrayElement> ops::IndexMut<usize> for PackedArray<T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Property trait impls
 
-impl<T: PackedArrayElement> SimpleVar for PackedArray<T> {}
+impl<T: PackedElement> SimpleVar for PackedArray<T> {}
 
-impl<T: PackedArrayElement> Export for PackedArray<T> {
+impl<T: PackedElement> Export for PackedArray<T> {
     fn export_hint() -> meta::PropertyHintInfo {
         // In 4.3 Godot can (and does) use type hint strings for packed arrays, see https://github.com/godotengine/godot/pull/82952.
         if sys::GdextBuild::since_api("4.3") {
@@ -622,7 +622,7 @@ impl<T: PackedArrayElement> Export for PackedArray<T> {
 // Conversion trait impls
 
 /// Creates a `PackedArray<T>` from the given Rust slice.
-impl<T: PackedArrayElement> From<&[T]> for PackedArray<T> {
+impl<T: PackedElement> From<&[T]> for PackedArray<T> {
     fn from(slice: &[T]) -> Self {
         if slice.is_empty() {
             return Self::new();
@@ -637,14 +637,14 @@ impl<T: PackedArrayElement> From<&[T]> for PackedArray<T> {
 }
 
 /// Creates a `PackedArray<T>` from a reference to the given Rust array.
-impl<T: PackedArrayElement, const N: usize> From<&[T; N]> for PackedArray<T> {
+impl<T: PackedElement, const N: usize> From<&[T; N]> for PackedArray<T> {
     fn from(arr: &[T; N]) -> Self {
         Self::from(&arr[..])
     }
 }
 
 /// Creates a `PackedArray<T>` from the given Rust array.
-impl<T: PackedArrayElement, const N: usize> From<[T; N]> for PackedArray<T> {
+impl<T: PackedElement, const N: usize> From<[T; N]> for PackedArray<T> {
     fn from(arr: [T; N]) -> Self {
         if N == 0 {
             return Self::new();
@@ -663,7 +663,7 @@ impl<T: PackedArrayElement, const N: usize> From<[T; N]> for PackedArray<T> {
 }
 
 /// Creates a `PackedArray<T>` from the given Rust vec.
-impl<T: PackedArrayElement> From<Vec<T>> for PackedArray<T> {
+impl<T: PackedElement> From<Vec<T>> for PackedArray<T> {
     fn from(mut vec: Vec<T>) -> Self {
         if vec.is_empty() {
             return Self::new();
@@ -690,7 +690,7 @@ impl<T: PackedArrayElement> From<Vec<T>> for PackedArray<T> {
 ///
 /// # Panics
 /// - If the iterator's `size_hint()` returns an incorrect lower bound (which is a breach of the `Iterator` protocol).
-impl<T: PackedArrayElement> FromIterator<T> for PackedArray<T> {
+impl<T: PackedElement> FromIterator<T> for PackedArray<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array = PackedArray::<T>::default();
         array.extend(iter);
@@ -698,7 +698,7 @@ impl<T: PackedArrayElement> FromIterator<T> for PackedArray<T> {
     }
 }
 
-impl<T: PackedArrayElement> Extend<T> for PackedArray<T> {
+impl<T: PackedElement> Extend<T> for PackedArray<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // This function is complicated, but with good reason. The problem is that we don't know the length of
         // the `Iterator` ahead of time; all we get is its `size_hint()`.
@@ -787,14 +787,14 @@ impl<T: PackedArrayElement> Extend<T> for PackedArray<T> {
     }
 }
 
-impl<T: PackedArrayElement> fmt::Debug for PackedArray<T> {
+impl<T: PackedElement> fmt::Debug for PackedArray<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Going through `Variant` because there doesn't seem to be a direct way.
         write!(f, "{:?}", self.to_variant().stringify())
     }
 }
 // Generic Display implementation for PackedArray<T> where T: Display
-impl<T: PackedArrayElement + fmt::Display> fmt::Display for PackedArray<T> {
+impl<T: PackedElement + fmt::Display> fmt::Display for PackedArray<T> {
     /// Formats `PackedArray` to match Godot's string representation.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;

@@ -21,7 +21,7 @@ use crate::{builtin, sys};
 )]
 // FromGodot isn't used, but can come in handy as an implied bound.
 // ToGodot is needed for AsArg<T>.
-pub trait PackedArrayElement: GodotType + Clone + ToGodot + FromGodot {
+pub trait PackedElement: GodotType + Clone + ToGodot + FromGodot {
     /// Element variant type.
     #[doc(hidden)]
     const VARIANT_TYPE: sys::VariantType;
@@ -45,7 +45,7 @@ pub trait PackedArrayElement: GodotType + Clone + ToGodot + FromGodot {
     // ----------------------------------------------------------------------------------------------------------------------------------------------
     // Property-related API
 
-    /// See [`crate::meta::traits::ArrayElement::element_type_string()`].
+    /// See [`crate::meta::traits::Element::element_type_string()`].
     #[doc(hidden)]
     fn element_type_string() -> String {
         builtin_type_string::<Self>()
@@ -196,7 +196,7 @@ macro_rules! impl_packed_array_element {
         index_mut_fn: $index_mut_fn:ident,
         index_const_fn: $index_const_fn:ident,
     ) => {
-        impl PackedArrayElement for $Element {
+        impl PackedElement for $Element {
             const VARIANT_TYPE: sys::VariantType = sys::VariantType::$VariantType;
 
             type Inner<'a> = crate::builtin::inner::$Inner<'a>;

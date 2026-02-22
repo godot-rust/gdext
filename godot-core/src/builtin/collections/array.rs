@@ -18,9 +18,8 @@ use crate::meta;
 use crate::meta::error::{ArrayMismatch, ConvertError, FromGodotError, FromVariantError};
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{
-    ArrayElement, AsArg, ClassId, ElementType, ExtVariantType, FromGodot, GodotConvert,
-    GodotFfiVariant, GodotType, PropertyHintInfo, RefArg, ToGodot, element_godot_type_name,
-    element_variant_type,
+    AsArg, ClassId, Element, ElementType, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant,
+    GodotType, PropertyHintInfo, RefArg, ToGodot, element_godot_type_name, element_variant_type,
 };
 use crate::obj::{Bounds, DynGd, Gd, GodotClass, bounds};
 use crate::registry::property::{BuiltinExport, Export, Var};
@@ -54,7 +53,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///   `Variant` objects. However, for an array that has dynamic type `i64`, it is not allowed to insert any variants that are not `i64`.
 ///
 /// If you plan to use any integer or float types apart from `i64` and `f64`, read
-/// [this documentation](../meta/trait.ArrayElement.html#integer-and-float-types).
+/// [this documentation](../meta/trait.Element.html#integer-and-float-types).
 ///
 /// ## Conversions between arrays
 /// The following table gives an overview of useful conversions.
@@ -181,7 +180,7 @@ use crate::registry::property::{BuiltinExport, Export, Var};
 ///
 /// # Godot docs
 /// [`Array[T]` (stable)](https://docs.godotengine.org/en/stable/classes/class_array.html)
-pub struct Array<T: ArrayElement> {
+pub struct Array<T: Element> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
     opaque: sys::types::OpaqueArray,
     _phantom: PhantomData<T>,
@@ -203,7 +202,7 @@ impl<'a> std::ops::Deref for ImmutableInnerArray<'a> {
     }
 }
 
-impl<T: ArrayElement> std::ops::Deref for Array<T> {
+impl<T: Element> std::ops::Deref for Array<T> {
     type Target = AnyArray;
 
     fn deref(&self) -> &Self::Target {
@@ -211,7 +210,7 @@ impl<T: ArrayElement> std::ops::Deref for Array<T> {
     }
 }
 
-impl<T: ArrayElement> std::ops::DerefMut for Array<T> {
+impl<T: Element> std::ops::DerefMut for Array<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_any_mut()
     }
@@ -237,7 +236,7 @@ pub type VarArray = Array<Variant>;
 // - Methods accepting `impl AsArg<T>`: `set()`, `push()`, `insert()`, `contains()`, `find()`, `erase()`, etc.
 // - Methods with typed closures: `sort_unstable_by()`, `bsearch_by()`
 // - Methods returning `Array<T>`: `duplicate_shallow()`, `duplicate_deep()`, `subarray_shallow()`, `subarray_deep()`
-impl<T: ArrayElement> Array<T> {
+impl<T: Element> Array<T> {
     pub(super) fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
         // Note: type is not yet checked at this point, because array has not yet been initialized!
         Self {
@@ -755,7 +754,7 @@ impl<T: ArrayElement> Array<T> {
     /// Converts this typed `Array<T>` into a `PackedArray<T>`.
     pub fn to_packed_array(&self) -> PackedArray<T>
     where
-        T: meta::PackedArrayElement,
+        T: meta::PackedElement,
     {
         PackedArray::<T>::from_typed_array(self)
     }
@@ -874,7 +873,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
     #[cfg(safeguards_strict)]
-    unsafe fn assume_type_ref<U: ArrayElement>(&self) -> &Array<U> {
+    unsafe fn assume_type_ref<U: Element>(&self) -> &Array<U> {
         // SAFETY: per function precondition.
         unsafe { std::mem::transmute::<&Array<T>, &Array<U>>(self) }
     }
@@ -903,7 +902,7 @@ impl<T: ArrayElement> Array<T> {
     /// - If runtime type matches `U`, both conditions hold automatically.
     // TODO(v0.5): fragile manual field move + mem::forget; if a field is added, it must be moved here too.
     // Consider transmute (requires #[repr(C)]) or ManuallyDrop + ptr::read. Same issue in Dictionary::assume_type.
-    pub(super) unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
+    pub(super) unsafe fn assume_type<U: Element>(self) -> Array<U> {
         let result = Array::<U> {
             opaque: self.opaque,
             _phantom: PhantomData,
@@ -1109,7 +1108,7 @@ impl VarArray {
 // - `from_arg_ptr`
 //   Arrays are properly initialized through a `from_sys` call, but the ref-count should be incremented
 //   as that is the callee's responsibility. Which we do by calling `std::mem::forget(array.clone())`.
-unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
+unsafe impl<T: Element> GodotFfi for Array<T> {
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(VariantType::ARRAY);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
@@ -1132,13 +1131,13 @@ unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
 }
 
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
-impl ArrayElement for VarArray {}
+impl Element for VarArray {}
 
-impl<T: ArrayElement> GodotConvert for Array<T> {
+impl<T: Element> GodotConvert for Array<T> {
     type Via = Self;
 }
 
-impl<T: ArrayElement> ToGodot for Array<T> {
+impl<T: Element> ToGodot for Array<T> {
     type Pass = meta::ByRef;
 
     fn to_godot(&self) -> &Self::Via {
@@ -1155,14 +1154,14 @@ impl<T: ArrayElement> ToGodot for Array<T> {
     }
 }
 
-impl<T: ArrayElement> FromGodot for Array<T> {
+impl<T: Element> FromGodot for Array<T> {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         T::debug_validate_elements(&via)?;
         Ok(via)
     }
 }
 
-impl<T: ArrayElement> fmt::Debug for Array<T> {
+impl<T: Element> fmt::Debug for Array<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Going through `Variant` because there doesn't seem to be a direct way.
         // Reuse Display.
@@ -1170,7 +1169,7 @@ impl<T: ArrayElement> fmt::Debug for Array<T> {
     }
 }
 
-impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
+impl<T: Element + fmt::Display> fmt::Display for Array<T> {
     /// Formats `Array` to match Godot's string representation.
     ///
     /// # Example
@@ -1196,7 +1195,7 @@ impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
 ///
 /// To create a (mostly) independent copy instead, see [`Array::duplicate_shallow()`] and
 /// [`Array::duplicate_deep()`].
-impl<T: ArrayElement> Clone for Array<T> {
+impl<T: Element> Clone for Array<T> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
         // Type-check follows below.
@@ -1212,7 +1211,7 @@ impl<T: ArrayElement> Clone for Array<T> {
     }
 }
 
-impl<T: ArrayElement> Var for Array<T> {
+impl<T: Element> Var for Array<T> {
     type PubType = Self;
 
     fn var_get(field: &Self) -> Self::Via {
@@ -1243,7 +1242,7 @@ impl<T: ArrayElement> Var for Array<T> {
 
 impl<T> Export for Array<T>
 where
-    T: ArrayElement + Export,
+    T: Element + Export,
 {
     fn export_hint() -> PropertyHintInfo {
         // If T == Variant, then we return "Array" builtin type hint.
@@ -1255,7 +1254,7 @@ where
     }
 }
 
-impl<T: ArrayElement> BuiltinExport for Array<T> {}
+impl<T: Element> BuiltinExport for Array<T> {}
 
 impl<T> Export for Array<Gd<T>>
 where
@@ -1289,7 +1288,7 @@ where
     }
 }
 
-impl<T: ArrayElement> Default for Array<T> {
+impl<T: Element> Default for Array<T> {
     #[inline]
     fn default() -> Self {
         let mut array = unsafe {
@@ -1305,10 +1304,10 @@ impl<T: ArrayElement> Default for Array<T> {
     }
 }
 
-// T must be GodotType (or subtrait ArrayElement), because drop() requires sys_mut(), which is on the GodotFfi trait.
+// T must be GodotType (or subtrait Element), because drop() requires sys_mut(), which is on the GodotFfi trait.
 // Its sister method GodotFfi::from_sys_init() requires Default, which is only implemented for T: GodotType.
 // This could be addressed by splitting up GodotFfi if desired.
-impl<T: ArrayElement> Drop for Array<T> {
+impl<T: Element> Drop for Array<T> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -1318,7 +1317,7 @@ impl<T: ArrayElement> Drop for Array<T> {
     }
 }
 
-impl<T: ArrayElement> GodotType for Array<T> {
+impl<T: Element> GodotType for Array<T> {
     type Ffi = Self;
 
     type ToFfi<'f>
@@ -1356,7 +1355,7 @@ impl<T: ArrayElement> GodotType for Array<T> {
     }
 }
 
-impl<T: ArrayElement> GodotFfiVariant for Array<T> {
+impl<T: Element> GodotFfiVariant for Array<T> {
     fn ffi_to_variant(&self) -> Variant {
         unsafe {
             Variant::new_with_var_uninit(|variant_ptr| {
@@ -1382,14 +1381,14 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
 // This is different for PackedArray, which can move values. See also related: https://github.com/godot-rust/gdext/pull/1286.
 
 /// Creates a `Array` from the given Rust array.
-impl<T: ArrayElement + ToGodot, const N: usize> From<&[T; N]> for Array<T> {
+impl<T: Element + ToGodot, const N: usize> From<&[T; N]> for Array<T> {
     fn from(arr: &[T; N]) -> Self {
         Self::from(&arr[..])
     }
 }
 
 /// Creates a `Array` from the given slice.
-impl<T: ArrayElement + ToGodot> From<&[T]> for Array<T> {
+impl<T: Element + ToGodot> From<&[T]> for Array<T> {
     fn from(slice: &[T]) -> Self {
         let mut array = Self::new();
         let len = slice.len();
@@ -1414,7 +1413,7 @@ impl<T: ArrayElement + ToGodot> From<&[T]> for Array<T> {
 }
 
 /// Creates a `Array` from an iterator.
-impl<T: ArrayElement + ToGodot> FromIterator<T> for Array<T> {
+impl<T: Element + ToGodot> FromIterator<T> for Array<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array = Self::new();
         array.extend(iter);
@@ -1423,7 +1422,7 @@ impl<T: ArrayElement + ToGodot> FromIterator<T> for Array<T> {
 }
 
 /// Extends a `Array` with the contents of an iterator.
-impl<T: ArrayElement> Extend<T> for Array<T> {
+impl<T: Element> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
         // Otherwise, we could use it to pre-allocate based on `iter.size_hint()`.
@@ -1438,7 +1437,7 @@ impl<T: ArrayElement> Extend<T> for Array<T> {
 }
 
 /// Converts this array to a strongly typed Rust vector.
-impl<T: ArrayElement + FromGodot> From<&Array<T>> for Vec<T> {
+impl<T: Element + FromGodot> From<&Array<T>> for Vec<T> {
     fn from(array: &Array<T>) -> Vec<T> {
         let len = array.len();
         let mut vec = Vec::with_capacity(len);
@@ -1457,12 +1456,12 @@ impl<T: ArrayElement + FromGodot> From<&Array<T>> for Vec<T> {
 // Iterators
 
 /// An iterator over typed elements of an [`Array`].
-pub struct Iter<'a, T: ArrayElement> {
+pub struct Iter<'a, T: Element> {
     array: &'a Array<T>,
     next_idx: usize,
 }
 
-impl<T: ArrayElement + FromGodot> Iterator for Iter<'_, T> {
+impl<T: Element + FromGodot> Iterator for Iter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1489,7 +1488,7 @@ impl<T: ArrayElement + FromGodot> Iterator for Iter<'_, T> {
 }
 
 // TODO There's a macro for this, but it doesn't support generics yet; add support and use it
-impl<T: ArrayElement> PartialEq for Array<T> {
+impl<T: Element> PartialEq for Array<T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
@@ -1502,7 +1501,7 @@ impl<T: ArrayElement> PartialEq for Array<T> {
     }
 }
 
-impl<T: ArrayElement> PartialOrd for Array<T> {
+impl<T: Element> PartialOrd for Array<T> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let op_less = |lhs, rhs| unsafe {
@@ -1655,7 +1654,7 @@ mod serialize {
 
     impl<T> Serialize for Array<T>
     where
-        T: ArrayElement + Serialize,
+        T: Element + Serialize,
     {
         #[inline]
         fn serialize<S>(
@@ -1675,7 +1674,7 @@ mod serialize {
 
     impl<'de, T> Deserialize<'de> for Array<T>
     where
-        T: ArrayElement + Deserialize<'de>,
+        T: Element + Deserialize<'de>,
     {
         #[inline]
         fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
@@ -1685,7 +1684,7 @@ mod serialize {
             struct ArrayVisitor<T>(PhantomData<T>);
             impl<'de, T> Visitor<'de> for ArrayVisitor<T>
             where
-                T: ArrayElement + Deserialize<'de>,
+                T: Element + Deserialize<'de>,
             {
                 type Value = Array<T>;
 

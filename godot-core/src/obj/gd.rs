@@ -15,8 +15,7 @@ use sys::{SysPtr as _, static_assert_eq_size_align};
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, AsArg, ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg,
-    ToGodot,
+    AsArg, ClassId, Element, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::obj::{
     Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnEditor, RawGd,
@@ -1017,14 +1016,14 @@ impl<T: GodotClass> GodotType for Gd<T> {
     }
 }
 
-impl<T: GodotClass> ArrayElement for Gd<T> {
+impl<T: GodotClass> Element for Gd<T> {
     fn element_type_string() -> String {
         // See also impl Export for Gd<T>.
         object_export_element_type_string::<T>(T::class_id())
     }
 }
 
-impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
+impl<T: GodotClass> Element for Option<Gd<T>> {
     fn element_type_string() -> String {
         Gd::<T>::element_type_string()
     }

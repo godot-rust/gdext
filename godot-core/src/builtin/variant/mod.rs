@@ -16,8 +16,8 @@ use crate::builtin::{
 use crate::classes;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
-    ArrayElement, AsArg, EngineFromGodot, ExtVariantType, FromGodot, GodotType, ToGodot,
-    arg_into_ref, ffi_variant_type,
+    AsArg, Element, EngineFromGodot, ExtVariantType, FromGodot, GodotType, ToGodot, arg_into_ref,
+    ffi_variant_type,
 };
 
 mod impls;
@@ -518,7 +518,7 @@ impl Variant {
     }
 }
 
-impl ArrayElement for Variant {}
+impl Element for Variant {}
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.

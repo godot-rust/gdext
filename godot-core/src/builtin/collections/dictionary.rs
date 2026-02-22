@@ -16,14 +16,14 @@ use sys::{GodotFfi, ffi_methods, interface_fn};
 use super::any_dictionary::AnyDictionary;
 use crate::builtin::{AnyArray, Array, VarArray, Variant, VariantType, inner};
 use crate::meta;
-use crate::meta::{ArrayElement, AsVArg, ElementType, ExtVariantType, FromGodot, ToGodot};
+use crate::meta::{AsVArg, Element, ElementType, ExtVariantType, FromGodot, ToGodot};
 
 /// Godot's `Dictionary` type.
 ///
 /// Ordered associative hash-table, mapping keys to values. Corresponds to GDScript type `Dictionary[K, V]`.
 ///
 /// `Dictionary<K, V>` can only hold keys of type `K` and values of type `V` (except for Godot < 4.4, see below).
-/// The key type `K` and value type `V` can be anything implementing the [`ArrayElement`] trait.
+/// The key type `K` and value type `V` can be anything implementing the [`Element`] trait.
 /// Untyped dictionaries are represented as `Dictionary<Variant, Variant>`, which is aliased as [`VarDictionary`].
 ///
 /// Check out the [book](https://godot-rust.github.io/book/godot-api/builtins.html#arrays-and-dictionaries) for a tutorial on dictionaries.
@@ -106,7 +106,7 @@ use crate::meta::{ArrayElement, AsVArg, ElementType, ExtVariantType, FromGodot, 
 ///
 /// # Godot docs
 /// [`Dictionary` (stable)](https://docs.godotengine.org/en/stable/classes/class_dictionary.html)
-pub struct Dictionary<K: ArrayElement, V: ArrayElement> {
+pub struct Dictionary<K: Element, V: Element> {
     opaque: OpaqueDictionary,
     _phantom: PhantomData<(K, V)>,
 
@@ -126,7 +126,7 @@ pub type VarDictionary = Dictionary<Variant, Variant>;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
+impl<K: Element, V: Element> Dictionary<K, V> {
     pub(super) fn from_opaque(opaque: OpaqueDictionary) -> Self {
         Self {
             opaque,
@@ -696,7 +696,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // V=Variant specialization
 
-impl<K: ArrayElement> Dictionary<K, Variant> {
+impl<K: Element> Dictionary<K, Variant> {
     /// Returns the value for the given key, or `Variant::nil()` if the key is absent.
     ///
     /// This does _not_ distinguish between absent keys and keys mapped to `NIL` -- both return `Variant::nil()`.
@@ -718,7 +718,7 @@ impl<K: ArrayElement> Dictionary<K, Variant> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Traits
 
-unsafe impl<K: ArrayElement, V: ArrayElement> GodotFfi for Dictionary<K, V> {
+unsafe impl<K: Element, V: Element> GodotFfi for Dictionary<K, V> {
     const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::DICTIONARY);
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
@@ -738,7 +738,7 @@ unsafe impl<K: ArrayElement, V: ArrayElement> GodotFfi for Dictionary<K, V> {
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> std::ops::Deref for Dictionary<K, V> {
+impl<K: Element, V: Element> std::ops::Deref for Dictionary<K, V> {
     type Target = AnyDictionary;
 
     fn deref(&self) -> &Self::Target {
@@ -746,7 +746,7 @@ impl<K: ArrayElement, V: ArrayElement> std::ops::Deref for Dictionary<K, V> {
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> std::ops::DerefMut for Dictionary<K, V> {
+impl<K: Element, V: Element> std::ops::DerefMut for Dictionary<K, V> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_any_mut()
     }
@@ -757,7 +757,7 @@ sys::static_assert_eq_size_align!(Dictionary<i64, bool>, VarDictionary);
 sys::static_assert_eq_size_align!(Dictionary<crate::builtin::GString, f32>, VarDictionary);
 sys::static_assert_eq_size_align!(VarDictionary, AnyDictionary);
 
-impl<K: ArrayElement, V: ArrayElement> Default for Dictionary<K, V> {
+impl<K: Element, V: Element> Default for Dictionary<K, V> {
     #[inline]
     fn default() -> Self {
         // Create an empty untyped dictionary first (typing happens in new()).
@@ -770,14 +770,14 @@ impl<K: ArrayElement, V: ArrayElement> Default for Dictionary<K, V> {
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> Drop for Dictionary<K, V> {
+impl<K: Element, V: Element> Drop for Dictionary<K, V> {
     fn drop(&mut self) {
         // SAFETY: destructor is valid for self.
         unsafe { sys::builtin_fn!(dictionary_destroy)(self.sys_mut()) }
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> PartialEq for Dictionary<K, V> {
+impl<K: Element, V: Element> PartialEq for Dictionary<K, V> {
     fn eq(&self, other: &Self) -> bool {
         // SAFETY: equality check is valid.
         unsafe {
@@ -793,13 +793,13 @@ impl<K: ArrayElement, V: ArrayElement> PartialEq for Dictionary<K, V> {
 // Note: PartialOrd is intentionally NOT implemented for Dictionary.
 // Unlike arrays, dictionaries do not have a natural ordering in Godot (no dictionary_operator_less).
 
-impl<K: ArrayElement, V: ArrayElement> fmt::Debug for Dictionary<K, V> {
+impl<K: Element, V: Element> fmt::Debug for Dictionary<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.to_variant().stringify())
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> fmt::Display for Dictionary<K, V> {
+impl<K: Element, V: Element> fmt::Display for Dictionary<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{ ")?;
         for (count, (key, value)) in self.iter_shared().enumerate() {
@@ -812,7 +812,7 @@ impl<K: ArrayElement, V: ArrayElement> fmt::Display for Dictionary<K, V> {
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> Clone for Dictionary<K, V> {
+impl<K: Element, V: Element> Clone for Dictionary<K, V> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid dictionary, since we have a reference that keeps it alive.
         let result = unsafe {
@@ -833,7 +833,7 @@ impl<K: ArrayElement, V: ArrayElement> Clone for Dictionary<K, V> {
 ///
 /// Inserts all key-value pairs from the iterator into the dictionary. Previous values for keys appearing
 /// in `iter` will be overwritten.
-impl<K: ArrayElement, V: ArrayElement> Extend<(K, V)> for Dictionary<K, V> {
+impl<K: Element, V: Element> Extend<(K, V)> for Dictionary<K, V> {
     fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
         for (k, v) in iter.into_iter() {
             // Inline set logic to avoid generic owned_into_varg() (which can't resolve T::Pass).
@@ -846,7 +846,7 @@ impl<K: ArrayElement, V: ArrayElement> Extend<(K, V)> for Dictionary<K, V> {
 }
 
 /// Creates a `Dictionary` from an iterator over key-value pairs.
-impl<K: ArrayElement, V: ArrayElement> FromIterator<(K, V)> for Dictionary<K, V> {
+impl<K: Element, V: Element> FromIterator<(K, V)> for Dictionary<K, V> {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let mut dict = Dictionary::new();
         dict.extend(iter);
@@ -857,13 +857,13 @@ impl<K: ArrayElement, V: ArrayElement> FromIterator<(K, V)> for Dictionary<K, V>
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GodotConvert/ToGodot/FromGodot for Dictionary<K, V>
 
-impl<K: ArrayElement, V: ArrayElement> meta::sealed::Sealed for Dictionary<K, V> {}
+impl<K: Element, V: Element> meta::sealed::Sealed for Dictionary<K, V> {}
 
-impl<K: ArrayElement, V: ArrayElement> meta::GodotConvert for Dictionary<K, V> {
+impl<K: Element, V: Element> meta::GodotConvert for Dictionary<K, V> {
     type Via = Self;
 }
 
-impl<K: ArrayElement, V: ArrayElement> ToGodot for Dictionary<K, V> {
+impl<K: Element, V: Element> ToGodot for Dictionary<K, V> {
     type Pass = meta::ByRef;
 
     fn to_godot(&self) -> &Self::Via {
@@ -871,7 +871,7 @@ impl<K: ArrayElement, V: ArrayElement> ToGodot for Dictionary<K, V> {
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> FromGodot for Dictionary<K, V> {
+impl<K: Element, V: Element> FromGodot for Dictionary<K, V> {
     fn try_from_godot(via: Self::Via) -> Result<Self, meta::error::ConvertError> {
         // For typed dictionaries, we should validate that the types match.
         // VarDictionary (K=V=Variant) always matches.
@@ -879,7 +879,7 @@ impl<K: ArrayElement, V: ArrayElement> FromGodot for Dictionary<K, V> {
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> meta::GodotFfiVariant for Dictionary<K, V> {
+impl<K: Element, V: Element> meta::GodotFfiVariant for Dictionary<K, V> {
     fn ffi_to_variant(&self) -> Variant {
         unsafe {
             Variant::new_with_var_uninit(|variant_ptr| {
@@ -904,7 +904,7 @@ impl<K: ArrayElement, V: ArrayElement> meta::GodotFfiVariant for Dictionary<K, V
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> meta::GodotType for Dictionary<K, V> {
+impl<K: Element, V: Element> meta::GodotType for Dictionary<K, V> {
     type Ffi = Self;
 
     type ToFfi<'f>
@@ -940,20 +940,20 @@ impl<K: ArrayElement, V: ArrayElement> meta::GodotType for Dictionary<K, V> {
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> ArrayElement for Dictionary<K, V> {}
+impl<K: Element, V: Element> Element for Dictionary<K, V> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Var/Export implementations for Dictionary<K, V>
 
 /// Check if Dictionary<K, V> is typed (at least one of K or V is not Variant).
 #[inline]
-fn is_dictionary_typed<K: ArrayElement, V: ArrayElement>() -> bool {
+fn is_dictionary_typed<K: Element, V: Element>() -> bool {
     // Nil means "untyped" or "Variant" in Godot.
     meta::element_variant_type::<K>() != VariantType::NIL
         || meta::element_variant_type::<V>() != VariantType::NIL
 }
 
-impl<K: ArrayElement, V: ArrayElement> crate::registry::property::Var for Dictionary<K, V> {
+impl<K: Element, V: Element> crate::registry::property::Var for Dictionary<K, V> {
     type PubType = Self;
 
     fn var_get(field: &Self) -> Self::Via {
@@ -986,8 +986,8 @@ impl<K: ArrayElement, V: ArrayElement> crate::registry::property::Var for Dictio
 
 impl<K, V> crate::registry::property::Export for Dictionary<K, V>
 where
-    K: ArrayElement + crate::registry::property::Export,
-    V: ArrayElement + crate::registry::property::Export,
+    K: Element + crate::registry::property::Export,
+    V: Element + crate::registry::property::Export,
 {
     fn export_hint() -> meta::PropertyHintInfo {
         // VarDictionary: use "Dictionary".
@@ -1005,10 +1005,7 @@ where
     }
 }
 
-impl<K: ArrayElement, V: ArrayElement> crate::registry::property::BuiltinExport
-    for Dictionary<K, V>
-{
-}
+impl<K: Element, V: Element> crate::registry::property::BuiltinExport for Dictionary<K, V> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

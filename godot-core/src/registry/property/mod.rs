@@ -767,7 +767,7 @@ pub(crate) fn builtin_type_string<T: GodotType>() -> String {
     }
 }
 
-/// Creates `hint_string` to be used for given `GodotClass` when used as an `ArrayElement`.
+/// Creates `hint_string` to be used for given `GodotClass` when used as an `Element`.
 pub(crate) fn object_export_element_type_string<T>(class_hint: impl Display) -> String
 where
     T: GodotClass,
