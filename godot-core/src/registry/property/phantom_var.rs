@@ -53,6 +53,47 @@ use crate::registry::property::{Export, Var};
 /// ```
 ///
 /// This field can now be accessed from GDScript as `banner.text`.
+///
+/// ## Export Tool Button
+///
+/// `#[export_tool_button(fn = ...)]` is a shortcut for `#[var(...)]` that automatically generates a getter returning a
+/// Callable that executes the specified function.
+///
+/// ```
+/// # use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(tool, init, base=Node)]
+/// struct Caller {
+///     #[var(
+///         no_set,
+///         get = get_my_callable,
+///         usage_flags = [EDITOR],
+///         hint = TOOL_BUTTON,
+///         hint_string = "My first tool button!,2DNodes"
+///     )]
+///     my_first_tool_button: PhantomVar<Callable>,
+///     // Is equivalent to:
+///     #[export_tool_button(fn = Self::my_fn, name = "My second tool button!", icon = "2DNodes")]
+///     my_second_tool_button: PhantomVar<Callable>,
+///
+///     // Base is required.
+///     base: Base<Node>
+/// }
+///
+/// #[godot_api]
+/// impl Caller {
+///     #[func]
+///     fn get_my_callable(&self) -> Callable {
+///         let mut obj = self.to_gd();
+///         Callable::from_fn("my tool button callable", move |_args| Self::my_fn(&mut *obj.bind_mut()))
+///     }
+///
+///     fn my_fn(&mut self) {
+///         godot_print!("Hello from my fn!");
+///     }
+/// }
+/// ```
 // Bounds for T are somewhat un-idiomatically directly on the type, rather than impls.
 // This improves error messages in IDEs when using the type as a field.
 pub struct PhantomVar<T: GodotConvert + Var>(PhantomData<T>);
@@ -237,8 +278,3 @@ unsafe impl<T: GodotConvert + Var> Sync for PhantomVar<T> {}
 /// ```
 #[allow(dead_code)]
 struct PhantomVarDoctests;
-
-/// A convenience wrapper for [`PhantomVar`], to be used with `#[export_tool_button]`.
-///
-/// See [`GodotClass`](../register/derive.GodotClass.html#export-tool-button) for more details.
-pub type ExportToolButton = PhantomVar<crate::builtin::Callable>;

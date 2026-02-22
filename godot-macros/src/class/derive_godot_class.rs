@@ -724,12 +724,6 @@ fn parse_fields(
             field.is_phantomvar = true;
         }
 
-        // ExportToolButton - `PhantomVar<Callable>` type inference
-        if path_ends_with_complex(&field.ty, "ExportToolButton") {
-            field.is_phantomvar = true;
-            has_tool_button = true;
-        }
-
         // #[init]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "init")? {
             // #[init] on fields is useless if there is no generated constructor.
@@ -828,7 +822,7 @@ fn parse_fields(
 
         // #[export_tool_button(fn = ..., icon = "..", name = "..")]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_tool_button")? {
-            require_api_version!("4.4", parser.span(), "#[func(virtual)]")?;
+            require_api_version!("4.4", parser.span(), "#[export_tool_button]")?;
 
             if field.export.is_some() || field.var.is_some() {
                 return bail!(
