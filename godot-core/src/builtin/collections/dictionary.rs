@@ -14,7 +14,7 @@ use sys::types::OpaqueDictionary;
 use sys::{GodotFfi, ffi_methods, interface_fn};
 
 use super::any_dictionary::AnyDictionary;
-use crate::builtin::{Array, VarArray, Variant, VariantType, inner};
+use crate::builtin::{AnyArray, Array, VarArray, Variant, VariantType, inner};
 use crate::meta;
 use crate::meta::{ArrayElement, AsVArg, ElementType, ExtVariantType, FromGodot, ToGodot};
 
@@ -384,10 +384,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     #[doc(alias = "merge")]
     pub fn extend_dictionary(&mut self, other: &Self, overwrite: bool) {
         self.balanced_ensure_mutable();
-
-        // SAFETY: merge() will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
-        // to be of type K and V respectively.
-        self.as_inner().merge(other.as_var_dictionary(), overwrite)
+        self.as_inner().merge(other, overwrite)
     }
 
     /// Deep copy, duplicating nested collections.
@@ -426,7 +423,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     ///
     /// Use `dict.iter_shared().typed::<K, V>()` to iterate over `(K, V)` pairs instead.
     pub fn iter_shared(&self) -> Iter<'_> {
-        Iter::new(self.as_var_dictionary())
+        Iter::new(self)
     }
 
     /// Returns an iterator over the keys in a `Dictionary`.
@@ -439,7 +436,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
     ///
     /// Use `dict.keys_shared().typed::<K>()` to iterate over `K` keys instead.
     pub fn keys_shared(&self) -> Keys<'_> {
-        Keys::new(self.as_var_dictionary())
+        Keys::new(self)
     }
 
     /// Turns the dictionary into a shallow-immutable dictionary.
@@ -544,17 +541,7 @@ impl<K: ArrayElement, V: ArrayElement> Dictionary<K, V> {
 
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerDictionary<'_> {
-        inner::InnerDictionary::from_outer(self.as_var_dictionary())
-    }
-
-    /// Casts this dictionary to a reference to an untyped `VarDictionary`.
-    ///
-    /// # Safety
-    /// This method performs a simple pointer cast. The memory layout of `Dictionary<K, V>` is identical to `VarDictionary`.
-    /// However, operations that write to the resulting `VarDictionary` must ensure they write values compatible with `K` and `V`.
-    // FIXME(v0.5): unsound due to layout-incompatibility; no #[repr(C)]. Remove once engine APIs are migrated to accept &AnyDictionary instead of &VarDictionary.
-    fn as_var_dictionary(&self) -> &VarDictionary {
-        unsafe { &*(self as *const Self as *const VarDictionary) }
+        inner::InnerDictionary::from_outer_typed(self)
     }
 
     /// Get the pointer corresponding to the given key in the dictionary.
@@ -808,7 +795,7 @@ impl<K: ArrayElement, V: ArrayElement> PartialEq for Dictionary<K, V> {
 
 impl<K: ArrayElement, V: ArrayElement> fmt::Debug for Dictionary<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.as_var_dictionary().to_variant().stringify())
+        write!(f, "{:?}", self.to_variant().stringify())
     }
 }
 
@@ -1025,16 +1012,16 @@ impl<K: ArrayElement, V: ArrayElement> crate::registry::property::BuiltinExport
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Internal helper for different iterator impls -- not an iterator itself
+/// Internal helper for different iterator impls -- not an iterator itself.
 struct DictionaryIter<'a> {
     last_key: Option<Variant>,
-    dictionary: &'a VarDictionary,
+    dictionary: &'a AnyDictionary,
     is_first: bool,
     next_idx: usize,
 }
 
 impl<'a> DictionaryIter<'a> {
-    fn new(dictionary: &'a VarDictionary) -> Self {
+    fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
             last_key: None,
             dictionary,
@@ -1061,11 +1048,14 @@ impl<'a> DictionaryIter<'a> {
 
     fn next_key_value(&mut self) -> Option<(Variant, Variant)> {
         let key = self.next_key()?;
-        if !self.dictionary.as_inner().has(&key) {
+
+        // SAFETY: has() and get() are read-only operations.
+        let inner = unsafe { self.dictionary.as_inner_mut() };
+        if !inner.has(&key) {
             return None;
         }
 
-        let value = self.dictionary.as_inner().get(&key, &Variant::nil());
+        let value = inner.get(&key, &Variant::nil());
         Some((key, value))
     }
 
@@ -1076,7 +1066,7 @@ impl<'a> DictionaryIter<'a> {
         (remaining, Some(remaining))
     }
 
-    fn call_init(dictionary: &VarDictionary) -> Option<Variant> {
+    fn call_init(dictionary: &AnyDictionary) -> Option<Variant> {
         let variant: Variant = Variant::nil();
         let iter_fn = |dictionary, next_value: sys::GDExtensionVariantPtr, valid| unsafe {
             interface_fn!(variant_iter_init)(dictionary, sys::SysPtr::as_uninit(next_value), valid)
@@ -1085,7 +1075,7 @@ impl<'a> DictionaryIter<'a> {
         Self::ffi_iterate(iter_fn, dictionary, variant)
     }
 
-    fn call_next(dictionary: &VarDictionary, last_key: Variant) -> Option<Variant> {
+    fn call_next(dictionary: &AnyDictionary, last_key: Variant) -> Option<Variant> {
         let iter_fn = |dictionary, next_value, valid| unsafe {
             interface_fn!(variant_iter_next)(dictionary, next_value, valid)
         };
@@ -1103,7 +1093,7 @@ impl<'a> DictionaryIter<'a> {
             sys::GDExtensionVariantPtr,
             *mut sys::GDExtensionBool,
         ) -> sys::GDExtensionBool,
-        dictionary: &VarDictionary,
+        dictionary: &AnyDictionary,
         mut next_value: Variant,
     ) -> Option<Variant> {
         let dictionary = dictionary.to_variant();
@@ -1142,7 +1132,7 @@ pub struct Iter<'a> {
 }
 
 impl<'a> Iter<'a> {
-    fn new(dictionary: &'a VarDictionary) -> Self {
+    pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
         }
@@ -1177,7 +1167,7 @@ pub struct Keys<'a> {
 }
 
 impl<'a> Keys<'a> {
-    fn new(dictionary: &'a VarDictionary) -> Self {
+    pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
         }
@@ -1190,9 +1180,11 @@ impl<'a> Keys<'a> {
     }
 
     /// Returns an array of the keys.
-    pub fn array(self) -> VarArray {
-        // Can only be called
-        assert!(self.iter.is_first);
+    pub fn array(self) -> AnyArray {
+        assert!(
+            self.iter.is_first,
+            "Keys::array() can only be called before iteration has started"
+        );
         self.iter.dictionary.keys_array()
     }
 }

@@ -212,7 +212,7 @@ impl AnyDictionary {
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     pub fn iter_shared(&self) -> Iter<'_> {
-        self.dict.iter_shared()
+        Iter::new(self)
     }
 
     /// Returns an iterator over the keys in the `Dictionary`.
@@ -223,7 +223,7 @@ impl AnyDictionary {
     /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     pub fn keys_shared(&self) -> Keys<'_> {
-        self.dict.keys_shared()
+        Keys::new(self)
     }
 
     /// Turns the dictionary into a shallow-immutable dictionary.
@@ -261,7 +261,6 @@ impl AnyDictionary {
         self.dict.value_element_type()
     }
 
-    // TODO(v0.5): rename to `as_inner_unchecked` for consistency; `_mut` is misleading since receiver is `&self`.
     /// # Safety
     /// Must not be used for any "input" operations, moving elements into the dictionary -- this would break covariance.
     #[doc(hidden)]

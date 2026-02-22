@@ -227,6 +227,19 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
                 }
             }
         }
+    } else if class_name.godot_ty == "Dictionary" {
+        quote! {
+            pub fn from_outer_typed<K, V>(outer: &Dictionary<K, V>) -> Self
+                where
+                    K: crate::meta::ArrayElement,
+                    V: crate::meta::ArrayElement,
+            {
+                Self {
+                    _outer_lifetime: std::marker::PhantomData,
+                    sys_ptr: sys::SysPtr::force_mut(outer.sys()),
+                }
+            }
+        }
     } else {
         TokenStream::new()
     }
