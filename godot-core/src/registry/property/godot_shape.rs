@@ -16,21 +16,36 @@ use crate::obj::EngineEnum as _;
 
 /// The "shape" of a Godot type: whether it's a builtin, a class, an enum/bitfield, etc.
 ///
-/// Describes how a type should be registered as a Godot property; returned by [`GodotConvert::godot_shape()`]. godot-rust will then derive all
-/// property hints, class names, usage flags and collection element metadata from this single declaration.
+/// Describes a _static_ (compile-time) type as it should be registered with Godot; returned by [`GodotConvert::godot_shape()`].
+/// This is distinct from runtime introspection APIs such [`AnyArray::element_type()`].
 ///
-/// # Registration flow
-/// During property registration, the runtime resolves hints and usage flags from the shape:
+/// Usually you need to deal with `GodotShape` only if you define custom types through manual `GodotConvert` impls.
+///
+/// # Information provided by the shape
+/// A shape description is used for three purposes:
+/// - Property registrations (`#[var]`) so that Godot has static type information of your type.
+///   - See [`to_var_property()`] and [`var_hint()`].
+/// - Exported properties (`#[export]`) so that properties show up correctly in the editor's inspector UI.
+///   - See [`to_export_property()`] and [`export_hint()`].
+/// - Method signatures (`#[func]`), so that Godot has the static type information for parameters and return values.
+///   - See [`to_method_signature_property()`].
+///
+/// # Property registration
+/// During registration of class properties, the runtime resolves hints and usage flags from the shape:
 ///
 /// - For `#[var]`, it calls [`var_hint()`] and uses `NONE` as base usage.
 /// - For `#[export]`, it calls [`export_hint()`] and uses `DEFAULT` as base usage.
-/// - If the user specified explicit overrides (e.g. `#[var(hint = ...)]` or `#[export(range = ...)]`), those replace hints from the shape.
+/// - If the user specifies explicit overrides (e.g. `#[var(hint = ...)]` or `#[export(range = ...)]`), those replace hints from the shape.
 ///
 /// The shape also contributes structural metadata -- variant type, class name, and additional usage flags (via
 /// [`usage_flags()`]). These are combined with the hint and base usage into a [`PropertyInfo`] for the Godot FFI call.
 ///
 /// [`PropertyInfo`]: PropertyInfo
 /// [`GodotConvert::godot_shape()`]: GodotConvert::godot_shape
+/// [`AnyArray::element_type()`]: crate::builtin::AnyArray::element_type
+/// [`to_var_property()`]: Self::to_var_property
+/// [`to_export_property()`]: Self::to_export_property
+/// [`to_method_signature_property()`]: Self::to_method_signature_property
 /// [`var_hint()`]: Self::var_hint
 /// [`export_hint()`]: Self::export_hint
 /// [`usage_flags()`]: Self::usage_flags
@@ -441,6 +456,8 @@ impl ClassHeritage {
 ///
 /// Matches the same layout as `GodotShape`, exists to avoid recursive definition (and also `Box` allocations). Also constrains the possible
 /// shapes (elements cannot be typed arrays/dictionaries themselves).
+///
+/// In contrast to [`ElementType`][crate::meta::ElementType], this is a _static_ type description for Godot registration purposes.
 ///
 /// Use [`into_outer()`][Self::into_outer] to convert into a full `GodotShape`.
 #[non_exhaustive]

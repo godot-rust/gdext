@@ -128,13 +128,15 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Marker trait to identify types that can be stored in [`Array<T>`][crate::builtin::Array].
+/// Marker trait to identify types that can be stored in [`Array<T>`][crate::builtin::Array] and [`Dictionary<K, V>`][crate::builtin::Dictionary].
 ///
-/// The types, for which this trait is implemented, overlap mostly with [`GodotType`].
+/// Implemented for most types that can interact with Godot. A notable exception is `Array<T>` and `Dictionary<K, V>` -- Godot doesn't support
+/// typed collections to be nested. You can still _store_ typed collections, but you need to use [`AnyArray`][crate::builtin::AnyArray] and
+/// [`AnyDictionary`][crate::builtin::AnyDictionary], which can be **either** typed **or** untyped. We also don't support `VarArray` and
+/// `VarDictionary` (special case of the former with `T=Variant`), because godot-rust cannot statically guarantee that the nested collections
+/// are indeed untyped. In a GDScript `Array[Array]`, you can store both typed and untyped arrays, even within the same collection.
 ///
-/// Notable differences are:
-/// - Only `VarArray`, not `Array<T>` is allowed (typed arrays cannot be nested).
-/// - `Option` is only supported for `Option<Gd<T>>`, but not e.g. `Option<i32>`.
+/// See also [`ElementType`][crate::meta::ElementType] for a runtime representation of this.
 ///
 /// # Integer and float types
 /// `u8`, `i8`, `u16`, `i16`, `u32`, `i32` and `f32` are supported by this trait, however they don't have their own array type in Godot.
@@ -156,7 +158,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 // via generated code, so the trait must be open. Correctness is ensured by requiring `ToGodot + FromGodot` (both sealed), which
 // guarantees that only types with valid Godot conversions can implement `Element`.
 #[diagnostic::on_unimplemented(
-    message = "Element type not supported in Godot collections (no nesting).",
+    message = "Element type not supported in Godot Array or Dictionary (no nesting).",
     label = "has invalid element type"
 )]
 pub trait Element: ToGodot + FromGodot + 'static {

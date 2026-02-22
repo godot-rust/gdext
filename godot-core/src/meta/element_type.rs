@@ -20,8 +20,9 @@ use crate::obj::{Gd, InstanceId};
 /// - [`Dictionary::key_element_type()`][crate::builtin::Dictionary::key_element_type]
 /// - [`Dictionary::value_element_type()`][crate::builtin::Dictionary::value_element_type]
 ///
-/// While Rust's type parameters provide compile-time type information, this method supplies additional RTTI (runtime type information).
-/// For example, `Array<Gd<RefCounted>>` may store classes or scripts derived from `RefCounted`.
+/// While Rust's type parameters and the [`Element`] trait in particular provide compile-time type information, this method exists for the
+/// purpose of RTTI (runtime type information). For example, `AnyArray` (which offers no static type) can be queried about the actual type of
+/// its elements.
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ElementType {
     /// Untyped array/dictionary that can contain any `Variant`.
