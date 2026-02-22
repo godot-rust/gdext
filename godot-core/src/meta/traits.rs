@@ -161,6 +161,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     message = "Element type not supported in Godot Array or Dictionary (no nesting).",
     label = "has invalid element type"
 )]
+// TODO(v0.6): consider supertraits like PartialEq or Debug. For enums, align with #[derive(GodotConvert)].
 pub trait Element: ToGodot + FromGodot + 'static {
     // Note: several indirections in `Element` and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).

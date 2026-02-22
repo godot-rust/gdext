@@ -12,11 +12,12 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{GodotFfi, ffi_methods};
 
-use super::dictionary::{Iter, Keys};
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
-use crate::meta::{AsArg, Element, ElementType, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
+use crate::meta::{
+    AsArg, Element, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+};
 use crate::registry::property::GodotShape;
 
 /// Covariant `Dictionary` that can be typed or untyped.
@@ -205,26 +206,46 @@ impl AnyDictionary {
         self.dict.as_inner().duplicate(true)
     }
 
-    /// Returns an iterator over the key-value pairs of the `Dictionary`.
+    /// Returns an iterator over the key-value pairs as `(Variant, Variant)`.
     ///
-    /// The pairs are each of type `(Variant, Variant)`. Each pair references the original dictionary, but instead of a `&`-reference
-    /// to key-value pairs as you might expect, the iterator returns a (cheap, shallow) copy of each key-value pair.
+    /// Each pair is a (cheap, shallow) copy from the original dictionary.
+    ///
+    /// Use `.typed::<K, V>()` on the returned iterator to convert to typed `(K, V)` pairs.
     ///
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     pub fn iter_shared(&self) -> Iter<'_> {
-        Iter::new(self)
+        Iter {
+            inner: super::dictionary::Iter::new(self),
+        }
     }
 
-    /// Returns an iterator over the keys in the `Dictionary`.
+    /// Returns an iterator over the keys as `Variant`.
     ///
-    /// The keys are each of type `Variant`. Each key references the original `Dictionary`, but instead of a `&`-reference to keys
-    /// as you might expect, the iterator returns a (cheap, shallow) copy of each key.
+    /// Each key is a (cheap, shallow) copy from the original dictionary.
     ///
-    /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
+    /// Use `.typed::<K>()` on the returned iterator to convert to typed `K` keys.
+    ///
+    /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     pub fn keys_shared(&self) -> Keys<'_> {
-        Keys::new(self)
+        Keys {
+            inner: super::dictionary::Keys::new(self),
+        }
+    }
+
+    /// Returns an iterator over the values as `Variant`.
+    ///
+    /// Each value is a (cheap, shallow) copy from the original dictionary.
+    ///
+    /// Use `.typed::<V>()` on the returned iterator to convert to typed `V` values.
+    ///
+    /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
+    /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+    pub fn values_shared(&self) -> Values<'_> {
+        Values {
+            inner: super::dictionary::Values::new(self),
+        }
     }
 
     /// Turns the dictionary into a shallow-immutable dictionary.
@@ -520,5 +541,107 @@ impl GodotFfiVariant for AnyDictionary {
         // SAFETY: All element types are valid for AnyDictionary.
         let result = unsafe { VarDictionary::unchecked_from_variant(variant) };
         result.map(|inner| Self { dict: inner })
+    }
+}
+
+impl<'a> IntoIterator for &'a AnyDictionary {
+    type Item = (Variant, Variant);
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_shared()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// AnyDictionary iterator newtypes
+
+/// Iterator over key-value pairs in an [`AnyDictionary`], yielding `(Variant, Variant)`.
+///
+/// Use [`.typed::<K, V>()`][Self::typed] to convert to a typed iterator.
+pub struct Iter<'a> {
+    inner: super::dictionary::Iter<'a, Variant, Variant>,
+}
+
+impl<'a> Iter<'a> {
+    /// Creates a typed iterator that converts each `(Variant, Variant)` pair into `(K, V)`,
+    /// panicking upon conversion failure.
+    pub fn typed<K: FromGodot, V: FromGodot>(self) -> super::dictionary::Iter<'a, K, V> {
+        self.inner.typed()
+    }
+}
+
+impl Iterator for Iter<'_> {
+    type Item = (Variant, Variant);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Iterator over keys in an [`AnyDictionary`], yielding `Variant`.
+///
+/// Use [`.typed::<K>()`][Self::typed] to convert to a typed iterator.
+pub struct Keys<'a> {
+    inner: super::dictionary::Keys<'a, Variant>,
+}
+
+impl<'a> Keys<'a> {
+    /// Creates a typed iterator that converts each `Variant` key into `K`,
+    /// panicking upon conversion failure.
+    pub fn typed<K: FromGodot>(self) -> super::dictionary::Keys<'a, K> {
+        self.inner.typed()
+    }
+
+    /// Returns an array of the keys.
+    pub fn array(self) -> AnyArray {
+        self.inner.array()
+    }
+}
+
+impl Iterator for Keys<'_> {
+    type Item = Variant;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Iterator over values in an [`AnyDictionary`], yielding `Variant`.
+///
+/// Use [`.typed::<V>()`][Self::typed] to convert to a typed iterator.
+pub struct Values<'a> {
+    inner: super::dictionary::Values<'a, Variant>,
+}
+
+impl<'a> Values<'a> {
+    /// Creates a typed iterator that converts each `Variant` value into `V`,
+    /// panicking upon conversion failure.
+    pub fn typed<V: FromGodot>(self) -> super::dictionary::Values<'a, V> {
+        self.inner.typed()
+    }
+}
+
+impl Iterator for Values<'_> {
+    type Item = Variant;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }

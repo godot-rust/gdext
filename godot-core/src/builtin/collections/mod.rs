@@ -32,8 +32,10 @@ pub(crate) mod iterators {
     pub use super::array::Iter as ArrayIter;
     pub use super::dictionary::Iter as DictIter;
     pub use super::dictionary::Keys as DictKeys;
-    pub use super::dictionary::TypedIter as DictTypedIter;
-    pub use super::dictionary::TypedKeys as DictTypedKeys;
+    pub use super::dictionary::Values as DictValues;
+    pub use super::any_dictionary::Iter as AnyDictIter;
+    pub use super::any_dictionary::Keys as AnyDictKeys;
+    pub use super::any_dictionary::Values as AnyDictValues;
 }
 
 // Re-export in godot::meta.
