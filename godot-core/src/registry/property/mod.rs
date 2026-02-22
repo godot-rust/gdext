@@ -19,7 +19,7 @@ use crate::obj::{EngineEnum, GodotClass};
 
 mod phantom_var;
 
-pub use phantom_var::{ExportToolButton, PhantomVar};
+pub use phantom_var::PhantomVar;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Var trait

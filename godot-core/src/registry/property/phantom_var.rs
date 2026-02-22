@@ -53,6 +53,11 @@ use crate::registry::property::{Export, Var};
 /// ```
 ///
 /// This field can now be accessed from GDScript as `banner.text`.
+///
+/// ## Export Tool Button
+///
+/// `PhantomVar<Callable>` is also used with
+/// [`#[export_tool_button]`](../derive.GodotClass.html#export-tool-button), see its docs for details.
 // Bounds for T are somewhat un-idiomatically directly on the type, rather than impls.
 // This improves error messages in IDEs when using the type as a field.
 pub struct PhantomVar<T: GodotConvert + Var>(PhantomData<T>);
@@ -237,8 +242,3 @@ unsafe impl<T: GodotConvert + Var> Sync for PhantomVar<T> {}
 /// ```
 #[allow(dead_code)]
 struct PhantomVarDoctests;
-
-/// A convenience wrapper for [`PhantomVar`], to be used with `#[export_tool_button]`.
-///
-/// See [`GodotClass`](../register/derive.GodotClass.html#export-tool-button) for more details.
-pub type ExportToolButton = PhantomVar<crate::builtin::Callable>;

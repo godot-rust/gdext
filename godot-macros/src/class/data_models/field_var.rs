@@ -120,8 +120,8 @@ impl FieldVar {
         let Some(tool_button_fn) = parser.handle_expr("fn")? else {
             return Err(util::error!(
                 span,
-                "`#[export_tool_button]` requires `fn attribute.\n \
-                    Tip: use `#[export_tool_button(fn=...)]`"
+                "`#[export_tool_button]` requires `fn` attribute.\n  \
+                 Tip: use `#[export_tool_button(fn = ...)]`."
             ));
         };
 
@@ -184,6 +184,10 @@ pub enum GetterSetter {
 
 impl GetterSetter {
     /// Parse a getter or setter from the attribute parser.
+    ///
+    /// Note: `get`/`set` accept only a single identifier (a method name on `Self`), unlike the `fn` key in `#[export_tool_button]`
+    /// which accepts arbitrary expressions. This is intentional: getter/setter functions must be `&self`/`&mut self` methods
+    /// registered with Godot, not free functions or closures.
     pub(super) fn parse(parser: &mut KvParser, key: &str) -> ParseResult<Self> {
         // #[var(no_get)], #[var(no_set)]
         if parser.handle_alone(&format!("no_{key}"))? {

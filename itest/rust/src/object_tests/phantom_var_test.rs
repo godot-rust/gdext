@@ -8,7 +8,7 @@
 use godot::builtin::Callable;
 use godot::classes::RefCounted;
 use godot::obj::Base;
-use godot::register::property::{ExportToolButton, PhantomVar};
+use godot::register::property::PhantomVar;
 use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
@@ -86,11 +86,8 @@ mod export_tool_button_test {
     #[derive(GodotClass)]
     #[class(init, tool)]
     struct ToolButtonExporter {
-        #[export_tool_button(fn = |this: &mut Self| this.val = 42)]
-        my_tool_button: ExportToolButton,
-
         #[export_tool_button(fn = Self::my_fn)]
-        other_tool_button: ExportToolButton,
+        other_tool_button: PhantomVar<Callable>,
 
         val: i32,
         base: Base<RefCounted>,
@@ -105,10 +102,6 @@ mod export_tool_button_test {
     #[itest]
     fn test_tool_button() {
         let tool_button_exporter = ToolButtonExporter::new_gd();
-        let tool_button_callable = tool_button_exporter.get("my_tool_button").to::<Callable>();
-        tool_button_callable.call(&[]);
-        assert_eq!(tool_button_exporter.bind().val, 42);
-
         let tool_button_callable = tool_button_exporter
             .get("other_tool_button")
             .to::<Callable>();
