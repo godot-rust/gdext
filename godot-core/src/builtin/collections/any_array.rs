@@ -17,7 +17,6 @@ use crate::meta::error::ConvertError;
 use crate::meta::{
     Element, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
-use crate::registry::property::SimpleVar;
 
 /// Covariant `Array` that can be either typed or untyped.
 ///
@@ -41,6 +40,11 @@ use crate::registry::property::SimpleVar;
 ///
 /// ## Conversions
 /// See the [corresponding section in `Array`](struct.Array.html#conversions-between-arrays).
+///
+/// ## `#[var]` and `#[export]`
+/// `AnyArray` intentionally does not implement `Var` or `Export` traits, so you cannot use it in properties. GDScript and the editor would
+/// treat this type as untyped `Array`, which would break type safety if the dictionary is typed at runtime. Instead, use `VarArray` or
+/// `Array<T>` directly.
 #[derive(PartialEq, PartialOrd)]
 #[repr(transparent)] // Guarantees same layout as VarArray, enabling Deref from Array<T>.
 pub struct AnyArray {
@@ -536,8 +540,6 @@ impl FromGodot for AnyArray {
         Ok(via)
     }
 }
-
-impl SimpleVar for AnyArray {}
 
 impl fmt::Debug for AnyArray {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

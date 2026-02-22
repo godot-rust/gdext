@@ -19,7 +19,6 @@ use crate::meta::error::ConvertError;
 use crate::meta::{
     AsVArg, Element, ElementType, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
-use crate::registry::property::SimpleVar;
 
 /// Covariant `Dictionary` that can be typed or untyped.
 ///
@@ -46,6 +45,11 @@ use crate::registry::property::SimpleVar;
 /// ## Conversions
 /// - Use [`try_cast_dictionary::<K, V>()`][Self::try_cast_dictionary] to convert to a typed `Dictionary<K, V>`.
 /// - Use [`try_cast_var_dictionary()`][Self::try_cast_var_dictionary] to convert to an untyped `VarDictionary`.
+///
+/// ## `#[var]` and `#[export]`
+/// `AnyDictionary` intentionally does not implement `Var` or `Export` traits, so you cannot use it in properties. GDScript and the editor would
+/// treat this type as untyped `Dictionary`, which would break type safety if the dictionary is typed at runtime. Instead, use `VarDictionary`
+/// or `Dictionary<K, V>` directly.
 #[derive(PartialEq)]
 #[repr(transparent)] // Guarantees same layout as VarDictionary, enabling Deref from Dictionary<K, V> (K/V have no influence on layout).
 pub struct AnyDictionary {
@@ -394,11 +398,6 @@ impl meta::FromGodot for AnyDictionary {
         Ok(via)
     }
 }
-
-// TODO(v0.5): reconsider whether AnyDictionary should implement SimpleVar (and thus Var + Export).
-// It allows exporting AnyDictionary as a property, but VarDictionary already serves that purpose.
-// AnyArray has the same pattern -- if changed, update both.
-impl SimpleVar for AnyDictionary {}
 
 impl fmt::Debug for AnyDictionary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
