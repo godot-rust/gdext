@@ -188,7 +188,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     message = "Element type not supported in Godot collections (no nesting).",
     label = "has invalid element type"
 )]
-pub trait Element: ToGodot + FromGodot + sealed::Sealed + 'static {
+pub trait Element: ToGodot + FromGodot + 'static {
     // Note: several indirections in `Element` and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).
 

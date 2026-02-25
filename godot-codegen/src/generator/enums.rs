@@ -155,32 +155,33 @@ pub fn make_enum_definition_with(
                 }
             }
 
-  impl crate::registry::property::Var for #name {
-      type PubType = Self;
+            impl crate::registry::property::Var for #name {
+                type PubType = Self;
 
-      fn var_get(field: &Self) -> Self::Via {
-          <Self as #engine_trait>::ord(*field)
-      }
+                fn var_get(field: &Self) -> Self::Via {
+                    <Self as #engine_trait>::ord(*field)
+                }
 
-      #var_trait_set
+                #var_trait_set
 
-      fn var_pub_get(field: &Self) -> Self::PubType {
-          *field
-      }
+                fn var_pub_get(field: &Self) -> Self::PubType {
+                    *field
+                }
 
-      fn var_pub_set(field: &mut Self, value: Self::PubType) {
-          *field = value;
-      }
+                fn var_pub_set(field: &mut Self, value: Self::PubType) {
+                    *field = value;
+                }
 
-      fn var_hint() -> crate::meta::PropertyHintInfo {
-          crate::meta::PropertyHintInfo {
-              hint: #property_hint,
-              hint_string: crate::builtin::GString::from(#enum_hint_string),
-          }
-      }
-  }
+                fn var_hint() -> crate::meta::PropertyHintInfo {
+                    crate::meta::PropertyHintInfo {
+                        hint: #property_hint,
+                        hint_string: crate::builtin::GString::from(#enum_hint_string),
+                    }
+                }
+            }
 
-  impl crate::registry::property::Export for #name {}
+            impl crate::registry::property::Export for #name {}
+            impl crate::meta::Element for #name {}
         }
     });
 

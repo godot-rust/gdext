@@ -69,29 +69,28 @@ use crate::meta::{AsArg, Element, ElementType, ExtVariantType, FromGodot, ToGodo
 /// assert_eq!(dict.get("num"), None);
 /// ```
 ///
-// TODO(v0.5): support enums -- https://github.com/godot-rust/gdext/issues/353.
-// # Typed example
-// ```no_run
-// # use godot::prelude::*;
-//
-// // Define a Godot-exported enum.
-// #[derive(GodotConvert)]
-// #[godot(via = GString)]
-// enum Tile { GRASS, ROCK, WATER }
-//
-// let mut tiles = Dictionary::<Vector2i, Tile>::new();
-// tiles.set(Vector2i::new(1, 2), Tile::GRASS);
-// tiles.set(Vector2i::new(1, 3), Tile::WATER);
-//
-// // Create the same dictionary in a single expression.
-// let tiles = dict! {
-//    (Vector2i::new(1, 2)): Tile::GRASS,
-//    (Vector2i::new(1, 3)): Tile::WATER,
-// };
-//
-// // Element access is now strongly typed.
-// let value = dict.at(Vector2i::new(1, 3)); // type Tile.
-// ```
+/// # Typed example
+/// ```no_run
+/// # use godot::prelude::*;
+///
+/// // Define a Godot-exported enum.
+/// #[derive(GodotConvert)]
+/// #[godot(via = GString)]
+/// enum Tile { GRASS, ROCK, WATER }
+///
+/// let mut tiles = Dictionary::<Vector2i, Tile>::new();
+/// tiles.set(Vector2i::new(1, 2), Tile::GRASS);
+/// tiles.set(Vector2i::new(1, 3), Tile::WATER);
+///
+/// // Create the same dictionary in a single expression.
+/// let tiles: Dictionary<Vector2i, Tile> = dict! {
+///    (Vector2i::new(1, 2)): Tile::GRASS,
+///    (Vector2i::new(1, 3)): Tile::WATER,
+/// };
+///
+/// // Element access is now strongly typed.
+/// let value = tiles.at(Vector2i::new(1, 3)); // type Tile.
+/// ```
 ///
 /// # Compatibility
 /// **Godot 4.4+**: Dictionaries are fully typed at compile time and runtime. Type information is enforced by GDScript

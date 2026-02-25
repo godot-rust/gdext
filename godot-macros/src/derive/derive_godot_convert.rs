@@ -34,6 +34,8 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
 
         #to_godot_impl
         #from_godot_impl
+
+        impl ::godot::meta::Element for #name {}
     })
 }
 
