@@ -518,7 +518,7 @@ fn make_named_accessors(accessors: &[AccessorMethod], fptr: &TokenStream) -> Tok
             }
         };
 
-        result_api.append_all(code.into_iter());
+        result_api.append_all(code);
     }
 
     result_api

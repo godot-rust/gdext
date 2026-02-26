@@ -362,6 +362,8 @@ impl GetterSetterImpl {
             rust_accessor = format_ident!("__godot_{prefix}{field_name}", span = field_span);
             doc_hidden = quote! { #[doc(hidden)] };
 
+            // Uses GodotConvert::Via as opposed to Var::PubType, because the latter has no ToGodot/FromGodot bound, while Via always
+            // has GodotType (and thus EngineToGodot). This is needed for the Signature machinery in method registration.
             let deprecated_fn = match kind {
                 GetSet::Get => quote_spanned! { field_ty_span=>
                     pub fn #godot_function_name(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via {
@@ -435,6 +437,7 @@ impl GetterSetterImpl {
                 registered_name: Some(godot_function_name.to_string()),
                 is_script_virtual: false,
                 rpc_info: None,
+                is_generated_accessor: true,
             },
             None,
         );

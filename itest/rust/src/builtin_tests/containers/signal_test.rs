@@ -497,6 +497,10 @@ fn enums_as_signal_args() {
 
     impl GodotConvert for EventType {
         type Via = u8;
+
+        fn godot_shape() -> godot::meta::GodotShape {
+            <u8 as GodotConvert>::godot_shape()
+        }
     }
 
     impl ToGodot for EventType {

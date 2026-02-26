@@ -9,11 +9,10 @@ use godot_ffi::VariantType;
 
 use crate::builtin::{GString, StringName};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{ClassId, Element, GodotType, PackedElement, element_godot_type_name};
+use crate::meta::{ClassId, Element, GodotType};
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
-use crate::registry::class::get_dyn_property_hint_string;
 use crate::registry::property::{Export, Var};
-use crate::{classes, godot_str, sys};
+use crate::{classes, sys};
 
 /// Describes a property's type, name and metadata for Godot.
 ///
@@ -110,16 +109,21 @@ pub struct PropertyInfo {
 impl PropertyInfo {
     /// Create a new `PropertyInfo` representing a property named `property_name` with type `T` automatically.
     ///
-    /// This will generate property info equivalent to what a `#[var]` attribute would produce.
+    /// This will generate property info equivalent to what a `#[var]` attribute would produce: the property is accessible
+    /// from GDScript but **not** shown in the editor and **not** saved. Uses [`PropertyUsageFlags::NONE`] as base usage.
+    ///
+    /// For editor-visible + saved properties, use [`new_export()`](Self::new_export).
+    // TODO(v0.5): change class_id: ClassId to class_name: StringName, to avoid global cache for enum names that aren't real classes.
     pub fn new_var<T: Var>(property_name: &str) -> Self {
-        T::Via::property_info(property_name).with_hint_info(T::var_hint())
+        T::godot_shape().to_var_property(property_name)
     }
 
     /// Create a new `PropertyInfo` for an exported property named `property_name` with type `T` automatically.
     ///
-    /// This will generate property info equivalent to what an `#[export]` attribute would produce.
+    /// This will generate property info equivalent to what an `#[export]` attribute would produce: the property is shown
+    /// in the editor and saved. Uses [`PropertyUsageFlags::DEFAULT`] as base usage.
     pub fn new_export<T: Export>(property_name: &str) -> Self {
-        T::Via::property_info(property_name).with_hint_info(T::export_hint())
+        T::godot_shape().to_export_property(property_name)
     }
 
     /// Change the `hint` and `hint_string` to be the given `hint_info`.
@@ -355,84 +359,6 @@ impl PropertyHintInfo {
         Self {
             hint: PropertyHint::NONE,
             hint_string,
-        }
-    }
-
-    /// Use for `#[var]` properties -- [`PROPERTY_HINT_ARRAY_TYPE`](PropertyHint::ARRAY_TYPE) with the type name as hint string.
-    pub fn var_array_element<T: Element>() -> Self {
-        Self {
-            hint: PropertyHint::ARRAY_TYPE,
-            hint_string: GString::from(&element_godot_type_name::<T>()),
-        }
-    }
-
-    /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
-    pub fn export_array_element<T: Element>() -> Self {
-        Self {
-            hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(&T::element_type_string()),
-        }
-    }
-
-    /// Use for `#[var]` properties on Godot 4.4+ -- [`PROPERTY_HINT_DICTIONARY_TYPE`](PropertyHint::DICTIONARY_TYPE) with
-    /// `"key_type;value_type"` as hint string.
-    #[cfg(since_api = "4.4")]
-    pub fn var_dictionary_element<K: Element, V: Element>() -> Self {
-        Self {
-            hint: PropertyHint::DICTIONARY_TYPE,
-            hint_string: godot_str!(
-                "{};{}",
-                element_godot_type_name::<K>(),
-                element_godot_type_name::<V>()
-            ),
-        }
-    }
-
-    /// Use for `#[export]` properties on Godot 4.4+ -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with
-    /// `"key_type_string;value_type_string"` as hint string.
-    #[cfg(since_api = "4.4")]
-    pub fn export_dictionary_element<K: Element, V: Element>() -> Self {
-        Self {
-            hint: PropertyHint::TYPE_STRING,
-            hint_string: godot_str!("{};{}", K::element_type_string(), V::element_type_string()),
-        }
-    }
-
-    /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
-    pub fn export_packed_array_element<T: PackedElement>() -> Self {
-        Self {
-            hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(&T::element_type_string()),
-        }
-    }
-
-    pub fn export_gd<T>() -> Self
-    where
-        T: GodotClass + Bounds<Exportable = bounds::Yes>,
-    {
-        let hint = if T::inherits::<classes::Resource>() {
-            PropertyHint::RESOURCE_TYPE
-        } else if T::inherits::<classes::Node>() {
-            PropertyHint::NODE_TYPE
-        } else {
-            unreachable!("classes not inheriting from Resource or Node should not be exportable")
-        };
-
-        // Godot does this by default too; the hint is needed when the class is a resource/node,
-        // but doesn't seem to make a difference otherwise.
-        let hint_string = T::class_id().to_gstring();
-
-        Self { hint, hint_string }
-    }
-
-    pub fn export_dyn_gd<T, D>() -> Self
-    where
-        T: GodotClass + Bounds<Exportable = bounds::Yes>,
-        D: ?Sized + 'static,
-    {
-        PropertyHintInfo {
-            hint_string: GString::from(&get_dyn_property_hint_string::<T, D>()),
-            ..PropertyHintInfo::export_gd::<T>()
         }
     }
 

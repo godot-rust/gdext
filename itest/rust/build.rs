@@ -84,6 +84,10 @@ macro_rules! push_newtype {
 
             impl godot::meta::GodotConvert for $name {
                 type Via = $T;
+
+                fn godot_shape() -> godot::meta::GodotShape {
+                    <$T as godot::meta::GodotConvert>::godot_shape()
+                }
             }
 
             impl godot::meta::ToGodot for $name {
@@ -571,6 +575,15 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 
             #[export]
             export_class_enum_array: Array<godot::classes::node::ProcessMode>,
+
+            // Bitfield (tests CLASS_IS_BITFIELD usage flag).
+            #[var]
+            #[init(val = godot::global::MouseButtonMask::LEFT)]
+            var_bitfield: godot::global::MouseButtonMask,
+
+            #[export]
+            #[init(val = godot::global::MouseButtonMask::LEFT)]
+            export_bitfield: godot::global::MouseButtonMask,
         }
     };
 

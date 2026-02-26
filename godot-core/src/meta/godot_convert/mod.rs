@@ -11,6 +11,7 @@ use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::traits::GodotFfiVariant;
 use crate::meta::{ArgPassing, GodotType, ToArg};
+use crate::registry::property::GodotShape;
 
 /// Indicates that a type can be passed to/from Godot, either directly or through an intermediate "via" type.
 ///
@@ -36,6 +37,11 @@ use crate::meta::{ArgPassing, GodotType, ToArg};
 pub trait GodotConvert {
     /// The type through which `Self` is represented in Godot.
     type Via: GodotType;
+
+    /// Which "shape" this type has for property registration (e.g. builtin, enum, ...).
+    ///
+    /// godot-rust derives property hints, class names, usage flags, and element metadata from this.
+    fn godot_shape() -> GodotShape;
 }
 
 /// Defines the canonical conversion to Godot for a type.
@@ -232,6 +238,10 @@ macro_rules! impl_godot_as_self {
     ($T:ty: $Passing:ident) => {
         impl $crate::meta::GodotConvert for $T {
             type Via = $T;
+
+            fn godot_shape() -> $crate::registry::property::GodotShape {
+                $crate::registry::property::GodotShape::of_builtin::<$T>()
+            }
         }
 
         $crate::impl_godot_as_self!(@to_godot $T: $Passing);

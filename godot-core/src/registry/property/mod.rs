@@ -10,16 +10,27 @@
 use std::fmt::Display;
 
 use godot_ffi as sys;
-use godot_ffi::{GodotNullableFfi, VariantType};
+use godot_ffi::GodotNullableFfi;
 
-use crate::classes;
-use crate::global::PropertyHint;
 use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
-use crate::obj::{EngineEnum, GodotClass};
+use crate::obj::EngineEnum;
 
+mod godot_shape;
 mod phantom_var;
 
+pub use godot_shape::{ClassHeritage, Enumerator, GodotShape};
 pub use phantom_var::PhantomVar;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Shared hint-string helpers
+
+/// Formats a single hint as `"Name:value"` if value is `Some`, otherwise `"Name"`.
+pub(crate) fn format_hint_entry(name: &str, value: Option<impl Display>) -> String {
+    match value {
+        Some(v) => format!("{name}:{v}"),
+        None => name.to_string(),
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Var trait
@@ -55,24 +66,34 @@ pub use phantom_var::PhantomVar;
 )]
 pub trait Var: GodotConvert {
     /// Type used in generated Rust getters/setters for `#[var(pub)]`.
+    //
+    // Note: we deliberately don't require `PubType: ToGodot + FromGodot`. Many manual `Var` impls (`Option<T>`, `Array<T>`, `Dictionary<K,V>`,
+    // `OnEditor<T>`, `OnReady<T>`, `DynGd<T,D>`) have `PubType` types that don't implement those traits. As a consequence, internal (non-pub)
+    // property getters/setters go through `GodotConvert::Via` (which has `GodotType` -> `EngineToGodot` bounds), and the stricter
+    // `ToGodot`/`FromGodot` bounds check (`ensure_func_bounds`) is skipped for them. Only `#[var(pub)]` getters use `PubType` directly.
     type PubType;
 
-    /// Get property value. Called when reading a property from Godot.
+    /// Get property value via FFI-level `Via` type. Called for internal (non-pub) getters registered with Godot.
     fn var_get(field: &Self) -> Self::Via;
 
-    /// Set property value. Called when writing a property from Godot.
+    /// Set property value via FFI-level `Via` type. Called for internal (non-pub) setters registered with Godot.
     fn var_set(field: &mut Self, value: Self::Via);
 
-    /// Get property value in a Rust auto-generated getter, for fields annotated with `#[var(pub)]`.
+    /// Get property value as `PubType`. Called for `#[var(pub)]` getters exposed in Rust API.
     fn var_pub_get(field: &Self) -> Self::PubType;
 
-    /// Set property value in a Rust auto-generated setter, for fields annotated with `#[var(pub)]`.
+    /// Set property value as `PubType`. Called for `#[var(pub)]` setters exposed in Rust API.
     fn var_pub_set(field: &mut Self, value: Self::PubType);
+}
 
-    /// Specific property hints. Only override if they deviate from [`GodotType::property_info`], e.g. for enums/newtypes.
-    fn var_hint() -> PropertyHintInfo {
-        Self::Via::property_hint_info()
-    }
+/// Derives [`PropertyHintInfo`] for `#[var]` registration from `T::shape()`.
+pub fn var_hint<T: Var>() -> PropertyHintInfo {
+    T::godot_shape().var_hint()
+}
+
+/// Derives [`PropertyHintInfo`] for `#[export]` registration from `T::shape()`.
+pub fn export_hint<T: Export>() -> PropertyHintInfo {
+    T::godot_shape().export_hint()
 }
 
 /// Simplified way to implement the `Var` trait, for godot-convertible types.
@@ -127,11 +148,6 @@ where
     note = "`Gd` and `DynGd` cannot be exported directly; wrap them in `Option<...>` or `OnEditor<...>`."
 )]
 pub trait Export: Var {
-    /// The export info to use for an exported field of this type, if no other export info is specified.
-    fn export_hint() -> PropertyHintInfo {
-        <Self as Var>::var_hint()
-    }
-
     /// If this is a class inheriting `Node`, returns the `ClassId`; otherwise `None`.
     ///
     /// Only overridden for `Gd<T>`, to detect erroneous exports of `Node` inside a `Resource` class.
@@ -144,8 +160,8 @@ pub trait Export: Var {
 
 /// Marker trait to identify `GodotType`s that can be directly used with an `#[export]`.
 ///
-/// Implemented pretty much for all [`GodotType`]s that are not [`GodotClass`]. By itself, this trait has no implications
-/// for the [`Var`] or [`Export`] traits.
+/// Implemented pretty much for all [`GodotType`]s that are not [`GodotClass`][crate::obj::GodotClass]es.
+/// By itself, this trait has no implications for the [`Var`] or [`Export`] traits.
 ///
 /// Types which don't implement the `BuiltinExport` trait can't be used directly as an `#[export]`
 /// and must be handled using associated algebraic types, such as:
@@ -156,13 +172,9 @@ pub trait Export: Var {
 // initial, default value for such properties, causing memory leaks.
 // Such `GodotType`s don't implement `BuiltinExport`.
 //
-// Note: This marker trait is required to create a blanket implementation
-// for `OnEditor<T>` where `T` is anything other than `GodotClass`.
-// An alternative approach would involve introducing an extra associated type
-// to `GodotType` trait. However, this would not be ideal — `GodotType` is used
-// in contexts unrelated to `#[export]`, and adding unnecessary complexity
-// should be avoided. Since Rust does not yet support specialization (i.e. negative trait bounds),
-// this `MarkerTrait` serves as the intended solution to recognize aforementioned types.
+// Note: This marker trait is required to create a blanket implementation for `OnEditor<T>`, where `T` is anything other than `GodotClass`.
+// An alternative approach would involve introducing an extra associated type to `GodotType` trait. However, this would not be ideal --
+// `GodotType` is used in contexts unrelated to `#[export]`, and unnecessary complexity should be avoided. We can't use specialization.
 pub trait BuiltinExport {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -323,9 +335,6 @@ where
     T: Export,
     Option<T>: Var,
 {
-    fn export_hint() -> PropertyHintInfo {
-        T::export_hint()
-    }
 }
 
 impl<T> BuiltinExport for Option<T>
@@ -348,7 +357,7 @@ pub mod export_info_functions {
     use godot_ffi::VariantType;
 
     use crate::builtin::GString;
-    use crate::global::PropertyHint;
+    use crate::global::{PropertyHint, godot_str};
     use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
     use crate::obj::EngineEnum;
     use crate::registry::property::Export;
@@ -444,12 +453,7 @@ pub mod export_info_functions {
 
     impl<T: std::fmt::Display> ExportValueWithKey<T> {
         fn as_hint_string(&self) -> String {
-            let Self { variant, key } = self;
-
-            match key {
-                Some(key) => format!("{variant}:{key}"),
-                None => variant.clone(),
-            }
+            super::format_hint_entry(&self.variant, self.key.as_ref())
         }
 
         fn slice_as_hint_string<V>(values: &[V]) -> String
@@ -478,7 +482,7 @@ pub mod export_info_functions {
         }
     }
 
-    type EnumVariant = ExportValueWithKey<i64>;
+    type ExportEnumEntry = ExportValueWithKey<i64>;
 
     /// Equivalent to `@export_enum` in Godot.
     ///
@@ -492,9 +496,9 @@ pub mod export_info_functions {
     /// ```
     pub fn export_enum<T>(variants: &[T]) -> PropertyHintInfo
     where
-        for<'a> &'a T: Into<EnumVariant>,
+        for<'a> &'a T: Into<ExportEnumEntry>,
     {
-        let hint_string: String = EnumVariant::slice_as_hint_string(variants);
+        let hint_string: String = ExportEnumEntry::slice_as_hint_string(variants);
 
         PropertyHintInfo {
             hint: PropertyHint::ENUM,
@@ -610,7 +614,7 @@ pub mod export_info_functions {
 
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(&format!("{hint_string}:{filter}")),
+            hint_string: godot_str!("{hint_string}:{filter}"),
         }
     }
 
@@ -669,11 +673,7 @@ mod export_impls {
         };
 
         (@export $Ty:ty) => {
-            impl Export for $Ty {
-                fn export_hint() -> PropertyHintInfo {
-                    PropertyHintInfo::type_name::<$Ty>()
-                }
-            }
+            impl Export for $Ty {}
         };
 
         (@builtin $Ty:ty) => {
@@ -764,32 +764,5 @@ pub(crate) fn builtin_type_string<T: GodotType>() -> String {
         format!("{}:", variant_type.ord())
     } else {
         format!("{}:{}", variant_type.ord(), T::godot_type_name())
-    }
-}
-
-/// Creates `hint_string` to be used for given `GodotClass` when used as an `Element`.
-pub(crate) fn object_export_element_type_string<T>(class_hint: impl Display) -> String
-where
-    T: GodotClass,
-{
-    let hint = if T::inherits::<classes::Resource>() {
-        Some(PropertyHint::RESOURCE_TYPE)
-    } else if T::inherits::<classes::Node>() {
-        Some(PropertyHint::NODE_TYPE)
-    } else {
-        None
-    };
-
-    // Exportable classes (Resource/Node based) include the {RESOURCE|NODE}_TYPE hint + the class name.
-    if let Some(export_hint) = hint {
-        format!(
-            "{variant}/{hint}:{class}",
-            variant = VariantType::OBJECT.ord(),
-            hint = export_hint.ord(),
-            class = class_hint
-        )
-    } else {
-        // Previous impl: format!("{variant}:", variant = VariantType::OBJECT.ord())
-        unreachable!("element_type_string() should only be invoked for exportable classes")
     }
 }

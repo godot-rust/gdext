@@ -11,11 +11,8 @@ use crate::builtin;
 use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
-use crate::meta::{
-    ClassId, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot, sealed,
-};
+use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyInfo, ToGodot, sealed};
 use crate::registry::method::MethodParamOrReturnInfo;
-use crate::registry::property::builtin_type_string;
 
 // Re-export sys traits in this module, so all are in one place.
 #[rustfmt::skip] // Do not reorder.
@@ -86,27 +83,15 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 
     #[doc(hidden)]
     fn class_id() -> ClassId {
-        // If we use `ClassId::of::<()>`, then this type shows up as `(no base)` in documentation.
-        ClassId::none()
+        Self::godot_shape().class_name_or_none()
     }
 
     #[doc(hidden)]
     fn property_info(property_name: &str) -> PropertyInfo {
-        PropertyInfo {
-            variant_type: Self::Ffi::VARIANT_TYPE.variant_as_nil(),
-            class_id: Self::class_id(),
-            property_name: builtin::StringName::from(property_name),
-            hint_info: Self::property_hint_info(),
-            usage: PropertyUsageFlags::DEFAULT,
-        }
-    }
-
-    #[doc(hidden)]
-    fn property_hint_info() -> PropertyHintInfo {
-        // The default implementation is mostly good for builtin types.
-        //PropertyHintInfo::with_type_name::<Self>()
-
-        PropertyHintInfo::none()
+        // Used for method parameter/return type registration, not property registration — keeps DEFAULT.
+        let shape = Self::godot_shape();
+        let hint_info = shape.var_hint();
+        shape.into_property_info(property_name, hint_info, PropertyUsageFlags::DEFAULT)
     }
 
     #[doc(hidden)]
@@ -129,7 +114,17 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     /// - `StringName`, `AABB` or `int` for built-ins
     /// - `Array` for arrays
     #[doc(hidden)]
-    fn godot_type_name() -> String;
+    fn godot_type_name() -> String {
+        let class_id = Self::class_id();
+        if class_id.is_none() {
+            Self::Ffi::VARIANT_TYPE
+                .variant_as_nil()
+                .godot_type_name()
+                .to_string()
+        } else {
+            class_id.to_string()
+        }
+    }
 
     /// Special-casing for `FromVariant` conversions higher up: true if the variant can be interpreted as `Option<Self>::None`.
     ///
@@ -184,6 +179,9 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 /// Also, keep in mind that Godot uses `Variant` for each element. If performance matters and you have small element types such as `u8`,
 /// consider using packed arrays (e.g. `PackedByteArray`) instead.
 //
+// Note: `Element` does not require `Sealed`. This is intentional: user-defined enums (`#[derive(GodotConvert)]`) implement `Element`
+// via generated code, so the trait must be open. Correctness is ensured by requiring `ToGodot + FromGodot` (both sealed), which
+// guarantees that only types with valid Godot conversions can implement `Element`.
 #[diagnostic::on_unimplemented(
     message = "Element type not supported in Godot collections (no nesting).",
     label = "has invalid element type"
@@ -202,8 +200,17 @@ pub trait Element: ToGodot + FromGodot + 'static {
     /// [upstream docs](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint).
     #[doc(hidden)]
     fn element_type_string() -> String {
-        // Most array elements and all packed array elements are builtin types, so this is a good default.
-        builtin_type_string::<Self::Via>()
+        // Derives from shape(): builtin types use the default, enums build "{vtype}/{hint}:{hint_string}".
+        Self::godot_shape().element_type_string()
+    }
+
+    /// Returns the Godot type name for use in `#[var]` array/dictionary type hints.
+    ///
+    /// Defaults to the `Via` type's name (e.g. `"int"` for `i32`). Engine enums override this
+    /// to return their qualified class name (e.g. `"Node.ProcessMode"`).
+    #[doc(hidden)]
+    fn element_godot_type_name() -> String {
+        Self::godot_shape().element_godot_type_name()
     }
 
     #[doc(hidden)]
@@ -217,25 +224,15 @@ pub trait Element: ToGodot + FromGodot + 'static {
 // Non-polymorphic helper functions, to avoid constant `<T::Via as GodotType>::` in the code.
 
 #[doc(hidden)]
-pub(crate) const fn element_variant_type<T: Element>() -> VariantType {
+pub const fn element_variant_type<T: Element>() -> VariantType {
     <T::Via as GodotType>::Ffi::VARIANT_TYPE.variant_as_nil()
 }
 
 /// Classifies `T` into one of Godot's builtin types. **Important:** variants are mapped to `NIL`.
 #[doc(hidden)]
-pub(crate) const fn ffi_variant_type<T: GodotConvert>() -> ExtVariantType {
+pub(crate) const fn ffi_variant_type<T: GodotConvert + ?Sized>() -> ExtVariantType {
     <T::Via as GodotType>::Ffi::VARIANT_TYPE
 }
-
-#[doc(hidden)]
-pub(crate) fn element_godot_type_name<T: Element>() -> String {
-    <T::Via as GodotType>::godot_type_name()
-}
-
-// #[doc(hidden)]
-// pub(crate)  fn element_godot_type_name<T: Element>() -> String {
-//     <T::Via as GodotType>::godot_type_name()
-// }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

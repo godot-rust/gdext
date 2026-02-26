@@ -20,9 +20,14 @@ pub use string_name::{ExFind as StringNameExFind, ExSplit as StringNameExSplit, 
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
+use crate::registry::property::GodotShape;
 
 impl GodotConvert for &str {
     type Via = GString;
+
+    fn godot_shape() -> GodotShape {
+        GString::godot_shape()
+    }
 }
 
 impl ToGodot for &str {
@@ -35,6 +40,10 @@ impl ToGodot for &str {
 
 impl GodotConvert for String {
     type Via = GString;
+
+    fn godot_shape() -> GodotShape {
+        GString::godot_shape()
+    }
 }
 
 impl ToGodot for String {

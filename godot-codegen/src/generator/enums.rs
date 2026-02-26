@@ -11,7 +11,7 @@
 
 use std::collections::HashSet;
 
-use heck::ToPascalCase;
+use heck::ToTitleCase;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 
@@ -46,8 +46,13 @@ pub fn make_enum_definition_with(
     // Things needed for the type definition
     let derives = enum_.derives();
     let enum_doc = make_enum_doc(enum_);
-    let enum_hint_string = make_enum_hint_string(enum_);
     let name = &enum_.name;
+
+    // Engine enums use a qualified name in property hints, e.g. "Orientation" or "Node.ProcessMode".
+    let enum_qualified_name = match &enum_.surrounding_class {
+        Some(class) => format!("{}.{}", class.godot_ty, enum_.godot_name),
+        None => enum_.godot_name.clone(),
+    };
 
     // Values
     let enumerators = enum_.enumerators.iter().map(|enumerator| {
@@ -107,11 +112,6 @@ pub fn make_enum_definition_with(
 
         // Trait implementations.
         let engine_trait_impl = make_enum_engine_trait_impl(enum_, enum_bitmask.as_ref());
-        let property_hint = if enum_.is_bitfield {
-            quote! { crate::global::PropertyHint::FLAGS }
-        } else {
-            quote! { crate::global::PropertyHint::ENUM }
-        };
         let index_enum_impl = make_enum_index_impl(enum_);
         let bitwise_impls = make_enum_bitwise_operators(enum_, enum_bitmask.as_ref());
 
@@ -129,6 +129,17 @@ pub fn make_enum_definition_with(
             }
         };
 
+        // Build GodotShape::Enum enumerator list.
+        let enumerator_defs = enum_.enumerators.iter().map(|enumerator| {
+            let display_name = enumerator.godot_name.to_title_case(); // Inspector UI Name: "KEY_ESCAPE" -> "Key Escape".
+            let value = enumerator.value.to_i64();
+            quote! {
+                Enumerator::new_int(#display_name, #value)
+            }
+        });
+
+        let is_bitfield = enum_.is_bitfield;
+
         quote! {
             #engine_trait_impl
             #index_enum_impl
@@ -136,6 +147,21 @@ pub fn make_enum_definition_with(
 
             impl crate::meta::GodotConvert for #name {
                 type Via = #ord_type;
+
+                fn godot_shape() -> crate::registry::property::GodotShape {
+                    use crate::registry::property::{Enumerator, GodotShape};
+                    const ENUMERATORS: &[Enumerator] = const {
+                        &[
+                            #( #enumerator_defs ),*
+                        ]
+                    };
+                    GodotShape::Enum {
+                        variant_type: crate::meta::element_variant_type::<Self>(),
+                        enumerators: std::borrow::Cow::Borrowed(ENUMERATORS),
+                        godot_name: Some(std::borrow::Cow::Borrowed(#enum_qualified_name)),
+                        is_bitfield: #is_bitfield,
+                    }
+                }
             }
 
             impl crate::meta::ToGodot for #name {
@@ -170,13 +196,6 @@ pub fn make_enum_definition_with(
 
                 fn var_pub_set(field: &mut Self, value: Self::PubType) {
                     *field = value;
-                }
-
-                fn var_hint() -> crate::meta::PropertyHintInfo {
-                    crate::meta::PropertyHintInfo {
-                        hint: #property_hint,
-                        hint_string: crate::builtin::GString::from(#enum_hint_string),
-                    }
                 }
             }
 
@@ -525,6 +544,7 @@ fn make_enum_bitwise_operators(enum_: &Enum, enum_bitmask: Option<&RustTy>) -> T
         TokenStream::new()
     }
 }
+
 /// Returns the documentation for the given enum.
 ///
 /// Each string is one line of documentation, usually this needs to be wrapped in a `#[doc = ...]`.
@@ -536,17 +556,6 @@ fn make_enum_doc(enum_: &Enum) -> Vec<String> {
     }
 
     docs
-}
-/// Returns the hint string for the given enum.
-///
-/// e.g.: "Left,Center,Right,Fill"
-fn make_enum_hint_string(enum_: &Enum) -> String {
-    enum_
-        .enumerators
-        .iter()
-        .map(|enumerator| enumerator.name.to_string().to_pascal_case())
-        .collect::<Vec<String>>()
-        .join(",")
 }
 
 /// Creates a definition for `enumerator` of the type `enum_type`.

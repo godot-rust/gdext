@@ -19,10 +19,10 @@ use crate::meta::error::{ArrayMismatch, ConvertError, FromGodotError, FromVarian
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{
     AsArg, ClassId, Element, ElementType, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant,
-    GodotType, PropertyHintInfo, RefArg, ToGodot, element_godot_type_name, element_variant_type,
+    GodotType, PropertyHintInfo, RefArg, ToGodot, element_variant_type,
 };
 use crate::obj::{Bounds, DynGd, Gd, GodotClass, bounds};
-use crate::registry::property::{BuiltinExport, Export, Var};
+use crate::registry::property::{BuiltinExport, Export, GodotShape, Var};
 
 /// Godot's `Array` type.
 ///
@@ -1141,6 +1141,18 @@ impl Element for VarArray {}
 
 impl<T: Element> GodotConvert for Array<T> {
     type Via = Self;
+
+    fn godot_shape() -> GodotShape {
+        if Self::has_variant_t() {
+            return GodotShape::Builtin {
+                variant_type: VariantType::ARRAY,
+            };
+        }
+
+        GodotShape::TypedArray {
+            element_shape: Box::new(T::godot_shape()),
+        }
+    }
 }
 
 impl<T: Element> ToGodot for Array<T> {
@@ -1217,6 +1229,7 @@ impl<T: Element> Clone for Array<T> {
     }
 }
 
+// No Var bound on T.
 impl<T: Element> Var for Array<T> {
     type PubType = Self;
 
@@ -1235,30 +1248,9 @@ impl<T: Element> Var for Array<T> {
     fn var_pub_set(field: &mut Self, value: Self::PubType) {
         *field = value;
     }
-
-    fn var_hint() -> PropertyHintInfo {
-        // For array #[var], the hint string is "PackedInt32Array", "Node" etc. for typed arrays, and "" for untyped arrays.
-        if Self::has_variant_t() {
-            PropertyHintInfo::none()
-        } else {
-            PropertyHintInfo::var_array_element::<T>()
-        }
-    }
 }
 
-impl<T> Export for Array<T>
-where
-    T: Element + Export,
-{
-    fn export_hint() -> PropertyHintInfo {
-        // If T == Variant, then we return "Array" builtin type hint.
-        if Self::has_variant_t() {
-            PropertyHintInfo::type_name::<VarArray>()
-        } else {
-            PropertyHintInfo::export_array_element::<T>()
-        }
-    }
-}
+impl<T> Export for Array<T> where T: Element + Export {}
 
 impl<T: Element> BuiltinExport for Array<T> {}
 
@@ -1266,10 +1258,6 @@ impl<T> Export for Array<Gd<T>>
 where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
 {
-    fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo::export_array_element::<Gd<T>>()
-    }
-
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
@@ -1284,10 +1272,6 @@ where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
 {
-    fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo::export_array_element::<DynGd<T, D>>()
-    }
-
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
@@ -1341,23 +1325,6 @@ impl<T: Element> GodotType for Array<T> {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
         Ok(ffi)
-    }
-
-    fn godot_type_name() -> String {
-        "Array".to_string()
-    }
-
-    fn property_hint_info() -> PropertyHintInfo {
-        // Array<Variant>, aka untyped array, has no hints.
-        if Self::has_variant_t() {
-            return PropertyHintInfo::none();
-        }
-
-        // Typed arrays use type hint.
-        PropertyHintInfo {
-            hint: crate::global::PropertyHint::ARRAY_TYPE,
-            hint_string: GString::from(&element_godot_type_name::<T>()),
-        }
     }
 }
 
@@ -1575,7 +1542,8 @@ macro_rules! array {
             array
         }
     };
-    // `=` prefix: `DirectElement` (unambiguous type inference; covers `i32`, `&str` → `GString`, `&GString`, ...).
+
+    // `=` prefix: `DirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
     (= $($elements:expr_2021),* $(,)?) => {
         {
             let mut array = $crate::builtin::Array::default();

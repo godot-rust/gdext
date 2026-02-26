@@ -8,7 +8,6 @@
 use std::collections::HashMap;
 use std::{any, ptr};
 
-use godot_ffi::join_with;
 use sys::{Global, GlobalGuard, GlobalLockError, interface_fn, out};
 
 use crate::classes::ClassDb;
@@ -19,7 +18,7 @@ use crate::obj::{DynGd, Gd, GodotClass, Singleton, cap};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
 use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
-use crate::{classes, godot_error, godot_warn, sys};
+use crate::{godot_error, godot_warn, sys};
 
 /// Returns a lock to a global map of loaded classes, by initialization level.
 ///
@@ -368,23 +367,17 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
     Err((error, object))
 }
 
-/// Responsible for creating hint_string for [`DynGd<T, D>`][crate::obj::DynGd] properties which works with [`PropertyHint::NODE_TYPE`][crate::global::PropertyHint::NODE_TYPE] or [`PropertyHint::RESOURCE_TYPE`][crate::global::PropertyHint::RESOURCE_TYPE].
+/// Returns the `ClassId`s of all concrete implementors of trait `D` that inherit from `T`.
 ///
-/// Godot offers very limited capabilities when it comes to validating properties in the editor if given class isn't a tool.
-/// Proper hint string combined with `PropertyHint::RESOURCE_TYPE` allows to limit selection only to valid classes - those registered as implementors of given `DynGd<T, D>`'s `D` trait.
-/// Godot editor allows to export only one node type with `PropertyHint::NODE_TYPE` – therefore we are returning only the base class.
+/// Used by [`DynGd<T, D>`][crate::obj::DynGd] to populate [`ClassAncestor::DynResource`][crate::registry::property::ClassAncestor::DynResource]
+/// with the set of valid implementor classes from the `#[godot_dyn]` registry.
 ///
 /// See also [Godot docs for PropertyHint](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enum-globalscope-propertyhint).
-pub(crate) fn get_dyn_property_hint_string<T, D>() -> String
+pub(crate) fn get_dyn_implementor_class_ids<T, D>() -> Vec<ClassId>
 where
     T: GodotClass,
     D: ?Sized + 'static,
 {
-    // Exporting multiple node types is not supported.
-    if T::inherits::<classes::Node>() {
-        return T::class_id().to_string();
-    }
-
     let typeid = any::TypeId::of::<D>();
     let dyn_traits_by_typeid = global_dyn_traits_by_typeid();
 
@@ -393,7 +386,7 @@ where
         godot_warn!(
             "godot-rust: No class has been linked to trait {trait_name} with #[godot_dyn]."
         );
-        return String::new();
+        return Vec::new();
     };
     assert!(
         !relations.is_empty(),
@@ -404,24 +397,23 @@ where
     );
 
     // Include only implementors inheriting given T.
-    // For example – don't include Nodes or Objects while creating hint_string for Resource.
-    let relations_iter = relations.iter().filter_map(|implementor| {
-        // TODO – check if caching it (using is_derived_base_cached) yields any benefits.
-        if implementor.parent_class_name? == T::class_id()
-            || ClassDb::singleton().is_parent_class(
-                &implementor.parent_class_name?.to_string_name(),
-                &T::class_id().to_string_name(),
-            )
-        {
-            Some(implementor)
-        } else {
-            None
-        }
-    });
-
-    join_with(relations_iter, ", ", |dyn_trait| {
-        dyn_trait.class_name().to_cow_str()
-    })
+    // For example — don't include Nodes or Objects while creating hint_string for Resource.
+    relations
+        .iter()
+        .filter_map(|implementor| {
+            // TODO — check if caching it (using is_derived_base_cached) yields any benefits.
+            if implementor.parent_class_name? == T::class_id()
+                || ClassDb::singleton().is_parent_class(
+                    &implementor.parent_class_name?.to_string_name(),
+                    &T::class_id().to_string_name(),
+                )
+            {
+                Some(*implementor.class_name())
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).

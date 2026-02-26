@@ -120,25 +120,25 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let hint = match hint {
             // TODO(v0.5): inline #field_type as FieldType alias.
             FieldHint::Inferred => {
+                // Three-way dispatch for inferred hints:
+                // 1. If the `#[export]` attribute provides an explicit hint (e.g. `@export_range`), use that.
+                // 2. Otherwise, if this is an `#[export]` field, derive hints from the shape's export_hint().
+                // 3. Otherwise (`#[var]` only), derive hints from the shape's var_hint().
                 if let Some(export_hint) = export_hint {
                     quote! { #export_hint }
                 } else if export.is_some() {
-                    quote! { <#field_type as ::godot::register::property::Export>::export_hint() }
+                    quote! { ::godot::register::property::export_hint::<#field_type>() }
                 } else {
-                    quote! { <#field_type as ::godot::register::property::Var>::var_hint() }
+                    quote! { ::godot::register::property::var_hint::<#field_type>() }
                 }
             }
             FieldHint::Hint(hint) => {
-                let hint_string = if let Some(export_hint) = export_hint {
-                    quote! { #export_hint.hint_string }
-                } else {
-                    quote! { ::godot::builtin::GString::new() }
-                };
-
+                // User specified hint without hint_string — use empty string.
+                // Do not borrow export hint's string; that would mix semantics from two independent attributes.
                 quote! {
                     ::godot::meta::PropertyHintInfo {
                         hint: ::godot::global::PropertyHint::#hint,
-                        hint_string: #hint_string,
+                        hint_string: ::godot::builtin::GString::new(),
                     }
                 }
             }

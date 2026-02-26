@@ -9,6 +9,7 @@ use crate::builtin::{Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i, re
 use crate::meta::error::{ConvertError, FromGodotError};
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::obj::EngineEnum;
+use crate::registry::property::GodotShape;
 
 macro_rules! impl_vector_axis_enum {
     ($Vector:ident, $AxisEnum:ident, ($($axis:ident),+)) => {
@@ -70,6 +71,10 @@ macro_rules! impl_vector_axis_enum {
 
         impl GodotConvert for $AxisEnum {
             type Via = i32;
+
+            fn godot_shape() -> GodotShape {
+                i32::godot_shape()
+            }
         }
 
         impl ToGodot for $AxisEnum {

@@ -10,11 +10,9 @@ use godot_ffi as sys;
 use crate::builtin::{Array, Variant};
 use crate::meta;
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError};
-use crate::meta::{
-    ClassId, Element, FromGodot, GodotConvert, GodotNullableFfi, GodotType, PropertyHintInfo,
-    PropertyInfo, ToGodot,
-};
+use crate::meta::{Element, FromGodot, GodotConvert, GodotNullableFfi, GodotType, ToGodot};
 use crate::registry::method::MethodParamOrReturnInfo;
+use crate::registry::property::GodotShape;
 
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
 // - enum
@@ -61,18 +59,6 @@ where
         T::param_metadata()
     }
 
-    fn class_id() -> ClassId {
-        T::class_id()
-    }
-
-    fn property_info(property_name: &str) -> PropertyInfo {
-        T::property_info(property_name)
-    }
-
-    fn property_hint_info() -> PropertyHintInfo {
-        T::property_hint_info()
-    }
-
     fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
         T::argument_info(property_name)
     }
@@ -100,6 +86,10 @@ where
     Option<T::Via>: GodotType,
 {
     type Via = Option<T::Via>;
+
+    fn godot_shape() -> GodotShape {
+        T::godot_shape()
+    }
 }
 
 impl<T> ToGodot for Option<T>
@@ -245,15 +235,15 @@ macro_rules! impl_godot_scalar {
         fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
             $param_metadata
         }
-
-        fn godot_type_name() -> String {
-            <$Via as GodotType>::godot_type_name()
-        }
     };
 
     (@shared_traits; $T:ty) => {
         impl GodotConvert for $T {
             type Via = $T;
+
+            fn godot_shape() -> GodotShape {
+                GodotShape::of_builtin::<$T>()
+            }
         }
 
         impl ToGodot for $T {
@@ -339,6 +329,10 @@ impl GodotType for u64 {
 
 impl GodotConvert for u64 {
     type Via = u64;
+
+    fn godot_shape() -> GodotShape {
+        GodotShape::of_builtin::<u64>()
+    }
 }
 
 // u64 implements internal-only conversion traits for use in engine APIs and virtual methods.
@@ -369,6 +363,10 @@ impl meta::EngineFromGodot for u64 {
 
 impl<T: Element> GodotConvert for Vec<T> {
     type Via = Array<T>;
+
+    fn godot_shape() -> GodotShape {
+        <Array<T> as GodotConvert>::godot_shape()
+    }
 }
 
 impl<T: Element> ToGodot for Vec<T> {
@@ -387,6 +385,10 @@ impl<T: Element> FromGodot for Vec<T> {
 
 impl<T: Element, const LEN: usize> GodotConvert for [T; LEN] {
     type Via = Array<T>;
+
+    fn godot_shape() -> GodotShape {
+        <Array<T> as GodotConvert>::godot_shape()
+    }
 }
 
 impl<T: Element, const LEN: usize> ToGodot for [T; LEN] {
@@ -427,6 +429,10 @@ impl<T: Element, const LEN: usize> FromGodot for [T; LEN] {
 
 impl<T: Element> GodotConvert for &[T] {
     type Via = Array<T>;
+
+    fn godot_shape() -> GodotShape {
+        <Array<T> as GodotConvert>::godot_shape()
+    }
 }
 
 impl<T: Element> ToGodot for &[T] {

@@ -184,6 +184,13 @@ pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
 }
 
 /// Auto-implemented for all engine-provided enums.
+///
+/// # Future direction: `GodotEnum` unification
+/// Currently engine enums implement this trait with `all_constants()` returning `&[EnumConstant<Self>]`, while user enums provide
+/// metadata through `GodotShape::Enum` with `&[Enumerator]`. A future `GodotEnum` trait could unify both, providing a single
+/// interface for enumerator introspection, constant registration via `classdb_register_extension_class_integer_constant` (which
+/// also accepts `p_is_bitfield`), and shared `GodotShape` construction. This would let user enums opt-in to the same capabilities
+/// as engine enums (GDScript name resolution, editor integration).
 pub trait EngineEnum: Copy + 'static {
     fn try_from_ord(ord: i32) -> Option<Self>;
 

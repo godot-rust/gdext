@@ -14,10 +14,9 @@ use crate::derive::data_models::GodotConvert;
 /// Derives `Var` for the given declaration.
 ///
 /// This uses `ToGodot` and `FromGodot` for the `var_get` and `var_set` implementations.
+/// Property hints are derived from `GodotConvert::shape()`.
 pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
     let convert = GodotConvert::parse_declaration(item)?;
-
-    let property_hint_impl = create_property_hint_impl(&convert);
 
     let name = convert.ty_name;
 
@@ -40,39 +39,6 @@ pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
             fn var_pub_set(field: &mut Self, value: Self::PubType) {
                 *field = value;
             }
-
-            fn var_hint() -> ::godot::meta::PropertyHintInfo {
-                #property_hint_impl
-            }
         }
     })
-}
-
-/// Make an appropriate property hint implementation.
-///
-/// For newtype structs we just defer to the wrapped type. For enums we use `PropertyHint::ENUM` with an appropriate hint string.
-fn create_property_hint_impl(convert: &GodotConvert) -> TokenStream {
-    use super::data_models::{ConvertType, ViaType};
-
-    match &convert.convert_type {
-        ConvertType::NewType { field } => {
-            let ty = &field.ty;
-            quote! {
-                <#ty as ::godot::register::property::Var>::var_hint()
-            }
-        }
-        ConvertType::Enum { variants, via } => {
-            let hint_string = match via {
-                ViaType::GString { .. } => variants.to_string_hint(),
-                ViaType::Int { .. } => variants.to_int_hint(),
-            };
-
-            quote! {
-                ::godot::meta::PropertyHintInfo {
-                    hint: ::godot::global::PropertyHint::ENUM,
-                    hint_string: ::godot::builtin::GString::from(#hint_string),
-                }
-            }
-        }
-    }
 }

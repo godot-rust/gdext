@@ -7,16 +7,18 @@
 
 //! Internal registration machinery used by proc-macro APIs.
 
-use sys::GodotFfi;
-
 use crate::builtin::{GString, StringName};
 use crate::global::PropertyUsageFlags;
-use crate::meta::{ClassId, GodotConvert, GodotType, PropertyHintInfo, PropertyInfo};
+use crate::meta::{ClassId, PropertyHintInfo, PropertyInfo};
 use crate::obj::GodotClass;
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
 
-/// Same as [`register_var()`], but statically verifies the `Export` trait (again) and the fact that nodes can only be exported from nodes.
+/// Same as [`register_var()`], but statically verifies the `Export` trait and the fact that nodes can only be exported from nodes.
+///
+/// `hint_info` is pre-computed by the proc macro and may include user overrides (e.g. `#[var(hint = ...)]`).
+/// `usage` is the base usage for the property context (`DEFAULT` for exports).
+/// `T::godot_shape()` is called inside `register_var()` for structural metadata (variant type, class ID, shape usage flags), not for hints.
 pub fn register_export<C: GodotClass, T: Export>(
     property_name: &str,
     getter_name: &str,
@@ -39,6 +41,11 @@ pub fn register_export<C: GodotClass, T: Export>(
     register_var::<C, T>(property_name, getter_name, setter_name, hint_info, usage);
 }
 
+/// Registers a `#[var]` property with Godot's ClassDB.
+///
+/// `hint_info` is pre-computed by the proc macro and may include user overrides (e.g. `#[var(hint = ...)]`).
+/// `usage` is the base usage for the property context (`NONE` for plain `#[var]`, `DEFAULT` for `#[export]`).
+/// `T::godot_shape()` is called here for structural metadata (variant type, class ID, shape-specific usage flags), not for hints.
 pub fn register_var<C: GodotClass, T: Var>(
     property_name: &str,
     getter_name: &str,
@@ -46,14 +53,7 @@ pub fn register_var<C: GodotClass, T: Var>(
     hint_info: PropertyHintInfo,
     usage: PropertyUsageFlags,
 ) {
-    let info = PropertyInfo {
-        variant_type: <<T as GodotConvert>::Via as GodotType>::Ffi::VARIANT_TYPE.variant_as_nil(),
-        class_id: <T as GodotConvert>::Via::class_id(),
-        property_name: StringName::from(property_name),
-        hint_info,
-        usage,
-    };
-
+    let info = T::godot_shape().into_property_info(property_name, hint_info, usage);
     let class_name = C::class_id();
 
     register_var_or_export_inner(info, class_name, getter_name, setter_name);

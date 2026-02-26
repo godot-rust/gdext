@@ -17,6 +17,7 @@ use super::any_dictionary::AnyDictionary;
 use crate::builtin::{AnyArray, Array, VarArray, Variant, VariantType, inner};
 use crate::meta;
 use crate::meta::{AsArg, Element, ElementType, ExtVariantType, FromGodot, ToGodot};
+use crate::registry::property::{BuiltinExport, Export, GodotShape, Var};
 
 /// Godot's `Dictionary` type.
 ///
@@ -860,6 +861,19 @@ impl<K: Element, V: Element> meta::sealed::Sealed for Dictionary<K, V> {}
 
 impl<K: Element, V: Element> meta::GodotConvert for Dictionary<K, V> {
     type Via = Self;
+
+    fn godot_shape() -> GodotShape {
+        if !is_dictionary_typed::<K, V>() {
+            return GodotShape::Builtin {
+                variant_type: VariantType::DICTIONARY,
+            };
+        }
+
+        GodotShape::TypedDictionary {
+            key_shape: Box::new(K::godot_shape()),
+            value_shape: Box::new(V::godot_shape()),
+        }
+    }
 }
 
 impl<K: Element, V: Element> ToGodot for Dictionary<K, V> {
@@ -922,24 +936,11 @@ impl<K: Element, V: Element> meta::GodotType for Dictionary<K, V> {
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, meta::error::ConvertError> {
         Ok(ffi)
     }
-
-    fn godot_type_name() -> String {
-        "Dictionary".to_string()
-    }
-
-    fn property_hint_info() -> meta::PropertyHintInfo {
-        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint.
-        #[cfg(since_api = "4.4")]
-        if is_dictionary_typed::<K, V>() {
-            return meta::PropertyHintInfo::var_dictionary_element::<K, V>();
-        }
-
-        // Untyped dictionary or before 4.4: no hints.
-        meta::PropertyHintInfo::none()
-    }
 }
 
-impl<K: Element, V: Element> Element for Dictionary<K, V> {}
+// Only implement for untyped dictionaries; typed dictionaries cannot be nested in typed containers.
+// Analogous to how only `VarArray` (not `Array<T>`) implements `Element`.
+impl Element for VarDictionary {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Var/Export implementations for Dictionary<K, V>
@@ -952,7 +953,8 @@ fn is_dictionary_typed<K: Element, V: Element>() -> bool {
         || meta::element_variant_type::<V>() != VariantType::NIL
 }
 
-impl<K: Element, V: Element> crate::registry::property::Var for Dictionary<K, V> {
+// No Var bound on K, V.
+impl<K: Element, V: Element> Var for Dictionary<K, V> {
     type PubType = Self;
 
     fn var_get(field: &Self) -> Self::Via {
@@ -970,41 +972,16 @@ impl<K: Element, V: Element> crate::registry::property::Var for Dictionary<K, V>
     fn var_pub_set(field: &mut Self, value: Self::PubType) {
         *field = value;
     }
-
-    fn var_hint() -> meta::PropertyHintInfo {
-        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint.
-        #[cfg(since_api = "4.4")]
-        if is_dictionary_typed::<K, V>() {
-            return meta::PropertyHintInfo::var_dictionary_element::<K, V>();
-        }
-
-        // Untyped dictionary or before 4.4: no hints.
-        meta::PropertyHintInfo::none()
-    }
 }
 
-impl<K, V> crate::registry::property::Export for Dictionary<K, V>
+impl<K, V> Export for Dictionary<K, V>
 where
-    K: Element + crate::registry::property::Export,
-    V: Element + crate::registry::property::Export,
+    K: Element + Export,
+    V: Element + Export,
 {
-    fn export_hint() -> meta::PropertyHintInfo {
-        // VarDictionary: use "Dictionary".
-        if !is_dictionary_typed::<K, V>() {
-            return meta::PropertyHintInfo::type_name::<VarDictionary>();
-        }
-
-        // On Godot 4.4+, typed dictionaries use DICTIONARY_TYPE hint for export.
-        #[cfg(since_api = "4.4")]
-        return meta::PropertyHintInfo::export_dictionary_element::<K, V>();
-
-        // Before 4.4, no engine-side typed dictionary hints.
-        #[cfg(before_api = "4.4")]
-        meta::PropertyHintInfo::none()
-    }
 }
 
-impl<K: Element, V: Element> crate::registry::property::BuiltinExport for Dictionary<K, V> {}
+impl<K: Element, V: Element> BuiltinExport for Dictionary<K, V> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -48,12 +48,19 @@ fn property_template_test(ctx: &TestContext) {
     }
 
     // User-defined GDScript enums reference their type by script path (e.g. "res://gen/GenPropertyTests.gd.Tile"), which cannot be reproduced
-    // from Rust. For now, skip these #[var] properties in the comparison. The #[export] variants work correctly and are tested.
+    // from Rust. This is a Godot limitation: GDScript enums have script-path-based identity that Rust-side registration can't replicate for
+    // #[var] (ARRAY_TYPE/DICTIONARY_TYPE hints use the type name). The #[export] variants work because they use TYPE_STRING hints with
+    // element type strings (variant_type/hint:hint_string format), which don't require script-path enum names.
     #[cfg(since_api = "4.4")]
     {
         properties.remove("var_array_tile");
         properties.remove("var_dict_vector2i_tile");
     }
+
+    // Bitfield properties (e.g. MouseButtonMask) can't be expressed as typed GDScript variables,
+    // so there's no GDScript counterpart to compare against.
+    properties.remove("var_bitfield");
+    properties.remove("export_bitfield");
 
     assert!(!properties.is_empty());
 

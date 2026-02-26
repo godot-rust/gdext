@@ -10,9 +10,9 @@ use godot::builtin::{
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::init::GdextBuild;
-use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
+use godot::meta::{FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
-use godot::register::property::{Export, Var};
+use godot::register::property::{Export, GodotShape, Var};
 use godot::register::{Export, GodotClass, GodotConvert, Var, godot_api};
 use godot::test::itest;
 
@@ -129,6 +129,20 @@ enum SomeCStyleEnum {
 
 impl GodotConvert for SomeCStyleEnum {
     type Via = i64;
+
+    // Deliberately uses GodotShape::Custom to test the legacy manual-impl path.
+    // Most user enums should use GodotShape::Enum instead (see ManualEnumShape below).
+    fn godot_shape() -> godot::register::property::GodotShape {
+        godot::register::property::GodotShape::Custom {
+            variant_type: godot::builtin::VariantType::INT,
+            var_hint: PropertyHint::ENUM,
+            var_hint_string: GString::from("A,B,C"),
+            export_hint: PropertyHint::ENUM,
+            export_hint_string: GString::from("A,B,C"),
+            class_name: None,
+            usage_flags: PropertyUsageFlags::NONE,
+        }
+    }
 }
 
 impl Var for SomeCStyleEnum {
@@ -156,14 +170,7 @@ impl Var for SomeCStyleEnum {
     }
 }
 
-impl Export for SomeCStyleEnum {
-    fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo {
-            hint: PropertyHint::ENUM,
-            hint_string: GString::from("A,B,C"),
-        }
-    }
-}
+impl Export for SomeCStyleEnum {}
 
 #[derive(Default, Clone)]
 struct NotExportable {
@@ -173,6 +180,10 @@ struct NotExportable {
 
 impl GodotConvert for NotExportable {
     type Via = VarDictionary;
+
+    fn godot_shape() -> GodotShape {
+        <VarDictionary as GodotConvert>::godot_shape()
+    }
 }
 
 impl Var for NotExportable {
@@ -380,14 +391,92 @@ fn property_enum_var_legacy() {
 // Regression test for https://github.com/godot-rust/gdext/issues/1009.
 #[itest]
 fn enum_var_hint() {
-    let int_prop = <Behavior as Var>::var_hint();
+    let int_prop = godot::register::property::var_hint::<Behavior>();
     assert_eq!(int_prop.hint, PropertyHint::ENUM);
     assert_eq!(int_prop.hint_string, "Peaceful:0,Defend:1,Aggressive:7");
 
-    let str_prop = <StrBehavior as Var>::var_hint();
+    let str_prop = godot::register::property::var_hint::<StrBehavior>();
     assert_eq!(str_prop.hint, PropertyHint::ENUM);
     assert_eq!(str_prop.hint_string, "Peaceful,Defend,Aggressive");
 }
+
+#[itest]
+fn enum_manual_shape() {
+    use godot::register::property::{GodotShape, export_hint, var_hint};
+
+    // Test GodotShape::Enum with manually constructed enumerators (the recommended way for manual impls).
+    let shape = ManualEnumShape::godot_shape();
+    assert!(matches!(shape, GodotShape::Enum { .. }));
+
+    let var = var_hint::<ManualEnumShape>();
+    assert_eq!(var.hint, PropertyHint::ENUM);
+    assert_eq!(var.hint_string, "X:0,Y:1");
+
+    let exp = export_hint::<ManualEnumShape>();
+    assert_eq!(exp.hint, PropertyHint::ENUM);
+    assert_eq!(exp.hint_string, "X:0,Y:1");
+}
+
+/// Minimal manual enum using `GodotShape::Enum` (recommended approach for manual `GodotConvert` impls).
+#[derive(Default, Copy, Clone)]
+#[repr(i64)]
+enum ManualEnumShape {
+    #[default]
+    X = 0,
+    Y = 1,
+}
+
+impl GodotConvert for ManualEnumShape {
+    type Via = i64;
+
+    fn godot_shape() -> GodotShape {
+        use godot::register::property::{Enumerator, GodotShape};
+
+        const ENUMERATORS: &[Enumerator] =
+            &[Enumerator::new_int("X", 0), Enumerator::new_int("Y", 1)];
+        GodotShape::Enum {
+            variant_type: VariantType::INT,
+            enumerators: std::borrow::Cow::Borrowed(ENUMERATORS),
+            godot_name: None,
+            is_bitfield: false,
+        }
+    }
+}
+
+impl ToGodot for ManualEnumShape {
+    type Pass = godot::meta::ByValue;
+    fn to_godot(&self) -> i64 {
+        *self as i64
+    }
+}
+
+impl FromGodot for ManualEnumShape {
+    fn try_from_godot(via: i64) -> Result<Self, godot::meta::error::ConvertError> {
+        match via {
+            0 => Ok(Self::X),
+            1 => Ok(Self::Y),
+            _ => Err(godot::meta::error::ConvertError::new("invalid")),
+        }
+    }
+}
+
+impl Var for ManualEnumShape {
+    type PubType = Self;
+    fn var_get(field: &Self) -> i64 {
+        *field as i64
+    }
+    fn var_set(field: &mut Self, value: i64) {
+        *field = Self::try_from_godot(value).unwrap();
+    }
+    fn var_pub_get(field: &Self) -> Self {
+        *field
+    }
+    fn var_pub_set(field: &mut Self, value: Self) {
+        *field = value;
+    }
+}
+
+impl Export for ManualEnumShape {}
 
 #[derive(GodotClass)]
 pub struct DeriveExport {

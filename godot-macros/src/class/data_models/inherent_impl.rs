@@ -340,6 +340,7 @@ fn process_godot_fns(
                     registered_name,
                     is_script_virtual: func.is_virtual,
                     rpc_info,
+                    is_generated_accessor: false,
                 });
             }
 
