@@ -518,19 +518,65 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
     };
 
     // Only available in Godot 4.4+.
+    let rust_extra_types_4_4 = if godot_bindings::before_api("4.4") {
+        TokenStream::new()
+    } else {
+        quote! {
+            #[derive(GodotConvert, Var, Export, Clone, PartialEq, Debug)]
+            #[godot(via = i64)]
+            pub enum Tile { Grass, Rock, Water }
+        }
+    };
+
     let rust_exports_4_4 = if godot_bindings::before_api("4.4") {
         TokenStream::new()
     } else {
         quote! {
             #[var]
+            var_array_tile: Array<Tile>,
+
+            #[export]
+            export_array_tile: Array<Tile>,
+
+            #[var]
             var_dict_string_int: Dictionary<GString, i32>,
 
             #[export]
             export_dict_string_int: Dictionary<GString, i32>,
+
+            #[var]
+            var_dict_vector2i_tile: Dictionary<Vector2i, Tile>,
+
+            #[export]
+            export_dict_vector2i_tile: Dictionary<Vector2i, Tile>,
+
+            #[var]
+            #[init(val = godot::global::Orientation::HORIZONTAL)]
+            var_global_enum: godot::global::Orientation,
+
+            #[export]
+            #[init(val = godot::global::Orientation::HORIZONTAL)]
+            export_global_enum: godot::global::Orientation,
+
+            #[var]
+            #[init(val = godot::classes::node::ProcessMode::WHEN_PAUSED)]
+            var_class_enum: godot::classes::node::ProcessMode,
+
+            #[export]
+            #[init(val = godot::classes::node::ProcessMode::WHEN_PAUSED)]
+            export_class_enum: godot::classes::node::ProcessMode,
+
+            #[var]
+            var_class_enum_array: Array<godot::classes::node::ProcessMode>,
+
+            #[export]
+            export_class_enum_array: Array<godot::classes::node::ProcessMode>,
         }
     };
 
     let rust = quote! {
+        #rust_extra_types_4_4
+
         #[derive(GodotClass)]
         #[class(base = Node, init)]
         pub struct PropertyTestsRust {
@@ -641,8 +687,19 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 
     // Only available in Godot 4.4+.
     let advanced_exports_4_4 = r#"
+enum Tile { Grass, Rock, Water }
+var var_array_tile: Array[Tile]
+@export var export_array_tile: Array[Tile]
 var var_dict_string_int: Dictionary[String, int]
 @export var export_dict_string_int: Dictionary[String, int]
+var var_dict_vector2i_tile: Dictionary[Vector2i, Tile]
+@export var export_dict_vector2i_tile: Dictionary[Vector2i, Tile]
+var var_global_enum: Orientation
+@export var export_global_enum: Orientation
+var var_class_enum: Node.ProcessMode
+@export var export_class_enum: Node.ProcessMode
+var var_class_enum_array: Array[Node.ProcessMode]
+@export var export_class_enum_array: Array[Node.ProcessMode]
     "#;
 
     let mut gdscript = format!("{basic_exports}\n{advanced_exports}");

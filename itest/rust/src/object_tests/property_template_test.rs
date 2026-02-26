@@ -47,6 +47,14 @@ fn property_template_test(ctx: &TestContext) {
         }
     }
 
+    // User-defined GDScript enums reference their type by script path (e.g. "res://gen/GenPropertyTests.gd.Tile"), which cannot be reproduced
+    // from Rust. For now, skip these #[var] properties in the comparison. The #[export] variants work correctly and are tested.
+    #[cfg(since_api = "4.4")]
+    {
+        properties.remove("var_array_tile");
+        properties.remove("var_dict_vector2i_tile");
+    }
+
     assert!(!properties.is_empty());
 
     for mut gdscript_prop in gdscript_properties.get_property_list().iter_shared() {
