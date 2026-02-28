@@ -816,6 +816,14 @@ fn parse_fields(
                 );
             }
 
+            // #[export] with #[var(no_get)] is not supported: Godot editor needs to read exported properties.
+            if var.getter == GetterSetter::Disabled && field.export.is_some() {
+                return bail!(
+                    var.span,
+                    "#[export] with #[var(no_get)] is not supported; the editor requires a getter for serialization and inspector display"
+                );
+            }
+
             field.var = Some(var);
             parser.finish()?;
         }

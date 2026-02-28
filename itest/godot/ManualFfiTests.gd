@@ -71,6 +71,26 @@ func test_var_accessors():
 
 	obj.free()
 
+func test_var_no_get_panics_on_read():
+	mark_test_pending()
+
+	var obj = VarAccessors.new()
+	# Getter is registered (panicking), unlike old behavior where no getter existed.
+	assert_that(obj.has_method("__disabled_get_g_noget"), "panicking getter should be registered")
+
+	obj.g_noget = 7
+	Engine.print_error_messages = false
+	var val = obj.g_noget # Getter panics in Rust; returns default, execution continues.
+	Engine.print_error_messages = true
+
+	# Panic was caught: returned default (0) instead of actual field value (7).
+	assert_eq(val, 0, "no_get getter should return default after panic")
+	# The field itself is intact.
+	assert_eq(obj.gdscript_get("g"), 7, "actual field value should be preserved")
+
+	obj.free()
+	mark_test_succeeded()
+
 func test_export():
 	var obj = HasProperty.new()
 

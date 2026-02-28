@@ -169,11 +169,11 @@ fn var_orthogonal_getters_setters() {
     assert!(obj.has_method("get_f_noset"));
     assert!(!obj.has_method("set_f_noset"));
 
-    // g) write-only (no getter).
+    // g) write-only (no getter -- panicking getter is registered).
     obj.set("g_noget", &7.to_variant()); // Dynamic (no Rust setter).
     assert_eq!(obj.bind().g_noget, 7);
     assert!(obj.has_method("set_g_noget"));
-    assert!(!obj.has_method("get_g_noget"));
+    assert!(obj.has_method("__disabled_get_g_noget")); // panics.
 
     // h) custom getter (custom name), no setter.
     obj.bind_mut().h_myget_noset = 8;
@@ -181,11 +181,11 @@ fn var_orthogonal_getters_setters() {
     assert!(obj.has_method("my_custom_get"));
     assert!(!obj.has_method("set_h_myget_noset"));
 
-    // i) no getter, custom setter (custom name).
+    // i) no getter (panicking getter registered), custom setter (custom name).
     obj.bind_mut().my_custom_set(9); // Sets e, i, j to 9.
     assert_eq!(obj.bind().i_noget_myset, 9);
     assert!(obj.has_method("my_custom_set"));
-    assert!(!obj.has_method("get_i_noget_myset"));
+    assert!(obj.has_method("__disabled_get_i_noget_myset")); // panics.
 
     // j) custom getter (custom name), custom setter (custom name).
     assert_eq!(obj.bind().j_myget_myset, 9); // Set by my_custom_set(9) above.

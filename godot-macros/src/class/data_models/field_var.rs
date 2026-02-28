@@ -221,7 +221,13 @@ impl GetterSetter {
         rust_public: bool,
     ) -> Option<GetterSetterImpl> {
         match self {
-            GetterSetter::Disabled => None,
+            GetterSetter::Disabled => match kind {
+                // #[var(no_get)] *does* register a getter, but a special one which panics, to improve UX over Godot's default behavior.
+                GetSet::Get => Some(GetterSetterImpl::from_write_only_getter(
+                    class_name, field, rename,
+                )),
+                GetSet::Set => None,
+            },
             GetterSetter::Generated => Some(GetterSetterImpl::from_generated_impl(
                 class_name,
                 kind,
@@ -415,9 +421,72 @@ impl GetterSetterImpl {
             #deprecated_function
         };
 
+        let (funcs_collection_constant, export_token) =
+            Self::make_registration(class_name, &rust_accessor, &godot_function_name, signature);
+
+        Self {
+            rust_accessor,
+            function_impl,
+            export_token,
+            funcs_collection_constant,
+        }
+    }
+
+    /// Generates a getter that panics with a descriptive message for write-only (`#[var(no_get)]`) fields.
+    fn from_write_only_getter(class_name: &Ident, field: &Field, rename: &Option<Ident>) -> Self {
+        let Field {
+            name: field_name,
+            ty: field_type,
+            ..
+        } = field;
+
+        let field_span = field_name.span();
+        let prefix = GetSet::Get.prefix();
+        // Use a mangled name so the panicking getter is not accidentally called as `get_field()` in GDScript.
+        let godot_function_name =
+            format_ident!("__disabled_{prefix}{field_name}", span = field_span);
+        let rust_accessor = format_ident!("__godot_{prefix}{field_name}", span = field_span);
+
+        let panic_message = format!(
+            "property '{}::{}' is write-only through #[var(no_get)]",
+            class_name,
+            rename.as_ref().unwrap_or(field_name),
+        );
+
+        let signature = quote_spanned! { field_span=>
+            fn #rust_accessor(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via
+        };
+
+        let function_impl = quote_spanned! { field_span=>
+            #[doc(hidden)]
+            pub #signature {
+                panic!(#panic_message)
+            }
+        };
+
+        let (funcs_collection_constant, export_token) =
+            Self::make_registration(class_name, &rust_accessor, &godot_function_name, signature);
+
+        Self {
+            rust_accessor,
+            function_impl,
+            export_token,
+            funcs_collection_constant,
+        }
+    }
+
+    /// Registers a generated accessor with Godot. Shared by `from_generated_impl` and `from_write_only_getter`.
+    ///
+    /// Returns `(funcs_collection_constant, export_token)`.
+    fn make_registration(
+        class_name: &Ident,
+        rust_accessor: &Ident,
+        godot_function_name: &Ident,
+        signature: TokenStream,
+    ) -> (TokenStream, TokenStream) {
         let funcs_collection_constant = make_funcs_collection_constant(
             class_name,
-            &rust_accessor,
+            rust_accessor,
             Some(&godot_function_name.to_string()),
             &[],
         );
@@ -427,11 +496,10 @@ impl GetterSetterImpl {
             class_name,
             FuncDefinition {
                 signature_info: into_signature_info(signature, class_name, false),
-                // Since we're analyzing a struct's field, we don't have access to the corresponding get/set function's
-                // external (non-#[func]) attributes. We have to assume the function exists and has the name the user
-                // gave us, with the expected signature.
-                // Ideally, we'd be able to place #[cfg_attr] on #[var(get)] and #[var(set)] to be able to match a
-                // #[cfg()] (for instance) placed on the getter/setter function, but that is not currently supported.
+                // Since we're analyzing a struct's field, we don't have access to the corresponding get/set function's external (non-#[func])
+                // attributes. We have to assume the function exists and has the name the user gave us, with the expected signature.
+                // Ideally, we'd be able to place #[cfg_attr] on #[var(get)] and #[var(set)] to be able to match a #[cfg()] (for instance)
+                // placed on the getter/setter function, but that is not currently supported.
                 external_attributes: Vec::new(),
                 // The Rust function name may differ from the Godot name (e.g. `__godot_get_field` vs `get_field`).
                 registered_name: Some(godot_function_name.to_string()),
@@ -442,14 +510,9 @@ impl GetterSetterImpl {
             None,
         );
 
-        let export_token = export_token.expect("getter/setter generation should not fail");
+        let export_token = export_token.expect("accessor registration should not fail");
 
-        Self {
-            rust_accessor,
-            function_impl,
-            export_token,
-            funcs_collection_constant,
-        }
+        (funcs_collection_constant, export_token)
     }
 
     fn generate_tool_button_impl(
