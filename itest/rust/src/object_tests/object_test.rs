@@ -694,7 +694,7 @@ fn object_engine_accept_polymorphic() {
 
     // Node::set_name() changed to accept StringName, in https://github.com/godotengine/godot/pull/76560.
     #[cfg(before_api = "4.5")]
-    node.set_name(expected_name.arg());
+    node.set_name(&GString::from(&expected_name));
     #[cfg(since_api = "4.5")]
     node.set_name(&expected_name);
 

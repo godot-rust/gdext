@@ -249,24 +249,6 @@ impl GString {
         unsafe { self.move_return_ptr(dst, sys::PtrcallType::Standard) };
     }
 
-    meta::declare_arg_method! {
-        /// Use as argument for an [`impl AsArg<StringName|NodePath>`][crate::meta::AsArg] parameter.
-        ///
-        /// This is a convenient way to convert arguments of similar string types.
-        ///
-        /// # Example
-        /// [`Node::has_node()`][crate::classes::Node::has_node] takes `NodePath`, let's pass a `GString`:
-        /// ```no_run
-        /// # use godot::prelude::*;
-        /// let name = GString::from("subnode");
-        ///
-        /// let node = Node::new_alloc();
-        /// if node.has_node(name.arg()) {
-        ///     // ...
-        /// }
-        /// ```
-    }
-
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerString<'_> {
         inner::InnerString::from_outer(self)

@@ -143,21 +143,6 @@ impl StringName {
         /// Returns a 32-bit integer hash value representing the string.
     }
 
-    meta::declare_arg_method! {
-        /// Use as argument for an [`impl AsArg<GString|NodePath>`][crate::meta::AsArg] parameter.
-        ///
-        /// This is a convenient way to convert arguments of similar string types.
-        ///
-        /// # Example
-        /// [`Node::set_name()`][crate::classes::Node::set_name] takes `GString`, let's pass a `StringName`:
-        /// ```no_run
-        /// # use godot::prelude::*;
-        /// let needle = StringName::from("str");
-        /// let haystack = GString::from("a long string");
-        /// let found = haystack.find(needle.arg());
-        /// ```
-    }
-
     /// O(1), non-lexicographic, non-stable ordering relation.
     ///
     /// The result of the comparison is **not** lexicographic and **not** stable across multiple runs of your application.

@@ -352,20 +352,24 @@ fn strings_as_arg() {
     let sname = StringName::from("GodotRocks");
     let npath = NodePath::from("GodotRocks");
 
+    let gstr_from_sname = GString::from(&sname);
     assert_eq!(as_gstr_arg(str), CowArg::Owned(gstring.clone()));
     assert_eq!(as_gstr_arg(&gstring), CowArg::Borrowed(&gstring));
-    assert_eq!(as_gstr_arg(sname.arg()), CowArg::Owned(gstring.clone()));
+    assert_eq!(as_gstr_arg(&gstr_from_sname), CowArg::Borrowed(&gstring));
     assert_eq!(as_gstr_arg(npath.arg()), CowArg::Owned(gstring.clone()));
 
+    let sname_from_gstring = StringName::from(&gstring);
     assert_eq!(as_sname_arg(str), CowArg::Owned(sname.clone()));
     assert_eq!(as_sname_arg(&sname), CowArg::Borrowed(&sname));
-    assert_eq!(as_sname_arg(gstring.arg()), CowArg::Owned(sname.clone()));
+    assert_eq!(as_sname_arg(&sname_from_gstring), CowArg::Borrowed(&sname));
     assert_eq!(as_sname_arg(npath.arg()), CowArg::Owned(sname.clone()));
 
+    let npath_from_gstring = NodePath::from(&gstring);
+    let npath_from_sname = NodePath::from(&sname);
     assert_eq!(as_npath_arg(str), CowArg::Owned(npath.clone()));
     assert_eq!(as_npath_arg(&npath), CowArg::Borrowed(&npath));
-    assert_eq!(as_npath_arg(gstring.arg()), CowArg::Owned(npath.clone()));
-    assert_eq!(as_npath_arg(sname.arg()), CowArg::Owned(npath.clone()));
+    assert_eq!(as_npath_arg(&npath_from_gstring), CowArg::Borrowed(&npath));
+    assert_eq!(as_npath_arg(&npath_from_sname), CowArg::Borrowed(&npath));
 }
 
 #[itest]
