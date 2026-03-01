@@ -22,7 +22,7 @@ use crate::meta::{
     GodotType, PropertyHintInfo, RefArg, ToGodot, element_variant_type,
 };
 use crate::obj::{Bounds, DynGd, Gd, GodotClass, bounds};
-use crate::registry::property::{BuiltinExport, Export, GodotShape, Var};
+use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotShape, Var};
 
 /// Godot's `Array` type.
 ///
@@ -1150,7 +1150,7 @@ impl<T: Element> GodotConvert for Array<T> {
         }
 
         GodotShape::TypedArray {
-            element_shape: Box::new(T::godot_shape()),
+            element: GodotElementShape::new(T::godot_shape()),
         }
     }
 }

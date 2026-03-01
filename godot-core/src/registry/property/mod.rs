@@ -16,7 +16,7 @@ use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, ToGodot};
 mod godot_shape;
 mod phantom_var;
 
-pub use godot_shape::{ClassHeritage, Enumerator, GodotShape};
+pub use godot_shape::{ClassHeritage, Enumerator, GodotElementShape, GodotShape};
 pub use phantom_var::PhantomVar;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -346,9 +346,9 @@ pub mod export_info_functions {
 
     use crate::builtin::GString;
     use crate::global::PropertyHint;
-    use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
+    use crate::meta::{GodotConvert, PropertyHintInfo};
     use crate::obj::EngineEnum;
-    use crate::registry::property::Export;
+    use crate::registry::property::{Export, GodotElementShape, GodotShape};
     use crate::sys;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
@@ -533,18 +533,14 @@ pub mod export_info_functions {
         is_global: bool,
         filter: impl AsRef<str>,
     ) -> PropertyHintInfo {
-        // Uses signature-hint format (not var/export) intentionally: this is purely for type inspection, not property registration.
-        // Encodes typed arrays as ARRAY_TYPE + type name (e.g. "String"), which is what is_array_of_elem() expects.
-        // export_hint instead uses TYPE_STRING + element-string format ("4:"), which can't be parsed by is_array_of_elem().
-        let field_ty = T::Via::property_info("");
         let filter = filter.as_ref();
         sys::strict_assert!(is_file || filter.is_empty()); // Dir never has filter.
 
-        export_file_or_dir_inner(&field_ty, is_file, is_global, filter)
+        export_file_or_dir_inner(&T::Via::godot_shape(), is_file, is_global, filter)
     }
 
     fn export_file_or_dir_inner(
-        field_ty: &PropertyInfo,
+        shape: &GodotShape,
         is_file: bool,
         is_global: bool,
         filter: &str,
@@ -557,10 +553,12 @@ pub mod export_info_functions {
         };
 
         // Returned value depends on field type.
-        match field_ty.variant_type {
+        match shape {
             // GString field:
             // { "type": 4, "hint": 13, "hint_string": "*.png" }
-            VariantType::STRING => PropertyHintInfo {
+            GodotShape::Builtin {
+                variant_type: VariantType::STRING,
+            } => PropertyHintInfo {
                 hint,
                 hint_string: GString::from(filter),
             },
@@ -568,11 +566,17 @@ pub mod export_info_functions {
             // Array<GString> or PackedStringArray field:
             // { "type": 28, "hint": 23, "hint_string": "4/13:*.png" }
             #[cfg(since_api = "4.3")]
-            VariantType::PACKED_STRING_ARRAY => to_string_array_hint(hint, filter),
+            GodotShape::Builtin {
+                variant_type: VariantType::PACKED_STRING_ARRAY,
+            } => to_string_array_hint(hint, filter),
+
             #[cfg(since_api = "4.3")]
-            VariantType::ARRAY if field_ty.is_array_of_elem::<GString>() => {
-                to_string_array_hint(hint, filter)
-            }
+            GodotShape::TypedArray {
+                element:
+                    GodotElementShape::Builtin {
+                        variant_type: VariantType::STRING,
+                    },
+            } => to_string_array_hint(hint, filter),
 
             _ => {
                 // E.g. `global_file`.
@@ -583,13 +587,13 @@ pub mod export_info_functions {
                 #[cfg(since_api = "4.3")]
                 panic!(
                     "#[export({attribute_name})] only supports GString, Array<String> or PackedStringArray field types\n\
-                    encountered: {field_ty:?}"
+                    encountered: {shape:?}"
                 );
 
                 #[cfg(before_api = "4.3")]
                 panic!(
                     "#[export({attribute_name})] only supports GString type prior to Godot 4.3\n\
-                    encountered: {field_ty:?}"
+                    encountered: {shape:?}"
                 );
             }
         }

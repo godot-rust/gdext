@@ -7,7 +7,7 @@
 
 use crate::builtin::{GString, StringName, VariantType};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{ClassId, Element};
+use crate::meta::ClassId;
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
@@ -52,7 +52,7 @@ use crate::{classes, sys};
 #[derive(Clone, Debug)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 // Note: There was an idea of a high-level representation of the following, but it's likely easier and more efficient to use introspection
-// APIs like `is_array_of_elem()`, unless there's a real user-facing need.
+// APIs like `is_array_of_elem()`, unless there's a real user-facing need (removed in https://github.com/godot-rust/gdext/pulls/1514).
 // pub(crate) enum SimplePropertyType {
 //     Variant { ty: VariantType },
 //     Array { elem_ty: VariantType },
@@ -201,18 +201,6 @@ impl PropertyInfo {
             },
             usage: PropertyUsageFlags::SUBGROUP,
         }
-    }
-
-    // ------------------------------------------------------------------------------------------------------------------------------------------
-    // Introspection API -- could be made public in the future
-
-    pub(crate) fn is_array_of_elem<T>(&self) -> bool
-    where
-        T: Element,
-    {
-        self.variant_type == VariantType::ARRAY
-            && self.hint_info.hint == PropertyHint::ARRAY_TYPE
-            && self.hint_info.hint_string == T::godot_shape().godot_type_name().as_ref()
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------------------
