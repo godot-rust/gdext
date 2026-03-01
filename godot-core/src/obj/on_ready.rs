@@ -12,7 +12,7 @@ use crate::builtin::{GString, NodePath};
 use crate::classes::{Node, Resource};
 use crate::meta::{AsArg, FromGodot, GodotConvert, arg_into_owned};
 use crate::obj::{Gd, Inherits};
-use crate::registry::property::Var;
+use crate::registry::property::{GodotShape, Var};
 
 /// Ergonomic late-initialization container with `ready()` support.
 ///
@@ -291,6 +291,10 @@ impl<T> std::ops::DerefMut for OnReady<T> {
 
 impl<T: GodotConvert> GodotConvert for OnReady<T> {
     type Via = T::Via;
+
+    fn godot_shape() -> GodotShape {
+        T::godot_shape()
+    }
 }
 
 impl<T> Var for OnReady<T>

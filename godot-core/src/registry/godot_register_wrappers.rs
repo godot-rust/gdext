@@ -7,22 +7,26 @@
 
 //! Internal registration machinery used by proc-macro APIs.
 
-use sys::GodotFfi;
-
 use crate::builtin::{GString, StringName};
 use crate::global::PropertyUsageFlags;
-use crate::meta::{ClassId, GodotConvert, GodotType, PropertyHintInfo, PropertyInfo};
+use crate::meta::{ClassId, PropertyHintInfo, PropertyInfo};
 use crate::obj::GodotClass;
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
 
-/// Same as [`register_var()`], but statically verifies the `Export` trait (again) and the fact that nodes can only be exported from nodes.
+/// Registers a `#[export]` property with Godot's ClassDB.
+///
+/// Statically verifies the `Export` trait and that nodes can only be exported from nodes.
+/// Defaults are resolved from `T::godot_shape()`: [`export_hint()`] for hints, [`DEFAULT`] for usage flags. Pass `Some(...)` to override either.
+///
+/// [`export_hint()`]: crate::registry::property::GodotShape::export_hint
+/// [`DEFAULT`]: PropertyUsageFlags::DEFAULT
 pub fn register_export<C: GodotClass, T: Export>(
     property_name: &str,
     getter_name: &str,
     setter_name: &str,
-    hint_info: PropertyHintInfo,
-    usage: PropertyUsageFlags,
+    hint_override: Option<PropertyHintInfo>,
+    usage_override: Option<PropertyUsageFlags>,
 ) {
     // Note: if the user manually specifies `hint`, `hint_string` or `usage` keys, and thus is routed to `register_var()` instead,
     // they can bypass this validation.
@@ -36,27 +40,33 @@ pub fn register_export<C: GodotClass, T: Export>(
         }
     }
 
-    register_var::<C, T>(property_name, getter_name, setter_name, hint_info, usage);
+    let shape = T::godot_shape();
+    let hint = hint_override.unwrap_or_else(|| shape.export_hint());
+    let usage = usage_override.unwrap_or(PropertyUsageFlags::DEFAULT);
+    let info = shape.into_property_info(property_name, hint, usage);
+
+    register_var_or_export_inner(info, C::class_id(), getter_name, setter_name);
 }
 
+/// Registers a `#[var]` property with Godot's ClassDB.
+///
+/// Defaults are resolved from `T::godot_shape()`: [`var_hint()`] for hints, [`NONE`] for usage flags. Pass `Some(...)` to override either.
+///
+/// [`var_hint()`]: crate::registry::property::GodotShape::var_hint
+/// [`NONE`]: PropertyUsageFlags::NONE
 pub fn register_var<C: GodotClass, T: Var>(
     property_name: &str,
     getter_name: &str,
     setter_name: &str,
-    hint_info: PropertyHintInfo,
-    usage: PropertyUsageFlags,
+    hint_override: Option<PropertyHintInfo>,
+    usage_override: Option<PropertyUsageFlags>,
 ) {
-    let info = PropertyInfo {
-        variant_type: <<T as GodotConvert>::Via as GodotType>::Ffi::VARIANT_TYPE.variant_as_nil(),
-        class_id: <T as GodotConvert>::Via::class_id(),
-        property_name: StringName::from(property_name),
-        hint_info,
-        usage,
-    };
+    let shape = T::godot_shape();
+    let hint = hint_override.unwrap_or_else(|| shape.var_hint());
+    let usage = usage_override.unwrap_or(PropertyUsageFlags::NONE);
+    let info = shape.into_property_info(property_name, hint, usage);
 
-    let class_name = C::class_id();
-
-    register_var_or_export_inner(info, class_name, getter_name, setter_name);
+    register_var_or_export_inner(info, C::class_id(), getter_name, setter_name);
 }
 
 fn register_var_or_export_inner(

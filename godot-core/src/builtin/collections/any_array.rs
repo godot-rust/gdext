@@ -17,6 +17,7 @@ use crate::meta::error::ConvertError;
 use crate::meta::{
     Element, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
+use crate::registry::property::GodotShape;
 
 /// Covariant `Array` that can be either typed or untyped.
 ///
@@ -521,6 +522,10 @@ impl Element for AnyArray {}
 
 impl GodotConvert for AnyArray {
     type Via = Self;
+
+    fn godot_shape() -> GodotShape {
+        GodotShape::of_builtin::<Self>()
+    }
 }
 
 impl ToGodot for AnyArray {
@@ -571,10 +576,6 @@ impl GodotType for AnyArray {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
         Ok(ffi)
-    }
-
-    fn godot_type_name() -> String {
-        VarArray::godot_type_name()
     }
 }
 

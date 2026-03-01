@@ -7,6 +7,7 @@
 
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, GodotType, ToGodot, sealed};
+use crate::registry::property::GodotShape;
 
 /// Wrapper around a raw pointer, providing `ToGodot`/`FromGodot` for FFI passing.
 ///
@@ -90,10 +91,6 @@ where
             ptr: P::ptr_from_i64(ffi),
         })
     }
-
-    fn godot_type_name() -> String {
-        "int".to_string()
-    }
 }
 
 impl<P> GodotConvert for RawPtr<P>
@@ -101,6 +98,10 @@ where
     P: FfiRawPointer + 'static,
 {
     type Via = Self;
+
+    fn godot_shape() -> GodotShape {
+        GodotShape::of_builtin::<Self>()
+    }
 }
 
 impl<P> ToGodot for RawPtr<P>

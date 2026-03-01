@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::meta::{FromGodot, GodotConvert, GodotType, PropertyHintInfo};
-use crate::registry::property::{BuiltinExport, Export, Var};
+use crate::meta::{FromGodot, GodotConvert, GodotType};
+use crate::registry::property::{BuiltinExport, Export, GodotShape, Var};
 
 /// Exported property that must be initialized in the editor (or associated code) before use.
 ///
@@ -348,6 +348,10 @@ where
     T::Via: GodotType + BuiltinExport,
 {
     type Via = T::Via;
+
+    fn godot_shape() -> GodotShape {
+        T::godot_shape()
+    }
 }
 
 impl<T> Var for OnEditor<T>
@@ -383,9 +387,6 @@ where
     T: GodotConvert + Export,
     T::Via: BuiltinExport,
 {
-    fn export_hint() -> PropertyHintInfo {
-        T::export_hint()
-    }
 }
 
 impl<T> BuiltinExport for OnEditor<T> {}

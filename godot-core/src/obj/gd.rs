@@ -23,7 +23,7 @@ use crate::obj::{
 };
 use crate::private::{PanicPayload, callbacks};
 use crate::registry::class::try_dynify_object;
-use crate::registry::property::{Export, SimpleVar, Var, object_export_element_type_string};
+use crate::registry::property::{Export, GodotShape, SimpleVar, Var};
 use crate::{classes, meta, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -942,6 +942,21 @@ where
 
 impl<T: GodotClass> GodotConvert for Gd<T> {
     type Via = Gd<T>;
+
+    fn godot_shape() -> GodotShape {
+        use crate::registry::property::ClassHeritage;
+
+        let heritage = if T::inherits::<classes::Resource>() {
+            ClassHeritage::Resource
+        } else if T::inherits::<classes::Node>() {
+            ClassHeritage::Node
+        } else {
+            ClassHeritage::Other
+        };
+
+        let class_id = T::class_id();
+        GodotShape::Class { class_id, heritage }
+    }
 }
 
 impl<T: GodotClass> ToGodot for Gd<T> {
@@ -988,14 +1003,6 @@ impl<T: GodotClass> GodotType for Gd<T> {
         }
     }
 
-    fn class_id() -> ClassId {
-        T::class_id()
-    }
-
-    fn godot_type_name() -> String {
-        T::class_id().to_string()
-    }
-
     fn qualifies_as_special_none(from_variant: &Variant) -> bool {
         // Behavior in Godot 4.2 when unsetting an #[export]'ed property:
         // 🔁 reset button: passes null object pointer inside Variant (as expected).
@@ -1016,18 +1023,9 @@ impl<T: GodotClass> GodotType for Gd<T> {
     }
 }
 
-impl<T: GodotClass> Element for Gd<T> {
-    fn element_type_string() -> String {
-        // See also impl Export for Gd<T>.
-        object_export_element_type_string::<T>(T::class_id())
-    }
-}
+impl<T: GodotClass> Element for Gd<T> {}
 
-impl<T: GodotClass> Element for Option<Gd<T>> {
-    fn element_type_string() -> String {
-        Gd::<T>::element_type_string()
-    }
-}
+impl<T: GodotClass> Element for Option<Gd<T>> {}
 
 impl<T> Default for Gd<T>
 where
@@ -1062,10 +1060,6 @@ where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
     Option<Gd<T>>: Var,
 {
-    fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo::export_gd::<T>()
-    }
-
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
@@ -1084,6 +1078,10 @@ where
     Option<<Gd<T> as GodotConvert>::Via>: GodotType,
 {
     type Via = Option<<Gd<T> as GodotConvert>::Via>;
+
+    fn godot_shape() -> GodotShape {
+        Gd::<T>::godot_shape()
+    }
 }
 
 impl<T> Var for OnEditor<Gd<T>>
@@ -1116,10 +1114,6 @@ where
     Self: Var,
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
 {
-    fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo::export_gd::<T>()
-    }
-
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()

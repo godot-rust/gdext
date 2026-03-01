@@ -10,8 +10,8 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
-use crate::meta::{ClassId, GodotConvert, PropertyHintInfo};
-use crate::registry::property::{Export, Var};
+use crate::meta::{ClassId, GodotConvert};
+use crate::registry::property::{Export, GodotShape, Var};
 
 /// A zero-sized type for creating a property without a backing field, accessible only through custom getter/setter functions.
 ///
@@ -64,6 +64,10 @@ pub struct PhantomVar<T: GodotConvert + Var>(PhantomData<T>);
 
 impl<T: GodotConvert + Var> GodotConvert for PhantomVar<T> {
     type Via = <T as GodotConvert>::Via;
+
+    fn godot_shape() -> GodotShape {
+        T::godot_shape()
+    }
 }
 
 // `PhantomVar` supports only part of `Var`, but it has to implement it, otherwise we cannot implement `Export` either.
@@ -88,18 +92,10 @@ impl<T: GodotConvert + Var> Var for PhantomVar<T> {
     fn var_pub_set(_field: &mut Self, _value: Self::PubType) {
         unreachable!("PhantomVar cannot be used with #[var(pub)]")
     }
-
-    fn var_hint() -> PropertyHintInfo {
-        <T as Var>::var_hint()
-    }
 }
 
 // Reuse values from `T`, if any.
 impl<T: GodotConvert + Var + Export> Export for PhantomVar<T> {
-    fn export_hint() -> PropertyHintInfo {
-        <T as Export>::export_hint()
-    }
-
     fn as_node_class() -> Option<ClassId> {
         <T as Export>::as_node_class()
     }

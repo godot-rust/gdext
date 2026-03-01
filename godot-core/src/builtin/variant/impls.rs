@@ -9,10 +9,9 @@ use godot_ffi as sys;
 use sys::GodotFfi;
 
 use crate::builtin::*;
-use crate::global;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::sealed::Sealed;
-use crate::meta::{Element, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo, RefArg};
+use crate::meta::{Element, GodotFfiVariant, GodotType, RefArg};
 use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_send};
 
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
@@ -26,14 +25,14 @@ use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_sen
 // As these Godot versions are no longer supported, the current implementation uses `new_with_uninit()` uniformly for all versions.
 macro_rules! impl_ffi_variant {
     (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
-        impl_ffi_variant!(@impls by_ref; $T, $from_fn, $to_fn $(; $GodotTy)?);
+        impl_ffi_variant!(@impls by_ref; $T, $from_fn, $to_fn);
     };
     ($T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
-        impl_ffi_variant!(@impls by_val; $T, $from_fn, $to_fn $(; $GodotTy)?);
+        impl_ffi_variant!(@impls by_val; $T, $from_fn, $to_fn);
     };
 
     // Implementations
-    (@impls $by_ref_or_val:ident; $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+    (@impls $by_ref_or_val:ident; $T:ty, $from_fn:ident, $to_fn:ident) => {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
@@ -78,23 +77,9 @@ macro_rules! impl_ffi_variant {
             fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
                 Ok(ffi)
             }
-
-            impl_ffi_variant!(@godot_type_name $T $(, $GodotTy)?);
         }
 
         impl Element for $T {}
-    };
-
-    (@godot_type_name $T:ty) => {
-        fn godot_type_name() -> String {
-            stringify!($T).into()
-        }
-    };
-
-    (@godot_type_name $T:ty, $godot_type_name:ident) => {
-        fn godot_type_name() -> String {
-            stringify!($godot_type_name).into()
-        }
     };
 
     (@assoc_to_ffi by_ref) => {
@@ -356,10 +341,6 @@ impl GodotType for () {
     fn try_from_ffi(_: Self::Ffi) -> Result<Self, ConvertError> {
         Ok(())
     }
-
-    fn godot_type_name() -> String {
-        "Variant".to_string()
-    }
 }
 
 impl GodotFfiVariant for Variant {
@@ -390,19 +371,5 @@ impl GodotType for Variant {
 
     fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
         sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
-    }
-
-    fn property_info(property_name: &str) -> PropertyInfo {
-        PropertyInfo {
-            variant_type: Self::VARIANT_TYPE.variant_as_nil(),
-            class_id: Self::class_id(),
-            property_name: StringName::from(property_name),
-            hint_info: PropertyHintInfo::none(),
-            usage: global::PropertyUsageFlags::DEFAULT | global::PropertyUsageFlags::NIL_IS_VARIANT,
-        }
-    }
-
-    fn godot_type_name() -> String {
-        "Variant".to_string()
     }
 }

@@ -547,7 +547,7 @@ pub struct DynTraitImpl {
     /// Only [`class_name`][DynTraitImpl::class_name] is available at the time of adding given `DynTraitImpl` to plugin registry with `#[godot_dyn]`;
     /// It is important to fill this information before registration.
     ///
-    /// See also [`get_dyn_property_hint_string`][crate::registry::class::get_dyn_property_hint_string].
+    /// See also [`get_dyn_implementor_class_ids`][crate::registry::class::get_dyn_implementor_class_ids].
     pub(crate) parent_class_name: Option<ClassId>,
 
     /// TypeId of the `dyn Trait` object.

@@ -77,17 +77,17 @@ pub use signature::trace;
 #[doc(hidden)]
 pub use signature::*;
 pub use signed_range::{SignedRange, wrapped};
-pub use traits::{Element, GodotImmutable, GodotType, PackedElement};
+pub use traits::{Element, GodotImmutable, GodotType, PackedElement, element_variant_type};
 pub use uniform_object_deref::UniformObjectDeref;
 
 // Public due to signals emit() needing it. Should be made pub(crate) again if that changes.
 pub use crate::arg_into_owned;
+pub use crate::registry::property::GodotShape;
 
 // Crate-local re-exports
 mod reexport_crate {
     pub(crate) use super::traits::{
-        ExtVariantType, GodotFfiVariant, GodotNullableFfi, element_godot_type_name,
-        element_variant_type, ffi_variant_type,
+        ExtVariantType, GodotFfiVariant, GodotNullableFfi, ffi_variant_type,
     };
     // Private imports for this module only.
     pub(super) use crate::registry::method::MethodParamOrReturnInfo;

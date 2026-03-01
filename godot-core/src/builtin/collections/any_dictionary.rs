@@ -17,6 +17,7 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::{AsArg, Element, ElementType, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
+use crate::registry::property::GodotShape;
 
 /// Covariant `Dictionary` that can be typed or untyped.
 ///
@@ -377,6 +378,10 @@ impl Element for AnyDictionary {}
 
 impl GodotConvert for AnyDictionary {
     type Via = Self;
+
+    fn godot_shape() -> GodotShape {
+        GodotShape::of_builtin::<Self>()
+    }
 }
 
 impl ToGodot for AnyDictionary {
@@ -427,10 +432,6 @@ impl GodotType for AnyDictionary {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
         Ok(ffi)
-    }
-
-    fn godot_type_name() -> String {
-        VarDictionary::godot_type_name()
     }
 }
 

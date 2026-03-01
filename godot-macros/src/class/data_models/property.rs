@@ -104,49 +104,38 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         }
 
         let usage_flags = match usage_flags {
-            UsageFlags::Inferred => {
-                quote! { ::godot::global::PropertyUsageFlags::NONE }
-            }
-            UsageFlags::InferredExport => {
-                quote! { ::godot::global::PropertyUsageFlags::DEFAULT }
+            UsageFlags::Inferred | UsageFlags::InferredExport => {
+                quote! { None }
             }
             UsageFlags::Custom(flags) => quote! {
-                #(
+                Some(#(
                     ::godot::global::PropertyUsageFlags::#flags
-                )|*
+                )|*)
             },
         };
 
         let hint = match hint {
-            // TODO(v0.5): inline #field_type as FieldType alias.
-            FieldHint::Inferred => {
-                if let Some(export_hint) = export_hint {
-                    quote! { #export_hint }
-                } else if export.is_some() {
-                    quote! { <#field_type as ::godot::register::property::Export>::export_hint() }
-                } else {
-                    quote! { <#field_type as ::godot::register::property::Var>::var_hint() }
-                }
-            }
-            FieldHint::Hint(hint) => {
-                let hint_string = if let Some(export_hint) = export_hint {
-                    quote! { #export_hint.hint_string }
-                } else {
-                    quote! { ::godot::builtin::GString::new() }
-                };
+            FieldHint::Inferred => match export_hint {
+                // The `#[export]` attribute provides an explicit hint (e.g. `@export_range`).
+                Some(hint) => quote! { Some(#hint) },
 
+                // No explicit hint — let runtime resolve from shape (var_hint or export_hint).
+                None => quote! { None },
+            },
+            FieldHint::Hint(hint) => {
+                // User specified hint without hint_string — use empty string.
                 quote! {
-                    ::godot::meta::PropertyHintInfo {
+                    Some(::godot::meta::PropertyHintInfo {
                         hint: ::godot::global::PropertyHint::#hint,
-                        hint_string: #hint_string,
-                    }
+                        hint_string: ::godot::builtin::GString::new(),
+                    })
                 }
             }
             FieldHint::HintWithString { hint, hint_string } => quote! {
-                ::godot::meta::PropertyHintInfo {
+                Some(::godot::meta::PropertyHintInfo {
                     hint: ::godot::global::PropertyHint::#hint,
                     hint_string: ::godot::builtin::GString::from(#hint_string),
-                }
+                })
             },
         };
 

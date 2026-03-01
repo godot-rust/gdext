@@ -14,8 +14,8 @@ use crate::meta::error::ConvertError;
 use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor, bounds};
-use crate::registry::class::{get_dyn_property_hint_string, try_dynify_object};
-use crate::registry::property::{Export, Var, object_export_element_type_string};
+use crate::registry::class::{get_dyn_implementor_class_ids, try_dynify_object};
+use crate::registry::property::{Export, GodotShape, Var};
 use crate::{meta, sys};
 
 /// Smart pointer integrating Rust traits via `dyn` dispatch.
@@ -579,15 +579,36 @@ where
 impl<T, D> GodotConvert for DynGd<T, D>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     type Via = Gd<T>;
+
+    fn godot_shape() -> GodotShape {
+        use crate::classes;
+        use crate::registry::property::ClassHeritage;
+
+        // Note: `get_dyn_implementor_class_ids` reads from a global registry populated during class registration.
+        // If `godot_shape()` is ever called before registration completes, the implementor list may be incomplete.
+        // Currently this is not an issue because godot_shape() is only called during or after registration.
+        let heritage = if T::inherits::<classes::Resource>() {
+            ClassHeritage::DynResource {
+                implementors: get_dyn_implementor_class_ids::<T, D>(),
+            }
+        } else if T::inherits::<classes::Node>() {
+            ClassHeritage::Node
+        } else {
+            ClassHeritage::Other
+        };
+
+        let class_id = T::class_id();
+        GodotShape::Class { class_id, heritage }
+    }
 }
 
 impl<T, D> ToGodot for DynGd<T, D>
 where
     T: GodotClass,
-    D: ?Sized,
+    D: ?Sized + 'static,
 {
     // Delegate to Gd<T> passing strategy.
     type Pass = <Gd<T> as ToGodot>::Pass;
@@ -636,10 +657,6 @@ where
     T: GodotClass,
     D: ?Sized + 'static,
 {
-    fn element_type_string() -> String {
-        let hint_string = get_dyn_property_hint_string::<T, D>();
-        object_export_element_type_string::<T>(hint_string)
-    }
 }
 
 impl<T, D> meta::Element for Option<DynGd<T, D>>
@@ -647,9 +664,6 @@ where
     T: GodotClass,
     D: ?Sized + 'static,
 {
-    fn element_type_string() -> String {
-        DynGd::<T, D>::element_type_string()
-    }
 }
 
 impl<T, D> Var for DynGd<T, D>
@@ -683,10 +697,6 @@ where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
 {
-    fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo::export_dyn_gd::<T, D>()
-    }
-
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()
@@ -709,6 +719,10 @@ where
     D: ?Sized + 'static,
 {
     type Via = Option<<DynGd<T, D> as GodotConvert>::Via>;
+
+    fn godot_shape() -> GodotShape {
+        DynGd::<T, D>::godot_shape()
+    }
 }
 
 impl<T, D> Var for OnEditor<DynGd<T, D>>
@@ -745,10 +759,6 @@ where
     T: GodotClass + Bounds<Exportable = bounds::Yes>,
     D: ?Sized + 'static,
 {
-    fn export_hint() -> PropertyHintInfo {
-        PropertyHintInfo::export_dyn_gd::<T, D>()
-    }
-
     #[doc(hidden)]
     fn as_node_class() -> Option<ClassId> {
         PropertyHintInfo::object_as_node_class::<T>()

@@ -18,6 +18,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let build_config_struct = gdext_build_struct::make_gdext_build_struct(&api.godot_version);
     let variant_type_enum = make_variant_type_enum(api, true);
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
+    let godot_type_name_method = make_godot_type_name_method(api);
 
     quote! {
         #[cfg(target_pointer_width = "32")]
@@ -46,6 +47,8 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             pub fn sys(self) -> crate::GDExtensionVariantType {
                 self.ord as _
             }
+
+            #godot_type_name_method
         }
     }
 }
@@ -223,4 +226,28 @@ fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> TokenStrea
     let define_traits = !is_definition;
 
     enums::make_enum_definition_with(variant_type_enum, define_enum, define_traits)
+}
+
+/// Generates the `VariantType::godot_type_name()` method from the builtins list.
+fn make_godot_type_name_method(api: &ExtensionApi) -> TokenStream {
+    // NIL is not in api.builtins; handle it manually.
+    let mut ordinals = vec![0i32];
+    let mut names: Vec<&str> = vec!["Variant"];
+
+    for builtin in api.builtins.iter() {
+        ordinals.push(builtin.variant_type_ord);
+        names.push(builtin.godot_original_name());
+    }
+
+    quote! {
+        /// Returns the canonical Godot type name for this variant type.
+        ///
+        /// Examples: `INT` -> `"int"`, `STRING` -> `"String"`, `VECTOR3` -> `"Vector3"`.
+        pub fn godot_type_name(&self) -> &'static str {
+            match self.ord {
+                #( #ordinals => #names, )*
+                _ => "Unknown",
+            }
+        }
+    }
 }

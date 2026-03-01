@@ -22,7 +22,7 @@ use crate::meta;
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{AsArg, FromGodot, GodotConvert, PackedElement, ToGodot};
 use crate::obj::EngineEnum;
-use crate::registry::property::{Export, SimpleVar};
+use crate::registry::property::{Export, GodotShape, SimpleVar};
 
 // Many builtin types don't have a #[repr] themselves, but they are used in packed arrays, which assumes certain size and alignment.
 // This is mostly a problem for as_slice(), which reinterprets the FFI representation into the "frontend" type like GString.
@@ -509,6 +509,10 @@ unsafe impl<T: PackedElement> GodotFfi for PackedArray<T> {
 // Generic trait implementations for PackedArray<T>
 impl<T: PackedElement> GodotConvert for PackedArray<T> {
     type Via = Self;
+
+    fn godot_shape() -> GodotShape {
+        GodotShape::of_builtin::<Self>()
+    }
 }
 
 impl<T: PackedElement> ToGodot for PackedArray<T> {
@@ -544,23 +548,6 @@ impl<T: PackedElement> meta::GodotType for PackedArray<T> {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, meta::error::ConvertError> {
         Ok(ffi)
-    }
-
-    fn godot_type_name() -> String {
-        match T::VARIANT_TYPE {
-            VariantType::PACKED_BYTE_ARRAY => "PackedByteArray".to_string(),
-            VariantType::PACKED_INT32_ARRAY => "PackedInt32Array".to_string(),
-            VariantType::PACKED_INT64_ARRAY => "PackedInt64Array".to_string(),
-            VariantType::PACKED_FLOAT32_ARRAY => "PackedFloat32Array".to_string(),
-            VariantType::PACKED_FLOAT64_ARRAY => "PackedFloat64Array".to_string(),
-            VariantType::PACKED_VECTOR2_ARRAY => "PackedVector2Array".to_string(),
-            VariantType::PACKED_VECTOR3_ARRAY => "PackedVector3Array".to_string(),
-            #[cfg(since_api = "4.3")]
-            VariantType::PACKED_VECTOR4_ARRAY => "PackedVector4Array".to_string(),
-            VariantType::PACKED_COLOR_ARRAY => "PackedColorArray".to_string(),
-            VariantType::PACKED_STRING_ARRAY => "PackedStringArray".to_string(),
-            _ => unreachable!("invalid PackedArray element type"),
-        }
     }
 }
 
@@ -607,16 +594,7 @@ impl<T: PackedElement> ops::IndexMut<usize> for PackedArray<T> {
 
 impl<T: PackedElement> SimpleVar for PackedArray<T> {}
 
-impl<T: PackedElement> Export for PackedArray<T> {
-    fn export_hint() -> meta::PropertyHintInfo {
-        // In 4.3 Godot can (and does) use type hint strings for packed arrays, see https://github.com/godotengine/godot/pull/82952.
-        if sys::GdextBuild::since_api("4.3") {
-            meta::PropertyHintInfo::export_packed_array_element::<T>()
-        } else {
-            meta::PropertyHintInfo::type_name::<PackedArray<T>>()
-        }
-    }
-}
+impl<T: PackedElement> Export for PackedArray<T> {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion trait impls

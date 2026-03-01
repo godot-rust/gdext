@@ -9,7 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::num::NonZeroU64;
 
 use crate::meta::error::{ConvertError, FromGodotError};
-use crate::meta::{FromGodot, GodotConvert, ToGodot};
+use crate::meta::{FromGodot, GodotConvert, GodotShape, ToGodot};
 use crate::registry::property::SimpleVar;
 
 /// Represents a non-zero instance ID.
@@ -93,6 +93,10 @@ impl GodotConvert for InstanceId {
     // Use i64 and not u64 because the former can be represented in Variant, and is also the number format GDScript uses.
     // The engine's C++ code can still use u64.
     type Via = i64;
+
+    fn godot_shape() -> GodotShape {
+        GodotShape::of_builtin::<Self>()
+    }
 }
 
 impl ToGodot for InstanceId {

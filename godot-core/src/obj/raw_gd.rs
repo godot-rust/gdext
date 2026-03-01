@@ -14,11 +14,12 @@ use crate::builtin::{Variant, VariantType};
 #[cfg(safeguards_balanced)]
 use crate::meta::CallContext;
 use crate::meta::error::{ConvertError, FromVariantError};
-use crate::meta::{ClassId, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
+use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
 use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::casts::CastSuccess;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId, bounds};
+use crate::registry::property::GodotShape;
 use crate::storage::{InstanceCache, InstanceStorage, Storage};
 use crate::{classes, meta, out};
 
@@ -639,6 +640,10 @@ where
 
 impl<T: GodotClass> GodotConvert for RawGd<T> {
     type Via = Self;
+
+    fn godot_shape() -> GodotShape {
+        Gd::<T>::godot_shape()
+    }
 }
 
 impl<T: GodotClass> ToGodot for RawGd<T> {
@@ -673,14 +678,6 @@ impl<T: GodotClass> GodotType for RawGd<T> {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
         Ok(ffi)
-    }
-
-    fn class_id() -> ClassId {
-        T::class_id()
-    }
-
-    fn godot_type_name() -> String {
-        T::class_id().to_string()
     }
 }
 

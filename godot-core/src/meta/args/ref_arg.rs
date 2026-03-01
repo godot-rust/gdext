@@ -12,6 +12,7 @@ use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, ToGodot};
+use crate::registry::property::GodotShape;
 use crate::sys;
 
 /// Simple reference wrapper, used when passing arguments by-ref to Godot APIs.
@@ -83,6 +84,10 @@ where
     T: GodotConvert,
 {
     type Via = T::Via;
+
+    fn godot_shape() -> GodotShape {
+        T::godot_shape()
+    }
 }
 
 impl<T> ToGodot for RefArg<'_, T>
