@@ -86,7 +86,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
         // Used for method parameter/return type registration, not property registration — keeps DEFAULT.
         let shape = Self::godot_shape();
         let hint_info = shape.var_hint();
-        shape.into_property_info(property_name, hint_info, PropertyUsageFlags::DEFAULT)
+        shape.to_property_info(property_name, hint_info, PropertyUsageFlags::DEFAULT)
     }
 
     #[doc(hidden)]
@@ -100,33 +100,6 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
             Self::property_info(""),
             Self::param_metadata(),
         ))
-    }
-
-    /// Returns a string representation of the Godot type name, as it is used in several property hint contexts.
-    ///
-    /// Examples:
-    /// - `MyClass` for objects
-    /// - `StringName`, `AABB` or `int` for built-ins
-    /// - `Array` for arrays
-    #[doc(hidden)]
-    fn godot_type_name() -> String {
-        use crate::registry::property::GodotShape;
-
-        match Self::godot_shape() {
-            GodotShape::Class { class_id, .. } => class_id.to_string(),
-            GodotShape::Enum {
-                godot_name: Some(name),
-                ..
-            }
-            | GodotShape::Custom {
-                class_name: Some(name),
-                ..
-            } => name.to_string(),
-            _ => Self::Ffi::VARIANT_TYPE
-                .variant_as_nil()
-                .godot_type_name()
-                .to_string(),
-        }
     }
 
     /// Special-casing for `FromVariant` conversions higher up: true if the variant can be interpreted as `Option<Self>::None`.
@@ -192,29 +165,6 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 pub trait Element: ToGodot + FromGodot + 'static {
     // Note: several indirections in `Element` and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).
-
-    /// Returns the representation of this type as a type string, e.g. `"4:"` for string, or `"24:34/MyClass"` for objects.
-    ///
-    /// (`4` and `24` are variant type ords; `34` is `PropertyHint::NODE_TYPE` ord).
-    ///
-    /// Used for elements in arrays (the latter despite `Element` not having a direct relation).
-    ///
-    /// See [`PropertyHint::TYPE_STRING`] and
-    /// [upstream docs](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint).
-    #[doc(hidden)]
-    fn element_type_string() -> String {
-        // Derives from shape(): builtin types use the default, enums build "{vtype}/{hint}:{hint_string}".
-        Self::godot_shape().element_type_string()
-    }
-
-    /// Returns the Godot type name for use in `#[var]` array/dictionary type hints.
-    ///
-    /// Defaults to the `Via` type's name (e.g. `"int"` for `i32`). Engine enums override this
-    /// to return their qualified class name (e.g. `"Node.ProcessMode"`).
-    #[doc(hidden)]
-    fn element_godot_type_name() -> String {
-        Self::godot_shape().element_godot_type_name()
-    }
 
     #[doc(hidden)]
     fn debug_validate_elements(_array: &builtin::Array<Self>) -> Result<(), ConvertError> {

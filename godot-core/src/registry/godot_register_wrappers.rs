@@ -43,7 +43,7 @@ pub fn register_export<C: GodotClass, T: Export>(
     let shape = T::godot_shape();
     let hint = hint_override.unwrap_or_else(|| shape.export_hint());
     let usage = usage_override.unwrap_or(PropertyUsageFlags::DEFAULT);
-    let info = shape.into_property_info(property_name, hint, usage);
+    let info = shape.to_property_info(property_name, hint, usage);
 
     register_var_or_export_inner(info, C::class_id(), getter_name, setter_name);
 }
@@ -64,7 +64,7 @@ pub fn register_var<C: GodotClass, T: Var>(
     let shape = T::godot_shape();
     let hint = hint_override.unwrap_or_else(|| shape.var_hint());
     let usage = usage_override.unwrap_or(PropertyUsageFlags::NONE);
-    let info = shape.into_property_info(property_name, hint, usage);
+    let info = shape.to_property_info(property_name, hint, usage);
 
     register_var_or_export_inner(info, C::class_id(), getter_name, setter_name);
 }

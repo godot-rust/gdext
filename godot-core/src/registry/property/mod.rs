@@ -9,11 +9,9 @@
 
 use std::fmt::Display;
 
-use godot_ffi as sys;
 use godot_ffi::GodotNullableFfi;
 
 use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, ToGodot};
-use crate::obj::EngineEnum;
 
 mod godot_shape;
 mod phantom_var;
@@ -347,7 +345,7 @@ pub mod export_info_functions {
     use godot_ffi::VariantType;
 
     use crate::builtin::GString;
-    use crate::global::{PropertyHint, godot_str};
+    use crate::global::PropertyHint;
     use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
     use crate::obj::EngineEnum;
     use crate::registry::property::Export;
@@ -535,6 +533,9 @@ pub mod export_info_functions {
         is_global: bool,
         filter: impl AsRef<str>,
     ) -> PropertyHintInfo {
+        // Uses signature-hint format (not var/export) intentionally: this is purely for type inspection, not property registration.
+        // Encodes typed arrays as ARRAY_TYPE + type name (e.g. "String"), which is what is_array_of_elem() expects.
+        // export_hint instead uses TYPE_STRING + element-string format ("4:"), which can't be parsed by is_array_of_elem().
         let field_ty = T::Via::property_info("");
         let filter = filter.as_ref();
         sys::strict_assert!(is_file || filter.is_empty()); // Dir never has filter.
@@ -542,7 +543,7 @@ pub mod export_info_functions {
         export_file_or_dir_inner(&field_ty, is_file, is_global, filter)
     }
 
-    pub fn export_file_or_dir_inner(
+    fn export_file_or_dir_inner(
         field_ty: &PropertyInfo,
         is_file: bool,
         is_global: bool,
@@ -598,13 +599,13 @@ pub mod export_info_functions {
     ///
     /// Formats: `"4/13:"`, `"4/15:*.png"`, ...
     fn to_string_array_hint(hint: PropertyHint, filter: &str) -> PropertyHintInfo {
-        let variant_ord = VariantType::STRING.ord(); // "4"
-        let hint_ord = hint.ord();
-        let hint_string = format!("{variant_ord}/{hint_ord}");
-
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: godot_str!("{hint_string}:{filter}"),
+            hint_string: GString::from(&super::godot_shape::format_elements_typed(
+                VariantType::STRING,
+                hint,
+                filter,
+            )),
         }
     }
 
@@ -739,20 +740,4 @@ mod export_impls {
     // Var/Export for Array<T> and PackedArray<T> are implemented in the files of their struct declaration.
 
     // impl_property_by_godot_convert!(Signal);
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Crate-local utilities
-
-pub(crate) fn builtin_type_string<T: GodotType>() -> String {
-    use sys::GodotFfi as _;
-
-    let variant_type = T::Ffi::VARIANT_TYPE.variant_as_nil();
-
-    // Godot 4.3 changed representation for type hints, see https://github.com/godotengine/godot/pull/90716.
-    if sys::GdextBuild::since_api("4.3") {
-        format!("{}:", variant_type.ord())
-    } else {
-        format!("{}:{}", variant_type.ord(), T::godot_type_name())
-    }
 }

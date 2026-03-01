@@ -7,7 +7,7 @@
 
 use crate::builtin::{GString, StringName, VariantType};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{ClassId, Element, GodotType};
+use crate::meta::{ClassId, Element};
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
@@ -212,7 +212,7 @@ impl PropertyInfo {
     {
         self.variant_type == VariantType::ARRAY
             && self.hint_info.hint == PropertyHint::ARRAY_TYPE
-            && self.hint_info.hint_string == GString::from(&T::Via::godot_type_name())
+            && self.hint_info.hint_string == T::godot_shape().godot_type_name().as_ref()
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------------------
@@ -351,24 +351,6 @@ impl PropertyHintInfo {
         Self {
             hint: PropertyHint::NONE,
             hint_string: GString::new(),
-        }
-    }
-
-    /// Use [`PROPERTY_HINT_NONE`](PropertyHint::NONE) with `T`'s Godot type name.
-    ///
-    /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
-    /// be the Godot type name of `T`.
-    pub fn type_name<T: GodotType>() -> Self {
-        let type_name = T::godot_type_name();
-        let hint_string = if sys::GdextBuild::since_api("4.3") {
-            GString::new()
-        } else {
-            GString::from(&type_name)
-        };
-
-        Self {
-            hint: PropertyHint::NONE,
-            hint_string,
         }
     }
 
