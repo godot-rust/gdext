@@ -5,9 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi::VariantType;
-
-use crate::builtin::{GString, StringName};
+use crate::builtin::{GString, StringName, VariantType};
 use crate::global::{PropertyHint, PropertyUsageFlags};
 use crate::meta::{ClassId, Element, GodotType};
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
@@ -18,8 +16,9 @@ use crate::{classes, sys};
 ///
 /// `PropertyInfo` is used throughout the Godot binding to describe properties, method parameters and return types.
 ///
-/// This is a high-level abstraction over the low-level FFI type `sys::GDExtensionPropertyInfo`. Unlike the FFI version which only stores
-/// pointers, `PropertyInfo` owns its data, ensuring it remains valid for the lifetime of the struct.
+/// This the Rust representation of the FFI type `sys::GDExtensionPropertyInfo`, still relatively low level. Unlike the FFI version which
+/// only stores pointers, `PropertyInfo` owns its data, ensuring it remains valid for the lifetime of the struct.
+/// For a high-level representation of properties, see [`GodotShape`][crate::registry::property::GodotShape].
 ///
 /// See also [`MethodInfo`](crate::meta::MethodInfo) for describing method signatures and [`ClassId`] for type-IDs of Godot classes.
 ///

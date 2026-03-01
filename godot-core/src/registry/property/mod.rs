@@ -12,7 +12,7 @@ use std::fmt::Display;
 use godot_ffi as sys;
 use godot_ffi::GodotNullableFfi;
 
-use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
+use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, ToGodot};
 use crate::obj::EngineEnum;
 
 mod godot_shape;
@@ -84,16 +84,6 @@ pub trait Var: GodotConvert {
 
     /// Set property value as `PubType`. Called for `#[var(pub)]` setters exposed in Rust API.
     fn var_pub_set(field: &mut Self, value: Self::PubType);
-}
-
-/// Derives [`PropertyHintInfo`] for `#[var]` registration from `T::shape()`.
-pub fn var_hint<T: Var>() -> PropertyHintInfo {
-    T::godot_shape().var_hint()
-}
-
-/// Derives [`PropertyHintInfo`] for `#[export]` registration from `T::shape()`.
-pub fn export_hint<T: Export>() -> PropertyHintInfo {
-    T::godot_shape().export_hint()
 }
 
 /// Simplified way to implement the `Var` trait, for godot-convertible types.

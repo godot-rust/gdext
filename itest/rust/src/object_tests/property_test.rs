@@ -10,7 +10,7 @@ use godot::builtin::{
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
 use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::init::GdextBuild;
-use godot::meta::{FromGodot, GodotConvert, ToGodot};
+use godot::meta::{FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
 use godot::register::property::{Export, GodotShape, Var};
 use godot::register::{Export, GodotClass, GodotConvert, Var, godot_api};
@@ -132,13 +132,17 @@ impl GodotConvert for SomeCStyleEnum {
 
     // Deliberately uses GodotShape::Custom to test the legacy manual-impl path.
     // Most user enums should use GodotShape::Enum instead (see ManualEnumShape below).
-    fn godot_shape() -> godot::register::property::GodotShape {
-        godot::register::property::GodotShape::Custom {
-            variant_type: godot::builtin::VariantType::INT,
-            var_hint: PropertyHint::ENUM,
-            var_hint_string: GString::from("A,B,C"),
-            export_hint: PropertyHint::ENUM,
-            export_hint_string: GString::from("A,B,C"),
+    fn godot_shape() -> GodotShape {
+        GodotShape::Custom {
+            variant_type: VariantType::INT,
+            var_hint: PropertyHintInfo {
+                hint: PropertyHint::ENUM,
+                hint_string: GString::from("A,B,C"),
+            },
+            export_hint: PropertyHintInfo {
+                hint: PropertyHint::ENUM,
+                hint_string: GString::from("A,B,C"),
+            },
             class_name: None,
             usage_flags: PropertyUsageFlags::NONE,
         }
@@ -391,28 +395,28 @@ fn property_enum_var_legacy() {
 // Regression test for https://github.com/godot-rust/gdext/issues/1009.
 #[itest]
 fn enum_var_hint() {
-    let int_prop = godot::register::property::var_hint::<Behavior>();
+    let int_prop = Behavior::godot_shape().var_hint();
     assert_eq!(int_prop.hint, PropertyHint::ENUM);
     assert_eq!(int_prop.hint_string, "Peaceful:0,Defend:1,Aggressive:7");
 
-    let str_prop = godot::register::property::var_hint::<StrBehavior>();
+    let str_prop = StrBehavior::godot_shape().var_hint();
     assert_eq!(str_prop.hint, PropertyHint::ENUM);
     assert_eq!(str_prop.hint_string, "Peaceful,Defend,Aggressive");
 }
 
 #[itest]
 fn enum_manual_shape() {
-    use godot::register::property::{GodotShape, export_hint, var_hint};
+    use godot::register::property::GodotShape;
 
     // Test GodotShape::Enum with manually constructed enumerators (the recommended way for manual impls).
     let shape = ManualEnumShape::godot_shape();
     assert!(matches!(shape, GodotShape::Enum { .. }));
 
-    let var = var_hint::<ManualEnumShape>();
+    let var = ManualEnumShape::godot_shape().var_hint();
     assert_eq!(var.hint, PropertyHint::ENUM);
     assert_eq!(var.hint_string, "X:0,Y:1");
 
-    let exp = export_hint::<ManualEnumShape>();
+    let exp = ManualEnumShape::godot_shape().export_hint();
     assert_eq!(exp.hint, PropertyHint::ENUM);
     assert_eq!(exp.hint_string, "X:0,Y:1");
 }
