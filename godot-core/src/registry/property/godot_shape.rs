@@ -330,6 +330,16 @@ impl GodotShape {
         }
     }
 
+    /// Builds the low-level Godot property info for method parameter/return type registration.
+    ///
+    /// Uses:
+    /// - Hint and hint string: [`var_hint()`][Self::var_hint].
+    /// - Usage: [`DEFAULT`][PropertyUsageFlags::DEFAULT] (required for method params; not shown in editor).
+    pub fn to_method_signature_property(&self, property_name: &str) -> PropertyInfo {
+        let hint_info = self.var_hint();
+        self.to_property(property_name, hint_info, PropertyUsageFlags::DEFAULT)
+    }
+
     /// Builds the low-level Godot property info for `#[var]` context.
     ///
     /// Uses:
@@ -340,7 +350,7 @@ impl GodotShape {
     /// See also [`PropertyInfo::new_var()`].
     pub fn to_var_property(&self, property_name: &str) -> PropertyInfo {
         let hint_info = self.var_hint();
-        self.to_property_info(property_name, hint_info, PropertyUsageFlags::NONE)
+        self.to_property(property_name, hint_info, PropertyUsageFlags::NONE)
     }
 
     /// Builds the low-level Godot property info for `#[export]` context.
@@ -353,7 +363,7 @@ impl GodotShape {
     /// See also [`PropertyInfo::new_export()`].
     pub fn to_export_property(&self, property_name: &str) -> PropertyInfo {
         let hint_info = self.export_hint();
-        self.to_property_info(property_name, hint_info, PropertyUsageFlags::DEFAULT)
+        self.to_property(property_name, hint_info, PropertyUsageFlags::DEFAULT)
     }
 
     /// Low-level builder for [`PropertyInfo`]. Derives `class_name`, `variant_type`, and shape-specific usage flags from
@@ -362,7 +372,7 @@ impl GodotShape {
     ///
     /// Prefer [`to_var_property()`](Self::to_var_property) or [`to_export_property()`](Self::to_export_property)
     /// when no user override is involved.
-    pub(crate) fn to_property_info(
+    fn to_property(
         &self,
         property_name: &str,
         hint_info: PropertyHintInfo,

@@ -9,7 +9,6 @@ use godot_ffi as sys;
 
 use crate::builtin;
 use crate::builtin::{Variant, VariantType};
-use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, PropertyInfo, ToGodot, sealed};
 use crate::registry::method::MethodParamOrReturnInfo;
@@ -83,10 +82,8 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 
     #[doc(hidden)]
     fn property_info(property_name: &str) -> PropertyInfo {
-        // Used for method parameter/return type registration, not property registration — keeps DEFAULT.
-        let shape = Self::godot_shape();
-        let hint_info = shape.var_hint();
-        shape.to_property_info(property_name, hint_info, PropertyUsageFlags::DEFAULT)
+        // Used for method parameter/return type registration, not property registration. Keeps DEFAULT usage.
+        Self::godot_shape().to_method_signature_property(property_name)
     }
 
     #[doc(hidden)]
