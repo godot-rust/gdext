@@ -8,9 +8,8 @@
 use std::borrow::Cow;
 
 use godot_ffi as sys;
-use godot_ffi::VariantType;
 
-use crate::builtin::{CowStr, GString};
+use crate::builtin::{CowStr, GString, StringName, VariantType};
 use crate::global::{PropertyHint, PropertyUsageFlags, godot_str};
 use crate::meta::{ClassId, GodotConvert, PropertyHintInfo, PropertyInfo};
 use crate::obj::EngineEnum as _;
@@ -278,27 +277,25 @@ impl GodotShape {
         }
     }
 
-    /// Converts `godot_name`/`class_name` to `ClassId`. Only called during registration.
-    //
-    // For engine enums, this inserts the enum's qualified name (e.g. `"Node.ProcessMode"`) into the global `ClassId` cache.
-    // This is conceptually wrong -- enum names aren't class names -- but practically harmless: the cache is an append-only
-    // string-intern table, and enum names (containing `.`) never collide with real class names. The proper fix is to change
-    // `PropertyInfo::class_id` from `ClassId` to `StringName`, avoiding the cache entirely for non-class names.
-    // TODO(v0.5): change PropertyInfo::class_id to StringName to avoid this.
-    pub(crate) fn class_name_or_none(&self) -> ClassId {
+    /// Converts `godot_name`/`class_name` to a `StringName`. Only called during registration.
+    ///
+    /// For engine enums, returns the enum's qualified name (e.g. `"Node.ProcessMode"`).
+    /// For classes, returns the class name.
+    /// For other types, returns an empty `StringName`.
+    pub(crate) fn class_name_or_none(&self) -> StringName {
         match self {
             Self::Variant
             | Self::Builtin { .. }
             | Self::TypedArray { .. }
-            | Self::TypedDictionary { .. } => ClassId::none(),
-            Self::Class { class_id, .. } => *class_id,
+            | Self::TypedDictionary { .. } => StringName::default(),
+            Self::Class { class_id, .. } => class_id.to_string_name(),
             Self::Enum { godot_name, .. } => match godot_name {
-                Some(name) => ClassId::new_dynamic(name.clone()),
-                None => ClassId::none(),
+                Some(name) => StringName::from(name.as_ref()),
+                None => StringName::default(),
             },
             Self::Custom { class_name, .. } => match class_name {
-                Some(name) => ClassId::new_dynamic(name.clone()),
-                None => ClassId::none(),
+                Some(name) => StringName::from(name.as_ref()),
+                None => StringName::default(),
             },
         }
     }
@@ -359,7 +356,7 @@ impl GodotShape {
         self.into_property_info(property_name, hint_info, PropertyUsageFlags::DEFAULT)
     }
 
-    /// Low-level builder for [`PropertyInfo`]. Derives `class_id`, `variant_type`, and shape-specific usage flags from
+    /// Low-level builder for [`PropertyInfo`]. Derives `class_name`, `variant_type`, and shape-specific usage flags from
     /// `self`, but takes `hint_info` and `base_usage` as parameters because they depend on context (`#[var]` vs
     /// `#[export]`) and may be overridden by the user (e.g. `#[var(hint = ..., hint_string = "...")]`).
     ///
@@ -373,13 +370,13 @@ impl GodotShape {
     ) -> PropertyInfo {
         use crate::builtin::StringName;
 
-        let class_id = self.class_name_or_none();
+        let class_name = self.class_name_or_none();
         let variant_type = self.variant_type();
         let usage = base_usage | self.usage_flags();
 
         PropertyInfo {
             variant_type,
-            class_id,
+            class_name,
             property_name: StringName::from(property_name),
             hint_info,
             usage,

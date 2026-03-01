@@ -11,7 +11,7 @@ use crate::builtin;
 use crate::builtin::{Variant, VariantType};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
-use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyInfo, ToGodot, sealed};
+use crate::meta::{FromGodot, GodotConvert, PropertyInfo, ToGodot, sealed};
 use crate::registry::method::MethodParamOrReturnInfo;
 
 // Re-export sys traits in this module, so all are in one place.
@@ -82,11 +82,6 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     }
 
     #[doc(hidden)]
-    fn class_id() -> ClassId {
-        Self::godot_shape().class_name_or_none()
-    }
-
-    #[doc(hidden)]
     fn property_info(property_name: &str) -> PropertyInfo {
         // Used for method parameter/return type registration, not property registration — keeps DEFAULT.
         let shape = Self::godot_shape();
@@ -115,14 +110,22 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
     /// - `Array` for arrays
     #[doc(hidden)]
     fn godot_type_name() -> String {
-        let class_id = Self::class_id();
-        if class_id.is_none() {
-            Self::Ffi::VARIANT_TYPE
+        use crate::registry::property::GodotShape;
+
+        match Self::godot_shape() {
+            GodotShape::Class { class_id, .. } => class_id.to_string(),
+            GodotShape::Enum {
+                godot_name: Some(name),
+                ..
+            }
+            | GodotShape::Custom {
+                class_name: Some(name),
+                ..
+            } => name.to_string(),
+            _ => Self::Ffi::VARIANT_TYPE
                 .variant_as_nil()
                 .godot_type_name()
-                .to_string()
-        } else {
-            class_id.to_string()
+                .to_string(),
         }
     }
 

@@ -35,12 +35,12 @@ impl IObject for GetPropertyListTest {
 }
 
 fn property_dict_eq_property_info(dict: &VarDictionary, info: &PropertyInfo) -> bool {
-    dict.get("name").unwrap().to::<GString>().to_string() == info.property_name.to_string()
-        && dict.get("class_name").unwrap().to::<StringName>() == info.class_id.to_string_name()
-        && dict.get("type").unwrap().to::<VariantType>() == info.variant_type
-        && dict.get("hint").unwrap().to::<PropertyHint>() == info.hint_info.hint
-        && dict.get("hint_string").unwrap().to::<GString>() == info.hint_info.hint_string
-        && dict.get("usage").unwrap().to::<PropertyUsageFlags>() == info.usage
+    dict.at("name").to::<GString>().to_string() == info.property_name.to_string()
+        && dict.at("class_name").to::<StringName>() == info.class_name
+        && dict.at("type").to::<VariantType>() == info.variant_type
+        && dict.at("hint").to::<PropertyHint>() == info.hint_info.hint
+        && dict.at("hint_string").to::<GString>() == info.hint_info.hint_string
+        && dict.at("usage").to::<PropertyUsageFlags>() == info.usage
 }
 
 #[itest]
