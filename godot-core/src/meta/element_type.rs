@@ -17,8 +17,8 @@ use crate::obj::{Gd, InstanceId};
 ///
 /// Used in the following APIs:
 /// - [`AnyArray::element_type()`][crate::builtin::AnyArray::element_type]
-/// - [`Dictionary::key_element_type()`][crate::builtin::Dictionary::key_element_type]
-/// - [`Dictionary::value_element_type()`][crate::builtin::Dictionary::value_element_type]
+/// - [`AnyDictionary::key_element_type()`][crate::builtin::AnyDictionary::key_element_type]
+/// - [`AnyDictionary::value_element_type()`][crate::builtin::AnyDictionary::value_element_type]
 ///
 /// While Rust's type parameters and the [`Element`] trait in particular provide compile-time type information, this method exists for the
 /// purpose of RTTI (runtime type information). For example, `AnyArray` (which offers no static type) can be queried about the actual type of

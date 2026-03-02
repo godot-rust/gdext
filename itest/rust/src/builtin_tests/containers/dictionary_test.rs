@@ -11,6 +11,7 @@ use godot::builtin::{
     AnyDictionary, Dictionary, GString, VarDictionary, Variant, VariantType, varray, vdict,
 };
 use godot::classes::RefCounted;
+use godot::init::GdextBuild;
 use godot::meta::{Element, ElementType, FromGodot, ToGodot};
 use godot::obj::NewGd;
 
@@ -816,6 +817,29 @@ fn dictionary_element_type() {
         matches!(untyped.value_element_type(), ElementType::Untyped),
         "expected untyped value for VarDictionary"
     );
+}
+
+#[itest]
+fn dictionary_element_type_runtime() {
+    let typed: Dictionary<i64, bool> = Dictionary::new();
+
+    // Don't use #[cfg] as behavior depends on runtime version (whether Godot supports typed dicts or not).
+    if GdextBuild::since_api("4.4") {
+        // Runtime supports typed dicts: runtime types should match K and V.
+        // Includes godot-rust compiled with `api-4-2` or `api-4-3`.
+        assert_eq!(
+            typed.key_element_type(),
+            ElementType::Builtin(VariantType::INT)
+        );
+        assert_eq!(
+            typed.value_element_type(),
+            ElementType::Builtin(VariantType::BOOL)
+        );
+    } else {
+        // Pre-4.4 runtime: typed dicts not supported; godot-rust always reports Untyped.
+        assert_eq!(typed.key_element_type(), ElementType::Untyped);
+        assert_eq!(typed.value_element_type(), ElementType::Untyped);
+    }
 }
 
 #[itest]

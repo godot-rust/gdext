@@ -32,6 +32,7 @@ pub use single_threaded::GdextConfig;
 // implementation for `GodotBinding` wouldn't detect that.
 pub(crate) struct GodotBinding {
     interface: GDExtensionInterface,
+    get_proc_address: crate::GDExtensionInterfaceGetProcAddress,
     library: ClassLibraryPtr,
     global_method_table: BuiltinLifecycleTable,
     class_core_method_table: ManualInitCell<ClassCoreMethodTable>,
@@ -47,6 +48,7 @@ pub(crate) struct GodotBinding {
 impl GodotBinding {
     pub fn new(
         interface: GDExtensionInterface,
+        get_proc_address: crate::GDExtensionInterfaceGetProcAddress,
         library: GDExtensionClassLibraryPtr,
         global_method_table: BuiltinLifecycleTable,
         utility_function_table: UtilityFunctionTable,
@@ -55,6 +57,7 @@ impl GodotBinding {
     ) -> Self {
         Self {
             interface,
+            get_proc_address,
             library: ClassLibraryPtr(library),
             global_method_table,
             class_core_method_table: ManualInitCell::new(),
@@ -129,6 +132,25 @@ pub unsafe fn get_interface() -> &'static GDExtensionInterface {
 #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn get_library() -> crate::GDExtensionClassLibraryPtr {
     get_binding().library.0
+}
+
+/// Looks up an FFI function by name using `get_proc_address`.
+///
+/// Argument must be null-terminated, e.g. `b"my_ffi_function\0"`.
+///
+/// Returns `None` if the function is not available (e.g. the runtime Godot version predates the function). Necessary only in niche cases
+/// where polyfill/cross-version behavior needs to be emulated. Likely obsolete once there's `gdextension_interface.json`.
+///
+/// # Safety
+/// The Godot binding must have been initialized before calling this function, and the function must be run on the main thread.
+#[inline]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
+pub unsafe fn get_ffi_ptr_by_cstr(name: &[u8]) -> crate::GDExtensionInterfaceFunctionPtr {
+    let get_proc_address = get_binding()
+        .get_proc_address
+        .expect("get_proc_address should be available");
+
+    get_proc_address(crate::c_str(name))
 }
 
 /// # Safety

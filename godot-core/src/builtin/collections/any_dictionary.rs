@@ -251,15 +251,91 @@ impl AnyDictionary {
     /// Returns the runtime element type information for keys in this dictionary.
     ///
     /// The result is generally cached, so feel free to call this method repeatedly.
+    ///
+    /// # Compatibility
+    /// Always reflects the **runtime** engine-side type. Different behavior based on Godot runtime version (not the `api-4-*` flag):
+    /// * **Since 4.4:** Returns the type information stored in the Godot engine. If this is a `Dictionary<K, V>`, returns a type representing `K`.
+    /// * **Before 4.4:** Always returns [`ElementType::Untyped`], as the engine does not support typed dictionaries.
     pub fn key_element_type(&self) -> ElementType {
-        self.dict.key_element_type()
+        #[cfg(since_api = "4.4")]
+        {
+            ElementType::get_or_compute_cached(
+                &self.dict.cached_key_type,
+                || self.dict.as_inner().get_typed_key_builtin(),
+                || self.dict.as_inner().get_typed_key_class_name(),
+                || self.dict.as_inner().get_typed_key_script(),
+            )
+        }
+
+        #[cfg(before_api = "4.4")]
+        Self::polyfill_element_type(self.to_variant(), &self.dict.cached_key_type, "key")
     }
 
     /// Returns the runtime element type information for values in this dictionary.
     ///
     /// The result is generally cached, so feel free to call this method repeatedly.
+    ///
+    /// # Compatibility
+    /// Always reflects the **runtime** engine-side type. Different behavior based on Godot runtime version (not the `api-4-*` flag):
+    /// * **Since 4.4:** Returns the type information stored in the Godot engine. If this is a `Dictionary<K, V>`, returns a type representing `V`.
+    /// * **Before 4.4:** Always returns [`ElementType::Untyped`], as the engine does not support typed dictionaries.
     pub fn value_element_type(&self) -> ElementType {
-        self.dict.value_element_type()
+        #[cfg(since_api = "4.4")]
+        {
+            ElementType::get_or_compute_cached(
+                &self.dict.cached_value_type,
+                || self.dict.as_inner().get_typed_value_builtin(),
+                || self.dict.as_inner().get_typed_value_class_name(),
+                || self.dict.as_inner().get_typed_value_script(),
+            )
+        }
+
+        #[cfg(before_api = "4.4")]
+        Self::polyfill_element_type(self.to_variant(), &self.dict.cached_value_type, "value")
+    }
+
+    /// Polyfill for `key_element_type()`/`value_element_type()` when compiled against pre-4.4 API.
+    ///
+    /// Uses a runtime check: if running on 4.4+, queries the engine via dynamic `Variant::call()`.
+    /// Otherwise returns `Untyped`, since the engine does not support typed dictionaries.
+    #[cfg(before_api = "4.4")]
+    fn polyfill_element_type(
+        dict_var: Variant,
+        cache: &std::cell::OnceCell<ElementType>,
+        what: &str,
+    ) -> ElementType {
+        // Pre-4.4 runtime: typed dicts not supported -> always untyped.
+        if sys::GdextBuild::before_api("4.4") {
+            // For dicts created via Dictionary::new(), Dictionary<K,V>::init_inner_type() already cached this.
+            // For dicts received from GDScript, we cache it here on first query.
+            return cache.get_or_init(|| ElementType::Untyped).clone();
+        }
+
+        // Running on 4.4+ binary: use dynamic calls via Variant API.
+        let builtin_method = format!("get_typed_{what}_builtin");
+        let class_name_method = format!("get_typed_{what}_class_name");
+        let script_method = format!("get_typed_{what}_script");
+
+        let get_typed_builtin = || {
+            dict_var
+                .call(&builtin_method, &[])
+                .try_to::<i64>()
+                .unwrap_or_else(|_| panic!("{builtin_method} returned non-integer"))
+        };
+        let get_typed_class_name = || {
+            dict_var
+                .call(&class_name_method, &[])
+                .try_to::<StringName>()
+                .unwrap_or_else(|_| panic!("{class_name_method} returned non-StringName"))
+        };
+        let get_typed_script = || dict_var.call(&script_method, &[]);
+
+        ElementType::get_or_compute_cached(
+            cache,
+            get_typed_builtin,
+            get_typed_class_name,
+            get_typed_script,
+        )
     }
 
     /// # Safety
