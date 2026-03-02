@@ -8,9 +8,8 @@
 use std::borrow::Cow;
 
 use godot_ffi as sys;
-use godot_ffi::VariantType;
 
-use crate::builtin::{CowStr, GString};
+use crate::builtin::{CowStr, GString, StringName, VariantType};
 use crate::global::{PropertyHint, PropertyUsageFlags, godot_str};
 use crate::meta::{ClassId, GodotConvert, PropertyHintInfo, PropertyInfo};
 use crate::obj::EngineEnum as _;
@@ -36,6 +35,7 @@ use crate::obj::EngineEnum as _;
 /// [`export_hint()`]: Self::export_hint
 /// [`usage_flags()`]: Self::usage_flags
 #[non_exhaustive]
+#[derive(Clone, Debug)]
 pub enum GodotShape {
     /// The general [`Variant`][crate::builtin::Variant] type. Can hold any Godot value.
     ///
@@ -69,7 +69,7 @@ pub enum GodotShape {
     /// Untyped arrays are represented as `Builtin { variant_type: VariantType::ARRAY }`.
     TypedArray {
         /// Shape of the array element type.
-        element_shape: Box<GodotShape>,
+        element: GodotElementShape,
     },
 
     /// A [`Dictionary<K, V>`][crate::builtin::Dictionary] where at least one of `K`, `V` is not `Variant` (Godot 4.4+).
@@ -77,10 +77,10 @@ pub enum GodotShape {
     /// Untyped dictionaries are represented as `Builtin { variant_type: VariantType::DICTIONARY }`.
     TypedDictionary {
         /// Shape of the dictionary key type.
-        key_shape: Box<GodotShape>,
+        key: GodotElementShape,
 
         /// Shape of the dictionary value type.
-        value_shape: Box<GodotShape>,
+        value: GodotElementShape,
     },
 
     /// An enum or bitfield type (engine-defined or user-defined).
@@ -175,14 +175,16 @@ impl GodotShape {
 
             Self::Custom { var_hint, .. } => var_hint.clone(),
 
-            Self::TypedArray { element_shape } => PropertyHintInfo {
+            Self::TypedArray {
+                element: element_shape,
+            } => PropertyHintInfo {
                 hint: PropertyHint::ARRAY_TYPE,
                 hint_string: GString::from(&element_shape.element_godot_type_name()),
             },
 
             Self::TypedDictionary {
-                key_shape,
-                value_shape,
+                key: key_shape,
+                value: value_shape,
             } => {
                 // PropertyHint::DICTIONARY_TYPE, only available since Godot 4.4 -- so the `if` is essentially a version check.
                 if let Some(hint) = PropertyHint::try_from_ord(38) {
@@ -216,7 +218,7 @@ impl GodotShape {
                     if let Some(elem_vtype) = packed_element_variant_type(*variant_type) {
                         return PropertyHintInfo {
                             hint: PropertyHint::TYPE_STRING,
-                            hint_string: godot_str!("{}:", elem_vtype.ord()),
+                            hint_string: GString::from(&format_elements_untyped(elem_vtype)),
                         };
                     }
                     PropertyHintInfo::none()
@@ -245,14 +247,16 @@ impl GodotShape {
                 ClassHeritage::Other => PropertyHintInfo::none(),
             },
 
-            Self::TypedArray { element_shape } => PropertyHintInfo {
+            Self::TypedArray {
+                element: element_shape,
+            } => PropertyHintInfo {
                 hint: PropertyHint::TYPE_STRING,
                 hint_string: GString::from(&element_shape.element_type_string()),
             },
 
             Self::TypedDictionary {
-                key_shape,
-                value_shape,
+                key: key_shape,
+                value: value_shape,
             } => {
                 if sys::GdextBuild::since_api("4.4") {
                     PropertyHintInfo {
@@ -278,27 +282,25 @@ impl GodotShape {
         }
     }
 
-    /// Converts `godot_name`/`class_name` to `ClassId`. Only called during registration.
-    //
-    // For engine enums, this inserts the enum's qualified name (e.g. `"Node.ProcessMode"`) into the global `ClassId` cache.
-    // This is conceptually wrong -- enum names aren't class names -- but practically harmless: the cache is an append-only
-    // string-intern table, and enum names (containing `.`) never collide with real class names. The proper fix is to change
-    // `PropertyInfo::class_id` from `ClassId` to `StringName`, avoiding the cache entirely for non-class names.
-    // TODO(v0.5): change PropertyInfo::class_id to StringName to avoid this.
-    pub(crate) fn class_name_or_none(&self) -> ClassId {
+    /// Converts `godot_name`/`class_name` to a `StringName`. Only called during registration.
+    ///
+    /// For engine enums, returns the enum's qualified name (e.g. `"Node.ProcessMode"`).
+    /// For classes, returns the class name.
+    /// For other types, returns an empty `StringName`.
+    pub(crate) fn class_name_or_none(&self) -> StringName {
         match self {
             Self::Variant
             | Self::Builtin { .. }
             | Self::TypedArray { .. }
-            | Self::TypedDictionary { .. } => ClassId::none(),
-            Self::Class { class_id, .. } => *class_id,
+            | Self::TypedDictionary { .. } => StringName::default(),
+            Self::Class { class_id, .. } => class_id.to_string_name(),
             Self::Enum { godot_name, .. } => match godot_name {
-                Some(name) => ClassId::new_dynamic(name.clone()),
-                None => ClassId::none(),
+                Some(name) => StringName::from(name.as_ref()),
+                None => StringName::default(),
             },
             Self::Custom { class_name, .. } => match class_name {
-                Some(name) => ClassId::new_dynamic(name.clone()),
-                None => ClassId::none(),
+                Some(name) => StringName::from(name.as_ref()),
+                None => StringName::default(),
             },
         }
     }
@@ -333,6 +335,16 @@ impl GodotShape {
         }
     }
 
+    /// Builds the low-level Godot property info for method parameter/return type registration.
+    ///
+    /// Uses:
+    /// - Hint and hint string: [`var_hint()`][Self::var_hint].
+    /// - Usage: [`DEFAULT`][PropertyUsageFlags::DEFAULT] (required for method params; not shown in editor).
+    pub fn to_method_signature_property(&self, property_name: &str) -> PropertyInfo {
+        let hint_info = self.var_hint();
+        self.to_property(property_name, hint_info, PropertyUsageFlags::DEFAULT)
+    }
+
     /// Builds the low-level Godot property info for `#[var]` context.
     ///
     /// Uses:
@@ -341,9 +353,9 @@ impl GodotShape {
     ///   Property is accessible from GDScript, but not shown in editor or saved.
     ///
     /// See also [`PropertyInfo::new_var()`].
-    pub fn to_var_property(self, property_name: &str) -> PropertyInfo {
+    pub fn to_var_property(&self, property_name: &str) -> PropertyInfo {
         let hint_info = self.var_hint();
-        self.into_property_info(property_name, hint_info, PropertyUsageFlags::NONE)
+        self.to_property(property_name, hint_info, PropertyUsageFlags::NONE)
     }
 
     /// Builds the low-level Godot property info for `#[export]` context.
@@ -354,130 +366,35 @@ impl GodotShape {
     ///   Property is shown in editor and saved.
     ///
     /// See also [`PropertyInfo::new_export()`].
-    pub fn to_export_property(self, property_name: &str) -> PropertyInfo {
+    pub fn to_export_property(&self, property_name: &str) -> PropertyInfo {
         let hint_info = self.export_hint();
-        self.into_property_info(property_name, hint_info, PropertyUsageFlags::DEFAULT)
+        self.to_property(property_name, hint_info, PropertyUsageFlags::DEFAULT)
     }
 
-    /// Low-level builder for [`PropertyInfo`]. Derives `class_id`, `variant_type`, and shape-specific usage flags from
+    /// Low-level builder for [`PropertyInfo`]. Derives `class_name`, `variant_type`, and shape-specific usage flags from
     /// `self`, but takes `hint_info` and `base_usage` as parameters because they depend on context (`#[var]` vs
     /// `#[export]`) and may be overridden by the user (e.g. `#[var(hint = ..., hint_string = "...")]`).
     ///
     /// Prefer [`to_var_property()`](Self::to_var_property) or [`to_export_property()`](Self::to_export_property)
     /// when no user override is involved.
-    pub(crate) fn into_property_info(
-        self,
+    fn to_property(
+        &self,
         property_name: &str,
         hint_info: PropertyHintInfo,
         base_usage: PropertyUsageFlags,
     ) -> PropertyInfo {
         use crate::builtin::StringName;
 
-        let class_id = self.class_name_or_none();
+        let class_name = self.class_name_or_none();
         let variant_type = self.variant_type();
         let usage = base_usage | self.usage_flags();
 
         PropertyInfo {
             variant_type,
-            class_id,
+            class_name,
             property_name: StringName::from(property_name),
             hint_info,
             usage,
-        }
-    }
-
-    /// Builds `"{vtype}/{hint}:{hint_string}"` for typed collections (e.g. `Array<MyEnum>`).
-    pub(crate) fn element_type_string(&self) -> String {
-        match self {
-            Self::Variant
-            | Self::Builtin {
-                variant_type: VariantType::NIL,
-            } => {
-                // Variant (or void) as element: untyped, no hint.
-                format!("{}:", VariantType::NIL.ord())
-            }
-
-            Self::Builtin { variant_type } => {
-                if sys::GdextBuild::since_api("4.3") {
-                    format!("{}:", variant_type.ord())
-                } else {
-                    format!("{}:{}", variant_type.ord(), variant_type.godot_type_name())
-                }
-            }
-
-            Self::Class { class_id, heritage } => {
-                let export_hint = heritage.export_property_hint();
-                assert_ne!(
-                    export_hint,
-                    PropertyHint::NONE,
-                    "element_type_string() should only be called for exportable object classes (Resource or Node), \
-                     but got ClassAncestor::Other for class `{}`",
-                    class_id.to_cow_str()
-                );
-
-                let hint_string = match heritage {
-                    ClassHeritage::DynResource { implementors } => join_class_ids(implementors),
-                    _ => class_id.to_cow_str().to_string(),
-                };
-                format!(
-                    "{}/{}:{}",
-                    VariantType::OBJECT.ord(),
-                    export_hint.ord(),
-                    hint_string
-                )
-            }
-
-            Self::TypedArray { .. } | Self::TypedDictionary { .. } | Self::Enum { .. } => {
-                let variant_type = self.variant_type();
-                let info = self.export_hint();
-                if info.hint == PropertyHint::NONE {
-                    format!("{}:", variant_type.ord())
-                } else {
-                    format!(
-                        "{}/{}:{}",
-                        variant_type.ord(),
-                        info.hint.ord(),
-                        info.hint_string
-                    )
-                }
-            }
-
-            Self::Custom {
-                variant_type,
-                var_hint,
-                ..
-            } => {
-                if var_hint.hint == PropertyHint::NONE {
-                    format!("{}:", variant_type.ord())
-                } else {
-                    format!(
-                        "{}/{}:{}",
-                        variant_type.ord(),
-                        var_hint.hint.ord(),
-                        var_hint.hint_string
-                    )
-                }
-            }
-        }
-    }
-
-    /// Returns the Godot type name for use in `#[var]` array/dictionary type hints.
-    pub(crate) fn element_godot_type_name(&self) -> String {
-        match self {
-            Self::Variant => VariantType::NIL.godot_type_name().to_string(),
-            Self::Builtin { variant_type } => variant_type.godot_type_name().to_string(),
-            Self::Class { class_id, .. } => class_id.to_cow_str().to_string(),
-            Self::Enum {
-                godot_name,
-                variant_type,
-                ..
-            } => match godot_name {
-                Some(name) => name.to_string(),
-                None => variant_type.godot_type_name().to_string(),
-            },
-            Self::Custom { variant_type, .. } => variant_type.godot_type_name().to_string(),
-            Self::TypedArray { .. } => VariantType::ARRAY.godot_type_name().to_string(),
-            Self::TypedDictionary { .. } => VariantType::DICTIONARY.godot_type_name().to_string(),
         }
     }
 }
@@ -518,6 +435,173 @@ impl ClassHeritage {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Inner/nested shape
+
+/// Same as [`GodotShape`], but for element types nested in typed arrays/dictionaries.
+///
+/// Matches the same layout as `GodotShape`, exists to avoid recursive definition (and also `Box` allocations). Also constrains the possible
+/// shapes (elements cannot be typed arrays/dictionaries themselves).
+///
+/// Use [`into_outer()`][Self::into_outer] to convert into a full `GodotShape`.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum GodotElementShape {
+    // Inner types are not structs like Builtin(BuiltinShape), to avoid type proliferation in niche APIs. to_outer() is good enough.
+    Variant,
+
+    Builtin {
+        variant_type: VariantType,
+    },
+
+    Class {
+        class_id: ClassId,
+        heritage: ClassHeritage,
+    },
+
+    Enum {
+        variant_type: VariantType,
+        enumerators: Cow<'static, [Enumerator]>,
+        godot_name: Option<CowStr>,
+        is_bitfield: bool,
+    },
+
+    Custom {
+        variant_type: VariantType,
+        var_hint: PropertyHintInfo,
+        export_hint: PropertyHintInfo,
+        class_name: Option<CowStr>,
+        usage_flags: PropertyUsageFlags,
+    },
+}
+
+impl GodotElementShape {
+    #[rustfmt::skip]
+    pub(crate) fn new(outer: GodotShape) -> Self {
+        type GShape = GodotShape;
+
+        match outer {
+             GShape::Variant
+            => Self::Variant,
+
+            GShape::Builtin { variant_type }
+            => Self::Builtin { variant_type },
+
+             GShape::Class { class_id, heritage }
+            => Self::Class { class_id, heritage },
+
+             GShape::Enum { variant_type, enumerators, godot_name, is_bitfield }
+            => Self::Enum { variant_type, enumerators, godot_name, is_bitfield },
+
+             GShape::Custom { variant_type, var_hint, export_hint, class_name, usage_flags}
+            => Self::Custom { variant_type, var_hint, export_hint, class_name, usage_flags },
+
+            GShape::TypedArray { .. } |
+            GShape::TypedDictionary { .. } => panic!("nested shapes cannot be typed arrays/dictionaries")
+        }
+    }
+
+    /// Converts this nested shape into a full `GodotShape`. Infallible.
+    #[rustfmt::skip]
+    pub fn into_outer(self) -> GodotShape {
+        type G = GodotShape;
+
+        match self {
+            Self::Variant
+            => G::Variant,
+
+            Self::Builtin { variant_type }
+            => G::Builtin { variant_type },
+
+            Self::Class { class_id, heritage }
+            => G::Class { class_id, heritage },
+
+            Self::Enum { variant_type, enumerators, godot_name, is_bitfield }
+            => G::Enum { variant_type, enumerators, godot_name, is_bitfield },
+
+            Self::Custom { variant_type, var_hint, export_hint, class_name, usage_flags}
+            => G::Custom { variant_type, var_hint, export_hint, class_name, usage_flags },
+        }
+    }
+
+    /// Returns the Godot type name for use in `#[var]` array/dictionary type hints.
+    ///
+    /// Defaults to the `Via` type's name (e.g. `"int"` for `i32`). Engine enums override this to return their qualified class name
+    /// (e.g. `"Node.ProcessMode"`).
+    pub(crate) fn element_godot_type_name(&self) -> String {
+        match self {
+            Self::Variant => VariantType::NIL.godot_type_name().to_string(),
+            Self::Builtin { variant_type } => variant_type.godot_type_name().to_string(),
+            Self::Class { class_id, .. } => class_id.to_cow_str().to_string(),
+            Self::Enum {
+                godot_name,
+                variant_type,
+                ..
+            } => match godot_name {
+                Some(name) => name.to_string(),
+                None => variant_type.godot_type_name().to_string(),
+            },
+            Self::Custom { variant_type, .. } => variant_type.godot_type_name().to_string(),
+        }
+    }
+
+    /// Returns the representation of this type as an element inside an array, e.g. `"4:"` for string, or `"24:34/MyClass"` for objects.
+    ///
+    /// `4` and `24` are variant type ords; `34` is `PropertyHint::NODE_TYPE` ord.
+    ///
+    /// See [`PropertyHint::TYPE_STRING`] and
+    /// [upstream docs](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint).
+    pub(crate) fn element_type_string(&self) -> String {
+        match self {
+            Self::Variant
+            | Self::Builtin {
+                variant_type: VariantType::NIL,
+            } => {
+                // Variant (or void) as element: untyped, no hint.
+                format_elements_untyped(VariantType::NIL)
+            }
+
+            Self::Builtin { variant_type } => {
+                if sys::GdextBuild::since_api("4.3") {
+                    format_elements_untyped(*variant_type)
+                } else {
+                    format!("{}:{}", variant_type.ord(), variant_type.godot_type_name())
+                }
+            }
+
+            Self::Class { class_id, heritage } => {
+                let export_hint = heritage.export_property_hint();
+                sys::strict_assert_ne!(
+                    export_hint,
+                    PropertyHint::NONE,
+                    "element_type_string() should only be called for exportable object classes (Resource or Node), \
+                     but got ClassAncestor::Other for class `{}`",
+                    class_id.to_cow_str()
+                );
+
+                let hint_string = match heritage {
+                    ClassHeritage::DynResource { implementors } => join_class_ids(implementors),
+                    _ => class_id.to_cow_str().to_string(),
+                };
+                format_elements_typed(VariantType::OBJECT, export_hint, &hint_string)
+            }
+
+            Self::Enum { .. } => {
+                let outer = self.clone().into_outer(); // slightly expensive
+                let variant_type = outer.variant_type();
+                let info = outer.export_hint();
+                format_elements_typed(variant_type, info.hint, &info.hint_string)
+            }
+
+            Self::Custom {
+                variant_type,
+                var_hint,
+                ..
+            } => format_elements_typed(*variant_type, var_hint.hint, &var_hint.hint_string),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// A single enumerator entry: display name and ordinal value. Used in [`GodotShape::Enum`].
 #[derive(Clone, Debug)]
@@ -547,6 +631,28 @@ impl Enumerator {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global helper functions
+
+/// Builds the element type string used in Godot's `TYPE_STRING` hint for typed collections.
+///
+/// Format: `"{vtype}:"` if `hint` is `NONE`, otherwise `"{vtype}/{hint}:{hint_string}"`.
+pub(super) fn format_elements_typed(
+    variant_type: VariantType,
+    hint: PropertyHint,
+    hint_string: impl std::fmt::Display,
+) -> String {
+    if hint == PropertyHint::NONE {
+        format!("{}:", variant_type.ord())
+    } else {
+        format!("{}/{}:{}", variant_type.ord(), hint.ord(), hint_string)
+    }
+}
+
+/// Formats the element type string for untyped collections (e.g. `Array` without `TYPE_STRING` hint), which only includes the variant type.
+///
+/// Format: `"{vtype}:"`.
+fn format_elements_untyped(variant_type: VariantType) -> String {
+    format!("{}:", variant_type.ord())
+}
 
 /// Returns `PropertyHintInfo` for an enum or bitfield: `ENUM`/`FLAGS` hint with formatted hint string.
 fn enum_hint_info(

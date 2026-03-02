@@ -67,10 +67,6 @@ where
         T::return_info()
     }
 
-    fn godot_type_name() -> String {
-        T::godot_type_name()
-    }
-
     // Only relevant for object types T.
     fn as_object_arg(&self) -> meta::ObjectArg<'_> {
         match self {

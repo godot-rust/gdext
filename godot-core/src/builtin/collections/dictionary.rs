@@ -17,7 +17,7 @@ use super::any_dictionary::AnyDictionary;
 use crate::builtin::{AnyArray, Array, VarArray, Variant, VariantType, inner};
 use crate::meta;
 use crate::meta::{AsArg, Element, ElementType, ExtVariantType, FromGodot, ToGodot};
-use crate::registry::property::{BuiltinExport, Export, GodotShape, Var};
+use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotShape, Var};
 
 /// Godot's `Dictionary` type.
 ///
@@ -870,8 +870,8 @@ impl<K: Element, V: Element> meta::GodotConvert for Dictionary<K, V> {
         }
 
         GodotShape::TypedDictionary {
-            key_shape: Box::new(K::godot_shape()),
-            value_shape: Box::new(V::godot_shape()),
+            key: GodotElementShape::new(K::godot_shape()),
+            value: GodotElementShape::new(V::godot_shape()),
         }
     }
 }

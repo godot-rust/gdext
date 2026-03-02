@@ -11,7 +11,6 @@ use crate::builtin::PackedArray;
 use crate::builtin::collections::extend_buffer::{ExtendBuffer, ExtendBufferTrait};
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{CowArg, FromGodot, GodotType, ToGodot};
-use crate::registry::property::builtin_type_string;
 use crate::{builtin, sys};
 
 /// Marker trait to identify types that can be stored in [`PackedArray<T>`][crate::builtin::PackedArray].
@@ -41,15 +40,6 @@ pub trait PackedElement: GodotType + Clone + ToGodot + FromGodot {
     /// ExtendBuffer type with appropriate capacity `N` for this element type.
     #[doc(hidden)]
     type ExtendBuffer: Default + ExtendBufferTrait<Self>;
-
-    // ----------------------------------------------------------------------------------------------------------------------------------------------
-    // Property-related API
-
-    /// See [`crate::meta::traits::Element::element_type_string()`].
-    #[doc(hidden)]
-    fn element_type_string() -> String {
-        builtin_type_string::<Self>()
-    }
 
     // ----------------------------------------------------------------------------------------------------------------------------------------------
     // FFI operations

@@ -7,7 +7,7 @@
 
 use crate::builtin::{GString, StringName, VariantType};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{ClassId, Element, GodotType};
+use crate::meta::ClassId;
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
@@ -30,27 +30,29 @@ use crate::{classes, sys};
 ///
 /// # Example
 /// ```no_run
-/// use godot::meta::{PropertyInfo, PropertyHintInfo, ClassId};
+/// use godot::meta::{PropertyInfo, PropertyHintInfo};
 /// use godot::builtin::{StringName, VariantType};
 /// use godot::global::PropertyUsageFlags;
 ///
 /// // Integer property without a specific class
 /// let count_property = PropertyInfo {
 ///     variant_type: VariantType::INT,
-///     class_id: ClassId::none(),  // Only OBJECT types need a real class ID.
+///     class_name: StringName::default(),  // Only OBJECT types and enums need a real class/enum name.
 ///     property_name: StringName::from("count"),
 ///     hint_info: PropertyHintInfo::none(),
 ///     usage: PropertyUsageFlags::DEFAULT,
 /// };
 /// ```
 ///
-/// Here, `class_id` is set to [`ClassId::none()`] because integer properties do not require a specific class. For objects, you can use
-/// [`ClassId::new_cached::<T>(...)`][ClassId::new_cached] if you have a Rust type, or [`ClassId::new_dynamic(...)`][ClassId::new_dynamic]
-/// for dynamic contexts and script classes.
+/// For OBJECT types, `class_name` should be set to the class name (e.g., `"Node3D"`). You can use [`GodotClass::class_id()`] +
+/// [`ClassId::to_string_name()`] to keep this type-safe across class renames.
+///
+/// If the property refers to an enum, `class_name` should be set to the enum name (e.g., `"Node.ProcessMode"` or `"GlobalEnum"`).
+/// User-defined enums can also be registered with the empty string (they're a loose list of enumerators in that case).
 #[derive(Clone, Debug)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 // Note: There was an idea of a high-level representation of the following, but it's likely easier and more efficient to use introspection
-// APIs like `is_array_of_elem()`, unless there's a real user-facing need.
+// APIs like `is_array_of_elem()`, unless there's a real user-facing need (removed in https://github.com/godot-rust/gdext/pulls/1514).
 // pub(crate) enum SimplePropertyType {
 //     Variant { ty: VariantType },
 //     Array { elem_ty: VariantType },
@@ -59,25 +61,37 @@ use crate::{classes, sys};
 pub struct PropertyInfo {
     /// Type of the property.
     ///
-    /// For objects, this should be set to [`VariantType::OBJECT`] and use the `class_id` field to specify the actual class.  \
+    /// For objects, this should be set to [`VariantType::OBJECT`] and use the `class_name` field to specify the actual class.  \
+    /// For enums, this should be set to [`VariantType::INT`] and use the `class_name` field to specify the enum name.  \
     /// For generic [`Variant`](crate::builtin::Variant) properties, use [`VariantType::NIL`].
     pub variant_type: VariantType,
 
-    /// The specific class identifier for object-typed properties in Godot.
+    /// The specific class or enum name for object-typed and enum properties in Godot.
     ///
-    /// This is only relevant when `variant_type` is set to [`VariantType::OBJECT`].
+    /// Assign the following value:
+    /// - For objects (`variant_type == OBJECT`), this should be set to the class name (e.g., `"Node3D"`, `"RefCounted"`).
+    /// - For enums (commonly `variant_type == INT`), this should be set to the enum name (e.g., `"Node.ProcessMode"` or `"GlobalEnum"`).
+    ///   Rust-side enums that aren't registered with Godot can also use the empty string -- in that case it's a loose list of enumerators.
+    /// - For other types, this should be left empty, i.e. `StringName::default()`.
     ///
     /// # Example
     /// ```no_run
-    /// use godot::meta::ClassId;
+    /// use godot::builtin::StringName;
     /// use godot::classes::Node3D;
+    /// use godot::meta::ClassId;
     /// use godot::obj::GodotClass; // Trait method ::class_id().
     ///
     /// let none_id = ClassId::none();                      // For built-ins (not classes).
     /// let static_id = Node3D::class_id();                 // For classes with a Rust type.
     /// let dynamic_id = ClassId::new_dynamic("MyScript");  // For runtime class names.
+    ///
+    /// // Convert to StringName for this field:
+    /// let class_name = static_id.to_string_name();
+    ///
+    /// // Or directly, without caching the class name globally (recommended anyway for enums):
+    /// let class_name = StringName::from("MyScript");
     /// ```
-    pub class_id: ClassId,
+    pub class_name: StringName,
 
     /// The name of this property as it appears in Godot's object system.
     pub property_name: StringName,
@@ -112,7 +126,6 @@ impl PropertyInfo {
     /// from GDScript but **not** shown in the editor and **not** saved. Uses [`PropertyUsageFlags::NONE`] as base usage.
     ///
     /// For editor-visible + saved properties, use [`new_export()`](Self::new_export).
-    // TODO(v0.5): change class_id: ClassId to class_name: StringName, to avoid global cache for enum names that aren't real classes.
     pub fn new_var<T: Var>(property_name: &str) -> Self {
         T::godot_shape().to_var_property(property_name)
     }
@@ -163,7 +176,7 @@ impl PropertyInfo {
     pub fn new_group(group_name: &str, group_prefix: &str) -> Self {
         Self {
             variant_type: VariantType::NIL,
-            class_id: ClassId::none(),
+            class_name: StringName::default(),
             property_name: group_name.into(),
             hint_info: PropertyHintInfo {
                 hint: PropertyHint::NONE,
@@ -180,7 +193,7 @@ impl PropertyInfo {
     pub fn new_subgroup(subgroup_name: &str, subgroup_prefix: &str) -> Self {
         Self {
             variant_type: VariantType::NIL,
-            class_id: ClassId::none(),
+            class_name: StringName::default(),
             property_name: subgroup_name.into(),
             hint_info: PropertyHintInfo {
                 hint: PropertyHint::NONE,
@@ -188,18 +201,6 @@ impl PropertyInfo {
             },
             usage: PropertyUsageFlags::SUBGROUP,
         }
-    }
-
-    // ------------------------------------------------------------------------------------------------------------------------------------------
-    // Introspection API -- could be made public in the future
-
-    pub(crate) fn is_array_of_elem<T>(&self) -> bool
-    where
-        T: Element,
-    {
-        self.variant_type == VariantType::ARRAY
-            && self.hint_info.hint == PropertyHint::ARRAY_TYPE
-            && self.hint_info.hint_string == GString::from(&T::Via::godot_type_name())
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------------------
@@ -213,7 +214,7 @@ impl PropertyInfo {
         sys::GDExtensionPropertyInfo {
             type_: self.variant_type.sys(),
             name: sys::SysPtr::force_mut(self.property_name.string_sys()),
-            class_name: sys::SysPtr::force_mut(self.class_id.string_sys()),
+            class_name: sys::SysPtr::force_mut(self.class_name.string_sys()),
             hint: u32::try_from(self.hint_info.hint.ord()).expect("hint.ord()"),
             hint_string: sys::SysPtr::force_mut(self.hint_info.hint_string.string_sys()),
             usage: u32::try_from(self.usage.ord()).expect("usage.ord()"),
@@ -244,7 +245,7 @@ impl PropertyInfo {
         sys::GDExtensionPropertyInfo {
             type_: self.variant_type.sys(),
             name: self.property_name.into_owned_string_sys(),
-            class_name: sys::SysPtr::force_mut(self.class_id.string_sys()),
+            class_name: self.class_name.into_owned_string_sys(),
             hint: u32::try_from(self.hint_info.hint.ord()).expect("hint.ord()"),
             hint_string: self.hint_info.hint_string.into_owned_string_sys(),
             usage: u32::try_from(self.usage.ord()).expect("usage.ord()"),
@@ -263,6 +264,7 @@ impl PropertyInfo {
         // Additionally, this function isn't called more than once on a struct containing the same `name` or `hint_string` pointers.
         unsafe {
             let _name = StringName::from_owned_string_sys(info.name);
+            let _class_name = StringName::from_owned_string_sys(info.class_name);
             let _hint_string = GString::from_owned_string_sys(info.hint_string);
         }
     }
@@ -286,10 +288,7 @@ impl PropertyInfo {
 
             *StringName::borrow_string_sys_mut(ptr.name) = self.property_name;
             *GString::borrow_string_sys_mut(ptr.hint_string) = self.hint_info.hint_string;
-
-            if self.class_id != ClassId::none() {
-                *StringName::borrow_string_sys_mut(ptr.class_name) = self.class_id.to_string_name();
-            }
+            *StringName::borrow_string_sys_mut(ptr.class_name) = self.class_name;
         }
     }
 
@@ -306,7 +305,7 @@ impl PropertyInfo {
 
             Self {
                 variant_type: VariantType::from_sys(ptr.type_),
-                class_id: ClassId::none(),
+                class_name: StringName::new_from_string_sys(ptr.class_name),
                 property_name: StringName::new_from_string_sys(ptr.name),
                 hint_info: PropertyHintInfo {
                     hint: PropertyHint::from_ord(ptr.hint.to_owned() as i32),
@@ -340,24 +339,6 @@ impl PropertyHintInfo {
         Self {
             hint: PropertyHint::NONE,
             hint_string: GString::new(),
-        }
-    }
-
-    /// Use [`PROPERTY_HINT_NONE`](PropertyHint::NONE) with `T`'s Godot type name.
-    ///
-    /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
-    /// be the Godot type name of `T`.
-    pub fn type_name<T: GodotType>() -> Self {
-        let type_name = T::godot_type_name();
-        let hint_string = if sys::GdextBuild::since_api("4.3") {
-            GString::new()
-        } else {
-            GString::from(&type_name)
-        };
-
-        Self {
-            hint: PropertyHint::NONE,
-            hint_string,
         }
     }
 

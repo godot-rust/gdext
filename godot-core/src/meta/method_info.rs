@@ -37,7 +37,7 @@ use crate::sys;
 ///     class_name: ClassId::none(),
 ///     return_type: PropertyInfo {
 ///         variant_type: VariantType::OBJECT,
-///         class_id: Node2D::class_id(),
+///         class_name: Node2D::class_id().to_string_name(),
 ///         property_name: StringName::default(), // Return types use empty string.
 ///         hint_info: PropertyHintInfo::none(),
 ///         usage: PropertyUsageFlags::DEFAULT,
@@ -45,14 +45,14 @@ use crate::sys;
 ///     arguments: vec![
 ///         PropertyInfo {
 ///             variant_type: VariantType::OBJECT,
-///             class_id: ClassId::new_dynamic("World"),
+///             class_name: ClassId::new_dynamic("World").to_string_name(),
 ///             property_name: StringName::from("world"),
 ///             hint_info: PropertyHintInfo::none(),
 ///             usage: PropertyUsageFlags::DEFAULT,
 ///         },
 ///         PropertyInfo {
 ///             variant_type: VariantType::VECTOR2,
-///             class_id: ClassId::none(),
+///             class_name: StringName::default(),
 ///             property_name: StringName::from("position"),
 ///             hint_info: PropertyHintInfo::none(),
 ///             usage: PropertyUsageFlags::DEFAULT,

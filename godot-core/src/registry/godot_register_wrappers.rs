@@ -40,12 +40,15 @@ pub fn register_export<C: GodotClass, T: Export>(
         }
     }
 
-    let shape = T::godot_shape();
-    let hint = hint_override.unwrap_or_else(|| shape.export_hint());
-    let usage = usage_override.unwrap_or(PropertyUsageFlags::DEFAULT);
-    let info = shape.into_property_info(property_name, hint, usage);
+    let mut property = T::godot_shape().to_export_property(property_name);
+    if let Some(i) = hint_override {
+        property.hint_info = i;
+    }
+    if let Some(u) = usage_override {
+        property.usage = u;
+    }
 
-    register_var_or_export_inner(info, C::class_id(), getter_name, setter_name);
+    register_var_or_export_inner(property, C::class_id(), getter_name, setter_name);
 }
 
 /// Registers a `#[var]` property with Godot's ClassDB.
@@ -61,12 +64,15 @@ pub fn register_var<C: GodotClass, T: Var>(
     hint_override: Option<PropertyHintInfo>,
     usage_override: Option<PropertyUsageFlags>,
 ) {
-    let shape = T::godot_shape();
-    let hint = hint_override.unwrap_or_else(|| shape.var_hint());
-    let usage = usage_override.unwrap_or(PropertyUsageFlags::NONE);
-    let info = shape.into_property_info(property_name, hint, usage);
+    let mut property = T::godot_shape().to_var_property(property_name);
+    if let Some(i) = hint_override {
+        property.hint_info = i;
+    }
+    if let Some(u) = usage_override {
+        property.usage = u;
+    }
 
-    register_var_or_export_inner(info, C::class_id(), getter_name, setter_name);
+    register_var_or_export_inner(property, C::class_id(), getter_name, setter_name);
 }
 
 fn register_var_or_export_inner(

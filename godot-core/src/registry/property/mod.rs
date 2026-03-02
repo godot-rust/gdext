@@ -9,16 +9,14 @@
 
 use std::fmt::Display;
 
-use godot_ffi as sys;
 use godot_ffi::GodotNullableFfi;
 
 use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, ToGodot};
-use crate::obj::EngineEnum;
 
 mod godot_shape;
 mod phantom_var;
 
-pub use godot_shape::{ClassHeritage, Enumerator, GodotShape};
+pub use godot_shape::{ClassHeritage, Enumerator, GodotElementShape, GodotShape};
 pub use phantom_var::PhantomVar;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -347,10 +345,10 @@ pub mod export_info_functions {
     use godot_ffi::VariantType;
 
     use crate::builtin::GString;
-    use crate::global::{PropertyHint, godot_str};
-    use crate::meta::{GodotType, PropertyHintInfo, PropertyInfo};
+    use crate::global::PropertyHint;
+    use crate::meta::{GodotConvert, PropertyHintInfo};
     use crate::obj::EngineEnum;
-    use crate::registry::property::Export;
+    use crate::registry::property::{Export, GodotElementShape, GodotShape};
     use crate::sys;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
@@ -535,15 +533,14 @@ pub mod export_info_functions {
         is_global: bool,
         filter: impl AsRef<str>,
     ) -> PropertyHintInfo {
-        let field_ty = T::Via::property_info("");
         let filter = filter.as_ref();
         sys::strict_assert!(is_file || filter.is_empty()); // Dir never has filter.
 
-        export_file_or_dir_inner(&field_ty, is_file, is_global, filter)
+        export_file_or_dir_inner(&T::Via::godot_shape(), is_file, is_global, filter)
     }
 
-    pub fn export_file_or_dir_inner(
-        field_ty: &PropertyInfo,
+    fn export_file_or_dir_inner(
+        shape: &GodotShape,
         is_file: bool,
         is_global: bool,
         filter: &str,
@@ -556,10 +553,12 @@ pub mod export_info_functions {
         };
 
         // Returned value depends on field type.
-        match field_ty.variant_type {
+        match shape {
             // GString field:
             // { "type": 4, "hint": 13, "hint_string": "*.png" }
-            VariantType::STRING => PropertyHintInfo {
+            GodotShape::Builtin {
+                variant_type: VariantType::STRING,
+            } => PropertyHintInfo {
                 hint,
                 hint_string: GString::from(filter),
             },
@@ -567,11 +566,17 @@ pub mod export_info_functions {
             // Array<GString> or PackedStringArray field:
             // { "type": 28, "hint": 23, "hint_string": "4/13:*.png" }
             #[cfg(since_api = "4.3")]
-            VariantType::PACKED_STRING_ARRAY => to_string_array_hint(hint, filter),
+            GodotShape::Builtin {
+                variant_type: VariantType::PACKED_STRING_ARRAY,
+            } => to_string_array_hint(hint, filter),
+
             #[cfg(since_api = "4.3")]
-            VariantType::ARRAY if field_ty.is_array_of_elem::<GString>() => {
-                to_string_array_hint(hint, filter)
-            }
+            GodotShape::TypedArray {
+                element:
+                    GodotElementShape::Builtin {
+                        variant_type: VariantType::STRING,
+                    },
+            } => to_string_array_hint(hint, filter),
 
             _ => {
                 // E.g. `global_file`.
@@ -582,13 +587,13 @@ pub mod export_info_functions {
                 #[cfg(since_api = "4.3")]
                 panic!(
                     "#[export({attribute_name})] only supports GString, Array<String> or PackedStringArray field types\n\
-                    encountered: {field_ty:?}"
+                    encountered: {shape:?}"
                 );
 
                 #[cfg(before_api = "4.3")]
                 panic!(
                     "#[export({attribute_name})] only supports GString type prior to Godot 4.3\n\
-                    encountered: {field_ty:?}"
+                    encountered: {shape:?}"
                 );
             }
         }
@@ -598,13 +603,13 @@ pub mod export_info_functions {
     ///
     /// Formats: `"4/13:"`, `"4/15:*.png"`, ...
     fn to_string_array_hint(hint: PropertyHint, filter: &str) -> PropertyHintInfo {
-        let variant_ord = VariantType::STRING.ord(); // "4"
-        let hint_ord = hint.ord();
-        let hint_string = format!("{variant_ord}/{hint_ord}");
-
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: godot_str!("{hint_string}:{filter}"),
+            hint_string: GString::from(&super::godot_shape::format_elements_typed(
+                VariantType::STRING,
+                hint,
+                filter,
+            )),
         }
     }
 
@@ -739,20 +744,4 @@ mod export_impls {
     // Var/Export for Array<T> and PackedArray<T> are implemented in the files of their struct declaration.
 
     // impl_property_by_godot_convert!(Signal);
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Crate-local utilities
-
-pub(crate) fn builtin_type_string<T: GodotType>() -> String {
-    use sys::GodotFfi as _;
-
-    let variant_type = T::Ffi::VARIANT_TYPE.variant_as_nil();
-
-    // Godot 4.3 changed representation for type hints, see https://github.com/godotengine/godot/pull/90716.
-    if sys::GdextBuild::since_api("4.3") {
-        format!("{}:", variant_type.ord())
-    } else {
-        format!("{}:{}", variant_type.ord(), T::godot_type_name())
-    }
 }

@@ -9,8 +9,8 @@ use std::fmt;
 
 use crate::builtin::VariantType;
 use crate::classes::Script;
-use crate::meta::traits::{GodotType, element_variant_type};
-use crate::meta::{ClassId, Element};
+use crate::meta::traits::element_variant_type;
+use crate::meta::{ClassId, Element, GodotConvert as _, GodotShape};
 use crate::obj::{Gd, InstanceId};
 
 /// Dynamic type information of Godot arrays and dictionaries.
@@ -48,7 +48,10 @@ impl ElementType {
         if variant_type == VariantType::NIL {
             ElementType::Untyped
         } else if variant_type == VariantType::OBJECT {
-            ElementType::Class(T::Via::class_id())
+            let GodotShape::Class { class_id, .. } = T::Via::godot_shape() else {
+                panic!("Expected Class shape for OBJECT element type");
+            };
+            ElementType::Class(class_id)
         } else {
             ElementType::Builtin(variant_type)
         }
