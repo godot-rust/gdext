@@ -163,6 +163,7 @@ pub(crate) enum ErrorKind {
     FromGodot(FromGodotError),
     FromFfi(FromFfiError),
     FromVariant(FromVariantError),
+    InvalidThread,
     // FromAnyArray(ArrayMismatch), -- needed if AnyArray downcasts return ConvertError one day.
     Custom(Option<Cause>),
 }
@@ -173,6 +174,7 @@ impl fmt::Display for ErrorKind {
             Self::FromGodot(from_godot) => write!(f, "{from_godot}"),
             Self::FromVariant(from_variant) => write!(f, "{from_variant}"),
             Self::FromFfi(from_ffi) => write!(f, "{from_ffi}"),
+            Self::InvalidThread => write!(f, "InstanceID can not be converted outside main-thread"),
             Self::Custom(cause) => match cause {
                 Some(c) => write!(f, "{c}"),
                 None => write!(f, "custom error"),
