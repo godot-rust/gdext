@@ -561,8 +561,8 @@ impl<T: Element> Array<T> {
     ///
     /// Notice that it's possible to modify the `Array` through another reference while iterating over it. This will not result
     /// in unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn iter_shared(&self) -> Iter<'_, T> {
-        Iter {
+    pub fn iter_shared(&self) -> ArrayIter<'_, T> {
+        ArrayIter {
             array: self,
             next_idx: 0,
         }
@@ -1432,12 +1432,12 @@ impl<T: Element + FromGodot> From<&Array<T>> for Vec<T> {
 ///
 /// Unlike dictionary iterators, this does not provide a `typed()` method to re-type an untyped `VarArray` iterator.
 // Currently doesn't have a `typed()` method like dictionary iterators. Less useful here, as arrays are more often properly typed.
-pub struct Iter<'a, T: Element> {
+pub struct ArrayIter<'a, T: Element> {
     array: &'a Array<T>,
     next_idx: usize,
 }
 
-impl<T: Element + FromGodot> Iterator for Iter<'_, T> {
+impl<T: Element + FromGodot> Iterator for ArrayIter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {

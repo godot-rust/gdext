@@ -429,8 +429,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     ///
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn iter_shared(&self) -> Iter<'_, K, V> {
-        Iter::new(self)
+    pub fn iter_shared(&self) -> DictIter<'_, K, V> {
+        DictIter::new(self)
     }
 
     /// Returns an iterator over the keys in the `Dictionary`.
@@ -439,8 +439,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     ///
     /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn keys_shared(&self) -> Keys<'_, K> {
-        Keys::new(self)
+    pub fn keys_shared(&self) -> DictKeys<'_, K> {
+        DictKeys::new(self)
     }
 
     /// Returns an iterator over the values in the `Dictionary`.
@@ -449,8 +449,8 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     ///
     /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn values_shared(&self) -> Values<'_, V> {
-        Values::new(self)
+    pub fn values_shared(&self) -> DictValues<'_, V> {
+        DictValues::new(self)
     }
 
     /// Turns the dictionary into a shallow-immutable dictionary.
@@ -801,7 +801,7 @@ impl<K: Element, V: Element> Clone for Dictionary<K, V> {
 
 impl<'a, K: Element, V: Element> IntoIterator for &'a Dictionary<K, V> {
     type Item = (K, V);
-    type IntoIter = Iter<'a, K, V>;
+    type IntoIter = DictIter<'a, K, V>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_shared()
@@ -1085,12 +1085,12 @@ impl<'a> DictionaryIter<'a> {
 ///
 /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
 /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-pub struct Iter<'a, K, V> {
+pub struct DictIter<'a, K, V> {
     iter: DictionaryIter<'a>,
     _kv: PhantomData<(K, V)>,
 }
 
-impl<'a, K, V> Iter<'a, K, V> {
+impl<'a, K, V> DictIter<'a, K, V> {
     pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
@@ -1099,24 +1099,24 @@ impl<'a, K, V> Iter<'a, K, V> {
     }
 }
 
-impl<'a> Iter<'a, Variant, Variant> {
+impl<'a> DictIter<'a, Variant, Variant> {
     /// Re-types this iterator to yield `(K, V)` instead of `(Variant, Variant)`.
     ///
-    /// Only available on untyped `VarDictionary` and `AnyDictionary` iterators (i.e. `Iter<'_, Variant, Variant>`), to prevent misleading API
+    /// Only available on untyped `VarDictionary` and `AnyDictionary` iterators (i.e. `DictIter<'_, Variant, Variant>`), to prevent misleading API
     /// on already-typed iterators where the types are known at compile time.
     ///
     /// The conversion is performed by [`FromGodot`] on each key and value; panics on type mismatch.
     ///
     /// Preserves the current iteration position.
-    pub fn typed<K: FromGodot, V: FromGodot>(self) -> Iter<'a, K, V> {
-        Iter {
+    pub fn typed<K: FromGodot, V: FromGodot>(self) -> DictIter<'a, K, V> {
+        DictIter {
             iter: self.iter,
             _kv: PhantomData,
         }
     }
 }
 
-impl<K: FromGodot, V: FromGodot> Iterator for Iter<'_, K, V> {
+impl<K: FromGodot, V: FromGodot> Iterator for DictIter<'_, K, V> {
     type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1138,12 +1138,12 @@ impl<K: FromGodot, V: FromGodot> Iterator for Iter<'_, K, V> {
 ///
 /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
 /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-pub struct Keys<'a, K> {
+pub struct DictKeys<'a, K> {
     iter: DictionaryIter<'a>,
     _k: PhantomData<K>,
 }
 
-impl<'a, K> Keys<'a, K> {
+impl<'a, K> DictKeys<'a, K> {
     pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
@@ -1161,24 +1161,24 @@ impl<'a, K> Keys<'a, K> {
     }
 }
 
-impl<'a> Keys<'a, Variant> {
+impl<'a> DictKeys<'a, Variant> {
     /// Re-types this iterator to yield `K` instead of `Variant`.
     ///
-    /// Only available on untyped `VarDictionary` and `AnyDictionary` key iterators (i.e. `Iter<'_, Variant, Variant>`), to prevent misleading
+    /// Only available on untyped `VarDictionary` and `AnyDictionary` key iterators (i.e. `DictIter<'_, Variant, Variant>`), to prevent misleading
     /// API on already-typed iterators where the types are known at compile time.
     ///
     /// The conversion is performed by [`FromGodot`]; panics on type mismatch.
     ///
     /// Preserves the current iteration position.
-    pub fn typed<K: FromGodot>(self) -> Keys<'a, K> {
-        Keys {
+    pub fn typed<K: FromGodot>(self) -> DictKeys<'a, K> {
+        DictKeys {
             iter: self.iter,
             _k: PhantomData,
         }
     }
 }
 
-impl<K: FromGodot> Iterator for Keys<'_, K> {
+impl<K: FromGodot> Iterator for DictKeys<'_, K> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1198,12 +1198,12 @@ impl<K: FromGodot> Iterator for Keys<'_, K> {
 ///
 /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
 /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-pub struct Values<'a, V> {
+pub struct DictValues<'a, V> {
     iter: DictionaryIter<'a>,
     _v: PhantomData<V>,
 }
 
-impl<'a, V> Values<'a, V> {
+impl<'a, V> DictValues<'a, V> {
     pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
@@ -1212,24 +1212,24 @@ impl<'a, V> Values<'a, V> {
     }
 }
 
-impl<'a> Values<'a, Variant> {
+impl<'a> DictValues<'a, Variant> {
     /// Re-types this iterator to yield `V` instead of `Variant`.
     ///
-    /// Only available on untyped `VarDictionary` and `AnyDictionary` value iterators (i.e. `Iter<'_, Variant, Variant>`), to prevent misleading
+    /// Only available on untyped `VarDictionary` and `AnyDictionary` value iterators (i.e. `DictIter<'_, Variant, Variant>`), to prevent misleading
     /// API on already-typed iterators where the types are known at compile time.
     ///
     /// The conversion is performed by [`FromGodot`]; panics on type mismatch.
     ///
     /// Preserves the current iteration position.
-    pub fn typed<V: FromGodot>(self) -> Values<'a, V> {
-        Values {
+    pub fn typed<V: FromGodot>(self) -> DictValues<'a, V> {
+        DictValues {
             iter: self.iter,
             _v: PhantomData,
         }
     }
 }
 
-impl<V: FromGodot> Iterator for Values<'_, V> {
+impl<V: FromGodot> Iterator for DictValues<'_, V> {
     type Item = V;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -214,9 +214,9 @@ impl AnyDictionary {
     ///
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn iter_shared(&self) -> Iter<'_> {
-        Iter {
-            inner: super::dictionary::Iter::new(self),
+    pub fn iter_shared(&self) -> AnyDictIter<'_> {
+        AnyDictIter {
+            inner: super::dictionary::DictIter::new(self),
         }
     }
 
@@ -228,9 +228,9 @@ impl AnyDictionary {
     ///
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn keys_shared(&self) -> Keys<'_> {
-        Keys {
-            inner: super::dictionary::Keys::new(self),
+    pub fn keys_shared(&self) -> AnyDictKeys<'_> {
+        AnyDictKeys {
+            inner: super::dictionary::DictKeys::new(self),
         }
     }
 
@@ -242,9 +242,9 @@ impl AnyDictionary {
     ///
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn values_shared(&self) -> Values<'_> {
-        Values {
-            inner: super::dictionary::Values::new(self),
+    pub fn values_shared(&self) -> AnyDictValues<'_> {
+        AnyDictValues {
+            inner: super::dictionary::DictValues::new(self),
         }
     }
 
@@ -546,7 +546,7 @@ impl GodotFfiVariant for AnyDictionary {
 
 impl<'a> IntoIterator for &'a AnyDictionary {
     type Item = (Variant, Variant);
-    type IntoIter = Iter<'a>;
+    type IntoIter = AnyDictIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_shared()
@@ -559,19 +559,19 @@ impl<'a> IntoIterator for &'a AnyDictionary {
 /// Iterator over key-value pairs in an [`AnyDictionary`], yielding `(Variant, Variant)`.
 ///
 /// Use [`.typed::<K, V>()`][Self::typed] to convert to a typed iterator.
-pub struct Iter<'a> {
-    inner: super::dictionary::Iter<'a, Variant, Variant>,
+pub struct AnyDictIter<'a> {
+    inner: super::dictionary::DictIter<'a, Variant, Variant>,
 }
 
-impl<'a> Iter<'a> {
+impl<'a> AnyDictIter<'a> {
     /// Creates a typed iterator that converts each `(Variant, Variant)` pair into `(K, V)`,
     /// panicking upon conversion failure.
-    pub fn typed<K: FromGodot, V: FromGodot>(self) -> super::dictionary::Iter<'a, K, V> {
+    pub fn typed<K: FromGodot, V: FromGodot>(self) -> super::dictionary::DictIter<'a, K, V> {
         self.inner.typed()
     }
 }
 
-impl Iterator for Iter<'_> {
+impl Iterator for AnyDictIter<'_> {
     type Item = (Variant, Variant);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -588,14 +588,14 @@ impl Iterator for Iter<'_> {
 /// Iterator over keys in an [`AnyDictionary`], yielding `Variant`.
 ///
 /// Use [`.typed::<K>()`][Self::typed] to convert to a typed iterator.
-pub struct Keys<'a> {
-    inner: super::dictionary::Keys<'a, Variant>,
+pub struct AnyDictKeys<'a> {
+    inner: super::dictionary::DictKeys<'a, Variant>,
 }
 
-impl<'a> Keys<'a> {
+impl<'a> AnyDictKeys<'a> {
     /// Creates a typed iterator that converts each `Variant` key into `K`,
     /// panicking upon conversion failure.
-    pub fn typed<K: FromGodot>(self) -> super::dictionary::Keys<'a, K> {
+    pub fn typed<K: FromGodot>(self) -> super::dictionary::DictKeys<'a, K> {
         self.inner.typed()
     }
 
@@ -605,7 +605,7 @@ impl<'a> Keys<'a> {
     }
 }
 
-impl Iterator for Keys<'_> {
+impl Iterator for AnyDictKeys<'_> {
     type Item = Variant;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -622,19 +622,19 @@ impl Iterator for Keys<'_> {
 /// Iterator over values in an [`AnyDictionary`], yielding `Variant`.
 ///
 /// Use [`.typed::<V>()`][Self::typed] to convert to a typed iterator.
-pub struct Values<'a> {
-    inner: super::dictionary::Values<'a, Variant>,
+pub struct AnyDictValues<'a> {
+    inner: super::dictionary::DictValues<'a, Variant>,
 }
 
-impl<'a> Values<'a> {
+impl<'a> AnyDictValues<'a> {
     /// Creates a typed iterator that converts each `Variant` value into `V`,
     /// panicking upon conversion failure.
-    pub fn typed<V: FromGodot>(self) -> super::dictionary::Values<'a, V> {
+    pub fn typed<V: FromGodot>(self) -> super::dictionary::DictValues<'a, V> {
         self.inner.typed()
     }
 }
 
-impl Iterator for Values<'_> {
+impl Iterator for AnyDictValues<'_> {
     type Item = Variant;
 
     fn next(&mut self) -> Option<Self::Item> {
