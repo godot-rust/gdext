@@ -111,10 +111,10 @@ pub struct Dictionary<K: Element, V: Element> {
     _phantom: PhantomData<(K, V)>,
 
     /// Lazily computed and cached element type information for the key type.
-    cached_key_type: OnceCell<ElementType>,
+    pub(super) cached_key_type: OnceCell<ElementType>,
 
     /// Lazily computed and cached element type information for the value type.
-    cached_value_type: OnceCell<ElementType>,
+    pub(super) cached_value_type: OnceCell<ElementType>,
 }
 
 /// Untyped Godot `Dictionary`.
@@ -481,64 +481,6 @@ impl<K: Element, V: Element> Dictionary<K, V> {
         );
     }
 
-    /// Returns the runtime element type information for keys in this dictionary.
-    ///
-    /// # Compatibility
-    ///
-    /// **Godot 4.4+**: Returns the type information stored in the Godot engine.
-    ///
-    /// **Before Godot 4.4**: Returns the Rust-side compile-time type `K` as `ElementType::Untyped` for `Variant`,
-    /// or the appropriate typed `ElementType` for other types. Since typed dictionaries are not supported by the
-    /// engine before 4.4, all dictionaries appear untyped to Godot regardless of this value.
-    pub fn key_element_type(&self) -> ElementType {
-        #[cfg(since_api = "4.4")]
-        {
-            ElementType::get_or_compute_cached(
-                &self.cached_key_type,
-                || self.as_inner().get_typed_key_builtin(),
-                || self.as_inner().get_typed_key_class_name(),
-                || self.as_inner().get_typed_key_script(),
-            )
-        }
-
-        #[cfg(before_api = "4.4")]
-        {
-            // Return Rust's compile-time type info (cached).
-            self.cached_key_type
-                .get_or_init(|| ElementType::of::<K>())
-                .clone()
-        }
-    }
-
-    /// Returns the runtime element type information for values in this dictionary.
-    ///
-    /// # Compatibility
-    ///
-    /// **Godot 4.4+**: Returns the type information stored in the Godot engine.
-    ///
-    /// **Before Godot 4.4**: Returns the Rust-side compile-time type `V` as `ElementType::Untyped` for `Variant`,
-    /// or the appropriate typed `ElementType` for other types. Since typed dictionaries are not supported by the
-    /// engine before 4.4, all dictionaries appear untyped to Godot regardless of this value.
-    pub fn value_element_type(&self) -> ElementType {
-        #[cfg(since_api = "4.4")]
-        {
-            ElementType::get_or_compute_cached(
-                &self.cached_value_type,
-                || self.as_inner().get_typed_value_builtin(),
-                || self.as_inner().get_typed_value_class_name(),
-                || self.as_inner().get_typed_value_script(),
-            )
-        }
-
-        #[cfg(before_api = "4.4")]
-        {
-            // Return Rust's compile-time type info (cached).
-            self.cached_value_type
-                .get_or_init(|| ElementType::of::<V>())
-                .clone()
-        }
-    }
-
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerDictionary<'_> {
         inner::InnerDictionary::from_outer_typed(self)
@@ -642,54 +584,71 @@ impl<K: Element, V: Element> Dictionary<K, V> {
         Ok(result)
     }
 
-    /// Initialize the typed dictionary with key and value type information.
+    /// Shared logic for `init_inner_type`: caches types and calls `dictionary_set_typed`.
     ///
-    /// On Godot 4.4+, this calls `dictionary_set_typed()` to inform the engine about types.
-    /// On earlier versions, this only initializes the Rust-side type cache.
-    fn init_inner_type(&mut self) {
+    /// The function pointer is passed in rather than looked up here because the lookup differs between API versions: as the FFI function is
+    /// only available for API >= 4.4, we fetch by raw string before.
+    //
+    // TODO(v0.6): simplify once migrated to `gdextension_interface.json`.
+    fn init_inner_type_with(&mut self, dictionary_set_typed: DictionarySetTyped) {
         let key_elem_ty = ElementType::of::<K>();
         let value_elem_ty = ElementType::of::<V>();
-
-        // Cache types on Rust side (for all versions) -- they are Copy.
-        self.cached_key_type.get_or_init(|| key_elem_ty);
-        self.cached_value_type.get_or_init(|| value_elem_ty);
 
         // If both are untyped (Variant), skip initialization.
         if !key_elem_ty.is_typed() && !value_elem_ty.is_typed() {
             return;
         }
 
-        // Godot 4.4+: Set type information in the engine.
-        #[cfg(since_api = "4.4")]
-        {
-            // Script is always nil for compile-time types (only relevant for GDScript class_name types).
-            let script = Variant::nil();
+        // Cache types, since we know them at compile time.
+        self.cached_key_type.get_or_init(|| key_elem_ty);
+        self.cached_value_type.get_or_init(|| value_elem_ty);
 
-            let empty_string_name = crate::builtin::StringName::default();
-            let key_class_name = key_elem_ty.class_name_sys_or(&empty_string_name);
-            let value_class_name = value_elem_ty.class_name_sys_or(&empty_string_name);
+        // Script is always nil for compile-time types (only relevant for GDScript class_name types).
+        let script = Variant::nil();
+        let empty_string_name = crate::builtin::StringName::default();
+        let key_class_name = key_elem_ty.class_name_sys_or(&empty_string_name);
+        let value_class_name = value_elem_ty.class_name_sys_or(&empty_string_name);
 
-            // SAFETY: Valid pointers are passed in.
-            // Relevant for correctness, not safety: the dictionary is a newly created, empty, untyped dictionary.
-            unsafe {
-                interface_fn!(dictionary_set_typed)(
-                    self.sys_mut(),
-                    key_elem_ty.variant_type().sys(),
-                    key_class_name,
-                    script.var_sys(),
-                    value_elem_ty.variant_type().sys(),
-                    value_class_name,
-                    script.var_sys(),
-                );
-            }
+        // SAFETY: Valid pointers are passed in.
+        // Relevant for correctness, not safety: the dictionary is a newly created, empty, untyped dictionary.
+        unsafe {
+            dictionary_set_typed(
+                self.sys_mut(),
+                key_elem_ty.variant_type().sys(),
+                key_class_name,
+                script.var_sys(),
+                value_elem_ty.variant_type().sys(),
+                value_class_name,
+                script.var_sys(),
+            );
+        }
+    }
+
+    /// On Godot 4.4+, calls `dictionary_set_typed()` to inform the engine about types and caches the result.
+    #[cfg(since_api = "4.4")]
+    fn init_inner_type(&mut self) {
+        self.init_inner_type_with(interface_fn!(dictionary_set_typed));
+    }
+
+    /// Compiled against pre-4.4 API: if running on Godot 4.4+, dynamically look up `dictionary_set_typed`
+    /// and call it to register type info with the engine.
+    #[cfg(before_api = "4.4")]
+    fn init_inner_type(&mut self) {
+        if !sys::GdextBuild::since_api("4.4") {
+            // Pre-4.4 runtime: typed dicts not supported -> cache Untyped to avoid re-probing on each query.
+            self.cached_key_type.get_or_init(|| ElementType::Untyped);
+            self.cached_value_type.get_or_init(|| ElementType::Untyped);
+            return;
         }
 
-        // Before Godot 4.4: No engine-side typing, only Rust-side (already cached above).
-        #[cfg(before_api = "4.4")]
-        {
-            // Types are already cached at the beginning of this function.
-            // No additional work needed - Rust-only type safety.
-        }
+        // SAFETY: Binding has been initialized; `dictionary_set_typed` exists on 4.4+ runtime.
+        let fptr = unsafe { sys::get_ffi_ptr_by_cstr(b"dictionary_set_typed\0") }
+            .expect("dictionary_set_typed should be available on Godot 4.4+");
+
+        // SAFETY: the function pointer has the correct signature (stable GDExtension ABI).
+        let dictionary_set_typed: DictionarySetTyped = unsafe { std::mem::transmute(fptr) };
+
+        self.init_inner_type_with(dictionary_set_typed);
     }
 }
 
@@ -1337,3 +1296,17 @@ macro_rules! vdict {
         }
     };
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Polyfill for API <4.4 typed-ness
+
+// Manually define the function pointer type (not available in pre-4.4 generated code).
+type DictionarySetTyped = unsafe extern "C" fn(
+    sys::GDExtensionTypePtr,
+    sys::GDExtensionVariantType,
+    sys::GDExtensionConstStringNamePtr,
+    sys::GDExtensionConstVariantPtr,
+    sys::GDExtensionVariantType,
+    sys::GDExtensionConstStringNamePtr,
+    sys::GDExtensionConstVariantPtr,
+);

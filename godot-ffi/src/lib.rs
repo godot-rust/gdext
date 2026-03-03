@@ -266,6 +266,7 @@ pub unsafe fn initialize(
     unsafe {
         initialize_binding(GodotBinding::new(
             interface,
+            get_proc_address,
             library,
             global_method_table,
             utility_function_table,
