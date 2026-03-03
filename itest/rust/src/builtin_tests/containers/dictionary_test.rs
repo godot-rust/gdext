@@ -946,8 +946,8 @@ mod typed_dictionary_tests {
 
     #[itest]
     fn dictionary_typed() {
-        // Value type needs to be specified for now, due to GString/StringName/NodePath ambiguity.
-        let dict: Dictionary<GString, _> = dict! {
+        // No type annotation needed with `=` prefix.
+        let dict = dict! {=
             "key1": 10,
             "key2": 20,
         };
@@ -1067,7 +1067,7 @@ mod typed_dictionary_tests {
 
     #[itest]
     fn dictionary_typed_modify() {
-        let mut bool_dict: Dictionary<GString, bool> = dict! { "key1": true, "key2": false };
+        let mut bool_dict = dict! {= "key1": true, "key2": false };
 
         map_in_place(&mut bool_dict, &GString::from("key1"), |v| !*v);
         assert!(!bool_dict.at("key1"));

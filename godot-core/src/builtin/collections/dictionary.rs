@@ -321,6 +321,16 @@ impl<K: Element, V: Element> Dictionary<K, V> {
         unsafe { self.set_variant(key.to_variant(), value.to_variant()) };
     }
 
+    /// Internal helper for the `dict!` macro; uses [`AsDirectElement`][meta::AsDirectElement] for unambiguous type inference.
+    #[doc(hidden)]
+    pub fn __macro_set_direct<Ke, Ve>(&mut self, key: Ke, value: Ve)
+    where
+        Ke: meta::AsDirectElement<K>,
+        Ve: meta::AsDirectElement<V>,
+    {
+        self.set(key, value)
+    }
+
     /// Insert a value at the given key, returning the previous value for that key (if available).
     ///
     /// If you don't need the previous value, use [`set()`][Self::set] instead.
@@ -1255,29 +1265,28 @@ fn u8_to_bool(u: u8) -> bool {
 /// The macro creates a typed `Dictionary<K, V>`. You must provide an explicit type annotation
 /// to specify `K` and `V`. Keys must implement `AsArg<K>` and values must implement `AsArg<V>`.
 ///
+/// The `= ` prefix (`dict! {= ...}`) switches to [`AsDirectElement`][crate::meta::AsDirectElement], enabling unambiguous type inference
+/// without an explicit type annotation. This covers types like `i32`, `&str` (inferred as `GString`), `&GString`, etc.
+///
 /// # Example
 /// ```no_run
-/// use godot::builtin::{dict, Dictionary, GString, Variant};
+/// use godot::builtin::*;
 ///
-/// // Type annotation required
-/// let d: Dictionary<GString, i64> = dict! {
-///     "key1": 10,
-///     "key2": 20,
-/// };
+/// // Type annotation required, as the same initializer can be mapped to different types.
+/// let d: Dictionary<GString, i64> = dict! { "key1": 10, "key2": 20 };
+/// let d: Dictionary<StringName, i64> = dict! { "key1": 10, "key2": 20 };
+/// let d: Dictionary<GString, Variant> = dict! { "key1": 10, "key2": 20 };
 ///
-/// // Works with Variant values too
-/// let d: Dictionary<GString, Variant> = dict! {
-///     "str": "Hello",
-///     "num": 23,
-/// };
+/// // `=` prefix: most common conversion, no type annotation needed.
+/// let d = dict! {= "key1": 10, "key2": 20 }; // Dictionary<GString, i32>.
 /// ```
 ///
 /// # See also
-///
 /// For untyped dictionaries, use [`vdict!`][macro@crate::builtin::vdict].
 /// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
 #[macro_export]
 macro_rules! dict {
+    // Default: `AsArg` semantics (needed for `Gd`, `Variant`, or explicit disambiguation).
     ($($key:tt: $value:expr),* $(,)?) => {
         {
             let mut d = $crate::builtin::Dictionary::new();
@@ -1285,6 +1294,18 @@ macro_rules! dict {
                 // `cargo check` complains that `(1 + 2): true` has unused parentheses, even though it's not possible to omit those.
                 #[allow(unused_parens)]
                 d.set($key, $value);
+            )*
+            d
+        }
+    };
+
+    // `=` prefix: `AsDirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
+    (= $($key:tt: $value:expr),* $(,)?) => {
+        {
+            let mut d = $crate::builtin::Dictionary::new();
+            $(
+                #[allow(unused_parens)]
+                d.__macro_set_direct($key, $value);
             )*
             d
         }

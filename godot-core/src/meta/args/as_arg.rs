@@ -856,26 +856,26 @@ impl_asarg_variant_for_ref!([T: PackedElement] crate::builtin::PackedArray<T>);
 impl_asarg_variant_for_ref!([T: GodotClass] Gd<T>);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// DirectElement trait for array![] macro
+// AsDirectElement trait for array![] macro
 
-/// Marker trait for types directly usable in the [`array!`][crate::array] macro.
+/// Marker trait for types directly usable in the [`array!`][crate::array] and [`dict!`][crate::dict] macros.
 ///
 /// More restrictive than [`AsArg<T>`] — avoids ambiguity once `AsArg<Variant>` impls are added.
 /// Implemented for:
 /// - `T` when `T: Element + ToGodot<Pass = ByValue>` (e.g. `i32`, `bool`, `Color`).
 /// - `&T` when `T: Element + ToGodot<Pass = ByRef>` (e.g. `&GString`, `&Array<T>`).
 /// - `&str`, `&String` for `GString` (only; not `StringName`/`NodePath` to avoid ambiguity).
-pub trait DirectElement<T: Element>: AsArg<T> {}
+pub trait AsDirectElement<T: Element>: AsArg<T> {}
 
 // ByValue: T directly passes as element (i32, bool, Vector2, ...).
-impl<T> DirectElement<T> for T where T: Element + ToGodot<Pass = ByValue> {}
+impl<T> AsDirectElement<T> for T where T: Element + ToGodot<Pass = ByValue> {}
 
 // ByRef: &T passes as element (GString, Array, Dictionary, ...).
-impl<T> DirectElement<T> for &T where T: Element + ToGodot<Pass = ByRef> {}
+impl<T> AsDirectElement<T> for &T where T: Element + ToGodot<Pass = ByRef> {}
 
 // Potentially allow this? However, it encourages manual case differentiation when working with objects,
 // which goes against the idea of implicit upcasts/option-casts/dyn-casts.
-// impl<T: GodotClass> DirectElement<Gd<T>> for &Gd<T> {}
+// impl<T: GodotClass> AsDirectElement<Gd<T>> for &Gd<T> {}
 
 // String coercions: &str / &String -> GString only.
 //
@@ -883,5 +883,5 @@ impl<T> DirectElement<T> for &T where T: Element + ToGodot<Pass = ByRef> {}
 // array![= "hello"] would otherwise be ambiguous between Array<GString>, Array<StringName>, Array<NodePath>.
 // Users who need Array<StringName> from literals can use array![StringName::from("hi")] or
 // provide a type annotation: let arr: Array<StringName> = array!["hi"].
-impl DirectElement<GString> for &str {}
-impl DirectElement<GString> for &String {}
+impl AsDirectElement<GString> for &str {}
+impl AsDirectElement<GString> for &String {}
