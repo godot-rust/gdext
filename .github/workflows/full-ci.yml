@@ -289,7 +289,7 @@ jobs:
             os: macos-latest
             artifact-name: macos-arm-nightly
             godot-binary: godot.macos.editor.dev.arm64
-            hot-reload: stable
+            hot-reload: stable signal-test
 
            # api-custom on macOS arm64 not working, due to clang linker issues.
 #          - name: macos-double-arm
@@ -311,7 +311,7 @@ jobs:
             os: windows-latest
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
-            hot-reload: stable
+            hot-reload: stable signal-test
 
           - name: windows-double
             os: windows-latest
@@ -339,7 +339,7 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
             rust-extra-env: GODOT_RUST_MAIN_EXTENSION=IntegrationTests
-            hot-reload: api-custom
+            hot-reload: api-custom signal-test
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
           - name: linux-double-lazy
@@ -381,21 +381,21 @@ jobs:
             artifact-name: linux-4.6
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.6'
-            hot-reload: stable
+            hot-reload: stable signal-test
 
           - name: linux-4.5
             os: ubuntu-22.04
             artifact-name: linux-4.5
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.5'
-            hot-reload: api-4-5
+            hot-reload: api-4-5 signal-test
 
           - name: linux-4.4
             os: ubuntu-22.04
             artifact-name: linux-4.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.4'
-            hot-reload: api-4-4
+            hot-reload: api-4-4 signal-test
 
           - name: linux-4.3
             os: ubuntu-22.04

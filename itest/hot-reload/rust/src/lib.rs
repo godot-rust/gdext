@@ -71,3 +71,58 @@ enum Planet {
     Mars,
     Venus,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Signal soundness: https://github.com/godot-rust/gdext/pull/1512.
+
+#[cfg(feature = "signal-test")]
+pub use signal_test::*;
+
+#[cfg(feature = "signal-test")]
+mod signal_test {
+    use godot::classes::notify::ObjectNotification;
+
+    use super::*;
+
+    #[derive(GodotClass)]
+    #[class(init, tool, base = Object)]
+    struct Signaller {
+        #[var]
+        value: i64,
+        base: Base<Object>,
+    }
+
+    #[godot_api]
+    impl IObject for Signaller {
+        fn on_notification(&mut self, what: ObjectNotification) {
+            // Recreate signal after hot reload.
+            // Doesn't really matter much for this test - it does NOT replace previous signal (which should be disconnected at this point).
+            if what == ObjectNotification::EXTENSION_RELOADED {
+                self.signals()
+                    .reloadable_signal()
+                    .connect_self(|this, val| this.value = val);
+            }
+        }
+    }
+
+    #[godot_api]
+    impl Signaller {
+        #[func]
+        fn initialize_connections(&mut self) {
+            self.signals()
+                .reloadable_signal()
+                .connect_self(|this, val| this.value = val);
+
+            // Given RefCounted will be instantly freed after this function execution,
+            // but signal connection will be registered and pruned upon hot reload.
+            let some_refcounted = RefCounted::new_gd();
+            some_refcounted
+                .signals()
+                .property_list_changed()
+                .connect(|| godot_print!("Henlo!"));
+        }
+
+        #[signal]
+        fn reloadable_signal(val: i64);
+    }
+}

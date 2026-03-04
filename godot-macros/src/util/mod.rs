@@ -94,7 +94,9 @@ macro_rules! error {
     }
 }
 
-pub(crate) use {bail, error, require_api_version};
+pub(crate) use bail;
+pub(crate) use error;
+pub(crate) use require_api_version;
 
 /// Keeps all attributes except the one specified (e.g. `"itest"`).
 pub fn retain_attributes_except<'a>(

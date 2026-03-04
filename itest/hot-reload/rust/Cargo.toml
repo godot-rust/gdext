@@ -6,6 +6,9 @@ rust-version.workspace = true
 license = "MPL-2.0"
 publish = false
 
+[features]
+signal-test = []
+
 [lib]
 crate-type = ["cdylib"]
 

@@ -15,6 +15,7 @@ use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned, UniformObjectDeref};
 use crate::obj::{Gd, GodotClass, WithSignals};
+use crate::registry::signal::signal_connections_registry::store_signal_connection;
 use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 
 /// Type-safe version of a Godot signal.
@@ -230,6 +231,8 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
                 obj.connect(signal_name, &callable);
             }
         });
+
+        store_signal_connection(&owned_object, &self.name, &callable);
 
         ConnectHandle::new(owned_object, self.name.clone(), callable)
     }

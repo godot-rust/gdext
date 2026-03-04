@@ -7,6 +7,7 @@
 
 mod connect_builder;
 mod connect_handle;
+mod signal_connections_registry;
 mod signal_object;
 mod signal_receiver;
 mod typed_signal;
@@ -15,6 +16,7 @@ use std::borrow::Cow;
 
 pub(crate) use connect_builder::*;
 pub(crate) use connect_handle::*;
+pub(crate) use signal_connections_registry::*;
 pub(crate) use signal_object::*;
 pub(crate) use typed_signal::*;
 
