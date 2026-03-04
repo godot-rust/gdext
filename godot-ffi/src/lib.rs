@@ -84,6 +84,8 @@ mod plugins;
 mod string_cache;
 mod toolbox;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 // Other
 pub use extras::*;
 pub use r#gen::central::*;
@@ -595,6 +597,19 @@ pub fn is_main_thread() -> bool {
     {
         true
     }
+}
+
+static IS_EDITOR_HINT: AtomicBool = AtomicBool::new(false);
+
+/// Caches the current value of `Engine::is_editor_hint`.
+/// Should be called only once, during bindings initialization.
+pub fn set_editor_hint(is_editor_hint: bool) {
+    IS_EDITOR_HINT.store(is_editor_hint, Ordering::Relaxed);
+}
+
+/// Cached output of `Engine::is_editor_hint`, allowing to fetch the value without crossing the FFI barrier.
+pub fn is_editor_hint() -> bool {
+    IS_EDITOR_HINT.load(Ordering::Relaxed)
 }
 
 /// Assign the current thread id to be the main thread.

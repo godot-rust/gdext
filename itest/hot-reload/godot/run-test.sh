@@ -18,6 +18,10 @@ else
   exit 1
 fi
 
+if [[ $2 == "signal-test" ]]; then
+    cargoArgs="${cargoArgs} --features signal-test"
+fi
+
 # Restore un-reloaded files on exit (for local testing).
 cleanedUp=0 # avoid recursion if cleanup fails
 godotPid=0 # kill previous instance if necessary

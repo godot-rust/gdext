@@ -15,6 +15,8 @@ var extension_name: String
 
 var retained_obj: Reloadable
 
+var signal_obj: Object
+
 
 func _ready() -> void:
 	print("[GD Editor] Start...")
@@ -28,13 +30,20 @@ func _ready() -> void:
 	var planet = retained_obj.favorite_planet
 
 	print("[GD Editor] Sanity check: initial number is ", num, "; planet is ", planet)
-	
+
 	var extensions = GDExtensionManager.get_loaded_extensions()
 	if extensions.size() == 1:
 		extension_name = extensions[0]
 	else:
 		fail(str("Must have 1 extension, has: ", extensions))
 		return
+
+	if ClassDB.class_exists("Signaller"):
+		self.signal_obj = ClassDB.instantiate("Signaller")
+		self.signal_obj.reloadable_signal.emit(42)
+		print("[GD Editor] Sanity check: Signaller emitted signal and holds ", self.signal_obj.value)
+	else:
+		print("[GD Editor] Skipping signal test: hot reloading with typed signals is not supported for this Godot version")
 
 	udp.bind(1337)
 	print("[GD Editor] ReloadTest ready to receive...")
@@ -72,6 +81,14 @@ func _process(delta: float) -> void:
 	if not _hot_reload():
 		return
 
+	if self.signal_obj:
+		# Test if previous signal has been properly disconnected before hot-reload.
+		self.signal_obj.reloadable_signal.emit(12)
+		# We did not crash thus all works well :).
+		print("[GD Editor] Signal has been properly hot reloaded!")
+
+		self.signal_obj.free()
+
 	var r = Reloadable.new()
 	var num = r.get_number()
 	r.free()
@@ -103,5 +120,3 @@ func _hot_reload():
 func fail(s: String) -> void:
 	print("::error::[GD Editor] ", s) # GitHub Action syntax
 	get_tree().quit(1)
-
-

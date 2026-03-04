@@ -11,14 +11,20 @@ use godot_ffi as sys;
 use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
+use crate::obj::Singleton;
 use crate::out;
 
 mod reexport_pub {
+    // `Engine::singleton()` is not available before `InitLevel::Scenes` for Godot before 4.4.
+    #[cfg(since_api = "4.4")]
+    pub use super::sys::is_editor_hint;
     #[cfg(not(wasm_nothreads))]
     pub use super::sys::main_thread_id;
     pub use super::sys::{GdextBuild, InitStage, is_main_thread};
 }
 pub use reexport_pub::*;
+
+use crate::registry::signal::prune_stored_signal_connections;
 
 #[repr(C)]
 struct InitUserData {
@@ -218,6 +224,9 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
                     &raw const _userdata.main_loop_callbacks,
                 )
             };
+
+            #[cfg(since_api = "4.4")]
+            sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
         }
         InitLevel::Servers => {
             // SAFETY: called from the main thread, sys::initialized has already been called.
@@ -241,6 +250,10 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
 fn gdext_on_level_deinit(level: InitLevel) {
+    if level == InitLevel::Editor {
+        prune_stored_signal_connections();
+    }
+
     crate::registry::class::unregister_classes(level);
 
     if level == InitLevel::Core {
