@@ -529,9 +529,23 @@ where
     };
 
     // Print failed calls to Godot's console.
-    // TODO Level 1 is not yet set, so this will always print if level != 0. Needs better logic to recognize try_* calls and avoid printing.
+    // TODO(v0.6): Level 1 is not yet set, so this will always print if level != 0. Needs better logic to recognize try_* calls and avoid printing.
     // But a bit tricky with multiple threads and re-entrancy; maybe pass in info in error struct.
-    if has_error_print_level(2) {
+
+    // caused_by_panic() check to avoid printing (2) once the panic message (1) is already printed:
+    //
+    // (1)  ERROR: [panic hot-reload/rust/src/lib.rs:37]
+    //      some panic message
+    //      Context: MyClass::my_method
+    //       at: godot_core::private::set_gdext_hook::{{closure}} (/.../godot-core/src/private.rs:354)
+    //       GDScript backtrace (most recent call first):
+    //           [0] _ready (res://script.gd:9)
+    //     (backtrace disabled, run application with `RUST_BACKTRACE=1` environment variable)
+    //
+    // (2) ERROR: godot-rust function call failed: MyClass::my_method()
+    //        Reason: function panicked: some panic message
+    //     at: ...
+    if has_error_print_level(2) && !call_error.caused_by_panic() {
         godot_error!("{call_error}");
     }
 

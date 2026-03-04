@@ -89,6 +89,8 @@ struct InnerCallError {
     call_expr: String,
     reason: String,
     source: Option<SourceError>,
+    /// Whether this error was caused by a Rust panic. If so, the panic hook already printed it.
+    caused_by_panic: bool,
 }
 
 impl CallError {
@@ -314,13 +316,19 @@ impl CallError {
 
     #[doc(hidden)]
     pub fn failed_by_user_panic(call_ctx: &CallContext, panic_payload: PanicPayload) -> Self {
-        // This can cause the panic message to be printed twice in some scenarios (e.g. bind_mut() borrow failure).
-        // But in other cases (e.g. itest `dynamic_call_with_panic`), it is only printed once.
-        // Would need some work to have a consistent experience.
+        // Reason will not be printed, since panic itself already prints -- but is still accessible in CallError's Display/Error impls.
+        let reason = format!("function panicked: {}", panic_payload.into_panic_message());
 
-        let reason = panic_payload.into_panic_message();
+        let mut err = Self::new(call_ctx, reason, None);
+        err.b.caused_by_panic = true;
+        err
+    }
 
-        Self::new(call_ctx, format!("function panicked: {reason}"), None)
+    /// Whether this error was caused by a Rust panic (as opposed to a Godot or godot-rust error).
+    ///
+    /// If true, the panic hook has already printed the error; callers can avoid printing it again.
+    pub(crate) fn caused_by_panic(&self) -> bool {
+        self.b.caused_by_panic
     }
 
     fn new(
@@ -337,6 +345,7 @@ impl CallError {
                 value: e.value().map_or_else(String::new, |v| format!("{v:?}")),
                 erased_error: e.into(),
             }),
+            caused_by_panic: false, // set to true after construction if needed.
         };
 
         Self { b: Box::new(inner) }
