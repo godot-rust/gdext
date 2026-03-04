@@ -342,9 +342,9 @@ impl<T: Element> Array<T> {
         inner.push_back(&value.to_variant());
     }
 
-    /// Internal helper for the `array!` macro; uses [`DirectElement`][meta::DirectElement] for unambiguous type inference.
+    /// Internal helper for the `array!` macro; uses [`AsDirectElement`][meta::AsDirectElement] for unambiguous type inference.
     #[doc(hidden)]
-    pub fn __macro_push_direct<E: meta::DirectElement<T>>(&mut self, value: E) {
+    pub fn __macro_push_direct<E: meta::AsDirectElement<T>>(&mut self, value: E) {
         self.push(value)
     }
 
@@ -561,8 +561,8 @@ impl<T: Element> Array<T> {
     ///
     /// Notice that it's possible to modify the `Array` through another reference while iterating over it. This will not result
     /// in unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn iter_shared(&self) -> Iter<'_, T> {
-        Iter {
+    pub fn iter_shared(&self) -> ArrayIter<'_, T> {
+        ArrayIter {
             array: self,
             next_idx: 0,
         }
@@ -1429,12 +1429,15 @@ impl<T: Element + FromGodot> From<&Array<T>> for Vec<T> {
 // Iterators
 
 /// An iterator over typed elements of an [`Array`].
-pub struct Iter<'a, T: Element> {
+///
+/// Unlike dictionary iterators, this does not provide a `typed()` method to re-type an untyped `VarArray` iterator.
+// Currently doesn't have a `typed()` method like dictionary iterators. Less useful here, as arrays are more often properly typed.
+pub struct ArrayIter<'a, T: Element> {
     array: &'a Array<T>,
     next_idx: usize,
 }
 
-impl<T: Element + FromGodot> Iterator for Iter<'_, T> {
+impl<T: Element + FromGodot> Iterator for ArrayIter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1506,7 +1509,7 @@ impl<T: Element> PartialOrd for Array<T> {
 /// By default, `array!` uses [`AsArg`][crate::meta::AsArg] to push elements. This works when the array's element type `T` is already
 /// determined from context -- a type annotation, function parameter, etc. This supports all element types including `Gd<T>` and `Variant`.
 ///
-/// The `= ` prefix (`array![= ...]`) switches to [`DirectElement`][crate::meta::DirectElement], enabling unambiguous type inference
+/// The `= ` prefix (`array![= ...]`) switches to [`AsDirectElement`][crate::meta::AsDirectElement], enabling unambiguous type inference
 /// from the elements themselves -- no external type context needed. Covers only common types and provides only conversions that are opinionated
 /// but unambiguous. For example, `array![= "hello"]` will infer as `Array<GString>`, never `Array<StringName>` or `Array<Variant>`.
 ///
@@ -1543,7 +1546,7 @@ macro_rules! array {
         }
     };
 
-    // `=` prefix: `DirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
+    // `=` prefix: `AsDirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
     (= $($elements:expr_2021),* $(,)?) => {
         {
             let mut array = $crate::builtin::Array::default();

@@ -266,8 +266,8 @@ impl AnyArray {
     ///
     /// Notice that it's possible to modify the `Array` through another reference while iterating over it. This will not result
     /// in unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    pub fn iter_shared(&self) -> Iter<'_> {
-        Iter {
+    pub fn iter_shared(&self) -> AnyArrayIter<'_> {
+        AnyArrayIter {
             inner: self.array.iter_shared(),
         }
     }
@@ -594,11 +594,11 @@ impl GodotFfiVariant for AnyArray {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// An iterator over elements of an [`AnyArray`].
-pub struct Iter<'a> {
-    inner: super::array::Iter<'a, Variant>,
+pub struct AnyArrayIter<'a> {
+    inner: super::array::ArrayIter<'a, Variant>,
 }
 
-impl<'a> Iterator for Iter<'a> {
+impl<'a> Iterator for AnyArrayIter<'a> {
     type Item = Variant;
 
     fn next(&mut self) -> Option<Self::Item> {

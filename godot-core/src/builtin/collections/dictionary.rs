@@ -321,6 +321,16 @@ impl<K: Element, V: Element> Dictionary<K, V> {
         unsafe { self.set_variant(key.to_variant(), value.to_variant()) };
     }
 
+    /// Internal helper for the `dict!` macro; uses [`AsDirectElement`][meta::AsDirectElement] for unambiguous type inference.
+    #[doc(hidden)]
+    pub fn __macro_set_direct<Ke, Ve>(&mut self, key: Ke, value: Ve)
+    where
+        Ke: meta::AsDirectElement<K>,
+        Ve: meta::AsDirectElement<V>,
+    {
+        self.set(key, value)
+    }
+
     /// Insert a value at the given key, returning the previous value for that key (if available).
     ///
     /// If you don't need the previous value, use [`set()`][Self::set] instead.
@@ -415,28 +425,32 @@ impl<K: Element, V: Element> Dictionary<K, V> {
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`.
     ///
-    /// The pairs are each of type `(Variant, Variant)`. Each pair references the original dictionary, but instead of a `&`-reference
-    /// to key-value pairs as you might expect, the iterator returns a (cheap, shallow) copy of each key-value pair.
+    /// Each pair is a (cheap, shallow) copy of the key-value pair in the dictionary.
     ///
     /// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
-    ///
-    /// Use `dict.iter_shared().typed::<K, V>()` to iterate over `(K, V)` pairs instead.
-    pub fn iter_shared(&self) -> Iter<'_> {
-        Iter::new(self)
+    pub fn iter_shared(&self) -> DictIter<'_, K, V> {
+        DictIter::new(self)
     }
 
-    /// Returns an iterator over the keys in a `Dictionary`.
+    /// Returns an iterator over the keys in the `Dictionary`.
     ///
-    /// The keys are each of type `Variant`. Each key references the original `Dictionary`, but instead of a `&`-reference to keys pairs
-    /// as you might expect, the iterator returns a (cheap, shallow) copy of each key pair.
+    /// Each key is a (cheap, shallow) copy from the original dictionary.
     ///
     /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+    pub fn keys_shared(&self) -> DictKeys<'_, K> {
+        DictKeys::new(self)
+    }
+
+    /// Returns an iterator over the values in the `Dictionary`.
     ///
-    /// Use `dict.keys_shared().typed::<K>()` to iterate over `K` keys instead.
-    pub fn keys_shared(&self) -> Keys<'_> {
-        Keys::new(self)
+    /// Each value is a (cheap, shallow) copy from the original dictionary.
+    ///
+    /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
+    /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+    pub fn values_shared(&self) -> DictValues<'_, V> {
+        DictValues::new(self)
     }
 
     /// Turns the dictionary into a shallow-immutable dictionary.
@@ -758,7 +772,7 @@ impl<K: Element, V: Element> fmt::Debug for Dictionary<K, V> {
     }
 }
 
-impl<K: Element, V: Element> fmt::Display for Dictionary<K, V> {
+impl<K: Element + fmt::Display, V: Element + fmt::Display> fmt::Display for Dictionary<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{{ ")?;
         for (count, (key, value)) in self.iter_shared().enumerate() {
@@ -782,6 +796,15 @@ impl<K: Element, V: Element> Clone for Dictionary<K, V> {
             })
         };
         result.with_cache(self)
+    }
+}
+
+impl<'a, K: Element, V: Element> IntoIterator for &'a Dictionary<K, V> {
+    type Item = (K, V);
+    type IntoIter = DictIter<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_shared()
     }
 }
 
@@ -1056,105 +1079,44 @@ impl<'a> DictionaryIter<'a> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Iterator over key-value pairs in a [`VarDictionary`].
+/// Iterator over key-value pairs in a [`Dictionary`].
 ///
-/// See [`VarDictionary::iter_shared()`] for more information about iteration over dictionaries.
-pub struct Iter<'a> {
+/// Yields `(K, V)` pairs. Each pair is a (cheap, shallow) copy from the original dictionary.
+///
+/// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
+/// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+pub struct DictIter<'a, K, V> {
     iter: DictionaryIter<'a>,
+    _kv: PhantomData<(K, V)>,
 }
 
-impl<'a> Iter<'a> {
+impl<'a, K, V> DictIter<'a, K, V> {
     pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
             iter: DictionaryIter::new(dictionary),
-        }
-    }
-    //
-    /// Creates an iterator that converts each `(Variant, Variant)` key-value pair into a `(K, V)` key-value
-    /// pair, panicking upon conversion failure.
-    pub fn typed<K: FromGodot, V: FromGodot>(self) -> TypedIter<'a, K, V> {
-        TypedIter::from_untyped(self)
-    }
-}
-
-impl Iterator for Iter<'_> {
-    type Item = (Variant, Variant);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next_key_value()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Iterator over keys in a [`VarDictionary`].
-///
-/// See [`VarDictionary::keys_shared()`] for more information about iteration over dictionaries.
-pub struct Keys<'a> {
-    iter: DictionaryIter<'a>,
-}
-
-impl<'a> Keys<'a> {
-    pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
-        Self {
-            iter: DictionaryIter::new(dictionary),
-        }
-    }
-
-    /// Creates an iterator that will convert each `Variant` key into a key of type `K`,
-    /// panicking upon failure to convert.
-    pub fn typed<K: FromGodot>(self) -> TypedKeys<'a, K> {
-        TypedKeys::from_untyped(self)
-    }
-
-    /// Returns an array of the keys.
-    pub fn array(self) -> AnyArray {
-        assert!(
-            self.iter.is_first,
-            "Keys::array() can only be called before iteration has started"
-        );
-        self.iter.dictionary.keys_array()
-    }
-}
-
-impl Iterator for Keys<'_> {
-    type Item = Variant;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next_key()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// [`VarDictionary`] iterator that converts each key-value pair into a typed `(K, V)`.
-///
-/// See [`VarDictionary::iter_shared()`] for more information about iteration over dictionaries.
-pub struct TypedIter<'a, K, V> {
-    iter: DictionaryIter<'a>,
-    _k: PhantomData<K>,
-    _v: PhantomData<V>,
-}
-
-impl<'a, K, V> TypedIter<'a, K, V> {
-    fn from_untyped(value: Iter<'a>) -> Self {
-        Self {
-            iter: value.iter,
-            _k: PhantomData,
-            _v: PhantomData,
+            _kv: PhantomData,
         }
     }
 }
 
-impl<K: FromGodot, V: FromGodot> Iterator for TypedIter<'_, K, V> {
+impl<'a> DictIter<'a, Variant, Variant> {
+    /// Re-types this iterator to yield `(K, V)` instead of `(Variant, Variant)`.
+    ///
+    /// Only available on untyped `VarDictionary` and `AnyDictionary` iterators (i.e. `DictIter<'_, Variant, Variant>`), to prevent misleading API
+    /// on already-typed iterators where the types are known at compile time.
+    ///
+    /// The conversion is performed by [`FromGodot`] on each key and value; panics on type mismatch.
+    ///
+    /// Preserves the current iteration position.
+    pub fn typed<K: FromGodot, V: FromGodot>(self) -> DictIter<'a, K, V> {
+        DictIter {
+            iter: self.iter,
+            _kv: PhantomData,
+        }
+    }
+}
+
+impl<K: FromGodot, V: FromGodot> Iterator for DictIter<'_, K, V> {
     type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1170,28 +1132,110 @@ impl<K: FromGodot, V: FromGodot> Iterator for TypedIter<'_, K, V> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// [`VarDictionary`] iterator that converts each key into a typed `K`.
+/// Iterator over keys in a [`Dictionary`].
 ///
-/// See [`VarDictionary::iter_shared()`] for more information about iteration over dictionaries.
-pub struct TypedKeys<'a, K> {
+/// Yields keys of type `K`. Each key is a (cheap, shallow) copy from the original dictionary.
+///
+/// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
+/// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+pub struct DictKeys<'a, K> {
     iter: DictionaryIter<'a>,
     _k: PhantomData<K>,
 }
 
-impl<'a, K> TypedKeys<'a, K> {
-    fn from_untyped(value: Keys<'a>) -> Self {
+impl<'a, K> DictKeys<'a, K> {
+    pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
         Self {
-            iter: value.iter,
+            iter: DictionaryIter::new(dictionary),
+            _k: PhantomData,
+        }
+    }
+
+    /// Returns an array of the keys.
+    pub fn array(self) -> AnyArray {
+        assert!(
+            self.iter.is_first,
+            "Keys::array() can only be called before iteration has started"
+        );
+        self.iter.dictionary.keys_array()
+    }
+}
+
+impl<'a> DictKeys<'a, Variant> {
+    /// Re-types this iterator to yield `K` instead of `Variant`.
+    ///
+    /// Only available on untyped `VarDictionary` and `AnyDictionary` key iterators (i.e. `DictIter<'_, Variant, Variant>`), to prevent misleading
+    /// API on already-typed iterators where the types are known at compile time.
+    ///
+    /// The conversion is performed by [`FromGodot`]; panics on type mismatch.
+    ///
+    /// Preserves the current iteration position.
+    pub fn typed<K: FromGodot>(self) -> DictKeys<'a, K> {
+        DictKeys {
+            iter: self.iter,
             _k: PhantomData,
         }
     }
 }
 
-impl<K: FromGodot> Iterator for TypedKeys<'_, K> {
+impl<K: FromGodot> Iterator for DictKeys<'_, K> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next_key().map(|k| K::from_variant(&k))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Iterator over values in a [`Dictionary`].
+///
+/// Yields values of type `V`. Each value is a (cheap, shallow) copy from the original dictionary.
+///
+/// Note that it's possible to modify the dictionary through another reference while iterating over it. This will not result in
+/// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+pub struct DictValues<'a, V> {
+    iter: DictionaryIter<'a>,
+    _v: PhantomData<V>,
+}
+
+impl<'a, V> DictValues<'a, V> {
+    pub(super) fn new(dictionary: &'a AnyDictionary) -> Self {
+        Self {
+            iter: DictionaryIter::new(dictionary),
+            _v: PhantomData,
+        }
+    }
+}
+
+impl<'a> DictValues<'a, Variant> {
+    /// Re-types this iterator to yield `V` instead of `Variant`.
+    ///
+    /// Only available on untyped `VarDictionary` and `AnyDictionary` value iterators (i.e. `DictIter<'_, Variant, Variant>`), to prevent misleading
+    /// API on already-typed iterators where the types are known at compile time.
+    ///
+    /// The conversion is performed by [`FromGodot`]; panics on type mismatch.
+    ///
+    /// Preserves the current iteration position.
+    pub fn typed<V: FromGodot>(self) -> DictValues<'a, V> {
+        DictValues {
+            iter: self.iter,
+            _v: PhantomData,
+        }
+    }
+}
+
+impl<V: FromGodot> Iterator for DictValues<'_, V> {
+    type Item = V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next_key_value()
+            .map(|(_, value)| V::from_variant(&value))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -1221,29 +1265,28 @@ fn u8_to_bool(u: u8) -> bool {
 /// The macro creates a typed `Dictionary<K, V>`. You must provide an explicit type annotation
 /// to specify `K` and `V`. Keys must implement `AsArg<K>` and values must implement `AsArg<V>`.
 ///
+/// The `= ` prefix (`dict! {= ...}`) switches to [`AsDirectElement`][crate::meta::AsDirectElement], enabling unambiguous type inference
+/// without an explicit type annotation. This covers types like `i32`, `&str` (inferred as `GString`), `&GString`, etc.
+///
 /// # Example
 /// ```no_run
-/// use godot::builtin::{dict, Dictionary, GString, Variant};
+/// use godot::builtin::*;
 ///
-/// // Type annotation required
-/// let d: Dictionary<GString, i64> = dict! {
-///     "key1": 10,
-///     "key2": 20,
-/// };
+/// // Type annotation required, as the same initializer can be mapped to different types.
+/// let d: Dictionary<GString, i64> = dict! { "key1": 10, "key2": 20 };
+/// let d: Dictionary<StringName, i64> = dict! { "key1": 10, "key2": 20 };
+/// let d: Dictionary<GString, Variant> = dict! { "key1": 10, "key2": 20 };
 ///
-/// // Works with Variant values too
-/// let d: Dictionary<GString, Variant> = dict! {
-///     "str": "Hello",
-///     "num": 23,
-/// };
+/// // `=` prefix: most common conversion, no type annotation needed.
+/// let d = dict! {= "key1": 10, "key2": 20 }; // Dictionary<GString, i32>.
 /// ```
 ///
 /// # See also
-///
 /// For untyped dictionaries, use [`vdict!`][macro@crate::builtin::vdict].
 /// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
 #[macro_export]
 macro_rules! dict {
+    // Default: `AsArg` semantics (needed for `Gd`, `Variant`, or explicit disambiguation).
     ($($key:tt: $value:expr),* $(,)?) => {
         {
             let mut d = $crate::builtin::Dictionary::new();
@@ -1251,6 +1294,18 @@ macro_rules! dict {
                 // `cargo check` complains that `(1 + 2): true` has unused parentheses, even though it's not possible to omit those.
                 #[allow(unused_parens)]
                 d.set($key, $value);
+            )*
+            d
+        }
+    };
+
+    // `=` prefix: `AsDirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
+    (= $($key:tt: $value:expr),* $(,)?) => {
+        {
+            let mut d = $crate::builtin::Dictionary::new();
+            $(
+                #[allow(unused_parens)]
+                d.__macro_set_direct($key, $value);
             )*
             d
         }

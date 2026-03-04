@@ -26,14 +26,12 @@ pub(crate) mod containers {
 }
 
 // Re-export in godot::builtin::iter.
-#[rustfmt::skip] // Individual lines.
 pub(crate) mod iterators {
+    pub use super::any_array::AnyArrayIter;
+    pub use super::any_dictionary::{AnyDictIter, AnyDictKeys, AnyDictValues};
+    pub use super::array::ArrayIter;
     pub use super::array_functional_ops::ArrayFunctionalOps;
-    pub use super::array::Iter as ArrayIter;
-    pub use super::dictionary::Iter as DictIter;
-    pub use super::dictionary::Keys as DictKeys;
-    pub use super::dictionary::TypedIter as DictTypedIter;
-    pub use super::dictionary::TypedKeys as DictTypedKeys;
+    pub use super::dictionary::{DictIter, DictKeys, DictValues};
 }
 
 // Re-export in godot::meta.

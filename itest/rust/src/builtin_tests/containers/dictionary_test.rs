@@ -350,6 +350,7 @@ fn dictionary_insert_multiple() {
     other.set(1, 2);
     assert_eq!(other.get(1), Some(2.to_variant()));
 }
+
 #[itest]
 fn dictionary_insert_long() {
     let mut dictionary = vdict! {};
@@ -908,6 +909,30 @@ func variant_script_dict() -> Dictionary[Variant, CustomScriptForDictionaries]:
     assert_eq!(script.get_global_name(), "CustomScriptForDictionaries");
 }
 
+#[itest]
+fn dictionary_values_shared() {
+    let dictionary = vdict! {
+        "foo": 0,
+        "bar": true,
+        "baz": "foobar",
+    };
+
+    // Variant doesn't implement Eq + Hash, so we use Vec with linear-search containment checks.
+    let values: Vec<Variant> = dictionary.values_shared().collect();
+    assert_eq!(values.len(), 3);
+    assert!(values.contains(&0.to_variant()));
+    assert!(values.contains(&true.to_variant()));
+    assert!(values.contains(&"foobar".to_variant()));
+}
+
+#[itest]
+fn dictionary_values_shared_typed() {
+    let dictionary = vdict! { "a": 1, "b": 2, "c": 3 };
+
+    let sum: i64 = dictionary.values_shared().typed::<i64>().sum();
+    assert_eq!(sum, 6);
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Typed dictionary tests (4.4+)
 
@@ -921,8 +946,8 @@ mod typed_dictionary_tests {
 
     #[itest]
     fn dictionary_typed() {
-        // Value type needs to be specified for now, due to GString/StringName/NodePath ambiguity.
-        let dict: Dictionary<GString, _> = dict! {
+        // No type annotation needed with `=` prefix.
+        let dict = dict! {=
             "key1": 10,
             "key2": 20,
         };
@@ -989,6 +1014,45 @@ mod typed_dictionary_tests {
     }
 
     #[itest]
+    fn dictionary_typed_iter() {
+        // Note: Godot dictionaries are ordered.
+        let dict: Dictionary<GString, i32> = dict! { "key1": 10, "key2": 20 };
+
+        let all_keys: Vec<_> = dict.keys_shared().collect();
+        assert_eq!(&all_keys, &["key1", "key2"]);
+
+        let all_values: Vec<_> = dict.values_shared().collect();
+        assert_eq!(&all_values, &[10, 20]);
+
+        let all_pairs: Vec<_> = dict.iter_shared().collect();
+        assert_eq!(&all_pairs, &[("key1".into(), 10), ("key2".into(), 20)]);
+    }
+
+    #[itest]
+    fn dictionary_typed_iter_for_loop() {
+        let dict = dict! {= "key1": 10, "key2": 20, "key3": 30 };
+
+        // Dictionaries are ordered in Godot, so appending is deterministic.
+        let mut keys = GString::new();
+        for key in dict.keys_shared() {
+            keys = godot_str!("{keys}{key},");
+        }
+        assert_eq!(keys, "key1,key2,key3,");
+
+        let mut values = GString::new();
+        for value in dict.values_shared() {
+            values = godot_str!("{values}{value},");
+        }
+        assert_eq!(values, "10,20,30,");
+
+        let mut pairs = GString::new();
+        for (key, value) in dict.iter_shared() {
+            pairs = godot_str!("{pairs}{key}:{value},");
+        }
+        assert_eq!(pairs, "key1:10,key2:20,key3:30,");
+    }
+
+    #[itest]
     fn dictionary_typed_duplicate() {
         let dict = Dictionary::<GString, i64>::new();
 
@@ -1003,7 +1067,7 @@ mod typed_dictionary_tests {
 
     #[itest]
     fn dictionary_typed_modify() {
-        let mut bool_dict: Dictionary<GString, bool> = dict! { "key1": true, "key2": false };
+        let mut bool_dict = dict! {= "key1": true, "key2": false };
 
         map_in_place(&mut bool_dict, &GString::from("key1"), |v| !*v);
         assert!(!bool_dict.at("key1"));
