@@ -617,7 +617,7 @@ mod script_instance_info {
     use super::{ScriptInstance, ScriptInstanceData, SiMut};
     use crate::builtin::{StringName, Variant};
     use crate::meta::{MethodInfo, PropertyInfo};
-    use crate::private::handle_panic;
+    use crate::private::{PanicPayload, handle_panic};
     use crate::sys;
 
     /// # Safety
@@ -637,14 +637,8 @@ mod script_instance_info {
             name = StringName::new_from_string_sys(p_name);
             value = Variant::borrow_var_sys(p_value);
         }
-        let ctx = || format!("error when calling {}::set", type_name::<T>());
-
-        let result = handle_panic(ctx, || {
-            let mut guard = instance.borrow_mut();
-
-            let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
-
-            ScriptInstance::set_property(instance_guard, name, value)
+        let result = with_instance_mut(instance, "set", |i| {
+            ScriptInstance::set_property(i, name, value)
         })
         // Unwrapping to a default of false, to indicate that the assignment is not handled by the script.
         .unwrap_or_default();
@@ -668,9 +662,7 @@ mod script_instance_info {
             instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
             name = StringName::new_from_string_sys(p_name);
         }
-        let ctx = || format!("error when calling {}::get", type_name::<T>());
-
-        let return_value = handle_panic(ctx, || instance.borrow().get_property(name));
+        let return_value = with_instance(instance, "get", |i| i.get_property(name));
 
         match return_value {
             Ok(Some(variant)) => {
@@ -692,12 +684,8 @@ mod script_instance_info {
     ) -> *const sys::GDExtensionPropertyInfo {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || format!("error when calling {}::get_property_list", type_name::<T>());
-
-        let property_list = handle_panic(ctx, || {
-            let property_list = instance.borrow().get_property_list();
-
-            property_list
+        let property_list = with_instance(instance, "get_property_list", |i| {
+            i.get_property_list()
                 .into_iter()
                 .map(|prop| prop.into_owned_property_sys())
                 .collect::<Vec<_>>()
@@ -728,12 +716,8 @@ mod script_instance_info {
     ) -> *const sys::GDExtensionMethodInfo {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || format!("error when calling {}::get_method_list", type_name::<T>());
-
-        let method_list = handle_panic(ctx, || {
-            let method_list = instance.borrow().get_method_list();
-
-            method_list
+        let method_list = with_instance(instance, "get_method_list", |i| {
+            i.get_method_list()
                 .into_iter()
                 .map(|method| method.into_owned_method_sys())
                 .collect()
@@ -825,14 +809,8 @@ mod script_instance_info {
                     .expect("argument count should be a valid `u32`"),
             );
         }
-        let ctx = || format!("error when calling {}::call", type_name::<T>());
-
-        let result = handle_panic(ctx, || {
-            let mut guard = instance.borrow_mut();
-
-            let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
-
-            ScriptInstance::call(instance_guard, method.clone(), args)
+        let result = with_instance_mut(instance, "call", |i| {
+            ScriptInstance::call(i, method.clone(), args)
         });
 
         let error = match result {
@@ -862,9 +840,7 @@ mod script_instance_info {
     ) -> sys::GDExtensionObjectPtr {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || format!("error when calling {}::get_script", type_name::<T>());
-
-        let script = handle_panic(ctx, || instance.borrow().get_script().clone());
+        let script = with_instance(instance, "get_script", |i| i.get_script().clone());
 
         match script {
             Ok(script) => script.obj_sys(),
@@ -880,10 +856,8 @@ mod script_instance_info {
     ) -> sys::GDExtensionBool {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || format!("error when calling {}::is_placeholder", type_name::<T>());
-
         let is_placeholder =
-            handle_panic(ctx, || instance.borrow().is_placeholder()).unwrap_or_default();
+            with_instance(instance, "is_placeholder", |i| i.is_placeholder()).unwrap_or_default();
 
         bool_to_sys(is_placeholder)
     }
@@ -902,10 +876,8 @@ mod script_instance_info {
             instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
             method = StringName::new_from_string_sys(p_method);
         }
-        let ctx = || format!("error when calling {}::has_method", type_name::<T>());
-
         let has_method =
-            handle_panic(ctx, || instance.borrow().has_method(method)).unwrap_or_default();
+            with_instance(instance, "has_method", |i| i.has_method(method)).unwrap_or_default();
 
         bool_to_sys(has_method)
     }
@@ -971,14 +943,9 @@ mod script_instance_info {
             instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
             name = StringName::new_from_string_sys(p_name);
         }
-        let ctx = || {
-            format!(
-                "error while calling {}::get_property_type",
-                type_name::<T>()
-            )
-        };
-
-        let result = handle_panic(ctx, || instance.borrow().get_property_type(name.clone()));
+        let result = with_instance(instance, "get_property_type", |i| {
+            i.get_property_type(name.clone())
+        });
 
         let (is_valid, result) = if let Ok(result) = result {
             (SYS_TRUE, result.sys())
@@ -1003,9 +970,7 @@ mod script_instance_info {
     ) {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || format!("error when calling {}::to_string", type_name::<T>());
-
-        let string = handle_panic(ctx, || instance.borrow().to_string()).ok();
+        let string = with_instance(instance, "to_string", |i| i.to_string()).ok();
 
         let Some(string) = string else {
             return;
@@ -1031,15 +996,9 @@ mod script_instance_info {
     ) {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || {
-            format!(
-                "error when calling {}::get_property_state",
-                type_name::<T>()
-            )
-        };
-
         let property_states =
-            handle_panic(ctx, || instance.borrow().get_property_state()).unwrap_or_default();
+            with_instance(instance, "get_property_state", |i| i.get_property_state())
+                .unwrap_or_default();
 
         let Some(property_state_add) = property_state_add else {
             return;
@@ -1068,9 +1027,7 @@ mod script_instance_info {
     ) -> sys::GDExtensionScriptLanguagePtr {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || format!("error when calling {}::get_language", type_name::<T>());
-
-        let language = handle_panic(ctx, || instance.borrow().get_language());
+        let language = with_instance(instance, "get_language", |i| i.get_language());
 
         if let Ok(language) = language {
             language.obj_sys().cast()
@@ -1096,15 +1053,10 @@ mod script_instance_info {
     ) -> sys::GDExtensionBool {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || {
-            format!(
-                "error when calling {}::refcount_decremented",
-                type_name::<T>()
-            )
-        };
-
-        let result =
-            handle_panic(ctx, || instance.borrow().on_refcount_decremented()).unwrap_or(true);
+        let result = with_instance(instance, "refcount_decremented", |i| {
+            i.on_refcount_decremented()
+        })
+        .unwrap_or(true);
 
         bool_to_sys(result)
     }
@@ -1117,15 +1069,8 @@ mod script_instance_info {
     ) {
         // SAFETY: `p_instance` is valid for this call.
         let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
-        let ctx = || {
-            format!(
-                "error when calling {}::refcount_incremented",
-                type_name::<T>()
-            )
-        };
-
-        handle_panic(ctx, || {
-            instance.borrow().on_refcount_incremented();
+        with_instance(instance, "refcount_incremented", |i| {
+            i.on_refcount_incremented()
         })
         .unwrap_or_default();
     }
@@ -1147,14 +1092,9 @@ mod script_instance_info {
             name = StringName::new_from_string_sys(p_name);
         }
 
-        let ctx = || {
-            format!(
-                "error when calling {}::property_get_fallback",
-                type_name::<T>()
-            )
-        };
-
-        let return_value = handle_panic(ctx, || instance.borrow().property_get_fallback(name));
+        let return_value = with_instance(instance, "property_get_fallback", |i| {
+            i.property_get_fallback(name)
+        });
 
         match return_value {
             Ok(Some(variant)) => {
@@ -1184,17 +1124,8 @@ mod script_instance_info {
             value = Variant::borrow_var_sys(p_value);
         }
 
-        let ctx = || {
-            format!(
-                "error when calling {}::property_set_fallback",
-                type_name::<T>()
-            )
-        };
-
-        let result = handle_panic(ctx, || {
-            let mut guard = instance.borrow_mut();
-            let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
-            ScriptInstance::property_set_fallback(instance_guard, name, value)
+        let result = with_instance_mut(instance, "property_set_fallback", |i| {
+            ScriptInstance::property_set_fallback(i, name, value)
         })
         .unwrap_or_default();
 
@@ -1218,21 +1149,10 @@ mod script_instance_info {
             instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
             method = StringName::new_from_string_sys(p_method);
         }
-        let ctx = || {
-            format!(
-                "error when calling {}::get_method_argument_count_func",
-                type_name::<T>()
-            )
-        };
-
-        let method_argument_count = handle_panic(ctx, || {
-            instance
-                // Can panic if the GdCell is currently mutably bound.
-                .borrow()
-                // This is user code and could cause a panic.
-                .get_method_argument_count(method)
-        })
         // In case of a panic, handle_panic will print an error message. We will recover from the panic by falling back to the default value None.
+        let method_argument_count = with_instance(instance, "get_method_argument_count", |i| {
+            i.get_method_argument_count(method)
+        })
         .unwrap_or_default();
 
         let (result, is_valid) = match method_argument_count {
@@ -1244,5 +1164,29 @@ mod script_instance_info {
         unsafe { *r_is_valid = is_valid };
 
         result.into()
+    }
+
+    fn error_ctx<T: ScriptInstance>(method: &'static str) -> impl Fn() -> String {
+        move || format!("error when calling {}::{method}", type_name::<T>())
+    }
+
+    fn with_instance<T: ScriptInstance, R>(
+        instance: &ScriptInstanceData<T>,
+        method: &'static str,
+        f: impl FnOnce(&T) -> R + std::panic::UnwindSafe,
+    ) -> Result<R, PanicPayload> {
+        handle_panic(error_ctx::<T>(method), || f(&instance.borrow()))
+    }
+
+    fn with_instance_mut<T: ScriptInstance, R>(
+        instance: &ScriptInstanceData<T>,
+        method: &'static str,
+        f: impl FnOnce(SiMut<T>) -> R + std::panic::UnwindSafe,
+    ) -> Result<R, PanicPayload> {
+        handle_panic(error_ctx::<T>(method), || {
+            let mut guard = instance.borrow_mut();
+            let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
+            f(instance_guard)
+        })
     }
 }
