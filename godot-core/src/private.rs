@@ -285,7 +285,7 @@ pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
     let mut msg = extract_panic_message(panic_info.payload());
 
     if let Some(context) = fetch_last_panic_context() {
-        msg = format!("{msg}\nContext: {context}");
+        msg = format!("{msg}\nin {context}"); // used to be "Context: {context}".
     }
 
     let prefix = if let Some(location) = panic_info.location() {
@@ -515,7 +515,8 @@ fn handle_fallible_call<F, R>(call_ctx: &CallContext, code: F, track_globally: b
 where
     F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
 {
-    let outcome: Result<CallResult<R>, PanicPayload> = handle_panic(|| call_ctx.to_string(), code);
+    let outcome: Result<CallResult<R>, PanicPayload> =
+        handle_panic(|| format!("{call_ctx}()"), code);
 
     let call_error = match outcome {
         // All good.

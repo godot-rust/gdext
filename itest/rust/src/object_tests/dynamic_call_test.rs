@@ -184,7 +184,7 @@ fn dynamic_call_with_panic() {
     // Obtain line number dynamically -- avoids tedious maintenance on code reorganization.
     let line = ObjPayload::get_panic_line();
     let context = error_context
-        .map(|context| format!("\n  Context: {context}"))
+        .map(|context| format!("\n  in {context}"))
         .unwrap_or_default();
 
     // In strict level, there is a context -> message is multi-line -> '\n' is inserted after [panic ...].
