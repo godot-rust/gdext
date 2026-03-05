@@ -10,13 +10,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::sync::Once;
 
 use regex::Regex;
 
-use crate::GodotVersion;
 use crate::godot_version::{parse_godot_version, validate_godot_version};
 use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
+use crate::{GodotVersion, env_var_or_deprecated};
 
 // Note: CARGO_BUILD_TARGET_DIR and CARGO_TARGET_DIR are not set.
 // OUT_DIR would be standing to reason, but it's an unspecified path that cannot be referenced by CI.
@@ -222,14 +223,8 @@ pub(crate) fn patch_c_header(in_h_path: &Path, out_h_path: &Path) {
 }
 
 pub(crate) fn locate_godot_binary() -> PathBuf {
-    // Try new name first, then fall back to old name.
-    // TODO: remove old name in a future release.
-    let env_var = std::env::var("GDRUST_GODOT_BIN").or_else(|_| {
-        if std::env::var("GODOT4_BIN").is_ok() {
-            println!("cargo:warning=`GODOT4_BIN` is deprecated, use `GDRUST_GODOT_BIN` instead.");
-        }
-        std::env::var("GODOT4_BIN")
-    });
+    static WARN_ONCE: Once = Once::new();
+    let env_var = env_var_or_deprecated(&WARN_ONCE, "GDRUST_GODOT_BIN", "GODOT4_BIN");
 
     println!("cargo:rerun-if-env-changed=GDRUST_GODOT_BIN");
     println!("cargo:rerun-if-env-changed=GODOT4_BIN");
@@ -242,8 +237,8 @@ pub(crate) fn locate_godot_binary() -> PathBuf {
         path
     } else {
         panic!(
-            "gdext with `api-custom` feature requires 'godot4' executable or a GDRUST_GODOT_BIN \
-                 environment variable (with the path to the executable)."
+            "godot-rust with `api-custom` feature requires 'godot4' executable or a \
+             GDRUST_GODOT_BIN environment variable (with the path to the executable)."
         )
     }
 }
