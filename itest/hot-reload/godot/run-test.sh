@@ -41,17 +41,27 @@ cleanup() {
 set -euo pipefail
 trap cleanup EXIT
 
+# Set up Godot binary env var, supporting both old and new names.
+GODOT_BIN="${GDRUST_GODOT_BIN:-${GODOT4_BIN:-}}"
+if [[ -z "$GODOT_BIN" ]]; then
+  echo "[Bash]      Error: Neither GDRUST_GODOT_BIN nor GODOT4_BIN is set."
+  exit 1
+fi
+if [[ -n "${GODOT4_BIN:-}" ]] && [[ -z "${GDRUST_GODOT_BIN:-}" ]]; then
+  echo "[Bash]      Warning: GODOT4_BIN is deprecated, use GDRUST_GODOT_BIN instead."
+fi
+
 godotAwait() {
   if [[ $godotPid -ne 0 ]]; then
     echo "[Bash]      Error: godotAwait called while Godot (PID $godotPid) is still running."
     exit 1
   fi
 
-  $GODOT4_BIN -e --headless --path $rel &
+  $GODOT_BIN -e --headless --path $rel &
   godotPid=$!
   echo "[Bash]      Wait for Godot ready (PID $godotPid)..."
 
-  $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- await
+  $GODOT_BIN --headless --no-header --script ReloadOrchestrator.gd -- await
 }
 
 godotNotify() {
@@ -60,7 +70,7 @@ godotNotify() {
     exit 1
   fi
 
-  $GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- notify
+  $GODOT_BIN --headless --no-header --script ReloadOrchestrator.gd -- notify
 
   echo "[Bash]      Wait for Godot exit..."
   local status=0
@@ -98,7 +108,7 @@ sleep 0.5
 echo "[Bash]      Scenario 1: Reload after updating Rust source..."
 
 godotAwait
-$GODOT4_BIN --headless --no-header --script ReloadOrchestrator.gd -- replace
+$GODOT_BIN --headless --no-header --script ReloadOrchestrator.gd -- replace
 # Compile updated Rust source.
 cargo build -p hot-reload $cargoArgs
 godotNotify

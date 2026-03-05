@@ -100,8 +100,14 @@ function findGodot() {
         return
     fi
 
-    # User-defined GODOT4_BIN.
-    if [[ -n "$GODOT4_BIN" ]]; then
+    # User-defined GDRUST_GODOT_BIN (try new name first).
+    if [[ -n "$GDRUST_GODOT_BIN" ]]; then
+        log "Using environment variable GDRUST_GODOT_BIN=$(printf %q "$GDRUST_GODOT_BIN")"
+        godotBin="$GDRUST_GODOT_BIN"
+
+    # User-defined GODOT4_BIN (deprecated, fallback to old name).
+    elif [[ -n "$GODOT4_BIN" ]]; then
+        log -e "${YELLOW}Warning: \`GODOT4_BIN\` is deprecated, use \`GDRUST_GODOT_BIN\` instead.${END}"
         log "Using environment variable GODOT4_BIN=$(printf %q "$GODOT4_BIN")"
         godotBin="$GODOT4_BIN"
 
@@ -131,7 +137,7 @@ function findGodot() {
 
     # Error case.
     else
-        log "Godot executable not found; try setting GODOT4_BIN to the full path to the executable"
+        log "Godot executable not found; try setting GDRUST_GODOT_BIN to the full path to the executable"
         return 1
     fi
 }

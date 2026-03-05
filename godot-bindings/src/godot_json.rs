@@ -63,8 +63,20 @@ impl JsonHeader {
 }
 
 pub fn load_custom_gdextension_json() -> String {
-    let path = std::env::var("GODOT4_GDEXTENSION_JSON").expect(
-        "godot-rust with `api-custom-json` feature requires GODOT4_GDEXTENSION_JSON \
+    // Try new name first, then fall back to old name.
+    // TODO: remove old name in a future release.
+    let env_var = std::env::var("GDRUST_GDEXTENSION_JSON").or_else(|_| {
+        if std::env::var("GODOT4_GDEXTENSION_JSON").is_ok() {
+            println!("cargo:warning=`GODOT4_GDEXTENSION_JSON` is deprecated, use `GDRUST_GDEXTENSION_JSON` instead.");
+        }
+        std::env::var("GODOT4_GDEXTENSION_JSON")
+    });
+
+    println!("cargo:rerun-if-env-changed=GDRUST_GDEXTENSION_JSON");
+    println!("cargo:rerun-if-env-changed=GODOT4_GDEXTENSION_JSON");
+
+    let path = env_var.expect(
+        "godot-rust with `api-custom-json` feature requires GDRUST_GDEXTENSION_JSON \
         environment variable (with the path to the said json).",
     );
     let json_path = Path::new(&path);

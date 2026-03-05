@@ -353,14 +353,14 @@ where
 /// # Using other GDExtension libraries as dependencies
 ///
 /// When using any other GDExtension library as a dependency, the implementor of the user-forwarding `ExtensionLibrary` must be specified
-/// via the `GODOT_RUST_MAIN_EXTENSION` environment variable. That _main_ crate will be responsible
+/// via the `GDRUST_MAIN_EXTENSION` environment variable. That _main_ crate will be responsible
 /// for loading all classes, as well as managing the `ExtensionLibrary` callbacks.
 ///
 /// For example, you have a workspace with a crate `my-extension`, that uses libraries `lib-a` and `lib-b` as dependencies.
 /// If the `impl ExtensionLibrary` is called `MyExtension`, then you can build all crates in the workspace with:
 ///
 /// ```bash
-/// GODOT_RUST_MAIN_EXTENSION="MyExtension" cargo build
+/// GDRUST_MAIN_EXTENSION="MyExtension" cargo build
 /// ```
 ///
 /// ```ignore

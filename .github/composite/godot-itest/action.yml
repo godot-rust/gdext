@@ -92,7 +92,7 @@ runs:
     # The `| xargs` pattern trims the output, since printed version may contain extra newline, which causes problems in env vars.
     - name: "Inspect Godot version"
       run: |
-        godotVer=$($GODOT4_BIN --version | xargs)
+        godotVer=$($GDRUST_GODOT_BIN --version | xargs)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
       shell: bash
@@ -145,9 +145,9 @@ runs:
     - name: "Dump extension api"
       if: inputs.godot-prebuilt-patch == '' && inputs.godot-indirect-json == 'true'
       run: |
-        $GODOT4_BIN --headless --dump-extension-api
+        $GDRUST_GODOT_BIN --headless --dump-extension-api
         mv extension_api.json $RUNNER_DIR/godot_bin/extension_api.json
-        echo "GODOT4_GDEXTENSION_JSON=$RUNNER_DIR/godot_bin/extension_api.json" >> $GITHUB_ENV
+        echo "GDRUST_GDEXTENSION_JSON=$RUNNER_DIR/godot_bin/extension_api.json" >> $GITHUB_ENV
       shell: bash
 
     # else
@@ -206,7 +206,7 @@ runs:
       run: |
         cd itest/godot
         echo "OUTCOME=itest" >> $GITHUB_ENV
-        $GODOT4_BIN --headless -- --disallow-focus ${{ inputs.godot-args }} 2>&1 \
+        $GDRUST_GODOT_BIN --headless -- --disallow-focus ${{ inputs.godot-args }} 2>&1 \
         | tee "${{ runner.temp }}/log.txt" \
         | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library|Error loading extension" -q && {
           printf "\n::error::godot-itest: unrecoverable Godot error, abort...\n";

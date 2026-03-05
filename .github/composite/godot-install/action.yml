@@ -26,7 +26,7 @@ runs:
       run: |
         runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
         echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
-        echo "GODOT4_BIN=$runnerDir/godot_bin/${{ inputs.godot-binary }}" >> $GITHUB_ENV
+        echo "GDRUST_GODOT_BIN=$runnerDir/godot_bin/${{ inputs.godot-binary }}" >> $GITHUB_ENV
       shell: bash
 
 #    - name: "Check cache for installed Godot version"
@@ -62,5 +62,5 @@ runs:
 
     - name: "Prepare Godot executable"
       run: |
-        chmod +x $GODOT4_BIN
+        chmod +x $GDRUST_GODOT_BIN
       shell: bash

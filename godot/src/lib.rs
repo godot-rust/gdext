@@ -115,9 +115,9 @@
 //!   or a custom-built local binary.
 //!   You can use at most one `api-*` feature. If absent, the current Godot minor version is used, with patch level 0.
 //!
-//!   `api-custom` feature requires specifying `GODOT4_BIN` environment variable with a path to your Godot4 binary.
+//!   `api-custom` feature requires specifying `GDRUST_GODOT_BIN` environment variable with a path to your Godot4 binary.
 //!
-//!   The `api-custom-json` feature requires specifying `GODOT4_GDEXTENSION_JSON` environment variable with a path
+//!   The `api-custom-json` feature requires specifying `GDRUST_GDEXTENSION_JSON` environment variable with a path
 //!   to your custom-defined `extension_api.json`.<br><br>
 //!
 //! * **`double-precision`**

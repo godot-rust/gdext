@@ -222,16 +222,27 @@ pub(crate) fn patch_c_header(in_h_path: &Path, out_h_path: &Path) {
 }
 
 pub(crate) fn locate_godot_binary() -> PathBuf {
-    if let Ok(string) = std::env::var("GODOT4_BIN") {
-        println!("Found GODOT4_BIN with path to executable: '{string}'");
-        println!("cargo:rerun-if-env-changed=GODOT4_BIN");
+    // Try new name first, then fall back to old name.
+    // TODO: remove old name in a future release.
+    let env_var = std::env::var("GDRUST_GODOT_BIN").or_else(|_| {
+        if std::env::var("GODOT4_BIN").is_ok() {
+            println!("cargo:warning=`GODOT4_BIN` is deprecated, use `GDRUST_GODOT_BIN` instead.");
+        }
+        std::env::var("GODOT4_BIN")
+    });
+
+    println!("cargo:rerun-if-env-changed=GDRUST_GODOT_BIN");
+    println!("cargo:rerun-if-env-changed=GODOT4_BIN");
+
+    if let Ok(string) = env_var {
+        println!("Found GDRUST_GODOT_BIN with path to executable: '{string}'");
         PathBuf::from(string)
     } else if let Ok(path) = which::which("godot4") {
         println!("Found 'godot4' executable in PATH: {}", path.display());
         path
     } else {
         panic!(
-            "gdext with `api-custom` feature requires 'godot4' executable or a GODOT4_BIN \
+            "gdext with `api-custom` feature requires 'godot4' executable or a GDRUST_GODOT_BIN \
                  environment variable (with the path to the executable)."
         )
     }

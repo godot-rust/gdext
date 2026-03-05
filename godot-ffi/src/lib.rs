@@ -141,7 +141,7 @@ struct StartupMessage {
 
 #[derive(Clone, Debug)]
 pub enum StartupMessageLevel {
-    /// Warning with an ID that can be suppressed via `GODOT_RUST_NOWARN`.
+    /// Warning with an ID that can be suppressed via `GDRUST_NOWARN`.
     Warn { id: &'static str },
     /// Error that cannot be suppressed.
     Error,
@@ -345,7 +345,7 @@ pub fn collect_startup_message(
             return;
         } else {
             message = format!(
-                "{message}\n(Suppress this warning with env-var `GODOT_RUST_NOWARN={id},...`)"
+                "{message}\n(Suppress this warning with env-var `GDRUST_NOWARN={id},...`)",
             );
         }
     }
@@ -361,9 +361,9 @@ pub fn collect_startup_message(
     STARTUP_MESSAGES.lock().push(msg);
 }
 
-/// Check if a message ID is suppressed via the `GODOT_RUST_NOWARN` environment variable.
+/// Check if a message ID is suppressed via the `GDRUST_NOWARN` environment variable.
 fn is_message_suppressed(id: &str) -> bool {
-    if let Ok(nowarn) = std::env::var("GODOT_RUST_NOWARN") {
+    if let Ok(nowarn) = std::env::var("GDRUST_NOWARN") {
         nowarn
             .split(',')
             .any(|suppressed_id| suppressed_id.trim() == id)
@@ -688,13 +688,13 @@ macro_rules! interface_fn {
 /// Store a warning for deferred display in Godot editor UI.
 ///
 /// Captured during startup, displayed at `MainLoop` init. Will be visible in Godot editor's _Output_ tab.
-/// Warnings can be suppressed via the `GODOT_RUST_NOWARN` environment variable.
+/// Warnings can be suppressed via the `GDRUST_NOWARN` environment variable.
 ///
 /// # Example
 /// ```no_run
 /// use godot_ffi::defer_startup_warn;
 /// # fn example() {
-/// // Warning with ID (can be suppressed via GODOT_RUST_NOWARN env var).
+/// // Warning with ID (can be suppressed via GDRUST_NOWARN env var).
 /// defer_startup_warn!(id: "FeatureDeprecated", "Feature X is deprecated");
 /// # }
 /// ```
