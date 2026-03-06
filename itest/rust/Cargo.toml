@@ -28,7 +28,7 @@ serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 pin-project-lite = { workspace = true }
 # Required to test using another GDExtension as a dependency.
-# Requires compiling with `GODOT_RUST_MAIN_EXTENSION="IntegrationTests` env variable set.
+# Requires compiling with `GDRUST_MAIN_EXTENSION="IntegrationTests` env variable set.
 itest-dependency = { path = "../itest-dependency", optional = true }
 
 [build-dependencies]

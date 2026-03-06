@@ -87,7 +87,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
 /// Dependencies shouldn't generate any code related to library registration (such as Wasm preregistration, entry point, hotreload workaround),
 /// delegating this burden to the specified "main" GDExtension library instead.
 fn is_dependency_gdextension(implementor_ty: &venial::TypeExpr) -> bool {
-    let Some(main_gdextension) = option_env!("GODOT_RUST_MAIN_EXTENSION") else {
+    let Some(main_gdextension) = option_env!("GDRUST_MAIN_EXTENSION") else {
         return false;
     };
     let typename =

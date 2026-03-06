@@ -16,12 +16,13 @@
 
 use std::fs;
 use std::path::Path;
+use std::sync::Once;
 
 use nanoserde::DeJson;
 
 use crate::depend_on_custom_json::header_gen::generate_rust_binding;
 use crate::godot_version::validate_godot_version;
-use crate::{GodotVersion, StopWatch};
+use crate::{GodotVersion, StopWatch, env_var_or_deprecated};
 
 #[rustfmt::skip] // Do not reorder.
 // GDExtension headers are backward compatible (new incremental changes in general are exposed as additions to the existing API) while godot-rust simply ignores extra declarations in header file.
@@ -63,8 +64,18 @@ impl JsonHeader {
 }
 
 pub fn load_custom_gdextension_json() -> String {
-    let path = std::env::var("GODOT4_GDEXTENSION_JSON").expect(
-        "godot-rust with `api-custom-json` feature requires GODOT4_GDEXTENSION_JSON \
+    static WARN_ONCE: Once = Once::new();
+    let env_var = env_var_or_deprecated(
+        &WARN_ONCE,
+        "GDRUST_GODOT_API_JSON",
+        "GODOT4_GDEXTENSION_JSON",
+    );
+
+    println!("cargo:rerun-if-env-changed=GDRUST_GODOT_API_JSON");
+    println!("cargo:rerun-if-env-changed=GODOT4_GDEXTENSION_JSON");
+
+    let path = env_var.expect(
+        "godot-rust with `api-custom-json` feature requires GDRUST_GODOT_API_JSON \
         environment variable (with the path to the said json).",
     );
     let json_path = Path::new(&path);

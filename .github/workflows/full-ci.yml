@@ -338,7 +338,7 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
-            rust-extra-env: GODOT_RUST_MAIN_EXTENSION=IntegrationTests
+            rust-extra-env: GDRUST_MAIN_EXTENSION=IntegrationTests
             hot-reload: api-custom signal-test
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.

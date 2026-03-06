@@ -322,3 +322,29 @@ pub fn emit_safeguard_levels() {
         println!(r#"cargo:rustc-cfg=safeguards_strict"#);
     }
 }
+
+/// Try `new_name` env var first, fall back to `old_name` with a deprecation warning (only from `godot-codegen` build).
+/// The `once` static ensures the warning is emitted at most once per build.
+// TODO(v0.6): remove old names.
+#[cfg(any(feature = "api-custom", feature = "api-custom-json"))]
+pub(crate) fn env_var_or_deprecated(
+    once: &'static std::sync::Once,
+    new_name: &str,
+    old_name: &str,
+) -> Result<String, std::env::VarError> {
+    std::env::var(new_name).or_else(|_| {
+        let result = std::env::var(old_name);
+        if result.is_ok()
+            && std::env::var("CARGO_PKG_NAME")
+                .map(|name| name == "godot-codegen")
+                .unwrap_or(false)
+        {
+            once.call_once(|| {
+                println!(
+                    "cargo:warning=env var `{old_name}` is deprecated, use `{new_name}` instead."
+                );
+            });
+        }
+        result
+    })
+}
