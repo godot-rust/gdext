@@ -1167,7 +1167,7 @@ mod script_instance_info {
     }
 
     fn error_ctx<T: ScriptInstance>(method: &'static str) -> impl Fn() -> String {
-        move || format!("error when calling {}::{method}", type_name::<T>())
+        move || format!("{}::{method}(), script instance method", type_name::<T>())
     }
 
     fn with_instance<T: ScriptInstance, R>(

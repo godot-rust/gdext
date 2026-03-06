@@ -35,7 +35,7 @@ struct InitUserData {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
-    let ctx = || "failed during MainLoop initialization".to_string();
+    let ctx = || "ExtensionLibrary::on_stage_init(MainLoop)".to_string();
 
     swallow_panics(ctx, || {
         E::on_stage_init(InitStage::MainLoop);
@@ -47,7 +47,7 @@ unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
-    let ctx = || "failed during MainLoop frame".to_string();
+    let ctx = || "ExtensionLibrary::on_main_loop_frame()".to_string();
 
     swallow_panics(ctx, || {
         E::on_main_loop_frame();
@@ -56,7 +56,7 @@ unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
-    let ctx = || "failed during MainLoop deinitialization".to_string();
+    let ctx = || "ExtensionLibrary::on_stage_deinit(MainLoop)".to_string();
 
     swallow_panics(ctx, || {
         E::on_stage_deinit(InitStage::MainLoop);
@@ -146,7 +146,7 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     unsafe {
         let userdata = userdata.cast::<InitUserData>().as_ref().unwrap();
         let level = InitLevel::from_sys(init_level);
-        let ctx = || format!("failed to initialize GDExtension level `{level:?}`");
+        let ctx = || format!("ExtensionLibrary::on_stage_init({level:?})");
 
         fn try_load<E: ExtensionLibrary>(level: InitLevel, userdata: &InitUserData) {
             // Workaround for https://github.com/godot-rust/gdext/issues/629:
@@ -183,7 +183,7 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
 ) {
     unsafe {
         let level = InitLevel::from_sys(init_level);
-        let ctx = || format!("failed to deinitialize GDExtension level `{level:?}`");
+        let ctx = || format!("ExtensionLibrary::on_stage_deinit({level:?})");
 
         swallow_panics(ctx, || {
             if level == InitLevel::Core {

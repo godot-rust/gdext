@@ -146,7 +146,7 @@ where
     let base = unsafe { Base::from_sys(base_ptr) };
 
     // User constructor init() can panic, which crashes the engine if unhandled.
-    let context = || format!("panic during {class_name}::init() constructor");
+    let context = || format!("{class_name}::init()");
     let code = || make_user_instance(unsafe { Base::from_base(&base) });
     let user_instance = handle_panic(context, std::panic::AssertUnwindSafe(code))?;
 
