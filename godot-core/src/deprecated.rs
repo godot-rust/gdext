@@ -42,6 +42,9 @@ pub use crate::emit_deprecated_warning;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Library-side deprecations -- see usage description above.
 
+#[deprecated = "\nUse `key => value` syntax in `vdict!` macro.\nOld syntax `key: value` will be removed."]
+pub const fn vdict_colon_syntax() {}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Godot-side deprecations (we may mark them deprecated but keep support).
 

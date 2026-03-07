@@ -21,7 +21,6 @@ pub use crate::r#gen::central::global_reexported_enums::{
 };
 pub use crate::sys::VariantType;
 // Re-export macros.
-#[allow(deprecated)] // dict
 pub use crate::{array, dict, real, reals, varray, vdict};
 
 /// Abbreviation for occasionally used _owned or borrowed string_.
@@ -52,14 +51,9 @@ pub mod __prelude_reexport {
 
     pub use super::math::XformInv;
     pub use super::{EulerOrder, Side, VariantOperator, VariantType};
-    pub use crate::{array, real, reals, varray, vdict, vslice};
-
-    #[allow(deprecated)]
-    #[rustfmt::skip] // Do not reorder.
-    pub use crate::dict;
-
     #[cfg(feature = "trace")] // Test only.
     pub use crate::static_sname;
+    pub use crate::{array, dict, real, reals, varray, vdict, vslice};
 }
 
 pub use crate::r#gen::builtin_classes::*;

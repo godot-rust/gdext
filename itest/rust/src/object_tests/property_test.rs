@@ -195,8 +195,8 @@ impl Var for NotExportable {
 
     fn var_get(field: &Self) -> Self::Via {
         vdict! {
-            "a": field.a,
-            "b": field.b
+            "a" => field.a,
+            "b" => field.b
         }
     }
 

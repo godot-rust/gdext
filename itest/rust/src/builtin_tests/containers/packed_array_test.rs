@@ -654,8 +654,8 @@ fn packed_byte_array_encode_decode() {
 #[itest]
 fn packed_byte_array_encode_decode_variant() {
     let variant = vdict! {
-        "s": "some string",
-        "i": -12345,
+        "s" => "some string",
+        "i" => -12345,
     }
     .to_variant();
 

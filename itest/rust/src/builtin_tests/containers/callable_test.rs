@@ -104,7 +104,7 @@ fn callable_object_method() {
 #[cfg(since_api = "4.3")]
 fn callable_variant_method() {
     // VarDictionary
-    let dict = vdict! { "one": 1, "value": 2 };
+    let dict = vdict! { "one" => 1, "value" => 2 };
     let dict_get = Callable::from_variant_method(&dict.to_variant(), "get");
     assert_eq!(dict_get.call(vslice!["one"]), 1.to_variant());
 

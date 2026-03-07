@@ -46,10 +46,10 @@ impl RpcConfig {
     /// Returns an untyped `Dictionary` populated with the values required for a call to [`Node::rpc_config()`].
     pub fn to_dictionary(&self) -> VarDictionary {
         vdict! {
-            "rpc_mode": self.rpc_mode,
-            "transfer_mode": self.transfer_mode,
-            "call_local": self.call_local,
-            "channel": self.channel,
+            "rpc_mode" => self.rpc_mode,
+            "transfer_mode" => self.transfer_mode,
+            "call_local" => self.call_local,
+            "channel" => self.channel,
         }
     }
 }

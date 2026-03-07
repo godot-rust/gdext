@@ -85,8 +85,8 @@ use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotS
 ///
 /// // Create the same dictionary in a single expression.
 /// let tiles: Dictionary<Vector2i, Tile> = dict! {
-///    (Vector2i::new(1, 2)): Tile::GRASS,
-///    (Vector2i::new(1, 3)): Tile::WATER,
+///    Vector2i::new(1, 2) => Tile::GRASS,
+///    Vector2i::new(1, 3) => Tile::WATER,
 /// };
 ///
 /// // Element access is now strongly typed.
@@ -1273,12 +1273,12 @@ fn u8_to_bool(u: u8) -> bool {
 /// use godot::builtin::*;
 ///
 /// // Type annotation required, as the same initializer can be mapped to different types.
-/// let d: Dictionary<GString, i64> = dict! { "key1": 10, "key2": 20 };
-/// let d: Dictionary<StringName, i64> = dict! { "key1": 10, "key2": 20 };
-/// let d: Dictionary<GString, Variant> = dict! { "key1": 10, "key2": 20 };
+/// let d: Dictionary<GString, i64> = dict! { "key1" => 10, "key2" => 20 };
+/// let d: Dictionary<StringName, i64> = dict! { "key1" => 10, "key2" => 20 };
+/// let d: Dictionary<GString, Variant> = dict! { "key1" => 10, "key2" => 20 };
 ///
 /// // `=` prefix: most common conversion, no type annotation needed.
-/// let d = dict! {= "key1": 10, "key2": 20 }; // Dictionary<GString, i32>.
+/// let d = dict! {= "key1" => 10, "key2" => 20 }; // Dictionary<GString, i32>.
 /// ```
 ///
 /// # See also
@@ -1287,12 +1287,10 @@ fn u8_to_bool(u: u8) -> bool {
 #[macro_export]
 macro_rules! dict {
     // Default: `AsArg` semantics (needed for `Gd`, `Variant`, or explicit disambiguation).
-    ($($key:tt: $value:expr),* $(,)?) => {
+    ($($key:expr => $value:expr),* $(,)?) => {
         {
             let mut d = $crate::builtin::Dictionary::new();
             $(
-                // `cargo check` complains that `(1 + 2): true` has unused parentheses, even though it's not possible to omit those.
-                #[allow(unused_parens)]
                 d.set($key, $value);
             )*
             d
@@ -1300,11 +1298,10 @@ macro_rules! dict {
     };
 
     // `=` prefix: `AsDirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
-    (= $($key:tt: $value:expr),* $(,)?) => {
+    (= $($key:expr => $value:expr),* $(,)?) => {
         {
             let mut d = $crate::builtin::Dictionary::new();
             $(
-                #[allow(unused_parens)]
                 d.__macro_set_direct($key, $value);
             )*
             d
@@ -1323,10 +1320,10 @@ macro_rules! dict {
 ///
 /// let key = "my_key";
 /// let d = vdict! {
-///     "key1": 10,
-///     "another": Variant::nil(),
-///     key: true,
-///     (1 + 2): "final",
+///     "key1" => 10,
+///     "another" => Variant::nil(),
+///     key => true,
+///     (1 + 2) => "final",
 /// };
 /// ```
 ///
@@ -1337,17 +1334,30 @@ macro_rules! dict {
 // TODO(v0.5): unify vdict!/dict! macro implementations; vdict! manually calls to_variant() while dict! uses AsArg.
 #[macro_export]
 macro_rules! vdict {
-    ($($key:tt: $value:expr_2021),* $(,)?) => {
+    // New primary syntax with `=>`.
+    ($($key:expr => $value:expr_2021),* $(,)?) => {
         {
             use $crate::meta::ToGodot as _;
             let mut dict = $crate::builtin::VarDictionary::new();
             $(
-                // `cargo check` complains that `(1 + 2): true` has unused parens, even though it's not
-                // possible to omit the parens.
-                #[allow(unused_parens)]
                 dict.set(&$key.to_variant(), &$value.to_variant());
             )*
             dict
+        }
+    };
+
+    // Old syntax with `:`, deprecated.
+    ($($key:tt: $value:expr),* $(,)?) => {
+        {
+            const _: () = $crate::__deprecated::vdict_colon_syntax();
+            let mut d = $crate::builtin::VarDictionary::new();
+            $(
+                // `cargo check` complains that `(1 + 2): true` has unused parens, even though it's not
+                // possible to omit the parens.
+                #[allow(unused_parens)]
+                d.set($key, $value);
+            )*
+            d
         }
     };
 }
