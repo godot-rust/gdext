@@ -109,7 +109,7 @@ fn array_duplicate_shallow() {
         ElementType::Builtin(VariantType::INT)
     );
 
-    let array = varray![1, subarray];
+    let array = varray![1, &subarray];
     let duplicate = array.duplicate_shallow();
     assert_eq!(duplicate.element_type(), ElementType::Untyped);
 
@@ -125,7 +125,7 @@ fn array_duplicate_deep() {
         ElementType::Builtin(VariantType::INT)
     );
 
-    let array = varray![1, subarray];
+    let array = varray![1, &subarray];
     let duplicate = array.duplicate_deep();
     assert_eq!(duplicate.element_type(), ElementType::Untyped);
 
@@ -172,7 +172,7 @@ fn array_subarray_shallow() {
     assert_eq!(other_clamped_slice, array![5]);
 
     let subarray = array![= 2, 3];
-    let array = varray![1, subarray];
+    let array = varray![1, &subarray];
     let slice = array.subarray_shallow(1..2, None);
     Array::<i64>::try_from_variant(&slice.at(0))
         .unwrap()
@@ -204,7 +204,7 @@ fn array_subarray_deep() {
     assert_eq!(other_clamped_slice, array![5]);
 
     let subarray = array![= 2, 3];
-    let array = varray![1, subarray];
+    let array = varray![1, &subarray];
     let slice = array.subarray_deep(1..2, None);
     Array::<i64>::try_from_variant(&slice.at(0))
         .unwrap()
@@ -270,7 +270,7 @@ fn array_min_max() {
     assert_eq!(int_array.min(), Some(1));
     assert_eq!(int_array.max(), Some(2));
 
-    let uncomparable_array = varray![1, GString::from("two")];
+    let uncomparable_array = varray![1, &GString::from("two")];
 
     assert_eq!(uncomparable_array.min(), None);
     assert_eq!(uncomparable_array.max(), None);
@@ -377,13 +377,13 @@ fn array_mixed_values() {
 
     let array = varray![
         int,
-        string,
-        packed_array,
-        typed_array,
-        object,
-        node,
-        engine_refc,
-        user_refc,
+        &string,
+        &packed_array,
+        &typed_array,
+        &object,
+        &node,
+        &engine_refc,
+        &user_refc,
     ];
 
     assert_eq!(i64::try_from_variant(&array.at(0)).unwrap(), int);
@@ -524,7 +524,10 @@ fn untyped_array_return_from_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node");
 
-    assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
+    assert_eq!(
+        result,
+        varray![&child, &Variant::nil(), &NodePath::default()]
+    );
 }
 
 // Conditional, so we don't need Texture2DArray > ImageTextureLayered > TextureLayered > Texture in minimal codegen.

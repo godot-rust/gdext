@@ -40,7 +40,7 @@ impl CallableTestObj {
 
     #[func] // static
     fn concat_array(a: i32, b: GString, c: Array<NodePath>, d: Gd<RefCounted>) -> VarArray {
-        varray![a, b, c, d]
+        varray![a, &b, &c, &d]
     }
 }
 
@@ -155,7 +155,7 @@ fn callable_static() {
         10,
         "hello",
         &array![= &NodePath::from("my/node/path")],
-        RefCounted::new_gd()
+        &RefCounted::new_gd()
     ]);
 
     let result = result.to::<VarArray>();
@@ -177,7 +177,7 @@ fn callable_static_bind() {
     // Last 3 of 4 arguments. Within Godot, bound arguments are used in-order AFTER call arguments.
     let bindv = callable.bindv(&varray![
         "two",
-        array![= &NodePath::from("three/four")],
+        &array![= &NodePath::from("three/four")],
         &RefCounted::new_gd(),
     ]);
     assert!(bindv.is_valid());
@@ -348,9 +348,9 @@ fn callable_get_bound_arguments() {
     let d: Gd<RefCounted> = RefCounted::new_gd();
 
     let callable = obj.callable("baz");
-    let callable_bound = callable.bindv(&varray![a, b, c, d]);
+    let callable_bound = callable.bindv(&varray![a, b, &c, &d]);
 
-    assert_eq!(callable_bound.get_bound_arguments(), varray![a, b, c, d]);
+    assert_eq!(callable_bound.get_bound_arguments(), varray![a, b, &c, &d]);
 }
 
 // Regression test for https://github.com/godot-rust/gdext/issues/410.

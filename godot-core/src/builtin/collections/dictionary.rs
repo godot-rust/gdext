@@ -1311,8 +1311,7 @@ macro_rules! dict {
 
 /// Constructs [`VarDictionary`] literals, close to Godot's own syntax.
 ///
-/// Any value can be used as a key, but to use an expression you need to surround it
-/// in `()` or `{}`.
+/// Keys and values need to implement [`AsArg<Variant>`].
 ///
 /// # Example
 /// ```no_run
@@ -1321,9 +1320,9 @@ macro_rules! dict {
 /// let key = "my_key";
 /// let d = vdict! {
 ///     "key1" => 10,
-///     "another" => Variant::nil(),
+///     "another" => &Variant::nil(),
 ///     key => true,
-///     (1 + 2) => "final",
+///     1 + 2 => "final",
 /// };
 /// ```
 ///
@@ -1331,16 +1330,14 @@ macro_rules! dict {
 ///
 /// For typed dictionaries, use [`dict!`][macro@crate::builtin::dict].
 /// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
-// TODO(v0.5): unify vdict!/dict! macro implementations; vdict! manually calls to_variant() while dict! uses AsArg.
 #[macro_export]
 macro_rules! vdict {
-    // New primary syntax with `=>`.
+    // New primary syntax with `=>`. Uses `AsArg` semantics, consistent with `dict!`.
     ($($key:expr => $value:expr_2021),* $(,)?) => {
         {
-            use $crate::meta::ToGodot as _;
             let mut dict = $crate::builtin::VarDictionary::new();
             $(
-                dict.set(&$key.to_variant(), &$value.to_variant());
+                dict.set($key, $value);
             )*
             dict
         }

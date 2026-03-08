@@ -63,7 +63,7 @@ impl FuncObj {
         #[opt(default = "Default str")] string: GString,
         #[opt(default = 100)] integer: i32,
     ) -> VarArray {
-        varray![required, string, integer]
+        varray![required, &string, integer]
     }
 
     #[func]

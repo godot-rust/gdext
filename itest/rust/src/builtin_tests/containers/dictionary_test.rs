@@ -103,7 +103,7 @@ fn dictionary_macro() {
     let dict_complex = vdict! {
         key => 10,
         "bool" => true,
-        (1 + 2) => Variant::nil(),
+        1 + 2 => &Variant::nil(),
     };
     assert_eq!(dict_complex.get("num"), Some(10.to_variant()));
     assert_eq!(dict_complex.get("bool"), Some(true.to_variant()));
@@ -118,7 +118,7 @@ fn dictionary_clone() {
     };
     let dictionary = vdict! {
         "foo" => 0,
-        "bar" => subdictionary.clone()
+        "bar" => &subdictionary
     };
 
     #[allow(clippy::redundant_clone)]
@@ -173,7 +173,7 @@ fn dictionary_duplicate_deep() {
     };
     let dictionary = vdict! {
         "foo" => 0,
-        "bar" => subdictionary.clone()
+        "bar" => &subdictionary
     };
     let clone = dictionary.duplicate_deep();
     VarDictionary::from_variant(&clone.get("bar").unwrap()).set("baz", 4);
@@ -192,7 +192,7 @@ fn dictionary_duplicate_shallow() {
     };
     let dictionary = vdict! {
         "foo" => 0,
-        "bar" => subdictionary.clone()
+        "bar" => &subdictionary
     };
 
     let mut clone = dictionary.duplicate_shallow();
@@ -214,7 +214,7 @@ fn dictionary_get() {
         "foo" => 0,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
 
     assert_eq!(dictionary.get("foo"), Some(0.to_variant()), "key = \"foo\"");
@@ -244,7 +244,7 @@ fn dictionary_at() {
     let dictionary = vdict! {
         "foo" => 0,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
 
     assert_eq!(dictionary.at("foo"), 0.to_variant(), "key = \"foo\"");
@@ -259,7 +259,7 @@ fn dictionary_at() {
 fn dictionary_get_or_insert() {
     let mut dict = vdict! {
         "existing" => 11,
-        "existing_nil" => Variant::nil(),
+        "existing_nil" => &Variant::nil(),
     };
 
     // Existing key -> return old value.
@@ -371,7 +371,7 @@ fn dictionary_extend() {
     assert_eq!(dictionary.get("foo"), Some(0.to_variant()));
     let other = vdict! {
         "bar" => "new",
-        "baz" => Variant::nil(),
+        "baz" => &Variant::nil(),
     };
     dictionary.extend_dictionary(&other, false);
     assert_eq!(dictionary.get("bar"), Some(true.to_variant()));
@@ -467,7 +467,7 @@ fn dictionary_iter() {
         "foo" => 0,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
 
     let map = HashMap::<String, Variant>::from([
@@ -493,7 +493,7 @@ fn dictionary_iter_size_hint() {
         "foo" => 0,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
 
     let mut dictionary_clone = dictionary.clone();
@@ -545,7 +545,7 @@ fn dictionary_iter_insert() {
         "foo" => 0,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
     let mut dictionary2 = dictionary.clone();
 
@@ -569,7 +569,7 @@ fn dictionary_iter_insert_after_completion() {
         "foo" => 0,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
     let mut dictionary2 = dictionary.clone();
     let mut iter = dictionary.iter_shared();
@@ -621,7 +621,7 @@ fn dictionary_iter_simultaneous() {
         "foo" => 10,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
 
     let map: HashMap<String, (Variant, Variant)> = dictionary
@@ -713,7 +713,7 @@ fn dictionary_iter_clear() {
         "foo" => 0,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
     let mut dictionary2 = dictionary.clone();
 
@@ -754,7 +754,7 @@ fn dictionary_iter_erase() {
         "foo" => 0,
         "bar" => true,
         "baz" => "foobar",
-        "nil" => Variant::nil(),
+        "nil" => &Variant::nil(),
     };
     let mut dictionary2 = dictionary.clone();
 
@@ -798,7 +798,7 @@ fn dictionary_should_format_with_display() {
     let d = vdict! {
         "one" => 1,
         "two" => true,
-        "three" => Variant::nil()
+        "three" => &Variant::nil()
     };
     assert_eq!(format!("{d}"), "{ one: 1, two: true, three: <null> }")
 }

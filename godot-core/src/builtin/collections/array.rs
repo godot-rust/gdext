@@ -1558,7 +1558,7 @@ macro_rules! array {
 
 /// Constructs [`VarArray`] literals, similar to Rust's standard `vec!` macro.
 ///
-/// The type of the array elements is always [`Variant`].
+/// Elements need to implement [`AsArg<Variant>`].
 ///
 /// # Example
 /// ```no_run
@@ -1574,13 +1574,12 @@ macro_rules! array {
 /// To construct slices of variants, use [`vslice!`].
 #[macro_export]
 macro_rules! varray {
-    // Note: use to_variant() and not Variant::from(), as that works with both references and values
+    // Uses `AsArg` semantics, consistent with `array!`.
     ($($elements:expr_2021),* $(,)?) => {
         {
-            use $crate::meta::ToGodot as _;
             let mut array = $crate::builtin::VarArray::default();
             $(
-                array.push(&$elements.to_variant());
+                array.push($elements);
             )*
             array
         } as $crate::builtin::VarArray
