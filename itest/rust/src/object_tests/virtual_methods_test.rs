@@ -125,19 +125,19 @@ struct VirtualReturnTest {
 impl IPrimitiveMesh for VirtualReturnTest {
     fn create_mesh_array(&self) -> AnyArray {
         varray![
-            PackedVector3Array::from_iter([Vector3::LEFT]),
-            PackedVector3Array::from_iter([Vector3::LEFT]),
-            PackedFloat32Array::from_iter([0.0, 0.0, 0.0, 1.0]),
-            PackedColorArray::from_iter([Color::from_rgb(1.0, 1.0, 1.0)]),
-            PackedVector2Array::from_iter([Vector2::LEFT]),
-            PackedVector2Array::from_iter([Vector2::LEFT]),
-            PackedByteArray::from_iter([0, 1, 2, 3]),
-            PackedByteArray::from_iter([0, 1, 2, 3]),
-            PackedByteArray::from_iter([0, 1, 2, 3]),
-            PackedByteArray::from_iter([0, 1, 2, 3]),
-            PackedInt32Array::from_iter([0, 1, 2, 3]),
-            PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0]),
-            PackedInt32Array::from_iter([0]),
+            &PackedVector3Array::from_iter([Vector3::LEFT]),
+            &PackedVector3Array::from_iter([Vector3::LEFT]),
+            &PackedFloat32Array::from_iter([0.0, 0.0, 0.0, 1.0]),
+            &PackedColorArray::from_iter([Color::from_rgb(1.0, 1.0, 1.0)]),
+            &PackedVector2Array::from_iter([Vector2::LEFT]),
+            &PackedVector2Array::from_iter([Vector2::LEFT]),
+            &PackedByteArray::from_iter([0, 1, 2, 3]),
+            &PackedByteArray::from_iter([0, 1, 2, 3]),
+            &PackedByteArray::from_iter([0, 1, 2, 3]),
+            &PackedByteArray::from_iter([0, 1, 2, 3]),
+            &PackedInt32Array::from_iter([0, 1, 2, 3]),
+            &PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0]),
+            &PackedInt32Array::from_iter([0]),
         ].upcast_any_array()
     }
 

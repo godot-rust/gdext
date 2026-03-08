@@ -182,8 +182,8 @@ fn enum_user_in_dictionary() {
 
     // Enum as dictionary key.
     let dict: Dictionary<EnumInty, GString> = dict! {
-        (EnumInty::A): "first",
-        (EnumInty::B): "second",
+        EnumInty::A => "first",
+        EnumInty::B => "second",
     };
     assert_eq!(dict.at(EnumInty::A), GString::from("first"));
     assert_eq!(dict.at(EnumInty::B), GString::from("second"));

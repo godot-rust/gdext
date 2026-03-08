@@ -116,8 +116,8 @@ impl ToGodot for ConvertedStruct {
 
     fn to_godot(&self) -> Self::Via {
         vdict! {
-            "a": self.a,
-            "b": self.b,
+            "a" => self.a,
+            "b" => self.b,
         }
     }
 }
@@ -165,7 +165,7 @@ fn custom_convert_roundtrip() {
 #[itest]
 fn custom_convert_error_from_variant() {
     let missing_a = vdict! {
-        "b": -0.001
+        "b" => -0.001
     };
     let err = missing_a
         .to_variant()
@@ -178,7 +178,7 @@ fn custom_convert_error_from_variant() {
     );
 
     let missing_b = vdict! {
-        "a": 58,
+        "a" => 58,
     };
     let err = missing_b
         .to_variant()
@@ -191,9 +191,9 @@ fn custom_convert_error_from_variant() {
     );
 
     let too_many_keys = vdict! {
-        "a": 12,
-        "b": 777.777,
-        "c": "bar"
+        "a" => 12,
+        "b" => 777.777,
+        "c" => "bar"
     };
     let err = too_many_keys
         .to_variant()
@@ -206,8 +206,8 @@ fn custom_convert_error_from_variant() {
     );
 
     let wrong_type_a = vdict! {
-        "a": "hello",
-        "b": 28.41,
+        "a" => "hello",
+        "b" => 28.41,
     };
     let err = wrong_type_a
         .to_variant()
@@ -221,8 +221,8 @@ fn custom_convert_error_from_variant() {
     );
 
     let wrong_type_b = vdict! {
-        "a": 29,
-        "b": Vector2::new(1.0, 23.4),
+        "a" => 29,
+        "b" => Vector2::new(1.0, 23.4),
     };
     let err = wrong_type_b
         .to_variant()
@@ -236,8 +236,8 @@ fn custom_convert_error_from_variant() {
     );
 
     let too_big_value = vdict! {
-        "a": i64::MAX,
-        "b": f32::NAN
+        "a" => i64::MAX,
+        "b" => f32::NAN
     };
     let err = too_big_value
         .to_variant()

@@ -115,8 +115,8 @@ fn create_test_resource() -> Gd<DupResource> {
 
     let array: Array<Gd<Resource>> = array![&internal, &external];
     let dict: VarDictionary = vdict! {
-        "internal": internal.clone(),
-        "external": external.clone(),
+        "internal" => &internal,
+        "external" => &external,
     };
 
     let mut resource = DupResource::new_gd();
