@@ -66,13 +66,13 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
                 validate_not_gd_self(is_gd_self, method)?;
                 handle_on_notification(&class_name, &trait_path, cfg_attrs, &mut decls);
             }
-            "get_property" => {
+            "on_get" => {
                 handle_get_property(&class_name, &trait_path, cfg_attrs, &mut decls, is_gd_self);
             }
-            "set_property" => {
+            "on_set" => {
                 handle_set_property(&class_name, &trait_path, cfg_attrs, &mut decls, is_gd_self);
             }
-            "validate_property" => {
+            "on_validate_property" => {
                 handle_validate_property(
                     &class_name,
                     &trait_path,
@@ -81,7 +81,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
                     is_gd_self,
                 );
             }
-            "get_property_list" => {
+            "on_get_property_list" => {
                 handle_get_property_list(
                     &class_name,
                     &trait_path,
@@ -90,7 +90,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
                     is_gd_self,
                 );
             }
-            "property_get_revert" => {
+            "on_property_get_revert" => {
                 handle_property_get_revert(
                     &class_name,
                     &trait_path,
@@ -381,7 +381,7 @@ fn handle_get_property<'a>(
 
                 #inactive_class_early_return
 
-                #type_decl::get_property(#receiver_call, property)
+                #type_decl::on_get(#receiver_call, property)
             }
         }
     };
@@ -414,7 +414,7 @@ fn handle_set_property<'a>(
 
                 #inactive_class_early_return
 
-                #type_decl::set_property(#receiver_call, property, value)
+                #type_decl::on_set(#receiver_call, property, value)
             }
         }
     };
@@ -447,7 +447,7 @@ fn handle_validate_property<'a>(
                 use ::godot::obj::UserClass as _;
 
                 #inactive_class_early_return
-                #type_decl::validate_property(#receiver_call, property);
+                #type_decl::on_validate_property(#receiver_call, property);
             }
         }
     };
@@ -465,7 +465,7 @@ fn handle_get_property_list<'a>(
 ) {
     decls.get_property_list_impl = quote! {
         #(#cfg_attrs)*
-        compile_error!("`get_property_list` is only supported for Godot versions of at least 4.3");
+        compile_error!("`on_get_property_list` is only supported for Godot versions of at least 4.3");
     };
 }
 
@@ -496,7 +496,7 @@ fn handle_get_property_list<'a>(
 
             fn __godot_get_property_list(mut this: ::godot::private::VirtualMethodReceiver<Self>) -> Vec<::godot::meta::PropertyInfo> {
                 // #inactive_class_early_return
-                #type_decl::get_property_list(#receiver_call)
+                #type_decl::on_get_property_list(#receiver_call)
             }
         }
     };
@@ -530,7 +530,7 @@ fn handle_property_get_revert<'a>(
 
                 #inactive_class_early_return
 
-                #type_decl::property_get_revert(#receiver_call, property)
+                #type_decl::on_property_get_revert(#receiver_call, property)
             }
         }
     };

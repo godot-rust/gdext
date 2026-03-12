@@ -219,7 +219,7 @@ struct GetTest {
 
 #[godot_api]
 impl IRefCounted for GetTest {
-    fn get_property(&self, property: StringName) -> Option<Variant> {
+    fn on_get(&self, property: StringName) -> Option<Variant> {
         self.get_called.set(true);
 
         match String::from(property).as_str() {
@@ -245,7 +245,7 @@ struct SetTest {
 
 #[godot_api]
 impl IRefCounted for SetTest {
-    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+    fn on_set(&mut self, property: StringName, value: Variant) -> bool {
         self.set_called = true;
 
         match String::from(property).as_str() {
@@ -270,7 +270,7 @@ struct RevertTest {}
 
 #[godot_api]
 impl IRefCounted for RevertTest {
-    fn property_get_revert(&self, property: StringName) -> Option<Variant> {
+    fn on_property_get_revert(&self, property: StringName) -> Option<Variant> {
         use std::sync::atomic::AtomicUsize;
 
         static INC: AtomicUsize = AtomicUsize::new(0);
@@ -312,22 +312,22 @@ impl IRefCounted for VirtualGdSelfTest {
     }
 
     #[func(gd_self)]
-    fn get_property(this: Gd<Self>, _property: StringName) -> Option<Variant> {
+    fn on_get(this: Gd<Self>, _property: StringName) -> Option<Variant> {
         // Delegates call to Display which calls `VirtualGdSelfTest::to_string` later in the chain.
         Some(this.to_string().to_variant())
     }
 
     #[func(gd_self)]
-    fn set_property(mut this: Gd<Self>, _property: StringName, value: Variant) -> bool {
+    fn on_set(mut this: Gd<Self>, _property: StringName, value: Variant) -> bool {
         // Check bind_mut and bind.
         this.bind_mut().some_val = value.to();
         this.bind().some_val != 4
     }
 
     #[func(gd_self)]
-    fn property_get_revert(this: Gd<Self>, property: StringName) -> Option<Variant> {
+    fn on_property_get_revert(this: Gd<Self>, property: StringName) -> Option<Variant> {
         // Access other virtual method directly.
-        let property = Self::get_property(this, property)?;
+        let property = Self::on_get(this, property)?;
         Some(property)
     }
 }
@@ -678,7 +678,7 @@ pub struct GetSetTest {
 
 #[godot_api]
 impl IRefCounted for GetSetTest {
-    fn get_property(&self, property: StringName) -> Option<Variant> {
+    fn on_get(&self, property: StringName) -> Option<Variant> {
         self.get_called.set(true);
 
         match String::from(property).as_str() {
@@ -688,7 +688,7 @@ impl IRefCounted for GetSetTest {
         }
     }
 
-    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+    fn on_set(&mut self, property: StringName, value: Variant) -> bool {
         self.set_called = true;
 
         match String::from(property).as_str() {
