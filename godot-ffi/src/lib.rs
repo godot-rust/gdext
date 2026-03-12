@@ -402,10 +402,10 @@ pub fn print_deferred_startup_messages() {
 }
 
 fn print_preamble(version: GDExtensionGodotVersion) {
-    // Check if `--quiet` flag is present in Godot's command line arguments, before `--` separator that separates Godot from application args.
+    // Check if `--quiet` or `--no-header` flag is present in Godot's command line arguments, before `--` separator that separates Godot from application args.
     let is_quiet = std::env::args()
         .take_while(|arg| arg != "--")
-        .any(|arg| arg == "--quiet");
+        .any(|arg| arg == "--quiet" || arg == "--no-header");
 
     if is_quiet {
         return;
