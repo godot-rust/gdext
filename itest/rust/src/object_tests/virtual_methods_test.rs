@@ -774,3 +774,36 @@ impl godot::classes::IOpenXrExtensionWrapper for VirtualU64Test {
         // No need to do anything, this must just compile with u64.
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// During v0.5: deprecated names for virtual methods.
+
+#[itest]
+fn test_deprecated_get() {
+    let obj = compat::DeprecatedObjectVirtuals::new_gd();
+    assert_eq!(obj.get("test_value"), 123.to_variant());
+    assert_eq!(obj.get("inexistent"), Variant::nil());
+}
+
+// use of deprecated function `godot::__deprecated::virtual_method_get_property`:
+// Virtual method `get_property` has been renamed to `on_get`.
+#[expect(deprecated)]
+mod compat {
+    use super::*;
+
+    #[derive(GodotClass)]
+    #[class(init)]
+    pub struct DeprecatedObjectVirtuals {}
+
+    #[godot_api]
+    impl IRefCounted for DeprecatedObjectVirtuals {
+        // Using old name `get_property` -- emits a deprecation warning but still works.
+        fn get_property(&self, property: StringName) -> Option<Variant> {
+            if property == "test_value" {
+                Some(123.to_variant())
+            } else {
+                None
+            }
+        }
+    }
+}

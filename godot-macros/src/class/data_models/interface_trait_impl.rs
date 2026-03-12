@@ -28,12 +28,17 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
 
     let mut decls = IDecls::default();
     let mut removed_methods_idx = Vec::new();
+    let mut deprecation_warnings = TokenStream::new();
     for (index, item) in original_impl.body_items.iter_mut().enumerate() {
         let method = if let venial::ImplMember::AssocFunction(f) = item {
             f
         } else {
             continue;
         };
+
+        // Rewrite deprecated method names to their new equivalents (preserving span).
+        // To remove deprecation support, delete this call and the function it references.
+        deprecation_warnings.extend(maybe_rename_deprecated_virtual(method));
 
         let is_gd_self = is_gd_self(&method.attributes)?;
         // Methods with gd_self will be rewritten outside trait.
@@ -230,6 +235,7 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
 
     gd_self_decl.to_tokens(&mut result);
     original_impl.to_tokens(&mut result);
+    deprecation_warnings.to_tokens(&mut result);
 
     Ok(result)
 }
@@ -772,6 +778,34 @@ struct IDecls<'a> {
 
     modifiers: Vec<(Vec<&'a venial::Attribute>, Ident)>,
     overridden_virtuals: Vec<OverriddenVirtualFn<'a>>,
+}
+
+/// If `method` uses a deprecated virtual name, rename it in-place (preserving span)
+/// and return a deprecation warning token stream.
+//
+// To remove deprecation support, delete this function, its call site, and the
+// corresponding marker functions in godot-core/src/deprecated.rs.
+fn maybe_rename_deprecated_virtual(method: &mut venial::Function) -> TokenStream {
+    let (new_name, deprecation_fn) = match method.name.to_string().as_str() {
+        "get_property" => ("on_get", "virtual_method_get_property"),
+        "set_property" => ("on_set", "virtual_method_set_property"),
+        "validate_property" => ("on_validate_property", "virtual_method_validate_property"),
+        "get_property_list" => ("on_get_property_list", "virtual_method_get_property_list"),
+        "property_get_revert" => (
+            "on_property_get_revert",
+            "virtual_method_property_get_revert",
+        ),
+        _ => return TokenStream::new(),
+    };
+
+    let span = method.name.span();
+    method.name = Ident::new(new_name, span);
+
+    let mut deprecation_fn = ident(deprecation_fn);
+    deprecation_fn.set_span(span);
+    quote! {
+        ::godot::__deprecated::emit_deprecated_warning!(#deprecation_fn);
+    }
 }
 
 impl<'a> IDecls<'a> {

@@ -49,3 +49,29 @@ pub const fn vdict_colon_syntax() {}
 // Godot-side deprecations (we may mark them deprecated but keep support).
 
 // Past removals: `radians` in #[export(range)].
+
+// Virtual method renames (can be removed together with maybe_rename_deprecated_virtual() in godot-macros).
+#[deprecated = "\n\
+    Virtual method `get_property` has been renamed to `on_get`.\n\
+    See https://github.com/godot-rust/gdext/pull/1527."]
+pub const fn virtual_method_get_property() {}
+
+#[deprecated = "\n\
+    Virtual method `set_property` has been renamed to `on_set`.\n\
+    See https://github.com/godot-rust/gdext/pull/1527."]
+pub const fn virtual_method_set_property() {}
+
+#[deprecated = "\n\
+    Virtual method `validate_property` has been renamed to `on_validate_property`.\n\
+    See https://github.com/godot-rust/gdext/pull/1527."]
+pub const fn virtual_method_validate_property() {}
+
+#[deprecated = "\n\
+    Virtual method `get_property_list` has been renamed to `on_get_property_list`.\n\
+    See https://github.com/godot-rust/gdext/pull/1527."]
+pub const fn virtual_method_get_property_list() {}
+
+#[deprecated = "\n\
+    Virtual method `property_get_revert` has been renamed to `on_property_get_revert`.\n\
+    See https://github.com/godot-rust/gdext/pull/1527."]
+pub const fn virtual_method_property_get_revert() {}
