@@ -20,7 +20,7 @@ use crate::{ParseResult, util};
 #[derive(Clone, Debug)]
 pub struct FieldVar {
     /// What name this variable should have in Godot, if `None` then the Rust name should be used.
-    pub rename: Option<Ident>,
+    pub rename: Option<String>,
     pub getter: GetterSetter,
     pub setter: GetterSetter,
     pub hint: FieldHint,
@@ -43,7 +43,7 @@ impl FieldVar {
     /// - `usage_flags = [...]`
     pub(crate) fn new_from_kv(parser: &mut KvParser) -> ParseResult<Self> {
         let span = parser.span();
-        let rename = parser.handle_ident("rename")?;
+        let rename = parser.handle_ident("rename")?.map(|i| i.to_string());
         let getter = GetterSetter::parse(parser, "get")?;
         let setter = GetterSetter::parse(parser, "set")?;
         let rust_public = parser.handle_alone("pub")?;
@@ -217,7 +217,7 @@ impl GetterSetter {
         class_name: &Ident,
         kind: GetSet,
         field: &Field,
-        rename: &Option<Ident>,
+        rename: Option<&str>,
         rust_public: bool,
     ) -> Option<GetterSetterImpl> {
         match self {
@@ -265,8 +265,7 @@ pub enum GetSet {
 
 impl GetSet {
     /// Create the Rust name for this getter/setter. Used for `#[var(pub)]` methods.
-    // TODO(v0.5): migrate `rename` -> Option<String> and propagate upwards.
-    pub fn make_pub_fn_name(self, field_name: &Ident, rename: &Option<Ident>) -> Ident {
+    pub fn make_pub_fn_name(self, field_name: &Ident, rename: Option<&str>) -> Ident {
         let prefix = self.prefix();
 
         if let Some(rename) = rename {
@@ -297,7 +296,7 @@ impl GetterSetterImpl {
         class_name: &Ident,
         kind: GetSet,
         field: &Field,
-        rename: &Option<Ident>,
+        rename: Option<&str>,
         rust_public: bool,
         tool_button_fn: Option<&TokenStream>,
     ) -> Self {
@@ -433,7 +432,7 @@ impl GetterSetterImpl {
     }
 
     /// Generates a getter that panics with a descriptive message for write-only (`#[var(no_get)]`) fields.
-    fn from_write_only_getter(class_name: &Ident, field: &Field, rename: &Option<Ident>) -> Self {
+    fn from_write_only_getter(class_name: &Ident, field: &Field, rename: Option<&str>) -> Self {
         let Field {
             name: field_name,
             ty: field_type,
@@ -447,11 +446,12 @@ impl GetterSetterImpl {
             format_ident!("__disabled_{prefix}{field_name}", span = field_span);
         let rust_accessor = format_ident!("__godot_{prefix}{field_name}", span = field_span);
 
-        let panic_message = format!(
-            "property '{}::{}' is write-only through #[var(no_get)]",
-            class_name,
-            rename.as_ref().unwrap_or(field_name),
-        );
+        let method_name = match rename {
+            Some(rename) => rename.to_string(),
+            None => field_name.to_string(),
+        };
+        let panic_message =
+            format!("property '{class_name}::{method_name}' is write-only through #[var(no_get)]");
 
         let signature = quote_spanned! { field_span=>
             fn #rust_accessor(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via
@@ -559,7 +559,7 @@ impl GetterSetterImpl {
         class_name: &Ident,
         kind: GetSet,
         field: &Field,
-        rename: &Option<Ident>,
+        rename: Option<&str>,
     ) -> Self {
         let function_name = kind.make_pub_fn_name(&field.name, rename);
         let export_token = make_accessor_type_check(class_name, &function_name, &field.ty, kind);
