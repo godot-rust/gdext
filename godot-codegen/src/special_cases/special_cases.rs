@@ -120,8 +120,8 @@ pub fn is_native_struct_excluded(ty: &str) -> bool {
 pub fn get_native_struct_definition(struct_name: &str) -> Option<&'static str> {
     match struct_name {
         // Glyph struct definition was corrected in Godot 4.6 to include missing `span_index` field.
-        // See https://github.com/godotengine/godot/pull/108369.
-        // #[cfg(before_api = "4.6")] // TODO(v0.5): enable this once upstream PR is merged.
+        // See https://github.com/godotengine/godot/pull/116751 (earlier https://github.com/godotengine/godot/pull/108369).
+        // #[cfg(before_api = "4.6")] // TODO(v0.6): enable this once upstream PR is merged.
         "Glyph" => Some(
             "int start = -1;int end = -1;uint8_t count = 0;uint8_t repeat = 1;uint16_t flags = 0;float x_off = 0.f;float y_off = 0.f;\
             float advance = 0.f;RID font_rid;int font_size = 0;int32_t index = 0;int span_index = -1"
@@ -153,7 +153,7 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
     }
 
     // cfg!(target_os = "...") are relatively new and need more testing. If causing problems, revert to `true` (deleted) for now.
-    // TODO(v0.5): for doc generation, consider moving the target-filters to the generated code, so that API docs still show the classes.
+    // TODO(v0.6): for doc generation, consider moving the target-filters to the generated code, so that API docs still show the classes.
     match godot_ty {
         // Only on Android.
         | "JavaClass"
@@ -778,43 +778,42 @@ pub fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod
 
 /// Currently only for virtual methods; checks if the specified parameter is required (non-null) and can be declared as `Gd<T>`
 /// instead of `Option<Gd<T>>`. By default, parameters are optional since we don't have nullability information in GDExtension.
+#[rustfmt::skip]
 pub fn is_class_method_param_required(
     class_name: &TyName,
     godot_method_name: &str,
     param: &Ident, // Don't use `&str` to avoid to_string() allocations for each check on call-site.
 ) -> bool {
-    // TODO(v0.5): this overlaps now slightly with Godot's own "required" meta in extension_api.json.
-    // Having an override list can always be useful, but possibly the two inputs (here + JSON) should be evaluated at the same time,
-    // during JSON->Domain mapping.
+    // Could possibly be unified with `meta=required` handling right at the JSON->domain mapping. Could then also apply to non-virtual fns.
+    
+    // Note: for virtual methods, it's enough if a base class method is declared here; it will be picked up by derived classes.
 
-    // Note: magically, it's enough if a base class method is declared here; it will be picked up by derived classes.
-
-    match (class_name.godot_ty.as_str(), godot_method_name) {
+    let param = param.to_string();
+    match (class_name.godot_ty.as_str(), godot_method_name, param.as_str()) {
         // Nodes.
-        ("Node", "_input") => true,
-        ("Node", "_shortcut_input") => true,
-        ("Node", "_unhandled_input") => true,
-        ("Node", "_unhandled_key_input") => true,
+        | ("Node", "_input", "event")
+        | ("Node", "_shortcut_input", "event")
+        | ("Node", "_unhandled_input", "event")
+        | ("Node", "_unhandled_key_input", "event")
+        | ("Control", "_gui_input", "event")
 
         // https://docs.godotengine.org/en/stable/classes/class_collisionobject2d.html#class-collisionobject2d-private-method-input-event
-        ("CollisionObject2D", "_input_event") => true, // both parameters.
+        | ("CollisionObject2D", "_input_event", "viewport" | "event") 
 
         // UI.
-        ("Control", "_gui_input") => true,
 
         // Script instances.
-        ("ScriptExtension", "_instance_create") => param == "for_object",
-        ("ScriptExtension", "_placeholder_instance_create") => param == "for_object",
-        ("ScriptExtension", "_inherits_script") => param == "script",
-        ("ScriptExtension", "_instance_has") => param == "object",
+        | ("ScriptExtension", "_instance_create", "for_object")
+        | ("ScriptExtension", "_placeholder_instance_create", "for_object")
+        | ("ScriptExtension", "_inherits_script", "script")
+        | ("ScriptExtension", "_instance_has", "object")
 
         // Editor.
-        ("EditorExportPlugin", "_customize_resource") => param == "resource",
-        ("EditorExportPlugin", "_customize_scene") => param == "scene",
+        | ("EditorExportPlugin", "_customize_resource", "resource")
+        | ("EditorExportPlugin", "_customize_scene", "scene")
+        | ("EditorPlugin", "_handles", "object")
 
-        ("EditorPlugin", "_handles") => param == "object",
-
-        _ => false,
+        => true, _ => false,
     }
 }
 

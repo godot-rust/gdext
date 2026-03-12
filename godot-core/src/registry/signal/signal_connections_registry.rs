@@ -86,14 +86,11 @@ pub(crate) fn prune_stored_signal_connections() {
             return;
         }
 
-        // TODO(v0.5): shorten this message and point to newly-written chapter in the book.
         godot_warn!(
-            "godot-rust: Automatically disconnecting all registered typed signal connections. \n\
-            Custom callables used by godot-rust signals become invalid after a hot reload. \
-            All the registered connections will be automatically disconnected to prevent unsoundness. \
-            After hot reload connections must be recreated with `ObjectNotification::EXTENSION_RELOADED`. \
-            You may also consider using untyped signals in this scenario. \
-            For more information, see: https://godot-rust.github.io/book/register/signals.html#untyped-signals."
+            "godot-rust: TypedSignal connections are now auto-disconnected.\n\
+            Custom callables used in signals would otherwise become invalid after hot-reload.\n\
+            They must be recreated by listening to `ObjectNotification::EXTENSION_RELOADED`.\n\
+            See: https://godot-rust.github.io/book/register/signals.html#signals-in-the-editor--hot-reload-interaction."
         );
 
         for connection in connection_registry.drain(..) {

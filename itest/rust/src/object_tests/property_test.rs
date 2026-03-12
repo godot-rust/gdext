@@ -327,7 +327,7 @@ struct CheckAllExports {
     color_no_alpha: Color,
 }
 
-// TODO(v0.5): consider if the below enums all need Clone -- they didn't in v0.4.
+// TODO(v0.6): consider if the below enums all need Clone -- they didn't in v0.4.
 // Reason is that #[derive(Var)] implements Var::var_pub_get() in a way that requires cloning, effectively requiring Clone.
 #[derive(GodotConvert, Var, Export, Clone, Eq, PartialEq, Debug)]
 #[godot(via = i64)]

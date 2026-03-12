@@ -368,7 +368,7 @@ impl<T: PackedElement> PackedArray<T> {
     where
         T: meta::Element, // Could technically be a subtrait of PackedElement; for now they're unrelated.
     {
-        // TODO(v0.5) use iterators once available.
+        // TODO(v0.6) use iterators once available.
         self.as_slice().iter().cloned().collect()
     }
 

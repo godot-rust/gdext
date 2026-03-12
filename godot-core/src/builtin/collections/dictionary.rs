@@ -194,7 +194,7 @@ impl<K: Element, V: Element> Dictionary<K, V> {
         V::from_variant(&self.as_inner().get(&key, &Variant::nil()))
     }
 
-    // TODO(v0.5): avoid double FFI round-trip (has + get); consider using get(key, sentinel) pattern.
+    // TODO(v0.6): avoid double FFI round-trip (has + get); consider using get(key, sentinel) pattern.
     /// Gets and removes the old value for a key, if it exists.
     fn take_old_value(&self, key_variant: &Variant) -> Option<V> {
         self.as_inner()
