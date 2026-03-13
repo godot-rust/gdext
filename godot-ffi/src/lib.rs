@@ -173,7 +173,6 @@ impl GdextRuntimeMetadata {
         }
     }
 
-    // TODO(v0.5): CowStr, also in GdextBuild.
     pub fn version_string(&self) -> &str {
         &self.version_string
     }

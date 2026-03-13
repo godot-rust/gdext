@@ -86,7 +86,12 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             ..
         } = var;
 
-        let field_name = rename.as_ref().unwrap_or(field_ident).to_string();
+        let rename = rename.as_deref();
+        let field_name = if let Some(rename) = rename {
+            rename.to_owned()
+        } else {
+            field_ident.to_string()
+        };
 
         let export_hint;
         let registration_fn;
@@ -142,14 +147,14 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         // Note: {getter,setter}_tokens can be either a path `Class_Functions::constant_name` or an empty string `""`.
 
         let getter_func_constant = make_accessor_func_constant(
-            getter.to_impl(class_name, GetSet::Get, field, &rename, rust_public),
+            getter.to_impl(class_name, GetSet::Get, field, rename, rust_public),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,
             class_name,
         );
         let setter_func_constant = make_accessor_func_constant(
-            setter.to_impl(class_name, GetSet::Set, field, &rename, rust_public),
+            setter.to_impl(class_name, GetSet::Set, field, rename, rust_public),
             &mut getter_setter_impls,
             &mut func_name_consts,
             &mut export_tokens,

@@ -49,8 +49,8 @@ use crate::obj::{DynGd, Gd, GodotClass, Inherits};
 /// cannot deal with raw Rust types. On the other hand, `GString` and `StringName` are sometimes used almost interchangeably (example:
 /// [`Node::set_name`](crate::classes::Node::set_name) takes `GString` but [`Node::get_name`](crate::classes::Node::get_name) returns `StringName`).
 ///
-/// If you want to convert between Godot's string types for the sake of argument passing, each type provides an `arg()` method, such as
-/// [`GString::arg()`]. You cannot use this method in other contexts.
+/// If you want to convert between Godot's string types for the sake of argument passing, use the `From` conversions, e.g.
+/// `GString::from(&string_name)`.
 ///
 /// # Object arguments
 /// This section treats `AsArg<Gd<*>>`. The trait is implemented for **shared references** in multiple ways:
@@ -78,7 +78,7 @@ use crate::obj::{DynGd, Gd, GodotClass, Inherits};
 #[diagnostic::on_unimplemented(
     message = "Argument of type `{Self}` cannot be passed to an `impl AsArg<{T}>` parameter",
     note = "if you pass by value, consider borrowing instead.",
-    note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use their `arg()` method.",
+    note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use `From` conversions.",
     note = "see also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
 )]
 pub trait AsArg<T: ToGodot>

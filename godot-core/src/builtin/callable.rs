@@ -623,13 +623,12 @@ mod custom_callable {
     /// Furthermore, `Hash` is required for usage as a key in a `Dictionary` and for checking signal connections –
     /// Godot considers a custom callable to be connected to a signal if a callable with the same hash is already connected to that signal.
     /// Finally, `PartialEq` is necessary for equality checks.
+    // TODO(v0.6): possibly replace this with a builder approach. if not, add object_id().
     pub trait RustCallable: 'static + PartialEq + Hash + fmt::Display + Send + Sync {
         /// Invokes the callable with the given arguments as `Variant` references.
         ///
         /// Errors are supported via panics.
         fn invoke(&mut self, args: &[&Variant]) -> Variant;
-
-        // TODO(v0.5): add object_id().
 
         /// Returns the name of this callable for error messages and display.
         ///

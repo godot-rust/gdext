@@ -906,7 +906,7 @@ impl<T: Element> Array<T> {
     /// - Values written to array must match runtime type.
     /// - Values read must be convertible to type `U`.
     /// - If runtime type matches `U`, both conditions hold automatically.
-    // TODO(v0.5): fragile manual field move + mem::forget; if a field is added, it must be moved here too.
+    // TODO(v0.6): fragile manual field move + mem::forget; if a field is added, it must be moved here too.
     // Consider transmute (requires #[repr(C)]) or ManuallyDrop + ptr::read. Same issue in Dictionary::assume_type.
     pub(super) unsafe fn assume_type<U: Element>(self) -> Array<U> {
         let result = Array::<U> {

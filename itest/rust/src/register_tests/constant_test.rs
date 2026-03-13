@@ -212,7 +212,7 @@ macro_rules! test_enum_export {
                 assert!(godot_variants.contains(&variant_name));
                 assert!(constants.contains(&variant_name));
                 assert_eq!(
-                    ClassDb::singleton().class_get_integer_constant(&class_name, variant_name.arg()),
+                    ClassDb::singleton().class_get_integer_constant(&class_name, &StringName::from(&variant_name)),
                     variant_value
                 );
             }
