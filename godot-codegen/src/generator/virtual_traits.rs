@@ -116,7 +116,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// See also in Godot docs:
         /// * [`Object::_get`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-get).
-        fn get_property(&self, property: StringName) -> Option<Variant> {
+        fn on_get(&self, property: StringName) -> Option<Variant> {
             unimplemented!()
         }
 
@@ -127,7 +127,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// See also in Godot docs:
         /// * [`Object::_set`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-set).
-        fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+        fn on_set(&mut self, property: StringName, value: Variant) -> bool {
             unimplemented!()
         }
 
@@ -139,18 +139,18 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// See also in Godot docs:
         /// * [`Object::_get_property_list`](https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-get-property-list)
         #[cfg(since_api = "4.3")]
-        fn get_property_list(&mut self) -> Vec<crate::meta::PropertyInfo> {
+        fn on_get_property_list(&mut self) -> Vec<crate::meta::PropertyInfo> {
             unimplemented!()
         }
 
         /// Called whenever Godot retrieves value of property. Allows to customize existing properties.
-        /// Every property info goes through this method, except properties **added** with `get_property_list()`.
+        /// Every property info goes through this method, except properties **added** with `on_get_property_list()`.
         ///
         /// Exposed `property` here is a shared mutable reference obtained (and returned to) from Godot.
         ///
         /// See also in the Godot docs:
         /// * [`Object::_validate_property`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-validate-property)
-        fn validate_property(&self, property: &mut crate::meta::PropertyInfo) {
+        fn on_validate_property(&self, property: &mut crate::meta::PropertyInfo) {
             unimplemented!()
         }
 
@@ -167,7 +167,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// [`Object::_property_get_revert`]: https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-property-get-revert
         /// [`Object::_property_can_revert`]: https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-property-can-revert
         #[doc(alias = "property_can_revert")]
-        fn property_get_revert(&self, property: StringName) -> Option<Variant> {
+        fn on_property_get_revert(&self, property: StringName) -> Option<Variant> {
             unimplemented!()
         }
     }

@@ -219,7 +219,7 @@ struct GetTest {
 
 #[godot_api]
 impl IRefCounted for GetTest {
-    fn get_property(&self, property: StringName) -> Option<Variant> {
+    fn on_get(&self, property: StringName) -> Option<Variant> {
         self.get_called.set(true);
 
         match String::from(property).as_str() {
@@ -245,7 +245,7 @@ struct SetTest {
 
 #[godot_api]
 impl IRefCounted for SetTest {
-    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+    fn on_set(&mut self, property: StringName, value: Variant) -> bool {
         self.set_called = true;
 
         match String::from(property).as_str() {
@@ -270,7 +270,7 @@ struct RevertTest {}
 
 #[godot_api]
 impl IRefCounted for RevertTest {
-    fn property_get_revert(&self, property: StringName) -> Option<Variant> {
+    fn on_property_get_revert(&self, property: StringName) -> Option<Variant> {
         use std::sync::atomic::AtomicUsize;
 
         static INC: AtomicUsize = AtomicUsize::new(0);
@@ -312,22 +312,22 @@ impl IRefCounted for VirtualGdSelfTest {
     }
 
     #[func(gd_self)]
-    fn get_property(this: Gd<Self>, _property: StringName) -> Option<Variant> {
+    fn on_get(this: Gd<Self>, _property: StringName) -> Option<Variant> {
         // Delegates call to Display which calls `VirtualGdSelfTest::to_string` later in the chain.
         Some(this.to_string().to_variant())
     }
 
     #[func(gd_self)]
-    fn set_property(mut this: Gd<Self>, _property: StringName, value: Variant) -> bool {
+    fn on_set(mut this: Gd<Self>, _property: StringName, value: Variant) -> bool {
         // Check bind_mut and bind.
         this.bind_mut().some_val = value.to();
         this.bind().some_val != 4
     }
 
     #[func(gd_self)]
-    fn property_get_revert(this: Gd<Self>, property: StringName) -> Option<Variant> {
+    fn on_property_get_revert(this: Gd<Self>, property: StringName) -> Option<Variant> {
         // Access other virtual method directly.
-        let property = Self::get_property(this, property)?;
+        let property = Self::on_get(this, property)?;
         Some(property)
     }
 }
@@ -678,7 +678,7 @@ pub struct GetSetTest {
 
 #[godot_api]
 impl IRefCounted for GetSetTest {
-    fn get_property(&self, property: StringName) -> Option<Variant> {
+    fn on_get(&self, property: StringName) -> Option<Variant> {
         self.get_called.set(true);
 
         match String::from(property).as_str() {
@@ -688,7 +688,7 @@ impl IRefCounted for GetSetTest {
         }
     }
 
-    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+    fn on_set(&mut self, property: StringName, value: Variant) -> bool {
         self.set_called = true;
 
         match String::from(property).as_str() {
@@ -772,5 +772,38 @@ struct VirtualU64Test {
 impl godot::classes::IOpenXrExtensionWrapper for VirtualU64Test {
     fn on_instance_created(&mut self, _instance: u64) {
         // No need to do anything, this must just compile with u64.
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// During v0.5: deprecated names for virtual methods.
+
+#[itest]
+fn test_deprecated_get() {
+    let obj = compat::DeprecatedObjectVirtuals::new_gd();
+    assert_eq!(obj.get("test_value"), 123.to_variant());
+    assert_eq!(obj.get("inexistent"), Variant::nil());
+}
+
+// use of deprecated function `godot::__deprecated::virtual_method_get_property`:
+// Virtual method `get_property` has been renamed to `on_get`.
+#[expect(deprecated)]
+mod compat {
+    use super::*;
+
+    #[derive(GodotClass)]
+    #[class(init)]
+    pub struct DeprecatedObjectVirtuals {}
+
+    #[godot_api]
+    impl IRefCounted for DeprecatedObjectVirtuals {
+        // Using old name `get_property` -- emits a deprecation warning but still works.
+        fn get_property(&self, property: StringName) -> Option<Variant> {
+            if property == "test_value" {
+                Some(123.to_variant())
+            } else {
+                None
+            }
+        }
     }
 }

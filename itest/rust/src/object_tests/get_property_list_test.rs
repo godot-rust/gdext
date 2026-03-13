@@ -21,7 +21,7 @@ pub struct GetPropertyListTest {}
 
 #[godot_api]
 impl IObject for GetPropertyListTest {
-    fn get_property_list(&mut self) -> Vec<PropertyInfo> {
+    fn on_get_property_list(&mut self) -> Vec<PropertyInfo> {
         vec![
             PropertyInfo::new_var::<bool>("my_property"),
             PropertyInfo::new_export::<GString>("a_string_property"),
@@ -53,7 +53,7 @@ fn get_property_list_returns() {
 
     properties_missing.extend(
         obj.bind_mut()
-            .get_property_list()
+            .on_get_property_list()
             .into_iter()
             .map(|prop| (prop.property_name.to_string(), prop)),
     );
