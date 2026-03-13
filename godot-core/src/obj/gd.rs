@@ -13,7 +13,7 @@ use godot_ffi::is_main_thread;
 use sys::{SysPtr as _, static_assert_eq_size_align};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
-use crate::meta::error::{ConvertError, FromFfiError};
+use crate::meta::error::{ConvertError, ErrorKind, FromFfiError};
 use crate::meta::{
     AsArg, ClassId, Element, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg, ToGodot,
 };
@@ -209,9 +209,15 @@ where
 impl<T: GodotClass> Gd<T> {
     /// Looks up the given instance ID and returns the associated object, if possible.
     ///
-    /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
-    /// is not compatible with `T`, then `None` is returned.
+    /// # Errors
+    /// - If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
+    ///   is not compatible with `T`, then `Err(...)` is returned.
+    /// - If called outside the main-thread, then `Err(...)` is returned as well.
     pub fn try_from_instance_id(instance_id: InstanceId) -> Result<Self, ConvertError> {
+        if !sys::is_main_thread() {
+            return Err(ConvertError::with_kind(ErrorKind::InvalidThread));
+        }
+
         let ptr = classes::object_ptr_from_id(instance_id);
 
         // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
@@ -226,10 +232,15 @@ impl<T: GodotClass> Gd<T> {
     /// Corresponds to Godot's global function `instance_from_id()`.
     ///
     /// # Panics
-    /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
-    /// is not compatible with `T`.
+    /// - If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
+    ///   is not compatible with `T`.
+    /// - If called on a different thread than the main-thread.
     #[doc(alias = "instance_from_id")]
     pub fn from_instance_id(instance_id: InstanceId) -> Self {
+        if !sys::is_main_thread() {
+            panic!("Gd::instance_from_id is can not be called outside the main-thread");
+        }
+
         Self::try_from_instance_id(instance_id).unwrap_or_else(|err| {
             panic!(
                 "Instance ID {} does not belong to a valid object of class '{}': {}",

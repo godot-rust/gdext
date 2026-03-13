@@ -23,6 +23,7 @@ mod on_ready;
 mod passive_gd;
 mod raw_gd;
 mod traits;
+mod unique;
 
 pub(crate) mod rtti;
 
@@ -37,6 +38,7 @@ pub use on_ready::*;
 pub(crate) use passive_gd::PassiveGd;
 pub use raw_gd::*;
 pub use traits::*;
+pub use unique::Unique;
 
 pub mod bounds;
 pub mod script;

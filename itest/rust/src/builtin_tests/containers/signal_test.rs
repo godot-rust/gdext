@@ -11,7 +11,7 @@ use std::rc::Rc;
 use godot::builtin::{GString, Signal, StringName, vslice};
 use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
-use godot::meta::{FromGodot, GodotConvert, ToGodot};
+use godot::meta::{FromGodot, GodotConvert, ThreadSafeArg, ToGodot};
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
 use godot::prelude::ConvertError;
 use godot::register::{GodotClass, godot_api};
@@ -521,6 +521,8 @@ fn enums_as_signal_args() {
             }
         }
     }
+
+    impl ThreadSafeArg for EventType {}
 
     #[derive(GodotClass)]
     #[class(base = RefCounted, init)]

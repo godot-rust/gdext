@@ -33,5 +33,8 @@ mod validate_property_test;
 mod virtual_methods_niche_test;
 mod virtual_methods_test;
 
+#[cfg(feature = "experimental-threads")]
+mod thread_safety;
+
 // Need to test this in the init level method.
 pub use init_stage_test::*;

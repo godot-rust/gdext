@@ -201,6 +201,7 @@ pub fn make_enum_definition_with(
 
             impl crate::registry::property::Export for #name {}
             impl crate::meta::Element for #name {}
+            crate::impl_thread_safe_arg!(#name);
         }
     });
 
