@@ -868,6 +868,8 @@ impl_asarg_variant_for_ref!([T: GodotClass] Gd<T>);
 pub trait AsDirectElement<T: Element>: AsArg<T> {}
 
 // ByValue: T directly passes as element (i32, bool, Vector2, ...).
+//
+// Explicitly supports other integer types than i64.
 impl<T> AsDirectElement<T> for T where T: Element + ToGodot<Pass = ByValue> {}
 
 // ByRef: &T passes as element (GString, Array, Dictionary, ...).
@@ -880,8 +882,8 @@ impl<T> AsDirectElement<T> for &T where T: Element + ToGodot<Pass = ByRef> {}
 // String coercions: &str / &String -> GString only.
 //
 // Unlike impl_asarg_string!, we do NOT add impls for StringName/NodePath, to avoid ambiguity.
-// array![= "hello"] would otherwise be ambiguous between Array<GString>, Array<StringName>, Array<NodePath>.
-// Users who need Array<StringName> from literals can use array![StringName::from("hi")] or
+// iarray!["hello"] would otherwise be ambiguous between Array<GString>, Array<StringName>, Array<NodePath>.
+// Users who need Array<StringName> from literals can use iarray![StringName::from("hi")] or
 // provide a type annotation: let arr: Array<StringName> = array!["hi"].
 impl AsDirectElement<GString> for &str {}
 impl AsDirectElement<GString> for &String {}

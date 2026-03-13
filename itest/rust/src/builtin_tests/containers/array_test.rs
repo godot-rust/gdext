@@ -22,17 +22,30 @@ fn array_new() {
 
 #[itest]
 fn array_eq() {
-    let a = array![= 1, 2];
-    let b = array![= 1, 2];
+    let a = iarray![1, 2];
+    let b = iarray![1, 2];
     assert_eq!(a, b);
 
-    let c = array![= 2, 1];
+    let c = iarray![2, 1];
     assert_ne!(a, c);
 }
 
 #[itest]
+fn array_type_inference() {
+    // Don't check static type, as that might affect inference.
+
+    // Following is inferred as i32, not i64. Reason is blanket impl for Pass=ByValue, which would make it difficult to exclude non-i64 integers
+    // without also excluding enums etc.
+    let a = iarray![1, 2];
+    assert_eq!(godot::sys::short_type_name_of_val(&a), "Array<i32>");
+
+    let a = iarray!["hello"];
+    assert_eq!(godot::sys::short_type_name_of_val(&a), "Array<GString>");
+}
+
+#[itest]
 fn typed_array_from_to_variant() {
-    let array = array![= 1, 2];
+    let array = iarray![1, 2];
     let variant = array.to_variant();
     let result = Array::try_from_variant(&variant).expect("typed array conversion should succeed");
     assert_eq!(result, array);
@@ -67,7 +80,7 @@ fn array_from_slice() {
 
 #[itest]
 fn array_try_into_vec() {
-    let array = array![= 1, 2];
+    let array = iarray![1, 2];
 
     #[allow(clippy::unnecessary_fallible_conversions)]
     let result = Vec::<i64>::try_from(&array);
@@ -76,7 +89,7 @@ fn array_try_into_vec() {
 
 #[itest]
 fn array_iter_shared() {
-    let array = array![= 1, 2];
+    let array = iarray![1, 2];
     let mut iter = array.iter_shared();
     assert_eq!(iter.size_hint(), (2, Some(2)));
     assert_eq!(iter.next(), Some(1));
@@ -88,14 +101,15 @@ fn array_iter_shared() {
 
 #[itest]
 fn array_hash() {
-    let array = array![= 1, 2];
-    // Just testing that it converts successfully from i64 to u32.
-    array.hash_u32();
+    let typed = iarray![1, 2];
+    let untyped = varray![1, 2];
+
+    assert_eq!(typed.hash_u32(), untyped.hash_u32());
 }
 
 #[itest]
 fn array_clone() {
-    let mut array = array![= 1, 2];
+    let mut array = iarray![1, 2];
     let shared = array.clone();
     array.set(0, 3);
     assert_eq!(shared.at(0), 3);
@@ -103,7 +117,7 @@ fn array_clone() {
 
 #[itest]
 fn array_duplicate_shallow() {
-    let subarray = array![= 2, 3];
+    let subarray = iarray![2, 3];
     assert_eq!(
         subarray.duplicate_shallow().element_type(),
         ElementType::Builtin(VariantType::INT)
@@ -119,7 +133,7 @@ fn array_duplicate_shallow() {
 
 #[itest]
 fn array_duplicate_deep() {
-    let subarray = array![= 2, 3];
+    let subarray = iarray![2, 3];
     assert_eq!(
         subarray.duplicate_deep().element_type(),
         ElementType::Builtin(VariantType::INT)
@@ -135,7 +149,7 @@ fn array_duplicate_deep() {
 
 #[itest]
 fn array_any_duplicate_deep() {
-    let typed = array![= 2, 3].upcast_any_array();
+    let typed = iarray![2, 3].upcast_any_array();
     assert_eq!(
         typed.duplicate_deep().element_type(),
         ElementType::Builtin(VariantType::INT)
@@ -151,7 +165,7 @@ fn array_any_duplicate_deep() {
 #[itest]
 #[allow(clippy::reversed_empty_ranges)]
 fn array_subarray_shallow() {
-    let array = array![= 0, 1, 2, 3, 4, 5];
+    let array = iarray![0, 1, 2, 3, 4, 5];
 
     let normal_slice = array.subarray_shallow(4..=5, None);
     assert_eq!(normal_slice, array![4, 5]);
@@ -171,7 +185,7 @@ fn array_subarray_shallow() {
     let other_clamped_slice = array.subarray_shallow(5.., Some(2));
     assert_eq!(other_clamped_slice, array![5]);
 
-    let subarray = array![= 2, 3];
+    let subarray = iarray![2, 3];
     let array = varray![1, &subarray];
     let slice = array.subarray_shallow(1..2, None);
     Array::<i64>::try_from_variant(&slice.at(0))
@@ -183,7 +197,7 @@ fn array_subarray_shallow() {
 #[itest]
 #[allow(clippy::reversed_empty_ranges)]
 fn array_subarray_deep() {
-    let array = array![= 0, 1, 2, 3, 4, 5];
+    let array = iarray![0, 1, 2, 3, 4, 5];
 
     let normal_slice = array.subarray_deep(4..=5, None);
     assert_eq!(normal_slice, array![4, 5]);
@@ -203,7 +217,7 @@ fn array_subarray_deep() {
     let other_clamped_slice = array.subarray_deep(5.., Some(2));
     assert_eq!(other_clamped_slice, array![5]);
 
-    let subarray = array![= 2, 3];
+    let subarray = iarray![2, 3];
     let array = varray![1, &subarray];
     let slice = array.subarray_deep(1..2, None);
     Array::<i64>::try_from_variant(&slice.at(0))
@@ -214,7 +228,7 @@ fn array_subarray_deep() {
 
 #[itest]
 fn array_get() {
-    let array = array![= 1, 2];
+    let array = iarray![1, 2];
 
     assert_eq!(array.at(0), 1);
     assert_eq!(array.at(1), 2);
@@ -225,7 +239,7 @@ fn array_get() {
 
 #[itest]
 fn array_try_get() {
-    let array = array![= 1, 2];
+    let array = iarray![1, 2];
 
     assert_eq!(array.get(0), Some(1));
     assert_eq!(array.get(1), Some(2));
@@ -234,7 +248,7 @@ fn array_try_get() {
 
 #[itest]
 fn array_first_last() {
-    let array = array![= 1, 2];
+    let array = iarray![1, 2];
 
     assert_eq!(array.front(), Some(1));
     assert_eq!(array.back(), Some(2));
@@ -247,7 +261,7 @@ fn array_first_last() {
 
 #[itest]
 fn array_find() {
-    let array = array![= 1, 2, 1];
+    let array = iarray![1, 2, 1];
 
     assert_eq!(array.find(0, None), None);
     assert_eq!(array.find(1, None), Some(0));
@@ -256,7 +270,7 @@ fn array_find() {
 
 #[itest]
 fn array_rfind() {
-    let array = array![= 1, 2, 1];
+    let array = iarray![1, 2, 1];
 
     assert_eq!(array.rfind(0, None), None);
     assert_eq!(array.rfind(1, None), Some(2));
@@ -265,7 +279,7 @@ fn array_rfind() {
 
 #[itest]
 fn array_min_max() {
-    let int_array = array![= 1, 2];
+    let int_array = iarray![1, 2];
 
     assert_eq!(int_array.min(), Some(1));
     assert_eq!(int_array.max(), Some(2));
@@ -284,12 +298,12 @@ fn array_min_max() {
 #[itest]
 fn array_pick_random() {
     assert_eq!(VarArray::new().pick_random(), None);
-    assert_eq!(array![= 1].pick_random(), Some(1));
+    assert_eq!(iarray![1].pick_random(), Some(1));
 }
 
 #[itest]
 fn array_set() {
-    let mut array = array![= 1, 2];
+    let mut array = iarray![1, 2];
 
     array.set(0, 3);
     assert_eq!(array.at(0), 3);
@@ -301,7 +315,7 @@ fn array_set() {
 
 #[itest]
 fn array_set_readonly() {
-    let mut array = array![= 1, 2].into_read_only();
+    let mut array = iarray![1, 2].into_read_only();
 
     #[cfg(safeguards_balanced)]
     expect_panic("Mutating read-only array with balanced safeguards", || {
@@ -316,7 +330,7 @@ fn array_set_readonly() {
 
 #[itest]
 fn array_push_pop() {
-    let mut array = array![= 1, 2];
+    let mut array = iarray![1, 2];
 
     array.push(3);
     assert_eq!(array.pop(), Some(3));
@@ -333,7 +347,7 @@ fn array_push_pop() {
 
 #[itest]
 fn array_insert() {
-    let mut array = array![= 1, 2];
+    let mut array = iarray![1, 2];
 
     array.insert(0, 3);
     assert_eq!(array, array![3, 1, 2]);
@@ -344,22 +358,22 @@ fn array_insert() {
 
 #[itest]
 fn array_extend() {
-    let mut array = array![= 1, 2];
-    let other = array![= 3, 4];
+    let mut array = iarray![1, 2];
+    let other = iarray![3, 4];
     array.extend_array(&other);
     assert_eq!(array, array![1, 2, 3, 4]);
 }
 
 #[itest]
 fn array_reverse() {
-    let mut array = array![= 1, 2];
+    let mut array = iarray![1, 2];
     array.reverse();
     assert_eq!(array, array![2, 1]);
 }
 
 #[itest]
 fn array_shuffle() {
-    let mut array = array![= 1];
+    let mut array = iarray![1];
     array.shuffle();
     assert_eq!(array, array![1]);
 }
@@ -369,7 +383,7 @@ fn array_mixed_values() {
     let int = 1;
     let string = GString::from("hello");
     let packed_array = PackedByteArray::from(&[1, 2]);
-    let typed_array = array![= 1, 2];
+    let typed_array = iarray![1, 2];
     let object = Object::new_alloc();
     let node = Node::new_alloc();
     let engine_refc = RefCounted::new_gd();
@@ -428,7 +442,7 @@ fn array_mixed_values() {
 
 #[itest]
 fn array_typed_conversions() {
-    let typed = array![= 1, 2, 3];
+    let typed = iarray![1, 2, 3];
     let any = typed.clone().upcast_any_array();
 
     let typed_back = any
@@ -599,7 +613,7 @@ fn untyped_array_try_from_typed() {
 
 #[itest]
 fn array_should_format_with_display() {
-    let a = array![= 1, 2, 3, 4];
+    let a = iarray![1, 2, 3, 4];
     assert_eq!(format!("{a}"), "[1, 2, 3, 4]");
 
     let a = Array::<real>::new();
@@ -608,7 +622,7 @@ fn array_should_format_with_display() {
 
 #[itest]
 fn array_sort_unstable() {
-    let mut array = array![= 2, 1];
+    let mut array = iarray![2, 1];
     array.sort_unstable();
     assert_eq!(array, array![1, 2]);
 }
@@ -622,7 +636,7 @@ fn array_sort_unstable_by() {
 
 #[itest]
 fn array_sort_unstable_custom() {
-    let mut a = array![= 1, 2, 3, 4];
+    let mut a = iarray![1, 2, 3, 4];
     let func = backwards_sort_callable();
     a.sort_unstable_custom(&func);
     assert_eq!(a, array![4, 3, 2, 1]);
@@ -630,7 +644,7 @@ fn array_sort_unstable_custom() {
 
 #[itest]
 fn array_bsearch() {
-    let array = array![= 1, 3];
+    let array = iarray![1, 3];
 
     assert_eq!(array.bsearch(0), 0);
     assert_eq!(array.bsearch(1), 0);
@@ -653,7 +667,7 @@ fn array_bsearch_by() {
 
 #[itest]
 fn array_fops_bsearch_custom() {
-    let a = array![= 5, 4, 2, 1];
+    let a = iarray![5, 4, 2, 1];
     let func = backwards_sort_callable();
     assert_eq!(a.functional_ops().bsearch_custom(1, &func), 3);
     assert_eq!(a.functional_ops().bsearch_custom(3, &func), 2);
@@ -661,7 +675,7 @@ fn array_fops_bsearch_custom() {
 
 #[itest]
 fn array_shrink() {
-    let mut a = array![= 1, 5, 4, 3, 8];
+    let mut a = iarray![1, 5, 4, 3, 8];
 
     assert!(!a.shrink(10));
     assert_eq!(a.len(), 5);
@@ -673,7 +687,7 @@ fn array_shrink() {
 
 #[itest]
 fn array_resize() {
-    let mut a = array![= "hello", "bar", "mixed", "baz", "meow"];
+    let mut a = iarray!["hello", "bar", "mixed", "baz", "meow"];
 
     let new = GString::from("new!");
 
@@ -793,7 +807,7 @@ fn array_inner_type() {
 fn array_fops_filter() {
     let is_even = is_even_callable();
 
-    let array = array![= 1, 2, 3, 4, 5, 6];
+    let array = iarray![1, 2, 3, 4, 5, 6];
     assert_eq!(array.functional_ops().filter(&is_even), array![2, 4, 6]);
 }
 
@@ -801,7 +815,7 @@ fn array_fops_filter() {
 fn array_fops_map() {
     let f = Callable::from_fn("round", |args| args[0].to::<f64>().round() as i64);
 
-    let array = array![= 0.7, 1.0, 1.3, 1.6];
+    let array = iarray![0.7, 1.0, 1.3, 1.6];
     let result = array.functional_ops().map(&f);
 
     assert_eq!(result, varray![1, 1, 1, 2]);
@@ -811,7 +825,7 @@ fn array_fops_map() {
 fn array_fops_reduce() {
     let f = Callable::from_fn("sum", |args| args[0].to::<i64>() + args[1].to::<i64>());
 
-    let array = array![= 1, 2, 3, 4];
+    let array = iarray![1, 2, 3, 4];
     let result = array.functional_ops().reduce(&f, &0.to_variant());
 
     assert_eq!(result.to::<i64>(), 10);
@@ -821,16 +835,16 @@ fn array_fops_reduce() {
 fn array_fops_any() {
     let is_even = is_even_callable();
 
-    assert!(array![= 1, 2, 3].functional_ops().any(&is_even));
-    assert!(!array![= 1, 3, 5].functional_ops().any(&is_even));
+    assert!(iarray![1, 2, 3].functional_ops().any(&is_even));
+    assert!(!iarray![1, 3, 5].functional_ops().any(&is_even));
 }
 
 #[itest]
 fn array_fops_all() {
     let is_even = is_even_callable();
 
-    assert!(!array![= 1, 2, 3].functional_ops().all(&is_even));
-    assert!(array![= 2, 4, 6].functional_ops().all(&is_even));
+    assert!(!iarray![1, 2, 3].functional_ops().all(&is_even));
+    assert!(iarray![2, 4, 6].functional_ops().all(&is_even));
 }
 
 #[itest]
@@ -838,10 +852,10 @@ fn array_fops_all() {
 fn array_fops_find_custom() {
     let is_even = is_even_callable();
 
-    let array = array![= 1, 2, 3, 4, 5];
+    let array = iarray![1, 2, 3, 4, 5];
     assert_eq!(array.functional_ops().find_custom(&is_even, None), Some(1));
 
-    let array = array![= 1, 3, 5];
+    let array = iarray![1, 3, 5];
     assert_eq!(array.functional_ops().find_custom(&is_even, None), None);
 }
 
@@ -850,10 +864,10 @@ fn array_fops_find_custom() {
 fn array_fops_rfind_custom() {
     let is_even = is_even_callable();
 
-    let array = array![= 1, 2, 3, 4, 5];
+    let array = iarray![1, 2, 3, 4, 5];
     assert_eq!(array.functional_ops().rfind_custom(&is_even, None), Some(3));
 
-    let array = array![= 1, 3, 5];
+    let array = iarray![1, 3, 5];
     assert_eq!(array.functional_ops().rfind_custom(&is_even, None), None);
 }
 

@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use godot::builtin::{
     Array, Callable, Color, GString, NodePath, StringName, VarArray, Variant, Vector2, array,
-    varray, vdict, vslice,
+    iarray, varray, vdict, vslice,
 };
 use godot::classes::{Node2D, Object, RefCounted};
 use godot::init::GdextBuild;
@@ -154,7 +154,7 @@ fn callable_static() {
     let result = callable.callv(&varray![
         10,
         "hello",
-        &array![= &NodePath::from("my/node/path")],
+        &iarray![&NodePath::from("my/node/path")],
         &RefCounted::new_gd()
     ]);
 
@@ -177,7 +177,7 @@ fn callable_static_bind() {
     // Last 3 of 4 arguments. Within Godot, bound arguments are used in-order AFTER call arguments.
     let bindv = callable.bindv(&varray![
         "two",
-        &array![= &NodePath::from("three/four")],
+        &iarray![&NodePath::from("three/four")],
         &RefCounted::new_gd(),
     ]);
     assert!(bindv.is_valid());

@@ -1255,38 +1255,41 @@ fn u8_to_bool(u: u8) -> bool {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Expression macros
+// Intra-doc-links use HTML to stay in same module (not switch to prelude when looking at godot::builtin).
 
-/// Constructs typed [`Dictionary<K, V>`] literals, close to Godot's own syntax.
+/// **Dict**: constructs `Dictionary` literals for all possible key and value types.
 ///
-/// Any value can be used as a key, but to use an expression you need to surround it
-/// in `()` or `{}`.
+/// # Type inference
+/// There are three related macros, all of which create [`Dictionary<K, V>`] expressions, but they differ in how the types `K` and `V` are inferred:
 ///
-/// # Type annotation
-/// The macro creates a typed `Dictionary<K, V>`. You must provide an explicit type annotation
-/// to specify `K` and `V`. Keys must implement `AsArg<K>` and values must implement `AsArg<V>`.
+/// - `dict!` uses [`AsArg`][crate::meta::AsArg] to set entries. This works when the dictionary's key type `K` and value type `V` are already
+///   determined from context -- a type annotation, function parameter, etc. This supports all key/value types including `Gd<T>` and `Variant`.
+/// - [`idict!`](macro.idict.html) uses [`AsDirectElement`][crate::meta::AsDirectElement] for (opinionated) type inference from literals.
+///   This macro needs no type annotations, however is limited to common types, like `i32`, `&str` (inferred as `GString`), etc.
+/// - [`vdict!`](macro.vdict.html) uses `AsArg<Variant>`, meaning it's like `dict!` but inferred as [`VarDictionary`].
 ///
-/// The `= ` prefix (`dict! {= ...}`) switches to [`AsDirectElement`][crate::meta::AsDirectElement], enabling unambiguous type inference
-/// without an explicit type annotation. This covers types like `i32`, `&str` (inferred as `GString`), `&GString`, etc.
-///
-/// # Example
+/// # Examples
 /// ```no_run
-/// use godot::builtin::*;
+/// # use godot::prelude::*;
+/// // dict! requires type context (e.g. annotation, return type, etc.).
+/// // The same expression can be used to initialize different dictionary types:
 ///
-/// // Type annotation required, as the same initializer can be mapped to different types.
-/// let d: Dictionary<GString, i64> = dict! { "key1" => 10, "key2" => 20 };
-/// let d: Dictionary<StringName, i64> = dict! { "key1" => 10, "key2" => 20 };
-/// let d: Dictionary<GString, Variant> = dict! { "key1" => 10, "key2" => 20 };
+/// let d: Dictionary<GString, i64>     = dict! { "key1" => 10, "key2" => 20 };
+/// let d: Dictionary<StringName, u16>  = dict! { "key1" => 10, "key2" => 20 };
+/// let d: Dictionary<Variant, Variant> = dict! { "key1" => 10, "key2" => 20 };
 ///
-/// // `=` prefix: most common conversion, no type annotation needed.
-/// let d = dict! {= "key1" => 10, "key2" => 20 }; // Dictionary<GString, i32>.
+/// // More strict inference with idict! and vdict! macros:
+///
+/// let d = idict! { "key1" => 10, "key2" => 20 }; // Dictionary<GString, i32>.
+///
+/// let d = vdict! { "key1" => 10, "key2" => 20 }; // VarDictionary.
 /// ```
 ///
 /// # See also
-/// For untyped dictionaries, use [`vdict!`][macro@crate::builtin::vdict].
-/// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
+/// For arrays, a similar macro [`array!`](macro.array.html) exists.
 #[macro_export]
 macro_rules! dict {
-    // Default: `AsArg` semantics (needed for `Gd`, `Variant`, or explicit disambiguation).
     ($($key:expr => $value:expr),* $(,)?) => {
         {
             let mut d = $crate::builtin::Dictionary::new();
@@ -1296,9 +1299,14 @@ macro_rules! dict {
             d
         }
     };
+}
 
-    // `=` prefix: `AsDirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
-    (= $($key:expr => $value:expr),* $(,)?) => {
+/// **I**nferred **dict**: constructs `Dictionary` literals without ambiguity.
+///
+/// See [`dict!`](macro.dict.html) for docs and examples.
+#[macro_export]
+macro_rules! idict {
+    ($($key:expr => $value:expr),* $(,)?) => {
         {
             let mut d = $crate::builtin::Dictionary::new();
             $(
@@ -1309,27 +1317,9 @@ macro_rules! dict {
     };
 }
 
-/// Constructs [`VarDictionary`] literals, close to Godot's own syntax.
+/// **V**ariant **dict**: constructs [`VarDictionary`] literals.
 ///
-/// Keys and values need to implement [`AsArg<Variant>`].
-///
-/// # Example
-/// ```no_run
-/// use godot::builtin::{vdict, Variant};
-///
-/// let key = "my_key";
-/// let d = vdict! {
-///     "key1" => 10,
-///     "another" => &Variant::nil(),
-///     key => true,
-///     1 + 2 => "final",
-/// };
-/// ```
-///
-/// # See also
-///
-/// For typed dictionaries, use [`dict!`][macro@crate::builtin::dict].
-/// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
+/// See [`dict!`](macro.dict.html) for docs and examples.
 #[macro_export]
 macro_rules! vdict {
     // New primary syntax with `=>`. Uses `AsArg` semantics, consistent with `dict!`.

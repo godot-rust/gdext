@@ -84,7 +84,7 @@ use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotS
 /// array.push(30);
 ///
 /// // Or create the same array in a single expression.
-/// let array = array![= 10, 20, 30];
+/// let array = iarray![10, 20, 30];
 ///
 /// // Access elements.
 /// let value: i64 = array.at(0); // 10
@@ -130,9 +130,9 @@ use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotS
 /// For negative indices, use [`wrapped()`](crate::meta::wrapped).
 ///
 /// ```no_run
-/// # use godot::builtin::array;
+/// # use godot::builtin::{array, iarray};
 /// # use godot::meta::wrapped;
-/// let arr = array![= 0, 1, 2, 3, 4, 5];
+/// let arr = iarray![0, 1, 2, 3, 4, 5];
 ///
 /// // The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
 /// let clamped_array = arr.subarray_deep(999..99999, None);
@@ -1193,7 +1193,7 @@ impl<T: Element + fmt::Display> fmt::Display for Array<T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let a = array![= 1,2,3,4];
+    /// let a = iarray![1,2,3,4];
     /// assert_eq!(format!("{a}"), "[1, 2, 3, 4]");
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1502,22 +1502,25 @@ impl<T: Element> PartialOrd for Array<T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Expression macros
+// Intra-doc-links use HTML to stay in same module (not switch to prelude when looking at godot::builtin).
 
-/// Constructs [`Array`] literals, similar to Rust's standard `vec!` macro.
+/// **Array**: constructs `Array` literals for all possible element types.
 ///
 /// # Type inference
-/// By default, `array!` uses [`AsArg`][crate::meta::AsArg] to push elements. This works when the array's element type `T` is already
-/// determined from context -- a type annotation, function parameter, etc. This supports all element types including `Gd<T>` and `Variant`.
+/// There are three related macros, all of which create [`Array<T>`] expressions, but they differ in how the type `T` is inferred:
 ///
-/// The `= ` prefix (`array![= ...]`) switches to [`AsDirectElement`][crate::meta::AsDirectElement], enabling unambiguous type inference
-/// from the elements themselves -- no external type context needed. Covers only common types and provides only conversions that are opinionated
-/// but unambiguous. For example, `array![= "hello"]` will infer as `Array<GString>`, never `Array<StringName>` or `Array<Variant>`.
+/// - `array!` uses [`AsArg`][crate::meta::AsArg] to push elements. This works when the array's element type `T` is already
+///   determined from context -- a type annotation, function parameter, etc. This supports all element types including `Gd<T>` and `Variant`.
+/// - [`iarray!`](macro.iarray.html) uses [`AsDirectElement`][crate::meta::AsDirectElement] for (opinionated) type inference from literals.
+///   This macro needs no type annotations, however is limited to common types, like `i32`, `&str` (inferred as `GString`), etc.
+/// - [`varray!`](macro.varray.html) uses `AsArg<Variant>`, meaning it's like `array!` but inferred as [`VarArray`].
 ///
 /// # Examples
 /// ```no_run
 /// # use godot::prelude::*;
-/// // Type annotation provides context; no prefix needed.
-/// // Multiple assignments possible.
+/// // array! requires type context (e.g. annotation, return type, etc.).
+/// // The same expression can be used to initialize different array types:
+///
 /// let ints: Array<i8>      = array![3, 1, 4];
 /// let ints: Array<i64>     = array![3, 1, 4];
 /// let ints: Array<Variant> = array![3, 1, 4];
@@ -1526,18 +1529,20 @@ impl<T: Element> PartialOrd for Array<T> {
 /// let strs: Array<StringName> = array!["a", "b"];
 /// let strs: Array<Variant>    = array!["a", "b"];
 ///
-/// // No type context, so use `=` for unambiguous inference.
-/// let ints = array![= 3, 1, 4];  // Array<i32>.
-/// let strs = array![= "a", "b"]; // Array<GString>.
+/// // More strict inference with iarray! and varray! macros:
+///
+/// let ints = iarray![3, 1, 4];  // Array<i32>.
+/// let strs = iarray!["a", "b"]; // Array<GString>.
+///
+/// let strs = varray!["a", "b"]; // VarArray.
 /// ```
 ///
 /// # See also
-/// To create an `Array` of variants, see the [`varray!`] macro.
+/// For dictionaries, a similar macro [`dict!`](macro.dict.html) exists.
 ///
-/// For dictionaries, a similar macro [`dict!`] exists.
+/// To construct slices of variants, use [`vslice!`](macro.vslice.html).
 #[macro_export]
 macro_rules! array {
-    // Default: old `AsArg` semantics (needed for `Gd`, `Variant`, or explicit disambiguation).
     ($($elements:expr_2021),* $(,)?) => {
         {
             let mut array = $crate::builtin::Array::default();
@@ -1545,9 +1550,14 @@ macro_rules! array {
             array
         }
     };
+}
 
-    // `=` prefix: `AsDirectElement` (unambiguous type inference; covers `i32`, `&str` -> `GString`, `&GString`, ...).
-    (= $($elements:expr_2021),* $(,)?) => {
+/// **I**nferred **array**: constructs `Array` literals without ambiguity.
+///
+/// See [`array!`](macro.array.html) for docs and examples.
+#[macro_export]
+macro_rules! iarray {
+    ($($elements:expr_2021),* $(,)?) => {
         {
             let mut array = $crate::builtin::Array::default();
             $(array.__macro_push_direct($elements);)*
@@ -1556,22 +1566,9 @@ macro_rules! array {
     };
 }
 
-/// Constructs [`VarArray`] literals, similar to Rust's standard `vec!` macro.
+/// **V**ariant **array**: constructs [`VarArray`] literals.
 ///
-/// Elements need to implement [`AsArg<Variant>`].
-///
-/// # Example
-/// ```no_run
-/// # use godot::prelude::*;
-/// let arr: VarArray = varray![42_i64, "hello", true];
-/// ```
-///
-/// # See also
-/// To create a typed `Array` with a single element type, see the [`array!`] macro.
-///
-/// For dictionaries, a similar macro [`vdict!`] exists.
-///
-/// To construct slices of variants, use [`vslice!`].
+/// See [`array!`](macro.array.html) for docs and examples.
 #[macro_export]
 macro_rules! varray {
     // Uses `AsArg` semantics, consistent with `array!`.
@@ -1617,7 +1614,7 @@ macro_rules! varray {
 /// ```
 ///
 /// # See also
-/// To create typed and untyped `Array`s, use the [`array!`] and [`varray!`] macros respectively.
+/// To create typed and untyped `Array`s, use the [`array!`] macro and its variants.
 ///
 /// For dictionaries, a similar macro [`vdict!`] exists.
 #[macro_export]

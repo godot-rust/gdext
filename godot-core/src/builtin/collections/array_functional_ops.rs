@@ -42,7 +42,7 @@ impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let array = array![= 1, 2, 3, 4, 5];
+    /// let array = iarray![1, 2, 3, 4, 5];
     /// let even = array.functional_ops().filter(&Callable::from_fn("is_even", |args| {
     ///     args[0].to::<i64>() % 2 == 0
     /// }));
@@ -63,7 +63,7 @@ impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let array = array![= 1.1, 1.5, 1.9];
+    /// let array = iarray![1.1, 1.5, 1.9];
     /// let rounded = array.functional_ops().map(&Callable::from_fn("round", |args| {
     ///     args[0].to::<f64>().round() as i64
     /// }));
@@ -84,7 +84,7 @@ impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let array = array![= 1, 2, 3, 4];
+    /// let array = iarray![1, 2, 3, 4];
     /// let sum = array.functional_ops().reduce(
     ///     &Callable::from_fn("sum", |args| {
     ///         args[0].to::<i64>() + args[1].to::<i64>()
@@ -107,7 +107,7 @@ impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let array = array![= 1, 2, 3, 4];
+    /// let array = iarray![1, 2, 3, 4];
     /// let any_even = array.functional_ops().any(&Callable::from_fn("is_even", |args| {
     ///     args[0].to::<i64>() % 2 == 0
     /// }));
@@ -126,7 +126,7 @@ impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let array = array![= 2, 4, 6];
+    /// let array = iarray![2, 4, 6];
     /// let all_even = array.functional_ops().all(&Callable::from_fn("is_even", |args| {
     ///     args[0].to::<i64>() % 2 == 0
     /// }));
@@ -148,7 +148,7 @@ impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let array = array![= 1, 2, 3, 4, 5];
+    /// let array = iarray![1, 2, 3, 4, 5];
     /// let is_even = Callable::from_fn("is_even", |args| {
     ///     args[0].to::<i64>() % 2 == 0
     /// });
@@ -175,7 +175,7 @@ impl<'a, T: Element> ArrayFunctionalOps<'a, T> {
     /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
-    /// let array = array![= 1, 2, 3, 4, 5];
+    /// let array = iarray![1, 2, 3, 4, 5];
     /// let is_even = Callable::from_fn("is_even", |args| {
     ///     args[0].to::<i64>() % 2 == 0
     /// });

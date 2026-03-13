@@ -7,7 +7,7 @@
 
 use std::ops::Deref;
 
-use godot::builtin::{Array, Callable, Signal, array, vslice};
+use godot::builtin::{Array, Callable, Signal, array, iarray, vslice};
 use godot::classes::{Object, RefCounted};
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::prelude::{GodotClass, godot_api};
@@ -73,7 +73,7 @@ fn async_task_array() -> TaskHandle {
 
     object.emit_signal(
         "custom_signal_array",
-        vslice![array![= 1, 2, 3], ref_counted_arg],
+        vslice![iarray![1, 2, 3], ref_counted_arg],
     );
 
     task_handle
