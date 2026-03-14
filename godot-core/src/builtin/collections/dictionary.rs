@@ -16,7 +16,8 @@ use sys::{GodotFfi, ffi_methods, interface_fn};
 use super::any_dictionary::AnyDictionary;
 use crate::builtin::{AnyArray, Array, VarArray, Variant, VariantType, inner};
 use crate::meta;
-use crate::meta::{AsArg, Element, ElementType, ExtVariantType, FromGodot, ToGodot};
+use crate::meta::inspect::ElementType;
+use crate::meta::{AsArg, Element, ExtVariantType, FromGodot, ToGodot};
 use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotShape, Var};
 
 /// Godot's `Dictionary` type.

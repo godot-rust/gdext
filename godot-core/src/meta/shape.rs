@@ -5,14 +5,26 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! Static type descriptors for Rust types towards Godot.
+//!
+//! The symbols in this module and primarily [`GodotShape`] are used to describe the _shape_ of a Rust type, which combines information about:
+//! - To which Godot type it maps.
+//! - Metadata relevant for properties (var/export).
+//! - Metadata relevant for method signatures (parameters and return values).
+//!
+//! These shapes are then transformed to lower-level GDExtension descriptors, located in [`register::info`][crate::registry::info].
+//! Godot then accepts those for registration.
+
 use std::borrow::Cow;
+use std::fmt::Display;
 
 use godot_ffi as sys;
 
 use crate::builtin::{CowStr, GString, StringName, VariantType};
-use crate::global::{PropertyHint, PropertyUsageFlags, godot_str};
-use crate::meta::{ClassId, GodotConvert, PropertyHintInfo, PropertyInfo};
+use crate::global::godot_str;
+use crate::meta::{ClassId, GodotConvert};
 use crate::obj::EngineEnum as _;
+use crate::registry::info::{PropertyHint, PropertyHintInfo, PropertyInfo, PropertyUsageFlags};
 
 /// The "shape" of a Godot type: whether it's a builtin, a class, an enum/bitfield, etc.
 ///
@@ -104,7 +116,7 @@ pub enum GodotShape {
         variant_type: VariantType,
 
         /// Display name and ordinal for each enumerator. `Borrowed` for compile-time data, `Owned` for dynamic enumerators.
-        enumerators: Cow<'static, [Enumerator]>,
+        enumerators: Cow<'static, [EnumeratorShape]>,
 
         /// Godot-qualified enum name. `Some("Orientation")` or `Some("Node.ProcessMode")` for engine enums; `None` for user enums.
         ///
@@ -457,7 +469,7 @@ impl ClassHeritage {
 /// Matches the same layout as `GodotShape`, exists to avoid recursive definition (and also `Box` allocations). Also constrains the possible
 /// shapes (elements cannot be typed arrays/dictionaries themselves).
 ///
-/// In contrast to [`ElementType`][crate::meta::ElementType], this is a _static_ type description for Godot registration purposes.
+/// In contrast to [`ElementType`][crate::meta::inspect::ElementType], this is a _static_ type description for Godot registration purposes.
 ///
 /// Use [`into_outer()`][Self::into_outer] to convert into a full `GodotShape`.
 #[non_exhaustive]
@@ -477,7 +489,7 @@ pub enum GodotElementShape {
 
     Enum {
         variant_type: VariantType,
-        enumerators: Cow<'static, [Enumerator]>,
+        enumerators: Cow<'static, [EnumeratorShape]>,
         godot_name: Option<CowStr>,
         is_bitfield: bool,
     },
@@ -620,15 +632,15 @@ impl GodotElementShape {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// A single enumerator entry: display name and ordinal value. Used in [`GodotShape::Enum`].
+/// Describes a single enumerator entry: display name and ordinal value. Used in [`GodotShape::Enum`].
 #[derive(Clone, Debug)]
-pub struct Enumerator {
+pub struct EnumeratorShape {
     pub name: CowStr,
     /// Ordinal value. `None` for string-backed enums (hint string omits ordinals: `"Grass,Rock,Water"`).
     pub value: Option<i64>,
 }
 
-impl Enumerator {
+impl EnumeratorShape {
     /// Creates a new int-backed enumerator.
     pub const fn new_int(name: &'static str, value: i64) -> Self {
         Self {
@@ -652,7 +664,7 @@ impl Enumerator {
 /// Builds the element type string used in Godot's `TYPE_STRING` hint for typed collections.
 ///
 /// Format: `"{vtype}:"` if `hint` is `NONE`, otherwise `"{vtype}/{hint}:{hint_string}"`.
-pub(super) fn format_elements_typed(
+pub(crate) fn format_elements_typed(
     variant_type: VariantType,
     hint: PropertyHint,
     hint_string: impl std::fmt::Display,
@@ -673,7 +685,7 @@ fn format_elements_untyped(variant_type: VariantType) -> String {
 
 /// Returns `PropertyHintInfo` for an enum or bitfield: `ENUM`/`FLAGS` hint with formatted hint string.
 fn enum_hint_info(
-    enumerators: &[Enumerator],
+    enumerators: &[EnumeratorShape],
     is_bitfield: bool,
     is_engine_enum: bool,
 ) -> PropertyHintInfo {
@@ -696,12 +708,20 @@ fn enum_hint_info(
 }
 
 /// Builds `"Name:0,Name2:1"` or `"Name,Name2"` hint string from enumerators.
-fn format_hint_string(enumerators: &[Enumerator]) -> String {
+fn format_hint_string(enumerators: &[EnumeratorShape]) -> String {
     enumerators
         .iter()
-        .map(|e| super::format_hint_entry(&e.name, e.value))
+        .map(|e| format_hint_entry(&e.name, e.value))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+/// Formats a single hint as `"Name:value"` if value is `Some`, otherwise `"Name"`.
+pub(crate) fn format_hint_entry(name: &str, value: Option<impl Display>) -> String {
+    match value {
+        Some(v) => format!("{name}:{v}"),
+        None => name.to_string(),
+    }
 }
 
 /// Maps a packed array's variant type to its element's variant type, if applicable.

@@ -12,8 +12,8 @@
 
 use std::collections::HashMap;
 
-use godot::global::PropertyUsageFlags;
 use godot::prelude::*;
+use godot::register::info::PropertyUsageFlags;
 use godot::sys::GdextBuild;
 
 use crate::framework::{TestContext, itest};

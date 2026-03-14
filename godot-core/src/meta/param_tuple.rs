@@ -8,8 +8,9 @@
 use godot_ffi as sys;
 
 use crate::builtin::Variant;
+use crate::meta::CallContext;
 use crate::meta::error::CallResult;
-use crate::meta::{CallContext, PropertyInfo};
+use crate::registry::info::PropertyInfo;
 
 mod impls;
 

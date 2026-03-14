@@ -10,7 +10,8 @@ use godot_ffi as sys;
 use crate::builtin;
 use crate::builtin::{Variant, VariantType};
 use crate::meta::error::ConvertError;
-use crate::meta::{FromGodot, GodotConvert, PropertyInfo, ToGodot, sealed};
+use crate::meta::{FromGodot, GodotConvert, ToGodot, sealed};
+use crate::registry::info::PropertyInfo;
 use crate::registry::method::MethodParamOrReturnInfo;
 
 // Re-export sys traits in this module, so all are in one place.
@@ -136,7 +137,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 /// `VarDictionary` (special case of the former with `T=Variant`), because godot-rust cannot statically guarantee that the nested collections
 /// are indeed untyped. In a GDScript `Array[Array]`, you can store both typed and untyped arrays, even within the same collection.
 ///
-/// See also [`ElementType`][crate::meta::ElementType] for a runtime representation of this.
+/// See also [`ElementType`][crate::meta::inspect::ElementType] for a runtime representation of this.
 ///
 /// # Integer and float types
 /// `u8`, `i8`, `u16`, `i16`, `u32`, `i32` and `f32` are supported by this trait, however they don't have their own array type in Godot.

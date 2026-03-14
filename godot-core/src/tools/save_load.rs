@@ -14,7 +14,7 @@ use crate::obj::{Gd, Inherits, Singleton};
 
 /// ⚠️ Loads a resource from the filesystem located at `path`, panicking on error.
 ///
-/// See [`try_load`] for more information.
+/// See [`try_load()`] for more information.
 ///
 /// # Example
 ///
@@ -75,7 +75,7 @@ where
 
 /// ⚠️ Saves a [`Resource`]-inheriting object into the file located at `path`.
 ///
-/// See [`try_save`] for more information.
+/// See [`try_save()`] for more information.
 ///
 /// # Panics
 /// If the resource cannot be saved.
@@ -87,7 +87,6 @@ where
 /// let obj = Resource::new_gd();
 /// save(&obj, "res://BaseResource.tres")
 /// ```
-/// use godot::
 #[inline]
 pub fn save<T>(obj: &Gd<T>, path: impl AsArg<GString>)
 where

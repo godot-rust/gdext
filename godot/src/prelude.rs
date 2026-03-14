@@ -14,7 +14,7 @@ pub use super::global::{
     godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,
 };
 pub use super::init::{ExtensionLibrary, InitLevel, InitStage, gdextension};
-pub use super::meta::error::{ConvertError, IoError};
+pub use super::meta::error::ConvertError;
 pub use super::meta::{FromGodot, GodotConvert, ToGodot};
 pub use super::obj::{
     AsDyn, Base, DynGd, DynGdMut, DynGdRef, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -22,7 +22,7 @@ pub use super::obj::{
 };
 pub use super::register::property::{Export, PhantomVar, Var};
 // Re-export macros.
-pub use super::register::{Export, GodotClass, GodotConvert, Var, godot_api, godot_dyn};
+pub use super::register::{GodotClass, godot_api, godot_dyn};
 pub use super::tools::{GFile, load, save, try_load, try_save};
 
 // Make trait methods available.

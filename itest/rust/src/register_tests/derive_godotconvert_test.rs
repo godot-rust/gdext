@@ -8,8 +8,7 @@
 use std::fmt::Debug;
 
 use godot::builtin::{GString, Vector2, array, dict};
-use godot::meta::ToGodot;
-use godot::register::GodotConvert;
+use godot::meta::{GodotConvert, ToGodot};
 
 use crate::common::roundtrip;
 use crate::framework::itest;

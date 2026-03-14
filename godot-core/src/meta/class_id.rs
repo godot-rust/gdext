@@ -136,7 +136,8 @@ impl ClassId {
     /// Returns a `ClassId` representing "no class" (empty class name) for non-object property types.
     ///
     /// This is used for properties that don't have an associated class, e.g. built-in types like `i32`, `GString`, `Vector3` etc.
-    /// When constructing a [`PropertyInfo`](crate::meta::PropertyInfo) for non-class types, you can use `StringName::default()` for the `class_name` field.
+    /// When constructing a [`PropertyInfo`][crate::registry::info::PropertyInfo] for non-class types, you can use `StringName::default()`
+    /// for the `class_name` field.
     pub fn none() -> Self {
         // First element is always the empty string name.
         Self { global_index: 0 }

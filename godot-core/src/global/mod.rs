@@ -9,8 +9,17 @@
 //!
 //! See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#methods).
 //!
-//! # Builtin-related enums
+//! # Functions moved to dedicated APIs
+//! Some methods in `@GlobalScope` are not directly available in `godot::global` module, but rather in their related types.  \
+//! You can find them as follows:
 //!
+//! | Godot utility function | godot-rust APIs                                                                                                                        |
+//! |------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+//! | `instance_from_id`     | [`Gd::from_instance_id()`][crate::obj::Gd::from_instance_id]<br>[`Gd::try_from_instance_id()`][crate::obj::Gd::try_from_instance_id()] |
+//! | `is_instance_valid`    | [`Gd::is_instance_valid()`][crate::obj::Gd::is_instance_valid()]                                                                       |
+//! | `is_instance_id_valid` | [`InstanceId::lookup_validity()`][crate::obj::InstanceId::lookup_validity()]                                                           |
+//!
+//! # Global enums in other modules
 //! The library ships several additional enums in places where GDScript would use magic numbers. These are co-located with
 //! builtin types, in the [`godot::builtin`][crate::builtin] module. The enums are:
 //!
@@ -21,17 +30,11 @@
 //! - Variant: [`VariantType`][crate::builtin::VariantType], [`VariantOperator`][crate::builtin::VariantOperator]
 //! - Vector: [`Vector2Axis`][crate::builtin::Vector2Axis], [`Vector3Axis`][crate::builtin::Vector3Axis], [`Vector4Axis`][crate::builtin::Vector4Axis]
 //!
-//! # Functions moved to dedicated APIs
+//! Some enums are closely related to property/method registration and are located in [`godot::register::info`][crate::registry::info]:
 //!
-//! Some methods in `@GlobalScope` are not directly available in `godot::global` module, but rather in their related types.  \
-//! You can find them as follows:
-//!
-//! | Godot utility function | godot-rust APIs                                                                                                                      |
-//! |------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-//! | `instance_from_id`     | [`Gd::from_instance_id()`][crate::obj::Gd::from_instance_id]<br>[`Gd::try_from_instance_id()`][crate::obj::Gd::try_from_instance_id()] |
-//! | `is_instance_valid`    | [`Gd::is_instance_valid()`][crate::obj::Gd::is_instance_valid()]                                                                     |
-//! | `is_instance_id_valid` | [`InstanceId::lookup_validity()`][crate::obj::InstanceId::lookup_validity()]                                                         |
-//!
+//! - [`PropertyHint`] <sub>(godot-generated)</sub>
+//! - [`PropertyUsageFlags`] <sub>(godot-generated)</sub>
+//! - [`MethodFlags`] <sub>(godot-generated)</sub>
 
 // Doc aliases are also available in dedicated APIs, but directing people here may give them a bit more context.
 #![doc(
@@ -56,6 +59,10 @@ pub use crate::{
 #[allow(unused_imports)] // micromanaging imports for generated code is not fun
 #[rustfmt::skip] // Do not reorder.
 pub(crate) use crate::builtin::{Corner, EulerOrder, Side};
+
+// This is needed for generated code to find symbols that have been moved to crate::registry::info.
+#[allow(unused_imports)]
+pub(crate) use crate::registry::info::{MethodFlags, PropertyHint, PropertyUsageFlags};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Deprecations

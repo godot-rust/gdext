@@ -50,7 +50,7 @@ pub mod __prelude_reexport {
     pub use vectors::*;
 
     pub use super::math::XformInv;
-    pub use super::{EulerOrder, Side, VariantOperator, VariantType};
+    pub use super::{EulerOrder, VariantOperator, VariantType};
     #[cfg(feature = "trace")] // Test only.
     pub use crate::static_sname;
     pub use crate::{array, dict, iarray, idict, real, reals, varray, vdict, vslice};

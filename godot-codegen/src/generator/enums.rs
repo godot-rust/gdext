@@ -134,7 +134,7 @@ pub fn make_enum_definition_with(
             let display_name = enumerator.godot_name.to_title_case(); // Inspector UI Name: "KEY_ESCAPE" -> "Key Escape".
             let value = enumerator.value.to_i64();
             quote! {
-                Enumerator::new_int(#display_name, #value)
+                EnumeratorShape::new_int(#display_name, #value)
             }
         });
 
@@ -148,9 +148,9 @@ pub fn make_enum_definition_with(
             impl crate::meta::GodotConvert for #name {
                 type Via = #ord_type;
 
-                fn godot_shape() -> crate::registry::property::GodotShape {
-                    use crate::registry::property::{Enumerator, GodotShape};
-                    const ENUMERATORS: &[Enumerator] = const {
+                fn godot_shape() -> crate::meta::shape::GodotShape {
+                    use crate::meta::shape::{EnumeratorShape, GodotShape};
+                    const ENUMERATORS: &[EnumeratorShape] = const {
                         &[
                             #( #enumerator_defs ),*
                         ]

@@ -7,9 +7,8 @@
 
 use godot::builtin::{Array, GString, StringName, VarDictionary};
 use godot::classes::IObject;
-use godot::global::{PropertyHint, PropertyUsageFlags};
-use godot::meta::PropertyInfo;
 use godot::obj::NewAlloc;
+use godot::register::info::{PropertyHint, PropertyInfo, PropertyUsageFlags};
 use godot::register::{GodotClass, godot_api};
 use godot::test::itest;
 

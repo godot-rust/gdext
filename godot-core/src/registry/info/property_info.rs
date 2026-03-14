@@ -6,9 +6,9 @@
  */
 
 use crate::builtin::{GString, StringName, VariantType};
-use crate::global::{PropertyHint, PropertyUsageFlags};
 use crate::meta::ClassId;
 use crate::obj::{Bounds, EngineBitfield, EngineEnum, GodotClass, bounds};
+use crate::registry::info::{PropertyHint, PropertyUsageFlags};
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
 
@@ -20,7 +20,7 @@ use crate::{classes, sys};
 /// only stores pointers, `PropertyInfo` owns its data, ensuring it remains valid for the lifetime of the struct.
 /// For a high-level representation of properties, see [`GodotShape`][crate::registry::property::GodotShape].
 ///
-/// See also [`MethodInfo`](crate::meta::MethodInfo) for describing method signatures and [`ClassId`] for type-IDs of Godot classes.
+/// See also [`MethodInfo`](super::MethodInfo) for describing method signatures and [`ClassId`] for type-IDs of Godot classes.
 ///
 /// # Construction
 /// For most use cases, prefer the convenience constructors:
@@ -30,9 +30,8 @@ use crate::{classes, sys};
 ///
 /// # Example
 /// ```no_run
-/// use godot::meta::{PropertyInfo, PropertyHintInfo};
+/// use godot::register::info::{PropertyInfo, PropertyHintInfo, PropertyUsageFlags};
 /// use godot::builtin::{StringName, VariantType};
-/// use godot::global::PropertyUsageFlags;
 ///
 /// // Integer property without a specific class
 /// let count_property = PropertyInfo {
@@ -98,7 +97,7 @@ pub struct PropertyInfo {
 
     /// Additional type information and validation constraints for this property.
     ///
-    /// Use functions from [`export_info_functions`](crate::registry::property::export_info_functions) to create common hints,
+    /// Use functions from [`export_fns`](crate::registry::property::export_fns) to create common hints,
     /// or [`PropertyHintInfo::none()`] for no hints.
     ///
     /// See [`PropertyHintInfo`] struct in Rust, as well as [`PropertyHint`] in the official Godot documentation.
@@ -140,7 +139,7 @@ impl PropertyInfo {
 
     /// Change the `hint` and `hint_string` to be the given `hint_info`.
     ///
-    /// See [`export_info_functions`](crate::registry::property::export_info_functions) for functions that return appropriate `PropertyHintInfo`s for
+    /// See [`export_fns`](crate::registry::property::export_fns) for functions that return appropriate `PropertyHintInfo`s for
     /// various Godot annotations.
     ///
     /// # Example
@@ -148,11 +147,11 @@ impl PropertyInfo {
     ///
     // TODO: Make this nicer to use.
     /// ```no_run
-    /// use godot::register::property::export_info_functions;
-    /// use godot::meta::PropertyInfo;
+    /// use godot::register::property::export_fns;
+    /// use godot::register::info::PropertyInfo;
     ///
     /// let property = PropertyInfo::new_export::<f64>("my_range_property")
-    ///     .with_hint_info(export_info_functions::export_range(
+    ///     .with_hint_info(export_fns::export_range(
     ///         0.0,
     ///         10.0,
     ///         Some(0.1),

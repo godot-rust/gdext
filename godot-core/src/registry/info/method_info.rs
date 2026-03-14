@@ -8,8 +8,8 @@
 use godot_ffi::conv::u32_to_usize;
 
 use crate::builtin::{StringName, Variant};
-use crate::global::MethodFlags;
-use crate::meta::{ClassId, PropertyInfo};
+use crate::meta::ClassId;
+use crate::registry::info::{MethodFlags, PropertyInfo};
 use crate::sys;
 
 /// Describes a method's signature and metadata required by the Godot engine.
@@ -23,11 +23,11 @@ use crate::sys;
 ///
 /// # Example
 /// ```no_run
-/// use godot::meta::{MethodInfo, PropertyInfo, PropertyHintInfo, ClassId};
 /// use godot::builtin::{StringName, Variant, VariantType};
-/// use godot::global::{MethodFlags, PropertyUsageFlags};
 /// use godot::classes::Node2D;
+/// use godot::meta::ClassId;
 /// use godot::obj::GodotClass; // Trait method ::class_id().
+/// use godot::register::info::{MethodInfo, PropertyInfo, PropertyHintInfo, MethodFlags, PropertyUsageFlags};
 ///
 /// // Describe a Godot method (`World` is a GDScript class):
 /// //   func spawn_at(world: World, position: Vector2) -> Node2D.

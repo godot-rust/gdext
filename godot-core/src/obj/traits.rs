@@ -187,7 +187,7 @@ pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
 ///
 /// # Future direction: `GodotEnum` unification
 /// Currently engine enums implement this trait with `all_constants()` returning `&[EnumConstant<Self>]`, while user enums provide
-/// metadata through `GodotShape::Enum` with `&[Enumerator]`. A future `GodotEnum` trait could unify both, providing a single
+/// metadata through `GodotShape::Enum` with `&[EnumeratorShape]`. A future `GodotEnum` trait could unify both, providing a single
 /// interface for enumerator introspection, constant registration via `classdb_register_extension_class_integer_constant` (which
 /// also accepts `p_is_bitfield`), and shared `GodotShape` construction. This would let user enums opt-in to the same capabilities
 /// as engine enums (GDScript name resolution, editor integration).
@@ -767,8 +767,8 @@ pub mod cap {
 
     use super::*;
     use crate::builtin::{StringName, Variant};
-    use crate::meta::PropertyInfo;
     use crate::obj::{Base, Gd};
+    use crate::registry::info::PropertyInfo;
     use crate::storage::{IntoVirtualMethodReceiver, VirtualMethodReceiver};
 
     /// Trait for all classes that are default-constructible from the Godot engine.
@@ -879,7 +879,7 @@ pub mod cap {
         #[doc(hidden)]
         fn __godot_get_property_list(
             this: VirtualMethodReceiver<Self>,
-        ) -> Vec<crate::meta::PropertyInfo>;
+        ) -> Vec<crate::registry::info::PropertyInfo>;
     }
 
     #[doc(hidden)]

@@ -85,13 +85,13 @@ macro_rules! push_newtype {
             impl godot::meta::GodotConvert for $name {
                 type Via = $T;
 
-                fn godot_shape() -> godot::meta::GodotShape {
+                fn godot_shape() -> godot::meta::shape::GodotShape {
                     <$T as godot::meta::GodotConvert>::godot_shape()
                 }
             }
 
             impl godot::meta::ToGodot for $name {
-                type Pass = godot::meta::ByValue;
+                type Pass = godot::meta::conv::ByValue;
 
                 #[allow(clippy::clone_on_copy)]
                 fn to_godot(&self) -> Self::Via {

@@ -51,7 +51,7 @@ fn make_shape_override(convert_type: &ConvertType, cache: &mut EnumeratorExprCac
 
             let enumerator_entries: Vec<TokenStream> = match via {
                 ViaType::Int { int_ident, .. } => {
-                    // Int-backed enum: Enumerator::new_int("Grass", <ord> as i64).
+                    // Int-backed enum: EnumeratorShape::new_int("Grass", <ord> as i64).
                     let ord_exprs = variants.enumerator_ord_exprs();
                     let mapped = cache.map_ord_exprs(int_ident, names, ord_exprs);
                     names
@@ -60,19 +60,19 @@ fn make_shape_override(convert_type: &ConvertType, cache: &mut EnumeratorExprCac
                         .map(|(ident, ord_expr)| {
                             let name_str = ident.to_string();
                             quote! {
-                                ::godot::register::property::Enumerator::new_int(#name_str, #ord_expr as i64)
+                                ::godot::meta::shape::EnumeratorShape::new_int(#name_str, #ord_expr as i64)
                             }
                         })
                         .collect()
                 }
                 ViaType::GString { .. } => {
-                    // String-backed enum: Enumerator::new_string("Grass").
+                    // String-backed enum: EnumeratorShape::new_string("Grass").
                     names
                         .iter()
                         .map(|ident| {
                             let name_str = ident.to_string();
                             quote! {
-                                ::godot::register::property::Enumerator::new_string(#name_str)
+                                ::godot::meta::shape::EnumeratorShape::new_string(#name_str)
                             }
                         })
                         .collect()
@@ -80,12 +80,12 @@ fn make_shape_override(convert_type: &ConvertType, cache: &mut EnumeratorExprCac
             };
 
             quote! {
-                fn godot_shape() -> ::godot::register::property::GodotShape {
+                fn godot_shape() -> ::godot::meta::shape::GodotShape {
                     // Rust enum discriminants are always const expressions, so this works even for `MyVariant = OTHER_CONST as isize`.
-                    const ENUMERATORS: &[::godot::register::property::Enumerator] = &[
+                    const ENUMERATORS: &[::godot::meta::shape::EnumeratorShape] = &[
                         #( #enumerator_entries ),*
                     ];
-                    ::godot::register::property::GodotShape::Enum {
+                    ::godot::meta::shape::GodotShape::Enum {
                         variant_type: ::godot::meta::element_variant_type::<Self>(),
                         enumerators: std::borrow::Cow::Borrowed(ENUMERATORS),
                         godot_name: None, // User enums have no Godot class_name (future: register via classdb FFI).
@@ -97,7 +97,7 @@ fn make_shape_override(convert_type: &ConvertType, cache: &mut EnumeratorExprCac
         ConvertType::NewType { .. } => {
             // Newtypes delegate to the Via type's shape.
             quote! {
-                fn godot_shape() -> ::godot::register::property::GodotShape {
+                fn godot_shape() -> ::godot::meta::shape::GodotShape {
                     <Self::Via as ::godot::meta::GodotConvert>::godot_shape()
                 }
             }

@@ -11,10 +11,11 @@ use godot_ffi::is_main_thread;
 
 use crate::builtin::{Callable, Variant};
 use crate::meta::error::ConvertError;
-use crate::meta::{ClassId, FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
+use crate::meta::{ClassId, FromGodot, GodotConvert, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor, bounds};
 use crate::registry::class::{get_dyn_implementor_class_ids, try_dynify_object};
+use crate::registry::info::PropertyHintInfo;
 use crate::registry::property::{Export, GodotShape, Var};
 use crate::{meta, sys};
 

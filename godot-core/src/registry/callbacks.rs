@@ -19,9 +19,9 @@ use sys::interface_fn;
 use crate::builder::ClassBuilder;
 use crate::builtin::{StringName, Variant};
 use crate::classes::Object;
-use crate::meta::PropertyInfo;
 use crate::obj::{AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass, bounds, cap};
 use crate::private::{IntoVirtualMethodReceiver, PanicPayload, handle_panic};
+use crate::registry::info::PropertyInfo;
 use crate::registry::plugin::ErasedDynGd;
 use crate::storage::{InstanceStorage, Storage, StorageRefCounted, as_storage};
 
@@ -381,7 +381,7 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
         // SAFETY: The structs contained in this list were all returned from `into_owned_property_sys`.
         // We only call this method once for each struct and for each list.
         unsafe {
-            crate::meta::PropertyInfo::free_owned_property_sys(*property_info);
+            crate::registry::info::PropertyInfo::free_owned_property_sys(*property_info);
         }
     }
 }

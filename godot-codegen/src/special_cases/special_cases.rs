@@ -1259,6 +1259,11 @@ pub fn is_enum_private(class_name: Option<&TyName>, enum_name: &str) -> bool {
         | (None, "Variant.Operator")
         | (None, "Variant.Type")
 
+        // Re-exported to godot::register::info.
+        | (None, "PropertyHint")
+        | (None, "PropertyUsageFlags")
+        | (None, "MethodFlags")
+
         => true, _ => false
     }
 }
