@@ -148,8 +148,8 @@ pub fn make_enum_definition_with(
             impl crate::meta::GodotConvert for #name {
                 type Via = #ord_type;
 
-                fn godot_shape() -> crate::registry::property::GodotShape {
-                    use crate::registry::property::{Enumerator, GodotShape};
+                fn godot_shape() -> crate::meta::shape::GodotShape {
+                    use crate::meta::shape::{Enumerator, GodotShape};
                     const ENUMERATORS: &[Enumerator] = const {
                         &[
                             #( #enumerator_defs ),*

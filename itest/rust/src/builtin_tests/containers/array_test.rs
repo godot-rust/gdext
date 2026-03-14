@@ -5,7 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::meta::{ElementType, wrapped};
+use godot::meta::inspect::ElementType;
+use godot::meta::wrapped;
 use godot::prelude::*;
 
 use crate::framework::{assert_match, create_gdscript, expect_panic, itest};

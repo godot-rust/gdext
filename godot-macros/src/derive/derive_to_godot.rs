@@ -65,7 +65,7 @@ fn make_togodot_for_int_enum(
 
     quote! {
         impl ::godot::meta::ToGodot for #name {
-            type Pass = ::godot::meta::ByValue;
+            type Pass = ::godot::meta::conv::ByValue;
 
             #[allow(unused_parens)] // Error "unnecessary parentheses around block return value"; comes from ord expressions like (1 + 2).
             fn to_godot(&self) -> Self::Via {
@@ -86,7 +86,7 @@ fn make_togodot_for_string_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStream
 
     quote! {
         impl ::godot::meta::ToGodot for #name {
-            type Pass = ::godot::meta::ByValue;
+            type Pass = ::godot::meta::conv::ByValue;
 
             fn to_godot(&self) -> Self::Via {
                 match self {

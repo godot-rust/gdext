@@ -13,7 +13,8 @@ use godot::builtin::{
     vdict,
 };
 use godot::global::godot_str;
-use godot::meta::{ElementType, PackedElement, ToGodot, owned_into_arg, ref_to_arg, wrapped};
+use godot::meta::inspect::ElementType;
+use godot::meta::{PackedElement, ToGodot, owned_into_arg, ref_to_arg, wrapped};
 
 use crate::assert_match;
 use crate::framework::{expect_panic, itest};

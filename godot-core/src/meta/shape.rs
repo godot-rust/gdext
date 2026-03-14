@@ -5,14 +5,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! Describes how Rust types are "shaped" and seen by Godot.
+//!
+//! For metadata built from these shapes and used for registration, see [`register::info`][crate::registry::info].
+
 use std::borrow::Cow;
+use std::fmt::Display;
 
 use godot_ffi as sys;
 
 use crate::builtin::{CowStr, GString, StringName, VariantType};
-use crate::global::{PropertyHint, PropertyUsageFlags, godot_str};
+use crate::global::godot_str;
 use crate::meta::{ClassId, GodotConvert, PropertyHintInfo, PropertyInfo};
 use crate::obj::EngineEnum as _;
+use crate::registry::info::{PropertyHint, PropertyUsageFlags};
 
 /// The "shape" of a Godot type: whether it's a builtin, a class, an enum/bitfield, etc.
 ///
@@ -457,7 +463,7 @@ impl ClassHeritage {
 /// Matches the same layout as `GodotShape`, exists to avoid recursive definition (and also `Box` allocations). Also constrains the possible
 /// shapes (elements cannot be typed arrays/dictionaries themselves).
 ///
-/// In contrast to [`ElementType`][crate::meta::ElementType], this is a _static_ type description for Godot registration purposes.
+/// In contrast to [`ElementType`][crate::meta::inspect::ElementType], this is a _static_ type description for Godot registration purposes.
 ///
 /// Use [`into_outer()`][Self::into_outer] to convert into a full `GodotShape`.
 #[non_exhaustive]
@@ -652,7 +658,7 @@ impl Enumerator {
 /// Builds the element type string used in Godot's `TYPE_STRING` hint for typed collections.
 ///
 /// Format: `"{vtype}:"` if `hint` is `NONE`, otherwise `"{vtype}/{hint}:{hint_string}"`.
-pub(super) fn format_elements_typed(
+pub(crate) fn format_elements_typed(
     variant_type: VariantType,
     hint: PropertyHint,
     hint_string: impl std::fmt::Display,
@@ -699,9 +705,17 @@ fn enum_hint_info(
 fn format_hint_string(enumerators: &[Enumerator]) -> String {
     enumerators
         .iter()
-        .map(|e| super::format_hint_entry(&e.name, e.value))
+        .map(|e| format_hint_entry(&e.name, e.value))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+/// Formats a single hint as `"Name:value"` if value is `Some`, otherwise `"Name"`.
+pub(crate) fn format_hint_entry(name: &str, value: Option<impl Display>) -> String {
+    match value {
+        Some(v) => format!("{name}:{v}"),
+        None => name.to_string(),
+    }
 }
 
 /// Maps a packed array's variant type to its element's variant type, if applicable.

@@ -9,8 +9,7 @@
 //!
 //! See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#methods).
 //!
-//! # Builtin-related enums
-//!
+//! # Global enums in other modules
 //! The library ships several additional enums in places where GDScript would use magic numbers. These are co-located with
 //! builtin types, in the [`godot::builtin`][crate::builtin] module. The enums are:
 //!
@@ -21,8 +20,12 @@
 //! - Variant: [`VariantType`][crate::builtin::VariantType], [`VariantOperator`][crate::builtin::VariantOperator]
 //! - Vector: [`Vector2Axis`][crate::builtin::Vector2Axis], [`Vector3Axis`][crate::builtin::Vector3Axis], [`Vector4Axis`][crate::builtin::Vector4Axis]
 //!
-//! # Functions moved to dedicated APIs
+//! Some enums are closely related to property/method registration and are located in [`godot::register::info`][crate::registry::info]:
 //!
+//! - [`PropertyHint`][crate::registry::info::PropertyHint] <sub>(godot-generated)</sub>
+//! - [`PropertyUsageFlags`][crate::registry::info::PropertyUsageFlags] <sub>(godot-generated)</sub>
+//!
+//! # Functions moved to dedicated APIs
 //! Some methods in `@GlobalScope` are not directly available in `godot::global` module, but rather in their related types.  \
 //! You can find them as follows:
 //!

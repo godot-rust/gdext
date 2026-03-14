@@ -9,9 +9,8 @@ use std::collections::HashMap;
 
 use godot::builtin::{GString, StringName, VarDictionary, VariantType, Vector2, Vector3};
 use godot::classes::{IObject, Node};
-use godot::global::{PropertyHint, PropertyUsageFlags};
-use godot::meta::PropertyInfo;
 use godot::obj::{Gd, NewAlloc};
+use godot::register::info::{PropertyHint, PropertyInfo, PropertyUsageFlags};
 use godot::register::{GodotClass, godot_api};
 use godot::test::itest;
 

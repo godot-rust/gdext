@@ -23,7 +23,8 @@ use crate::sys;
 ///
 /// # Example
 /// ```no_run
-/// use godot::meta::{MethodInfo, PropertyInfo, PropertyHintInfo, ClassId};
+/// use godot::register::info::{MethodInfo, PropertyInfo, PropertyHintInfo};
+/// use godot::meta::ClassId;
 /// use godot::builtin::{StringName, Variant, VariantType};
 /// use godot::global::{MethodFlags, PropertyUsageFlags};
 /// use godot::classes::Node2D;

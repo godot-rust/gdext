@@ -11,6 +11,7 @@
 pub mod callbacks;
 pub mod class;
 pub mod constant;
+pub mod info;
 pub mod method;
 pub mod plugin;
 pub mod property;

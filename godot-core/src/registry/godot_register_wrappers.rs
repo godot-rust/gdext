@@ -8,9 +8,9 @@
 //! Internal registration machinery used by proc-macro APIs.
 
 use crate::builtin::{GString, StringName};
-use crate::global::PropertyUsageFlags;
 use crate::meta::{ClassId, PropertyHintInfo, PropertyInfo};
 use crate::obj::GodotClass;
+use crate::registry::info::PropertyUsageFlags;
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
 
