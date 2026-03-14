@@ -8,7 +8,7 @@
 use std::collections::{HashMap, HashSet};
 
 use godot::builtin::{
-    AnyDictionary, Dictionary, GString, VarDictionary, Variant, VariantType, varray, vdict,
+    AnyDictionary, Dictionary, GString, VarDictionary, Variant, VariantType, idict, varray, vdict,
 };
 use godot::classes::RefCounted;
 use godot::init::GdextBuild;
@@ -947,7 +947,7 @@ mod typed_dictionary_tests {
     #[itest]
     fn dictionary_typed() {
         // No type annotation needed with `=` prefix.
-        let dict = dict! {=
+        let dict = idict! {
             "key1" => 10,
             "key2" => 20,
         };
@@ -1030,7 +1030,7 @@ mod typed_dictionary_tests {
 
     #[itest]
     fn dictionary_typed_iter_for_loop() {
-        let dict = dict! {= "key1" => 10, "key2" => 20, "key3" => 30 };
+        let dict = idict! { "key1" => 10, "key2" => 20, "key3" => 30 };
 
         // Dictionaries are ordered in Godot, so appending is deterministic.
         let mut keys = GString::new();
@@ -1067,7 +1067,7 @@ mod typed_dictionary_tests {
 
     #[itest]
     fn dictionary_typed_modify() {
-        let mut bool_dict = dict! {= "key1" => true, "key2" => false };
+        let mut bool_dict = idict! { "key1" => true, "key2" => false };
 
         map_in_place(&mut bool_dict, &GString::from("key1"), |v| !*v);
         assert!(!bool_dict.at("key1"));
