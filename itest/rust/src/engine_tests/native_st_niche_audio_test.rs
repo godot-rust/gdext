@@ -19,7 +19,7 @@ use godot::classes::{
     AudioStreamGeneratorPlayback, AudioStreamPlayer, Engine, IAudioEffect, IAudioEffectInstance,
     SceneTree,
 };
-use godot::meta::RawPtr;
+use godot::meta::conv::RawPtr;
 use godot::obj::{Base, Gd, NewAlloc, NewGd, Singleton};
 use godot::register::{GodotClass, godot_api};
 

@@ -8,12 +8,13 @@ use godot::builtin::{
     Color, GString, PackedInt32Array, VarDictionary, Variant, VariantType, vdict, vslice,
 };
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource};
-use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::init::GdextBuild;
-use godot::meta::{FromGodot, GodotConvert, PropertyHintInfo, ToGodot};
+use godot::meta::shape::GodotShape;
+use godot::meta::{FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
-use godot::register::property::{Export, GodotShape, Var};
-use godot::register::{Export, GodotClass, GodotConvert, Var, godot_api};
+use godot::register::info::{PropertyHint, PropertyHintInfo, PropertyUsageFlags};
+use godot::register::property::{Export, Var};
+use godot::register::{GodotClass, godot_api};
 use godot::test::itest;
 
 #[derive(GodotClass)]
@@ -406,8 +407,6 @@ fn enum_var_hint() {
 
 #[itest]
 fn enum_manual_shape() {
-    use godot::register::property::GodotShape;
-
     // Test GodotShape::Enum with manually constructed enumerators (the recommended way for manual impls).
     let shape = ManualEnumShape::godot_shape();
     assert!(matches!(shape, GodotShape::Enum { .. }));
@@ -434,10 +433,12 @@ impl GodotConvert for ManualEnumShape {
     type Via = i64;
 
     fn godot_shape() -> GodotShape {
-        use godot::register::property::{Enumerator, GodotShape};
+        use godot::meta::shape::{EnumeratorShape, GodotShape};
 
-        const ENUMERATORS: &[Enumerator] =
-            &[Enumerator::new_int("X", 0), Enumerator::new_int("Y", 1)];
+        const ENUMERATORS: &[EnumeratorShape] = &[
+            EnumeratorShape::new_int("X", 0),
+            EnumeratorShape::new_int("Y", 1),
+        ];
         GodotShape::Enum {
             variant_type: VariantType::INT,
             enumerators: std::borrow::Cow::Borrowed(ENUMERATORS),
@@ -448,7 +449,7 @@ impl GodotConvert for ManualEnumShape {
 }
 
 impl ToGodot for ManualEnumShape {
-    type Pass = godot::meta::ByValue;
+    type Pass = godot::meta::conv::ByValue;
     fn to_godot(&self) -> i64 {
         *self as i64
     }

@@ -9,8 +9,9 @@ use std::fmt;
 
 use crate::builtin::VariantType;
 use crate::classes::Script;
+use crate::meta::shape::GodotShape;
 use crate::meta::traits::element_variant_type;
-use crate::meta::{ClassId, Element, GodotConvert as _, GodotShape};
+use crate::meta::{ClassId, Element, GodotConvert as _};
 use crate::obj::{Gd, InstanceId};
 
 /// Dynamic type information of Godot arrays and dictionaries.

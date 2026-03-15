@@ -14,15 +14,14 @@ use sys::{SysPtr as _, static_assert_eq_size_align};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
-use crate::meta::{
-    AsArg, ClassId, Element, FromGodot, GodotConvert, GodotType, PropertyHintInfo, RefArg, ToGodot,
-};
+use crate::meta::{AsArg, ClassId, Element, FromGodot, GodotConvert, GodotType, RefArg, ToGodot};
 use crate::obj::{
     Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnEditor, RawGd,
     WithBaseField, WithSignals, bounds, cap,
 };
 use crate::private::{PanicPayload, callbacks};
 use crate::registry::class::try_dynify_object;
+use crate::registry::info::PropertyHintInfo;
 use crate::registry::property::{Export, GodotShape, SimpleVar, Var};
 use crate::{classes, meta, out};
 

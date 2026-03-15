@@ -45,12 +45,9 @@
 
 mod args;
 mod class_id;
-mod element_type;
 mod godot_convert;
-mod method_info;
 mod object_to_owned;
 mod param_tuple;
-mod property_info;
 mod raw_ptr;
 mod signature;
 mod traits;
@@ -58,19 +55,18 @@ mod uniform_object_deref;
 
 pub(crate) mod sealed;
 
+pub mod conv;
 pub mod error;
 pub mod inspect;
+pub mod shape;
 pub(crate) mod signed_range;
 
 // Public re-exports
 pub use args::*;
 pub use class_id::ClassId;
-pub use element_type::{ElementScript, ElementType};
 pub use godot_convert::{EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, ToGodot};
-pub use method_info::MethodInfo;
 pub use object_to_owned::ObjectToOwned;
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple, TupleFromGodot};
-pub use property_info::{PropertyHintInfo, PropertyInfo};
 pub use raw_ptr::{FfiRawPointer, RawPtr};
 #[cfg(feature = "trace")]
 pub use signature::trace;
@@ -80,18 +76,18 @@ pub use signed_range::{SignedRange, wrapped};
 pub use traits::{Element, GodotImmutable, GodotType, PackedElement, element_variant_type};
 pub use uniform_object_deref::UniformObjectDeref;
 
-// Public due to signals emit() needing it. Should be made pub(crate) again if that changes.
+// Macro re-exports (used as `meta::arg_into_owned!` etc.).
 pub use crate::arg_into_owned;
-pub use crate::registry::property::GodotShape;
+pub use crate::arg_into_ref;
 
-// Crate-local re-exports
+// Crate-local re-exports.
 mod reexport_crate {
     pub(crate) use super::traits::{
         ExtVariantType, GodotFfiVariant, GodotNullableFfi, ffi_variant_type,
     };
     // Private imports for this module only.
     pub(super) use crate::registry::method::MethodParamOrReturnInfo;
-    pub(crate) use crate::{arg_into_ref, declare_arg_method, impl_godot_as_self};
+    pub(crate) use crate::{declare_arg_method, impl_godot_as_self};
 }
 pub(crate) use reexport_crate::*;
 

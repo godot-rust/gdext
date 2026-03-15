@@ -449,7 +449,10 @@ fn handle_validate_property<'a>(
         impl ::godot::obj::cap::GodotValidateProperty for #class_name {
             type Recv = #receiver_path;
 
-            fn __godot_validate_property(mut this: ::godot::private::VirtualMethodReceiver<Self>, property: &mut ::godot::meta::PropertyInfo) {
+            fn __godot_validate_property(
+                mut this: ::godot::private::VirtualMethodReceiver<Self>,
+                property: &mut ::godot::register::info::PropertyInfo,
+            ) {
                 use ::godot::obj::UserClass as _;
 
                 #inactive_class_early_return
@@ -500,7 +503,7 @@ fn handle_get_property_list<'a>(
         impl ::godot::obj::cap::GodotGetPropertyList for #class_name {
             type Recv = #receiver_path;
 
-            fn __godot_get_property_list(mut this: ::godot::private::VirtualMethodReceiver<Self>) -> Vec<::godot::meta::PropertyInfo> {
+            fn __godot_get_property_list(mut this: ::godot::private::VirtualMethodReceiver<Self>) -> Vec<::godot::register::info::PropertyInfo> {
                 // #inactive_class_early_return
                 #type_decl::on_get_property_list(#receiver_call)
             }

@@ -11,7 +11,8 @@ use std::fmt;
 use godot_ffi::VariantType;
 
 use crate::builtin::Variant;
-use crate::meta::{ClassId, ElementType, ToGodot};
+use crate::meta::inspect::ElementType;
+use crate::meta::{ClassId, ToGodot};
 
 type Cause = Box<dyn Error + Send + Sync>;
 

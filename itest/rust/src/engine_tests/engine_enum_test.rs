@@ -6,8 +6,9 @@
  */
 
 use godot::classes::{mesh, window};
-use godot::global::{InlineAlignment, Key, KeyModifierMask, Orientation, PropertyUsageFlags};
+use godot::global::{InlineAlignment, Key, KeyModifierMask, Orientation};
 use godot::obj::{EngineBitfield, EngineEnum};
+use godot::register::info::PropertyUsageFlags;
 
 use crate::framework::itest;
 

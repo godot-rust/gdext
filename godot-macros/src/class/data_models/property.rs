@@ -114,7 +114,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             }
             UsageFlags::Custom(flags) => quote! {
                 Some(#(
-                    ::godot::global::PropertyUsageFlags::#flags
+                    ::godot::register::info::PropertyUsageFlags::#flags
                 )|*)
             },
         };
@@ -130,15 +130,15 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             FieldHint::Hint(hint) => {
                 // User specified hint without hint_string — use empty string.
                 quote! {
-                    Some(::godot::meta::PropertyHintInfo {
-                        hint: ::godot::global::PropertyHint::#hint,
+                    Some(::godot::register::info::PropertyHintInfo {
+                        hint: ::godot::register::info::PropertyHint::#hint,
                         hint_string: ::godot::builtin::GString::new(),
                     })
                 }
             }
             FieldHint::HintWithString { hint, hint_string } => quote! {
-                Some(::godot::meta::PropertyHintInfo {
-                    hint: ::godot::global::PropertyHint::#hint,
+                Some(::godot::register::info::PropertyHintInfo {
+                    hint: ::godot::register::info::PropertyHint::#hint,
                     hint_string: ::godot::builtin::GString::from(#hint_string),
                 })
             },

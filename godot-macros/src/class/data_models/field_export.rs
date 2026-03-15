@@ -419,7 +419,7 @@ impl ExportType {
 macro_rules! quote_export_func {
     ($function_name:ident($($tt:tt)*)) => {
         Some(quote! {
-            ::godot::register::property::export_info_functions::$function_name($($tt)*)
+            ::godot::register::property::export_fns::$function_name($($tt)*)
         })
     };
 
@@ -427,7 +427,7 @@ macro_rules! quote_export_func {
     // Doesn't work if function takes other generic arguments -- in that case it could be converted to a Type<...> parameter.
     ($function_name:ident < T > ($($tt:tt)*)) => {
         Some(quote! {
-            ::godot::register::property::export_info_functions::$function_name::<FieldType>($($tt)*)
+            ::godot::register::property::export_fns::$function_name::<FieldType>($($tt)*)
         })
     };
 }

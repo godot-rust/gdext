@@ -56,7 +56,7 @@ pub trait SignalReceiver<C, Ps>: 'static {
 /// **In addition to that**, they have a rather complex bound involving [`IndirectSignalReceiver`]:
 ///
 /// ```no_run
-/// # use godot::register::{IndirectSignalReceiver, SignalReceiver};
+/// # use godot::signal::{IndirectSignalReceiver, SignalReceiver};
 /// # use godot_core::meta::InParamTuple;
 /// # use godot_core::obj::WithSignals;
 /// # struct TypedSignal<'c, C: WithSignals, Ps> { _phantom: std::marker::PhantomData<&'c (C, Ps)> }
@@ -84,7 +84,7 @@ pub trait SignalReceiver<C, Ps>: 'static {
 /// When using the trait bounds as described above, you can access the actual function in the following way:
 ///
 /// ```no_run
-/// # use godot::register::{IndirectSignalReceiver, SignalReceiver};
+/// # use godot::signal::{IndirectSignalReceiver, SignalReceiver};
 /// # let mut function = || {};
 /// # let args = ();
 /// IndirectSignalReceiver::from(&mut function)

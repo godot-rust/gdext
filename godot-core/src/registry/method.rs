@@ -9,9 +9,9 @@ use godot_ffi as sys;
 use sys::interface_fn;
 
 use crate::builtin::{StringName, Variant};
-use crate::global::MethodFlags;
-use crate::meta::{ClassId, GodotConvert, GodotType, ParamTuple, PropertyInfo, Signature};
+use crate::meta::{ClassId, GodotConvert, GodotType, ParamTuple, Signature};
 use crate::obj::GodotClass;
+use crate::registry::info::{MethodFlags, PropertyInfo};
 
 /// Info relating to an argument or return type in a method.
 pub struct MethodParamOrReturnInfo {

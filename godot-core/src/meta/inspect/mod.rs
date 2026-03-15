@@ -5,7 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Introspection metadata for Godot engine types.
+//! Runtime type information for Godot arrays and dictionaries.
+
+pub mod element_type;
+
+pub use element_type::{ElementScript, ElementType};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// EnumConstant
 
 /// Metadata for a single enum or bitfield constant.
 ///

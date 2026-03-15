@@ -22,9 +22,10 @@ use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{Object, Script, ScriptLanguage};
+use crate::meta::RawPtr;
 use crate::meta::error::CallErrorType;
-use crate::meta::{MethodInfo, PropertyInfo, RawPtr};
 use crate::obj::{Base, Gd, GodotClass};
+use crate::registry::info::{MethodInfo, PropertyInfo};
 use crate::sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -409,7 +410,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
     /// # use godot::obj::script::{ScriptInstance, SiMut};
-    /// # use godot::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::register::info::{MethodInfo, PropertyInfo};
     /// # use godot::meta::error::CallErrorType;
     /// # use godot::sys;
     ///
@@ -467,7 +468,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
     /// # use godot::obj::script::{ScriptInstance, SiMut};
-    /// # use godot::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::register::info::{MethodInfo, PropertyInfo};
     /// # use godot::meta::error::CallErrorType;
     /// # use godot::sys;
     ///
@@ -616,8 +617,8 @@ mod script_instance_info {
 
     use super::{ScriptInstance, ScriptInstanceData, SiMut};
     use crate::builtin::{StringName, Variant};
-    use crate::meta::{MethodInfo, PropertyInfo};
     use crate::private::{PanicPayload, handle_panic};
+    use crate::registry::info::{MethodInfo, PropertyInfo};
     use crate::sys;
 
     /// # Safety

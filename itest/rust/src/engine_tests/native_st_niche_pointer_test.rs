@@ -15,7 +15,7 @@ use godot::builtin::{Rect2, Rid, VarDictionary, vslice};
 use godot::classes::native::{CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult};
 use godot::classes::text_server::Direction;
 use godot::classes::{IRefCounted, Node3D, RefCounted};
-use godot::meta::RawPtr;
+use godot::meta::conv::RawPtr;
 use godot::obj::{Base, NewAlloc, NewGd};
 use godot::register::{GodotClass, godot_api};
 

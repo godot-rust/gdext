@@ -20,7 +20,8 @@ use crate::registry::property::GodotShape;
 ///
 /// # Example
 /// ```no_run
-/// use godot::meta::{RawPtr, ToGodot};
+/// use godot::meta::conv::RawPtr;
+/// use godot::meta::ToGodot;
 /// use godot::classes::native::AudioFrame;
 ///
 /// let frame = AudioFrame { left: 0.0, right: 1.0 };
