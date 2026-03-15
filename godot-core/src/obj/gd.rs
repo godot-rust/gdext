@@ -954,7 +954,11 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
         };
 
         let class_id = T::class_id();
-        GodotShape::Class { class_id, heritage }
+        GodotShape::Class {
+            class_id,
+            heritage,
+            is_nullable: false,
+        }
     }
 }
 

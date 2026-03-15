@@ -29,11 +29,6 @@ pub unsafe trait GodotFfi {
     #[doc(hidden)]
     const VARIANT_TYPE: ExtVariantType;
 
-    #[doc(hidden)]
-    fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
-    }
-
     /// Construct from Godot opaque pointer.
     ///
     /// This will increment reference counts if the type is reference counted. If you need to avoid this, then a `borrow_sys` associated
@@ -461,19 +456,11 @@ mod scalars {
     unsafe impl GodotFfi for i64 {
         const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::INT);
 
-        fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-            sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
-        }
-
         ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
     }
 
     unsafe impl GodotFfi for f64 {
         const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::FLOAT);
-
-        fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-            sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE
-        }
 
         ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
     }

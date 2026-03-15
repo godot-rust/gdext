@@ -5,13 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi as sys;
-
 use crate::builtin::{Array, Variant};
 use crate::meta;
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError};
 use crate::meta::{Element, FromGodot, GodotConvert, GodotNullableFfi, GodotType, ToGodot};
-use crate::registry::method::MethodParamOrReturnInfo;
+use crate::registry::info::ParamMetadata;
 use crate::registry::property::GodotShape;
 
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
@@ -55,18 +53,6 @@ where
         Some(GodotType::from_ffi(ffi))
     }
 
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        T::param_metadata()
-    }
-
-    fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
-        T::argument_info(property_name)
-    }
-
-    fn return_info() -> Option<MethodParamOrReturnInfo> {
-        T::return_info()
-    }
-
     // Only relevant for object types T.
     fn as_object_arg(&self) -> meta::ObjectArg<'_> {
         match self {
@@ -84,7 +70,17 @@ where
     type Via = Option<T::Via>;
 
     fn godot_shape() -> GodotShape {
-        T::godot_shape()
+        // Option<Gd<T>> is nullable, so param metadata will return NONE instead of OBJECT_IS_REQUIRED.
+        match T::godot_shape() {
+            GodotShape::Class {
+                class_id, heritage, ..
+            } => GodotShape::Class {
+                class_id,
+                heritage,
+                is_nullable: true,
+            },
+            other => other,
+        }
     }
 }
 
@@ -228,7 +224,7 @@ macro_rules! impl_godot_scalar {
     };
 
     (@shared_fns; $Via:ty, $param_metadata:expr_2021) => {
-        fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        fn default_metadata() -> ParamMetadata {
             $param_metadata
         }
     };
@@ -265,41 +261,13 @@ meta::impl_godot_as_self!(f64: ByValue);
 meta::impl_godot_as_self!((): ByValue);
 
 // Also implements Element.
-impl_godot_scalar!(
-    i8 as i64,
-    FromFfiError::I8,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
-);
-impl_godot_scalar!(
-    u8 as i64,
-    FromFfiError::U8,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8
-);
-impl_godot_scalar!(
-    i16 as i64,
-    FromFfiError::I16,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16
-);
-impl_godot_scalar!(
-    u16 as i64,
-    FromFfiError::U16,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16
-);
-impl_godot_scalar!(
-    i32 as i64,
-    FromFfiError::I32,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32
-);
-impl_godot_scalar!(
-    u32 as i64,
-    FromFfiError::U32,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32
-);
-impl_godot_scalar!(
-    f32 as f64,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT;
-    lossy
-);
+impl_godot_scalar!(i8 as i64, FromFfiError::I8, ParamMetadata::INT_IS_INT8);
+impl_godot_scalar!(u8 as i64, FromFfiError::U8, ParamMetadata::INT_IS_UINT8);
+impl_godot_scalar!(i16 as i64, FromFfiError::I16, ParamMetadata::INT_IS_INT16);
+impl_godot_scalar!(u16 as i64, FromFfiError::U16, ParamMetadata::INT_IS_UINT16);
+impl_godot_scalar!(i32 as i64, FromFfiError::I32, ParamMetadata::INT_IS_INT32);
+impl_godot_scalar!(u32 as i64, FromFfiError::U32, ParamMetadata::INT_IS_UINT32);
+impl_godot_scalar!(f32 as f64, ParamMetadata::REAL_IS_FLOAT; lossy);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // u64: manually implemented, to ensure that type is not altered during conversion.
@@ -320,7 +288,7 @@ impl GodotType for u64 {
         Ok(ffi as u64)
     }
 
-    impl_godot_scalar!(@shared_fns; i64, sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64);
+    impl_godot_scalar!(@shared_fns; i64, ParamMetadata::INT_IS_UINT64);
 }
 
 impl GodotConvert for u64 {

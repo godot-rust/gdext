@@ -12,6 +12,7 @@ use crate::builtin::*;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::sealed::Sealed;
 use crate::meta::{Element, GodotFfiVariant, GodotType, RefArg};
+use crate::registry::info::ParamMetadata;
 use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_send};
 
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
@@ -24,15 +25,24 @@ use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_sen
 // However, those same types would cause memory leaks in Godot 4.1 if pre-initialized. A compat layer `new_with_uninit_or_init()` addressed this.
 // As these Godot versions are no longer supported, the current implementation uses `new_with_uninit()` uniformly for all versions.
 macro_rules! impl_ffi_variant {
-    (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
-        impl_ffi_variant!(@impls by_ref; $T, $from_fn, $to_fn);
+    // With explicit metadata (e.g. for i64, f64).
+    (ref $T:ty, $from_fn:ident, $to_fn:ident; $metadata:expr) => {
+        impl_ffi_variant!(@impls by_ref, $metadata; $T, $from_fn, $to_fn);
     };
-    ($T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
-        impl_ffi_variant!(@impls by_val; $T, $from_fn, $to_fn);
+    ($T:ty, $from_fn:ident, $to_fn:ident; $metadata:expr) => {
+        impl_ffi_variant!(@impls by_val, $metadata; $T, $from_fn, $to_fn);
+    };
+
+    // Without metadata (defaults to ParamMetadata::NONE).
+    (ref $T:ty, $from_fn:ident, $to_fn:ident) => {
+        impl_ffi_variant!(@impls by_ref, ParamMetadata::NONE; $T, $from_fn, $to_fn);
+    };
+    ($T:ty, $from_fn:ident, $to_fn:ident) => {
+        impl_ffi_variant!(@impls by_val, ParamMetadata::NONE; $T, $from_fn, $to_fn);
     };
 
     // Implementations
-    (@impls $by_ref_or_val:ident; $T:ty, $from_fn:ident, $to_fn:ident) => {
+    (@impls $by_ref_or_val:ident, $metadata:expr; $T:ty, $from_fn:ident, $to_fn:ident) => {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
@@ -77,6 +87,10 @@ macro_rules! impl_ffi_variant {
             fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
                 Ok(ffi)
             }
+
+            fn default_metadata() -> ParamMetadata {
+                $metadata
+            }
         }
 
         impl Element for $T {}
@@ -111,8 +125,8 @@ mod impls {
     // used in codegen get_builtin_arg_passing().
 
     impl_ffi_variant!(bool, bool_to_variant, bool_from_variant);
-    impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
-    impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
+    impl_ffi_variant!(i64, int_to_variant, int_from_variant; ParamMetadata::INT_IS_INT64);
+    impl_ffi_variant!(f64, float_to_variant, float_from_variant; ParamMetadata::REAL_IS_DOUBLE);
     impl_ffi_variant!(Vector2, vector2_to_variant, vector2_from_variant);
     impl_ffi_variant!(Vector3, vector3_to_variant, vector3_from_variant);
     impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant);
@@ -127,10 +141,10 @@ mod impls {
     impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
     impl_ffi_variant!(Rect2, rect2_to_variant, rect2_from_variant);
     impl_ffi_variant!(Rect2i, rect2i_to_variant, rect2i_from_variant);
-    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
+    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
-    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID);
-    impl_ffi_variant!(ref GString, string_to_variant, string_from_variant; String);
+    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant);
+    impl_ffi_variant!(ref GString, string_to_variant, string_from_variant);
     impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
@@ -367,9 +381,5 @@ impl GodotType for Variant {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
         Ok(ffi)
-    }
-
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 }

@@ -12,7 +12,7 @@ use godot::init::GdextBuild;
 use godot::meta::shape::GodotShape;
 use godot::meta::{FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, OnEditor};
-use godot::register::info::{PropertyHint, PropertyHintInfo, PropertyUsageFlags};
+use godot::register::info::{ParamMetadata, PropertyHint, PropertyHintInfo, PropertyUsageFlags};
 use godot::register::property::{Export, Var};
 use godot::register::{GodotClass, godot_api};
 use godot::test::itest;
@@ -146,6 +146,7 @@ impl GodotConvert for SomeCStyleEnum {
             },
             class_name: None,
             usage_flags: PropertyUsageFlags::NONE,
+            metadata: ParamMetadata::NONE,
         }
     }
 }

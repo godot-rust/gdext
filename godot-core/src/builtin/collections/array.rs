@@ -23,7 +23,7 @@ use crate::meta::{
     RefArg, ToGodot, element_variant_type,
 };
 use crate::obj::{Bounds, DynGd, Gd, GodotClass, bounds};
-use crate::registry::info::PropertyHintInfo;
+use crate::registry::info::{ParamMetadata, PropertyHintInfo};
 use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotShape, Var};
 
 /// Godot's `Array` type.
@@ -1148,6 +1148,7 @@ impl<T: Element> GodotConvert for Array<T> {
         if Self::has_variant_t() {
             return GodotShape::Builtin {
                 variant_type: VariantType::ARRAY,
+                metadata: ParamMetadata::NONE,
             };
         }
 

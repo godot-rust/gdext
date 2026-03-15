@@ -545,6 +545,7 @@ pub mod export_fns {
             // { "type": 4, "hint": 13, "hint_string": "*.png" }
             GodotShape::Builtin {
                 variant_type: VariantType::STRING,
+                ..
             } => PropertyHintInfo {
                 hint,
                 hint_string: GString::from(filter),
@@ -555,6 +556,7 @@ pub mod export_fns {
             #[cfg(since_api = "4.3")]
             GodotShape::Builtin {
                 variant_type: VariantType::PACKED_STRING_ARRAY,
+                ..
             } => to_string_array_hint(hint, filter),
 
             #[cfg(since_api = "4.3")]

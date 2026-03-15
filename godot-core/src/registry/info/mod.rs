@@ -11,9 +11,11 @@
 //! See also [`meta::shape`](crate::meta::shape) for the static type description of those.
 
 mod method_info;
+mod param_metadata;
 mod property_info;
 
 pub use self::method_info::MethodInfo;
+pub use self::param_metadata::ParamMetadata;
 pub use self::property_info::{PropertyHintInfo, PropertyInfo};
 pub use crate::r#gen::central::global_reexported_enums::{
     MethodFlags, PropertyHint, PropertyUsageFlags,
