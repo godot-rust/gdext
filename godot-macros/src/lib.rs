@@ -393,8 +393,8 @@ use crate::util::{KvParser, bail, ident};
 /// while hint strings are dependent on the hint, property type and context. Using these low-level keys is rarely necessary, as most common
 /// combinations are covered by `#[var]` and `#[export]` already.
 ///
-/// [`PropertyHint`]: ../global/struct.PropertyHint.html
-/// [`PropertyUsageFlags`]: ../global/struct.PropertyUsageFlags.html
+/// [`PropertyHint`]: ../register/info/struct.PropertyHint.html
+/// [`PropertyUsageFlags`]: ../register/info/struct.PropertyUsageFlags.html
 ///
 /// ```no_run
 /// # use godot::prelude::*;

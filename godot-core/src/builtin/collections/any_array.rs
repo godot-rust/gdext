@@ -14,9 +14,8 @@ use crate::builtin::iter::ArrayFunctionalOps;
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
-use crate::meta::{
-    Element, ElementType, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
-};
+use crate::meta::inspect::ElementType;
+use crate::meta::{Element, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
 use crate::registry::property::GodotShape;
 
 /// Covariant `Array` that can be either typed or untyped.

@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Errors in the gdext library.
+//! Custom error types.
 
 mod call_error;
 mod call_error_type;

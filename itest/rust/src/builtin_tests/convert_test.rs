@@ -106,13 +106,13 @@ impl ConvertedStruct {
 impl GodotConvert for ConvertedStruct {
     type Via = VarDictionary;
 
-    fn godot_shape() -> godot::meta::GodotShape {
+    fn godot_shape() -> godot::meta::shape::GodotShape {
         <VarDictionary as GodotConvert>::godot_shape()
     }
 }
 
 impl ToGodot for ConvertedStruct {
-    type Pass = godot::meta::ByValue;
+    type Pass = godot::meta::conv::ByValue;
 
     fn to_godot(&self) -> Self::Via {
         vdict! {

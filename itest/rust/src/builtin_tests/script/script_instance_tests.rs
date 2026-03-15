@@ -13,10 +13,12 @@ use godot::classes::{
     ScriptLanguageExtension,
 };
 use godot::global::{Error, MethodFlags};
+use godot::meta::conv::RawPtr;
 use godot::meta::error::CallErrorType;
-use godot::meta::{ClassId, FromGodot, MethodInfo, PropertyInfo, RawPtr, ToGodot};
+use godot::meta::{ClassId, FromGodot, ToGodot};
 use godot::obj::script::{ScriptInstance, SiMut, create_script_instance};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
+use godot::register::info::{MethodInfo, PropertyInfo};
 use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;

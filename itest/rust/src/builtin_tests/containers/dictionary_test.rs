@@ -12,7 +12,8 @@ use godot::builtin::{
 };
 use godot::classes::RefCounted;
 use godot::init::GdextBuild;
-use godot::meta::{Element, ElementType, FromGodot, ToGodot};
+use godot::meta::inspect::ElementType;
+use godot::meta::{Element, FromGodot, ToGodot};
 use godot::obj::NewGd;
 
 use crate::framework::{
@@ -806,7 +807,7 @@ fn dictionary_should_format_with_display() {
 #[itest]
 #[cfg(since_api = "4.4")]
 fn dictionary_element_type() {
-    use godot::meta::ElementType;
+    use godot::meta::inspect::ElementType;
 
     // Test untyped dictionary
     let untyped = VarDictionary::new();

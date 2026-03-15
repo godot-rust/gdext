@@ -33,7 +33,7 @@ use crate::obj::{Gd, GdMut, GdRef, GodotClass, WithBaseField};
 ///
 /// Despite being 2 different traits, a function can accept both by simply being generic over `Declarer`:
 /// ```no_run
-/// use godot::meta::UniformObjectDeref;
+/// use godot::meta::conv::UniformObjectDeref;
 /// # use godot::prelude::*;
 ///
 /// fn abstract_over_objects<Declarer, C>(obj: &Gd<C>)

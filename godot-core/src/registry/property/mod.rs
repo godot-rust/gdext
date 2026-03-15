@@ -7,28 +7,15 @@
 
 //! Registration support for property types.
 
-use std::fmt::Display;
-
 use godot_ffi::GodotNullableFfi;
 
 use crate::meta::{ClassId, FromGodot, GodotConvert, GodotType, ToGodot};
 
-mod godot_shape;
 mod phantom_var;
 
-pub use godot_shape::{ClassHeritage, Enumerator, GodotElementShape, GodotShape};
 pub use phantom_var::PhantomVar;
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Shared hint-string helpers
-
-/// Formats a single hint as `"Name:value"` if value is `Some`, otherwise `"Name"`.
-pub(crate) fn format_hint_entry(name: &str, value: Option<impl Display>) -> String {
-    match value {
-        Some(v) => format!("{name}:{v}"),
-        None => name.to_string(),
-    }
-}
+pub(crate) use crate::meta::shape::{ClassHeritage, GodotElementShape, GodotShape};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Var trait
@@ -341,13 +328,13 @@ where
 ///
 /// Each function is named the same as the equivalent Godot annotation.  
 /// For instance, `@export_range` in Godot is `fn export_range` here.
-pub mod export_info_functions {
+pub mod export_fns {
     use godot_ffi::VariantType;
 
     use crate::builtin::GString;
-    use crate::global::PropertyHint;
     use crate::meta::{GodotConvert, PropertyHintInfo};
     use crate::obj::EngineEnum;
+    use crate::registry::info::PropertyHint;
     use crate::registry::property::{Export, GodotElementShape, GodotShape};
     use crate::sys;
 
@@ -441,7 +428,7 @@ pub mod export_info_functions {
 
     impl<T: std::fmt::Display> ExportValueWithKey<T> {
         fn as_hint_string(&self) -> String {
-            super::format_hint_entry(&self.variant, self.key.as_ref())
+            crate::meta::shape::format_hint_entry(&self.variant, self.key.as_ref())
         }
 
         fn slice_as_hint_string<V>(values: &[V]) -> String
@@ -479,7 +466,7 @@ pub mod export_info_functions {
     /// # Examples
     ///
     /// ```no_run
-    /// # use godot::register::property::export_info_functions::export_enum;
+    /// # use godot::register::property::export_fns::export_enum;
     /// export_enum(&[("a", None), ("b", Some(10))]);
     /// ```
     pub fn export_enum<T>(variants: &[T]) -> PropertyHintInfo
@@ -512,7 +499,7 @@ pub mod export_info_functions {
     /// # Examples
     ///
     /// ```no_run
-    /// # use godot::register::property::export_info_functions::export_flags;
+    /// # use godot::register::property::export_fns::export_flags;
     /// export_flags(&[("a", None), ("b", Some(10))]);
     /// ```
     pub fn export_flags<T>(bits: &[T]) -> PropertyHintInfo
@@ -605,7 +592,7 @@ pub mod export_info_functions {
     fn to_string_array_hint(hint: PropertyHint, filter: &str) -> PropertyHintInfo {
         PropertyHintInfo {
             hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(&super::godot_shape::format_elements_typed(
+            hint_string: GString::from(&crate::meta::shape::format_elements_typed(
                 VariantType::STRING,
                 hint,
                 filter,

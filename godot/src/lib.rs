@@ -32,8 +32,9 @@
 //!
 //! * [`register`], used to register **your own** Rust symbols (classes, methods, constants etc.) with Godot.
 //! * [`obj`], everything related to handling Godot objects, such as the `Gd<T>` type.
+//! * [`signal`], machinery for type-safe signals.
 //! * [`tools`], higher-level utilities that extend the generated code, e.g. `load<T>()`.
-//! * [`meta`], fundamental information about types, properties and conversions.
+//! * [`meta`], fundamental information about types and conversions.
 //! * [`init`], entry point and global library configuration.
 //! * [`task`], integration with async code.
 //!
@@ -241,7 +242,7 @@ pub use godot_core::possibly_docs as docs;
 #[doc(hidden)]
 pub use godot_core::sys;
 #[doc(inline)]
-pub use godot_core::{builtin, classes, global, meta, obj, task, tools};
+pub use godot_core::{builtin, classes, global, obj, task, tools};
 
 /// Entry point and global init/shutdown of the library.
 pub mod init {
@@ -250,13 +251,57 @@ pub mod init {
     pub use godot_macros::gdextension;
 }
 
+/// Meta-information about Godot types, their properties and conversions between them.
+pub mod meta {
+    // Submodules.
+    // Derive macro (moved from `register`).
+    pub use godot_core::meta::ClassId;
+    #[doc(hidden)]
+    pub use godot_core::meta::arg_into_owned;
+    #[cfg(feature = "__trace")]
+    #[doc(hidden)]
+    pub use godot_core::meta::trace;
+    // Argument conversions that stay in flat `meta`.
+    pub use godot_core::meta::{AsArg, ObjectArg, ToArg, owned_into_arg, ref_to_arg};
+    // Hidden internal items for proc-macros and generated code.
+    #[doc(hidden)]
+    pub use godot_core::meta::{CallContext, Signature, ensure_func_bounds};
+    #[cfg(feature = "__trace")]
+    #[doc(hidden)]
+    pub use godot_core::meta::{CowArg, FfiArg};
+    // Type traits.
+    pub use godot_core::meta::{
+        Element, GodotImmutable, GodotType, PackedElement, element_variant_type,
+    };
+    // Conversion traits.
+    pub use godot_core::meta::{EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, ToGodot};
+    // Range utilities.
+    pub use godot_core::meta::{SignedRange, wrapped};
+    #[doc(inline)]
+    pub use godot_core::meta::{conv, error, inspect, shape};
+    pub use godot_macros::GodotConvert;
+}
+
+/// Runtime types for working with signals: connecting, emitting, and handling.
+pub mod signal {
+    pub use godot_core::registry::signal::re_export::*;
+}
+
 /// Register/export Rust symbols to Godot: classes, methods, enums...
 pub mod register {
     #[cfg(feature = "__codegen-full")]
     pub use godot_core::registry::RpcConfig;
-    pub use godot_core::registry::property;
-    pub use godot_core::registry::signal::re_export::*;
-    pub use godot_macros::{Export, GodotClass, GodotConvert, Var, godot_api, godot_dyn};
+    pub use godot_macros::{GodotClass, godot_api, godot_dyn};
+
+    /// Register Rust fields as Godot properties.
+    pub mod property {
+        pub use godot_core::registry::property::*;
+        // Derive macros for property traits.
+        pub use godot_macros::{Export, Var};
+    }
+
+    #[doc(inline)]
+    pub use godot_core::registry::info;
 
     /// Re-exports used by proc-macro API.
     #[doc(hidden)]

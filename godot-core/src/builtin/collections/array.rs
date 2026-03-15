@@ -16,10 +16,11 @@ use crate::builtin::iter::ArrayFunctionalOps;
 use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ArrayMismatch, ConvertError, FromGodotError, FromVariantError};
+use crate::meta::inspect::ElementType;
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{
-    AsArg, ClassId, Element, ElementType, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant,
-    GodotType, PropertyHintInfo, RefArg, ToGodot, element_variant_type,
+    AsArg, ClassId, Element, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
+    PropertyHintInfo, RefArg, ToGodot, element_variant_type,
 };
 use crate::obj::{Bounds, DynGd, Gd, GodotClass, bounds};
 use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotShape, Var};

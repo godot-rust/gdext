@@ -246,7 +246,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
         [
             // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
             #(
-                <#param_list as ::godot::meta::ParamTuple>
+                <#param_list as ::godot::meta::conv::ParamTuple>
                     ::property_info(#indexes, #param_names_str).unwrap(),
             )*
         ]
@@ -259,7 +259,7 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
         #(#signal_cfg_attrs)*
         unsafe {
             use ::godot::sys;
-            let parameters_info: [::godot::meta::PropertyInfo; #signal_parameters_count] = #param_property_infos;
+            let parameters_info: [::godot::register::info::PropertyInfo; #signal_parameters_count] = #param_property_infos;
 
             let mut parameters_info_sys: [sys::GDExtensionPropertyInfo; #signal_parameters_count] =
                 std::array::from_fn(|i| parameters_info[i].property_sys());
@@ -314,7 +314,7 @@ impl SignalCollection {
             // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
             #vis_marker fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
-                    __typed: ::godot::register::TypedSignal::<'c, C, _>::extract(&mut self.__internal_obj, #signal_name_str)
+                    __typed: ::godot::signal::TypedSignal::<'c, C, _>::extract(&mut self.__internal_obj, #signal_name_str)
                 }
             }
         });
@@ -388,7 +388,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
         #[doc(hidden)] // Signal struct is hidden, but the method returning it is not (IDE completion).
         #vis_marker struct #individual_struct_name<'c, C: ::godot::obj::WithSignals> {
             #[doc(hidden)]
-            __typed: ::godot::register::TypedSignal<'c, C, #param_tuple>,
+            __typed: ::godot::signal::TypedSignal<'c, C, #param_tuple>,
         }
 
         // Concrete convenience API is macro-based; many parts are delegated to TypedSignal via Deref/DerefMut.
@@ -407,7 +407,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
 
         #(#signal_cfg_attrs)*
         impl<'c, C: ::godot::obj::WithSignals> std::ops::Deref for #individual_struct_name<'c, C> {
-            type Target = ::godot::register::TypedSignal<'c, C, #param_tuple>;
+            type Target = ::godot::signal::TypedSignal<'c, C, #param_tuple>;
 
             fn deref(&self) -> &Self::Target {
                 &self.__typed

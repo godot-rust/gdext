@@ -22,7 +22,7 @@ pub use super::obj::{
 };
 pub use super::register::property::{Export, PhantomVar, Var};
 // Re-export macros.
-pub use super::register::{Export, GodotClass, GodotConvert, Var, godot_api, godot_dyn};
+pub use super::register::{GodotClass, godot_api, godot_dyn};
 pub use super::tools::{GFile, load, save, try_load, try_save};
 
 // Make trait methods available.
