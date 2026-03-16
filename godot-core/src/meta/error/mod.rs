@@ -12,6 +12,7 @@ mod call_error_type;
 mod convert_error;
 mod error_to_godot;
 mod io_error;
+mod rpc_error;
 mod string_error;
 
 pub mod strat;
@@ -21,6 +22,7 @@ pub use call_error_type::*;
 pub use convert_error::*;
 pub use error_to_godot::*;
 pub use io_error::*;
+pub use rpc_error::*;
 pub use string_error::*;
 
 pub use crate::func_bail;

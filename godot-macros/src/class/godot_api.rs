@@ -17,6 +17,7 @@ fn parse_inherent_impl_attr(meta: TokenStream) -> Result<super::InherentImplAttr
     let mut attr = KvParser::parse_required(item.attributes(), "godot_api", &meta)?;
     let secondary = attr.handle_alone("secondary")?;
     let no_typed_signals = attr.handle_alone("no_typed_signals")?;
+    let no_typed_rpcs = attr.handle_alone("no_typed_rpcs")?;
     attr.finish()?;
 
     if no_typed_signals && secondary {
@@ -25,10 +26,17 @@ fn parse_inherent_impl_attr(meta: TokenStream) -> Result<super::InherentImplAttr
             "#[godot_api]: keys `secondary` and `no_typed_signals` are mutually exclusive; secondary blocks allow no signals anyway"
         )?;
     }
+    if no_typed_rpcs && secondary {
+        return bail!(
+            meta,
+            "#[godot_api]: keys `secondary` and `no_typed_rpcs` are mutually exclusive; secondary blocks don't allow rpcs anyway"
+        )?;
+    }
 
     Ok(super::InherentImplAttr {
         secondary,
         no_typed_signals,
+        no_typed_rpcs,
     })
 }
 

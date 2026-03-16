@@ -28,6 +28,7 @@ mod base_init;
 mod base_strong_initialization;
 #[cfg(before_api = "4.7")]
 mod base_weak_initialization;
+pub mod rpc;
 pub(crate) mod rtti;
 // TODO(v0.6): godot::obj::signal was accidentally public; kept for SemVer -> remove in next minor. Canonical is godot::signal.
 #[doc(hidden)]
