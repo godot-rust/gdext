@@ -196,7 +196,7 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
 
         collection_impl_methods.append_all(quote! {
             #[must_use]
-            pub fn #rpc_name(self, #rpc_typed_args) -> #rpc_builder_name<'c, C> {
+            pub fn #rpc_name(self, #rpc_typed_args) -> #rpc_builder_name<'c> {
                 #rpc_builder_name {
                     object: self.object,
                     #rpc_args
@@ -206,17 +206,13 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
 
         rpc_builders.append_all(quote! {
             #[doc(hidden)]
-            pub struct #rpc_builder_name<'c, C>
-            where
-                C: ::godot::obj::GodotClass + ::godot::obj::WithBaseField + ::godot::obj::Inherits<::godot::classes::Node>,
+            pub struct #rpc_builder_name<'c>
             {
-                object: UserRpcObject<'c, C>,
+                object: UserRpcObject<'c, #for_class>,
                 #rpc_typed_args
             }
 
-            impl<'c, C> #rpc_builder_name<'c, C>
-            where
-                C: ::godot::obj::GodotClass + ::godot::obj::WithBaseField + ::godot::obj::Inherits<::godot::classes::Node>,
+            impl<'c> #rpc_builder_name<'c>
             {
                 pub fn call(mut self) {
                     self.object.call_rpc(stringify!(#rpc_name), ::godot::builtin::vslice![#rpc_self_args]);
@@ -241,25 +237,19 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             use ::godot::obj::{RpcCollection, UserRpcObject};
 
             #[doc(hidden)]
-            pub struct #collection_name<'c, C>
-            where
-                C: ::godot::obj::GodotClass + ::godot::obj::WithBaseField + ::godot::obj::Inherits<::godot::classes::Node>,
+            pub struct #collection_name<'c>
             {
-                object: UserRpcObject<'c, C>,
+                object: UserRpcObject<'c, #for_class>,
             }
 
-            impl<'c, C> #collection_name<'c, C>
-            where
-                C: ::godot::obj::GodotClass + ::godot::obj::WithBaseField + ::godot::obj::Inherits<::godot::classes::Node>,
+            impl<'c> #collection_name<'c>
             {
                 #collection_impl_methods
             }
 
-            impl<'c, C> RpcCollection<'c, C> for #collection_name<'c, C>
-            where
-                C: ::godot::obj::GodotClass + ::godot::obj::WithBaseField + ::godot::obj::Inherits<::godot::classes::Node>,
+            impl<'c> RpcCollection<'c, #for_class> for #collection_name<'c>
             {
-                fn from_user_rpc_object(object: UserRpcObject<'c, C>) -> Self {
+                fn from_user_rpc_object(object: UserRpcObject<'c, #for_class>) -> Self {
                     #collection_name {
                         object,
                     }
@@ -267,8 +257,10 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             }
 
             impl<'c> ::godot::obj::WithUserRpcs<'c, #for_class> for #for_class
+            where
+                #for_class: ::godot::obj::WithBaseField,
             {
-                type Collection = #collection_name<'c, #for_class>;
+                type Collection = #collection_name<'c>;
 
                 fn rpcs(&'c mut self) -> Self::Collection {
                     Self::Collection::from_user_rpc_object(

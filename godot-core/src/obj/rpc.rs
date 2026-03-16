@@ -20,7 +20,7 @@ pub enum UserRpcObject<'c, C: GodotClass> {
 // TODO: forward errors from RPC dispatch
 impl<'c, C> UserRpcObject<'c, C>
 where
-    C: GodotClass + WithBaseField + Inherits<Node>,
+    C: WithBaseField + Inherits<Node>,
 {
     /// Consumes [`Self`], calling the given RPC with `parameters`.
     pub fn call_rpc(self, name: &str, parameters: &[Variant]) {
@@ -51,14 +51,14 @@ where
 
 pub trait RpcCollection<'c, C>
 where
-    C: GodotClass + WithBaseField + Inherits<Node>,
+    C: GodotClass,
 {
     fn from_user_rpc_object(object: UserRpcObject<'c, C>) -> Self;
 }
 
 pub trait WithUserRpcs<'c, C>
 where
-    C: GodotClass + WithBaseField + Inherits<Node> + WithUserRpcs<'c, C>,
+    C: GodotClass,
 {
     type Collection: RpcCollection<'c, C>;
 
@@ -67,7 +67,7 @@ where
 
 impl<'c, C> WithUserRpcs<'c, C> for Gd<C>
 where
-    C: GodotClass + WithBaseField + Inherits<Node> + WithUserRpcs<'c, C>,
+    C: Inherits<Node> + WithUserRpcs<'c, C>,
 {
     type Collection = <C as WithUserRpcs<'c, C>>::Collection;
 
