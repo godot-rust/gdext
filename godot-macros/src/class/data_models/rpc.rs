@@ -188,7 +188,8 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
                 }
             })
             .collect();
-        let rpc_args: TokenStream = param_idents.iter().map(|name| quote! { #name, }).collect();
+        let rpc_args = param_idents.iter().map(|name| quote! { #name });
+        let rpc_args_2 = rpc_args.clone();
         let rpc_self_args: TokenStream = param_idents
             .iter()
             .map(|name| quote! { self.#name, })
@@ -199,7 +200,7 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             pub fn #rpc_name(self, #rpc_typed_args) -> #rpc_builder_name<'c> {
                 #rpc_builder_name {
                     object: self.object,
-                    #rpc_args
+                    #( #rpc_args: #rpc_args.to_variant() ),*
                 }
             }
         });
@@ -209,17 +210,17 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             pub struct #rpc_builder_name<'c>
             {
                 object: UserRpcObject<'c, #for_class>,
-                #rpc_typed_args
+                #( #rpc_args_2: Variant ),*
             }
 
             impl<'c> #rpc_builder_name<'c>
             {
                 pub fn call(mut self) {
-                    self.object.call_rpc(stringify!(#rpc_name), ::godot::builtin::vslice![#rpc_self_args]);
+                    self.object.call_rpc(stringify!(#rpc_name), &[#rpc_self_args]);
                 }
 
                 pub fn call_id(mut self, id: i64) {
-                    self.object.call_rpc_id(stringify!(#rpc_name), id, ::godot::builtin::vslice![#rpc_self_args]);
+                    self.object.call_rpc_id(stringify!(#rpc_name), id, &[#rpc_self_args]);
                 }
             }
         });
