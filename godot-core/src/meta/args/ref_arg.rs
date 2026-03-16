@@ -11,8 +11,8 @@ use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
+use crate::meta::shape::GodotShape;
 use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, ToGodot};
-use crate::registry::property::GodotShape;
 use crate::sys;
 
 /// Simple reference wrapper, used when passing arguments by-ref to Godot APIs.

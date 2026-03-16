@@ -14,6 +14,7 @@ use sys::{SysPtr as _, static_assert_eq_size_align};
 
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
+use crate::meta::shape::GodotShape;
 use crate::meta::{AsArg, ClassId, Element, FromGodot, GodotConvert, GodotType, RefArg, ToGodot};
 use crate::obj::{
     Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnEditor, RawGd,
@@ -22,7 +23,7 @@ use crate::obj::{
 use crate::private::{PanicPayload, callbacks};
 use crate::registry::class::try_dynify_object;
 use crate::registry::info::PropertyHintInfo;
-use crate::registry::property::{Export, GodotShape, SimpleVar, Var};
+use crate::registry::property::{Export, SimpleVar, Var};
 use crate::{classes, meta, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -943,7 +944,7 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
     type Via = Gd<T>;
 
     fn godot_shape() -> GodotShape {
-        use crate::registry::property::ClassHeritage;
+        use crate::meta::shape::ClassHeritage;
 
         let heritage = if T::inherits::<classes::Resource>() {
             ClassHeritage::Resource
@@ -954,7 +955,11 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
         };
 
         let class_id = T::class_id();
-        GodotShape::Class { class_id, heritage }
+        GodotShape::Class {
+            class_id,
+            heritage,
+            is_nullable: false,
+        }
     }
 }
 

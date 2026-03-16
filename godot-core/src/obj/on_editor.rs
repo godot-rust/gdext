@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::meta::shape::GodotShape;
 use crate::meta::{FromGodot, GodotConvert, GodotType};
-use crate::registry::property::{BuiltinExport, Export, GodotShape, Var};
+use crate::registry::property::{BuiltinExport, Export, Var};
 
 /// Exported property that must be initialized in the editor (or associated code) before use.
 ///

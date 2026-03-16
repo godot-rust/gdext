@@ -19,10 +19,11 @@ use crate::builtin::collections::extend_buffer::ExtendBufferTrait;
 use crate::builtin::*;
 use crate::classes::file_access::CompressionMode;
 use crate::meta;
+use crate::meta::shape::GodotShape;
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{AsArg, FromGodot, GodotConvert, PackedElement, ToGodot};
 use crate::obj::EngineEnum;
-use crate::registry::property::{Export, GodotShape, SimpleVar};
+use crate::registry::property::{Export, SimpleVar};
 
 // Many builtin types don't have a #[repr] themselves, but they are used in packed arrays, which assumes certain size and alignment.
 // This is mostly a problem for as_slice(), which reinterprets the FFI representation into the "frontend" type like GString.

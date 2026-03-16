@@ -16,8 +16,8 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::ConvertError;
 use crate::meta::inspect::ElementType;
+use crate::meta::shape::GodotShape;
 use crate::meta::{AsArg, Element, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
-use crate::registry::property::GodotShape;
 
 /// Covariant `Dictionary` that can be typed or untyped.
 ///

@@ -12,8 +12,8 @@ use godot_ffi::{ExtVariantType, GodotFfi, GodotNullableFfi, PtrcallType};
 
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
+use crate::meta::shape::GodotShape;
 use crate::meta::{GodotConvert, GodotFfiVariant, ObjectArg, RefArg, ToGodot};
-use crate::registry::property::GodotShape;
 use crate::sys;
 
 /// FFI-optimized argument. Like `CowArg`, but with additional "short-circuit" path to pass objects to FFI.

@@ -15,8 +15,6 @@ mod phantom_var;
 
 pub use phantom_var::PhantomVar;
 
-pub(crate) use crate::meta::shape::{ClassHeritage, GodotElementShape, GodotShape};
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Var trait
 
@@ -333,9 +331,10 @@ pub mod export_fns {
 
     use crate::builtin::GString;
     use crate::meta::GodotConvert;
+    use crate::meta::shape::{GodotElementShape, GodotShape};
     use crate::obj::EngineEnum;
     use crate::registry::info::{PropertyHint, PropertyHintInfo};
-    use crate::registry::property::{Export, GodotElementShape, GodotShape};
+    use crate::registry::property::Export;
     use crate::sys;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
@@ -545,6 +544,7 @@ pub mod export_fns {
             // { "type": 4, "hint": 13, "hint_string": "*.png" }
             GodotShape::Builtin {
                 variant_type: VariantType::STRING,
+                ..
             } => PropertyHintInfo {
                 hint,
                 hint_string: GString::from(filter),
@@ -555,6 +555,7 @@ pub mod export_fns {
             #[cfg(since_api = "4.3")]
             GodotShape::Builtin {
                 variant_type: VariantType::PACKED_STRING_ARRAY,
+                ..
             } => to_string_array_hint(hint, filter),
 
             #[cfg(since_api = "4.3")]

@@ -22,9 +22,11 @@ use godot_ffi as sys;
 
 use crate::builtin::{CowStr, GString, StringName, VariantType};
 use crate::global::godot_str;
-use crate::meta::{ClassId, GodotConvert};
+use crate::meta::{ClassId, GodotConvert, GodotType};
 use crate::obj::EngineEnum as _;
-use crate::registry::info::{PropertyHint, PropertyHintInfo, PropertyInfo, PropertyUsageFlags};
+use crate::registry::info::{
+    ParamMetadata, PropertyHint, PropertyHintInfo, PropertyInfo, PropertyUsageFlags,
+};
 
 /// The "shape" of a Godot type: whether it's a builtin, a class, an enum/bitfield, etc.
 ///
@@ -78,6 +80,11 @@ pub enum GodotShape {
     Builtin {
         /// Godot variant type (e.g. `INT`, `FLOAT`, `STRING`, `VECTOR3`, `PACKED_BYTE_ARRAY`). Never `OBJECT`.
         variant_type: VariantType,
+
+        /// Numeric precision metadata for method parameters/return values.
+        ///
+        /// Distinguishes sub-types like `i8` from `i64` even though both map to Godot's `INT`.
+        metadata: ParamMetadata,
     },
 
     /// A Godot object type (`Gd<T>`, `DynGd<T, D>`, `Option<Gd<T>>`, `OnReady<Gd<T>>`, etc.).
@@ -89,6 +96,13 @@ pub enum GodotShape {
 
         /// Whether this inherits from `Resource`, `Node`, or other object class.
         heritage: ClassHeritage,
+
+        /// Whether the object can be null (e.g. `Option<Gd<T>>`).
+        ///
+        /// [`param_metadata()`][Self::param_metadata] returns:
+        /// - `NONE` if the object is nullable,
+        /// - `OBJECT_IS_REQUIRED` otherwise.
+        is_nullable: bool,
     },
 
     /// An [`Array<T>`][crate::builtin::Array] where `T` is not `Variant`.
@@ -156,6 +170,9 @@ pub enum GodotShape {
         ///
         /// Typically you can use `NONE` if the shape doesn't need extra flags.
         usage_flags: PropertyUsageFlags,
+
+        /// Numeric precision metadata for method parameters/return values.
+        metadata: ParamMetadata,
     },
 }
 
@@ -172,7 +189,25 @@ impl GodotShape {
             sys::ExtVariantType::Variant => Self::Variant,
             ext => Self::Builtin {
                 variant_type: ext.variant_as_nil(),
+                metadata: <T::Via as GodotType>::default_metadata(),
             },
+        }
+    }
+
+    /// Returns the parameter metadata for this shape, used in method signature registration.
+    ///
+    /// - `Builtin` and `Custom`: returns the stored `metadata` field.
+    /// - `Class` with `is_nullable: false`: returns [`ParamMetadata::OBJECT_IS_REQUIRED`].
+    /// - All other shapes: returns [`ParamMetadata::NONE`].
+    pub fn param_metadata(&self) -> ParamMetadata {
+        match self {
+            Self::Builtin { metadata, .. } | Self::Custom { metadata, .. } => *metadata,
+
+            Self::Class {
+                is_nullable: false, ..
+            } => ParamMetadata::OBJECT_IS_REQUIRED,
+
+            _ => ParamMetadata::NONE,
         }
     }
 
@@ -180,7 +215,7 @@ impl GodotShape {
     pub fn variant_type(&self) -> VariantType {
         match self {
             Self::Variant => VariantType::NIL,
-            Self::Builtin { variant_type } => *variant_type,
+            Self::Builtin { variant_type, .. } => *variant_type,
             Self::Class { .. } => VariantType::OBJECT,
             Self::Enum { variant_type, .. } => *variant_type,
             Self::Custom { variant_type, .. } => *variant_type,
@@ -238,7 +273,7 @@ impl GodotShape {
         match self {
             Self::Variant => PropertyHintInfo::none(),
 
-            Self::Builtin { variant_type } => {
+            Self::Builtin { variant_type, .. } => {
                 // In 4.3+, packed arrays use a TYPE_STRING hint with their element type.
                 // See https://github.com/godotengine/godot/pull/82952.
                 if sys::GdextBuild::since_api("4.3") {
@@ -258,7 +293,9 @@ impl GodotShape {
                 }
             }
 
-            Self::Class { class_id, heritage } => match heritage {
+            Self::Class {
+                class_id, heritage, ..
+            } => match heritage {
                 ClassHeritage::Node => PropertyHintInfo {
                     hint: PropertyHint::NODE_TYPE,
                     hint_string: class_id.to_gstring(),
@@ -512,16 +549,19 @@ impl GodotElementShape {
              GShape::Variant
             => Self::Variant,
 
-            GShape::Builtin { variant_type }
+            // Strip metadata: element shapes don't carry param metadata.
+            GShape::Builtin { variant_type, .. }
             => Self::Builtin { variant_type },
 
-             GShape::Class { class_id, heritage }
+            // Strip is_nullable: element shapes don't carry object-nullability metadata.
+             GShape::Class { class_id, heritage, .. }
             => Self::Class { class_id, heritage },
 
              GShape::Enum { variant_type, enumerators, godot_name, is_bitfield }
             => Self::Enum { variant_type, enumerators, godot_name, is_bitfield },
 
-             GShape::Custom { variant_type, var_hint, export_hint, class_name, usage_flags}
+            // Strip metadata.
+             GShape::Custom { variant_type, var_hint, export_hint, class_name, usage_flags, .. }
             => Self::Custom { variant_type, var_hint, export_hint, class_name, usage_flags },
 
             GShape::TypedArray { .. } |
@@ -538,17 +578,20 @@ impl GodotElementShape {
             Self::Variant
             => G::Variant,
 
+            // Fill default metadata on conversion out.
             Self::Builtin { variant_type }
-            => G::Builtin { variant_type },
+            => G::Builtin { variant_type, metadata: ParamMetadata::NONE },
 
+            // Fill is_nullable: true (nullable by default for element shapes).
             Self::Class { class_id, heritage }
-            => G::Class { class_id, heritage },
+            => G::Class { class_id, heritage, is_nullable: true },
 
             Self::Enum { variant_type, enumerators, godot_name, is_bitfield }
             => G::Enum { variant_type, enumerators, godot_name, is_bitfield },
 
+            // Fill NONE metadata (arrays/dictionaries don't store param metadata).
             Self::Custom { variant_type, var_hint, export_hint, class_name, usage_flags}
-            => G::Custom { variant_type, var_hint, export_hint, class_name, usage_flags },
+            => G::Custom { variant_type, var_hint, export_hint, class_name, usage_flags, metadata: ParamMetadata::NONE },
         }
     }
 

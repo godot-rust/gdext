@@ -19,6 +19,7 @@ use crate::meta::{
     ArgPassing, CallContext, EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType,
     InParamTuple, OutParamTuple, ParamTuple, TupleFromGodot,
 };
+use crate::registry::method::MethodParamOrReturnInfo;
 
 macro_rules! count_idents {
     () => { 0 };
@@ -36,10 +37,10 @@ macro_rules! unsafe_impl_param_tuple {
             fn param_info(
                 index: usize,
                 param_name: &str,
-            ) -> Option<crate::registry::method::MethodParamOrReturnInfo> {
+            ) -> Option<MethodParamOrReturnInfo> {
                 match index {
                     $(
-                        $n => Some($P::Via::argument_info(param_name)),
+                        $n => Some(MethodParamOrReturnInfo::for_parameter::<$P>(param_name)),
                     )*
                     _ => None,
                 }

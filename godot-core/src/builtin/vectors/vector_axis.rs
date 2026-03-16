@@ -7,9 +7,9 @@
 
 use crate::builtin::{Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i, real};
 use crate::meta::error::{ConvertError, FromGodotError};
+use crate::meta::shape::GodotShape;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::obj::EngineEnum;
-use crate::registry::property::GodotShape;
 
 macro_rules! impl_vector_axis_enum {
     ($Vector:ident, $AxisEnum:ident, ($($axis:ident),+)) => {

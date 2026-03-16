@@ -10,9 +10,10 @@ use std::mem;
 
 use crate::builtin::{GString, NodePath};
 use crate::classes::{Node, Resource};
+use crate::meta::shape::GodotShape;
 use crate::meta::{AsArg, FromGodot, GodotConvert, arg_into_owned};
 use crate::obj::{Gd, Inherits};
-use crate::registry::property::{GodotShape, Var};
+use crate::registry::property::Var;
 
 /// Ergonomic late-initialization container with `ready()` support.
 ///

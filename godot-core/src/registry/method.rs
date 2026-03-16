@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use sys::interface_fn;
 
 use crate::builtin::{StringName, Variant};
-use crate::meta::{ClassId, GodotConvert, GodotType, ParamTuple, Signature};
+use crate::meta::{ClassId, GodotConvert, ParamTuple, Signature};
 use crate::obj::GodotClass;
 use crate::registry::info::{MethodFlags, PropertyInfo};
 
@@ -22,6 +22,24 @@ pub struct MethodParamOrReturnInfo {
 impl MethodParamOrReturnInfo {
     pub fn new(info: PropertyInfo, metadata: sys::GDExtensionClassMethodArgumentMetadata) -> Self {
         Self { info, metadata }
+    }
+
+    /// Creates parameter info for type `T`.
+    pub fn for_parameter<T: GodotConvert>(param_name: &str) -> Self {
+        let shape = T::godot_shape();
+        Self {
+            info: shape.to_method_signature_property(param_name),
+            metadata: shape.param_metadata().to_sys(),
+        }
+    }
+
+    /// Creates return type info for type `T`.
+    pub fn for_return<T: GodotConvert>() -> Option<Self> {
+        let shape = T::godot_shape();
+        Some(Self {
+            info: shape.to_method_signature_property(""),
+            metadata: shape.param_metadata().to_sys(),
+        })
     }
 }
 
@@ -63,7 +81,7 @@ impl ClassMethodInfo {
         param_names: &[&str],
         default_arguments: Vec<Variant>,
     ) -> Self {
-        let return_value = Ret::Via::return_info();
+        let return_value = MethodParamOrReturnInfo::for_return::<Ret>();
         let arguments = Signature::<Params, Ret>::param_names(param_names);
 
         assert!(
