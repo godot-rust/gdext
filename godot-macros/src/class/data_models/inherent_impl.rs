@@ -13,7 +13,7 @@ use crate::class::data_models::func;
 use crate::class::{
     ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition, SignatureInfo,
     TransferMode, into_signature_info, make_constant_registration, make_method_registration,
-    make_signal_registrations,
+    make_rpc_api, make_signal_registrations,
 };
 use crate::util::{
     KvParser, bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
@@ -125,6 +125,16 @@ pub fn transform_inherent_impl(
         }
     };
 
+    // TODO: should this be merged into the `rpc_registrations`, like type-safe signals are below?
+    let rpc_api = make_rpc_api(
+        &class_name,
+        funcs
+            .iter()
+            // TODO: double-check that this is a valid method for checking if a function is an rpc
+            .filter(|func| func.rpc_info.is_some())
+            .collect(),
+    );
+
     let (signal_registrations, signal_symbol_types) = make_signal_registrations(
         &signals,
         &class_name,
@@ -212,6 +222,7 @@ pub fn transform_inherent_impl(
             #fill_storage
             #class_registration
             #signal_symbol_types
+            #rpc_api
             #inherent_impl_docs
         };
 
