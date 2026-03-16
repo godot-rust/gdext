@@ -219,15 +219,11 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
                 C: ::godot::obj::GodotClass + ::godot::obj::WithBaseField + ::godot::obj::Inherits<::godot::classes::Node>,
             {
                 pub fn call(mut self) {
-                    self.object.with_object_mut(|object| {
-                        object.rpc(stringify!(#rpc_name), ::godot::builtin::vslice![#rpc_self_args]);
-                    })
+                    self.object.call_rpc(stringify!(#rpc_name), ::godot::builtin::vslice![#rpc_self_args]);
                 }
 
                 pub fn call_id(mut self, id: i64) {
-                    self.object.with_object_mut(|object| {
-                        object.rpc_id(id, stringify!(#rpc_name), ::godot::builtin::vslice![#rpc_self_args]);
-                    })
+                    self.object.call_rpc_id(stringify!(#rpc_name), id, ::godot::builtin::vslice![#rpc_self_args]);
                 }
             }
         });

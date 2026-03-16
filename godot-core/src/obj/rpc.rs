@@ -7,6 +7,7 @@
 
 // TODO: Investigate reducing the type bounds if possible.
 
+use crate::builtin::Variant;
 use crate::r#gen::classes::Node;
 use crate::r#gen::virtuals::RefCounted::Gd;
 use crate::obj::{GodotClass, Inherits, WithBaseField};
@@ -16,19 +17,34 @@ pub enum UserRpcObject<'c, C: GodotClass> {
     External(Gd<C>),
 }
 
+// TODO: forward errors from RPC dispatch
 impl<'c, C> UserRpcObject<'c, C>
 where
     C: GodotClass + WithBaseField + Inherits<Node>,
 {
-    // TODO: should this be #[inline]?
-    #[doc(hidden)]
-    pub fn with_object_mut(&mut self, f: impl FnOnce(&mut Node)) {
+    /// Consumes [`Self`], calling the given RPC with `parameters`.
+    pub fn call_rpc(self, name: &str, parameters: &[Variant]) {
         match self {
             UserRpcObject::Internal(self_mut) => {
                 let mut gd = <C as WithBaseField>::to_gd(self_mut);
-                f(gd.upcast_mut::<Node>());
+                gd.upcast_mut::<Node>().rpc(name, parameters);
             }
-            UserRpcObject::External(gd) => f(gd.upcast_mut::<Node>()),
+            UserRpcObject::External(mut gd) => {
+                gd.upcast_mut::<Node>().rpc(name, parameters);
+            }
+        }
+    }
+
+    /// Consumes [`Self`], calling the given RPC, on `id`, with `parameters`.
+    pub fn call_rpc_id(self, name: &str, id: i64, parameters: &[Variant]) {
+        match self {
+            UserRpcObject::Internal(self_mut) => {
+                let mut gd = <C as WithBaseField>::to_gd(self_mut);
+                gd.upcast_mut::<Node>().rpc_id(id, name, parameters);
+            }
+            UserRpcObject::External(mut gd) => {
+                gd.upcast_mut::<Node>().rpc_id(id, name, parameters);
+            }
         }
     }
 }
