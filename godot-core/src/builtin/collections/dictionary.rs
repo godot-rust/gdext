@@ -153,9 +153,7 @@ impl<K: Element, V: Element> Dictionary<K, V> {
 
     /// Constructs an empty typed `Dictionary`.
     pub fn new() -> Self {
-        let mut dict = Self::default();
-        dict.init_inner_type();
-        dict
+        Self::default()
     }
 
     /// ⚠️ Returns the value for the given key, or panics.
@@ -736,13 +734,14 @@ sys::static_assert_eq_size_align!(VarDictionary, AnyDictionary);
 impl<K: Element, V: Element> Default for Dictionary<K, V> {
     #[inline]
     fn default() -> Self {
-        // Create an empty untyped dictionary first (typing happens in new()).
-        unsafe {
+        let mut dict = unsafe {
             Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(dictionary_construct_default);
                 ctor(self_ptr, ptr::null_mut())
             })
-        }
+        };
+        dict.init_inner_type();
+        dict
     }
 }
 
