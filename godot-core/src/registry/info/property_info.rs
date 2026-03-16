@@ -18,7 +18,7 @@ use crate::{classes, sys};
 ///
 /// This the Rust representation of the FFI type `sys::GDExtensionPropertyInfo`, still relatively low level. Unlike the FFI version which
 /// only stores pointers, `PropertyInfo` owns its data, ensuring it remains valid for the lifetime of the struct.
-/// For a high-level representation of properties, see [`GodotShape`][crate::registry::property::GodotShape].
+/// For a high-level representation of properties, see [`GodotShape`][crate::meta::shape::GodotShape].
 ///
 /// See also [`MethodInfo`](super::MethodInfo) for describing method signatures and [`ClassId`] for type-IDs of Godot classes.
 ///

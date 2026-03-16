@@ -19,8 +19,8 @@ pub use string_name::{ExFind as StringNameExFind, ExSplit as StringNameExSplit, 
 
 use crate::meta;
 use crate::meta::error::ConvertError;
+use crate::meta::shape::GodotShape;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
-use crate::registry::property::GodotShape;
 
 impl GodotConvert for &str {
     type Via = GString;

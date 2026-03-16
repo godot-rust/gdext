@@ -19,7 +19,7 @@ use crate::{classes, sys};
 /// Statically verifies the `Export` trait and that nodes can only be exported from nodes.
 /// Defaults are resolved from `T::godot_shape()`: [`export_hint()`] for hints, [`DEFAULT`] for usage flags. Pass `Some(...)` to override either.
 ///
-/// [`export_hint()`]: crate::registry::property::GodotShape::export_hint
+/// [`export_hint()`]: crate::meta::shape::GodotShape::export_hint
 /// [`DEFAULT`]: PropertyUsageFlags::DEFAULT
 pub fn register_export<C: GodotClass, T: Export>(
     property_name: &str,
@@ -55,7 +55,7 @@ pub fn register_export<C: GodotClass, T: Export>(
 ///
 /// Defaults are resolved from `T::godot_shape()`: [`var_hint()`] for hints, [`NONE`] for usage flags. Pass `Some(...)` to override either.
 ///
-/// [`var_hint()`]: crate::registry::property::GodotShape::var_hint
+/// [`var_hint()`]: crate::meta::shape::GodotShape::var_hint
 /// [`NONE`]: PropertyUsageFlags::NONE
 pub fn register_var<C: GodotClass, T: Var>(
     property_name: &str,

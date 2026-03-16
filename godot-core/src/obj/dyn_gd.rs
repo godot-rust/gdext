@@ -11,12 +11,13 @@ use godot_ffi::is_main_thread;
 
 use crate::builtin::{Callable, Variant};
 use crate::meta::error::ConvertError;
+use crate::meta::shape::GodotShape;
 use crate::meta::{ClassId, FromGodot, GodotConvert, ToGodot};
 use crate::obj::guards::DynGdRef;
 use crate::obj::{AsDyn, Bounds, DynGdMut, Gd, GodotClass, Inherits, OnEditor, bounds};
 use crate::registry::class::{get_dyn_implementor_class_ids, try_dynify_object};
 use crate::registry::info::PropertyHintInfo;
-use crate::registry::property::{Export, GodotShape, Var};
+use crate::registry::property::{Export, Var};
 use crate::{meta, sys};
 
 /// Smart pointer integrating Rust traits via `dyn` dispatch.
@@ -586,7 +587,7 @@ where
 
     fn godot_shape() -> GodotShape {
         use crate::classes;
-        use crate::registry::property::ClassHeritage;
+        use crate::meta::shape::ClassHeritage;
 
         // Note: `get_dyn_implementor_class_ids` reads from a global registry populated during class registration.
         // If `godot_shape()` is ever called before registration completes, the implementor list may be incomplete.

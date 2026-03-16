@@ -17,9 +17,10 @@ use super::any_dictionary::AnyDictionary;
 use crate::builtin::{AnyArray, Array, VarArray, Variant, VariantType, inner};
 use crate::meta;
 use crate::meta::inspect::ElementType;
+use crate::meta::shape::{GodotElementShape, GodotShape};
 use crate::meta::{AsArg, Element, ExtVariantType, FromGodot, ToGodot};
 use crate::registry::info::ParamMetadata;
-use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotShape, Var};
+use crate::registry::property::{BuiltinExport, Export, Var};
 
 /// Godot's `Dictionary` type.
 ///

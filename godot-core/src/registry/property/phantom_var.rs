@@ -10,8 +10,9 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
+use crate::meta::shape::GodotShape;
 use crate::meta::{ClassId, GodotConvert};
-use crate::registry::property::{Export, GodotShape, Var};
+use crate::registry::property::{Export, Var};
 
 /// A zero-sized type for creating a property without a backing field, accessible only through custom getter/setter functions.
 ///

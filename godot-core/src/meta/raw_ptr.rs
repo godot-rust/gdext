@@ -6,8 +6,8 @@
  */
 
 use crate::meta::error::ConvertError;
+use crate::meta::shape::GodotShape;
 use crate::meta::{FromGodot, GodotConvert, GodotType, ToGodot, sealed};
-use crate::registry::property::GodotShape;
 
 /// Wrapper around a raw pointer, providing `ToGodot`/`FromGodot` for FFI passing.
 ///

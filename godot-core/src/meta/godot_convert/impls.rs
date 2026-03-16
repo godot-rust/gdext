@@ -8,9 +8,9 @@
 use crate::builtin::{Array, Variant};
 use crate::meta;
 use crate::meta::error::{ConvertError, ErrorKind, FromFfiError};
+use crate::meta::shape::GodotShape;
 use crate::meta::{Element, FromGodot, GodotConvert, GodotNullableFfi, GodotType, ToGodot};
 use crate::registry::info::ParamMetadata;
-use crate::registry::property::GodotShape;
 
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
 // - enum

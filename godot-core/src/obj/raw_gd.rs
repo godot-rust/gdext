@@ -14,12 +14,12 @@ use crate::builtin::{Variant, VariantType};
 #[cfg(safeguards_balanced)]
 use crate::meta::CallContext;
 use crate::meta::error::{ConvertError, FromVariantError};
+use crate::meta::shape::GodotShape;
 use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
 use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::casts::CastSuccess;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId, bounds};
-use crate::registry::property::GodotShape;
 use crate::storage::{InstanceCache, InstanceStorage, Storage};
 use crate::{classes, meta, out};
 

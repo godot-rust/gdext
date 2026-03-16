@@ -17,6 +17,7 @@ use crate::builtin::*;
 use crate::meta;
 use crate::meta::error::{ArrayMismatch, ConvertError, FromGodotError, FromVariantError};
 use crate::meta::inspect::ElementType;
+use crate::meta::shape::{GodotElementShape, GodotShape};
 use crate::meta::signed_range::SignedRange;
 use crate::meta::{
     AsArg, ClassId, Element, ExtVariantType, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
@@ -24,7 +25,7 @@ use crate::meta::{
 };
 use crate::obj::{Bounds, DynGd, Gd, GodotClass, bounds};
 use crate::registry::info::{ParamMetadata, PropertyHintInfo};
-use crate::registry::property::{BuiltinExport, Export, GodotElementShape, GodotShape, Var};
+use crate::registry::property::{BuiltinExport, Export, Var};
 
 /// Godot's `Array` type.
 ///

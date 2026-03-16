@@ -9,9 +9,9 @@ mod impls;
 
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
+use crate::meta::shape::GodotShape;
 use crate::meta::traits::GodotFfiVariant;
 use crate::meta::{ArgPassing, GodotType, ToArg};
-use crate::registry::property::GodotShape;
 
 /// Indicates that a type can be passed to/from Godot, either directly or through an intermediate "via" type.
 ///
@@ -239,8 +239,8 @@ macro_rules! impl_godot_as_self {
         impl $crate::meta::GodotConvert for $T {
             type Via = $T;
 
-            fn godot_shape() -> $crate::registry::property::GodotShape {
-                $crate::registry::property::GodotShape::of_builtin::<$T>()
+            fn godot_shape() -> $crate::meta::shape::GodotShape {
+                $crate::meta::shape::GodotShape::of_builtin::<$T>()
             }
         }
 
