@@ -942,6 +942,8 @@ mod typed_dictionary_tests {
     use godot::builtin::{array, dict};
     use godot::global::godot_str;
     use godot::meta;
+    use godot::obj::NewAlloc;
+    use godot::register::GodotClass;
 
     use super::*;
 
@@ -1093,5 +1095,40 @@ mod typed_dictionary_tests {
             let new_value = value_map(&value);
             dict.set(meta::ref_to_arg(key), meta::owned_into_arg(new_value));
         }
+    }
+
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    // Export tests
+
+    #[derive(GodotClass)]
+    #[class(init, base=Node)]
+    struct ExportTypedDictionary {
+        #[export]
+        dict_int_string: Dictionary<i32, GString>,
+    }
+
+    // Verifies that an exported Dictionary<K, V> is registered as typed in Godot.
+    // Regression test for https://github.com/godot-rust/gdext/pull/1536.
+    #[itest]
+    fn dictionary_typed_export() {
+        let obj = ExportTypedDictionary::new_alloc();
+
+        // Retrieve the dictionary through the Godot property system (like editor would).
+        let dict_variant = obj.get("dict_int_string");
+        let dict = dict_variant.to::<AnyDictionary>();
+
+        // The dictionary should be registered as typed with Godot.
+        assert_eq!(
+            dict.key_element_type(),
+            ElementType::Builtin(VariantType::INT),
+            "exported Dictionary<i32, GString> should have key type INT"
+        );
+        assert_eq!(
+            dict.value_element_type(),
+            ElementType::Builtin(VariantType::STRING),
+            "exported Dictionary<i32, GString> should have value type STRING"
+        );
+
+        obj.free();
     }
 }

@@ -22,7 +22,7 @@ use godot_ffi as sys;
 
 use crate::builtin::{CowStr, GString, StringName, VariantType};
 use crate::global::godot_str;
-use crate::meta::{ClassId, GodotConvert, GodotType};
+use crate::meta::{ClassId, GodotType};
 use crate::obj::EngineEnum as _;
 use crate::registry::info::{
     ParamMetadata, PropertyHint, PropertyHintInfo, PropertyInfo, PropertyUsageFlags,
@@ -55,7 +55,7 @@ use crate::registry::info::{
 /// [`usage_flags()`]). These are combined with the hint and base usage into a [`PropertyInfo`] for the Godot FFI call.
 ///
 /// [`PropertyInfo`]: PropertyInfo
-/// [`GodotConvert::godot_shape()`]: GodotConvert::godot_shape
+/// [`GodotConvert::godot_shape()`]: crate::meta::GodotConvert::godot_shape
 /// [`AnyArray::element_type()`]: crate::builtin::AnyArray::element_type
 /// [`to_var_property()`]: Self::to_var_property
 /// [`to_export_property()`]: Self::to_export_property
@@ -73,7 +73,7 @@ pub enum GodotShape {
 
     /// A built-in Godot type (`int`, `String`, `Vector3`, `PackedByteArray`, etc.).
     ///
-    /// The variant type used here must match the one from [`GodotConvert::Via`].
+    /// The variant type used here must match the one from [`GodotConvert::Via`][crate::meta::GodotConvert::Via].
     ///
     /// Packed arrays, untyped arrays and untyped dictionaries are also represented as `Builtin`.  \
     /// Typed arrays, typed dictionaries, objects and variants have their own shape representation.
@@ -184,12 +184,12 @@ impl GodotShape {
     /// * `GodotShape::Builtin { variant_type: ffi_variant_type::<T>().variant_as_nil() }` for other builtins.
     ///
     /// Do not use for objects, typed arrays/dictionaries or enums; those have their own shape variants.
-    pub fn of_builtin<T: GodotConvert>() -> Self {
+    pub fn of_builtin<T: GodotType>() -> Self {
         match crate::meta::ffi_variant_type::<T>() {
             sys::ExtVariantType::Variant => Self::Variant,
             ext => Self::Builtin {
                 variant_type: ext.variant_as_nil(),
-                metadata: <T::Via as GodotType>::default_metadata(),
+                metadata: T::default_metadata(),
             },
         }
     }

@@ -187,7 +187,7 @@ impl CallError {
         param_index: usize,
         convert_error: ConvertError,
     ) -> Self {
-        let param_ty = std::any::type_name::<P>();
+        let param_ty = sys::short_type_name::<P>();
 
         Self::new(
             call_ctx,
