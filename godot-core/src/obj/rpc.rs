@@ -5,15 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// TODO: Investigate reducing the type bounds if possible.
-
 use crate::builtin::Variant;
 use crate::r#gen::classes::Node;
 use crate::r#gen::virtuals::RefCounted::Gd;
 use crate::obj::{GodotClass, Inherits, WithBaseField};
 
+/// Holds either an [`Internal`](Self::Internal) reference of `&mut C` or an [`External`](Self::External) [`Gd`] pointer to `C`.
+///
+/// If `C` implements [`WithBaseField`] and [`Inherits`] [`Node`], the [`call_rpc()`](Self::call_rpc()) and
+/// [`call_rpc_id()`](Self::call_rpc_id()) methods are provided for calling RPCs on the held node.
 pub enum UserRpcObject<'c, C: GodotClass> {
+    /// Holds a mutabel reference to the [`GodotClass`]
     Internal(&'c mut C),
+    /// Holds a [`Gd`] pointer to the [`GodotClass`]
     External(Gd<C>),
 }
 
@@ -22,7 +26,7 @@ impl<'c, C> UserRpcObject<'c, C>
 where
     C: WithBaseField + Inherits<Node>,
 {
-    /// Consumes [`Self`], calling the given RPC with `parameters`.
+    /// Consumes [`Self`], calling the given RPC with `parameters`
     pub fn call_rpc(self, name: &str, parameters: &[Variant]) {
         match self {
             UserRpcObject::Internal(self_mut) => {
@@ -35,7 +39,7 @@ where
         }
     }
 
-    /// Consumes [`Self`], calling the given RPC, on `id`, with `parameters`.
+    /// Consumes [`Self`], calling the given RPC, on `id`, with `parameters`
     pub fn call_rpc_id(self, name: &str, id: i64, parameters: &[Variant]) {
         match self {
             UserRpcObject::Internal(self_mut) => {
@@ -49,19 +53,23 @@ where
     }
 }
 
+/// Represents a collection of RPCs that can be constructed with a [`UserRpcObject`]
 pub trait RpcCollection<'c, C>
 where
     C: GodotClass,
 {
+    /// Construct [`Self`] from [`UserRpcObject`]
     fn from_user_rpc_object(object: UserRpcObject<'c, C>) -> Self;
 }
 
+/// Represents an object, generally a node, that can provide a [collection](RpcCollection) of RPCs available on this object.
 pub trait WithUserRpcs<'c, C>
 where
     C: GodotClass,
 {
     type Collection: RpcCollection<'c, C>;
 
+    /// Returns [`Self::Collection`], which generally holds a reference to [`Self`]
     fn rpcs(&'c mut self) -> Self::Collection;
 }
 
@@ -71,6 +79,7 @@ where
 {
     type Collection = <C as WithUserRpcs<'c, C>>::Collection;
 
+    /// Returns [`Self::Collection`], which generally holds a [`Gd`] pointer to [`Self`]
     fn rpcs(&'c mut self) -> Self::Collection {
         Self::Collection::from_user_rpc_object(UserRpcObject::External(self.clone()))
     }
