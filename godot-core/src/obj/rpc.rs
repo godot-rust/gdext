@@ -33,6 +33,7 @@ impl<'c, C: GodotClass> GenericRpcBuilder<'c, C> {
 impl<'c, C> GenericRpcBuilder<'c, C>
 where
     C: WithBaseField + Inherits<Node>,
+    C::Base: Inherits<Node>,
 {
     pub fn call(self) {
         self.object.call_rpc(self.rpc_name, &self.parameters);
@@ -58,13 +59,13 @@ pub enum UserRpcObject<'c, C: GodotClass> {
 impl<'c, C> UserRpcObject<'c, C>
 where
     C: WithBaseField + Inherits<Node>,
+    C::Base: Inherits<Node>,
 {
     /// Consumes [`Self`], calling the given RPC with `parameters`
     pub fn call_rpc(self, name: &str, parameters: &[Variant]) {
         match self {
             UserRpcObject::Internal(self_mut) => {
-                let mut gd = <C as WithBaseField>::to_gd(self_mut);
-                gd.upcast_mut::<Node>().rpc(name, parameters);
+                WithBaseField::base_mut(self_mut).upcast_mut::<Node>().rpc(name, parameters);
             }
             UserRpcObject::External(mut gd) => {
                 gd.upcast_mut::<Node>().rpc(name, parameters);
@@ -76,8 +77,7 @@ where
     pub fn call_rpc_id(self, name: &str, id: i64, parameters: &[Variant]) {
         match self {
             UserRpcObject::Internal(self_mut) => {
-                let mut gd = <C as WithBaseField>::to_gd(self_mut);
-                gd.upcast_mut::<Node>().rpc_id(id, name, parameters);
+                WithBaseField::base_mut(self_mut).upcast_mut::<Node>().rpc_id(id, name, parameters);
             }
             UserRpcObject::External(mut gd) => {
                 gd.upcast_mut::<Node>().rpc_id(id, name, parameters);
