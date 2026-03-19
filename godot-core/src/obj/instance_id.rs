@@ -96,7 +96,7 @@ impl GodotConvert for InstanceId {
     type Via = i64;
 
     fn godot_shape() -> GodotShape {
-        GodotShape::of_builtin::<Self>()
+        GodotShape::of_builtin::<Self::Via>()
     }
 }
 
