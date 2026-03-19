@@ -162,10 +162,10 @@ pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassId) -> Option<Inh
     let plugins = __GODOT_PLUGIN_REGISTRY.lock().unwrap();
 
     plugins.iter().find_map(|elem| {
-        if elem.class_name == class_name {
-            if let PluginItem::InherentImpl(inherent_impl) = &elem.item {
-                return Some(inherent_impl.clone());
-            }
+        if elem.class_name == class_name
+            && let PluginItem::InherentImpl(inherent_impl) = &elem.item
+        {
+            return Some(inherent_impl.clone());
         }
 
         None

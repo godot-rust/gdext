@@ -659,10 +659,10 @@ pub fn is_method_excluded_from_default_params(class_or_builtin_ty: Option<&TyNam
     let class_name = class_or_builtin_ty.map_or("", |ty| ty.godot_ty.as_str());
 
     // Private methods don't need to generate extra code for default extender machinery.
-    if let Some(ty) = class_or_builtin_ty {
-        if is_method_private(ty, godot_method_name) {
-            return true;
-        }
+    if let Some(ty) = class_or_builtin_ty
+        && is_method_private(ty, godot_method_name)
+    {
+        return true;
     }
 
     match (class_name, godot_method_name) {

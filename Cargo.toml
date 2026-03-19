@@ -18,7 +18,7 @@ members = [
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.87"
+rust-version = "1.94"
 
 # All dependencies except own crates of this project should be specified here, independently of whether they're dev, build or
 # regular dependencies. Sort alphabetically within each section; comments about a dependency come on the section header.
@@ -27,7 +27,7 @@ rust-version = "1.87"
 gdextension-api = { version = "0.3.3", git = "https://github.com/godot-rust/godot4-prebuilt", branch = "release-v0.3" }
 
 # Main library features.
-glam = { version = "0.30", features = ["debug-glam-assert"] }
+glam = { version = "0.32", features = ["debug-glam-assert"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -35,9 +35,9 @@ serde_json = "1"
 # * regex: not used for unicode parsing -> features unicode-bool + unicode-gencat are enabled instead of unicode-perl.
 #          'unicode-gencat' needed for \d, see https://docs.rs/regex/latest/regex/#unicode-features.
 bindgen = { version = "0.72.1", default-features = false, features = ["runtime"] }
-libc = "0.2.172"
-regex = { version = "1.11", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }
-which = "7"
+libc = "0.2.183"
+regex = { version = "1.12", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }
+which = "8"
 
 # Macros and codegen. Minimal versions compatible with -Zminimal-versions.
 # * proc_macro2: Literal::c_string() added in 1.0.80.
@@ -47,12 +47,12 @@ heck = "0.5"
 litrs = { version = "1.0", features = ["proc-macro2"] }
 markdown = "1.0.0"
 nanoserde = "0.2"
-proc-macro2 = "1.0.80"
-quote = "1.0.37"
+proc-macro2 = "1.0.106"
+quote = "1.0.45"
 venial = "0.6.1"
 
 # Testing (godot-cell, itest).
-proptest = "1.6.0"
+proptest = "1.10.0"
 pin-project-lite = { version = "0.2" }
 
 # Note about Jetbrains IDEs: "IDE Sync" (Refresh Cargo projects) may cause static analysis errors such as

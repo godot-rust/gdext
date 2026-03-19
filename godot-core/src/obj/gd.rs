@@ -1013,10 +1013,10 @@ impl<T: GodotClass> GodotType for Gd<T> {
         // 🧹 clear button: sends a NodePath with an empty string (!?).
 
         // We recognize the latter case and return a Gd::null() instead of failing to convert the NodePath.
-        if let Ok(node_path) = from_variant.try_to::<NodePath>() {
-            if node_path.is_empty() {
-                return true;
-            }
+        if let Ok(node_path) = from_variant.try_to::<NodePath>()
+            && node_path.is_empty()
+        {
+            return true;
         }
 
         false
