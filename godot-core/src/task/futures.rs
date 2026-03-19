@@ -18,8 +18,8 @@ use crate::classes::object::ConnectFlags;
 use crate::global::godot_error;
 use crate::meta::InParamTuple;
 use crate::meta::sealed::Sealed;
+use crate::obj::signal::TypedSignal;
 use crate::obj::{Gd, GodotClass, WithSignals};
-use crate::registry::signal::TypedSignal;
 use crate::sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

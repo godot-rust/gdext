@@ -24,7 +24,7 @@ mod reexport_pub {
 }
 pub use reexport_pub::*;
 
-use crate::registry::signal::prune_stored_signal_connections;
+use crate::obj::signal::prune_stored_signal_connections;
 
 #[repr(C)]
 struct InitUserData {

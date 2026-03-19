@@ -12,8 +12,8 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::ClassId;
 use crate::meta::inspect::EnumConstant;
+use crate::obj::signal::SignalObject;
 use crate::obj::{Base, BaseMut, BaseRef, Bounds, Gd, bounds};
-use crate::registry::signal::SignalObject;
 use crate::storage::Storage;
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
@@ -625,7 +625,7 @@ pub trait WithUserSignals: WithSignals + WithBaseField {
     /// fn emit(amount: i32);
     /// ```
     ///
-    /// See [`TypedSignal`](crate::registry::signal::TypedSignal) for more information.
+    /// See [`TypedSignal`](crate::obj::signal::TypedSignal) for more information.
     fn signals(&mut self) -> Self::SignalCollection<'_, Self>;
 }
 

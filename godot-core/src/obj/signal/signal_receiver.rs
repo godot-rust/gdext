@@ -17,7 +17,7 @@ use crate::obj::{Gd, GodotClass};
 
 /// Trait that is implemented for functions that can be connected to signals.
 ///
-/// This is used in [`ConnectBuilder`](crate::registry::signal::connect_builder::ConnectBuilder).
+/// This is used in [`ConnectBuilder`](crate::obj::signal::connect_builder::ConnectBuilder).
 /// There are three variations of the `C` (class instance) parameter:
 /// - `()` for global and associated ("static") functions.
 /// - `&C` for `&self` methods.
@@ -29,8 +29,8 @@ use crate::obj::{Gd, GodotClass};
 /// To write generic code that handles different functions and forwards them to [`TypedSignal`] and [`ConnectBuilder`] APIs,
 /// you have to use `SignalReceiver` in combination with [`IndirectSignalReceiver`]. Consult the docs of the latter for elaboration.
 ///
-/// [`TypedSignal`]: crate::registry::signal::TypedSignal
-/// [`ConnectBuilder`]: crate::registry::signal::ConnectBuilder
+/// [`TypedSignal`]: crate::obj::signal::TypedSignal
+/// [`ConnectBuilder`]: crate::obj::signal::ConnectBuilder
 ///
 /// # Hidden `impls` in this doc
 /// To keep this documentation readable, we only document one variant of each `impl SignalReceiver`: arbitrarily the one with three parameters
@@ -47,8 +47,8 @@ pub trait SignalReceiver<C, Ps>: 'static {
 /// If you want to write generic code that can handle different functions and forward them to [`TypedSignal`] and [`ConnectBuilder`] APIs,
 /// you have to use [`SignalReceiver`] in combination with this type. Please check its documentation for a detailed explanation.
 ///
-/// [`TypedSignal`]: crate::registry::signal::TypedSignal
-/// [`ConnectBuilder`]: crate::registry::signal::ConnectBuilder
+/// [`TypedSignal`]: crate::obj::signal::TypedSignal
+/// [`ConnectBuilder`]: crate::obj::signal::ConnectBuilder
 ///
 /// # Background
 ///

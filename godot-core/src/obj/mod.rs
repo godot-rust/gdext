@@ -25,6 +25,7 @@ mod raw_gd;
 mod traits;
 
 pub(crate) mod rtti;
+pub mod signal;
 
 pub use base::*;
 pub use dyn_gd::DynGd;

@@ -15,7 +15,6 @@ pub mod info;
 pub mod method;
 pub mod plugin;
 pub mod property;
-pub mod signal;
 
 // RpcConfig uses MultiplayerPeer::TransferMode and MultiplayerApi::RpcMode, which are only enabled in `codegen-full` feature.
 #[cfg(feature = "codegen-full")]

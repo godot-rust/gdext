@@ -13,7 +13,7 @@ use crate::sys;
 /// Handle representing a typed signal connection to a receiver.
 ///
 /// Returned by connections made by the `connect_*` methods of
-/// [`TypedSignal`][crate::registry::signal::TypedSignal] and [`ConnectBuilder`][crate::registry::signal::ConnectBuilder].
+/// [`TypedSignal`][crate::obj::signal::TypedSignal] and [`ConnectBuilder`][crate::obj::signal::ConnectBuilder].
 ///
 /// Connections managed by a handle can be disconnected using [`disconnect()`][Self::disconnect].
 pub struct ConnectHandle {

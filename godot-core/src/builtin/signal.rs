@@ -23,7 +23,7 @@ use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId};
 ///
 /// Signals are composed of a pointer to an `Object` and the name of the signal on this object.
 ///
-/// In Rust, you might want to work with type-safe signals, available under the [`TypedSignal`](crate::registry::signal::TypedSignal) struct.
+/// In Rust, you might want to work with type-safe signals, available under the [`TypedSignal`](crate::obj::signal::TypedSignal) struct.
 ///
 /// # Godot docs
 /// [`Signal` (stable)](https://docs.godotengine.org/en/stable/classes/class_signal.html)
