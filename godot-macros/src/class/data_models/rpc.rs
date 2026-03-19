@@ -173,11 +173,11 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
     let collection_name = format_ident!("__{for_class}RpcCollection");
 
     let mut collection_impl_methods = TokenStream::new();
-    let mut rpc_builders = TokenStream::new();
     for rpc in rpcs {
+        // TODO: Support functions with optional parameters
+
         let rpc_name = rpc.rust_ident();
         // TODO: is this an okay name?
-        let rpc_builder_name = format_ident!("__RpcBuilder_{}", rpc.rust_ident());
         let param_idents = &rpc.signature_info.param_idents;
         let rpc_typed_args: TokenStream = param_idents
             .iter()
@@ -189,39 +189,15 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             })
             .collect();
         let rpc_args = param_idents.iter().map(|name| quote! { #name });
-        let rpc_args_2 = rpc_args.clone();
-        let rpc_self_args: TokenStream = param_idents
-            .iter()
-            .map(|name| quote! { self.#name, })
-            .collect();
 
         collection_impl_methods.append_all(quote! {
             #[must_use]
-            pub fn #rpc_name(self, #rpc_typed_args) -> #rpc_builder_name<'c> {
-                #rpc_builder_name {
-                    object: self.object,
-                    #( #rpc_args: #rpc_args.to_variant() ),*
-                }
-            }
-        });
-
-        rpc_builders.append_all(quote! {
-            #[doc(hidden)]
-            pub struct #rpc_builder_name<'c>
-            {
-                object: UserRpcObject<'c, #for_class>,
-                #( #rpc_args_2: Variant ),*
-            }
-
-            impl<'c> #rpc_builder_name<'c>
-            {
-                pub fn call(mut self) {
-                    self.object.call_rpc(stringify!(#rpc_name), &[#rpc_self_args]);
-                }
-
-                pub fn call_id(mut self, id: i64) {
-                    self.object.call_rpc_id(stringify!(#rpc_name), id, &[#rpc_self_args]);
-                }
+            pub fn #rpc_name(self, #rpc_typed_args) -> GenericRpcBuilder<'c, #for_class> {
+                GenericRpcBuilder::new(
+                    self.object,
+                    stringify!(#rpc_name),
+                    vec![#( #rpc_args.to_variant() ),*],
+                )
             }
         });
     }
@@ -235,7 +211,7 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             #![allow(non_camel_case_types)]
 
             use super::*;
-            use ::godot::obj::{RpcCollection, UserRpcObject};
+            use ::godot::obj::{RpcCollection, UserRpcObject, GenericRpcBuilder};
 
             #[doc(hidden)]
             pub struct #collection_name<'c>
@@ -269,8 +245,6 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
                     )
                 }
             }
-
-            #rpc_builders
         }
     }
 }

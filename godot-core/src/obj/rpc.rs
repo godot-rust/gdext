@@ -10,6 +10,39 @@ use crate::r#gen::classes::Node;
 use crate::r#gen::virtuals::RefCounted::Gd;
 use crate::obj::{GodotClass, Inherits, WithBaseField};
 
+/// Holds:
+/// * A [`UserRpcObject`], which the represented RPC is called on.
+/// * A [`&str`], which represents the name of an RPC,
+/// * A [`Vec`] of [`Variants`] that is a list of parameters passed to the RPC when called.
+pub struct GenericRpcBuilder<'c, C: GodotClass> {
+    object: UserRpcObject<'c, C>,
+    rpc_name: &'c str,
+    parameters: Vec<Variant>,
+}
+
+impl<'c, C: GodotClass> GenericRpcBuilder<'c, C> {
+    pub fn new(object: UserRpcObject<'c, C>, rpc_name: &'c str, parameters: Vec<Variant>) -> Self {
+        Self {
+            object,
+            rpc_name,
+            parameters,
+        }
+    }
+}
+
+impl<'c, C> GenericRpcBuilder<'c, C>
+where
+    C: WithBaseField + Inherits<Node>,
+{
+    pub fn call(self) {
+        self.object.call_rpc(self.rpc_name, &self.parameters);
+    }
+
+    pub fn call_id(self, id: i64) {
+        self.object.call_rpc_id(self.rpc_name, id, &self.parameters);
+    }
+}
+
 /// Holds either an [`Internal`](Self::Internal) reference of `&mut C` or an [`External`](Self::External) [`Gd`] pointer to `C`.
 ///
 /// If `C` implements [`WithBaseField`] and [`Inherits`] [`Node`], the [`call_rpc()`](Self::call_rpc()) and
