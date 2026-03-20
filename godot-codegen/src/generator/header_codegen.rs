@@ -6,6 +6,11 @@
  */
 
 //! Code generation for gdextension_interface.json types and interface functions.
+//!
+//! Not yet integrated into the build pipeline; currently invoked only from tests.
+
+// All public functions are currently only called from #[cfg(test)].
+#![allow(dead_code)]
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -13,42 +18,12 @@ use quote::quote;
 use crate::models::header_json::{HeaderJson, HeaderReturnValue, HeaderType};
 use crate::util::{ident, safe_ident};
 
-/// Generate Rust type definitions and function signatures from header JSON.
+/// Generate Rust type definitions from header JSON.
 pub fn generate_header_types(header: &HeaderJson) -> TokenStream {
     let type_definitions = header.types.iter().map(generate_type_definition);
 
     quote! {
         #( #type_definitions )*
-    }
-}
-
-/// Generate Rust interface function type signatures.
-pub fn generate_interface_functions(header: &HeaderJson) -> TokenStream {
-    let function_types = header.interface.iter().map(|func| {
-        let name = ident(&func.name);
-        let return_type = map_return_type(&func.return_value);
-        let params = func.arguments.iter().map(|arg| {
-            let param_type = map_type(&arg.type_);
-            if let Some(param_name_str) = &arg.name {
-                if param_name_str.is_empty() {
-                    // Empty name - fall back to unnamed
-                    quote! { #param_type }
-                } else {
-                    let param_name = safe_ident(param_name_str);
-                    quote! { #param_name: #param_type }
-                }
-            } else {
-                quote! { #param_type }
-            }
-        });
-
-        quote! {
-            pub type #name = unsafe extern "C" fn(#( #params ),*) -> #return_type;
-        }
-    });
-
-    quote! {
-        #( #function_types )*
     }
 }
 
@@ -117,6 +92,7 @@ pub fn generate_gdextension_interface(header: &HeaderJson) -> TokenStream {
     });
 
     quote! {
+        #[repr(C)]
         pub struct GDExtensionInterface {
             #( #fields )*
         }
@@ -127,23 +103,11 @@ pub fn generate_gdextension_interface(header: &HeaderJson) -> TokenStream {
 fn generate_function_pointer_type(
     func: &crate::models::header_json::HeaderInterfaceFunction,
 ) -> TokenStream {
-    let return_type = map_return_type(&func.return_value);
-    let params = func.arguments.iter().map(|arg| {
-        let param_type = map_type(&arg.type_);
-        if let Some(param_name_str) = &arg.name {
-            if param_name_str.is_empty() {
-                quote! { #param_type }
-            } else {
-                let param_name = safe_ident(param_name_str);
-                quote! { #param_name: #param_type }
-            }
-        } else {
-            quote! { #param_type }
-        }
-    });
+    let params = generate_params(&func.arguments);
+    let return_clause = map_return_clause(&func.return_value);
 
     quote! {
-        Option<unsafe extern "C" fn(#( #params ),*) -> #return_type>
+        Option<unsafe extern "C" fn(#( #params ),*) #return_clause>
     }
 }
 
@@ -187,8 +151,14 @@ fn generate_enum_type(type_def: &HeaderType) -> TokenStream {
 fn generate_handle_type(type_def: &HeaderType) -> TokenStream {
     let name = ident(&type_def.name);
 
-    quote! {
-        pub type #name = *mut std::ffi::c_void;
+    if type_def.is_const == Some(true) {
+        quote! {
+            pub type #name = *const std::ffi::c_void;
+        }
+    } else {
+        quote! {
+            pub type #name = *mut std::ffi::c_void;
+        }
     }
 }
 
@@ -209,7 +179,7 @@ fn generate_struct_type(type_def: &HeaderType) -> TokenStream {
             .iter()
             .map(|member| {
                 let field_name = safe_ident(&member.name);
-                let field_type = map_type(&member.type_);
+                let field_type = map_c_type(&member.type_);
                 quote! {
                     pub #field_name: #field_type,
                 }
@@ -230,41 +200,40 @@ fn generate_struct_type(type_def: &HeaderType) -> TokenStream {
 
 fn generate_function_type(type_def: &HeaderType) -> TokenStream {
     let name = ident(&type_def.name);
-    let return_type = type_def
+    let return_clause = type_def
         .return_value
         .as_ref()
-        .map(map_return_type)
-        .unwrap_or_else(|| quote! { () });
+        .map(map_return_clause)
+        .unwrap_or_default();
 
-    let params = if let Some(args) = &type_def.arguments {
-        args.iter()
-            .map(|arg| {
-                let param_type = map_type(&arg.type_);
-                if let Some(param_name_str) = &arg.name {
-                    if param_name_str.is_empty() {
-                        // Empty name - fall back to unnamed
-                        quote! { #param_type }
-                    } else {
-                        let param_name = safe_ident(param_name_str);
-                        quote! { #param_name: #param_type }
-                    }
-                } else {
-                    quote! { #param_type }
-                }
-            })
-            .collect::<Vec<_>>()
-    } else {
-        vec![]
-    };
+    let params = type_def
+        .arguments
+        .as_ref()
+        .map(|args| generate_params(args))
+        .unwrap_or_default();
 
     quote! {
-        pub type #name = unsafe extern "C" fn(#( #params ),*) -> #return_type;
+        pub type #name = unsafe extern "C" fn(#( #params ),*) #return_clause;
     }
 }
 
-fn map_type(godot_type: &str) -> TokenStream {
-    // All types go through map_c_type which handles pointers and const
-    map_c_type(godot_type)
+/// Generate named parameter tokens from a list of arguments.
+fn generate_params(args: &[crate::models::header_json::HeaderArgument]) -> Vec<TokenStream> {
+    args.iter()
+        .map(|arg| {
+            let param_type = map_c_type(&arg.type_);
+            if let Some(param_name_str) = &arg.name {
+                if param_name_str.is_empty() {
+                    quote! { #param_type }
+                } else {
+                    let param_name = safe_ident(param_name_str);
+                    quote! { #param_name: #param_type }
+                }
+            } else {
+                quote! { #param_type }
+            }
+        })
+        .collect()
 }
 
 fn map_c_type(c_type: &str) -> TokenStream {
@@ -280,7 +249,7 @@ fn map_c_type(c_type: &str) -> TokenStream {
     // Handle pointer types
     if c_type.ends_with('*') {
         let base_type = c_type.trim_end_matches('*').trim();
-        let inner = map_c_type(base_type);
+        let inner = map_c_type_as_pointee(base_type);
 
         return if is_const {
             quote! { *const #inner }
@@ -289,7 +258,22 @@ fn map_c_type(c_type: &str) -> TokenStream {
         };
     }
 
-    // Base types - use standard Rust types for simplicity and portability
+    // Base types
+    map_c_base_type(c_type)
+}
+
+/// Map a C type that appears as the pointee of a pointer.
+/// `void` maps to `std::ffi::c_void` (not `()`) so that `void*` becomes `*mut c_void`.
+fn map_c_type_as_pointee(c_type: &str) -> TokenStream {
+    if c_type == "void" {
+        quote! { std::ffi::c_void }
+    } else {
+        map_c_type(c_type)
+    }
+}
+
+/// Map a C base type (non-pointer) to a Rust type.
+fn map_c_base_type(c_type: &str) -> TokenStream {
     match c_type {
         "void" => quote! { () },
         "char" => quote! { std::ffi::c_char },
@@ -313,8 +297,14 @@ fn map_c_type(c_type: &str) -> TokenStream {
     }
 }
 
-fn map_return_type(return_value: &HeaderReturnValue) -> TokenStream {
-    map_type(&return_value.type_)
+/// Map a return value to a return clause (`-> T`), or empty for void.
+fn map_return_clause(return_value: &HeaderReturnValue) -> TokenStream {
+    if return_value.type_ == "void" {
+        TokenStream::new()
+    } else {
+        let ty = map_c_type(&return_value.type_);
+        quote! { -> #ty }
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -326,12 +316,15 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_generate_header_code() {
+    fn load_header() -> HeaderJson {
         let json_str = std::fs::read_to_string("../json/gdextension_interface.json")
             .expect("failed to read JSON file");
-        let header: HeaderJson =
-            DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
+        DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON")
+    }
+
+    #[test]
+    fn test_generate_header_code() {
+        let header = load_header();
 
         // Test type generation
         let type_code = generate_header_types(&header);
@@ -344,58 +337,24 @@ mod tests {
         // Verify struct generation
         assert!(type_str.contains("pub struct GDExtensionCallError"));
 
-        // Test interface function generation
-        let interface_code = generate_interface_functions(&header);
-        let interface_str = interface_code.to_string();
+        // Verify const handles use *const
+        assert!(type_str.contains("* const std :: ffi :: c_void"));
 
-        // Verify function types are generated
-        assert!(interface_str.contains("pub type"));
-        assert!(interface_str.contains("unsafe extern \"C\" fn"));
+        // Verify GDExtensionInterface struct generation
+        let struct_code = generate_gdextension_interface(&header);
+        let struct_str = struct_code.to_string();
+        assert!(struct_str.contains("# [repr (C)]"));
+        assert!(struct_str.contains("pub struct GDExtensionInterface"));
+        assert!(struct_str.contains("Option <"));
     }
 
     #[test]
-    fn write_generated_output_to_file() {
-        let json_str = std::fs::read_to_string("../json/gdextension_interface.json")
-            .expect("failed to read JSON file");
-        let header: HeaderJson =
-            DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
+    fn write_generated_header_to_file() {
+        let header = load_header();
 
-        // Generate both types and interface functions
-        let type_code = generate_header_types(&header);
-        let interface_code = generate_interface_functions(&header);
-
-        // Combine into a single file
-        let combined = quote! {
-            // Generated from gdextension_interface.json
-
-            #type_code
-
-            #interface_code
-        };
-
-        // Write to file in the same directory as header_codegen.rs
-        let output_path = "src/generator/generated_header.rs";
-        std::fs::write(output_path, combined.to_string()).expect("failed to write generated file");
-
-        // Format with rustfmt
-        std::process::Command::new("rustfmt")
-            .arg(output_path)
-            .status()
-            .expect("failed to run rustfmt");
-    }
-
-    #[test]
-    fn write_gdextension_interface_to_file() {
-        let json_str = std::fs::read_to_string("../json/gdextension_interface.json")
-            .expect("failed to read JSON file");
-        let header: HeaderJson =
-            DeJson::deserialize_json(&json_str).expect("failed to deserialize JSON");
-
-        // Generate types and the struct (without separate function type aliases)
         let type_code = generate_header_types(&header);
         let struct_code = generate_gdextension_interface(&header);
 
-        // Combine into a single file
         let combined = quote! {
             // Generated from gdextension_interface.json
 
@@ -404,11 +363,9 @@ mod tests {
             #struct_code
         };
 
-        // Write to file in the same directory as header_codegen.rs
         let output_path = "src/generator/generated_header.rs";
         std::fs::write(output_path, combined.to_string()).expect("failed to write generated file");
 
-        // Format with rustfmt
         std::process::Command::new("rustfmt")
             .arg(output_path)
             .status()

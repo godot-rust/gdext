@@ -5,13 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// In #[derive(DeJson)]: "this block may be rewritten with the `?` operator"
-#![allow(clippy::question_mark)]
-#![allow(dead_code)]
-
 // This file acts as deserialization check of the JSON file. Even if some fields are unused, having them declared makes sure they're
 // deserializable and conform to our expectations. It also doesn't add much value to annotate individual fields; it doesn't really
 // matter if some are unused because it's external input data.
+// In #[derive(DeJson)]: "this block may be rewritten with the `?` operator"
+#![allow(clippy::question_mark)] // <- CHECK IF STILL NEEDED
+#![allow(dead_code)]
 
 use nanoserde::DeJson;
 
