@@ -268,14 +268,14 @@ make_base_ref!(
     GodotClass,
     WithBaseField,
     super::WithBaseField,
-    "rust object"
+    "Rust object"
 );
 make_base_mut!(
     BaseMut,
     GodotClass,
     WithBaseField,
     super::WithBaseField,
-    "rust object"
+    "Rust object"
 );
 
 make_base_ref!(
@@ -290,5 +290,5 @@ make_base_mut!(
     ScriptInstance,
     SiMut,
     crate::obj::script::SiMut,
-    "['ScriptInstance']"
+    "[`ScriptInstance`]"
 );

@@ -80,7 +80,7 @@ pub fn make_class_doc(
         .unwrap_or_default();
 
     format!(
-        "Godot class `{godot_ty}.`\n\n\
+        "Godot class `{godot_ty}`.\n\n\
         \
         {inherits_line}\n\n\
         \
