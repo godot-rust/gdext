@@ -257,6 +257,8 @@ pub mod meta {
     // Derive macro (moved from `register`).
     pub use godot_core::meta::ClassId;
     #[doc(hidden)]
+    pub use godot_core::meta::GodotFfiVariant;
+    #[doc(hidden)]
     pub use godot_core::meta::arg_into_owned;
     #[cfg(feature = "__trace")]
     #[doc(hidden)]
@@ -273,8 +275,6 @@ pub mod meta {
     pub use godot_core::meta::{
         Element, GodotImmutable, GodotType, PackedElement, element_variant_type,
     };
-    #[doc(hidden)]
-    pub use godot_core::meta::GodotFfiVariant;
     // Conversion traits.
     pub use godot_core::meta::{EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, ToGodot};
     // Range utilities.

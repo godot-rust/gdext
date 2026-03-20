@@ -19,6 +19,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let variant_type_enum = make_variant_type_enum(api, true);
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
     let godot_type_name_method = make_godot_type_name_method(api);
+    let has_destructor_method = make_has_destructor_method(api);
 
     quote! {
         #[cfg(target_pointer_width = "32")]
@@ -49,6 +50,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             }
 
             #godot_type_name_method
+            #has_destructor_method
         }
     }
 }
@@ -226,6 +228,33 @@ fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> TokenStrea
     let define_traits = !is_definition;
 
     enums::make_enum_definition_with(variant_type_enum, define_enum, define_traits)
+}
+
+/// Generates the `VariantType::has_destructor()` method from the builtins list.
+///
+/// Uses `has_destructor` from `extension_api.json` to determine which variant types require destruction.
+/// Types without a destructor are POD (plain-old-data) and can be safely overwritten without cleanup.
+fn make_has_destructor_method(api: &ExtensionApi) -> TokenStream {
+    // NIL is not in api.builtins; it has no destructor.
+    let mut destructor_ordinals = vec![];
+
+    for builtin in api.builtins.iter() {
+        if builtin.has_destructor {
+            destructor_ordinals.push(builtin.variant_type_ord);
+        }
+    }
+
+    quote! {
+        /// Returns `true` if variants of this type require destruction (i.e., are not plain-old-data).
+        ///
+        /// POD types (`bool`, `int`, `float`, vectors, `Color`, `Rid`, etc.) can be freely overwritten in memory.
+        /// Non-POD types (`String`, `Array`, `Dictionary`, `Object`, etc.) hold resources that must be properly released.
+        ///
+        /// Derived from `has_destructor` in Godot's `extension_api.json`.
+        pub fn has_destructor(&self) -> bool {
+            matches!(self.ord, #( #destructor_ordinals )|*)
+        }
+    }
 }
 
 /// Generates the `VariantType::godot_type_name()` method from the builtins list.

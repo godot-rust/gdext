@@ -278,15 +278,18 @@ impl BuiltinVariant {
     ) -> Self {
         let builtin_class;
         let godot_original_name;
+        let has_destructor;
 
         // Nil, int, float etc. are not represented by a BuiltinVariant.
         // Object has no BuiltinClass, but still gets its BuiltinVariant instance.
         if let Some(json_builtin) = json_builtin_class {
+            has_destructor = json_builtin.has_destructor;
             builtin_class = BuiltinClass::from_json(json_builtin, ctx);
             godot_original_name = json_builtin.name.clone();
         } else {
             assert_eq!(json_variant_enumerator_name, "OBJECT");
 
+            has_destructor = true; // Object requires ref-count management.
             builtin_class = None;
             godot_original_name = "Object".to_string();
         };
@@ -297,6 +300,7 @@ impl BuiltinVariant {
             godot_snake_name: conv::to_snake_case(json_variant_enumerator_name),
             builtin_class,
             variant_type_ord: json_variant_enumerator_ord,
+            has_destructor,
         }
     }
 }

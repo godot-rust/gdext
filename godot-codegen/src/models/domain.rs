@@ -119,6 +119,8 @@ pub struct BuiltinVariant {
     pub builtin_class: Option<BuiltinClass>,
 
     pub variant_type_ord: i32,
+    /// Whether this variant type requires destruction. Derived from `has_destructor` in `extension_api.json`.
+    pub has_destructor: bool,
 }
 
 impl BuiltinVariant {

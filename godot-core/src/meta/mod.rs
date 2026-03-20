@@ -84,9 +84,7 @@ pub use crate::arg_into_ref;
 
 // Crate-local re-exports.
 mod reexport_crate {
-    pub(crate) use super::traits::{
-        ExtVariantType, GodotNullableFfi, ffi_variant_type,
-    };
+    pub(crate) use super::traits::{ExtVariantType, GodotNullableFfi, ffi_variant_type};
     // Private imports for this module only.
     pub(super) use crate::registry::method::MethodParamOrReturnInfo;
     pub(crate) use crate::{declare_arg_method, impl_godot_as_self};

@@ -6,8 +6,8 @@
  */
 
 use godot::builtin::{
-    varray, Color, GString, Plane, Quaternion, Rect2, Rect2i, Rid, RustMarshal, RustVariant,
-    SetError, Variant, VariantType, Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i,
+    Color, GString, Plane, Quaternion, Rect2, Rect2i, Rid, RustMarshal, RustVariant, SetError,
+    Variant, VariantType, Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i, varray,
 };
 use godot::meta::{GodotFfiVariant, ToGodot};
 

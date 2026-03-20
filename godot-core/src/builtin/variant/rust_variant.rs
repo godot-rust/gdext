@@ -241,40 +241,11 @@ impl RustVariant {
     fn ensure_pod_type(&self) -> Result<(), SetError> {
         let current_type = self.get_type();
 
-        // Scalar types (nil, bool, int, float) don't need destruction.
-        if Self::is_pod_type(current_type) {
-            Ok(())
-        } else {
+        if current_type.has_destructor() {
             Err(SetError { current_type })
+        } else {
+            Ok(())
         }
-    }
-
-    /// Returns true if the type is a scalar or simple Copy type that doesn't require destruction.
-    fn is_pod_type(ty: VariantType) -> bool {
-        matches!(
-            ty,
-            VariantType::NIL
-                | VariantType::BOOL
-                | VariantType::INT
-                | VariantType::FLOAT
-                | VariantType::VECTOR2
-                | VariantType::VECTOR2I
-                | VariantType::VECTOR3
-                | VariantType::VECTOR3I
-                | VariantType::VECTOR4
-                | VariantType::VECTOR4I
-                | VariantType::QUATERNION
-                | VariantType::PLANE
-                | VariantType::COLOR
-                | VariantType::RECT2
-                | VariantType::RECT2I
-                | VariantType::AABB
-                | VariantType::BASIS
-                | VariantType::TRANSFORM2D
-                | VariantType::TRANSFORM3D
-                | VariantType::PROJECTION
-                | VariantType::RID
-        )
     }
 }
 

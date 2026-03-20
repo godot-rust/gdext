@@ -9,7 +9,7 @@ use std::hint::black_box;
 
 use godot::builtin::{Array, GString};
 
-use crate::framework::{bench, bench_measure, BenchResult};
+use crate::framework::{BenchResult, bench, bench_measure};
 
 #[bench(manual)]
 fn array_extend_i64_standard() -> BenchResult {
