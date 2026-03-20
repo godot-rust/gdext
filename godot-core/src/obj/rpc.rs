@@ -13,7 +13,7 @@ use crate::obj::{GodotClass, Inherits, WithBaseField};
 /// Holds:
 /// * A [`UserRpcObject`], which the represented RPC is called on.
 /// * A [`&str`], which represents the name of an RPC,
-/// * A [`Vec`] of [`Variants`] that is a list of parameters passed to the RPC when called.
+/// * A [`Vec`] of [`Variant`]s that is a list of parameters passed to the RPC when called.
 pub struct GenericRpcBuilder<'c, C: GodotClass> {
     object: UserRpcObject<'c, C>,
     rpc_name: &'c str,
@@ -65,7 +65,9 @@ where
     pub fn call_rpc(self, name: &str, parameters: &[Variant]) {
         match self {
             UserRpcObject::Internal(self_mut) => {
-                WithBaseField::base_mut(self_mut).upcast_mut::<Node>().rpc(name, parameters);
+                WithBaseField::base_mut(self_mut)
+                    .upcast_mut::<Node>()
+                    .rpc(name, parameters);
             }
             UserRpcObject::External(mut gd) => {
                 gd.upcast_mut::<Node>().rpc(name, parameters);
@@ -77,7 +79,9 @@ where
     pub fn call_rpc_id(self, name: &str, id: i64, parameters: &[Variant]) {
         match self {
             UserRpcObject::Internal(self_mut) => {
-                WithBaseField::base_mut(self_mut).upcast_mut::<Node>().rpc_id(id, name, parameters);
+                WithBaseField::base_mut(self_mut)
+                    .upcast_mut::<Node>()
+                    .rpc_id(id, name, parameters);
             }
             UserRpcObject::External(mut gd) => {
                 gd.upcast_mut::<Node>().rpc_id(id, name, parameters);
