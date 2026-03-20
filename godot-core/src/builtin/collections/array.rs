@@ -511,8 +511,8 @@ impl<T: Element> Array<T> {
 
         let original_size = self.len();
 
-        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
-        // array are of type `T` still.
+        // SAFETY: Godot's `resize()` fills new slots with type-appropriate defaults for typed arrays (e.g. 0 for int, nil for Variant).
+        // Callers that need non-default values (like `resize()`) must overwrite the new slots afterward.
         unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
         original_size
     }

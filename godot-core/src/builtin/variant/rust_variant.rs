@@ -268,6 +268,11 @@ impl RustVariant {
                 | VariantType::COLOR
                 | VariantType::RECT2
                 | VariantType::RECT2I
+                | VariantType::AABB
+                | VariantType::BASIS
+                | VariantType::TRANSFORM2D
+                | VariantType::TRANSFORM3D
+                | VariantType::PROJECTION
                 | VariantType::RID
         )
     }
