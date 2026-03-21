@@ -30,12 +30,12 @@ mod reexport_pub {
     #[cfg(feature = "trace")]
     pub use crate::meta::trace;
     pub use crate::obj::rtti::ObjectRtti;
+    pub use crate::obj::signal::priv_re_export::*;
     pub use crate::registry::callbacks;
     pub use crate::registry::plugin::{
         ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
         PluginItem, Struct,
     };
-    pub use crate::registry::signal::priv_re_export::*;
     pub use crate::storage::{
         IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage, VirtualMethodReceiver,
         as_storage,
@@ -162,10 +162,10 @@ pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassId) -> Option<Inh
     let plugins = __GODOT_PLUGIN_REGISTRY.lock().unwrap();
 
     plugins.iter().find_map(|elem| {
-        if elem.class_name == class_name {
-            if let PluginItem::InherentImpl(inherent_impl) = &elem.item {
-                return Some(inherent_impl.clone());
-            }
+        if elem.class_name == class_name
+            && let PluginItem::InherentImpl(inherent_impl) = &elem.item
+        {
+            return Some(inherent_impl.clone());
         }
 
         None

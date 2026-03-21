@@ -213,7 +213,7 @@ impl BorrowState {
     /// Returns the new total of inaccessible mutable references.
     ///
     /// Fails when:
-    /// - There is no current
+    /// - There is no current mutable reference that can be promoted to inaccessible.
     pub fn set_inaccessible(&mut self) -> Result<usize, BorrowStateErr> {
         if !self.has_accessible() {
             return Err(

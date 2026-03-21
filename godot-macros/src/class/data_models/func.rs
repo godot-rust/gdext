@@ -771,13 +771,13 @@ pub fn validate_receiver_extract_gdself(
 
 /// Validates that the function signature has a reference receiver (`&self` or `&mut self`).
 fn validate_ref_receiver(signature: &venial::Function) -> ParseResult<()> {
-    if let Some((venial::FnParam::Receiver(recv), _)) = signature.params.first() {
-        if recv.tk_ref.is_none() {
-            return bail!(
-                &recv.tk_self,
-                "#[func] does not support `self` receiver (by-value); use `&self` or `&mut self`"
-            );
-        }
+    if let Some((venial::FnParam::Receiver(recv), _)) = signature.params.first()
+        && recv.tk_ref.is_none()
+    {
+        return bail!(
+            &recv.tk_self,
+            "#[func] does not support `self` receiver (by-value); use `&self` or `&mut self`"
+        );
     }
 
     Ok(())

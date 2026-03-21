@@ -106,14 +106,12 @@ impl FieldVar {
             };
 
             if let Some(icon) = parser.handle_literal("icon", "String")? {
-                let hint_string = format!(
-                    "{},{}",
-                    name.to_string().trim_matches('\"'),
-                    icon.to_string().trim_matches('\"')
-                );
-                hint_string.to_token_stream()
+                let unquoted_name = name.trim_matches('\"');
+                let unquoted_icon = icon.to_string();
+                let unquoted_icon = unquoted_icon.trim_matches('\"');
+                format!("{unquoted_name},{unquoted_icon}")
             } else {
-                name.to_token_stream()
+                name
             }
         };
 
@@ -125,7 +123,7 @@ impl FieldVar {
             ));
         };
 
-        let hint = FieldHint::new(ident("TOOL_BUTTON"), Some(hint_string));
+        let hint = FieldHint::new(ident("TOOL_BUTTON"), Some(hint_string.to_token_stream()));
         Ok(FieldVar {
             rename: None,
             getter: GetterSetter::ToolButton(ToolButtonFn(tool_button_fn)),

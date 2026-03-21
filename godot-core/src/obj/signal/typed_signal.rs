@@ -14,9 +14,9 @@ use crate::builtin::{Callable, CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned, UniformObjectDeref};
+use crate::obj::signal::signal_connections_registry::store_signal_connection;
+use crate::obj::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 use crate::obj::{Gd, GodotClass, WithSignals};
-use crate::registry::signal::signal_connections_registry::store_signal_connection;
-use crate::registry::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 
 /// Type-safe version of a Godot signal.
 ///

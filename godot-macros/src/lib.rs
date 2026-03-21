@@ -507,7 +507,7 @@ use crate::util::{KvParser, bail, ident};
 /// <details>
 /// <summary><i>Expand...</i></summary>
 ///
-/// ```
+/// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(tool, init, base=Node)]
@@ -1119,7 +1119,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// #[derive(GodotClass)]
 /// #[class(init)]
 /// struct MyClass {
-///     base: Base<RefCounted>, // necessary for #[signal].
+///     base: Base<RefCounted>, // Base<...> necessary for #[signal].
 /// }
 ///
 /// #[godot_api]

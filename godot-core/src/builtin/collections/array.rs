@@ -682,10 +682,10 @@ impl<T: Element> Array<T> {
             self.functional_ops().bsearch_custom(ignored_value, pred)
         });
 
-        if let Some(value_at_index) = self.get(index) {
-            if func(&value_at_index) == cmp::Ordering::Equal {
-                return Ok(index);
-            }
+        if let Some(value_at_index) = self.get(index)
+            && func(&value_at_index) == cmp::Ordering::Equal
+        {
+            return Ok(index);
         }
 
         Err(index)

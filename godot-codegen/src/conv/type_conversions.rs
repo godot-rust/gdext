@@ -235,13 +235,14 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     }
 
     // Only place where meta is relevant is here.
-    if !ty.starts_with("typedarray::") && !ty.starts_with("typeddictionary::") {
-        if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
-            return RustTy::BuiltinIdent {
-                ty: hardcoded,
-                arg_passing: ctx.get_builtin_arg_passing(full_ty),
-            };
-        }
+    if !ty.starts_with("typedarray::")
+        && !ty.starts_with("typeddictionary::")
+        && let Some(hardcoded) = to_hardcoded_rust_ident(full_ty)
+    {
+        return RustTy::BuiltinIdent {
+            ty: hardcoded,
+            arg_passing: ctx.get_builtin_arg_passing(full_ty),
+        };
     }
 
     if let Some(hardcoded) = to_hardcoded_rust_enum(ty) {

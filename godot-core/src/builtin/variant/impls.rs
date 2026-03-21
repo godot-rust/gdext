@@ -193,7 +193,7 @@ impl_dynamic_send!(
     PackedVector2Array, PackedVector3Array, PackedColorArray
 );
 
-// This should be kept in sync with crate::registry::signal::variadic.
+// This should be kept in sync with crate::obj::signal::variadic.
 impl_dynamic_send!(tuple; );
 impl_dynamic_send!(tuple; arg1: A1);
 impl_dynamic_send!(tuple; arg1: A1, arg2: A2);

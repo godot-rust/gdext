@@ -11,8 +11,8 @@ use crate::obj::{Gd, GodotClass, WithBaseField};
 ///
 /// This trait allows passing either `Gd<T>` or `C` (where `C: WithBaseField`) to functions that need an owned `Gd<T>`.
 ///
-/// This is primarily used for signal connection methods in [`TypedSignal`][crate::registry::signal::TypedSignal] and
-/// [`ConnectBuilder`][crate::registry::signal::ConnectBuilder], where you can pass either a `&Gd` (outside) or `&SomeClass`
+/// This is primarily used for signal connection methods in [`TypedSignal`][crate::obj::signal::TypedSignal] and
+/// [`ConnectBuilder`][crate::obj::signal::ConnectBuilder], where you can pass either a `&Gd` (outside) or `&SomeClass`
 /// (from within `impl` block) as the receiver object.
 ///
 /// # Similar traits

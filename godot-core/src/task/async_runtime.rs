@@ -34,8 +34,8 @@ use crate::private::handle_panic;
 ///
 /// [`Signal::to_future()`]: crate::builtin::Signal::to_future
 /// [`Signal::to_fallible_future()`]: crate::builtin::Signal::to_fallible_future
-/// [`TypedSignal::to_future()`]: crate::registry::signal::TypedSignal::to_future
-/// [`TypedSignal::to_fallible_future()`]: crate::registry::signal::TypedSignal::to_fallible_future
+/// [`TypedSignal::to_future()`]: crate::obj::signal::TypedSignal::to_future
+/// [`TypedSignal::to_fallible_future()`]: crate::obj::signal::TypedSignal::to_fallible_future
 ///
 /// # Panics
 /// If called from any other thread than the main thread.

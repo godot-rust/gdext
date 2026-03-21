@@ -12,7 +12,7 @@ use crate::obj::{Gd, GdMut, GdRef, GodotClass, WithBaseField};
 
 /// Unifies dereferencing of user and engine classes, as `&T`/`&mut T` and `Gd<T>`.
 ///
-/// This is mainly used by the `connect_*` functions of [`TypedSignal`](crate::registry::signal::TypedSignal).
+/// This is mainly used by the `connect_*` functions of [`TypedSignal`](crate::obj::signal::TypedSignal).
 ///
 /// # Motivation
 /// Although both user and engine classes are often wrapped in a `Gd<T>`, dereferencing them is done differently depending

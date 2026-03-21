@@ -8,7 +8,7 @@
 //! Integrates async rust code with the engine.
 //!
 //! This module contains:
-//! - Implementations of [`Future`] for [`Signal`][crate::builtin::Signal] and [`TypedSignal`][crate::registry::signal::TypedSignal].
+//! - Implementations of [`Future`] for [`Signal`][crate::builtin::Signal] and [`TypedSignal`][crate::obj::signal::TypedSignal].
 //! - A way to [`spawn`] new async tasks by using the engine as the async runtime.
 
 mod async_runtime;
