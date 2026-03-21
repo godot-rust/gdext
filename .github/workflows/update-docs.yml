@@ -19,7 +19,7 @@ on:
 
 env:
   # Keep this a variable for easy search&replace.
-  MSRV: 1.87
+  MSRV: 1.94
 
 jobs:
   notify-docs:
@@ -37,7 +37,7 @@ jobs:
           # Get middle part of version, e.g. 78 from 1.78.0
           isMinorVer=$(rustc --version | sed -E 's/rustc [0-9]+\.([0-9]+)\..*/\1/')
           shouldMinorVer=$(echo $MSRV | sed -E 's/[0-9]+\.([0-9]+)(\.|$).*/\1/')
-          
+
           if [ $isMinorVer -lt $shouldMinorVer ]; then
             echo "Rust version is below MSRV; install latest stable..."
             rustup update stable
@@ -49,10 +49,10 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
         run: cargo check -p godot $GDEXT_FEATURES --ignore-rust-version
 
-#      - name: "Dump GitHub context"
-#        env:
-#          GITHUB_CONTEXT: ${{ toJson(github) }}
-#        run: echo "$GITHUB_CONTEXT"
+      #      - name: "Dump GitHub context"
+      #        env:
+      #          GITHUB_CONTEXT: ${{ toJson(github) }}
+      #        run: echo "$GITHUB_CONTEXT"
 
       # Pushed to master: no PR-related information
       - name: "Construct JSON (for master)"
@@ -134,6 +134,5 @@ jobs:
         with:
           token: ${{ env.DOCS_GENERATOR }}
           repository: godot-rust/dispatch-forwarder
-          event-type: 'Generate docs'
+          event-type: "Generate docs"
           client-payload: ${{ env.GDEXT_JSON }}
-
