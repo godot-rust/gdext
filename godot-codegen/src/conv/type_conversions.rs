@@ -254,9 +254,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     }
 
     if let Some(bitfield) = ty.strip_prefix("bitfield::") {
-        return to_enum_type_uncached(bitfield, true);
+        return to_enum_type_uncached(bitfield, true, Some(ctx));
     } else if let Some(qualified_enum) = ty.strip_prefix("enum::") {
-        return to_enum_type_uncached(qualified_enum, false);
+        return to_enum_type_uncached(qualified_enum, false, Some(ctx));
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
@@ -336,13 +336,16 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 ///
 /// Input: `bitfield::Mesh.ArrayFormat` or `enum::Error` **without** the `bitfield::` or `enum::` prefix.  \
 /// I.e. just `Mesh.ArrayFormat` or `Error`.
-pub(crate) fn to_enum_type_uncached(enum_or_bitfield: &str, is_bitfield: bool) -> RustTy {
+pub(crate) fn to_enum_type_uncached(enum_or_bitfield: &str, is_bitfield: bool, ctx: Option<&Context>) -> RustTy {
     if let Some((class, enum_)) = enum_or_bitfield.split_once('.') {
         to_class_enum_uncached(class, enum_, is_bitfield)
     } else if enum_or_bitfield == "ResourceDeepDuplicateMode" {
         // FIXME – in https://github.com/godotengine/godot/pull/100673#issuecomment-2916116489 `ResourceDeepDuplicateMode` has been wrongly marked as an Engine Enum.
         // Remove this workaround after the fix appears.
         to_class_enum_uncached("Resource", enum_or_bitfield, is_bitfield)
+    } else if let Some(class) = ctx.and_then(|c| c.find_enum_class(enum_or_bitfield)) {
+        // Enum found in a class's enum list (from external GDExtension).
+        to_class_enum_uncached(class, enum_or_bitfield, is_bitfield)
     } else {
         // Global enum or bitfield.
         let enum_or_bitfield_name = conv::make_enum_name(enum_or_bitfield);

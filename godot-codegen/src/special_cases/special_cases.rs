@@ -1344,6 +1344,6 @@ pub fn as_enum_bitmaskable(enum_: &Enum) -> Option<RustTy> {
         "Enum {enum_name} with bitmask mapping cannot be exhaustive"
     );
 
-    let rust_ty = to_enum_type_uncached(mapped, true);
+    let rust_ty = to_enum_type_uncached(mapped, true, None);
     Some(rust_ty)
 }
