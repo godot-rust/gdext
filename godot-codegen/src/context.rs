@@ -33,6 +33,7 @@ pub struct Context<'a> {
     notification_enum_names_by_class: HashMap<TyName, NotificationEnum>,
     method_table_indices: HashMap<MethodTableKey, usize>,
     method_table_next_index: HashMap<String, usize>,
+    class_enums: HashMap<String, String>,
 }
 
 impl<'a> Context<'a> {
@@ -70,6 +71,14 @@ impl<'a> Context<'a> {
 
             // Populate class lookup by name.
             engine_classes.insert(class_name.clone(), class);
+
+            // Populate class-local enums map for resolving enums from external GDExtensions.
+            if let Some(enums) = &class.enums {
+                for json_enum in enums {
+                    ctx.class_enums
+                        .insert(json_enum.name.clone(), class.name.clone());
+                }
+            }
 
             if !option_as_slice(&class.signals).is_empty() {
                 ctx.classes_with_signals.insert(class_name.clone());
@@ -304,6 +313,10 @@ impl<'a> Context<'a> {
 
     pub fn is_singleton(&self, class_name: &TyName) -> bool {
         self.singletons.contains(class_name.godot_ty.as_str())
+    }
+
+    pub fn find_enum_class(&self, enum_name: &str) -> Option<&str> {
+        self.class_enums.get(enum_name).map(|s| s.as_str())
     }
 
     pub fn is_final(&self, class_name: &TyName) -> bool {

@@ -628,7 +628,7 @@ impl FnParamBuilder {
                 );
             }
 
-            conv::to_enum_type_uncached(enum_name, *is_bitfield)
+            conv::to_enum_type_uncached(enum_name, *is_bitfield, Some(ctx))
         } else {
             type_
         };
@@ -695,7 +695,7 @@ impl FnReturn {
                         ty
                     );
                 }
-                conv::to_enum_type_uncached(enum_name, *is_bitfield)
+                conv::to_enum_type_uncached(enum_name, *is_bitfield, Some(ctx))
             } else {
                 ty
             };
