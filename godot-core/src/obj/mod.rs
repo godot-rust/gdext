@@ -22,6 +22,7 @@ mod on_editor;
 mod on_ready;
 mod passive_gd;
 mod raw_gd;
+mod rpc;
 mod traits;
 
 pub(crate) mod rtti;
@@ -37,6 +38,7 @@ pub use on_editor::*;
 pub use on_ready::*;
 pub(crate) use passive_gd::PassiveGd;
 pub use raw_gd::*;
+pub use rpc::*;
 pub use traits::*;
 
 pub mod bounds;

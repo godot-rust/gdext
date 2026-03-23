@@ -6,7 +6,7 @@
  */
 
 use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use quote::{TokenStreamExt, format_ident, quote};
 
 use crate::class::FuncDefinition;
 
@@ -160,4 +160,87 @@ fn make_rpc_registration(func_def: &FuncDefinition) -> Option<TokenStream> {
     };
 
     Some(registration)
+}
+
+// TODO: respect function visibility when generating builders
+pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStream {
+    // TODO: should this be handled outside of this function?
+    if rpcs.is_empty() {
+        return TokenStream::new();
+    }
+
+    // TODO: is this an okay name?
+    let collection_name = format_ident!("__{for_class}RpcCollection");
+
+    let mut collection_impl_methods = TokenStream::new();
+    for rpc in rpcs {
+        // TODO: Support functions with optional parameters
+
+        let rpc_name = rpc.rust_ident();
+        // TODO: is this an okay name?
+        let param_idents = &rpc.signature_info.param_idents;
+        let rpc_typed_args: TokenStream = param_idents
+            .iter()
+            .zip(&rpc.signature_info.param_types)
+            .map(|(param_name, param_type)| {
+                quote! {
+                    #param_name: #param_type,
+                }
+            })
+            .collect();
+        let rpc_args = param_idents.iter().map(|name| quote! { #name });
+
+        let rpc_name_string = rpc_name.to_string();
+        collection_impl_methods.append_all(quote! {
+            #[must_use]
+            pub fn #rpc_name(self, #rpc_typed_args) -> RpcBuilder<'c, #for_class> {
+                RpcBuilder::new(
+                    self.object,
+                    #rpc_name_string,
+                    vec![#( #rpc_args.to_variant() ),*],
+                )
+            }
+        });
+    }
+
+    let rpc_mod = format_ident!("__{for_class}_rpcs");
+    quote! {
+        use #rpc_mod::*;
+
+        #[allow(non_camel_case_types)]
+        mod #rpc_mod {
+            use super::*;
+            use ::godot::obj::{RpcCollection, UserRpcObject, RpcBuilder};
+
+            #[doc(hidden)]
+            pub struct #collection_name<'c> {
+                object: UserRpcObject<'c, #for_class>,
+            }
+
+            impl<'c> #collection_name<'c> {
+                #collection_impl_methods
+            }
+
+            impl<'c> RpcCollection<'c, #for_class> for #collection_name<'c> {
+                fn from_user_rpc_object(object: UserRpcObject<'c, #for_class>) -> Self {
+                    #collection_name {
+                        object,
+                    }
+                }
+            }
+
+            impl<'c> ::godot::obj::WithUserRpcs<'c, #for_class> for #for_class
+            where
+                #for_class: ::godot::obj::WithBaseField,
+            {
+                type Collection = #collection_name<'c>;
+
+                fn rpcs(&'c mut self) -> Self::Collection {
+                    Self::Collection::from_user_rpc_object(
+                        UserRpcObject::Internal(self)
+                    )
+                }
+            }
+        }
+    }
 }
