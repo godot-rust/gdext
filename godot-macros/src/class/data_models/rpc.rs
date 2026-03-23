@@ -192,8 +192,8 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
 
         collection_impl_methods.append_all(quote! {
             #[must_use]
-            pub fn #rpc_name(self, #rpc_typed_args) -> GenericRpcBuilder<'c, #for_class> {
-                GenericRpcBuilder::new(
+            pub fn #rpc_name(self, #rpc_typed_args) -> RpcBuilder<'c, #for_class> {
+                RpcBuilder::new(
                     self.object,
                     stringify!(#rpc_name),
                     vec![#( #rpc_args.to_variant() ),*],
@@ -211,7 +211,7 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             #![allow(non_camel_case_types)]
 
             use super::*;
-            use ::godot::obj::{RpcCollection, UserRpcObject, GenericRpcBuilder};
+            use ::godot::obj::{RpcCollection, UserRpcObject, RpcBuilder};
 
             #[doc(hidden)]
             pub struct #collection_name<'c>

@@ -12,13 +12,13 @@ use crate::obj::{GodotClass, Inherits, WithBaseField};
 
 /// Represents an RPC, and the object that it can be called on, and is usually obtained through the type-safe RPC API. See
 /// the [relevant section]() in the book for more information about type-safe RPC calls.
-pub struct GenericRpcBuilder<'c, C: GodotClass> {
+pub struct RpcBuilder<'c, C: GodotClass> {
     object: UserRpcObject<'c, C>,
     rpc_name: &'c str,
     parameters: Vec<Variant>,
 }
 
-impl<'c, C: GodotClass> GenericRpcBuilder<'c, C> {
+impl<'c, C: GodotClass> RpcBuilder<'c, C> {
     pub fn new(object: UserRpcObject<'c, C>, rpc_name: &'c str, parameters: Vec<Variant>) -> Self {
         Self {
             object,
@@ -28,7 +28,7 @@ impl<'c, C: GodotClass> GenericRpcBuilder<'c, C> {
     }
 }
 
-impl<'c, C> GenericRpcBuilder<'c, C>
+impl<'c, C> RpcBuilder<'c, C>
 where
     C: WithBaseField + Inherits<Node>,
     C::Base: Inherits<Node>,
