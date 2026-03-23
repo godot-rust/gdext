@@ -190,12 +190,13 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
             .collect();
         let rpc_args = param_idents.iter().map(|name| quote! { #name });
 
+        let rpc_name_string = rpc_name.to_string();
         collection_impl_methods.append_all(quote! {
             #[must_use]
             pub fn #rpc_name(self, #rpc_typed_args) -> RpcBuilder<'c, #for_class> {
                 RpcBuilder::new(
                     self.object,
-                    stringify!(#rpc_name),
+                    #rpc_name_string,
                     vec![#( #rpc_args.to_variant() ),*],
                 )
             }
@@ -203,29 +204,24 @@ pub fn make_rpc_api(for_class: &Ident, rpcs: Vec<&FuncDefinition>) -> TokenStrea
     }
 
     let rpc_mod = format_ident!("__{for_class}_rpcs");
-    // TODO: consider selectively importing items here instead of using a wildcard
     quote! {
         use #rpc_mod::*;
 
+        #[allow(non_camel_case_types)]
         mod #rpc_mod {
-            #![allow(non_camel_case_types)]
-
             use super::*;
             use ::godot::obj::{RpcCollection, UserRpcObject, RpcBuilder};
 
             #[doc(hidden)]
-            pub struct #collection_name<'c>
-            {
+            pub struct #collection_name<'c> {
                 object: UserRpcObject<'c, #for_class>,
             }
 
-            impl<'c> #collection_name<'c>
-            {
+            impl<'c> #collection_name<'c> {
                 #collection_impl_methods
             }
 
-            impl<'c> RpcCollection<'c, #for_class> for #collection_name<'c>
-            {
+            impl<'c> RpcCollection<'c, #for_class> for #collection_name<'c> {
                 fn from_user_rpc_object(object: UserRpcObject<'c, #for_class>) -> Self {
                     #collection_name {
                         object,
