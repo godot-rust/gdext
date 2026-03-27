@@ -159,7 +159,7 @@ pub fn panic_call_error(
 // Lazy method table key types
 // Could reuse them in normal load functions, but less code when passing separate parameters -> faster parsing.
 
-#[cfg(feature = "codegen-lazy-fptrs")]
+#[cfg(feature = "codegen-lazy-fptrs")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-lazy-fptrs")))]
 pub mod lazy_keys {
     #[derive(Clone, Eq, PartialEq, Hash)]
     pub struct ClassMethodKey {

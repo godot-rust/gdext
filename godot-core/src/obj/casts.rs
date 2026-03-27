@@ -49,7 +49,7 @@ impl<T: GodotClass, U: GodotClass> CastSuccess<T, U> {
     }
 
     /// Access shared reference to destination, without consuming object.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     pub fn as_dest_ref(&self) -> &RawGd<U> {
         self.check_validity();
         &self.dest
@@ -57,7 +57,7 @@ impl<T: GodotClass, U: GodotClass> CastSuccess<T, U> {
 
     /// Access exclusive reference to destination, without consuming object.
     pub fn as_dest_mut(&mut self) -> &mut RawGd<U> {
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         self.check_validity();
         &mut self.dest
     }
@@ -72,14 +72,14 @@ impl<T: GodotClass, U: GodotClass> CastSuccess<T, U> {
             self.dest.instance_id_unchecked(),
             "traded_source must point to the same object as the destination"
         );
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         self.check_validity();
 
         std::mem::forget(traded_source);
         ManuallyDrop::into_inner(self.dest)
     }
 
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     fn check_validity(&self) {
         assert!(self.dest.is_null() || self.dest.is_instance_valid());
     }

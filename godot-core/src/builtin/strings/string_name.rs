@@ -161,7 +161,7 @@ impl StringName {
     /// # Compatibility
     /// This method is only available for Godot 4.5 and later, where `StringName` to `GString` conversions preserve the
     /// underlying buffer pointer via reference counting.
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     pub fn chars(&self) -> &[char] {
         let gstring = GString::from(self);
         let (ptr, len) = gstring.raw_slice();
@@ -332,13 +332,13 @@ impl_shared_string_api! {
 
 // API design: see PartialEq for GString.
 impl PartialEq<&str> for StringName {
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     fn eq(&self, other: &&str) -> bool {
         self.chars().iter().copied().eq(other.chars())
     }
 
     // Polyfill for older Godot versions -- StringName->GString conversion still requires allocation in older versions.
-    #[cfg(before_api = "4.5")]
+    #[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
     fn eq(&self, other: &&str) -> bool {
         GString::from(self) == *other
     }
@@ -467,7 +467,7 @@ impl Ord for TransientStringNameOrd<'_> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // serde support
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use std::fmt::Formatter;
 

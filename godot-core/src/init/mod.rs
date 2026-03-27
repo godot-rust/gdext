@@ -16,9 +16,9 @@ use crate::out;
 
 mod reexport_pub {
     // `Engine::singleton()` is not available before `InitLevel::Scenes` for Godot before 4.4.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub use super::sys::is_editor_hint;
-    #[cfg(not(wasm_nothreads))]
+    #[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
     pub use super::sys::main_thread_id;
     pub use super::sys::{GdextBuild, InitStage, is_main_thread};
 }
@@ -29,11 +29,11 @@ use crate::obj::signal::prune_stored_signal_connections;
 #[repr(C)]
 struct InitUserData {
     library: sys::GDExtensionClassLibraryPtr,
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     main_loop_callbacks: sys::GDExtensionMainLoopCallbacks,
 }
 
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
     let ctx = || "ExtensionLibrary::on_stage_init(MainLoop)".to_string();
 
@@ -45,7 +45,7 @@ unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
     sys::print_deferred_startup_messages();
 }
 
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
     let ctx = || "ExtensionLibrary::on_main_loop_frame()".to_string();
 
@@ -54,7 +54,7 @@ unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
     });
 }
 
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
     let ctx = || "ExtensionLibrary::on_stage_deinit(MainLoop)".to_string();
 
@@ -73,7 +73,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         // Make sure the first thing we do is check whether hot reloading should be enabled or not. This is to ensure that if we do anything to
         // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise, this could cause the default
         // behavior to kick in and disable hot reloading.
-        #[cfg(target_os = "linux")]
+        #[cfg(target_os = "linux")] #[cfg_attr(published_docs, doc(cfg(target_os = "linux")))]
         sys::linux_reload_workaround::default_set_hot_reload();
 
         let tool_only_in_editor = match E::editor_run_behavior() {
@@ -89,7 +89,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         }
 
         // With experimental-features enabled, we can always print panics to godot_print!
-        #[cfg(feature = "experimental-threads")]
+        #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
         crate::private::set_gdext_hook(|| true);
 
         // Without experimental-features enabled, we can only print panics with godot_print! if the panic occurs on the main (Godot) thread.
@@ -105,7 +105,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         // Leak the userdata. It will be dropped in core level deinitialization.
         let userdata = Box::into_raw(Box::new(InitUserData {
             library,
-            #[cfg(since_api = "4.5")]
+            #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
             main_loop_callbacks: sys::GDExtensionMainLoopCallbacks {
                 startup_func: Some(startup_func::<E>),
                 frame_func: Some(frame_func::<E>),
@@ -217,7 +217,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
 
     match level {
         InitLevel::Core => {
-            #[cfg(since_api = "4.5")]
+            #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
             unsafe {
                 sys::interface_fn!(register_main_loop_callbacks)(
                     _userdata.library,
@@ -225,7 +225,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
                 )
             };
 
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
         }
         InitLevel::Servers => {
@@ -472,7 +472,7 @@ pub unsafe trait ExtensionLibrary {
     ///
     /// # Panics
     /// If the overridden method panics, an error will be printed, but execution continues.
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     fn on_main_loop_frame() {}
 }
 

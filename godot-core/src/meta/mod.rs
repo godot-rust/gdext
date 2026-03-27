@@ -68,7 +68,7 @@ pub use godot_convert::{EngineFromGodot, EngineToGodot, FromGodot, GodotConvert,
 pub use object_to_owned::ObjectToOwned;
 pub use param_tuple::{InParamTuple, OutParamTuple, ParamTuple, TupleFromGodot};
 pub use raw_ptr::{FfiRawPointer, RawPtr};
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub use signature::trace;
 #[doc(hidden)]
 pub use signature::*;
