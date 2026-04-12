@@ -1,6 +1,6 @@
 [package]
 name = "godot-ffi"
-version = "0.5.0"
+version = "0.5.1"
 edition.workspace = true
 rust-version.workspace = true
 license = "MPL-2.0"
@@ -39,8 +39,8 @@ safeguards-release-disengaged = ["godot-bindings/safeguards-release-disengaged"]
 libc = { workspace = true }
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings", version = "=0.5.0" }
-godot-codegen = { path = "../godot-codegen", version = "=0.5.0" }
+godot-bindings = { path = "../godot-bindings", version = "=0.5.1" }
+godot-codegen = { path = "../godot-codegen", version = "=0.5.1" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
