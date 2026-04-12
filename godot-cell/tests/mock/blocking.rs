@@ -36,7 +36,7 @@ impl MyClass {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// NOTE: We have to ignore each test individually, instead of using #[cfg(test)] on a module containing them, so that
+// NOTE: We have to ignore each test individually, instead of using #[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))] on a module containing them, so that
 // `cargo test` still lists those tests, while indicating the reason why they were ignored.
 
 /// Call each method from different threads, allowing them to run in parallel.

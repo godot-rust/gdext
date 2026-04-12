@@ -532,7 +532,7 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     ///
     /// Only performs runtime checks on Godot 4.4+, where typed dictionaries are supported by the engine.
     /// Before 4.4, this always succeeds since there are no engine-side types to check against.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     fn with_checked_type(self) -> Result<Self, meta::error::ConvertError> {
         use crate::meta::error::{DictionaryMismatch, FromGodotError};
 
@@ -640,14 +640,14 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     }
 
     /// On Godot 4.4+, calls `dictionary_set_typed()` to inform the engine about types and caches the result.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     fn init_inner_type(&mut self) {
         self.init_inner_type_with(interface_fn!(dictionary_set_typed));
     }
 
     /// Compiled against pre-4.4 API: if running on Godot 4.4+, dynamically look up `dictionary_set_typed`
     /// and call it to register type info with the engine.
-    #[cfg(before_api = "4.4")]
+    #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
     fn init_inner_type(&mut self) {
         if !sys::GdextBuild::since_api("4.4") {
             // Pre-4.4 runtime: typed dicts not supported -> cache Untyped to avoid re-probing on each query.
@@ -897,7 +897,7 @@ impl<K: Element, V: Element> meta::GodotFfiVariant for Dictionary<K, V> {
             result.with_checked_type()
         }
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         Ok(result)
     }
 }

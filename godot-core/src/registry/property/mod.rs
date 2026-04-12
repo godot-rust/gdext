@@ -544,13 +544,13 @@ pub mod export_fns {
 
             // Array<GString> or PackedStringArray field:
             // { "type": 28, "hint": 23, "hint_string": "4/13:*.png" }
-            #[cfg(since_api = "4.3")]
+            #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
             GodotShape::Builtin {
                 variant_type: VariantType::PACKED_STRING_ARRAY,
                 ..
             } => to_string_array_hint(hint, filter),
 
-            #[cfg(since_api = "4.3")]
+            #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
             GodotShape::TypedArray {
                 element:
                     GodotElementShape::Builtin {
@@ -564,13 +564,13 @@ pub mod export_fns {
 
                 // TODO nicer error handling.
                 // Compile time may be difficult (at least without extra traits... maybe const fn?). But at least more context info, field name etc.
-                #[cfg(since_api = "4.3")]
+                #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
                 panic!(
                     "#[export({attribute_name})] only supports GString, Array<String> or PackedStringArray field types\n\
                     encountered: {shape:?}"
                 );
 
-                #[cfg(before_api = "4.3")]
+                #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
                 panic!(
                     "#[export({attribute_name})] only supports GString type prior to Godot 4.3\n\
                     encountered: {shape:?}"

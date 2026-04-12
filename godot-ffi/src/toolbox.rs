@@ -15,7 +15,7 @@ use crate as sys;
 // Macros
 
 /// Trace output.
-#[cfg(feature = "debug-log")]
+#[cfg(feature = "debug-log")] #[cfg_attr(published_docs, doc(cfg(feature = "debug-log")))]
 #[macro_export]
 macro_rules! out {
     ()                          => (eprintln!());
@@ -24,7 +24,7 @@ macro_rules! out {
 }
 
 /// Trace output.
-#[cfg(not(feature = "debug-log"))]
+#[cfg(not(feature = "debug-log"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "debug-log"))))]
 #[macro_export]
 macro_rules! out {
     ()                          => ({});
@@ -519,7 +519,7 @@ pub(crate) use manual_init_cell::ManualInitCell;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Unit tests
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::*;
 
