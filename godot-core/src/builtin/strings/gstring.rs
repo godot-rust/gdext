@@ -363,6 +363,12 @@ impl From<&[char]> for GString {
     }
 }
 
+impl From<char> for GString {
+    fn from(c: char) -> Self {
+        [c].as_slice().into()
+    }
+}
+
 impl From<&String> for GString {
     fn from(value: &String) -> Self {
         value.as_str().into()
