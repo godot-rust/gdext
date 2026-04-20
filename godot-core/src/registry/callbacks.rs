@@ -491,6 +491,14 @@ pub fn register_user_methods_constants<T: cap::ImplementsGodotApi>(_class_builde
     T::__register_constants();
 }
 
+pub fn collect_user_methods_metadata<T: cap::ImplementsGodotApi>(out: &mut dyn Any) {
+    let out = out
+        .downcast_mut::<Vec<crate::registry::class::MethodRegistrationMetadata>>()
+        .expect("bad type erasure");
+
+    T::__collect_method_metadata(out);
+}
+
 pub fn register_user_rpcs<T: cap::ImplementsGodotApi>(object: &mut dyn Any) {
     T::__register_rpcs(object);
 }

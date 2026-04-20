@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map::Entry};
 use std::{any, ptr};
 
 use sys::{Global, GlobalGuard, GlobalLockError, interface_fn, out};
@@ -68,6 +68,28 @@ pub struct LoadedClass {
 // Currently empty, but should already work for per-class queries.
 pub struct ClassMetadata {}
 
+/// Internal metadata describing a method name exposed by `#[func]`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MethodRegistrationMetadata {
+    pub rust_name: String,
+    pub godot_name: String,
+    pub is_script_virtual: bool,
+}
+
+impl MethodRegistrationMetadata {
+    pub fn new(
+        rust_name: impl Into<String>,
+        godot_name: impl Into<String>,
+        is_script_virtual: bool,
+    ) -> Self {
+        Self {
+            rust_name: rust_name.into(),
+            godot_name: godot_name.into(),
+            is_script_virtual,
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
@@ -105,6 +127,8 @@ struct ClassRegistrationInfo {
 
     /// One entry for each `dyn Trait` implemented (and registered) for this class.
     dynify_fns_by_trait: HashMap<any::TypeId, DynTraitImpl>,
+
+    declared_method_metadata: Vec<MethodRegistrationMetadata>,
 
     /// Used to ensure that each component is only filled once.
     component_already_filled: [bool; 4],
@@ -184,6 +208,7 @@ pub(crate) fn register_class<
         component_already_filled: Default::default(), // [false; N]
         register_singleton_fn: None,
         unregister_singleton_fn: None,
+        declared_method_metadata: Vec::new(),
     });
 }
 
@@ -209,6 +234,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
         let class_info = map
             .entry(name)
             .or_insert_with(|| default_registration_info(name));
+        class_info.init_level = elem.init_level;
 
         fill_class_info(elem.item.clone(), class_info);
     });
@@ -484,9 +510,14 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
 
         PluginItem::InherentImpl(InherentImpl {
             register_methods_constants_fn,
+            collect_method_metadata_fn,
             register_rpcs_fn: _,
         }) => {
             c.register_methods_constants_fn = Some(register_methods_constants_fn);
+
+            let mut metadata = Vec::new();
+            (collect_method_metadata_fn.raw)(&mut metadata);
+            c.declared_method_metadata.extend(metadata);
         }
 
         PluginItem::ITraitImpl(ITraitImpl {
@@ -631,6 +662,82 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
 
 fn validate_class_constraints(_class: &ClassRegistrationInfo) {
     // TODO: if we add builder API, the proc-macro checks in parse_struct_attributes() etc. should be duplicated here.
+    validate_duplicate_method_names(_class.class_name, &_class.declared_method_metadata);
+
+    // Before Godot 4.7, ClassDB's full reflection API is only reliably available from Scene init onward.
+    if cfg!(since_api = "4.7") || _class.init_level >= InitLevel::Scene {
+        validate_inherited_method_name_conflicts(
+            _class.class_name,
+            _class.parent_class_name,
+            &_class.declared_method_metadata,
+        );
+    }
+}
+
+pub fn validate_method_name_conflicts(
+    class_name: ClassId,
+    parent_class_name: Option<ClassId>,
+    declared_methods: &[MethodRegistrationMetadata],
+) {
+    validate_duplicate_method_names(class_name, declared_methods);
+    validate_inherited_method_name_conflicts(class_name, parent_class_name, declared_methods);
+}
+
+fn validate_duplicate_method_names(
+    class_name: ClassId,
+    declared_methods: &[MethodRegistrationMetadata],
+) {
+    let mut first_method_by_godot_name = HashMap::<&str, &MethodRegistrationMetadata>::new();
+
+    for method in declared_methods {
+        match first_method_by_godot_name.entry(method.godot_name.as_str()) {
+            Entry::Vacant(entry) => {
+                entry.insert(method);
+            }
+            Entry::Occupied(entry) => {
+                let previous = entry.get();
+                panic!(
+                    "Godot class `{class_name}` has a same class method name conflict for `{godot_name}` between Rust methods `{previous_rust}` and `{current_rust}`. Use #[func(rename = ...)] to disambiguate.",
+                    class_name = class_name,
+                    godot_name = method.godot_name,
+                    previous_rust = previous.rust_name,
+                    current_rust = method.rust_name,
+                );
+            }
+        }
+    }
+}
+
+fn validate_inherited_method_name_conflicts(
+    class_name: ClassId,
+    parent_class_name: Option<ClassId>,
+    declared_methods: &[MethodRegistrationMetadata],
+) {
+    let Some(parent_class_name) = parent_class_name else {
+        return;
+    };
+
+    let parent_class_name_sname = parent_class_name.to_string_name();
+    let class_db = ClassDb::singleton();
+
+    for method in declared_methods {
+        if method.is_script_virtual {
+            continue;
+        }
+
+        let inherited_conflict = class_db
+            .class_has_method_ex(&parent_class_name_sname, &method.godot_name)
+            .done();
+
+        if inherited_conflict {
+            panic!(
+                "Godot class `{class_name}` has a base class method name conflict for `{godot_name}`: base class `{base_class}` already exposes that method. Use #[func(rename = ...)] to rename it. If you meant to override a virtual method, implement the corresponding interface trait instead of #[func].",
+                class_name = class_name,
+                godot_name = method.godot_name,
+                base_class = parent_class_name,
+            );
+        }
+    }
 }
 
 fn unregister_class_raw(class: LoadedClass) {
@@ -698,6 +805,7 @@ fn default_registration_info(class_name: ClassId) -> ClassRegistrationInfo {
         init_level: InitLevel::Scene,
         is_editor_plugin: false,
         dynify_fns_by_trait: HashMap::new(),
+        declared_method_metadata: Vec::new(),
         component_already_filled: Default::default(), // [false; N]
     }
 }

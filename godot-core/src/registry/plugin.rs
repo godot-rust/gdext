@@ -309,6 +309,9 @@ pub struct InherentImpl {
     /// Always present since that's the entire point of this `impl` block.
     pub(crate) register_methods_constants_fn: ErasedRegisterFn,
 
+    /// Callback to library-generated function which collects metadata for registered `#[func]` methods in the `impl` block.
+    pub(crate) collect_method_metadata_fn: ErasedRegisterFn,
+
     /// Callback to library-generated function which calls [`Node::rpc_config`](crate::classes::Node::rpc_config) for each function annotated
     /// with `#[rpc]` on the `impl` block.
     ///
@@ -324,6 +327,9 @@ impl InherentImpl {
         Self {
             register_methods_constants_fn: ErasedRegisterFn {
                 raw: callbacks::register_user_methods_constants::<T>,
+            },
+            collect_method_metadata_fn: ErasedRegisterFn {
+                raw: callbacks::collect_user_methods_metadata::<T>,
             },
             register_rpcs_fn: Some(ErasedRegisterRpcsFn {
                 raw: callbacks::register_user_rpcs::<T>,

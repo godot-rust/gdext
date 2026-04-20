@@ -913,6 +913,12 @@ pub mod cap {
         #[doc(hidden)]
         fn __register_constants();
         #[doc(hidden)]
+        fn __collect_method_metadata(
+            out: &mut Vec<crate::registry::class::MethodRegistrationMetadata>,
+        ) {
+            let _ = out;
+        }
+        #[doc(hidden)]
         fn __register_rpcs(_: &mut dyn Any) {}
     }
 

@@ -138,6 +138,11 @@ pub fn transform_inherent_impl(
     #[cfg(not(feature = "codegen-full"))]
     let rpc_registrations = TokenStream::new();
 
+    let method_metadata_registrations: Vec<TokenStream> = funcs
+        .iter()
+        .map(crate::class::make_method_metadata_registration)
+        .collect();
+
     let method_registrations: Vec<TokenStream> = funcs
         .into_iter()
         .map(|func_def| make_method_registration(&class_name, func_def, None))
@@ -158,6 +163,10 @@ pub fn transform_inherent_impl(
                 guard.1.push(|| {
                     #constant_registration
                 });
+
+                guard.2.push(|out| {
+                    #( #method_metadata_registrations )*
+                });
             });
         }
     };
@@ -167,13 +176,20 @@ pub fn transform_inherent_impl(
 
         // Storage for registration functions from all `#[godot_api]` impl blocks (primary + secondary).
         // Accessed through the class type so secondary blocks in other modules can find it.
-        // Tuple: (method+signal registrations, constant registrations).
+        // Tuple: (method+signal registrations, constant registrations, method metadata collectors).
         let storage = quote! {
             impl #class_name {
                 #[doc(hidden)]
-                pub fn __registration_storage() -> &'static std::sync::Mutex<(Vec<fn()>, Vec<fn()>)> {
-                    static STORAGE: std::sync::Mutex<(Vec<fn()>, Vec<fn()>)>
-                        = std::sync::Mutex::new((Vec::new(), Vec::new()));
+                pub fn __registration_storage() -> &'static std::sync::Mutex<(
+                    Vec<fn()>,
+                    Vec<fn()>,
+                    Vec<fn(&mut Vec<::godot::private::MethodRegistrationMetadata>)>,
+                )> {
+                    static STORAGE: std::sync::Mutex<(
+                        Vec<fn()>,
+                        Vec<fn()>,
+                        Vec<fn(&mut Vec<::godot::private::MethodRegistrationMetadata>)>,
+                    )> = std::sync::Mutex::new((Vec::new(), Vec::new(), Vec::new()));
                     &STORAGE
                 }
             }
@@ -192,6 +208,15 @@ pub fn transform_inherent_impl(
                     let guard = #class_name::__registration_storage().lock().unwrap();
                     for f in guard.1.iter() {
                         f();
+                    }
+                }
+
+                fn __collect_method_metadata(
+                    out: &mut Vec<::godot::private::MethodRegistrationMetadata>,
+                ) {
+                    let guard = #class_name::__registration_storage().lock().unwrap();
+                    for f in guard.2.iter() {
+                        f(out);
                     }
                 }
 

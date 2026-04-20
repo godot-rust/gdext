@@ -10,7 +10,9 @@
 
 use godot::builtin::vslice;
 use godot::classes::ClassDb;
+use godot::meta::ClassId;
 use godot::obj::Singleton;
+use godot::obj::cap::ImplementsGodotApi;
 use godot::prelude::*;
 
 use crate::framework::{expect_panic, itest};
@@ -459,6 +461,97 @@ fn cfg_removes_or_keeps_signals() {
     assert!(!class_has_signal::<GdSelfObj>("cfg_removes_signal"));
 }
 
+#[itest]
+fn cfg_removes_or_keeps_method_metadata() {
+    let metadata = collect_method_metadata::<GdSelfObj>();
+
+    assert!(metadata.iter().any(|method| {
+        method.godot_name == "func_recognized_with_simple_path_attribute_above_func_attr"
+    }));
+    assert!(metadata.iter().any(|method| {
+        method.godot_name == "func_recognized_with_simple_path_attribute_below_func_attr"
+    }));
+    assert!(
+        metadata
+            .iter()
+            .any(|method| method.godot_name == "cfg_removes_duplicate_function_impl")
+    );
+    assert!(
+        !metadata
+            .iter()
+            .any(|method| method.godot_name == "cfg_removes_function")
+    );
+}
+
+#[itest]
+fn validate_method_name_conflicts_detects_same_class_duplicates() {
+    let class_name = ClassId::new_dynamic("SameClassConflict");
+    let methods = vec![
+        godot::private::MethodRegistrationMetadata::new("foo_impl", "shared_name", false),
+        godot::private::MethodRegistrationMetadata::new("bar_impl", "shared_name", false),
+    ];
+
+    expect_panic(
+        "duplicate Godot method names in same class should panic",
+        || {
+            godot::private::validate_method_name_conflicts(
+                class_name,
+                Some(godot::classes::RefCounted::class_id()),
+                &methods,
+            );
+        },
+    );
+}
+
+#[itest]
+fn validate_method_name_conflicts_detects_rename_collisions() {
+    let class_name = ClassId::new_dynamic("RenameConflict");
+    let methods = vec![
+        godot::private::MethodRegistrationMetadata::new("shared_name", "shared_name", false),
+        godot::private::MethodRegistrationMetadata::new("renamed_impl", "shared_name", false),
+    ];
+
+    expect_panic("rename collisions should panic", || {
+        godot::private::validate_method_name_conflicts(
+            class_name,
+            Some(godot::classes::RefCounted::class_id()),
+            &methods,
+        );
+    });
+}
+
+#[itest]
+fn validate_method_name_conflicts_detects_base_class_collisions() {
+    let class_name = ClassId::new_dynamic("BaseClassConflict");
+    let methods = vec![godot::private::MethodRegistrationMetadata::new(
+        "get_class",
+        "get_class",
+        false,
+    )];
+
+    expect_panic("base class method collisions should panic", || {
+        godot::private::validate_method_name_conflicts(
+            class_name,
+            Some(godot::classes::Object::class_id()),
+            &methods,
+        );
+    });
+}
+
+#[itest]
+fn validate_method_name_conflicts_allows_script_virtual_methods() {
+    let class_name = ClassId::new_dynamic("VirtualOk");
+    let methods = vec![godot::private::MethodRegistrationMetadata::new(
+        "ready", "_ready", true,
+    )];
+
+    godot::private::validate_method_name_conflicts(
+        class_name,
+        Some(godot::classes::Node::class_id()),
+        &methods,
+    );
+}
+
 // No test for Gd::from_object(), as that simply moves the existing object without running user code.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -475,4 +568,11 @@ fn class_has_method<T: GodotClass>(name: &str) -> bool {
 /// Checks at runtime if a class has a given signal through [ClassDb].
 fn class_has_signal<T: GodotClass>(name: &str) -> bool {
     ClassDb::singleton().class_has_signal(&T::class_id().to_string_name(), name)
+}
+
+fn collect_method_metadata<T: ImplementsGodotApi>()
+-> Vec<godot::private::MethodRegistrationMetadata> {
+    let mut metadata = Vec::new();
+    T::__collect_method_metadata(&mut metadata);
+    metadata
 }

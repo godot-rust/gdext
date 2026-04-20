@@ -55,6 +55,27 @@ impl FuncDefinition {
     }
 }
 
+pub fn make_method_metadata_registration(func_definition: &FuncDefinition) -> TokenStream {
+    let rust_name = func_definition.rust_ident().to_string();
+    let godot_name = func_definition.godot_name();
+    let is_script_virtual = func_definition.is_script_virtual;
+
+    let cfg_attrs = util::extract_cfg_attrs(&func_definition.external_attributes)
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    quote! {
+        #(#cfg_attrs)*
+        {
+            out.push(::godot::private::MethodRegistrationMetadata::new(
+                #rust_name,
+                #godot_name,
+                #is_script_virtual,
+            ));
+        }
+    }
+}
+
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
 // Virtual methods are non-static by their nature; so there's no support for static ones.

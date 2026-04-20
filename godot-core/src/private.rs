@@ -32,6 +32,7 @@ mod reexport_pub {
     pub use crate::obj::rtti::ObjectRtti;
     pub use crate::obj::signal::priv_re_export::*;
     pub use crate::registry::callbacks;
+    pub use crate::registry::class::{MethodRegistrationMetadata, validate_method_name_conflicts};
     pub use crate::registry::plugin::{
         ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
         PluginItem, Struct,
