@@ -98,10 +98,13 @@ where
 /// Returns a C `const char*` for a null-terminated byte string.
 #[inline]
 pub fn c_str(s: &[u8]) -> *const std::ffi::c_char {
+    let cstr_res = std::ffi::CStr::from_bytes_with_nul(s);
     // Ensure null-terminated
-    crate::strict_assert!(!s.is_empty() && s[s.len() - 1] == 0);
+    crate::strict_assert!(cstr_res.is_ok());
 
-    s.as_ptr() as *const std::ffi::c_char
+    // SAFETY: We just checked if the result is `Ok(_)`
+    let cstr = unsafe { cstr_res.unwrap_unchecked() };
+    cstr.as_ptr()
 }
 
 /// Returns a C `const char*` for a null-terminated string slice. UTF-8 encoded.
