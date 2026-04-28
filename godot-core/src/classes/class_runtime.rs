@@ -13,7 +13,7 @@ use crate::builtin::{GString, StringName, Variant};
 use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId, RawGd, bounds};
 use crate::sys;
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 mod strict {
     pub use crate::builtin::VariantType;
     pub use crate::classes::{ClassDb, Object};
@@ -21,14 +21,14 @@ mod strict {
     pub use crate::obj::Singleton;
 }
 
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 mod balanced {
     pub(crate) use crate::meta::CallContext;
 }
 
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 use balanced::*;
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 use strict::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ pub(crate) fn debug_string<T: GodotClass>(
     }
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub(crate) fn debug_string_variant(
     obj: &Variant,
     f: &mut std::fmt::Formatter<'_>,
@@ -82,7 +82,7 @@ pub(crate) fn debug_string_variant(
 }
 
 // Polyfill for Godot < 4.4, where Variant::object_id_unchecked() is not available.
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub(crate) fn debug_string_variant(
     obj: &Variant,
     f: &mut std::fmt::Formatter<'_>,
@@ -242,7 +242,7 @@ where
         let object_ptr = sys::classdb_construct_object(T::class_id().string_sys());
         Gd::<T>::from_obj_sys(object_ptr)
     };
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     obj.upcast_object_mut()
         .notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
 
@@ -268,7 +268,7 @@ where
 ///
 /// # Panics (balanced+strict safeguards)
 /// If the object has been freed or the instance ID points to a different object.
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 pub(crate) fn ensure_object_alive(
     instance_id: InstanceId,
     old_object_ptr: sys::GDExtensionObjectPtr,
@@ -289,7 +289,7 @@ pub(crate) fn ensure_object_alive(
     );
 }
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_id: InstanceId) {
     if derived == base
         || base == Object::class_id() // for Object base, anything inherits by definition
@@ -304,7 +304,7 @@ pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_i
     )
 }
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 pub(crate) fn ensure_binding_not_null<T>(binding: sys::GDExtensionClassInstancePtr)
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
@@ -332,7 +332,7 @@ where
 // Implementation of this file
 
 /// Checks if `derived` inherits from `base`, using a cache for _successful_ queries.
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 fn is_derived_base_cached(derived: ClassId, base: ClassId) -> bool {
     use std::collections::HashSet;
 

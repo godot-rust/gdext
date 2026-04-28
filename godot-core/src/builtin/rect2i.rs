@@ -306,7 +306,7 @@ impl std::fmt::Display for Rect2i {
     }
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 
@@ -610,7 +610,7 @@ mod test {
         Rect2i::default().merge(rect);
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let rect = Rect2i::default();

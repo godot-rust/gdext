@@ -272,7 +272,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         return RustTy::TypedArray {
             tokens: quote! { Array<#tokens> },
-            #[cfg(not(feature = "codegen-full"))]
+            #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
             elem_class: (!ctx.is_builtin(elem_ty)).then(|| elem_ty.to_string()),
         };
     } else if let Some(kv_ty) = ty.strip_prefix("typeddictionary::") {
@@ -288,9 +288,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         return RustTy::TypedDictionary {
             tokens: quote! { Dictionary<#key_tokens, #value_tokens> },
-            #[cfg(not(feature = "codegen-full"))]
+            #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
             key_class: (!ctx.is_builtin(key_ty)).then(|| key_ty.to_string()),
-            #[cfg(not(feature = "codegen-full"))]
+            #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
             value_class: (!ctx.is_builtin(value_ty)).then(|| value_ty.to_string()),
         };
     }
@@ -726,7 +726,7 @@ fn gdscript_to_rust_expr() {
         // Use arbitrary type if not specified -> should not be read
         let ty_dontcare = RustTy::TypedArray {
             tokens: TokenStream::new(),
-            #[cfg(not(feature = "codegen-full"))]
+            #[cfg(not(feature = "codegen-full"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-full"))))]
             elem_class: None,
         };
         let ty = ty.unwrap_or(&ty_dontcare);
