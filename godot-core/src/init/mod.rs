@@ -5,13 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use godot_ffi as sys;
 use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
-use crate::obj::Singleton;
+use crate::obj::{GodotClass, Singleton};
 use crate::out;
 
 mod reexport_pub {
@@ -24,7 +24,44 @@ mod reexport_pub {
 }
 pub use reexport_pub::*;
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Public functions
+
+/// Return whether a certain class API can be used in Godot.
+///
+/// This is only relevant when you operate before all stages have been initialized, or once deinitialization has started.
+///
+/// See also [`is_singleton_available()`] and [this section in `ExtensionLibrary`](../init/trait.ExtensionLibrary.html#availability-of-godot-apis-during-init-and-deinit).
+pub fn is_class_available<T: GodotClass>() -> bool {
+    // If called when bindings are not yet/anymore initialized (e.g. in a global destructor), returns false.
+    current_init_level().is_some_and(|level| T::INIT_LEVEL <= level)
+}
+
+/// Return whether a certain singleton can currently be retrieved from Godot.
+///
+/// This differs from [`is_class_available()`]: a singleton instance may become available later than its class API.
+/// For example, some core singletons are available at `Core`, while most singletons only appear at `Scene` or later.
+///
+/// See also [this section in `ExtensionLibrary`](../init/trait.ExtensionLibrary.html#availability-of-godot-apis-during-init-and-deinit).
+pub fn is_singleton_available<T: Singleton>() -> bool {
+    if !is_class_available::<T>() {
+        return false;
+    }
+
+    let class_name = T::class_id().to_string_name();
+
+    // SAFETY: `class_name` is valid for `T`; if bindings are uninitialized, is_class_available() returns false above.
+    unsafe { !sys::interface_fn!(global_get_singleton)(class_name.string_sys()).is_null() }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
+
 use crate::obj::signal::prune_stored_signal_connections;
+
+const NO_INIT_LEVEL: u8 = u8::MAX;
+
+static CURRENT_INIT_LEVEL: AtomicU8 = AtomicU8::new(NO_INIT_LEVEL);
 
 #[repr(C)]
 struct InitUserData {
@@ -251,6 +288,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
     }
 
     crate::registry::class::auto_register_classes(level);
+    set_available_init_level(Some(level));
 }
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
@@ -260,6 +298,7 @@ fn gdext_on_level_deinit(level: InitLevel) {
     }
 
     crate::registry::class::unregister_classes(level);
+    set_available_init_level(previous_init_level(level));
 
     if level == InitLevel::Core {
         // If lowest level is unloaded, call global deinitialization.
@@ -279,6 +318,37 @@ fn gdext_on_level_deinit(level: InitLevel) {
         unsafe {
             sys::deinitialize();
         }
+    }
+}
+
+fn current_init_level() -> Option<InitLevel> {
+    match CURRENT_INIT_LEVEL.load(Ordering::Relaxed) {
+        0 => Some(InitLevel::Core),
+        1 => Some(InitLevel::Servers),
+        2 => Some(InitLevel::Scene),
+        3 => Some(InitLevel::Editor),
+        _ => None,
+    }
+}
+
+fn set_available_init_level(level: Option<InitLevel>) {
+    let raw = match level {
+        Some(InitLevel::Core) => 0,
+        Some(InitLevel::Servers) => 1,
+        Some(InitLevel::Scene) => 2,
+        Some(InitLevel::Editor) => 3,
+        None => NO_INIT_LEVEL,
+    };
+
+    CURRENT_INIT_LEVEL.store(raw, Ordering::Relaxed);
+}
+
+const fn previous_init_level(level: InitLevel) -> Option<InitLevel> {
+    match level {
+        InitLevel::Core => None,
+        InitLevel::Servers => Some(InitLevel::Core),
+        InitLevel::Scene => Some(InitLevel::Servers),
+        InitLevel::Editor => Some(InitLevel::Scene),
     }
 }
 
@@ -343,7 +413,8 @@ where
 /// To get an up-to-date view, inspect the Godot source code of [main.cpp], particularly `Main::setup()`, `Main::setup2()` and
 /// `Main::cleanup()` methods. Make sure to look at the correct version of the file.
 ///
-/// In case of doubt, do not rely on classes being available during init/deinit.
+/// You can use the functions [`init::is_class_available()`][is_class_available] and [`init::is_singleton_available()`][is_singleton_available]
+/// to check at runtime.
 ///
 /// [main.cpp]: https://github.com/godotengine/godot/blob/master/main/main.cpp
 ///
