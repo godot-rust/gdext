@@ -245,7 +245,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         });
 
         let result = <Ret as FromGodot>::try_from_variant(&variant);
-        result.unwrap_or_else(|err| return_error::<Ret>(&call_ctx, err))
+        result.unwrap_or_else(|err| return_error_dyn(&call_ctx, std::any::type_name::<Ret>(), err))
     }
 
     /// Make a ptrcall to the Godot engine for a utility function that has varargs.
@@ -264,14 +264,17 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         //$crate::out!("out_utility_ptrcall_varargs: {call_ctx}");
 
         unsafe {
-            Self::raw_ptrcall(args, &call_ctx, |explicit_args, return_ptr| {
-                let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-                type_ptrs.extend(explicit_args.iter());
-                type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
+            pack_ptrcall_args(args, |explicit_args, arg_count| {
+                finish_ptrcall(&call_ctx, |return_ptr| {
+                    let explicit_args = std::slice::from_raw_parts(explicit_args, arg_count);
+                    let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
+                    type_ptrs.extend(explicit_args.iter().copied());
+                    type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
 
-                // Important: this calls from_sys_init_default().
-                // SAFETY: TODO.
-                utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
+                    // Important: this calls from_sys_init_default().
+                    // SAFETY: TODO.
+                    utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
+                })
             })
         }
     }
@@ -293,18 +296,21 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         //$crate::out!("out_builtin_ptrcall_varargs: {call_ctx}");
 
         unsafe {
-            Self::raw_ptrcall(args, &call_ctx, |explicit_args, return_ptr| {
-                let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-                type_ptrs.extend(explicit_args.iter());
-                type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
+            pack_ptrcall_args(args, |explicit_args, arg_count| {
+                finish_ptrcall(&call_ctx, |return_ptr| {
+                    let explicit_args = std::slice::from_raw_parts(explicit_args, arg_count);
+                    let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
+                    type_ptrs.extend(explicit_args.iter().copied());
+                    type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
 
-                // Important: this calls from_sys_init_default().
-                builtin_fn(
-                    type_ptr,
-                    type_ptrs.as_ptr(),
-                    return_ptr,
-                    type_ptrs.len() as i32,
-                );
+                    // Important: this calls from_sys_init_default().
+                    builtin_fn(
+                        type_ptr,
+                        type_ptrs.as_ptr(),
+                        return_ptr,
+                        type_ptrs.len() as i32,
+                    );
+                })
             })
         }
     }
@@ -313,7 +319,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     ///
     /// # Safety
     /// - `method_bind` must expect explicit args `args`, and return a value of type `Ret`
-    #[inline]
     pub unsafe fn out_class_ptrcall(
         method_bind: sys::ClassMethodBind,
         // Separate parameters to reduce tokens in generated class API.
@@ -324,17 +329,13 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     ) -> Ret {
         let call_ctx = CallContext::outbound(class_name, method_name);
         // $crate::out!("out_class_ptrcall: {call_ctx}");
-
-        let class_fn = sys::interface_fn!(object_method_bind_ptrcall);
+        let object_ptr = ValidatedObject::object_ptr(validated_obj.as_ref());
 
         unsafe {
-            Self::raw_ptrcall(args, &call_ctx, |explicit_args, return_ptr| {
-                class_fn(
-                    method_bind.0,
-                    ValidatedObject::object_ptr(validated_obj.as_ref()),
-                    explicit_args.as_ptr(),
-                    return_ptr,
-                );
+            pack_ptrcall_args(args, |explicit_args, _arg_count| {
+                finish_ptrcall(&call_ctx, |return_ptr| {
+                    dispatch_class_ptrcall(method_bind, object_ptr, explicit_args, return_ptr);
+                })
             })
         }
     }
@@ -343,7 +344,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     ///
     /// # Safety
     /// - `builtin_fn` must expect explicit args `args`, and return a value of type `Ret`
-    #[inline]
     pub unsafe fn out_builtin_ptrcall(
         builtin_fn: sys::BuiltinMethodBind,
         // Separate parameters to reduce tokens in generated class API.
@@ -356,13 +356,16 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         // $crate::out!("out_builtin_ptrcall: {call_ctx}");
 
         unsafe {
-            Self::raw_ptrcall(args, &call_ctx, |explicit_args, return_ptr| {
-                builtin_fn(
-                    type_ptr,
-                    explicit_args.as_ptr(),
-                    return_ptr,
-                    explicit_args.len() as i32,
-                );
+            pack_ptrcall_args(args, |explicit_args, arg_count| {
+                finish_ptrcall(&call_ctx, |return_ptr| {
+                    dispatch_builtin_ptrcall(
+                        builtin_fn,
+                        type_ptr,
+                        explicit_args,
+                        arg_count,
+                        return_ptr,
+                    );
+                })
             })
         }
     }
@@ -371,7 +374,6 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     ///
     /// # Safety
     /// - `utility_fn` must expect explicit args `args`, and return a value of type `Ret`
-    #[inline]
     pub unsafe fn out_utility_ptrcall(
         utility_fn: sys::UtilityFunctionBind,
         function_name: &'static str,
@@ -381,33 +383,78 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         // $crate::out!("out_utility_ptrcall: {call_ctx}");
 
         unsafe {
-            Self::raw_ptrcall(args, &call_ctx, |explicit_args, return_ptr| {
-                utility_fn(
-                    return_ptr,
-                    explicit_args.as_ptr(),
-                    explicit_args.len() as i32,
-                );
+            pack_ptrcall_args(args, |explicit_args, arg_count| {
+                finish_ptrcall(&call_ctx, |return_ptr| {
+                    dispatch_utility_ptrcall(utility_fn, explicit_args, arg_count, return_ptr);
+                })
             })
         }
     }
+}
 
-    /// Performs a ptrcall and processes the return value to give nice error output.
-    ///
-    /// # Safety
-    /// This calls [`GodotFfi::new_with_init`] and passes the ptr as the second argument to `f`, see that function for safety docs.
-    unsafe fn raw_ptrcall(
-        args: Params,
-        call_ctx: &CallContext,
-        f: impl FnOnce(&[sys::GDExtensionConstTypePtr], sys::GDExtensionTypePtr),
-    ) -> Ret {
-        let ffi = args.with_type_pointers(|explicit_args| unsafe {
-            <<Ret::Via as GodotType>::Ffi>::new_with_init(|return_ptr| f(explicit_args, return_ptr))
-        });
+/// Packs ptrcall arguments into a pointer/length pair.
+///
+/// # Safety
+/// This forwards the slice produced by [`OutParamTuple::with_type_pointers`]. The callback must not retain the raw pointer beyond the call.
+unsafe fn pack_ptrcall_args<Params: OutParamTuple, R>(
+    args: Params,
+    f: impl FnOnce(*const sys::GDExtensionConstTypePtr, usize) -> R,
+) -> R {
+    args.with_type_pointers(|explicit_args| f(explicit_args.as_ptr(), explicit_args.len()))
+}
 
-        Ret::Via::try_from_ffi(ffi)
-            .and_then(Ret::engine_try_from_godot)
-            .unwrap_or_else(|err| return_error::<Ret>(call_ctx, err))
+/// Performs the return-value initialization and decode for a ptrcall.
+///
+/// # Safety
+/// This calls [`GodotFfi::new_with_init`] and passes the return pointer to `init`, see that function for safety docs.
+unsafe fn finish_ptrcall<Ret: EngineFromGodot>(
+    call_ctx: &CallContext,
+    init: impl FnOnce(sys::GDExtensionTypePtr),
+) -> Ret {
+    let ffi = unsafe { <<Ret::Via as GodotType>::Ffi>::new_with_init(init) };
+
+    match Ret::Via::try_from_ffi(ffi).and_then(Ret::engine_try_from_godot) {
+        Ok(ret) => ret,
+        Err(err) => return_error_dyn(call_ctx, std::any::type_name::<Ret>(), err),
     }
+}
+
+#[inline(never)]
+unsafe fn dispatch_class_ptrcall(
+    method_bind: sys::ClassMethodBind,
+    object_ptr: sys::GDExtensionObjectPtr,
+    args_ptr: *const sys::GDExtensionConstTypePtr,
+    return_ptr: sys::GDExtensionTypePtr,
+) {
+    unsafe {
+        sys::interface_fn!(object_method_bind_ptrcall)(
+            method_bind.0,
+            object_ptr,
+            args_ptr,
+            return_ptr,
+        )
+    };
+}
+
+#[inline(never)]
+unsafe fn dispatch_builtin_ptrcall(
+    builtin_fn: sys::BuiltinMethodBind,
+    type_ptr: sys::GDExtensionTypePtr,
+    args_ptr: *const sys::GDExtensionConstTypePtr,
+    arg_count: usize,
+    return_ptr: sys::GDExtensionTypePtr,
+) {
+    unsafe { builtin_fn(type_ptr, args_ptr, return_ptr, arg_count as i32) };
+}
+
+#[inline(never)]
+unsafe fn dispatch_utility_ptrcall(
+    utility_fn: sys::UtilityFunctionBind,
+    args_ptr: *const sys::GDExtensionConstTypePtr,
+    arg_count: usize,
+    return_ptr: sys::GDExtensionTypePtr,
+) {
+    unsafe { utility_fn(return_ptr, args_ptr, arg_count as i32) };
 }
 
 /// Moves `ret_val` into `ret`.
@@ -484,8 +531,9 @@ unsafe fn ptrcall_return<R: EngineToGodot>(
     Ok(())
 }
 
-fn return_error<R>(call_ctx: &CallContext, err: ConvertError) -> ! {
-    let return_ty = std::any::type_name::<R>();
+#[cold]
+#[inline(never)]
+fn return_error_dyn(call_ctx: &CallContext, return_ty: &'static str, err: ConvertError) -> ! {
     panic!("in function `{call_ctx}` at return type {return_ty}: {err}");
 }
 
