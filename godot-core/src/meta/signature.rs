@@ -265,12 +265,8 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, |return_ptr| {
-                    let explicit_args = std::slice::from_raw_parts(explicit_args, arg_count);
-                    let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-                    type_ptrs.extend(explicit_args.iter().copied());
-                    type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
-
+                finish_ptrcall(&call_ctx, &mut |return_ptr| {
+                    let type_ptrs = concat_varargs_ptrs(explicit_args, arg_count, varargs);
                     // Important: this calls from_sys_init_default().
                     // SAFETY: TODO.
                     utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
@@ -297,12 +293,8 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, |return_ptr| {
-                    let explicit_args = std::slice::from_raw_parts(explicit_args, arg_count);
-                    let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-                    type_ptrs.extend(explicit_args.iter().copied());
-                    type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
-
+                finish_ptrcall(&call_ctx, &mut |return_ptr| {
+                    let type_ptrs = concat_varargs_ptrs(explicit_args, arg_count, varargs);
                     // Important: this calls from_sys_init_default().
                     builtin_fn(
                         type_ptr,
@@ -333,7 +325,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, _arg_count| {
-                finish_ptrcall(&call_ctx, |return_ptr| {
+                finish_ptrcall(&call_ctx, &mut |return_ptr| {
                     dispatch_class_ptrcall(method_bind, object_ptr, explicit_args, return_ptr);
                 })
             })
@@ -357,7 +349,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, |return_ptr| {
+                finish_ptrcall(&call_ctx, &mut |return_ptr| {
                     dispatch_builtin_ptrcall(
                         builtin_fn,
                         type_ptr,
@@ -384,7 +376,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, |return_ptr| {
+                finish_ptrcall(&call_ctx, &mut |return_ptr| {
                     dispatch_utility_ptrcall(utility_fn, explicit_args, arg_count, return_ptr);
                 })
             })
@@ -403,13 +395,40 @@ unsafe fn pack_ptrcall_args<Params: OutParamTuple, R>(
     args.with_type_pointers(|explicit_args| f(explicit_args.as_ptr(), explicit_args.len()))
 }
 
+/// Concatenates explicit ptrcall args with `varargs` into a single pointer vector.
+///
+/// # Safety
+/// `explicit_args` must point to an array of at least `arg_count` valid `GDExtensionConstTypePtr` entries. Pointers in `varargs` must
+/// remain valid for the duration of the returned vector's use.
+unsafe fn concat_varargs_ptrs(
+    explicit_args: *const sys::GDExtensionConstTypePtr,
+    arg_count: usize,
+    varargs: &[Variant],
+) -> Vec<sys::GDExtensionConstTypePtr> {
+    let explicit_args = unsafe { std::slice::from_raw_parts(explicit_args, arg_count) };
+    let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
+    type_ptrs.extend(explicit_args.iter().copied());
+    type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
+    type_ptrs
+}
+
 /// Performs the return-value initialization and decode for a ptrcall.
+///
+/// `init` uses dynamic (`&mut dyn FnMut`) instead of static (`impl FnOnce`) dispatch on purpose: each call site captures different
+/// parameters, which makes the closure type unique. With static dispatch, `finish_ptrcall<Ret, F>` would be monomorphized once per
+/// `(Ret, captured-closure-type)` pair -- at last measurement ~700 instances despite only ~80 distinct `Ret` types. Switching `init`
+/// to `dyn` collapses that to ~180 instances (one per `Ret` that escapes the trait object), cutting godot-core LLVM IR by ~8% and
+/// debug compile time by ~25%, with no measurable runtime regression: the dyn fat-pointer call adds 1 indirect on a path that already
+/// crosses the GDExtension FFI boundary, where Godot's own dispatch dominates.
+///
+/// Tried but rejected: extending the same trick to `pack_ptrcall_args` / `with_type_pointers`. Doing so requires call sites to
+/// capture `Ret` via `Option<Ret>`/`MaybeUninit`, and the per-site option dance generates more code than the helper-outlining saves.
 ///
 /// # Safety
 /// This calls [`GodotFfi::new_with_init`] and passes the return pointer to `init`, see that function for safety docs.
 unsafe fn finish_ptrcall<Ret: EngineFromGodot>(
     call_ctx: &CallContext,
-    init: impl FnOnce(sys::GDExtensionTypePtr),
+    init: &mut dyn FnMut(sys::GDExtensionTypePtr),
 ) -> Ret {
     let ffi = unsafe { <<Ret::Via as GodotType>::Ffi>::new_with_init(init) };
 

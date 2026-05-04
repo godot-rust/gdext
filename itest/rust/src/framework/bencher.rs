@@ -11,6 +11,11 @@
 // - https://github.com/bheisler/criterion.rs
 // - https://github.com/Canop/glassbench
 // - https://github.com/sharkdp/hyperfine
+//
+// TODO(v0.6): improve precision. Sub-30ns benches (utilities_rust_call, color_hsv_hue_wrap, builtin_ffi_call) show >100% run-to-run noise,
+// which makes A/B comparisons of optimization changes unreliable. Options: (1) auto-tune `inner_repetitions` to hit a minimum total wall
+// time per measurement (criterion-style), (2) report variance/IQR alongside min+median to flag noisy results, (3) pin to a CPU core and
+// disable frequency scaling in the harness. Until fixed, treat any single-bench delta below ~10% as noise.
 
 // We currently avoid mean or max, as we're not that interested in outliers (e.g. CPU spike).
 // This may of course obscure bad performance in only small number of cases, but that's something we take into account.
