@@ -23,6 +23,7 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
     let skipped = attr.handle_alone("skip")?;
     let focused = attr.handle_alone("focus")?;
     let is_async = attr.handle_alone("async")?;
+    let editor_only = attr.handle_alone("editor")?;
     attr.finish()?;
 
     // Note: allow attributes for things like #[rustfmt] or #[clippy]
@@ -99,6 +100,7 @@ pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
             name: #test_name_str,
             skipped: #skipped,
             focused: #focused,
+            editor_only: #editor_only,
             file: std::file!(),
             line: std::line!(),
             function: #test_name,

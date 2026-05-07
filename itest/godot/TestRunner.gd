@@ -10,9 +10,14 @@ class_name GDScriptTestRunner
 
 func _ready():
 	# Don't run tests when opened in the editor, unless it's headless mode (-e --headless).
+	# When editor tests are run, we skip GDScript suites and benchmarks -- they aren't editor-specific, and Godot's
+	# editor lifecycle (e.g. "scene must be saved first") interferes with them.
+	# TODO(v0.6): wire this into CI / check.sh. For now, editor-mode itests are invoked manually.
+	var editor_only_run := false
 	if Engine.is_editor_hint():
 		if DisplayServer.get_name() == 'headless':
-			print("Opened itest in editor in headless mode -> run integration tests.")
+			print("Opened itest in editor in headless mode -> run editor integration tests.")
+			editor_only_run = true
 		else:
 			print("Opened itest in editor in UI mode -> skip integration tests.")
 			return
@@ -41,7 +46,7 @@ func _ready():
 
 	var rust_runner = IntegrationTests.new()
 
-	var gdscript_suites: Array = [
+	var gdscript_suites: Array = [] if editor_only_run else [
 		load("res://ManualFfiTests.gd").new(),
 		load("res://gen/GenFfiTests.gd").new(),
 		load("res://InheritTests.gd").new(),
@@ -62,8 +67,9 @@ func _ready():
 	var property_tests = load("res://gen/GenPropertyTests.gd").new()
 
 	# Run benchmarks after all synchronous and asynchronous tests have completed.
+	# Skipped in editor-only mode -- benchmarks are not editor-specific.
 	var run_benchmarks = func (success: bool):
-		if success:
+		if success and not editor_only_run:
 			rust_runner.run_all_benchmarks(self)
 
 		var exit_code: int = 0 if success else 1
