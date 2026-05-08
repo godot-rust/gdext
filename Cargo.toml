@@ -1,3 +1,7 @@
+[profile.dev]
+# Skips type/variable debug metadata while keeping file:line info for backtraces. Saves 1-4% build time on clean dev builds.
+debug = "line-tables-only"
+
 [workspace]
 resolver = "2"
 members = [

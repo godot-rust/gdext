@@ -74,19 +74,8 @@ macro_rules! unsafe_impl_param_tuple {
                 }
 
                 // Slow path: merge provided args with defaults (requires allocation).
-                let mut all_args = Vec::with_capacity(Self::LEN);
-
-                // Copy all provided args.
-                for i in 0..arg_count {
-                    all_args.push(unsafe { *args_ptr.add(i) });
-                }
-
-                // Fill remaining parameters with default values.
-                let required_param_count = Self::LEN - default_values.len();
-                let first_missing_index = arg_count - required_param_count;
-                for i in first_missing_index..default_values.len() {
-                    all_args.push(default_values[i].var_sys());
-                }
+                let all_args =
+                    unsafe { merge_varcall_with_defaults(args_ptr, arg_count, Self::LEN, default_values) };
 
                 // Convert all args to the tuple.
                 let param_tuple = (
@@ -193,6 +182,29 @@ macro_rules! unsafe_impl_param_tuple {
             }
         }
     };
+}
+
+unsafe fn merge_varcall_with_defaults(
+    args_ptr: *const sys::GDExtensionConstVariantPtr,
+    arg_count: usize,
+    expected_len: usize,
+    default_values: &[Variant],
+) -> Vec<sys::GDExtensionConstVariantPtr> {
+    let mut all_args = Vec::with_capacity(expected_len);
+
+    for i in 0..arg_count {
+        all_args.push(unsafe { *args_ptr.add(i) });
+    }
+
+    let required_param_count = expected_len - default_values.len();
+    let first_missing_default = arg_count - required_param_count;
+    all_args.extend(
+        default_values[first_missing_default..]
+            .iter()
+            .map(Variant::var_sys),
+    );
+
+    all_args
 }
 
 #[allow(unused_variables, unused_mut, clippy::unused_unit)]
