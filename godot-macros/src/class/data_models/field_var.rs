@@ -526,10 +526,26 @@ impl GetterSetterImpl {
             fn #rust_accessor(&self) -> <#field_type as ::godot::register::property::Var>::PubType
         };
 
+        // Capture `InstanceId` (quasi weak-ref) rather than `Gd<Self>` (strong-ref).
+        //
+        // Godot's `ClassDB::class_get_property_default_value` default-constructs a temporary instance, calls this getter and then frees
+        // the instance via `memdelete()` -- which bypasses `RefCounted::unreference()`. For Self inheriting RefCounted, a `Gd<Self>` pointer
+        // captured in the Callable closure would therefore point to a destroyed object. But Gd trusts the ref-count and assumes >0 means alive.
+        // So when the callable is invoked next time, use-after-free (disengaged) or a last-defense panic (balanced/strict) is triggered.
+        //
+        // So instead, we dereference through the InstanceId, which is safe. This falls back to a `godot_error!` if the instance is gone.
         let function_body = quote_spanned! { field_ty_span=>
-            let mut obj = self.to_gd();
+            let instance_id = ::godot::obj::WithBaseField::base(self).instance_id();
             #[allow(clippy::redundant_closure_call, clippy::explicit_auto_deref)]
-            Callable::from_fn(#callable_name, move |_args| (#tool_button_fn)(&mut *obj.bind_mut()))
+            Callable::from_fn(#callable_name, move |_args| {
+                match ::godot::obj::Gd::<Self>::try_from_instance_id(instance_id) {
+                    Ok(mut obj) => (#tool_button_fn)(&mut *obj.bind_mut()),
+                    Err(_) => ::godot::global::godot_error!(
+                        "tool button `{}` invoked on freed instance {:?}",
+                        #callable_name, instance_id,
+                    ),
+                }
+            })
         };
 
         (signature, function_body)

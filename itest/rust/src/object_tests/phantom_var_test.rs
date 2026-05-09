@@ -79,7 +79,7 @@ impl HasPhantomVar {
 
 #[cfg(since_api = "4.4")]
 mod export_tool_button_test {
-    use godot::obj::{NewGd, WithBaseField};
+    use godot::obj::{NewGd, Singleton};
 
     use super::*;
 
@@ -107,5 +107,16 @@ mod export_tool_button_test {
             .to::<Callable>();
         tool_button_callable.call(&[]);
         assert_eq!(tool_button_exporter.bind().val, 33);
+    }
+
+    // Regression test for https://github.com/godot-rust/gdext/pull/1589.
+    // Before the fix, this test either triggers UB (disengaged) or a panic (balanced/strict safeguards).
+    #[itest]
+    fn test_tool_button_default_value() {
+        let default = godot::classes::ClassDb::singleton()
+            .class_get_property_default_value("ToolButtonExporter", "other_tool_button");
+        let callable = default.to::<Callable>();
+        // Calling on freed instance should not panic; emits godot_error and is a no-op.
+        callable.call(&[]);
     }
 }
