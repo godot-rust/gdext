@@ -24,6 +24,15 @@ fn property_template_test(ctx: &TestContext) {
     let rust_properties = PropertyTestsRust::new_alloc();
     let gdscript_properties = ctx.property_tests.clone();
 
+    // Detect stale GenPropertyTests.gd left over from a build against a different godot-rust API version.
+    let built_for = gdscript_properties.get("built_for_api_minor").to::<u32>();
+    let (_, api_minor, _) = GdextBuild::godot_static_version_triple();
+    assert_eq!(
+        built_for, api_minor as u32,
+        "GenPropertyTests.gd is stale (built for API 4.{built_for}, current API is 4.{api_minor}).\n\
+         Regenerate: touch itest/rust/build.rs && cargo build -p itest --no-default-features"
+    );
+
     // Accumulate errors so we can catch all of them in one go.
     let mut errors: Vec<String> = Vec::new();
     let mut properties: HashMap<String, VarDictionary> = HashMap::new();

@@ -280,6 +280,11 @@ pub fn since_api(major_minor: &str) -> bool {
     !before_api(major_minor)
 }
 
+/// Configured Godot API minor version, usable from `build.rs`. Intended for itest stale-artifact detection.
+pub fn get_godot_minor_for_itest() -> u8 {
+    get_godot_version().minor
+}
+
 pub fn emit_safeguard_levels() {
     // Levels: disengaged (0), balanced (1), strict (2)
     let mut safeguards_level = if cfg!(debug_assertions) { 2 } else { 1 };

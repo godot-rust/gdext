@@ -725,6 +725,10 @@ var var_class_enum_array: Array[Node.ProcessMode]
         gdscript.push_str(advanced_exports_4_4);
     }
 
+    // Stamp current API minor so stale generated .gd (left over from a different godot-rust API version) is detected at test time.
+    let api_minor = godot_bindings::get_godot_minor_for_itest();
+    gdscript.push_str(&format!("\nvar built_for_api_minor: int = {api_minor}\n"));
+
     PropertyTests { rust, gdscript }
 }
 
