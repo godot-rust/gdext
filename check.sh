@@ -40,6 +40,7 @@ Options:
     --double                 run check with double-precision (implies 'api-custom' feature)
     -f, --filter <arg>       only run integration tests which contain any of the
                              args (comma-separated). requires itest.
+        --editor             run integration tests in editor mode (passes -e to Godot). requires itest.
     -a, --api-version <ver>  specify the Godot API version to use (e.g. 4.3, 4.3.1).
 
 Examples:
@@ -201,8 +202,13 @@ function cmd_itest() {
     local logFile
     logFile=$(mktemp)
 
+    local editorArgs=()
+    if [[ "$editorMode" -eq 1 ]]; then
+        editorArgs+=("-e")
+    fi
+
     cd itest/godot || return 1
-    "$godotBin" --headless -- "[${extraArgs[@]}]" 2>&1 \
+    "$godotBin" "${editorArgs[@]}" --headless -- "[${extraArgs[@]}]" 2>&1 \
     | tee "$logFile"
 
     # PIPESTATUS[0] is Godot's exit code; $? would only give tee's exit code (masking crashes).
@@ -272,6 +278,7 @@ extraCargoArgs=("--no-default-features")
 cmds=()
 extraArgs=()
 apiVersion=""
+editorMode=0
 
 while [[ $# -gt 0 ]]; do
     arg="$1"
@@ -300,6 +307,14 @@ while [[ $# -gt 0 ]]; do
                 shift
             else
                 log "-f/--filter requires 'itest' to be specified as a command."
+                exit 2
+            fi
+            ;;
+        --editor)
+            if [[ "${cmds[*]}" =~ itest ]]; then
+                editorMode=1
+            else
+                log "--editor requires 'itest' to be specified as a command."
                 exit 2
             fi
             ;;

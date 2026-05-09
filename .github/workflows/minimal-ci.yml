@@ -227,6 +227,7 @@ jobs:
             # If the experimental part causes problems, downgrade to `codegen-full`.
             rust-extra-args: --release --features itest/codegen-full-experimental
             rust-cache-key: release
+            run-editor-itest: 'false' # template_release binary has no editor.
 
           # Linux compat
 
@@ -312,6 +313,7 @@ jobs:
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
           godot-indirect-json: ${{ matrix.godot-indirect-json }}
+          run-editor-itest: ${{ matrix.run-editor-itest || 'true' }} # opt-out.
 
       - name: "Build and test hot-reload"
         if: ${{ matrix.hot-reload }}

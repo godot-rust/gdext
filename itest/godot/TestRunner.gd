@@ -10,9 +10,7 @@ class_name GDScriptTestRunner
 
 func _ready():
 	# Don't run tests when opened in the editor, unless it's headless mode (-e --headless).
-	# When editor tests are run, we skip GDScript suites and benchmarks -- they aren't editor-specific, and Godot's
-	# editor lifecycle (e.g. "scene must be saved first") interferes with them.
-	# TODO(v0.6): wire this into CI / check.sh. For now, editor-mode itests are invoked manually.
+	# When editor tests are run, we skip GDScript suites and benchmarks -- they aren't editor-specific.
 	var editor_only_run := false
 	if Engine.is_editor_hint():
 		if DisplayServer.get_name() == 'headless':

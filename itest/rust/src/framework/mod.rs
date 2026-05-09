@@ -151,7 +151,6 @@ pub struct RustTestCase {
     ///
     /// Used for testing behavior specific to the editor, e.g. placeholder substitution for runtime classes.
     /// Editor-only tests are skipped in non-editor runs, and non-editor tests are skipped in editor runs.
-    // TODO(v0.6): integrate editor-mode itest into CI / check.sh. For now, must be invoked manually with `godot -e --headless`.
     pub editor_only: bool,
     #[allow(dead_code)]
     pub line: u32,
