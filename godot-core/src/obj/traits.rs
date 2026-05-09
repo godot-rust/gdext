@@ -674,7 +674,8 @@ pub trait Singleton: GodotClass {
     /// Returns the singleton instance.
     ///
     /// # Panics
-    /// If called during global init/deinit of godot-rust. Most singletons are only available after the first frame has run.
+    /// If called during global init/deinit of godot-rust, and the singleton in question is not yet available.
+    /// You can check this with [`init::is_singleton_available::<Self>()`][crate::init::is_singleton_available].
     /// See also [`ExtensionLibrary`](../init/trait.ExtensionLibrary.html#availability-of-godot-apis-during-init-and-deinit).
     fn singleton() -> Gd<Self>;
 }

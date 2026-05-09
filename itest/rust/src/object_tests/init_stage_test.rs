@@ -9,8 +9,8 @@ use std::panic;
 use std::sync::Once;
 
 use godot::builtin::{Rid, Variant};
-use godot::classes::{Engine, IObject, Os, RenderingServer, Time};
-use godot::init::InitStage;
+use godot::classes::{Engine, IObject, Node, Object, Os, RenderingServer, Time};
+use godot::init::{InitStage, is_class_available, is_singleton_available};
 use godot::obj::{Base, GodotClass, NewAlloc, Singleton};
 use godot::register::{GodotClass, godot_api};
 use godot::sys::{GdextBuild, Global};
@@ -107,6 +107,16 @@ pub fn on_stage_init(stage: InitStage) {
 // Runs during core init level to ensure we can access core singletons.
 #[cfg(since_api = "4.4")] // Singletons aren't available in older versions.
 fn on_init_core() {
+    assert!(is_class_available::<Object>()); // Core
+    assert!(!is_class_available::<Node>()); // Scene
+    assert!(!is_class_available::<RenderingServer>()); // Servers
+
+    // Core singletons (Engine/Os/Time) are reachable at Core level; RenderingServer is not.
+    assert!(is_singleton_available::<Engine>());
+    assert!(is_singleton_available::<Os>());
+    assert!(is_singleton_available::<Time>());
+    assert!(!is_singleton_available::<RenderingServer>());
+
     // Ensure we can create and use an Object-derived class during Core init level.
     SomeObject::test();
 
@@ -134,12 +144,23 @@ fn on_init_core() {
 fn on_init_core() {}
 
 fn on_init_servers() {
-    // Nothing yet.
+    // RenderingServer class becomes available at Servers level, but the singleton instance is
+    // only registered later (see comment in on_init_scene).
+    assert!(is_class_available::<RenderingServer>());
+    assert!(!is_singleton_available::<RenderingServer>());
+
+    // Scene-level classes still not available.
+    assert!(!is_class_available::<Node>());
 }
 
 fn on_init_scene() {
+    // Scene-level classes are available now.
+    assert!(is_class_available::<Node>());
+
     // Known limitation that singletons only become available later:
     // https://github.com/godotengine/godot-cpp/issues/1180#issuecomment-3074351805
+    assert!(!is_singleton_available::<RenderingServer>());
+
     suppress_godot_print(|| {
         expect_panic("Singletons not loaded during Scene init level", || {
             let _ = RenderingServer::singleton();
@@ -168,6 +189,10 @@ impl IObject for MainLoopCallbackSingleton {
 
 #[cfg(since_api = "4.5")]
 fn on_init_main_loop() {
+    // By MainLoop, the RenderingServer singleton is registered.
+    assert!(is_class_available::<RenderingServer>());
+    assert!(is_singleton_available::<RenderingServer>());
+
     // RenderingServer should be accessible in MainLoop init and deinit.
     let singleton = MainLoopCallbackSingleton::new_alloc();
     assert!(singleton.bind().tex.is_valid());
@@ -219,6 +244,9 @@ pub fn on_stage_deinit(stage: InitStage) {
 
 #[cfg(since_api = "4.5")]
 fn on_deinit_main_loop() {
+    // RenderingServer singleton still available at MainLoop deinit.
+    assert!(is_singleton_available::<RenderingServer>());
+
     let singleton = Engine::singleton()
         .get_singleton(&MainLoopCallbackSingleton::class_id().to_string_name())
         .unwrap()
@@ -240,7 +268,13 @@ fn on_deinit_main_loop() {
 }
 
 fn on_deinit_core() {
-    // Nothing yet - exit logic happens in on_stage_deinit.
+    // At Core deinit, higher levels (Editor/Scene/Servers) have already been unloaded.
+    // gdext_on_level_deinit runs *after* user code, so the available level is still Core.
+    assert!(is_class_available::<Object>());
+    assert!(!is_class_available::<Node>());
+    assert!(!is_class_available::<RenderingServer>());
+
+    // Exit logic happens in on_stage_deinit.
 }
 
 #[cfg(since_api = "4.5")]
