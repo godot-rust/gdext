@@ -22,7 +22,8 @@ use crate::private::handle_panic;
 
 /// Create a new async background task.
 ///
-/// This function allows creating a new async task in which Godot signals can be awaited, like it is possible in GDScript. The
+/// This function allows creating a new async task in which Godot signals can be awaited, like it is possible in GDScript. If a reference to
+/// `Self` is not flexible enough regarding lifetimes, your function calling `spawn()` can capture the state in a `Gd<Self>` pointer instead. The
 /// [`TaskHandle`] that is returned provides synchronous introspection into the current state of the task.
 ///
 /// Signals can be converted to futures in the following ways:
@@ -41,8 +42,45 @@ use crate::private::handle_panic;
 /// If called from any other thread than the main thread.
 ///
 /// # Examples
-/// With typed signals:
+/// An example using timers:
 ///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node)]
+/// struct Game {
+///     base: Base<Node>,
+/// }
+///
+/// # // Trick to avoid adding SceneTreeTimer to minimal codegen.
+/// # struct B; impl B { fn get_tree(&self) -> &Self { &self } fn create_timer(&self, d: f64) -> &mut Game { panic!("never called") } }
+/// #[godot_api]
+/// impl Game {
+/// # #[signal] fn timeout();
+/// # fn base(&self) -> &B { panic!("never called") }
+///     // Async function that implements sleep using Godot timers.
+///     async fn sleep(&self, duration: f64) {
+///         let timer = self.base().get_tree().create_timer(duration);
+///
+///         // Use a future to wait for the timeout signal.
+///         timer.signals().timeout().to_future().await;
+///     }
+///
+///     fn show_messages(&mut self) {
+///         // Obtain Gd<Self>, since closure cannot capture `&mut Self` due to lifetimes.
+///         // If this method is linked to a signal, consider using a #[func(gd_self)] parameter.
+///         let this = self.to_gd();
+///
+///         godot::task::spawn(async move {
+///             godot_print!("Start!");
+///             this.bind().sleep(1.0).await;
+///             godot_print!("One second later!")
+///         });
+///     }
+/// }
+/// ```
+///
+/// With typed signals:
 /// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
