@@ -10,6 +10,7 @@ use godot::init::{ExtensionLibrary, InitLevel, InitStage, gdextension};
 mod benchmarks;
 mod builtin_tests;
 mod common;
+mod editor_test;
 mod engine_tests;
 mod framework;
 mod object_tests;
