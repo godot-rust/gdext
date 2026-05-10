@@ -17,7 +17,7 @@ use godot::meta::inspect::ElementType;
 use godot::meta::{PackedElement, ToGodot, owned_into_arg, ref_to_arg, wrapped};
 
 use crate::assert_match;
-use crate::framework::{expect_panic, itest};
+use crate::framework::{expect_panic, itest, suppress_godot_print};
 
 /// Utility to run generic `PackedArray<T>` tests for multiple types `T`.
 macro_rules! test {
@@ -679,6 +679,7 @@ fn packed_byte_array_encode_decode_variant() {
     assert_eq!(decoded.0, variant);
     assert_eq!(decoded.1, 60);
 
+    // TODO(v0.6): suppress "ERROR" print in API itself.
     let decoded = a.decode_var(4, false);
     assert_eq!(decoded, Err(()));
 
@@ -698,7 +699,8 @@ fn packed_byte_array_encode_decode_variant() {
     assert_eq!(decoded.1, 4);
 
     // Only running out of size "fails".
-    let decoded = a.decode_var_allow_nil(77, false);
+    // TODO(v0.6): suppress "ERROR" print in API itself.
+    let decoded = suppress_godot_print(|| a.decode_var_allow_nil(77, false));
     assert_eq!(decoded.0, Variant::nil());
     assert_eq!(decoded.1, 0);
 }

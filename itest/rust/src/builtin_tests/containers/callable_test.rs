@@ -18,7 +18,7 @@ use godot::meta::ToGodot;
 use godot::obj::{Gd, NewAlloc, NewGd};
 use godot::register::{GodotClass, godot_api};
 
-use crate::framework::itest;
+use crate::framework::{itest, suppress_godot_print};
 
 #[derive(GodotClass)]
 #[class(init, base=RefCounted)]
@@ -133,8 +133,10 @@ fn callable_variant_method() {
 
     // Color - invalid method.
     let color = Color::from_rgba8(255, 0, 127, 255).to_variant();
-    let color_to_html = Callable::from_variant_method(&color, "to_htmI");
-    assert!(!color_to_html.is_valid());
+    suppress_godot_print(|| {
+        let color_to_html = Callable::from_variant_method(&color, "to_htmI");
+        assert!(!color_to_html.is_valid());
+    });
 }
 
 #[itest]
@@ -420,7 +422,7 @@ pub mod custom_callable {
         // - We can't catch panics from Callable invocations yet (see above), only the FFI access panics.
         if cfg!(safeguards_balanced) && !cfg!(feature = "experimental-threads") {
             // Single-threaded with balanced safeguards: FFI access check will panic.
-            crate::framework::expect_panic(
+            crate::framework::expect_panic_quiet(
                 "Callable created with from_fn() must panic when invoked on other thread",
                 || {
                     quick_thread(|| {

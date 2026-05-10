@@ -732,7 +732,7 @@ mod custom_callable {
     use godot::obj::{Gd, NewAlloc};
 
     use crate::builtin_tests::containers::callable_test::custom_callable::PanicCallable;
-    use crate::framework::{TestContext, itest};
+    use crate::framework::{TestContext, itest, suppress_godot_print};
 
     #[itest]
     fn signal_panic_user_from_fn() {
@@ -849,7 +849,7 @@ mod custom_callable {
         let callable = callable(received.clone());
         signal.connect(&callable);
 
-        emit(&mut node);
+        suppress_godot_print(|| emit(&mut node));
         assert_eq!(1, received.load(Ordering::SeqCst));
 
         node.free();

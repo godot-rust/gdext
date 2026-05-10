@@ -15,7 +15,7 @@ use godot::meta::error::CallError;
 use godot::meta::{FromGodot, ToGodot};
 use godot::obj::{InstanceId, NewAlloc};
 
-use crate::framework::{expect_panic, itest, runs_release};
+use crate::framework::{expect_panic, expect_panic_quiet, itest, runs_release};
 use crate::object_tests::object_test::ObjPayload;
 
 #[itest]
@@ -275,11 +275,12 @@ fn dynamic_call_parameter_mismatch_engine() {
     let mut node = Node::new_alloc();
 
     // Use panicking version.
-    expect_panic("call with wrong argument type", || {
+    expect_panic_quiet("call with wrong argument type", || {
         node.call("set_name", vslice![123]);
     });
 
     // Use Result-based version.
+    // TODO(v0.6): suppress "ERROR" print in API itself.
     let call_error = node
         .try_call("set_name", vslice![123])
         .expect_err("expected failed call");

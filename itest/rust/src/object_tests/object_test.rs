@@ -179,6 +179,7 @@ fn object_instance_id_when_freed() {
 fn object_from_invalid_instance_id() {
     let id = InstanceId::try_from_i64(0xDEADBEEF).unwrap();
 
+    // TODO(v0.6): suppress "ERROR" print in API itself.
     Gd::<RefcPayload>::try_from_instance_id(id)
         .expect_err("invalid instance id should not return a valid object");
 }
