@@ -5,29 +5,31 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-/// Step in the Godot initialization process.
-///
-/// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
-/// a different amount of engine functionality is available. Deinitialization happens in reverse order.
-///
-/// See also:
-// Explicit HTML links because this is re-exported in godot::init, and we can't document a `use` statement.
-/// - [`InitStage`](enum.InitStage.html): all levels + main loop.
-/// - [`ExtensionLibrary::on_stage_init()`](trait.ExtensionLibrary.html#method.on_stage_init)
-/// - [`ExtensionLibrary::on_stage_deinit()`](trait.ExtensionLibrary.html#method.on_stage_deinit)
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum InitLevel {
-    /// First level loaded by Godot. Builtin types are available, classes are not.
-    Core,
+crate::atomic_enum! {
+    /// Step in the Godot initialization process.
+    ///
+    /// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
+    /// a different amount of engine functionality is available. Deinitialization happens in reverse order.
+    ///
+    /// See also:
+    // Explicit HTML links because this is re-exported in godot::init, and we can't document a `use` statement.
+    /// - [`InitStage`](enum.InitStage.html): all levels + main loop.
+    /// - [`ExtensionLibrary::on_stage_init()`](trait.ExtensionLibrary.html#method.on_stage_init)
+    /// - [`ExtensionLibrary::on_stage_deinit()`](trait.ExtensionLibrary.html#method.on_stage_deinit)
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+    pub enum InitLevel {
+        /// First level loaded by Godot. Builtin types are available, classes are not.
+        Core = 0,
 
-    /// Second level loaded by Godot. Only server classes and builtins are available.
-    Servers,
+        /// Second level loaded by Godot. Only server classes and builtins are available.
+        Servers = 1,
 
-    /// Third level loaded by Godot. Most classes are available.
-    Scene,
+        /// Third level loaded by Godot. Most classes are available.
+        Scene = 2,
 
-    /// Fourth level loaded by Godot, only in the editor. All classes are available.
-    Editor,
+        /// Fourth level loaded by Godot, only in the editor. All classes are available.
+        Editor = 3,
+    }
 }
 
 impl InitLevel {

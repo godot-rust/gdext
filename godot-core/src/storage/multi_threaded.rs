@@ -90,11 +90,11 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     }
 
     fn get_lifecycle(&self) -> Lifecycle {
-        self.lifecycle.get()
+        self.lifecycle.load()
     }
 
     fn set_lifecycle(&self, lifecycle: Lifecycle) {
-        self.lifecycle.set(lifecycle)
+        self.lifecycle.store(lifecycle)
     }
 }
 

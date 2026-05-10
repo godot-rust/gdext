@@ -73,6 +73,7 @@ pub(crate) mod r#gen {
 pub mod conv;
 
 mod assertions;
+mod atomic_enum;
 mod extras;
 mod global;
 mod godot_ffi;
@@ -86,6 +87,7 @@ mod toolbox;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+pub use atomic_enum::*;
 // Other
 pub use extras::*;
 pub use r#gen::central::*;
