@@ -139,7 +139,12 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; Rect2i, Rect2i, Rect2i(), Rect2i::default());
     push!(inputs; Transform2D, Transform2D, Transform2D(), Transform2D::default());
     pushs!(inputs; Plane, Plane, "Plane()", Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0), true, true, Some(quote! { Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0) }));
-    push!(inputs; Quaternion, Quaternion, Quaternion(), Quaternion::default());
+
+    // Quaternion identity *inside Variants* (returned on failed fn call) wasn't correctly initialized before 4.6 -> exclude test.
+    // See https://github.com/godotengine/godot/pull/84658.
+    if godot_bindings::since_api("4.6") {
+        push!(inputs; Quaternion, Quaternion, Quaternion(), Quaternion::default());
+    }
     push!(inputs; AABB, Aabb, AABB(), Aabb::default());
     push!(inputs; Basis, Basis, Basis(), Basis::default());
     push!(inputs; Transform3D, Transform3D, Transform3D(), Transform3D::default());

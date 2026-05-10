@@ -83,8 +83,8 @@ func test_var_no_get_panics_on_read():
 	var val = obj.g_noget # Getter panics in Rust; returns default, execution continues.
 	Engine.print_error_messages = true
 
-	# Panic was caught: returned default (0) instead of actual field value (7).
-	assert_eq(val, 0, "no_get getter should return default after panic")
+	# Panic was caught: returned default Variant (null) instead of actual field value (7).
+	assert_eq(val, null, "no_get getter should return default after panic")
 	# The field itself is intact.
 	assert_eq(obj.gdscript_get("g"), 7, "actual field value should be preserved")
 
