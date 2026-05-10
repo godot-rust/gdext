@@ -70,26 +70,36 @@ pub fn check_classdb_full_api() {
     assert!(!signals.is_empty());
     assert!(has_dict_named(signals, "script_changed"));
 
+    // In Godot 4.2 **editor** mode, `resource_scene_unique_id` is only registered after Editor init, not at Scene stage (when this function
+    // runs). Non-editor mode is fine; the property was promoted to a static ADD_PROPERTY binding in 4.3, making it available in all init stages.
+    let has_resource_scene_unique_id =
+        GdextBuild::since_api("4.3") || !godot::sys::is_editor_hint();
+
     // ClassDB.class_get_property_list()
-    let properties = db.class_get_property_list("Resource");
-    assert!(has_dict_named(properties, "resource_scene_unique_id"));
+    if has_resource_scene_unique_id {
+        let properties = db.class_get_property_list("Resource");
+        assert!(has_dict_named(properties, "resource_scene_unique_id"));
+    }
 
     // ClassDB.class_get_property() and class_set_property()
     let obj = Resource::new_gd();
     let result = db.class_set_property(&obj, "script", &Variant::nil());
     assert_eq!(result, Error::ERR_UNAVAILABLE);
 
-    let result = db.class_set_property(&obj, "resource_scene_unique_id", &123.to_variant());
-    // Release templates skip type validation, see https://github.com/godotengine/godot/issues/86264.
-    if !runs_release() {
-        assert_eq!(result, Error::ERR_INVALID_DATA);
+    if has_resource_scene_unique_id {
+        let result = db.class_set_property(&obj, "resource_scene_unique_id", &123.to_variant());
+        // Release templates skip type validation, see https://github.com/godotengine/godot/issues/86264.
+        if !runs_release() {
+            assert_eq!(result, Error::ERR_INVALID_DATA);
+        }
+
+        let result =
+            db.class_set_property(&obj, "resource_scene_unique_id", &"uid123".to_variant());
+        assert_eq!(result, Error::OK);
+
+        let rid = db.class_get_property(&obj, "resource_scene_unique_id");
+        assert_eq!(rid, "uid123".to_variant());
     }
-
-    let result = db.class_set_property(&obj, "resource_scene_unique_id", &"uid123".to_variant());
-    assert_eq!(result, Error::OK);
-
-    let rid = db.class_get_property(&obj, "resource_scene_unique_id");
-    assert_eq!(rid, "uid123".to_variant());
 
     // ClassDB.class_has_method()
     assert!(db.class_has_method("Object", "get_class"));

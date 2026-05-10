@@ -33,8 +33,14 @@ fn collect_rust_tests(filters: &[String]) -> (Vec<RustTestCase>, HashSet<&str>, 
     let mut all_files = HashSet::new();
     let mut tests: Vec<RustTestCase> = vec![];
     let mut is_focused_run = false;
+    let in_editor = Engine::singleton().is_editor_hint();
 
     sys::plugin_foreach!(__GODOT_ITEST; |test: &RustTestCase| {
+        // Editor itests run only in editor; non-editor itests run only outside editor.
+        if test.editor_only != in_editor {
+            return;
+        }
+
         // First time a focused test is encountered, switch to "focused" mode and throw everything away.
         if !is_focused_run && test.focused {
             tests.clear();
@@ -63,8 +69,14 @@ fn collect_async_rust_tests(
     let mut all_files = HashSet::new();
     let mut tests = vec![];
     let mut is_focused_run = sync_focused_run;
+    let in_editor = Engine::singleton().is_editor_hint();
 
     sys::plugin_foreach!(__GODOT_ASYNC_ITEST; |test: &AsyncRustTestCase| {
+        // Editor itests run only in editor; non-editor itests run only outside editor.
+        if test.editor_only != in_editor {
+            return;
+        }
+
         // First time a focused test is encountered, switch to "focused" mode and throw everything away.
         if !is_focused_run && test.focused {
             tests.clear();
@@ -135,6 +147,11 @@ pub struct RustTestCase {
     pub skipped: bool,
     /// If one or more tests are focused, only they will be executed. Helpful for debugging and working on specific features.
     pub focused: bool,
+    /// Test only runs when the engine is in editor mode (`Engine::is_editor_hint() == true`).
+    ///
+    /// Used for testing behavior specific to the editor, e.g. placeholder substitution for runtime classes.
+    /// Editor-only tests are skipped in non-editor runs, and non-editor tests are skipped in editor runs.
+    pub editor_only: bool,
     #[allow(dead_code)]
     pub line: u32,
     pub function: fn(&TestContext),
@@ -147,6 +164,8 @@ pub struct AsyncRustTestCase {
     pub skipped: bool,
     /// If one or more tests are focused, only they will be executed. Helpful for debugging and working on specific features.
     pub focused: bool,
+    /// See [`RustTestCase::editor_only`].
+    pub editor_only: bool,
     #[allow(dead_code)]
     pub line: u32,
     pub function: fn(&TestContext) -> godot::task::TaskHandle,
