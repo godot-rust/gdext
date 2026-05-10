@@ -6,6 +6,13 @@
 class_name TestSuite
 extends RefCounted
 
+# Test failure state is split into two orthogonal flags:
+# - _assertion_failed: a hard assertion (assert_*, assert_fail) failed; never cleared until reset_state().
+# - _pending: mark_test_pending() was called and mark_test_succeeded() has not yet rolled it back.
+#
+# Test is considered failed iff either flag is set (see is_test_failed()).
+# Keeping them orthogonal ensures a real assertion failure inside a pending block survives a later
+# mark_test_succeeded() call -- only the provisional pending flag gets cleared, not the assertion failure.
 var _assertion_failed: bool = false
 var _pending: bool = false
 
@@ -19,7 +26,7 @@ func reset_state() -> void:
 	# Note: some tests disable error messages, but they are re-enabled by the Rust test runner before each test.
 
 func is_test_failed() -> bool:
-	return _assertion_failed
+	return _assertion_failed || _pending
 
 func run_test(suite: RefCounted, method_name: String) -> GDScriptTestRunner.GDScriptTestCase:
 	return GDScriptTestRunner.GDScriptExecutableTestCase.new(suite, method_name)
@@ -78,10 +85,9 @@ func mark_test_pending() -> void:
 		return
 
 	_pending = true
-	_assertion_failed = true
-	#print("Test will fail unless rolled back: ", message)
 
-## Roll back the failure assumption if the test actually succeeded.
+## Roll back the pending failure assumption if the test actually succeeded.
+## Does not clear real assertion failures recorded between mark_test_pending() and this call.
 func mark_test_succeeded() -> void:
 	if not _pending:
 		push_error("Cannot mark test as succeeded, test was not marked as pending.")
@@ -89,7 +95,6 @@ func mark_test_succeeded() -> void:
 		return
 
 	_pending = false
-	_assertion_failed = false
 
 ## Expects that one of the next statements will cause the calling GDScript function to abort.
 ##
@@ -101,7 +106,7 @@ func expect_fail() -> void:
 	# Note: error messages are re-enabled by the Rust test runner before each test.
 	Engine.print_error_messages = false
 
-# Asserts that the test failed to reach this point. You should disable error messages before running code 
+# Asserts that the test failed to reach this point. You should disable error messages before running code
 # that is expected to print an error message that would otherwise cause the CI to report failure.
 func assert_fail(message: String = "") -> bool:
 	_assertion_failed = true

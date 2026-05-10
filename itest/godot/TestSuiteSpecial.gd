@@ -18,14 +18,14 @@ func print_error(s: String):
 func run_test(suite: Object, method_name: String) -> GDScriptTestRunner.GDScriptHardcodedTestCase:
 	var callable: Callable = Callable(suite, method_name)
 	
-	_assertion_failed = false
+	reset_state()
 	var start_time = Time.get_ticks_usec()
 	var result = await callable.call()
 	var end_time = Time.get_ticks_usec()
 
 	var test_case := GDScriptTestRunner.GDScriptHardcodedTestCase.new(suite, method_name)
 	test_case.execution_time_seconds = float(end_time - start_time) / 1000000.0
-	test_case.result = (result or result == null) and not _assertion_failed
+	test_case.result = (result or result == null) and not is_test_failed()
 	test_case.errors = clear_errors()
 	return test_case
 
