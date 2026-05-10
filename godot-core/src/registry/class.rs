@@ -306,9 +306,17 @@ pub fn unregister_classes(init_level: InitLevel) {
     let mut loaded_classes_by_name = global_loaded_classes_by_name();
     // TODO clean up dyn traits
 
-    let loaded_classes_current_level = loaded_classes_by_level
+    let mut loaded_classes_current_level = loaded_classes_by_level
         .remove(&init_level)
         .unwrap_or_default();
+
+    // During unregistration, editor plugins are freed and run their lifecycle methods (for example the `exit_tree`).
+    // Since they might depend on other classes (for example `EditorDock` will always exist in tandem with the plugin), they MUST be
+    // unregistered first to avoid potential use-after-free (`EditorPlugin` tries to use some other, already unregistered class -> its
+    // user instance has been already freed -> UB).
+    if init_level == InitLevel::Editor {
+        loaded_classes_current_level.sort_by_key(|class| class.is_editor_plugin);
+    }
 
     out!("Unregister classes of level {init_level:?}...");
     for class in loaded_classes_current_level.into_iter().rev() {
