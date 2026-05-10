@@ -21,8 +21,10 @@ use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
 static STAGES_SEEN: Global<Vec<InitStage>> = Global::default();
 static STAGES_PANICKED: Global<Vec<InitStage>> = Global::default();
 
+// `tool` because this is internal test scaffolding that exercises class construction during init levels, which itest also runs in editor mode
+// (`-e --headless`). Without `tool`, Godot would substitute a placeholder for runtime classes in the editor.
 #[derive(GodotClass)]
-#[class(base = Object, init)]
+#[class(base = Object, init, tool)]
 struct SomeObject {}
 
 #[godot_api]
@@ -172,8 +174,10 @@ pub fn on_init_editor() {
     // Nothing yet.
 }
 
+// `tool` for the same reason as `SomeObject` above: this singleton is registered during MainLoop init and accessed via `bind()` in editor
+// mode (see #1404).
 #[derive(GodotClass)]
-#[class(base=Object)]
+#[class(base=Object, tool)]
 struct MainLoopCallbackSingleton {
     tex: Rid,
 }
