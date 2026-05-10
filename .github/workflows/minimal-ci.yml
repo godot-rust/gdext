@@ -272,6 +272,7 @@ jobs:
             rust-extra-args: --features godot/api-custom
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
             rust-target: x86_64-unknown-linux-gnu
+            run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-release-disengaged
             os: ubuntu-22.04
@@ -283,6 +284,7 @@ jobs:
             rust-extra-args: --release --features godot/safeguards-release-disengaged
             rust-target: x86_64-unknown-linux-gnu
             rust-target-dir: release # We're running Godot debug build with Rust release dylib.
+            run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-dev-balanced
             os: ubuntu-22.04
@@ -293,6 +295,7 @@ jobs:
             # Currently without itest/codegen-full-experimental.
             rust-extra-args: --features godot/safeguards-dev-balanced
             rust-target: x86_64-unknown-linux-gnu
+            run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
     steps:
       - uses: actions/checkout@v6
