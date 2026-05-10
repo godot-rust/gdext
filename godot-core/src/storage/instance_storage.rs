@@ -19,44 +19,17 @@ use crate::godot_error;
 use crate::obj::{Base, Gd, GodotClass, Inherits, Singleton};
 use crate::storage::log_pre_drop;
 
-#[derive(Copy, Clone, Debug)]
-pub enum Lifecycle {
-    // Warning: when reordering/changing enumerators, update match in AtomicLifecycle below
-    Alive,
-    Destroying,
+sys::atomic_enum! {
+    #[derive(Copy, Clone, Debug)]
+    pub enum Lifecycle {
+        Alive = 0,
+        Destroying = 1,
+    }
 }
 
+/// Type-safe atomic wrapper for [`Lifecycle`].
 #[cfg_attr(not(feature = "experimental-threads"), allow(dead_code))]
-pub struct AtomicLifecycle {
-    atomic: std::sync::atomic::AtomicU32,
-}
-
-#[cfg_attr(not(feature = "experimental-threads"), allow(dead_code))]
-impl AtomicLifecycle {
-    pub fn new(value: Lifecycle) -> Self {
-        Self {
-            atomic: std::sync::atomic::AtomicU32::new(value as u32),
-        }
-    }
-
-    pub fn get(&self) -> Lifecycle {
-        match self.atomic.load(std::sync::atomic::Ordering::Relaxed) {
-            0 => Lifecycle::Alive,
-            1 => Lifecycle::Destroying,
-            other => panic!("invalid lifecycle {other}"),
-        }
-    }
-
-    pub fn set(&self, lifecycle: Lifecycle) {
-        let value = match lifecycle {
-            Lifecycle::Alive => 0,
-            Lifecycle::Destroying => 1,
-        };
-
-        self.atomic
-            .store(value, std::sync::atomic::Ordering::Relaxed);
-    }
-}
+pub type AtomicLifecycle = sys::AtomicEnum<Lifecycle>;
 
 /// A storage for an instance binding.
 ///

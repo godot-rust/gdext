@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use godot_ffi as sys;
 use sys::GodotFfi;
@@ -34,7 +34,9 @@ pub use reexport_pub::*;
 /// See also [`is_singleton_available()`] and [this section in `ExtensionLibrary`](../init/trait.ExtensionLibrary.html#availability-of-godot-apis-during-init-and-deinit).
 pub fn is_class_available<T: GodotClass>() -> bool {
     // If called when bindings are not yet/anymore initialized (e.g. in a global destructor), returns false.
-    current_init_level().is_some_and(|level| T::INIT_LEVEL <= level)
+    CURRENT_INIT_LEVEL
+        .load()
+        .is_some_and(|level| T::INIT_LEVEL <= level)
 }
 
 /// Return whether a certain singleton can currently be retrieved from Godot.
@@ -59,9 +61,7 @@ pub fn is_singleton_available<T: Singleton>() -> bool {
 
 use crate::obj::signal::prune_stored_signal_connections;
 
-const NO_INIT_LEVEL: u8 = u8::MAX;
-
-static CURRENT_INIT_LEVEL: AtomicU8 = AtomicU8::new(NO_INIT_LEVEL);
+static CURRENT_INIT_LEVEL: sys::AtomicEnum<Option<InitLevel>> = sys::AtomicEnum::default();
 
 #[repr(C)]
 struct InitUserData {
@@ -288,7 +288,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
     }
 
     crate::registry::class::auto_register_classes(level);
-    set_available_init_level(Some(level));
+    CURRENT_INIT_LEVEL.store(Some(level));
 }
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
@@ -298,7 +298,7 @@ fn gdext_on_level_deinit(level: InitLevel) {
     }
 
     crate::registry::class::unregister_classes(level);
-    set_available_init_level(previous_init_level(level));
+    CURRENT_INIT_LEVEL.store(previous_init_level(level));
 
     if level == InitLevel::Core {
         // If lowest level is unloaded, call global deinitialization.
@@ -319,28 +319,6 @@ fn gdext_on_level_deinit(level: InitLevel) {
             sys::deinitialize();
         }
     }
-}
-
-fn current_init_level() -> Option<InitLevel> {
-    match CURRENT_INIT_LEVEL.load(Ordering::Relaxed) {
-        0 => Some(InitLevel::Core),
-        1 => Some(InitLevel::Servers),
-        2 => Some(InitLevel::Scene),
-        3 => Some(InitLevel::Editor),
-        _ => None,
-    }
-}
-
-fn set_available_init_level(level: Option<InitLevel>) {
-    let raw = match level {
-        Some(InitLevel::Core) => 0,
-        Some(InitLevel::Servers) => 1,
-        Some(InitLevel::Scene) => 2,
-        Some(InitLevel::Editor) => 3,
-        None => NO_INIT_LEVEL,
-    };
-
-    CURRENT_INIT_LEVEL.store(raw, Ordering::Relaxed);
 }
 
 const fn previous_init_level(level: InitLevel) -> Option<InitLevel> {

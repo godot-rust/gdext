@@ -47,11 +47,19 @@ pub use reexport_pub::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 
-/// Level:
-/// - 0: no error printing (during `expect_panic` in test)
-/// - 1: not yet implemented, but intended for `try_` function calls (which are expected to fail, so error is annoying)
-/// - 2: normal printing
-static ERROR_PRINT_LEVEL: atomic::AtomicU8 = atomic::AtomicU8::new(2);
+sys::atomic_enum! {
+    #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+    pub enum ErrorPrintLevel {
+        /// All errors are printed (default).
+        Normal = 2,
+        /// Reserved for future use; intended for `try_` call sites where errors are expected and printing is noisy.
+        Reduced = 1,
+        /// No error printing; used during `expect_panic` in tests.
+        Silent = 0,
+    }
+}
+
+static ERROR_PRINT_LEVEL: sys::AtomicEnum<ErrorPrintLevel> = sys::AtomicEnum::default();
 
 sys::plugin_registry!(pub __GODOT_PLUGIN_REGISTRY: ClassPlugin);
 #[cfg(all(since_api = "4.3", feature = "register-docs"))]
@@ -333,14 +341,12 @@ where
     }));
 }
 
-pub fn set_error_print_level(level: u8) -> u8 {
-    assert!(level <= 2);
-    ERROR_PRINT_LEVEL.swap(level, atomic::Ordering::Relaxed)
+pub fn set_error_print_level(level: ErrorPrintLevel) -> ErrorPrintLevel {
+    ERROR_PRINT_LEVEL.replace(level)
 }
 
-pub(crate) fn has_error_print_level(level: u8) -> bool {
-    assert!(level <= 2);
-    ERROR_PRINT_LEVEL.load(atomic::Ordering::Relaxed) >= level
+pub(crate) fn has_error_print_level(level: ErrorPrintLevel) -> bool {
+    ERROR_PRINT_LEVEL.load() >= level
 }
 
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
@@ -531,7 +537,7 @@ where
     // (2) ERROR: godot-rust function call failed: MyClass::my_method()
     //        Reason: function panicked: some panic message
     //     at: ...
-    if has_error_print_level(2)
+    if has_error_print_level(ErrorPrintLevel::Normal)
         && !call_error.caused_by_panic()
         && OUT_CALL_DEPTH.with(|d| d.get() == 0)
     {
