@@ -156,11 +156,19 @@ impl Signal {
     }
 
     /// Returns `true` if the specified [`Callable`] is connected to this signal.
+    ///
+    /// If you need to do something with the object, prefer calling [`object()`][Self::object]. For `RefCounted` objects, this gives you a
+    /// strong-ref that cannot be invalidated while you hold it, and thus avoids [TOCTOU](https://en.wikipedia.org/wiki/Time-of-check_to_time-of-use)
+    /// issues with `is_null()` followed by connectivity or other checks.
     pub fn is_connected(&self, callable: &Callable) -> bool {
         self.as_inner().is_connected(callable)
     }
 
     /// Returns `true` if the signal's name does not exist in its object, or the object is not valid.
+    ///
+    /// If you need to do something with the object, prefer calling [`object()`][Self::object]. For `RefCounted` objects, this gives you a
+    /// strong-ref that cannot be invalidated while you hold it, and thus avoids [TOCTOU](https://en.wikipedia.org/wiki/Time-of-check_to_time-of-use)
+    /// issues with `is_null()` followed by connectivity or other checks.
     pub fn is_null(&self) -> bool {
         self.as_inner().is_null()
     }
