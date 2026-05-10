@@ -530,9 +530,10 @@ impl GetterSetterImpl {
         //
         // Godot's `ClassDB::class_get_property_default_value` default-constructs a temporary instance, calls this getter and then frees
         // the instance via `memdelete()` -- which bypasses `RefCounted::unreference()`. For Self inheriting RefCounted, a `Gd<Self>` pointer
-        // captured in the Callable closure would therefore point to a destroyed object. But Gd trusts the ref-count and assumes >0 means alive.
-        // So when the callable is invoked next time, use-after-free (disengaged) or a last-defense panic (balanced/strict) is triggered.
+        // captured in the Callable closure would therefore point to a destroyed object. This violates invariants for a ref-counted Gd pointer,
+        // which embodies an always-valid strong-ref.
         //
+        // So when the callable is invoked next time, use-after-free (disengaged) or a last-defense panic (balanced/strict) is triggered.
         // So instead, we dereference through the InstanceId, which is safe. This falls back to a `godot_error!` if the instance is gone.
         let function_body = quote_spanned! { field_ty_span=>
             let instance_id = ::godot::obj::WithBaseField::base(self).instance_id();

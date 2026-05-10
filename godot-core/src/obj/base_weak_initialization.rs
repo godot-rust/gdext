@@ -44,6 +44,7 @@ impl<T: GodotClass> Base<T> {
         // First time handing out a Gd<T>, we need to take measures to temporarily upgrade the Base's weak pointer to a strong one.
         // During the initialization phase (derived object being constructed), increment refcount by 1.
         let instance_id = self.obj.instance_id();
+        let mut defer_unref = false;
         PENDING_STRONG_REFS.with(|refs| {
             let mut pending_refs = refs.borrow_mut();
             if let HashEntry::Vacant(e) = pending_refs.entry(instance_id) {
@@ -57,17 +58,22 @@ impl<T: GodotClass> Base<T> {
                     .expect("IS_REF_COUNTED guarantees T inherits RefCounted");
 
                 e.insert(Gd { raw });
+                defer_unref = true;
             }
         });
 
-        let name = format!("Base<{}> deferred unref", T::class_id());
-        let callable = Callable::from_once_fn(name, move |_args| {
-            Self::drop_strong_ref(instance_id);
-        });
+        // Only defer the drop-strong-ref function if we actually inserted the pending strong-ref.
+        // Avoids "ERROR: Error calling deferred method: '':"
+        if defer_unref {
+            let name = format!("Base<{}> deferred unref", T::class_id());
+            let callable = Callable::from_once_fn(name, move |_args| {
+                Self::drop_strong_ref(instance_id);
+            });
 
-        // Use Callable::call_deferred() instead of Gd::apply_deferred(). The latter implicitly borrows &mut self,
-        // causing a "destroyed while bind was active" panic.
-        callable.call_deferred(&[]);
+            // Use Callable::call_deferred() instead of Gd::apply_deferred(). The latter implicitly borrows &mut self,
+            // causing a "destroyed while bind was active" panic.
+            callable.call_deferred(&[]);
+        }
 
         (*self.obj).clone()
     }
