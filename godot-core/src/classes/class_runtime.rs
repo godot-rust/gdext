@@ -313,19 +313,28 @@ where
         return;
     }
 
-    // Non-tool classes can't be instantiated in the editor.
-    if crate::classes::Engine::singleton().is_editor_hint() {
-        panic!(
-            "Class {} -- null instance; does the class have a Godot creator function? \
-            Ensure that the given class is a tool class with #[class(tool)], if it is being accessed in the editor.",
-            std::any::type_name::<T>()
-        )
-    } else {
-        panic!(
-            "Class {} -- null instance; does the class have a Godot creator function?",
-            std::any::type_name::<T>()
-        );
+    // Editor substitutes a `PlaceholderExtensionInstance` for runtime classes; null binding is expected here. `bind()`/`bind_mut()`
+    // panic separately with a placeholder-specific message. See https://github.com/godot-rust/gdext/issues/1404.
+    if crate::private::is_in_editor() {
+        return;
     }
+
+    panic!(
+        "Class {} -- null instance; does the class have a Godot creator function?",
+        std::any::type_name::<T>()
+    );
+}
+
+/// Panic emitted when `bind()` / `bind_mut()` is called on a placeholder instance (runtime class accessed in the editor).
+#[cold]
+#[track_caller]
+pub(crate) fn panic_placeholder_bind<T>(method: &str) -> ! {
+    panic!(
+        "Gd::{method}() called on a placeholder instance of `{name}`.\n\
+        A non-tool class does not have a real instance in the editor.\n\
+        Use `#[class(tool)]`, or guard with `init::is_editor_hint()`.",
+        name = std::any::type_name::<T>(),
+    )
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

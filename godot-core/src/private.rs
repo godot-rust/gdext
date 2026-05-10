@@ -214,6 +214,7 @@ pub fn is_class_inactive(is_tool: bool) -> bool {
 }
 
 // Starting from 4.3, Godot has "runtime classes"; we only need to check whether editor is running.
+// Runtime classes only get placeholder instances in the editor (no Rust constructor is called). `bind()` panics if called on placeholders.
 #[cfg(since_api = "4.3")]
 pub fn is_class_runtime(is_tool: bool) -> bool {
     if is_tool {
@@ -226,6 +227,20 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
     // If this is not a #[class(tool)] and we only run tool classes in the editor, then don't run this in editor -> make it a runtime class.
     // If we run all classes in the editor (!tool_only_in_editor), then it's not a runtime class.
     global_config.tool_only_in_editor
+}
+
+/// Whether the engine is currently running in editor mode.
+///
+/// Lazily caches the result of `Engine::is_editor_hint()` on first call.
+/// See also [`sys::is_editor_hint`] (Godot 4.4+ only, eagerly populated during init); this helper exists to also work on
+/// pre-4.4 versions where the cache is not pre-populated.
+#[inline]
+pub fn is_in_editor() -> bool {
+    use crate::obj::Singleton;
+
+    // SAFETY: only invoked after global library initialization.
+    let global_config = unsafe { sys::config() };
+    global_config.is_editor_or_init(|| classes::Engine::singleton().is_editor_hint())
 }
 
 /// Converts a default parameter value to a runtime-immutable `Variant`.
