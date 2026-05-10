@@ -49,17 +49,21 @@ func assert_that(what: bool, message: String = "") -> bool:
 
 	return false
 
-func assert_eq(actual, expected, message: String = "") -> bool:
-	if actual == expected:
+func assert_eq(actual: Variant, expected: Variant, message: String = "") -> bool:
+	# We want strict equality, while still allowing Object(null) == Nil(null).
+	if actual == null and expected == null or typeof(actual) == typeof(expected) and actual == expected:
 		return true
 
 	_assertion_failed = true
 
+	var actual_ty = typeof(actual)
+	var expected_ty = typeof(expected)
+
 	print_newline() # previous line not yet broken
 	if message:
-		print_error("GDScript assertion failed:  %s\n    actual: %s\n  expected: %s" % [message, actual, expected])
+		print_error("GDScript assertion failed:  %s\n    actual: %s (%s)\n  expected: %s (%s)" % [message, actual, type_string(actual_ty), expected, type_string(expected_ty)])
 	else:
-		print_error("GDScript assertion failed:  `(actual == expected)`\n    actual: %s\n  expected: %s" % [actual, expected])
+		print_error("GDScript assertion failed:  `(actual == expected)`\n    actual: %s (%s)\n  expected: %s (%s)" % [actual, type_string(actual_ty), expected, type_string(expected_ty)])
 
 	# Note: stacktrace cannot be printed, because not connected to a debugging server (editor).
 	return false
