@@ -178,7 +178,8 @@ pub fn suppress_panic_log<R>(callback: impl FnOnce() -> R) -> R {
     ));
 
     // Keep following lines.
-    let prev_print_level = godot::private::set_error_print_level(0);
+    let prev_print_level =
+        godot::private::set_error_print_level(godot::private::ErrorPrintLevel::Silent);
     let res = callback();
     godot::private::set_error_print_level(prev_print_level);
 
