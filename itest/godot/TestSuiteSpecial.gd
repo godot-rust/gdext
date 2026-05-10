@@ -6,6 +6,10 @@
 class_name TestSuiteSpecial
 extends TestSuite
 
+# Hardcoded tests may run before the runner reports them, so their output must not be emitted live --
+# it would interleave with unrelated test output and fire Godot error signals at the wrong moment.
+# These overrides buffer messages into `errors`, which the runner attaches to the test case and replays
+# at the appropriate time (see GDScriptHardcodedTestCase in TestRunner.gd).
 var errors: Array[String] = []
 
 func print_newline():

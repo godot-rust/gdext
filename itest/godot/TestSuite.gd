@@ -80,7 +80,7 @@ func assert_eq(actual: Variant, expected: Variant, message: String = "") -> bool
 ## For situations where statements coming after this will abort the test function without reliable ways to detect.
 func mark_test_pending() -> void:
 	if _pending:
-		push_error("Test is already pending.")
+		print_error("Test is already pending.")
 		_assertion_failed = true
 		return
 
@@ -90,7 +90,7 @@ func mark_test_pending() -> void:
 ## Does not clear real assertion failures recorded between mark_test_pending() and this call.
 func mark_test_succeeded() -> void:
 	if not _pending:
-		push_error("Cannot mark test as succeeded, test was not marked as pending.")
+		print_error("Cannot mark test as succeeded, test was not marked as pending.")
 		_assertion_failed = true
 		return
 
