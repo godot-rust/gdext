@@ -6,6 +6,10 @@
 class_name TestSuiteSpecial
 extends TestSuite
 
+# Hardcoded tests may run before the runner reports them, so their output must not be emitted live --
+# it would interleave with unrelated test output and fire Godot error signals at the wrong moment.
+# These overrides buffer messages into `errors`, which the runner attaches to the test case and replays
+# at the appropriate time (see GDScriptHardcodedTestCase in TestRunner.gd).
 var errors: Array[String] = []
 
 func print_newline():
@@ -18,14 +22,14 @@ func print_error(s: String):
 func run_test(suite: Object, method_name: String) -> GDScriptTestRunner.GDScriptHardcodedTestCase:
 	var callable: Callable = Callable(suite, method_name)
 	
-	_assertion_failed = false
+	reset_state()
 	var start_time = Time.get_ticks_usec()
 	var result = await callable.call()
 	var end_time = Time.get_ticks_usec()
 
 	var test_case := GDScriptTestRunner.GDScriptHardcodedTestCase.new(suite, method_name)
 	test_case.execution_time_seconds = float(end_time - start_time) / 1000000.0
-	test_case.result = (result or result == null) and not _assertion_failed
+	test_case.result = (result or result == null) and not is_test_failed()
 	test_case.errors = clear_errors()
 	return test_case
 

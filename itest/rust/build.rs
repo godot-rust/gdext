@@ -139,7 +139,12 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; Rect2i, Rect2i, Rect2i(), Rect2i::default());
     push!(inputs; Transform2D, Transform2D, Transform2D(), Transform2D::default());
     pushs!(inputs; Plane, Plane, "Plane()", Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0), true, true, Some(quote! { Plane::new(Vector3::new(1.0, 0.0, 0.0), 0.0) }));
-    push!(inputs; Quaternion, Quaternion, Quaternion(), Quaternion::default());
+
+    // Quaternion identity *inside Variants* (returned on failed fn call) wasn't correctly initialized before 4.6 -> exclude test.
+    // See https://github.com/godotengine/godot/pull/84658.
+    if godot_bindings::since_api("4.6") {
+        push!(inputs; Quaternion, Quaternion, Quaternion(), Quaternion::default());
+    }
     push!(inputs; AABB, Aabb, AABB(), Aabb::default());
     push!(inputs; Basis, Basis, Basis(), Basis::default());
     push!(inputs; Transform3D, Transform3D, Transform3D(), Transform3D::default());
@@ -724,6 +729,10 @@ var var_class_enum_array: Array[Node.ProcessMode]
         gdscript.push('\n');
         gdscript.push_str(advanced_exports_4_4);
     }
+
+    // Stamp current API minor so stale generated .gd (left over from a different godot-rust API version) is detected at test time.
+    let api_minor = godot_bindings::get_godot_minor_for_itest();
+    gdscript.push_str(&format!("\nvar built_for_api_minor: int = {api_minor}\n"));
 
     PropertyTests { rust, gdscript }
 }
