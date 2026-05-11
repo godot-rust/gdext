@@ -69,6 +69,7 @@ fn load_test() {
 
     save(&resource, &res_path);
 
+    // TODO(v0.6): suppress "ERROR" print in API itself.
     let res = try_load::<SavedGame>(FAULTY_PATH);
     assert!(res.is_err());
 

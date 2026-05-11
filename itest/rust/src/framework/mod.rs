@@ -219,6 +219,16 @@ pub fn expect_panic(context: &str, code: impl FnOnce()) {
     );
 }
 
+/// Like [`expect_panic()`], but additionally silences Godot's error prints during the panicking call.
+///
+/// Use when the panicking code path also emits Godot errors (e.g. FFI access checks, errors emitted during unwind drops) that would otherwise
+/// spam the test output. Prefer plain [`expect_panic()`] when no Godot errors are expected, to avoid accidentally swallowing unrelated errors.
+pub fn expect_panic_quiet(context: &str, code: impl FnOnce()) {
+    // Future: could wire this up with Logger class, intercept output and check for containing an "expected" string.
+    // This would make expected errors visible in tests, and catch changes on Godot side. Possibly some maintenance if Godot error changes.
+    suppress_godot_print(|| expect_panic(context, code));
+}
+
 /// Run for code that should panic in *strict* and *balanced* safeguard levels, but cause UB in *disengaged* level.
 ///
 /// The code is not executed for the latter.
@@ -325,16 +335,23 @@ where
     }
 }
 
-/// Disable printing errors from Godot. Ideally we should catch and handle errors, ensuring they happen when
-/// expected. But that isn't possible, so for now we can just disable printing the error to avoid spamming
-/// the terminal when tests should error.
+/// Disable printing errors from Godot while running `f`.
 ///
-/// **Important:** Do not run this inside [`expect_panic()`], it will mute panic messages forever. Instead, make sure [`suppress_godot_print()`]
-/// is the outer function.
-pub fn suppress_godot_print(mut f: impl FnMut()) {
+/// Ideally we should catch and handle errors, ensuring they happen when expected. But that isn't always possible,
+/// so for now we can just disable printing the error to avoid spamming the terminal when tests should error.
+///
+/// This function is panic-safe via RAII; if the inner function `f` panics; error printing will be re-enabled.
+pub fn suppress_godot_print<R>(f: impl FnOnce() -> R) -> R {
+    struct RestoreGodotPrint;
+    impl Drop for RestoreGodotPrint {
+        fn drop(&mut self) {
+            Engine::singleton().set_print_error_messages(true); // Assume it was true before -> good enough.
+        }
+    }
+
     Engine::singleton().set_print_error_messages(false);
-    f();
-    Engine::singleton().set_print_error_messages(true);
+    let _guard = RestoreGodotPrint;
+    f()
 }
 
 /// Some tests are disabled, as they rely on Godot checks which are only available in Debug builds.

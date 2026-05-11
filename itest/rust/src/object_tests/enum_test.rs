@@ -15,7 +15,7 @@ use godot::classes::{ArrayMesh, time};
 use godot::global::{Key, Orientation};
 use godot::obj::{EngineEnum, NewGd};
 
-use crate::framework::itest;
+use crate::framework::{itest, suppress_godot_print};
 
 #[itest]
 fn enum_ords() {
@@ -73,7 +73,11 @@ fn enum_hash() {
 #[itest]
 fn enum_add_surface_from_arrays() {
     let mut mesh = ArrayMesh::new_gd();
-    mesh.add_surface_from_arrays(PrimitiveType::TRIANGLES, &varray![]);
+    // The empty array is invalid input on purpose -- the test only verifies the call doesn't crash. Godot prints an
+    // expected error; silence it here. No internal-suppression candidate, since the API has no Result/Option contract.
+    suppress_godot_print(|| {
+        mesh.add_surface_from_arrays(PrimitiveType::TRIANGLES, &varray![]);
+    });
 }
 
 #[itest]

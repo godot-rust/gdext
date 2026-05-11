@@ -11,7 +11,7 @@ use godot::obj::Base;
 use godot::register::property::PhantomVar;
 use godot::register::{GodotClass, godot_api};
 
-use crate::framework::itest;
+use crate::framework::{itest, suppress_godot_print};
 
 #[derive(GodotClass)]
 #[class(init)]
@@ -117,6 +117,6 @@ mod export_tool_button_test {
             .class_get_property_default_value("ToolButtonExporter", "other_tool_button");
         let callable = default.to::<Callable>();
         // Calling on freed instance should not panic; emits godot_error and is a no-op.
-        callable.call(&[]);
+        suppress_godot_print(|| callable.call(&[]));
     }
 }

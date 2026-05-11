@@ -290,15 +290,19 @@ impl<R: InParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
         // We create a new Godot Callable from our RustCallable so we get independent reference counting.
         let gd_callable = Callable::from_custom(self.callable.clone());
 
-        // is_connected will return true if the signal was never emited before the future is dropped.
+        // is_connected() will return true if the signal was never emitted before the future is dropped.
         //
-        // There is a TOCTOU issue here that can occur when the FallibleSignalFuture is dropped at the same time as the signal object is
-        // freed on a different thread.
-        // We check in the beginning if the signal object is still alive, and we check here again, but the signal object still can be freed
-        // between our check and our usage of the object in `is_connected` and `disconnect`. The race condition will manifest in a
-        // non-unwinding panic that is hard to track down.
-        if !self.signal.is_null() && self.signal.is_connected(&gd_callable) {
-            self.signal.disconnect(&gd_callable);
+        // TOCTOU resilience: Signal::is_null() answers "is signal valid right now"; the object may still be freed immediately afterwards,
+        // before Signal::is_connected() or Signal::disconnect().
+        // Using Signal::object() avoids this: if it returns Some(object), we have acquired a usable Gd<Object> handle and can perform
+        // follow-up checks through that handle instead of repeatedly re-resolving the Signal. Particularly important for RefCounted, where
+        // object() upgrades to a strong reference while we hold it.
+        if let Some(mut object) = self.signal.object() {
+            let signal_name = self.signal.name();
+
+            if object.is_connected(&signal_name, &gd_callable) {
+                object.disconnect(&signal_name, &gd_callable);
+            }
         }
     }
 }

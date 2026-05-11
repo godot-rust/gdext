@@ -12,7 +12,7 @@ use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
 use crate::obj::{GodotClass, Singleton};
-use crate::out;
+use crate::{classes, out};
 
 mod reexport_pub {
     // `Engine::singleton()` is not available before `InitLevel::Scenes` for Godot before 4.4.
@@ -52,8 +52,24 @@ pub fn is_singleton_available<T: Singleton>() -> bool {
 
     let class_name = T::class_id().to_string_name();
 
-    // SAFETY: `class_name` is valid for `T`; if bindings are uninitialized, is_class_available() returns false above.
-    unsafe { !sys::interface_fn!(global_get_singleton)(class_name.string_sys()).is_null() }
+    // Use Engine::has_singleton() rather than global_get_singleton() directly.
+    // The latter prints a Godot error "Failed to retrieve non-existent singleton 'X'" whenever the singleton is absent.
+    // Engine is a Core-level class from Godot 4.4+, so it's available once bindings are initialized (guaranteed by is_class_available() above).
+    #[cfg(since_api = "4.4")]
+    {
+        classes::Engine::singleton().has_singleton(&class_name)
+    }
+
+    // Fallback for <4.4: call C API; Engine singleton is not available in all levels.
+    // Will emit an error if not found. We cannot disable through Engine::set_print_error_messages, if that class is not available itself.
+    // Could possibly be achieved through GDScript...
+    #[cfg(before_api = "4.4")]
+    {
+        let object_ptr =
+            unsafe { sys::interface_fn!(global_get_singleton)(class_name.string_sys()) };
+
+        !object_ptr.is_null()
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -271,7 +287,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
             };
 
             #[cfg(since_api = "4.4")]
-            sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
+            sys::set_editor_hint(classes::Engine::singleton().is_editor_hint());
         }
         InitLevel::Servers => {}
         InitLevel::Scene => {

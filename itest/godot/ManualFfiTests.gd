@@ -8,7 +8,9 @@ extends TestSuite
 func test_missing_init():
 	var class_found = ClassDB.class_exists("WithoutInit")
 	var can_instantiate = ClassDB.can_instantiate("WithoutInit")
+	Engine.print_error_messages = false # would print: "ERROR: Class 'WithoutInit' or its base class cannot be instantiated."
 	var instance = ClassDB.instantiate("WithoutInit")
+	Engine.print_error_messages = true
 
 	assert_eq(class_found, true, "ClassDB.class_exists() is true")
 	assert_eq(can_instantiate, false, "ClassDB.can_instantiate() is false")
@@ -454,7 +456,9 @@ func test_func_rename():
 	assert_eq(func_rename.spell_static(), "static")
 
 func test_init_panic():
+	Engine.print_error_messages = false # would print: "ERROR: Class type: 'InitPanic' is not instantiable."
 	var obj := InitPanic.new() # panics in Rust
+	Engine.print_error_messages = true
 	assert_eq(obj, null, "Rust panic in init() returns null in GDScript")
 
 	# Alternative behavior (probably not desired):

@@ -11,7 +11,7 @@ use godot::global;
 use godot::init::GdextBuild;
 use godot::prelude::*;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::{expect_panic_quiet, itest};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Node duplication tests
@@ -287,7 +287,7 @@ fn duplicate_node_no_init_fails() {
 
     let node_ptr: Gd<Node> = Gd::from_object(NoInitNode {}).upcast();
 
-    expect_panic("no_init node duplication", || {
+    expect_panic_quiet("no_init node duplication", || {
         let _copy = node_ptr.duplicate_node();
     });
 
@@ -302,7 +302,7 @@ struct NoInitResource {}
 fn duplicate_resource_no_init_fails() {
     let resource_ptr: Gd<Resource> = Gd::from_object(NoInitResource {}).upcast();
 
-    expect_panic("no_init resource duplication", || {
+    expect_panic_quiet("no_init resource duplication", || {
         let _copy = resource_ptr.duplicate_resource();
     });
 }
