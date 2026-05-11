@@ -313,20 +313,21 @@ where
         return;
     }
 
-    // Editor substitutes a `PlaceholderExtensionInstance` for runtime classes; null binding is expected here. `bind()`/`bind_mut()`
-    // panic separately with a placeholder-specific message. See https://github.com/godot-rust/gdext/issues/1404.
-    if crate::private::is_in_editor() {
-        return;
+    // Behavior depending on editor state:
+    if let Some(true) = sys::is_editor_or_unknown() {
+        // * Editor: class is substituted with a PlaceholderExtensionInstance; null binding is expected -> OK.
+        //   Accessing `bind()`/`bind_mut()` on placeholders would still panic independently of this.
+    } else {
+        // * Runtime: null binding is a bug -> panic.
+        // * Unknown: Godot < 4.4 before InitLevel::Scene; no placeholders exist that early -> panic.
+        panic!(
+            "Class {} -- null instance; does the class have a Godot creator function?",
+            std::any::type_name::<T>()
+        );
     }
-
-    panic!(
-        "Class {} -- null instance; does the class have a Godot creator function?",
-        std::any::type_name::<T>()
-    );
 }
 
 /// Panic emitted when `bind()` / `bind_mut()` is called on a placeholder instance (runtime class accessed in the editor).
-#[cold]
 #[track_caller]
 pub(crate) fn panic_placeholder_bind<T>(method: &str) -> ! {
     panic!(

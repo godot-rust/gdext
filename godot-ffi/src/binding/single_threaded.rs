@@ -165,18 +165,12 @@ unsafe impl Send for BindingStorage {}
 
 pub struct GdextConfig {
     pub tool_only_in_editor: bool,
-    is_editor: std::cell::OnceCell<bool>,
 }
 
 impl GdextConfig {
     pub fn new(tool_only_in_editor: bool) -> Self {
         Self {
             tool_only_in_editor,
-            is_editor: std::cell::OnceCell::new(),
         }
-    }
-
-    pub fn is_editor_or_init(&self, is_editor: impl FnOnce() -> bool) -> bool {
-        *self.is_editor.get_or_init(is_editor)
     }
 }

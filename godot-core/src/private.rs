@@ -199,18 +199,16 @@ pub const fn is_editor_plugin<T: crate::obj::Inherits<classes::EditorPlugin>>() 
 // Starting from 4.3, Godot has "runtime classes"; this emulation is no longer needed.
 #[cfg(before_api = "4.3")]
 pub fn is_class_inactive(is_tool: bool) -> bool {
-    use crate::obj::Singleton;
-
     if is_tool {
         return false;
     }
 
     // SAFETY: only invoked after global library initialization.
     let global_config = unsafe { sys::config() };
-    let is_editor = || crate::classes::Engine::singleton().is_editor_hint();
 
-    global_config.tool_only_in_editor //.
-        && global_config.is_editor_or_init(is_editor)
+    // Unknown is unreachable here: virtual dispatch only runs post-registration, by which point editor state is populated
+    // (InitLevel::Scene on Godot < 4.4). `false` is a safe fallback.
+    global_config.tool_only_in_editor && sys::is_editor_or_unknown().unwrap_or(false)
 }
 
 // Starting from 4.3, Godot has "runtime classes"; we only need to check whether editor is running.
@@ -227,20 +225,6 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
     // If this is not a #[class(tool)] and we only run tool classes in the editor, then don't run this in editor -> make it a runtime class.
     // If we run all classes in the editor (!tool_only_in_editor), then it's not a runtime class.
     global_config.tool_only_in_editor
-}
-
-/// Whether the engine is currently running in editor mode.
-///
-/// Lazily caches the result of `Engine::is_editor_hint()` on first call.
-/// See also [`sys::is_editor_hint`] (Godot 4.4+ only, eagerly populated during init); this helper exists to also work on
-/// pre-4.4 versions where the cache is not pre-populated.
-#[inline]
-pub fn is_in_editor() -> bool {
-    use crate::obj::Singleton;
-
-    // SAFETY: only invoked after global library initialization.
-    let global_config = unsafe { sys::config() };
-    global_config.is_editor_or_init(|| classes::Engine::singleton().is_editor_hint())
 }
 
 /// Converts a default parameter value to a runtime-immutable `Variant`.

@@ -143,7 +143,19 @@ fn on_init_core() {
 }
 
 #[cfg(before_api = "4.4")]
-fn on_init_core() {}
+fn on_init_core() {
+    // Engine::singleton() is not available before InitLevel::Scene on Godot < 4.4, so we cannot call
+    // Engine::is_editor_hint() here. is_editor_or_unknown() returns None at this point.
+    //
+    // Engine classes (DeclEngine) are safe: their new_alloc() does not go through is_editor_or_unknown().
+    let obj = Object::new_alloc();
+    obj.free();
+
+    // User classes (DeclUser) call default_instance() -> is_editor_or_unknown().unwrap_or(false),
+    // which returns false when unknown, taking the direct creation path instead of ClassDB.instantiate().
+    // This means no placeholder substitution, but that is acceptable at early init before Scene level.
+    SomeObject::test();
+}
 
 fn on_init_servers() {
     // RenderingServer class becomes available at Servers level, but the singleton instance is
