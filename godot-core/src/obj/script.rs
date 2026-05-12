@@ -162,12 +162,60 @@ pub trait ScriptInstance: Sized {
     /// The engine may call this function if [`IScriptExtension::is_placeholder_fallback_enabled`] is enabled.
     fn property_set_fallback(this: SiMut<Self>, name: StringName, value: &Variant) -> bool;
 
+    /// Lets the script instance return a default value for a property.
+    ///
+    /// This is a combination of Godot's `ScriptInstance::_property_get_revert` and `ScriptInstance::_property_can_revert`. This means that this
+    /// function will usually be called twice by Godot to find the revert.
+    ///
+    /// Note that this should be a _pure_ function. That is, it should always return the same value for a property as long as `self`
+    /// remains unchanged. Otherwise, this may lead to unexpected (safe) behavior.
+    #[doc(alias = "property_can_revert")]
+    #[expect(unused_variables)]
+    fn on_property_get_revert(&self, name: StringName) -> Option<Variant> {
+        None
+    }
+
+    /// Lets the script instance modify existing properties.
+    ///
+    /// Function will be called for every existing property. See [official engine documentation] for details.
+    ///
+    /// [official engine documentation]: https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-validate-property
+    #[expect(unused_variables)]
+    fn on_validate_property(&self, property: PropertyInfo) -> Option<PropertyInfo> {
+        None
+    }
+
     /// This function will be called to handle calls to [`Object::get_method_argument_count`](crate::classes::Object::get_method_argument_count)
     /// and `Callable::get_argument_count`.
     ///
     /// If `None` is returned the public methods will return `0`.
     #[cfg(since_api = "4.3")]
     fn get_method_argument_count(&self, _method: StringName) -> Option<u32>;
+
+    /// This function will be called for every incoming [lifecycle notification](https://docs.godotengine.org/en/stable/tutorials/best_practices/godot_notifications.html#doc-godot-notifications).
+    /// To create a GDScript equivalent implementation, the script instance should forward this call to a `_notification` function in the script.
+    #[expect(unused_variables)]
+    fn on_notification(this: SiMut<Self>, what: i32, reversed: bool) {}
+
+    /// Provides a way to override the behavior of `ScriptExtension::get_class_category` on a per instance basis.
+    ///
+    /// The engine expects a [`PropertyInfo`] with the script name as the `property_name`, the script path as the `hint_string` and
+    /// [`PropertyUsageFlags::CATEGORY`](crate::registry::info::PropertyUsageFlags::CATEGORY) as the `usage` flag.
+    // Description is based on the default implementation: https://github.com/godotengine/godot/blob/aaaf764/core/object/script_language.cpp#L140-L159
+    fn get_class_category(&self) -> Option<&PropertyInfo> {
+        None
+    }
+
+    /// Lets the engine get a reference to the object this instance was created for.
+    ///
+    /// The engine uses this function inside the built-in debugger to get the script's "self" object.
+    ///
+    /// This function has to return a reference, because the owner might be reference-counted in Godot, and it must be guaranteed that the object is
+    /// not freed before the engine increased the reference count. (Every time a ref-counted `Gd<T>` is dropped, the reference count is
+    /// decremented.)
+    fn get_owner(&self) -> Option<Gd<Object>> {
+        None
+    }
 }
 
 #[cfg(before_api = "4.3")]
@@ -195,7 +243,6 @@ impl<T: ScriptInstance> ScriptInstanceData<T> {
     ///  Convert a `ScriptInstanceData` sys pointer to a reference with unbounded lifetime.
     ///
     /// # Safety
-    ///
     /// `ptr` must point to a live `ScriptInstanceData<T>` for the duration of `'a`.
     #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
     unsafe fn borrow_script_sys<'a>(ptr: sys::GDExtensionScriptInstanceDataPtr) -> &'a Self {
@@ -265,12 +312,12 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         #[cfg(since_api = "4.3")]
         free_property_list_func: Some(script_instance_info::free_property_list_func),
 
-        get_class_category_func: None, // not yet implemented.
+        get_class_category_func: Some(script_instance_info::get_class_category_func::<T>),
 
-        property_can_revert_func: None, // unimplemented until needed.
-        property_get_revert_func: None, // unimplemented until needed.
+        property_can_revert_func: Some(script_instance_info::property_can_revert_func::<T>),
+        property_get_revert_func: Some(script_instance_info::property_get_revert_func::<T>),
 
-        get_owner_func: None,
+        get_owner_func: Some(script_instance_info::get_owner_func::<T>),
         get_property_state_func: Some(script_instance_info::get_property_state_func::<T>),
 
         get_method_list_func: Some(script_instance_info::get_method_list_func::<T>),
@@ -279,12 +326,12 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         #[cfg(since_api = "4.3")]
         free_method_list_func: Some(script_instance_info::free_method_list_func),
         get_property_type_func: Some(script_instance_info::get_property_type_func::<T>),
-        validate_property_func: None, // not yet implemented.
+        validate_property_func: Some(script_instance_info::validate_property_func::<T>),
 
         has_method_func: Some(script_instance_info::has_method_func::<T>),
 
         call_func: Some(script_instance_info::call_func::<T>),
-        notification_func: None, // not yet implemented.
+        notification_func: Some(script_instance_info::notification_func::<T>),
 
         to_string_func: Some(script_instance_info::to_string_func::<T>),
 
@@ -611,7 +658,7 @@ mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
 
-    use sys::conv::{SYS_FALSE, SYS_TRUE, bool_to_sys};
+    use sys::conv::{SYS_FALSE, SYS_TRUE, bool_from_sys, bool_to_sys};
     #[cfg(since_api = "4.3")]
     use sys::conv::{ptr_list_from_sys, ptr_list_into_sys};
 
@@ -622,7 +669,6 @@ mod script_instance_info {
     use crate::sys;
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_name` must be a valid [`StringName`] pointer.
     /// - `p_value` must be a valid [`Variant`] pointer.
@@ -648,7 +694,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_name` must be a valid [`StringName`] pointer.
     /// - It must be safe to move a `Variant` into `r_ret`.
@@ -676,7 +721,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - It must be safe to assign a `u32` to `r_count`.
     pub(super) unsafe extern "C" fn get_property_list_func<T: ScriptInstance>(
@@ -708,7 +752,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `r_count` is expected to be a valid pointer to an u32.
     pub(super) unsafe extern "C" fn get_method_list_func<T: ScriptInstance>(
@@ -740,7 +783,6 @@ mod script_instance_info {
     /// Provides the same functionality as the function below, but for Godot 4.2 and lower.
     ///
     /// # Safety
-    ///
     /// See latest version below.
     #[cfg(before_api = "4.3")]
     pub(super) unsafe extern "C" fn free_property_list_func<T: ScriptInstance>(
@@ -782,7 +824,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_self` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_method` must be a valid [`StringName`] pointer.
     /// - `p_args` has to point to a list of Variant pointers of length `p_argument_count`.
@@ -834,7 +875,6 @@ mod script_instance_info {
     /// count.
     ///
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn get_script_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -850,7 +890,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn is_placeholder_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -886,7 +925,6 @@ mod script_instance_info {
     /// Provides the same functionality as the function below, but for Godot 4.2 and lower.
     ///
     /// # Safety
-    ///
     /// See latest version below.
     #[cfg(before_api = "4.3")]
     pub(super) unsafe extern "C" fn free_method_list_func<T: ScriptInstance>(
@@ -908,7 +946,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_method_info` must have been returned from a call to [`get_method_list_func`] called with the same `p_instance` pointer.
     /// - `p_method_info` must not have been mutated since the call to `get_method_list_func`.
@@ -929,7 +966,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_name` must be a valid [`StringName`] pointer.
     /// - `r_is_valid` must be assignable.
@@ -960,7 +996,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `r_is_valid` must be assignable.
     /// - It must be safe to move a [`GString`](crate::builtin::GString) into `r_str`.
@@ -984,7 +1019,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     ///
     /// If `property_state_add` is non-null, then:
@@ -1021,7 +1055,6 @@ mod script_instance_info {
     /// Ownership of the returned object is not transferred to the caller. The caller must therefore ensure it's not freed when used.
     ///
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn get_language_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -1038,7 +1071,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must fulfill the safety preconditions of [`Box::from_raw`] for `Box<ScriptInstanceData<T>>`.
     pub(super) unsafe extern "C" fn free_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -1047,7 +1079,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn refcount_decremented_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -1063,7 +1094,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn refcount_incremented_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -1077,7 +1107,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_name` must be a valid [`StringName`] pointer.
     /// - It must be safe to move a `Variant` into `r_ret`.
@@ -1108,7 +1137,6 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_name` must be a valid [`StringName`] pointer.
     /// - `p_value` must be a valid [`Variant`] pointer.
@@ -1134,10 +1162,90 @@ mod script_instance_info {
     }
 
     /// # Safety
-    ///
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_name` must be a valid [`StringName`] pointer.
+    /// - It must be safe to move a `Variant` into `r_ret`.
+    pub(super) unsafe extern "C" fn property_get_revert_func<T: ScriptInstance>(
+        p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        p_name: sys::GDExtensionConstStringNamePtr,
+        r_ret: sys::GDExtensionVariantPtr,
+    ) -> sys::GDExtensionBool {
+        let (instance, name);
+        // SAFETY: `p_instance` is valid for this call; `p_name` is a valid `StringName` pointer.
+        unsafe {
+            instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+            name = StringName::new_from_string_sys(p_name);
+        }
+
+        let return_value = with_instance(instance, "property_get_revert", |i| {
+            i.on_property_get_revert(name)
+        });
+
+        match return_value {
+            Ok(Some(variant)) => {
+                // SAFETY: It is safe to move a `Variant` into `r_ret`.
+                unsafe { variant.move_into_var_ptr(r_ret) };
+                SYS_TRUE
+            }
+            _ => SYS_FALSE,
+        }
+    }
+
+    /// # Safety
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_name` must be a valid [`StringName`] pointer.
+    pub(super) unsafe extern "C" fn property_can_revert_func<T: ScriptInstance>(
+        p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        p_name: sys::GDExtensionConstStringNamePtr,
+    ) -> sys::GDExtensionBool {
+        let (instance, name);
+        // SAFETY: `p_instance` is valid for this call; `p_name` is a valid `StringName` pointer.
+        unsafe {
+            instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+            name = StringName::new_from_string_sys(p_name);
+        }
+
+        let return_value = with_instance(instance, "property_can_revert", |i| {
+            i.on_property_get_revert(name).is_some()
+        })
+        .unwrap_or_default();
+
+        bool_to_sys(return_value)
+    }
+
+    /// # Safety
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_property` must be a valid [`PropertyInfo`] pointer.
+    /// - It must be safe to move a `PropertyInfo` into `p_property`.
+    pub(super) unsafe extern "C" fn validate_property_func<T: ScriptInstance>(
+        p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        p_property: *mut sys::GDExtensionPropertyInfo,
+    ) -> sys::GDExtensionBool {
+        let (instance, property);
+        // SAFETY: `p_instance` is valid for this call; `p_property` is a valid `PropertyInfo` pointer.
+        unsafe {
+            instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+            property = PropertyInfo::new_from_sys(p_property);
+        }
+
+        let return_value = with_instance(instance, "property_validate", |i| {
+            i.on_validate_property(property)
+        });
+
+        match return_value {
+            Ok(Some(property)) => {
+                // SAFETY: The engine provides a mutable pointer, specifically for updating the property info.
+                unsafe { property.move_into_property_info_ptr(p_property) };
+                SYS_TRUE
+            }
+            _ => SYS_FALSE,
+        }
+    }
+
+    /// # Safety
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_method` has to point to a valid [`StringName`].
-    /// - `p_value` must be a valid [`sys::GDExtensionBool`] pointer.
+    /// - `r_is_valid` must be a valid [`sys::GDExtensionBool`] pointer.
     #[cfg(since_api = "4.3")]
     pub(super) unsafe extern "C" fn get_method_argument_count_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -1165,6 +1273,72 @@ mod script_instance_info {
         unsafe { *r_is_valid = is_valid };
 
         result.into()
+    }
+
+    /// # Safety
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    pub(super) unsafe extern "C" fn notification_func<T: ScriptInstance>(
+        p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        p_what: i32,
+        p_reversed: sys::GDExtensionBool,
+    ) {
+        let instance;
+        let what = p_what;
+        let reversed = bool_from_sys(p_reversed);
+        // SAFETY: `p_instance` is valid for this call.
+        unsafe {
+            instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+        }
+
+        with_instance_mut(instance, "on_notification", |i| {
+            ScriptInstance::on_notification(i, what, reversed);
+        })
+        .unwrap_or_default();
+    }
+
+    /// # Safety
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - It must be safe to move a `PropertyInfo` into `r_class_category`.
+    pub(super) unsafe extern "C" fn get_class_category_func<T: ScriptInstance>(
+        p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        r_class_category: *mut sys::GDExtensionPropertyInfo,
+    ) -> sys::GDExtensionBool {
+        let instance;
+        // SAFETY: `p_instance` is valid for this call.
+        unsafe {
+            instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+        }
+
+        let result = with_instance(instance, "get_class_category", |i| {
+            i.get_class_category().map(|info| info.property_sys())
+        });
+
+        match result {
+            Ok(Some(property_info)) => {
+                // SAFETY: The engine provides a valid pointer for us to move the return value into.
+                unsafe { *r_class_category = property_info };
+                SYS_TRUE
+            }
+            _ => SYS_FALSE,
+        }
+    }
+
+    /// Ownership of the returned object is not transferred to the caller. The caller is therefore responsible for incrementing the reference
+    /// count.
+    ///
+    /// # Safety
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    pub(super) unsafe extern "C" fn get_owner_func<T: ScriptInstance>(
+        p_instance: sys::GDExtensionScriptInstanceDataPtr,
+    ) -> sys::GDExtensionObjectPtr {
+        // SAFETY: `p_instance` is valid for this call.
+        let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
+        let owner = with_instance(instance, "get_owner", |i| i.get_owner().clone());
+
+        match owner {
+            Ok(Some(owner)) => owner.obj_sys(),
+            _ => std::ptr::null_mut(),
+        }
     }
 
     fn error_ctx<T: ScriptInstance>(method: &'static str) -> impl Fn() -> String {

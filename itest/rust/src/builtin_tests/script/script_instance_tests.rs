@@ -18,7 +18,9 @@ use godot::meta::error::CallErrorType;
 use godot::meta::{ClassId, FromGodot, ToGodot};
 use godot::obj::script::{ScriptInstance, SiMut, create_script_instance};
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
-use godot::register::info::{MethodFlags, MethodInfo, PropertyInfo};
+use godot::register::info::{
+    MethodFlags, MethodInfo, PropertyHint, PropertyHintInfo, PropertyInfo, PropertyUsageFlags,
+};
 use godot::register::{GodotClass, godot_api};
 
 use crate::framework::itest;
@@ -92,6 +94,7 @@ struct TestScriptInstance {
     method_list: Vec<MethodInfo>,
     script: Gd<Script>,
     script_language: Gd<ScriptLanguage>,
+    class_category: PropertyInfo,
 }
 
 impl TestScriptInstance {
@@ -118,6 +121,16 @@ impl TestScriptInstance {
                 default_arguments: vec![],
                 flags: MethodFlags::NORMAL,
             }],
+            class_category: PropertyInfo {
+                variant_type: VariantType::NIL,
+                class_name: StringName::default(),
+                property_name: "test_script_name".into(),
+                hint_info: PropertyHintInfo {
+                    hint: PropertyHint::NONE,
+                    hint_string: "custom_script".into(),
+                },
+                usage: PropertyUsageFlags::CATEGORY,
+            },
         }
     }
 
@@ -245,6 +258,33 @@ impl ScriptInstance for TestScriptInstance {
     #[cfg(since_api = "4.3")]
     fn get_method_argument_count(&self, _method: StringName) -> Option<u32> {
         None
+    }
+
+    fn on_property_get_revert(&self, name: StringName) -> Option<Variant> {
+        if name == "revertible_property" {
+            Some(Variant::from(42))
+        } else {
+            None
+        }
+    }
+
+    fn on_validate_property(&self, mut property: PropertyInfo) -> Option<PropertyInfo> {
+        if property.property_name == "owner" {
+            property.usage = PropertyUsageFlags::ALWAYS_DUPLICATE;
+
+            Some(property)
+        } else {
+            None
+        }
+    }
+
+    fn get_class_category(&self) -> Option<&PropertyInfo> {
+        Some(&self.class_category)
+    }
+
+    fn on_notification(mut this: SiMut<Self>, what: i32, _reversed: bool) {
+        this.base_mut()
+            .set_meta("last_notification", &what.to_variant());
     }
 }
 

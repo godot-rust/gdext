@@ -135,3 +135,79 @@ func test_object_script_instance():
 	assert(result)
 	object.free()
 	language.free()
+
+
+func test_script_instance_property_can_revert():
+	var tuple := create_script_instance()
+	var object: RefCounted = tuple[0]
+	var language: TestScriptLanguage = tuple[1]
+
+	var can_revert = object.property_can_revert("revertible_property")
+	assert(can_revert)
+
+	can_revert = object.property_can_revert("other_property")
+	assert(!can_revert)
+	
+	language.free()
+
+
+func test_script_instance_property_get_revert():
+	var tuple := create_script_instance()
+	var object: RefCounted = tuple[0]
+	var language: TestScriptLanguage = tuple[1]
+
+	var revert_value = object.property_get_revert("revertible_property")
+	assert_eq(revert_value, 42)
+
+	revert_value = object.property_get_revert("other_property")
+	assert_eq(revert_value, null)
+	
+	language.free()
+
+
+func test_script_instance_get_class_category():
+	var tuple := create_script_instance()
+	var object: RefCounted = tuple[0]
+	var language: TestScriptLanguage = tuple[1]
+	var property_found := false
+
+	var property_list = object.get_property_list()
+
+	for prop in property_list:
+		if prop["name"] == "test_script_name":
+			property_found = true
+
+	assert(property_found)
+	language.free()
+
+
+func test_script_instance_property_validate():
+	var language: TestScriptLanguage = TestScriptLanguage.new()
+	var script: TestScript = language.new_script()
+	var object = Node.new()
+
+	object.script = script
+
+	var property_list = object.get_property_list()
+	var target_prop = null
+
+	for prop in property_list:
+		if prop["name"] == "owner":
+			target_prop = prop
+
+	assert(target_prop != null)
+	assert_eq(target_prop["usage"], PropertyUsageFlags.PROPERTY_USAGE_ALWAYS_DUPLICATE)
+
+	language.free()
+	object.free()
+
+
+func test_script_instance_notification():
+	var tuple := create_script_instance()
+	var object: RefCounted = tuple[0]
+	var language: TestScriptLanguage = tuple[1]
+
+	object.notification(Object.NOTIFICATION_PREDELETE)
+	assert_eq(object.get_meta("last_notification"), Object.NOTIFICATION_PREDELETE)
+
+	language.free()
