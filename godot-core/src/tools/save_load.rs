@@ -73,6 +73,68 @@ where
     load_impl(path)
 }
 
+/// ⚠️ Loads a resource from the filesystem located at `path` on a worker thread, panicking on error.
+///
+/// See [`try_load()`] and [`try_load_threaded()`] for more information.
+///
+/// # Example
+///
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// godot::task::spawn(async {
+///     let scene = load_threaded::<PackedScene>("res://path/to/Main.tscn").await;
+/// });
+/// ```
+///
+/// # Panics
+/// If the resource cannot be loaded, is not of type `T` or inherited or the global `MainLoop` is not a `SceneTree`.
+#[inline]
+#[cfg(feature = "experimental-threads")]
+pub async fn load_threaded<T>(path: impl AsArg<GString>) -> Gd<T>
+where
+    T: Inherits<Resource>,
+{
+    arg_into_ref!(path);
+    load_threaded_impl(path)
+        .await
+        .unwrap_or_else(|err| panic!("failed to load resource at '{path}': {err}"))
+}
+
+/// Loads a resource from the filesystem located at `path` on a worker thread.
+///
+/// This function can fail if resource can't be loaded by [`ResourceLoader`] or if the subsequent cast into `T` fails.
+///
+/// This method is a simplified version of [`ResourceLoader::load_threaded_request`][crate::classes::ResourceLoader::load_threaded_request],
+/// which can be used for more advanced scenarios.
+///
+/// See synchronous version [`try_load()`] for more details.
+///
+/// # Example
+/// Loads a scene called `Main` located in the `path/to` subdirectory of the Godot project and caches it in a variable.
+/// The resource is directly stored with type `PackedScene`.
+///
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// godot::task::spawn(async {
+///     if let Ok(scene) = try_load_threaded::<PackedScene>("res://path/to/Main.tscn").await {
+///         // all good
+///     } else {
+///         // handle error
+///     }
+/// });
+/// ```
+#[inline]
+#[cfg(feature = "experimental-threads")]
+pub async fn try_load_threaded<T>(path: impl AsArg<GString>) -> Result<Gd<T>, IoError>
+where
+    T: Inherits<Resource>,
+{
+    arg_into_ref!(path);
+    load_threaded_impl(path).await
+}
+
 /// ⚠️ Saves a [`Resource`]-inheriting object into the file located at `path`.
 ///
 /// See [`try_save()`] for more information.
@@ -160,6 +222,72 @@ where
             T::class_id().to_string(),
             path.to_string(),
         )),
+    }
+}
+
+// Separate function, to avoid constructing string twice
+// Note that more optimizations than that likely make no sense, as loading is quite expensive
+#[cfg(feature = "experimental-threads")]
+async fn load_threaded_impl<T>(path: &GString) -> Result<Gd<T>, IoError>
+where
+    T: Inherits<Resource>,
+{
+    use crate::classes::resource_loader::ThreadLoadStatus;
+    use crate::classes::{Engine, SceneTree};
+
+    let mut resource_loader = ResourceLoader::singleton();
+    let tree = Engine::singleton()
+        .get_main_loop()
+        .ok_or_else(|| {
+            IoError::loading_precondition(
+                T::class_id().to_string(),
+                path.to_string(),
+                "SceneTree is ready",
+            )
+        })?
+        .try_cast::<SceneTree>()
+        .map_err(|_| {
+            IoError::loading_precondition(
+                T::class_id().to_string(),
+                path.to_string(),
+                "MainLoop is SceneTree",
+            )
+        })?;
+
+    resource_loader
+        .load_threaded_request_ex(path)
+        .type_hint(&T::class_id().to_gstring())
+        .done();
+
+    loop {
+        match resource_loader.load_threaded_get_status(path) {
+            ThreadLoadStatus::IN_PROGRESS => {
+                tree.signals().process_frame().to_future().await;
+            }
+
+            ThreadLoadStatus::LOADED => {
+                break resource_loader
+                    .load_threaded_get(path)
+                    .unwrap()
+                    .try_cast::<T>()
+                    .map_err(|_| {
+                        IoError::loading_cast(T::class_id().to_string(), path.to_string())
+                    });
+            }
+
+            ThreadLoadStatus::INVALID_RESOURCE | ThreadLoadStatus::FAILED => {
+                // Prevents a memory leak. The engine creates a resource with ref-count 0 and it has to be collected from the loader.
+                resource_loader.load_threaded_get(path);
+
+                break Err(IoError::loading(
+                    T::class_id().to_string(),
+                    path.to_string(),
+                ));
+            }
+
+            // All load status variants have been covered.
+            _ => unreachable!(),
+        }
     }
 }
 
