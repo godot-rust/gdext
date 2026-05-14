@@ -476,7 +476,6 @@ jobs:
           rust-target: ${{ matrix.rust-target }}
           rust-target-dir: ${{ matrix.rust-target-dir }}
           rust-cache-key: ${{ matrix.rust-cache-key }}
-          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
           godot-indirect-json: ${{ matrix.godot-indirect-json }}
           run-editor-itest: ${{ matrix.run-editor-itest || 'true' }} # opt-out.
