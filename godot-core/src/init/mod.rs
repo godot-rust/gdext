@@ -15,9 +15,6 @@ use crate::obj::{GodotClass, Singleton};
 use crate::{classes, out};
 
 mod reexport_pub {
-    // `Engine::singleton()` is not available before `InitLevel::Scenes` for Godot before 4.4.
-    #[cfg(since_api = "4.4")]
-    pub use super::sys::is_editor_hint;
     #[cfg(not(wasm_nothreads))]
     pub use super::sys::main_thread_id;
     pub use super::sys::{GdextBuild, InitStage, is_main_thread};
@@ -26,6 +23,11 @@ pub use reexport_pub::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public functions
+
+/// Returns whether the engine is running inside the Godot editor.
+pub fn is_editor_hint() -> bool {
+    sys::is_editor()
+}
 
 /// Return whether a certain class API can be used in Godot.
 ///
@@ -291,6 +293,10 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
         }
         InitLevel::Servers => {}
         InitLevel::Scene => {
+            // On Godot < 4.4, Engine::singleton() is not available before Scene level, so populate here.
+            #[cfg(before_api = "4.4")]
+            sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
+
             // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
             unsafe { ensure_godot_features_compatible() };
         }

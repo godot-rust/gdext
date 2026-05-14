@@ -20,7 +20,7 @@ use crate::meta::{
 };
 use crate::obj::{
     Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnEditor, RawGd,
-    WithBaseField, WithSignals, bounds, cap,
+    Singleton, WithBaseField, WithSignals, bounds, cap,
 };
 use crate::private::{PanicPayload, callbacks};
 use crate::registry::class::try_dynify_object;
@@ -184,6 +184,10 @@ where
     /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdMut` guard bound.
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
+    /// * If the object is a **placeholder instance** -- i.e. it has no Rust instance attached. This can happen when a non-`#[class(tool)]`
+    ///   object is loaded or instantiated in the editor. Since Godot 4.3, non-tool classes are registered as "runtime classes", meaning
+    ///   the editor only creates a Godot-side placeholder without invoking the Rust constructor. If you need to `bind()` such an object
+    ///   in the editor (e.g. a loaded resource), mark its class as `#[class(tool)]`.
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub fn bind(&self) -> GdRef<'_, T> {
         self.raw.bind()
@@ -202,6 +206,7 @@ where
     /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdRef` or `GdMut` guard bound.
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&T` or `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
+    /// * If the object is a placeholder instance with no Rust part. See [`bind()`][Self::bind] for details.
     pub fn bind_mut(&mut self) -> GdMut<'_, T> {
         self.raw.bind_mut()
     }
@@ -532,6 +537,27 @@ impl<T: GodotClass> Gd<T> {
     where
         T: cap::GodotDefault,
     {
+        // Behavior of default instance creation -- see also https://github.com/godot-rust/gdext/issues/1404:
+        // * Editor: use ClassDB.instantiate() -> C++ instantiate_internal().
+        //   * Tool class    -> Godot creates instance regularly (extra Variant roundtrip, but editor usually not perf-critical).
+        //   * Runtime class -> Godot substitutes placeholder instance.
+        // * Runtime: directly invoke `create` callback.
+        //   * Any class     -> Godot creates instance regularly (optimized).
+        // * Unknown (for Godot < 4.4 && stage < Scene) -> behave like Runtime.
+        //   Editor/ClassDb::instantiate path would be correct in all cases, but ClassDB isn't available on all levels. Thus we can only do
+        //   the runtime path. It means that if runtime classes are constructed in level < Scene, they will not be placeholdered (rare case).
+        if sys::is_editor_or_unknown().unwrap_or(false) {
+            let class_name = T::class_id().to_string_name();
+
+            // Note: C API classdb_construct_object[2|3] calls C++ instantiate_no_placeholders(), which skips placeholder substitution.
+            // Instead we use ClassDB.instantiate() -> C++ _instantiate_internal().
+            let variant = classes::ClassDb::singleton().instantiate(&class_name);
+            return variant.try_to::<Self>().unwrap_or_else(|_| {
+                panic!("ClassDB.instantiate({class_name}) failed -- class not registered or not instantiable")
+            });
+        }
+
+        // Fast path if not running in the editor: bypass substitution and directly call creation func.
         unsafe {
             // Default value (and compat one) for `p_notify_postinitialize` is true in Godot.
             #[cfg(since_api = "4.4")]

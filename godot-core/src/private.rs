@@ -199,21 +199,20 @@ pub const fn is_editor_plugin<T: crate::obj::Inherits<classes::EditorPlugin>>() 
 // Starting from 4.3, Godot has "runtime classes"; this emulation is no longer needed.
 #[cfg(before_api = "4.3")]
 pub fn is_class_inactive(is_tool: bool) -> bool {
-    use crate::obj::Singleton;
-
     if is_tool {
         return false;
     }
 
     // SAFETY: only invoked after global library initialization.
     let global_config = unsafe { sys::config() };
-    let is_editor = || crate::classes::Engine::singleton().is_editor_hint();
 
-    global_config.tool_only_in_editor //.
-        && global_config.is_editor_or_init(is_editor)
+    // Unknown is unreachable here: virtual dispatch only runs post-registration, by which point editor state is populated
+    // (InitLevel::Scene on Godot < 4.4). `false` is a safe fallback.
+    global_config.tool_only_in_editor && sys::is_editor_or_unknown().unwrap_or(false)
 }
 
 // Starting from 4.3, Godot has "runtime classes"; we only need to check whether editor is running.
+// Runtime classes only get placeholder instances in the editor (no Rust constructor is called). `bind()` panics if called on placeholders.
 #[cfg(since_api = "4.3")]
 pub fn is_class_runtime(is_tool: bool) -> bool {
     if is_tool {

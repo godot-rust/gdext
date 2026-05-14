@@ -13,8 +13,7 @@ mod dyn_gd_test;
 mod dynamic_call_test;
 mod enum_test;
 mod gd_duplicate_test;
-// `get_property_list` is only supported in Godot 4.3+
-mod editor_placeholder_test;
+// `get_property_list` is only supported in Godot 4.3+.
 #[cfg(since_api = "4.3")]
 mod get_property_list_test;
 mod init_stage_test;

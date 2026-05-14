@@ -313,19 +313,29 @@ where
         return;
     }
 
-    // Non-tool classes can't be instantiated in the editor.
-    if crate::classes::Engine::singleton().is_editor_hint() {
-        panic!(
-            "Class {} -- null instance; does the class have a Godot creator function? \
-            Ensure that the given class is a tool class with #[class(tool)], if it is being accessed in the editor.",
-            std::any::type_name::<T>()
-        )
+    // Behavior depending on editor state:
+    if let Some(true) = sys::is_editor_or_unknown() {
+        // * Editor: class is substituted with a PlaceholderExtensionInstance; null binding is expected -> OK.
+        //   Accessing `bind()`/`bind_mut()` on placeholders would still panic independently of this.
     } else {
+        // * Runtime: null binding is a bug -> panic.
+        // * Unknown: Godot < 4.4 before InitLevel::Scene; no placeholders exist that early -> panic.
         panic!(
             "Class {} -- null instance; does the class have a Godot creator function?",
             std::any::type_name::<T>()
         );
     }
+}
+
+/// Panic emitted when `bind()` / `bind_mut()` is called on a placeholder instance (runtime class accessed in the editor).
+#[track_caller]
+pub(crate) fn panic_placeholder_bind<T>(method: &str) -> ! {
+    panic!(
+        "Gd::{method}() called on a placeholder instance of `{name}`.\n\
+        A non-tool class does not have a real instance in the editor.\n\
+        Use `#[class(tool)]`, or guard with `init::is_editor_hint()`.",
+        name = std::any::type_name::<T>(),
+    )
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

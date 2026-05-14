@@ -448,7 +448,10 @@ where
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub(crate) fn bind(&self) -> GdRef<'_, T> {
         self.check_rtti("bind");
-        GdRef::from_guard(self.storage().unwrap().get())
+        let storage = self
+            .storage()
+            .unwrap_or_else(|| crate::classes::panic_placeholder_bind::<T>("bind"));
+        GdRef::from_guard(storage.get())
     }
 
     /// Hands out a guard for an exclusive borrow, through which the user instance can be read and written.
@@ -456,7 +459,10 @@ where
     /// See [`Gd::bind_mut()`] for a more in depth explanation.
     pub(crate) fn bind_mut(&mut self) -> GdMut<'_, T> {
         self.check_rtti("bind_mut");
-        GdMut::from_guard(self.storage().unwrap().get_mut())
+        let storage = self
+            .storage()
+            .unwrap_or_else(|| crate::classes::panic_placeholder_bind::<T>("bind_mut"));
+        GdMut::from_guard(storage.get_mut())
     }
 
     /// Storage object associated with the extension instance.
@@ -502,7 +508,10 @@ where
     /// Note: The returned pointer to the GDExtensionClass instance (even when `self.obj` is non-null)
     /// might still be null when:
     /// - The class isn't instantiable in the current context.
-    /// - The instance is a placeholder (e.g., non-`tool` classes in the editor).
+    /// - The instance is a placeholder (e.g., non-`tool` classes in the editor). Since Godot 4.3, non-tool classes
+    ///   are registered with `is_runtime = true`, meaning the editor creates only a Godot-side object without
+    ///   calling the Rust constructor. This commonly surfaces when calling `bind()` on a non-tool resource loaded
+    ///   in the editor -- the Godot object exists but has no Rust storage.
     ///
     /// However, null pointers might also occur in other, undocumented contexts.
     ///

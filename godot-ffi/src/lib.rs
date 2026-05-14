@@ -85,8 +85,6 @@ mod plugins;
 mod string_cache;
 mod toolbox;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
 pub use atomic_enum::*;
 // Other
 pub use extras::*;
@@ -597,17 +595,59 @@ pub fn is_main_thread() -> bool {
     }
 }
 
-static IS_EDITOR_HINT: AtomicBool = AtomicBool::new(false);
-
-/// Caches the current value of `Engine::is_editor_hint`.
-/// Should be called only once, during bindings initialization.
-pub fn set_editor_hint(is_editor_hint: bool) {
-    IS_EDITOR_HINT.store(is_editor_hint, Ordering::Relaxed);
+atomic_enum! {
+    /// Cached editor state, populated during library initialization.
+    ///
+    /// - `Unknown`: not yet initialized.
+    /// - `Runtime`: running outside the editor.
+    /// - `Editor`: running inside the editor.
+    #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+    pub enum EditorState {
+        /// Not yet initialized; populated at `InitLevel::Core` (Godot 4.4+) or `InitLevel::Scene` (Godot < 4.4).
+        Unknown = 0,
+        /// Running outside the Godot editor.
+        Runtime = 1,
+        /// Running inside the Godot editor.
+        Editor = 2,
+    }
 }
 
-/// Cached output of `Engine::is_editor_hint`, allowing to fetch the value without crossing the FFI barrier.
-pub fn is_editor_hint() -> bool {
-    IS_EDITOR_HINT.load(Ordering::Relaxed)
+static EDITOR_STATE: AtomicEnum<EditorState> = AtomicEnum::default();
+
+/// Caches the current value of `Engine::is_editor_hint`, populated during library initialization.
+///
+/// - Godot 4.4+: called at `InitLevel::Core`.
+/// - Godot < 4.4: called at `InitLevel::Scene` (Engine singleton not available earlier).
+pub fn set_editor_hint(is_editor: bool) {
+    EDITOR_STATE.store(if is_editor {
+        EditorState::Editor
+    } else {
+        EditorState::Runtime
+    });
+}
+
+/// Returns the cached editor state, or `None` if not yet initialized.
+///
+/// Returns `None` if called before the level at which the state is populated:
+/// - Godot 4.4+: `None` before `InitLevel::Core`.
+/// - Godot < 4.4: `None` before `InitLevel::Scene`.
+///
+/// See also [`is_editor`] for the panicking variant.
+pub fn is_editor_or_unknown() -> Option<bool> {
+    match EDITOR_STATE.load() {
+        EditorState::Unknown => None,
+        EditorState::Runtime => Some(false),
+        EditorState::Editor => Some(true),
+    }
+}
+
+/// Returns whether the engine is running inside the Godot editor.
+///
+/// Panics if called before the editor state has been populated (see [`is_editor_or_unknown`]).
+/// Use [`is_editor_or_unknown`] at call sites that may be reached before initialization is complete.
+pub fn is_editor() -> bool {
+    is_editor_or_unknown()
+        .expect("editor state not yet known; called before InitLevel::Core (4.4+) or InitLevel::Scene (<4.4)")
 }
 
 /// Assign the current thread id to be the main thread.

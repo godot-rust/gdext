@@ -422,7 +422,12 @@ impl Declarer for DeclUser {
     where
         T: GodotClass + Bounds<Declarer = Self>,
     {
-        unsafe { obj.storage().unwrap_unchecked().is_bound() }
+        // `storage()` returns `None` for placeholder instances (runtime classes accessed in editor); they hold no Rust binding to be bound.
+        // Treat as not currently bound -- callers like `Gd::free()` use this only to detect active `bind()` / `bind_mut()` guards.
+        match obj.storage() {
+            Some(storage) => storage.is_bound(),
+            None => false,
+        }
     }
 
     fn create_gd<T>() -> Gd<T>

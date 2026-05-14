@@ -21,8 +21,10 @@ use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
 static STAGES_SEEN: Global<Vec<InitStage>> = Global::default();
 static STAGES_PANICKED: Global<Vec<InitStage>> = Global::default();
 
+// `tool` because this is internal test scaffolding that exercises class construction during init levels, which itest also runs in editor mode
+// (`-e --headless`). Without `tool`, Godot would substitute a placeholder for runtime classes in the editor.
 #[derive(GodotClass)]
-#[class(base = Object, init)]
+#[class(base = Object, init, tool)]
 struct SomeObject {}
 
 #[godot_api]
@@ -141,7 +143,19 @@ fn on_init_core() {
 }
 
 #[cfg(before_api = "4.4")]
-fn on_init_core() {}
+fn on_init_core() {
+    // Engine::singleton() is not available before InitLevel::Scene on Godot < 4.4, so we cannot call
+    // Engine::is_editor_hint() here. is_editor_or_unknown() returns None at this point.
+    //
+    // Engine classes (DeclEngine) are safe: their new_alloc() does not go through is_editor_or_unknown().
+    let obj = Object::new_alloc();
+    obj.free();
+
+    // User classes (DeclUser) call default_instance() -> is_editor_or_unknown().unwrap_or(false),
+    // which returns false when unknown, taking the direct creation path instead of ClassDB.instantiate().
+    // This means no placeholder substitution, but that is acceptable at early init before Scene level.
+    SomeObject::test();
+}
 
 fn on_init_servers() {
     // RenderingServer class becomes available at Servers level, but the singleton instance is
@@ -172,8 +186,10 @@ pub fn on_init_editor() {
     // Nothing yet.
 }
 
+// `tool` for the same reason as `SomeObject` above: this singleton is registered during MainLoop init and accessed via `bind()` in editor
+// mode (see #1404).
 #[derive(GodotClass)]
-#[class(base=Object)]
+#[class(base=Object, tool)]
 struct MainLoopCallbackSingleton {
     tex: Rid,
 }

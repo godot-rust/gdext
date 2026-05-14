@@ -72,8 +72,7 @@ pub fn check_classdb_full_api() {
 
     // In Godot 4.2 **editor** mode, `resource_scene_unique_id` is only registered after Editor init, not at Scene stage (when this function
     // runs). Non-editor mode is fine; the property was promoted to a static ADD_PROPERTY binding in 4.3, making it available in all init stages.
-    let has_resource_scene_unique_id =
-        GdextBuild::since_api("4.3") || !godot::sys::is_editor_hint();
+    let has_resource_scene_unique_id = GdextBuild::since_api("4.3") || !godot::sys::is_editor();
 
     // ClassDB.class_get_property_list()
     if has_resource_scene_unique_id {

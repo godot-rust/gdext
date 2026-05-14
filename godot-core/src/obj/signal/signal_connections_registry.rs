@@ -58,7 +58,7 @@ pub(crate) fn store_signal_connection(
     signal_name: &CowStr,
     callable: &Callable,
 ) {
-    if !sys::is_editor_hint() {
+    if !sys::is_editor() {
         return;
     }
 
