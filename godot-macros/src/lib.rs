@@ -937,6 +937,28 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// - Default expressions are evaluated on each function call (not cached). **This may change**, see
 ///   [PR #1396](https://github.com/godot-rust/gdext/pull/1396).
 ///
+/// ## Method renaming
+///
+/// If you want the method to have a different name in Godot and Rust, you can use `#[func(rename = ...)]`:
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Unit {}
+///
+/// #[godot_api]
+/// impl Unit {
+///     // `class` is a reserved keyword in GDScript, but not in Rust.
+///     #[func(rename = unit_class)]
+///     fn class(&self) -> GString {
+///         GString::from("Archer")
+///     }
+/// }
+/// ```
+///
+/// This method would appear in the Godot editor and GDScript as "unit_class".
+///
 /// ## Virtual methods
 ///
 /// Functions with the `#[func(virtual)]` attribute are virtual functions, meaning attached scripts can override them.
