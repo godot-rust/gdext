@@ -29,7 +29,18 @@ mod base_strong_initialization;
 #[cfg(before_api = "4.7")]
 mod base_weak_initialization;
 pub(crate) mod rtti;
-pub mod signal;
+// TODO(v0.6): godot::obj::signal was accidentally public; kept for SemVer -> remove in next minor. Canonical is godot::signal.
+#[doc(hidden)]
+pub mod signal {
+    pub mod re_export {
+        pub use crate::signal::{
+            ConnectBuilder, ConnectHandle, IndirectSignalReceiver, SignalReceiver, TypedSignal,
+        };
+    }
+    pub mod priv_re_export {
+        pub use crate::signal::priv_re_export::*;
+    }
+}
 
 pub use base::*;
 pub use dyn_gd::DynGd;

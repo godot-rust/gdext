@@ -269,7 +269,7 @@ pub mod meta {
 
 /// Runtime types for working with signals: connecting, emitting, and handling.
 pub mod signal {
-    pub use godot_core::obj::signal::re_export::*;
+    pub use godot_core::signal::*;
 }
 
 /// Register/export Rust symbols to Godot: classes, methods, enums...

@@ -27,6 +27,7 @@ pub mod init;
 pub mod meta;
 pub mod obj;
 pub mod registry;
+pub mod signal;
 pub mod task;
 pub mod tools;
 

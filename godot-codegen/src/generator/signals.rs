@@ -74,7 +74,7 @@ pub fn make_class_signals(
         mod signals {
             use crate::obj::{Gd, GodotClass};
             use super::re_export::#class_name;
-            use crate::obj::signal::TypedSignal;
+            use crate::signal::TypedSignal;
             use super::*;
 
             // These may be empty if the class doesn't define any signals itself.
