@@ -47,7 +47,7 @@ defaults:
 
 jobs:
   validation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       PUBLISHED_CRATE_VERSION: ${{ steps.parse-crate-version.outputs.PUBLISHED_CRATE_VERSION }}
     steps:
@@ -112,7 +112,7 @@ jobs:
 
 
   rustfmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: validation
     steps:
       - uses: actions/checkout@v6
@@ -139,7 +139,7 @@ jobs:
 
 
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: validation
     steps:
       - uses: actions/checkout@v6
@@ -155,7 +155,7 @@ jobs:
 
 
   docs-and-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - validation
       - rustfmt
@@ -210,7 +210,7 @@ jobs:
 
   # Keep all in sync with minimal-ci and full-ci.
   unit-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - validation # for outputs
       - docs-and-commit
@@ -228,7 +228,7 @@ jobs:
 
   godot-itest:
     name: godot-itest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - validation # for outputs
       - docs-and-commit
@@ -248,7 +248,7 @@ jobs:
 
 
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: ${{ github.event.inputs.skip-release != 'y' }}
     environment: 'Crates.io'
     needs:

@@ -22,11 +22,6 @@ inputs:
     description: "Extra key to resolve cache"
     default: ''
 
-  with-llvm:
-    required: false
-    description: "Set to 'true' if LLVM should be installed"
-    default: ''
-
 runs:
   using: "composite"
   steps:
@@ -86,10 +81,6 @@ runs:
         # Useful if additional crates are used for CI tooling.
         # default: "false"
         #cache-all-crates: true
-
-    - name: "Install LLVM"
-      if: inputs.with-llvm == 'true'
-      uses: ./.github/composite/llvm
 
     - name: "Set environment variables used by toolchain"
       run: |

@@ -76,12 +76,6 @@ inputs:
     default: ''
     description: "Extra key to resolve Rust cache"
 
-  with-llvm:
-    required: false
-    default: 'false'
-    description: "Set to 'true' if LLVM should be installed"
-
-
 runs:
   using: "composite"
   steps:
@@ -106,7 +100,6 @@ runs:
       uses: ./.github/composite/rust
       with:
         rust: ${{ inputs.rust-toolchain }}
-        with-llvm: ${{ inputs.with-llvm }}
         cache-key: ${{ inputs.rust-cache-key }}
 
     # if

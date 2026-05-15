@@ -40,7 +40,7 @@ concurrency:
 jobs:
 
   rustfmt:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -67,7 +67,7 @@ jobs:
 
   # Needs to be its own job (apart from sync-doc), because lints don't work with --no-deps, and because it contributes to ci-status.
   doc-lints:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -84,7 +84,7 @@ jobs:
 
 
   clippy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -111,7 +111,7 @@ jobs:
 
   unit-test:
     name: unit-test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -133,7 +133,7 @@ jobs:
 
   unit-test-web:
     name: unit-test-web (${{ matrix.name }})
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -183,14 +183,14 @@ jobs:
           # macOS (use arm64 for minimal CI)
 
           - name: macos
-            os: macos-latest
+            os: macos-15
             artifact-name: macos-arm-nightly
             godot-binary: godot.macos.editor.dev.arm64
 
           # Windows
 
           - name: windows
-            os: windows-latest
+            os: windows-2025
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
             # rust-extra-args: --features godot/api-custom
@@ -198,7 +198,7 @@ jobs:
           # Linux
 
           - name: linux-full
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
@@ -206,21 +206,21 @@ jobs:
             hot-reload: stable
 
           - name: linux-custom-api-json
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/api-custom-json
             godot-indirect-json: true
 
           - name: linux-features-experimental
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
             hot-reload: api-custom
 
           - name: linux-release
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-release-nightly
             godot-binary: godot.linuxbsd.template_release.x86_64
             # Use `codegen-full-experimental` to make sure that all function tables can be loaded in Godot release builds.
@@ -232,31 +232,31 @@ jobs:
           # Linux compat
 
           - name: linux-4.6
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.6
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.6'
 
           - name: linux-4.5
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.5
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.5'
 
           - name: linux-4.4
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.4'
 
           - name: linux-4.3
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.3'
 
           - name: linux-4.2
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.2'
@@ -264,7 +264,7 @@ jobs:
           # Memory checkers (always Linux).
 
           - name: memcheck
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
@@ -275,7 +275,7 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-release-disengaged
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
@@ -287,7 +287,7 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-dev-balanced
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
@@ -313,7 +313,6 @@ jobs:
           rust-extra-env: ${{ matrix.rust-extra-env }}
           rust-target: ${{ matrix.rust-target }}
           rust-target-dir: ${{ matrix.rust-target-dir }}
-          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
           godot-indirect-json: ${{ matrix.godot-indirect-json }}
           run-editor-itest: ${{ matrix.run-editor-itest || 'true' }} # opt-out.
@@ -326,7 +325,7 @@ jobs:
 
 
   license-guard:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -356,7 +355,7 @@ jobs:
       - godot-itest
       - license-guard
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: "Determine success or failure"
         run: |
