@@ -77,7 +77,7 @@ pub fn is_singleton_available<T: Singleton>() -> bool {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-use crate::obj::signal::prune_stored_signal_connections;
+use crate::signal::prune_stored_signal_connections;
 
 static CURRENT_INIT_LEVEL: sys::AtomicEnum<Option<InitLevel>> = sys::AtomicEnum::default();
 

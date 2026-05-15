@@ -5,16 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::{make_callable_name, make_godot_fn};
 #[cfg(feature = "experimental-threads")]
 use crate::builtin::Callable;
 use crate::builtin::{CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned};
-use crate::obj::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
-use crate::obj::signal::{ConnectHandle, TypedSignal};
 use crate::obj::{Bounds, Gd, GodotClass, WithSignals, bounds};
+use crate::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
+use crate::signal::{ConnectHandle, TypedSignal, make_callable_name, make_godot_fn};
 
 /// Builder for customizing signal connections.
 ///

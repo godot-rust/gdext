@@ -9,13 +9,13 @@ use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 
+use super::signal_connections_registry::store_signal_connection;
+use super::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 use super::{ConnectBuilder, ConnectHandle, SignalObject, make_callable_name, make_godot_fn};
 use crate::builtin::{Callable, CowStr, Variant};
 use crate::classes::object::ConnectFlags;
 use crate::meta;
 use crate::meta::{InParamTuple, ObjectToOwned, UniformObjectDeref};
-use crate::obj::signal::signal_connections_registry::store_signal_connection;
-use crate::obj::signal::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 use crate::obj::{Gd, GodotClass, WithSignals};
 
 /// Type-safe version of a Godot signal.

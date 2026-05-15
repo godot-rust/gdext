@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! Type-safe signals: connecting, emitting, and handling.
+
 mod connect_builder;
 mod connect_handle;
 mod signal_connections_registry;
@@ -14,31 +16,26 @@ mod typed_signal;
 
 use std::borrow::Cow;
 
-pub(crate) use connect_builder::*;
-pub(crate) use connect_handle::*;
-pub(crate) use signal_connections_registry::*;
-pub(crate) use signal_object::*;
-pub(crate) use typed_signal::*;
+// Public API -- re-exported as `godot::signal`.
+pub use connect_builder::ConnectBuilder;
+pub use connect_handle::ConnectHandle;
+pub use signal_receiver::{IndirectSignalReceiver, SignalReceiver};
+pub use typed_signal::TypedSignal;
 
-use crate::builtin::{CowStr, Variant};
-use crate::meta;
-
-// Used in `godot` crate.
-pub mod re_export {
-    pub use super::connect_builder::ConnectBuilder;
-    pub use super::connect_handle::ConnectHandle;
-    pub use super::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
-    pub use super::typed_signal::TypedSignal;
-}
-
-// Used in `godot::private` module.
+// Bridge for `godot::private` (proc-macro internals).
+#[doc(hidden)]
 pub mod priv_re_export {
     pub use super::signal_object::{
         UserSignalObject, signal_collection_to_base, signal_collection_to_base_mut,
     };
 }
 
-// ParamTuple re-exported in crate::meta.
+// Crate-internal items used outside this module.
+pub(crate) use signal_connections_registry::prune_stored_signal_connections;
+pub(crate) use signal_object::SignalObject;
+
+use crate::builtin::{CowStr, Variant};
+use crate::meta;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
