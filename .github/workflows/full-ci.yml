@@ -40,7 +40,7 @@ defaults:
 jobs:
   # Keep all in sync with minimal-ci and release-version.
   rustfmt:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -67,7 +67,7 @@ jobs:
 
   # Needs to be its own job (apart from sync-doc), because lints don't work with --no-deps, and because it contributes to ci-status.
   doc-lints:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -87,7 +87,7 @@ jobs:
         run: cargo doc -p godot --ignore-rust-version
 
   clippy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -124,24 +124,24 @@ jobs:
         # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
         include:
           - name: macos
-            os: macos-latest # arm64
+            os: macos-15 # arm64
 
           - name: windows
-            os: windows-latest
+            os: windows-2025
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
           - name: linux
-            os: ubuntu-22.04
+            os: ubuntu-24.04
 
           - name: linux
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             rust-toolchain: nightly
             rust-special: -minimal-deps
             rust-cache-key: minimal-deps
 
           - name: linux
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             rust-toolchain: "1.94"
             rust-special: -msrv
 
@@ -174,7 +174,7 @@ jobs:
 
   unit-test-web:
     name: unit-test-web (${{ matrix.name }})
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -212,7 +212,7 @@ jobs:
 
   miri-test:
     name: miri-test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -236,7 +236,7 @@ jobs:
 
   proptest:
     name: proptest
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -280,21 +280,21 @@ jobs:
           # macOS -- for the unintuitive naming, see https://github.com/actions/runner-images?tab=readme-ov-file#available-images
 
           - name: macos-arm
-            os: macos-latest
+            os: macos-15
             artifact-name: macos-arm-nightly
             godot-binary: godot.macos.editor.dev.arm64
             hot-reload: stable signal-test
 
             # api-custom on macOS arm64 not working, due to clang linker issues.
           #          - name: macos-double-arm
-          #            os: macos-latest
+          #            os: macos-15
           #            artifact-name: macos-double-arm-nightly
           #            godot-binary: godot.macos.editor.dev.double.arm64
           #            rust-extra-args: --features godot/api-custom,godot/double-precision
 
           # Lag one version behind latest release.
           - name: macos-arm-4.5
-            os: macos-latest
+            os: macos-15
             artifact-name: macos-arm-4.5
             godot-binary: godot.macos.editor.dev.arm64
             godot-prebuilt-patch: "4.5"
@@ -302,20 +302,20 @@ jobs:
           # Windows
 
           - name: windows
-            os: windows-latest
+            os: windows-2025
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
             hot-reload: stable signal-test
 
           - name: windows-double
-            os: windows-latest
+            os: windows-2025
             artifact-name: windows-double-nightly
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
             rust-extra-args: --features godot/api-custom,godot/double-precision
 
           # Lag one version behind latest release.
           - name: windows-4.5
-            os: windows-latest
+            os: windows-2025
             artifact-name: windows-4.5
             godot-binary: godot.windows.editor.dev.x86_64.exe
             godot-prebuilt-patch: "4.5"
@@ -328,7 +328,7 @@ jobs:
           # Uses full+experimental codegen, so that compatibility breakage towards nightly is detected.
           # If the experimental part causes problems, consider using only godot/__codegen-full.
           - name: linux-full
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
@@ -337,13 +337,13 @@ jobs:
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
           - name: linux-double-lazy
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
             rust-extra-args: --features godot/api-custom,godot/double-precision,itest/codegen-full,godot/lazy-function-tables
 
           - name: linux-features-experimental
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             # Important to keep both experimental-threads and codegen-full. Some itests (native_st_audio) require both.
@@ -352,14 +352,14 @@ jobs:
           # Compiles godot-rust with `api-custom-json` feature against the JSON file generated via `--dump-extension-api`.
           # Uses latest 4.x headers, while `extension_api.json` comes from the latest Godot binary.
           - name: linux-custom-api-json
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/api-custom-json
             godot-indirect-json: true
 
           - name: linux-release
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-release-nightly
             godot-binary: godot.linuxbsd.template_release.x86_64
             # Use `codegen-full-experimental` to make sure that all function tables can be loaded in Godot release builds.
@@ -372,28 +372,28 @@ jobs:
           # No hot-reload before 4.4, as the Godot project is 4.4+.
 
           - name: linux-4.6
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.6
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.6'
             hot-reload: stable signal-test
 
           - name: linux-4.5
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.5
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.5"
             hot-reload: api-4-5 signal-test
 
           - name: linux-4.4
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.4"
             hot-reload: api-4-4 signal-test
 
           - name: linux-4.3
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.3"
@@ -401,7 +401,7 @@ jobs:
 
           # Can be disabled in the future (already covered by memcheck). For now kept on to differentiate quicker.
           - name: linux-4.2
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.2"
@@ -415,7 +415,7 @@ jobs:
           #
           # There is also a gcc variant besides clang, which is currently not used.
           - name: memcheck-nightly
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
@@ -426,7 +426,7 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-release-disengaged
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
@@ -438,7 +438,7 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-dev-balanced
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
@@ -449,7 +449,7 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-4.2
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             artifact-name: linux-memcheck-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-prebuilt-patch: "4.2" # check compat of API 4.2 with newer binaries.
@@ -489,7 +489,7 @@ jobs:
         shell: bash
 
   cargo-deny-machete:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -514,7 +514,7 @@ jobs:
         run: cargo machete
 
   license-guard:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -546,7 +546,7 @@ jobs:
       - cargo-deny-machete
       - license-guard
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       # Deliberate choice to use bash script and not GitHub Action glob syntax, as that is not well-documented and hard to get right.
       # For example: contains(needs.*.result, 'success') does NOT work because * is a logical OR, thus true if a single job succeeds.
