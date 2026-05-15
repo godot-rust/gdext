@@ -89,4 +89,14 @@ runs:
         echo RUST_BACKTRACE=1 >> $GITHUB_ENV
         
         rustc --version --verbose
+
+        # Sanity check: macOS arm64 runners have occasionally had a broken rustup proxy where `cargo` resolves to the
+        # rustup binary itself, making `cargo build` fail with "unexpected argument 'build' found". Dump info and reinstall.
+        cargo --version && exit 0
+        echo "::error::Rust toolchain broken; dumping diagnostics and reinstalling."
+        which cargo rustc; ls -la ~/.cargo/bin/; file ~/.cargo/bin/cargo; rustup show
+        rustup toolchain uninstall ${{ inputs.rust }} || true
+        $RETRY rustup toolchain install ${{ inputs.rust }} --profile minimal --no-self-update ${{ steps.configure.outputs.components }}
+        rustup default ${{ inputs.rust }}
+        cargo --version
       shell: bash
