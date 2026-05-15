@@ -985,6 +985,17 @@ where
     }
 }
 
+impl Gd<classes::Object> {
+    /// Whether the object inherits `RefCounted`.
+    ///
+    /// This is a very fast check that involves no FFI roundtrip.
+    ///
+    /// Implemented only on `Object` because for all other classes, this property is statically known.
+    pub fn is_ref_counted(&self) -> bool {
+        self.instance_id_unchecked().is_ref_counted()
+    }
+}
+
 impl<T> Gd<T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,

@@ -13,7 +13,8 @@ use std::rc::Rc;
 
 use godot::builtin::{Array, GString, StringName, Variant, Vector3};
 use godot::classes::{
-    Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted, file_access,
+    Engine, FileAccess, IRefCounted, Node, Node2D, Node3D, Object, RefCounted, Resource,
+    file_access,
 };
 use godot::global::godot_str;
 use godot::meta::{FromGodot, GodotType, ToGodot};
@@ -148,6 +149,22 @@ fn object_debug() {
 
     assert_eq!(actual, expected);
     obj.free();
+}
+
+#[itest]
+fn object_is_ref_counted() {
+    let refc_usr = Gd::from_object(RefcPayload { value: 8321 }).upcast::<Object>();
+    let refc_eng = Resource::new_gd().upcast::<Object>();
+    let man_usr = ObjPayload::new_alloc().upcast::<Object>();
+    let man_eng = Node3D::new_alloc().upcast::<Object>();
+
+    assert!(refc_usr.is_ref_counted());
+    assert!(refc_eng.is_ref_counted());
+    assert!(!man_usr.is_ref_counted());
+    assert!(!man_eng.is_ref_counted());
+
+    man_usr.free();
+    man_eng.free();
 }
 
 #[itest]
