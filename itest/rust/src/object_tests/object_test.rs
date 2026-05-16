@@ -17,8 +17,10 @@ use godot::classes::{
     file_access,
 };
 use godot::global::godot_str;
-use godot::meta::{FromGodot, GodotType, ToGodot};
-use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton};
+use godot::meta::{ClassId, FromGodot, GodotType, ToGodot};
+use godot::obj::{
+    Base, Gd, GodotClass as _, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton,
+};
 use godot::register::{GodotClass, godot_api};
 use godot::sys::{self, GodotFfi, interface_fn};
 
@@ -165,6 +167,61 @@ fn object_is_ref_counted() {
 
     man_usr.free();
     man_eng.free();
+}
+
+#[itest]
+fn object_dynamic_class() {
+    // Engine class: dynamic class matches static class.
+    let node = Node3D::new_alloc();
+    assert_eq!(node.dynamic_class(), Node3D::class_id());
+
+    // After upcast, dynamic class still reflects the actual type (not the static one).
+    let upcast = node.clone().upcast::<Node>();
+    assert_eq!(upcast.dynamic_class(), Node3D::class_id());
+    assert_ne!(upcast.dynamic_class(), Node::class_id());
+
+    // User class: dynamic class is the user-declared name.
+    let user = ObjPayload::new_alloc().upcast::<Object>();
+    assert_eq!(user.dynamic_class(), ObjPayload::class_id());
+
+    node.free();
+    user.free();
+}
+
+#[itest]
+fn object_is_dynamic_class() {
+    let node = Node3D::new_alloc();
+
+    // Exact class + ancestors.
+    assert!(node.is_dynamic_class(Node3D::class_id()));
+    assert!(node.is_dynamic_class(Node::class_id()));
+    assert!(node.is_dynamic_class(Object::class_id()));
+
+    // Sibling / unrelated classes.
+    assert!(!node.is_dynamic_class(Node2D::class_id()));
+    assert!(!node.is_dynamic_class(Resource::class_id()));
+
+    // Dynamic class names (e.g. originating from GDScript / unknown-to-Rust classes).
+    assert!(node.is_dynamic_class(ClassId::new_dynamic("Node3D")));
+    assert!(!node.is_dynamic_class(ClassId::new_dynamic("NonExistentClass")));
+
+    node.free();
+}
+
+#[itest]
+fn object_is_dynamic_class_of() {
+    let node = Node3D::new_alloc();
+
+    // Exact class + ancestors.
+    assert!(node.is_dynamic_class_of::<Node3D>());
+    assert!(node.is_dynamic_class_of::<Node>());
+    assert!(node.is_dynamic_class_of::<Object>());
+
+    // Sibling / unrelated classes.
+    assert!(!node.is_dynamic_class_of::<Node2D>());
+    assert!(!node.is_dynamic_class_of::<Resource>());
+
+    node.free();
 }
 
 #[itest]

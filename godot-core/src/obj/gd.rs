@@ -333,13 +333,39 @@ impl<T: GodotClass> Gd<T> {
         self.raw.is_instance_valid()
     }
 
-    /// Returns the dynamic class name of the object as `StringName`.
+    /// Returns the dynamic type of the object as [`ClassId`].
     ///
-    /// This method retrieves the class name of the object at runtime, which can be different from [`T::class_id()`][GodotClass::class_id]
-    /// if derived classes are involved.
+    /// Retrieves the class name of the object at runtime, which can differ from [`T::class_id()`][GodotClass::class_id] if derived
+    /// classes are involved (e.g. a `Gd<Node>` whose dynamic type is `Sprite2D`, or a GDScript class inheriting `T`).
     ///
-    /// Unlike [`Object::get_class()`][crate::classes::Object::get_class], this returns `StringName` instead of `GString` and needs no
-    /// `Inherits<Object>` bound.
+    /// Unlike [`Object::get_class()`][crate::classes::Object::get_class], this needs no `Inherits<Object>` bound and returns a
+    /// comparable [`ClassId`] instead of `GString`.
+    ///
+    /// To test whether the dynamic class _inherits_ a given class (not just equals it), use [`is_dynamic_class()`][Self::is_dynamic_class] or
+    ///  [`is_dynamic_class_of()`][Self::is_dynamic_class_of].
+    pub fn dynamic_class(&self) -> ClassId {
+        ClassId::new_dynamic(self.dynamic_class_string().to_string())
+    }
+
+    /// Returns whether the dynamic type of the object is `class_id` or a subclass thereof.
+    ///
+    /// Corresponds to GDScript's `is_class()` / [`Object::is_class()`][crate::classes::Object::is_class], but accepts a typed [`ClassId`]
+    /// argument and needs no `Inherits<Object>` bound. See also [`is_dynamic_class_of()`][Self::is_dynamic_class_of] for compile-time.
+    ///
+    /// Note that `class_id` is matched by name only; this is a runtime check based on Godot's class hierarchy. For a strict equality
+    /// check against the dynamic class without walking the hierarchy, compare against [`dynamic_class()`][Self::dynamic_class] directly.
+    pub fn is_dynamic_class(&self, class_id: ClassId) -> bool {
+        self.raw.is_dynamic_class(class_id)
+    }
+
+    /// Returns whether the dynamic type of the object is `U` or a subclass thereof.
+    ///
+    /// See also [`is_dynamic_class()`][Self::is_dynamic_class] for runtime arguments, and [`cast()`][Self::cast]/
+    /// [`try_cast()`][Self::try_cast] for obtaining the result of this check.
+    pub fn is_dynamic_class_of<U: GodotClass>(&self) -> bool {
+        self.is_dynamic_class(U::class_id())
+    }
+
     pub(crate) fn dynamic_class_string(&self) -> StringName {
         unsafe {
             StringName::new_with_string_uninit(|ptr| {

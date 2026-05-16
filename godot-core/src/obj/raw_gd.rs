@@ -15,7 +15,7 @@ use crate::builtin::{Variant, VariantType};
 use crate::meta::CallContext;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::shape::GodotShape;
-use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
+use crate::meta::{ClassId, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
 use crate::obj::bounds::{Declarer, DynMemory as _, Memory};
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId, bounds};
@@ -120,12 +120,17 @@ impl<T: GodotClass> RawGd<T> {
     }
 
     /// Checks whether `self` inherits from (or is) class `U`.
-    fn is_instance_of<U: GodotClass>(&self) -> bool {
+    fn is_dynamic_class_of<U: GodotClass>(&self) -> bool {
+        self.is_dynamic_class(U::class_id())
+    }
+
+    /// Checks whether `self` inherits from (or is) class `U`.
+    pub(super) fn is_dynamic_class(&self, class: ClassId) -> bool {
         // is_class() parameter changed from GString to StringName in Godot 4.7.
         #[cfg(since_api = "4.7")]
-        let class_name = U::class_id().to_string_name();
+        let class_name = class.to_string_name();
         #[cfg(before_api = "4.7")]
-        let class_name = U::class_id().to_gstring();
+        let class_name = class.to_gstring();
 
         self.as_object_ref().is_class(&class_name)
     }
@@ -146,7 +151,7 @@ impl<T: GodotClass> RawGd<T> {
         // a bug that must be solved by the user.
         self.check_rtti("cast");
 
-        if self.is_instance_of::<U>() {
+        if self.is_dynamic_class_of::<U>() {
             // SAFETY: is_class() confirmed U is a valid type.
             Ok(unsafe { self.into_reinterpreted() })
         } else {
