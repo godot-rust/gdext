@@ -17,6 +17,7 @@ readme = "crate-readme.md"
 custom-godot = ["api-custom"]
 custom-json = ["api-custom-json"]
 double-precision = ["godot-core/double-precision"]
+upcoming-editor-placeholders = ["godot-core/upcoming-editor-placeholders"]
 experimental-godot-api = ["godot-core/experimental-godot-api"]
 experimental-threads = ["godot-core/experimental-threads"]
 experimental-wasm = []

@@ -6,13 +6,13 @@
  */
 
 // Placeholder substitution for runtime (non-tool) classes is only meaningful since Godot 4.3.
-#[cfg(since_api = "4.3")]
+#[cfg(all(since_api = "4.3", feature = "upcoming-editor-placeholders"))]
 mod editor_placeholder_test;
 
 mod editor_general_test;
 
 /// On Godot < 4.3, placeholder substitution does not exist; `is_editor_placeholder()` always returns `false`.
-#[cfg(before_api = "4.3")]
+#[cfg(all(before_api = "4.3", feature = "upcoming-editor-placeholders"))]
 #[crate::framework::itest(editor)]
 fn editor_pre_4_3_no_placeholders() {
     use godot::obj::NewGd;

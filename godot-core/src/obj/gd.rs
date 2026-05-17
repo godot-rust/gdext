@@ -215,7 +215,7 @@ where
     ///
     /// In the Godot editor, classes that are not marked `#[class(tool)]` are replaced with _placeholder instances_ (Godot 4.3+ "runtime classes").
     /// From Godot's perspective the instance still exists, so scenes and script code referring to it do not break, but the Rust side is absent.
-    #[cfg(feature = "trace")] // itest only; not yet exposed publicly.
+    #[cfg(all(feature = "trace", feature = "upcoming-editor-placeholders"))]
     #[doc(hidden)]
     pub fn is_editor_placeholder(&self) -> bool {
         self.raw.storage().is_none()
