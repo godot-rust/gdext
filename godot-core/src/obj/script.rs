@@ -125,6 +125,10 @@ pub trait ScriptInstance: Sized {
     ///
     /// If this function and [IScriptExtension::is_placeholder_fallback_enabled] return true, Godot will call [`Self::property_set_fallback`]
     /// instead of [`Self::set_property`].
+    ///
+    /// Note: this is the _script-side_ placeholder (broken/unavailable script), distinct from the _class-side_ editor placeholder
+    /// substituted for "runtime classes" (non-tool classes, that don't run in the editor).
+    // TODO(v0.6): consider renaming to e.g. `is_script_placeholder`, also differentiate from Gd::is_editor_placeholder.
     fn is_placeholder(&self) -> bool;
 
     /// Validation function for the engine to verify if the script exposes a certain method.
