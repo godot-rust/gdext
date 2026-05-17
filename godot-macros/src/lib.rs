@@ -1034,6 +1034,53 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// - The Rust default body (run when no script overrides the method) must be synchronous.
 /// - To await across `task::spawn` (not just inline), use `gd_self`, since `&self`/`&mut self` cannot be held across `.await`.
 ///
+/// ## Lossy-tier integers (`#[func(lossy)]`)
+///
+/// `#[func]` accepts only integer types that round-trip losslessly through Godot's `int` (a 64-bit signed integer). `usize` and `u64` aren't
+/// in that set — both can exceed `i64::MAX`, and `usize` additionally has platform-dependent width (32-bit on `wasm32`, otherwise typically
+/// 64-bit). To prevent accidental silent truncation, neither implements `ToGodot` / `FromGodot`, and bare use in `#[func]` is a compile error.
+///
+/// `#[func(lossy)]` opts in to a relaxed bound, allowing `usize` and `u64` as parameters or return values. Out-of-range conversions don't
+/// truncate — they surface as a `CallError` on the Godot side (clean engine-side failed-call, no Rust panic).
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)] #[class(init, base=RefCounted)] struct Buffer;
+/// #[godot_api]
+/// impl Buffer {
+///     #[func(lossy)]
+///     fn read_chunk(&self, offset: usize, len: usize) -> usize {
+///         offset.saturating_add(len)
+///     }
+/// }
+/// ```
+///
+/// **Direction-specific semantics:**
+///
+/// - **Return** (Rust → Godot): values that don't fit `i64` fail the call with a `CallError`. Applies to both `usize` and `u64`.
+/// - **`usize` input** (Godot → Rust): target-aware bounds check. Negatives are always rejected; on `wasm32`, values above `u32::MAX` are
+///   also rejected. This means a value valid on desktop can fail on Web export — test both targets if relevant.
+/// - **`u64` input** (Godot → Rust): bit-reinterpreted as `i64 as u64`. Negative GDScript ints become large `u64` values. This matches the
+///   engine's bitfield/handle conventions and is intentional; on subsequent return it surfaces as `CallError` (high bit set ⇒ exceeds `i64::MAX`).
+///
+/// **Limitations:**
+///
+/// - `Result<usize, E>` / `Result<u64, E>` don't compile under `#[func(lossy)]` — the `Result` return-marshalling requires `T: ToGodot`,
+///   which lossy-tier ints intentionally don't implement. Return the integer directly and signal errors via `Result<i64, E>` or a sentinel.
+/// - Lossy ints have no `Var`/signal/`Array`/`Dictionary` support. They are only usable as direct `#[func(lossy)]` parameters/returns.
+///
+/// Bare `usize` (or `u64`) in `#[func]` without the `lossy` flag is rejected at compile time:
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)] #[class(init, base=RefCounted)] struct Bad;
+/// #[godot_api]
+/// impl Bad {
+///     #[func] // ERROR: usize doesn't implement FromGodot. Add `lossy` to opt in.
+///     fn count(&self, n: usize) -> usize { n }
+/// }
+/// ```
+///
 /// ## RPC attributes
 /// You can use the `#[rpc]` attribute to let your functions act as remote procedure calls (RPCs) in Godot. This is the Rust equivalent of
 /// GDScript's [`@rpc` annotation](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html#remote-procedure-calls).

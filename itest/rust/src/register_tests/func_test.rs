@@ -462,6 +462,120 @@ fn cfg_removes_or_keeps_signals() {
 // No test for Gd::from_object(), as that simply moves the existing object without running user code.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// #[func(lossy)]
+
+#[derive(GodotClass)]
+#[class(init, base=RefCounted)]
+struct LossyFuncObj;
+
+#[godot_api]
+impl LossyFuncObj {
+    #[func(lossy)]
+    fn double_usize(&self, n: usize) -> usize {
+        n.saturating_mul(2)
+    }
+
+    // Returns usize::MAX -- overflows i64 on 64-bit targets; on wasm32 (32-bit usize) fits in i64.
+    #[func(lossy)]
+    fn return_usize_max(&self) -> usize {
+        usize::MAX
+    }
+
+    // Echoes a u64 directly. Used to test both successful (small) and overflow (> i64::MAX) returns.
+    #[func(lossy)]
+    fn echo_u64(&self, n: u64) -> u64 {
+        n
+    }
+
+    // Returns u64::MAX -- always overflows i64::MAX, regardless of target.
+    #[func(lossy)]
+    fn return_u64_max(&self) -> u64 {
+        u64::MAX
+    }
+
+    // Mixed lossy + non-lossy params (arity 2): exercises LossyTupleFromGodot beyond arity 1.
+    #[func(lossy)]
+    fn concat_indexed(&self, prefix: GString, n: usize) -> GString {
+        GString::from(&format!("{prefix}:{n}"))
+    }
+}
+
+#[itest]
+fn func_lossy_usize_compute() {
+    let mut obj = LossyFuncObj::new_gd();
+    let result = obj.call("double_usize", &[21_i64.to_variant()]);
+    assert_eq!(result.to::<i64>(), 42);
+}
+
+#[itest]
+fn func_lossy_usize_negative_input_fails() {
+    // GDScript can pass negative i64; usize input rejects negatives target-agnostically.
+    let mut obj = LossyFuncObj::new_gd();
+    let result = obj.try_call("double_usize", &[(-1_i64).to_variant()]);
+    assert!(result.is_err());
+}
+
+#[itest]
+#[cfg(target_pointer_width = "64")]
+fn func_lossy_usize_return_overflow_fails() {
+    // usize::MAX = u64::MAX on 64-bit targets -> doesn't fit i64, must surface as CallError.
+    let mut obj = LossyFuncObj::new_gd();
+    let result = obj.try_call("return_usize_max", &[]);
+    assert!(result.is_err());
+}
+
+#[itest]
+fn func_lossy_u64_roundtrip_small() {
+    // Small u64 values fit i64; should round-trip.
+    let mut obj = LossyFuncObj::new_gd();
+    let result = obj.call("echo_u64", &[7_i64.to_variant()]);
+    assert_eq!(result.to::<i64>(), 7);
+}
+
+#[itest]
+fn func_lossy_u64_negative_input_reinterprets() {
+    // Documented semantic: u64 input is bit-reinterpret (engine API contract).
+    // Negative GDScript int -> high-bit-set u64. On return, that u64 > i64::MAX -> CallError.
+    let mut obj = LossyFuncObj::new_gd();
+    let result = obj.try_call("echo_u64", &[(-1_i64).to_variant()]);
+    assert!(result.is_err());
+}
+
+#[itest]
+fn func_lossy_u64_return_overflow_fails() {
+    let mut obj = LossyFuncObj::new_gd();
+    let result = obj.try_call("return_u64_max", &[]);
+    assert!(result.is_err());
+}
+
+#[itest]
+fn func_lossy_mixed_params() {
+    // Verifies LossyTupleFromGodot arity > 1 + mix of FromGodot (GString) and lossy (usize) params.
+    let mut obj = LossyFuncObj::new_gd();
+    let args = ["item".to_variant(), 7_i64.to_variant()];
+    let result = obj.call("concat_indexed", &args);
+    assert_eq!(result.to::<GString>(), GString::from("item:7"));
+}
+
+#[itest]
+fn func_lossy_usize_non_int_variant_fails() {
+    // Non-int Variant for usize param exercises engine_try_from_variant path: i64 extraction fails -> CallError.
+    let mut obj = LossyFuncObj::new_gd();
+    let result = obj.try_call("double_usize", &["not_a_number".to_variant()]);
+    assert!(result.is_err());
+}
+
+#[itest]
+#[cfg(target_pointer_width = "32")]
+fn func_lossy_usize_wasm_above_u32_max_fails() {
+    // wasm32-only: usize is 32-bit, so i64 values above u32::MAX must be rejected on input.
+    let mut obj = LossyFuncObj::new_gd();
+    let big = (u32::MAX as i64) + 1;
+    let result = obj.try_call("double_usize", &[big.to_variant()]);
+    assert!(result.is_err());
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helpers
 
 /// Checks at runtime if a class has a given method through [ClassDb].
