@@ -283,6 +283,7 @@ jobs:
             os: macos-15
             artifact-name: macos-arm-nightly
             godot-binary: godot.macos.editor.dev.arm64
+            rust-extra-args: --features itest/upcoming-editor-placeholders
             hot-reload: stable signal-test
 
             # api-custom on macOS arm64 not working, due to clang linker issues.
@@ -305,6 +306,7 @@ jobs:
             os: windows-2025
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
+            rust-extra-args: --features itest/upcoming-editor-placeholders
             hot-reload: stable signal-test
 
           - name: windows-double
@@ -347,7 +349,7 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             # Important to keep both experimental-threads and codegen-full. Some itests (native_st_audio) require both.
-            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
+            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,itest/upcoming-editor-placeholders,godot/api-custom,godot/serde,itest/register-docs
 
           # Compiles godot-rust with `api-custom-json` feature against the JSON file generated via `--dump-extension-api`.
           # Uses latest 4.x headers, while `extension_api.json` comes from the latest Godot binary.
@@ -397,6 +399,7 @@ jobs:
             artifact-name: linux-4.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.3"
+            rust-extra-args: --features itest/upcoming-editor-placeholders # enabled at 4.3 boundary
             hot-reload: api-4-3
 
           # Can be disabled in the future (already covered by memcheck). For now kept on to differentiate quicker.
@@ -405,6 +408,7 @@ jobs:
             artifact-name: linux-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.2"
+            rust-extra-args: --features itest/upcoming-editor-placeholders # enabled before 4.3 boundary
             hot-reload: api-4-2
 
           # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks. Always Linux.

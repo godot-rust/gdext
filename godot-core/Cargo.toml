@@ -20,6 +20,8 @@ codegen-lazy-fptrs = [
     "godot-codegen/codegen-lazy-fptrs",
 ]
 double-precision = ["godot-codegen/double-precision"]
+# TODO(v0.6): remove this + downstream features; behavior becomes default.
+upcoming-editor-placeholders = []
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = ["godot-ffi/experimental-threads", "godot-codegen/experimental-threads"]
 experimental-wasm-nothreads = ["godot-ffi/experimental-wasm-nothreads"]

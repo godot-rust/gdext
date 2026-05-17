@@ -128,6 +128,11 @@
 //!   Use `f64` instead of `f32` for the floating-point type [`real`][type@builtin::real]. Requires Godot to be compiled with the
 //!   scons flag `precision=double`.<br><br>
 //!
+//! * **`upcoming-editor-placeholders`**
+//!
+//!   Opt-in support for inspecting editor placeholder instances of non-`#[class(tool)]` classes (Godot 4.3+ runtime classes).
+//!   Useful when editor-side code needs to distinguish placeholders from fully-attached Rust instances. Will become the default in v0.6.<br><br>
+//!
 //! * **`experimental-godot-api`**
 //!
 //!   Access to `godot::classes` APIs that Godot marks "experimental". These are under heavy development and may change at any time.

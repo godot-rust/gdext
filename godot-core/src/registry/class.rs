@@ -45,6 +45,13 @@ fn global_loaded_classes_by_name() -> GlobalGuard<'static, HashMap<ClassId, Clas
     lock_or_panic(&LOADED_CLASSES_BY_NAME, "loaded classes (by name)")
 }
 
+/// Represents a class which is currently loaded and retained in memory -- including metadata.
+pub struct ClassMetadata {
+    // Only read on the legacy (feature-off) path via `is_class_tool`; under `upcoming-editor-placeholders` the field is set but unused.
+    #[cfg_attr(feature = "upcoming-editor-placeholders", allow(dead_code))]
+    pub is_tool: bool,
+}
+
 fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Vec<DynTraitImpl>>> {
     static DYN_TRAITS_BY_TYPEID: Global<HashMap<any::TypeId, Vec<DynTraitImpl>>> =
         Global::default();
@@ -63,10 +70,13 @@ pub struct LoadedClass {
     unregister_singleton_fn: Option<fn()>,
 }
 
-/// Represents a class which is currently loaded and retained in memory -- including metadata.
-//
-// Currently empty, but should already work for per-class queries.
-pub struct ClassMetadata {}
+/// Looks up whether a registered Rust class was declared with `#[class(tool)]`. Returns `None` for engine classes (not in our registry).
+#[cfg(not(feature = "upcoming-editor-placeholders"))]
+pub(crate) fn is_class_tool(class_id: ClassId) -> Option<bool> {
+    global_loaded_classes_by_name()
+        .get(&class_id)
+        .map(|m| m.is_tool)
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -104,6 +114,7 @@ struct ClassRegistrationInfo {
     #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
     init_level: InitLevel,
     is_editor_plugin: bool,
+    is_tool: bool,
 
     /// One entry for each `dyn Trait` implemented (and registered) for this class.
     dynify_fns_by_trait: HashMap<any::TypeId, DynTraitImpl>,
@@ -182,6 +193,7 @@ pub(crate) fn register_class<
         godot_params,
         init_level: T::INIT_LEVEL,
         is_editor_plugin: false,
+        is_tool: false,
         dynify_fns_by_trait: HashMap::new(),
         component_already_filled: Default::default(), // [false; N]
         register_singleton_fn: None,
@@ -279,7 +291,9 @@ fn register_classes_and_dyn_traits(
             is_editor_plugin: info.is_editor_plugin,
             unregister_singleton_fn: info.unregister_singleton_fn,
         };
-        let metadata = ClassMetadata {};
+        let metadata = ClassMetadata {
+            is_tool: info.is_tool,
+        };
 
         // Transpose Class->Trait relations to Trait->Class relations.
         for (trait_type_id, mut dyn_trait_impl) in info.dynify_fns_by_trait.drain() {
@@ -453,6 +467,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.default_virtual_fn = default_get_virtual_fn;
             c.register_properties_fn = Some(register_properties_fn);
             c.is_editor_plugin = is_editor_plugin;
+            c.is_tool = is_tool;
             c.register_singleton_fn = register_singleton_fn;
             c.unregister_singleton_fn = unregister_singleton_fn;
 
@@ -710,6 +725,7 @@ fn default_registration_info(class_name: ClassId) -> ClassRegistrationInfo {
         godot_params: default_creation_info(),
         init_level: InitLevel::Scene,
         is_editor_plugin: false,
+        is_tool: false,
         dynify_fns_by_trait: HashMap::new(),
         component_already_filled: Default::default(), // [false; N]
     }

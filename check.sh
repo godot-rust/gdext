@@ -274,7 +274,7 @@ function cmd_dok() {
 
 # By default, disable `codegen-full` to reduce compile times and prevent flip-flopping between
 # `itest` compilations and `check.sh` runs. Note that this means some runs are different from CI.
-extraCargoArgs=("--no-default-features")
+extraCargoArgs=("--no-default-features" "--features" "godot/upcoming-editor-placeholders,itest/upcoming-editor-placeholders")
 cmds=()
 extraArgs=()
 apiVersion=""
