@@ -20,7 +20,7 @@ use crate::meta::{
 };
 use crate::obj::{
     Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnEditor, RawGd,
-    Singleton, WithBaseField, WithSignals, bounds, cap,
+    WithBaseField, WithSignals, bounds, cap,
 };
 use crate::private::{PanicPayload, callbacks};
 use crate::registry::class::try_dynify_object;
@@ -547,7 +547,9 @@ impl<T: GodotClass> Gd<T> {
     where
         T: cap::GodotDefault,
     {
-        // Behavior of default instance creation -- see also https://github.com/godot-rust/gdext/issues/1404:
+        // Behavior of default instance creation -- see also https://github.com/godot-rust/gdext/issues/1404.
+        //
+        // With `upcoming-editor-placeholders` (future v0.6 default):
         // * Editor: use ClassDB.instantiate() -> C++ instantiate_internal().
         //   * Tool class    -> Godot creates instance regularly (extra Variant roundtrip, but editor usually not perf-critical).
         //   * Runtime class -> Godot substitutes placeholder instance.
@@ -556,15 +558,53 @@ impl<T: GodotClass> Gd<T> {
         // * Unknown (for Godot < 4.4 && stage < Scene) -> behave like Runtime.
         //   Editor/ClassDb::instantiate path would be correct in all cases, but ClassDB isn't available on all levels. Thus we can only do
         //   the runtime path. It means that if runtime classes are constructed in level < Scene, they will not be placeholdered (rare case).
+        //
+        // Without the feature (v0.5-compatible default): editor branch is skipped; all states fall through to the direct `create` callback
+        // below, returning a real Rust instance even for non-tool classes in the editor. Migration warning below flags the v0.6 change.
+        #[cfg(feature = "upcoming-editor-placeholders")]
         if sys::is_editor_or_unknown().unwrap_or(false) {
             let class_name = T::class_id().to_string_name();
 
             // Note: C API classdb_construct_object[2|3] calls C++ instantiate_no_placeholders(), which skips placeholder substitution.
             // Instead we use ClassDB.instantiate() -> C++ _instantiate_internal().
+            use crate::obj::Singleton as _;
             let variant = classes::ClassDb::singleton().instantiate(&class_name);
             return variant.try_to::<Self>().unwrap_or_else(|_| {
                 panic!("ClassDB.instantiate({class_name}) failed -- class not registered or not instantiable")
             });
+        }
+
+        // v0.6 migration: under the legacy path (no `upcoming-editor-placeholders`), `T::new_alloc()` / `T::new_gd()` returns a real Rust
+        // instance even for non-`#[class(tool)]` classes in the editor. In v0.6 this becomes a placeholder, silently losing Rust-side
+        // logic (init/ready/...). One warning per class id, then backtrace printed to stderr so user can locate caller.
+        #[cfg(not(feature = "upcoming-editor-placeholders"))]
+        let class_id = T::class_id();
+        #[cfg(not(feature = "upcoming-editor-placeholders"))]
+        if sys::is_editor_or_unknown().unwrap_or(false)
+            && crate::registry::class::is_class_tool(class_id) == Some(false)
+        {
+            use std::collections::HashSet;
+
+            // Persists for the process lifetime, including across hot reloads -- one warning per class per process, not per reload.
+            static WARNED: sys::Global<HashSet<ClassId>> = sys::Global::default();
+
+            let is_new = WARNED.lock().insert(class_id);
+            if is_new {
+                sys::defer_startup_warn!(
+                    id: "EditorPlaceholderV06",
+                    "godot-rust v0.6 will change editor behavior for non-`#[class(tool)]` runtime classes.\n\
+                    Class `{class_id}` creation in editor now returns real Rust instance; v0.6 will return a placeholder (details with RUST_BACKTRACE=1).\n\
+                    Opt in early via the `upcoming-editor-placeholders` feature, or mark the class as `#[class(tool)]` if it runs in the editor.",
+                );
+
+                // If RUST_BACKTRACE is set, print backtrace.
+                let bt = std::backtrace::Backtrace::capture();
+                if bt.status() == std::backtrace::BacktraceStatus::Captured {
+                    eprintln!(
+                        "Backtrace for `{class_id}` (v0.6 editor-placeholder migration):\n{bt}"
+                    );
+                }
+            }
         }
 
         // Fast path if not running in the editor: bypass substitution and directly call creation func.

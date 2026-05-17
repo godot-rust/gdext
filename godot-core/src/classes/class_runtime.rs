@@ -314,14 +314,16 @@ where
     }
 
     // Behavior depending on editor state:
-    if let Some(true) = sys::is_editor_or_unknown() {
-        // * Editor: class is substituted with a PlaceholderExtensionInstance; null binding is expected -> OK.
-        //   Accessing `bind()`/`bind_mut()` on placeholders would still panic independently of this.
-    } else {
-        // * Runtime: null binding is a bug -> panic.
-        // * Unknown: Godot < 4.4 before InitLevel::Scene; no placeholders exist that early -> panic.
+    // * Editor (with `upcoming-editor-placeholders`): class substituted by PlaceholderExtensionInstance; null binding expected -> OK.
+    //   Accessing `bind()`/`bind_mut()` on placeholders would still panic, independently of this.
+    // * Runtime: null binding is a bug -> panic.
+    // * Unknown: Godot < 4.4 before InitLevel::Scene; no placeholders exist that early -> panic.
+    let placeholder_ok =
+        cfg!(feature = "upcoming-editor-placeholders") && sys::is_editor_or_unknown() == Some(true);
+    if !placeholder_ok {
         panic!(
-            "Class {} -- null instance; does the class have a Godot creator function?",
+            "Class {} -- null instance; does the class have a Godot creator function?\n\
+            If used in the editor, make sure to use #[class(tool)].",
             std::any::type_name::<T>()
         );
     }

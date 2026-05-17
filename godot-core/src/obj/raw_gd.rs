@@ -450,7 +450,7 @@ where
         self.check_rtti("bind");
         let storage = self
             .storage()
-            .unwrap_or_else(|| crate::classes::panic_placeholder_bind::<T>("bind"));
+            .unwrap_or_else(|| classes::panic_placeholder_bind::<T>("bind"));
         GdRef::from_guard(storage.get())
     }
 
@@ -461,7 +461,7 @@ where
         self.check_rtti("bind_mut");
         let storage = self
             .storage()
-            .unwrap_or_else(|| crate::classes::panic_placeholder_bind::<T>("bind_mut"));
+            .unwrap_or_else(|| classes::panic_placeholder_bind::<T>("bind_mut"));
         GdMut::from_guard(storage.get_mut())
     }
 
