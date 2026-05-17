@@ -107,3 +107,11 @@ pub trait OutParamTuple: ParamTuple {
 /// implements `FromGodot`, not just `EngineFromGodot`.
 #[doc(hidden)]
 pub trait TupleFromGodot: Sized {}
+
+/// Marker trait for `#[func(lossy)]`: relaxes per-element bound from `FromGodot` to `EngineFromGodot`. Admits lossy-tier integers (`usize`,
+/// `u64`). Out-of-range values may surface as `CallError` on the Godot side (see individual `EngineFromGodot` impls).
+///
+/// Separate trait (not a direct `EngineFromGodot` bound) because Rust cannot express a per-element tuple bound without a marker macro-expanded
+/// per arity — same reason [`TupleFromGodot`] exists.
+#[doc(hidden)]
+pub trait LossyTupleFromGodot: Sized {}

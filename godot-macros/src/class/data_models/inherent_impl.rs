@@ -11,7 +11,7 @@ use quote::{ToTokens, format_ident, quote};
 
 use crate::class::data_models::func;
 use crate::class::{
-    ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition, SignatureInfo,
+    ConstDefinition, FuncDefinition, FuncKind, RpcAttr, RpcMode, SignalDefinition, SignatureInfo,
     TransferMode, into_signature_info, make_constant_registration, make_method_registration,
     make_signal_registrations,
 };
@@ -59,6 +59,7 @@ struct FuncAttr {
     pub rename: Option<String>,
     pub is_virtual: bool,
     pub has_gd_self: bool,
+    pub is_lossy: bool,
 }
 
 #[derive(Default)]
@@ -343,7 +344,9 @@ fn process_godot_fns(
                     registered_name,
                     is_script_virtual: func.is_virtual,
                     rpc_info,
-                    is_generated_accessor: false,
+                    kind: FuncKind::UserDeclared {
+                        lossy: func.is_lossy,
+                    },
                 });
             }
 
@@ -657,12 +660,16 @@ fn parse_func_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseRes
     // #[func(gd_self)]
     let has_gd_self = parser.handle_alone("gd_self")?;
 
+    // #[func(lossy)]
+    let is_lossy = parser.handle_alone("lossy")?;
+
     parser.finish()?;
 
     Ok(AttrParseResult::Func(FuncAttr {
         rename,
         is_virtual,
         has_gd_self,
+        is_lossy,
     }))
 }
 

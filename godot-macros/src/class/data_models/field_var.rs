@@ -10,7 +10,7 @@ use quote::{ToTokens, format_ident, quote, quote_spanned};
 use venial::TypeExpr;
 
 use crate::class::{
-    Field, FieldHint, FuncDefinition, into_signature_info, make_accessor_type_check,
+    Field, FieldHint, FuncDefinition, FuncKind, into_signature_info, make_accessor_type_check,
     make_method_registration,
 };
 use crate::util::{KvParser, ident, make_funcs_collection_constant};
@@ -503,7 +503,7 @@ impl GetterSetterImpl {
                 registered_name: Some(godot_function_name.to_string()),
                 is_script_virtual: false,
                 rpc_info: None,
-                is_generated_accessor: true,
+                kind: FuncKind::GeneratedAccessor,
             },
             None,
         );

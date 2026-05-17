@@ -31,14 +31,27 @@ pub struct FuncDefinition {
     /// Information about the RPC configuration, if provided.
     pub rpc_info: Option<RpcAttr>,
 
-    /// If true, skip the `ToGodot`/`FromGodot` user-facing bounds check (`ensure_func_bounds`).
-    ///
-    /// Generated property getters/setters operate on `GodotConvert::Via`, which has `EngineToGodot`/`EngineFromGodot` bounds -- sufficient
-    /// for the `Signature` machinery, but not necessarily `ToGodot`/`FromGodot` (which need `ensure_func_bounds` checks). For example, engine
-    /// bitfields have `Via = u64`, which implements `EngineToGodot` but deliberately not `ToGodot`. We can't use `Var::PubType` instead of
-    /// `Via` in these getters, because `PubType` has no `ToGodot`/`FromGodot` bound -- and adding one would be too disruptive, as many manual
-    /// `Var` implementations (`Option<T>`, `Array<T>`, `Dictionary<K,V>`, `OnEditor<T>`, etc.) have `PubType` types without those bounds.
-    pub is_generated_accessor: bool,
+    /// Which marshalling tier this function uses; see [`FuncKind`].
+    pub kind: FuncKind,
+}
+
+/// How `#[func]` bounds-checks parameter and return types — see [`make_method_registration`] for codegen impact.
+///
+/// Two axes: whether the function is user-declared via `#[func]` (subject to a bounds check) or a generated accessor (no check at all),
+/// and -- within user-declared -- whether it opts into lossy-tier integers.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum FuncKind {
+    /// Function written by the user with `#[func]`. `lossy = false` uses `ensure_func_bounds` (`FromGodot` per param + `FuncReturn` return);
+    /// `lossy = true` uses `ensure_func_bounds_lossy`, which admits `usize`/`u64` via engine-side bounds. Under lossy: out-of-range return
+    /// values surface as `CallError`; for `usize`, out-of-range inputs (incl. negatives, and on wasm32 values > `u32::MAX`) also fail the call.
+    UserDeclared { lossy: bool },
+
+    /// Generated property getters/setters operate on `GodotConvert::Via`, which has `EngineToGodot`/`EngineFromGodot` bounds. Sufficient for
+    /// the `Signature` machinery, but not necessarily `ToGodot`/`FromGodot`. For example, engine bitfields have `Via = u64`, which implements
+    /// `EngineToGodot` but deliberately not `ToGodot`. We can't use `Var::PubType` instead of `Via` in these getters, because `PubType` has no
+    /// `ToGodot`/`FromGodot` bound -- and adding one would be too disruptive, as many manual `Var` implementations (`Option<T>`, `Array<T>`,
+    /// `Dictionary<K,V>`, `OnEditor<T>`, etc.) have `PubType` types without those bounds. Skips the bounds check entirely.
+    GeneratedAccessor,
 }
 
 impl FuncDefinition {
@@ -165,14 +178,20 @@ pub fn make_method_registration(
         .collect::<Vec<_>>();
 
     // Statically check that all parameters implement FromGodot + return type implements ToGodot. Span to localize compile error.
-    // Skipped for generated property accessors -- see `FuncDefinition::is_generated_accessor` for rationale.
-    let type_and_bounds_check = if func_definition.is_generated_accessor {
-        TokenStream::new()
-    } else {
-        let sig_ret_span = signature_info.params_span; // Alternative: sig_ret's span (first token).
+    // Skipped for generated property accessors -- see `FuncKind::GeneratedAccessor` for rationale.
+    let type_and_bounds_check = match func_definition.kind {
+        FuncKind::GeneratedAccessor => TokenStream::new(),
+        FuncKind::UserDeclared { lossy } => {
+            let sig_ret_span = signature_info.params_span; // Alternative: sig_ret's span (first token).
+            let ensure_fn = if lossy {
+                quote! { ensure_func_bounds_lossy }
+            } else {
+                quote! { ensure_func_bounds }
+            };
 
-        quote_spanned! { sig_ret_span=>
-            ::godot::private::ensure_func_bounds::<CallParams, CallRet>();
+            quote_spanned! { sig_ret_span=>
+                ::godot::private::#ensure_fn::<CallParams, CallRet>();
+            }
         }
     };
 

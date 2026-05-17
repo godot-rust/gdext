@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt;
+
 use crate::builtin::{Array, Variant};
 use crate::meta;
 use crate::meta::error::{
@@ -326,7 +328,27 @@ impl_godot_scalar!(u32 as i64, FromFfiError::U32, ParamMetadata::INT_IS_UINT32);
 impl_godot_scalar!(f32 as f64, ParamMetadata::REAL_IS_FLOAT; lossy);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// u64: manually implemented, to ensure that type is not altered during conversion.
+// Lossy-tier integers (u64, usize): can exceed i64 range, no ToGodot/FromGodot impls.
+// Engine-side conversion only; user-facing access gated by #[func(lossy)].
+//
+// Output direction (Rust → Godot int): out-of-range surfaces as CallError via engine_try_into_* overrides.
+// Input direction (Godot int → Rust):
+//   - usize: target-aware checked. wasm32 (32-bit usize) rejects > u32::MAX and negatives; 64-bit targets reject only negatives.
+//   - u64: bit-reinterpret (i64 as u64). Required by engine APIs/bitfields (i64 wire carries raw bit pattern).
+//          Under #[func(lossy)], negative GDScript ints therefore become large u64 values — documented, matches engine API usage.
+
+/// Builds a CallError for return-side overflow of a lossy-tier integer that doesn't fit in i64.
+fn lossy_overflow_err<T>(value: impl fmt::Display, call_ctx: &meta::CallContext) -> CallError {
+    let type_name = std::any::type_name::<T>();
+    let msg = format!("{type_name} value {value} does not fit in i64 (Godot int)");
+    CallError::failed_return_conversion::<T>(
+        call_ctx,
+        ConvertError::with_kind_value(ErrorKind::Custom(Some(msg.into())), ()),
+    )
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// u64: FFI wire is i64; C++ reinterprets bits as uint64_t in engine APIs/bitfields.
 
 impl GodotType for u64 {
     type Ffi = i64;
@@ -355,16 +377,33 @@ impl GodotConvert for u64 {
     }
 }
 
-// u64 implements internal-only conversion traits for use in engine APIs and virtual methods.
-impl meta::EngineToGodot for u64 {
+impl EngineToGodot for u64 {
     type Pass = meta::ByValue;
+
+    // Non-try methods reinterpret bits (engine API contract). #[func(lossy)] codegen calls the try_ overrides, which reject values > i64::MAX.
 
     fn engine_to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
         *self
     }
 
     fn engine_to_variant(&self) -> Variant {
-        Variant::from(*self as i64) // Treat as i64.
+        (*self as i64).to_variant() // Treat as i64 (bit-reinterpret for engine APIs/bitfields).
+    }
+
+    fn engine_try_into_variant(self, call_ctx: &meta::CallContext) -> Result<Variant, CallError> {
+        i64::try_from(self)
+            .map(|i| i.to_variant())
+            .map_err(|_| lossy_overflow_err::<u64>(self, call_ctx))
+    }
+
+    fn engine_try_into_godot_owned(
+        self,
+        call_ctx: &meta::CallContext,
+    ) -> Result<Self::Via, CallError> {
+        // Via is u64; on success bit pattern fits non-negative i64, so the original `self` round-trips byte-equal through FFI.
+        i64::try_from(self)
+            .map(|_| self)
+            .map_err(|_| lossy_overflow_err::<u64>(self, call_ctx))
     }
 }
 
@@ -375,6 +414,65 @@ impl meta::EngineFromGodot for u64 {
 
     fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         variant.try_to::<i64>().map(|i| i as u64)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// usize: pointer-width. wasm32 (Godot Web) = 32-bit, elsewhere typically 64-bit. Variant int is always 64-bit, so failure mode flips per target.
+
+impl GodotConvert for usize {
+    type Via = i64;
+
+    fn godot_shape() -> GodotShape {
+        GodotShape::of_builtin::<i64>()
+    }
+}
+
+impl EngineToGodot for usize {
+    type Pass = meta::ByValue;
+
+    // Non-try methods are defensive: usize has no Var/signal/Array impls, so the only live paths are #[func(lossy)] varcall/ptrcall via the
+    // try_ overrides below. If reached anyway, panic rather than silently truncate (same precedent as Result<T, E>).
+
+    fn engine_to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
+        i64::try_from(*self)
+            .unwrap_or_else(|_| panic!("usize value {self} does not fit in i64 (Godot int)"))
+    }
+
+    fn engine_to_variant(&self) -> Variant {
+        <Self as EngineToGodot>::engine_to_godot(self).to_variant()
+    }
+
+    fn engine_try_into_variant(self, call_ctx: &meta::CallContext) -> Result<Variant, CallError> {
+        i64::try_from(self)
+            .map(|i| i.to_variant())
+            .map_err(|_| lossy_overflow_err::<usize>(self, call_ctx))
+    }
+
+    fn engine_try_into_godot_owned(
+        self,
+        call_ctx: &meta::CallContext,
+    ) -> Result<Self::Via, CallError> {
+        i64::try_from(self).map_err(|_| lossy_overflow_err::<usize>(self, call_ctx))
+    }
+}
+
+impl meta::EngineFromGodot for usize {
+    fn engine_try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        // usize::try_from(i64) is target-aware: wasm32 rejects > u32::MAX and negatives; 64-bit targets reject only negatives.
+        usize::try_from(via).map_err(|_| {
+            ConvertError::with_kind_value(
+                ErrorKind::Custom(Some(
+                    format!("i64 value {via} does not fit in usize on this target").into(),
+                )),
+                via,
+            )
+        })
+    }
+
+    fn engine_try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        let via = variant.try_to::<i64>()?;
+        <Self as meta::EngineFromGodot>::engine_try_from_godot(via)
     }
 }
 

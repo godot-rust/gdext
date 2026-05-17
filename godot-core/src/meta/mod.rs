@@ -58,8 +58,10 @@ pub(crate) mod sealed;
 /// Re-exports for proc-macros and generated code. Not part of the public API.
 #[doc(hidden)]
 pub mod private_reexport {
-    pub use super::param_tuple::TupleFromGodot;
-    pub use super::signature::{CallContext, FuncReturn, Signature, ensure_func_bounds};
+    pub use super::param_tuple::{LossyTupleFromGodot, TupleFromGodot};
+    pub use super::signature::{
+        CallContext, FuncReturn, Signature, ensure_func_bounds, ensure_func_bounds_lossy,
+    };
 }
 
 pub mod conv;

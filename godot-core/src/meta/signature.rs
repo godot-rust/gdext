@@ -14,7 +14,7 @@ use sys::GodotFfi;
 
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, CallResult, ConvertError, ErrorToGodot};
-use crate::meta::param_tuple::TupleFromGodot;
+use crate::meta::param_tuple::{LossyTupleFromGodot, TupleFromGodot};
 use crate::meta::{
     EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType, InParamTuple,
     MethodParamOrReturnInfo, OutParamTuple, ParamTuple, ToGodot,
@@ -46,6 +46,18 @@ where
 #[inline(always)]
 #[doc(hidden)]
 pub fn ensure_func_bounds<Params: TupleFromGodot, Ret: FuncReturn>() {}
+
+/// `#[func(lossy)]` analog of [`ensure_func_bounds`]: relaxes per-param bound from [`FromGodot`] to [`EngineFromGodot`], admitting lossy-tier
+/// integers (`usize`, `u64`).
+///
+/// The return bound is just [`EngineToGodot`], not a dedicated `LossyFuncReturn` trait. Reason: `LossyFuncReturn` would be a pure alias —
+/// every `ToGodot` type blanket-impls `EngineToGodot`, `Result<T: ToGodot, E: ErrorToGodot<T>>` impls it directly, and lossy-tier integers
+/// impl it explicitly. So `EngineToGodot` is already the exact set we want. No new trait needed.
+///
+/// Out-of-range values surface as `CallError` on the Godot side via the varcall/ptrcall error path (no panic in conversion).
+#[inline(always)]
+#[doc(hidden)]
+pub fn ensure_func_bounds_lossy<Params: LossyTupleFromGodot, Ret: EngineToGodot>() {}
 
 /// A full signature for a function.
 ///
