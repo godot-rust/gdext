@@ -127,6 +127,11 @@ static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::n
 /// Warnings/errors collected during startup, and deferred until editor UI is ready.
 static STARTUP_MESSAGES: Global<Vec<StartupMessage>> = Global::default();
 
+/// Set to `true` after [`print_deferred_startup_messages`] has flushed once. From then on, new messages are printed directly instead
+/// of queued, so warnings/errors emitted later are not silently dropped.
+static STARTUP_MESSAGES_FLUSHED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// A message to be displayed in the Godot editor once UI is ready.
 struct StartupMessage {
     message: std::ffi::CString,
@@ -354,7 +359,34 @@ pub fn collect_startup_message(
         level,
     };
 
-    STARTUP_MESSAGES.lock().push(msg);
+    // Check the flushed-flag while holding the lock: otherwise, a concurrent flush could drain and set the flag between our load and push,
+    // leaving the message in the queue with no further flush to deliver it. Holding the lock serializes us against the flusher.
+    let mut messages = STARTUP_MESSAGES.lock();
+    if STARTUP_MESSAGES_FLUSHED.load(std::sync::atomic::Ordering::Acquire) {
+        drop(messages);
+        print_message(&msg);
+    } else {
+        messages.push(msg);
+    }
+}
+
+/// Print a single message to the editor UI via the FFI interface.
+fn print_message(msg: &StartupMessage) {
+    let print_fn = match msg.level {
+        StartupMessageLevel::Warn { .. } => interface_fn!(print_warning),
+        StartupMessageLevel::Error => interface_fn!(print_error),
+    };
+
+    // SAFETY: The binding has been initialized, so we can use interface functions.
+    unsafe {
+        print_fn(
+            msg.message.as_ptr(),
+            msg.function.as_ptr(),
+            msg.file.as_ptr(),
+            msg.line,
+            conv::SYS_TRUE, // Notify editor.
+        );
+    }
 }
 
 /// Check if a message ID is suppressed via the `GDRUST_SUPPRESSED_WARNINGS` environment variable.
@@ -369,32 +401,20 @@ fn is_message_suppressed(id: &str) -> bool {
 }
 
 /// Flush all deferred messages to the Godot editor. Called during `MainLoop` initialization, when editor UI is ready.
+///
+/// After this returns, [`collect_startup_message`] switches to direct printing so late-firing sites
+/// (property accessors, `_ready` callbacks, etc.) are not silently dropped.
 pub fn print_deferred_startup_messages() {
     let mut messages = STARTUP_MESSAGES.lock();
 
-    if messages.is_empty() {
-        return;
-    }
-
     for msg in messages.iter() {
-        let print_fn = match msg.level {
-            StartupMessageLevel::Warn { .. } => interface_fn!(print_warning),
-            StartupMessageLevel::Error => interface_fn!(print_error),
-        };
-
-        // SAFETY: The binding has been initialized, so we can use interface functions.
-        unsafe {
-            print_fn(
-                msg.message.as_ptr(),
-                msg.function.as_ptr(),
-                msg.file.as_ptr(),
-                msg.line,
-                conv::SYS_TRUE, // Notify editor.
-            );
-        }
+        print_message(msg);
     }
-
     messages.clear();
+
+    // Flip flag while holding the lock, so any collector racing with us either pushes before us
+    // (and gets flushed above) or sees the flag set (and prints directly). Either path delivers.
+    STARTUP_MESSAGES_FLUSHED.store(true, std::sync::atomic::Ordering::Release);
 }
 
 fn print_preamble(version: GDExtensionGodotVersion) {
@@ -729,10 +749,11 @@ macro_rules! interface_fn {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Deferred editor message macros
 
-/// Store a warning for deferred display in Godot editor UI.
+/// Store a warning for display in Godot editor UI.
 ///
-/// Captured during startup, displayed at `MainLoop` init. Will be visible in Godot editor's _Output_ tab.
-/// Warnings can be suppressed via the `GDRUST_SUPPRESSED_WARNINGS` environment variable.
+/// Messages appear in the Godot editor's _Output_ tab: queued before `MainLoop` init and flushed
+/// once the UI is ready, then printed immediately for late-firing sites (property accessors,
+/// `_ready` callbacks, etc.). Suppressible via the `GDRUST_SUPPRESSED_WARNINGS` environment variable.
 ///
 /// # Example
 /// ```no_run
@@ -756,10 +777,10 @@ macro_rules! defer_startup_warn {
     }};
 }
 
-/// Store an error for deferred display in Godot editor UI.
+/// Store an error for display in Godot editor UI.
 ///
-/// Captured during startup, displayed at `MainLoop` init. Will be visible in Godot editor's _Output_ tab.
-/// Errors cannot be suppressed.
+/// Messages appear in the Godot editor's _Output_ tab: queued before `MainLoop` init and flushed
+/// once the UI is ready, then printed immediately for late-firing sites. Errors cannot be suppressed.
 ///
 /// # Example
 /// ```no_run
