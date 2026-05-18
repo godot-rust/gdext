@@ -135,11 +135,16 @@ pub fn make_function_definition(
     let (maybe_unsafe, maybe_safety_doc);
     if sig.common().is_unsafe {
         maybe_unsafe = quote! { unsafe };
-        maybe_safety_doc = quote! {
-            /// # Safety
-            ///
-            /// This method has automatically been marked `unsafe` because it accepts raw pointers as parameters.
-            /// If Godot does not document any safety requirements, make sure you understand the underlying semantics.
+        maybe_safety_doc = if let Some(custom) = sig.common().safety_doc {
+            let body = format!("# Safety\n\n{custom}");
+            quote! { #[doc = #body] }
+        } else {
+            quote! {
+                /// # Safety
+                ///
+                /// This method has automatically been marked `unsafe` because it accepts raw pointers as parameters.
+                /// If Godot does not document any safety requirements, make sure you understand the underlying semantics.
+            }
         };
     } else {
         maybe_unsafe = TokenStream::new();

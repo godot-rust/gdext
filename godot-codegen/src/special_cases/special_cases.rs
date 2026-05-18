@@ -442,6 +442,28 @@ pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
     }
 }
 
+/// Marks specific class methods as `unsafe` even when their signature does not involve raw pointers.
+///
+/// The returned string, if `Some`, is used verbatim as the `# Safety` doc section for the generated method (in Markdown).
+/// It should explain why the method is unsafe and which invariants the caller must uphold.
+#[rustfmt::skip]
+pub fn get_class_method_unsafe_docs(class_name: &TyName, godot_method_name: &str) -> Option<&'static str> {
+    match (class_name.godot_ty.as_str(), godot_method_name) {
+        // Synchronously loading/unloading/reloading an extension rug-pulls running library: any callables created from the extension become
+        // invalid. See https://github.com/godot-rust/gdext/issues/1249.
+        | ("GDExtensionManager", "load_extension")
+        | ("GDExtensionManager", "unload_extension")
+        | ("GDExtensionManager", "reload_extension")
+        => Some(
+            "Behavior is undefined if `path` resolves to any extension that's currently executing code, in particular this extension.\n\
+             In that case, prefer the safe `*_deferred` variant from `manual_extensions.rs`. See [#1221](https://github.com/godot-rust/gdext/issues/1221) \
+             and [#1249](https://github.com/godot-rust/gdext/issues/1249)."
+        ),
+
+        _ => None,
+    }
+}
+
 /// Lists methods that are replaced with manual, more type-safe equivalents. See `type_safe_replacements.rs`.
 ///
 /// See also [`get_class_method_enum_param_replacement()`] for a more automated approach specifically for enum parameters.

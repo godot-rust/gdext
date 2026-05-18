@@ -354,6 +354,9 @@ pub struct FunctionCommon {
     pub is_virtual_required: bool,
     /// Whether raw pointers appear in signature. Affects safety, and in case of virtual methods, the name.
     pub is_unsafe: bool,
+    /// Custom `# Safety` doc text, used when `is_unsafe` was set by a special-case rather than by raw pointer detection.
+    /// If `None` and `is_unsafe` is `true`, a generic pointer-related safety doc is emitted.
+    pub safety_doc: Option<&'static str>,
     pub direction: FnDirection,
     /// Deprecation message, if the method is deprecated.
     pub deprecation_msg: Option<&'static str>,

@@ -456,6 +456,7 @@ impl BuiltinMethod {
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
                 is_virtual_required: false,
                 is_unsafe: false, // Builtin methods don't use raw pointers.
+                safety_doc: None,
                 direction: FnDirection::Outbound {
                     hash: hash.expect("hash absent for builtin method"),
                 },
@@ -621,7 +622,10 @@ impl ClassMethod {
         let return_value =
             FnReturn::with_enum_replacements(&return_value, enum_replacements, return_flow, ctx);
 
-        let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
+        let uses_pointers = Self::function_uses_pointers(&parameters, &return_value);
+        let special_safety_doc = special_cases::get_class_method_unsafe_docs(class_name, &name);
+        let is_unsafe = uses_pointers || special_safety_doc.is_some();
+        let safety_doc = special_safety_doc;
 
         // Future note: if further changes are made to the virtual method name, make sure to make it reversible so that #[godot_api]
         // can match on the Godot name of the virtual method.
@@ -642,6 +646,7 @@ impl ClassMethod {
                 is_private,
                 is_virtual_required,
                 is_unsafe,
+                safety_doc,
                 direction,
                 deprecation_msg,
                 description,
@@ -744,6 +749,7 @@ impl UtilityFunction {
                 is_private,
                 is_virtual_required: false,
                 is_unsafe: false, // Utility functions don't use raw pointers.
+                safety_doc: None,
                 direction: FnDirection::Outbound { hash },
                 deprecation_msg: None, // Utility functions are not deprecated.
                 description,
