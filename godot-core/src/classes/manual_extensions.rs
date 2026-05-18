@@ -17,6 +17,8 @@ use crate::classes::{Node, PackedScene};
 use crate::global::Error;
 use crate::meta::{AsArg, arg_into_ref};
 use crate::obj::{Gd, Inherits};
+#[cfg(feature = "codegen-full")]
+use crate::{builtin::GString, classes::GDExtensionManager, meta::ToGodot};
 
 /// Manual extensions for the `Node` class.
 impl Node {
@@ -115,5 +117,39 @@ impl Error {
             Ok(()) => Error::OK,
             Err(e) => e,
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Manual extensions for the `GDExtensionManager` class.
+///
+/// Godot's `load_extension`/`unload_extension`/`reload_extension` are marked `unsafe` via codegen special-case: invoking them synchronously
+/// while the calling extension is on the stack rug-pulls the running library, invalidating all callables created from it. See
+/// [#1221](https://github.com/godot-rust/gdext/issues/1221) and [#1249](https://github.com/godot-rust/gdext/issues/1249).
+///
+/// The `*_deferred` variants below run at the end of the current frame instead, which is safe even for the calling extension itself.
+#[cfg(feature = "codegen-full")]
+impl GDExtensionManager {
+    /// Schedules a `load_extension` call for the end of the current frame.
+    pub fn load_extension_deferred(&mut self, path: impl AsArg<GString>) {
+        self.defer_path_call("load_extension", path);
+    }
+
+    /// Schedules an `unload_extension` call for the end of the current frame.
+    pub fn unload_extension_deferred(&mut self, path: impl AsArg<GString>) {
+        self.defer_path_call("unload_extension", path);
+    }
+
+    /// Schedules a `reload_extension` call for the end of the current frame.
+    pub fn reload_extension_deferred(&mut self, path: impl AsArg<GString>) {
+        self.defer_path_call("reload_extension", path);
+    }
+
+    // Deferred calls go through Godot's reflection, so the method name cannot be checked at compile time; a Godot-side rename would surface
+    // only at runtime. The same three names are listed in `special_cases::get_class_method_unsafe_docs()`.
+    fn defer_path_call(&mut self, godot_method: &str, path: impl AsArg<GString>) {
+        arg_into_ref!(path);
+        self.call_deferred(godot_method, &[path.to_variant()]);
     }
 }
