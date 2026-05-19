@@ -42,6 +42,7 @@ Options:
                              args (comma-separated). requires itest.
         --editor             run integration tests in editor mode (passes -e to Godot). requires itest.
     -a, --api-version <ver>  specify the Godot API version to use (e.g. 4.3, 4.3.1).
+    --full                   run check with full codegen (all classes)
 
 Examples:
     check.sh fmt clippy
@@ -261,11 +262,11 @@ function cmd_test_web_nt() {
 }
 
 function cmd_doc() {
-    run cargo doc --lib -p godot --no-deps "${extraCargoArgs[@]}"
+    run cargo doc --lib -p godot --no-deps "${docCargoArgs[@]}"
 }
 
 function cmd_dok() {
-    run cargo doc --lib -p godot --no-deps "${extraCargoArgs[@]}" --open
+    run cargo doc --lib -p godot --no-deps "${docCargoArgs[@]}" --open
 }
 
 ################################################################################
@@ -275,6 +276,8 @@ function cmd_dok() {
 # By default, disable `codegen-full` to reduce compile times and prevent flip-flopping between
 # `itest` compilations and `check.sh` runs. Note that this means some runs are different from CI.
 extraCargoArgs=("--no-default-features" "--features" "godot/upcoming-editor-placeholders,itest/upcoming-editor-placeholders")
+# `cargo doc -p godot` cannot resolve `itest/*` features, so docs use a smaller feature set.
+docCargoArgs=("--no-default-features" "--features" "godot/upcoming-editor-placeholders")
 cmds=()
 extraArgs=()
 apiVersion=""
@@ -292,6 +295,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --double)
             extraCargoArgs+=("--features" "godot/double-precision,godot/api-custom")
+            ;;
+        --full)
+            extraCargoArgs+=("--features" "godot/__codegen-full,itest/codegen-full")
+            docCargoArgs+=("--features" "godot/__codegen-full")
             ;;
         fmt | test | itest | test-web-t | test-web-nt | clippy | klippy | doc | dok)
             cmds+=("$arg")
