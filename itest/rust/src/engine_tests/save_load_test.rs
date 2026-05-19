@@ -101,3 +101,34 @@ fn load_with_onready() {
 
     remove_test_file(RESOURCE_NAME);
 }
+
+#[cfg(feature = "experimental-threads")]
+#[itest(async)]
+fn threaded_load_test() -> godot::task::TaskHandle {
+    use godot::tools::{load_threaded, try_load_threaded};
+
+    godot::task::spawn(async {
+        let level = 2317;
+        let res_path = format!("res://{RESOURCE_NAME}");
+
+        let mut resource = SavedGame::new_gd();
+        resource.bind_mut().set_level(level);
+
+        save(&resource, &res_path);
+
+        // TODO(v0.6): suppress "ERROR" print in API itself.
+        let res = try_load_threaded::<SavedGame>(FAULTY_PATH).await;
+        assert!(res.is_err());
+
+        let res = try_load_threaded::<SavedGame>(&res_path).await;
+        assert!(res.is_ok());
+
+        let loaded = res.unwrap();
+        assert_eq!(loaded.bind().get_level(), level);
+
+        let loaded = load_threaded::<SavedGame>(&res_path).await;
+        assert_eq!(loaded.bind().get_level(), level);
+
+        remove_test_file(RESOURCE_NAME);
+    })
+}

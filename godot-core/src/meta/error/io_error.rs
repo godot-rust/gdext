@@ -75,6 +75,21 @@ impl IoError {
         }
     }
 
+    #[cfg(feature = "experimental-threads")]
+    pub(crate) fn loading_precondition(
+        class: String,
+        path: String,
+        precondition: &'static str,
+    ) -> Self {
+        Self {
+            data: ErrorData::Load(LoaderError {
+                kind: LoaderErrorKind::Precondition(precondition),
+                class,
+                path,
+            }),
+        }
+    }
+
     pub(crate) fn check_unique_open_file_access(
         file_access: Gd<FileAccess>,
     ) -> Result<Gd<FileAccess>, Self> {
@@ -123,6 +138,8 @@ struct LoaderError {
 enum LoaderErrorKind {
     Load,
     Cast,
+    #[cfg(feature = "experimental-threads")]
+    Precondition(&'static str),
 }
 
 impl Error for LoaderError {}
@@ -140,6 +157,11 @@ impl fmt::Display for LoaderError {
             LoaderErrorKind::Cast => write!(
                 f,
                 "can't cast loaded resource to class: '{class}' from path: '{path}'"
+            ),
+            #[cfg(feature = "experimental-threads")]
+            LoaderErrorKind::Precondition(condition) => write!(
+                f,
+                "can't load resource due to missing precondition: {condition}, class: '{path}', path: '{path}"
             ),
         }
     }
