@@ -10,14 +10,66 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.5.0](#v050), [v0.5.1](#v051)
+- [v0.5.0](#v050), [v0.5.1](#v051), [v0.5.2](#v052), [v0.5.3](#v053)
 - [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043), [v0.4.4](#v044), [v0.4.5](#v045)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
 
 
+## [v0.5.3](https://docs.rs/godot/0.5.3)
+
+_19 May 2026_
+
+### 🌻 Features
+
+- JSON-based workflow -- no more bindgen/LLVM ([#1562](https://github.com/godot-rust/gdext/pull/1562))
+- Import Godot documentation for methods ([#1573](https://github.com/godot-rust/gdext/pull/1573), [#1582](https://github.com/godot-rust/gdext/pull/1582))
+- Complete missing `ScriptInstance` functions ([#1592](https://github.com/godot-rust/gdext/pull/1592))
+- API to check class/singleton availability ([#1576](https://github.com/godot-rust/gdext/pull/1576))
+
+### 📈 Performance
+
+- Doc tags: use linear scanner instead of regex replacements ([#1580](https://github.com/godot-rust/gdext/pull/1580))
+- Optimize JSON -> Domain mapping + some doc-imports ([#1584](https://github.com/godot-rust/gdext/pull/1584))
+- Simplify object casts and migrate to `Object::is_class()` ([#1586](https://github.com/godot-rust/gdext/pull/1586))
+- Tweak monomorphizations -> 7-9% lower `godot-core` compile times ([#1587](https://github.com/godot-rust/gdext/pull/1587))
+
+### 🧹 Quality of life
+
+- `check.sh` now accepts `--full` ([#1608](https://github.com/godot-rust/gdext/pull/1608))
+
+### 🛠️ Bugfixes
+
+- Instance creation now goes through proper placeholder process ([#1597](https://github.com/godot-rust/gdext/pull/1597), [#1606](https://github.com/godot-rust/gdext/pull/1606))
+  - Opt-in to new behavior with `upcoming-editor-placeholders` feature ([#1607](https://github.com/godot-rust/gdext/pull/1607))
+- Main thread discovery must be first ([#1574](https://github.com/godot-rust/gdext/pull/1574))
+- Fix pruning stored stale signal connections in the editor ([#1585](https://github.com/godot-rust/gdext/pull/1585))
+- Avoid potential use-after-free by unregistering `EditorPlugins` early ([#1590](https://github.com/godot-rust/gdext/pull/1590))
+- `#[export_tool_button]`: fix use-after-free in captured `Gd` pointer ([#1589](https://github.com/godot-rust/gdext/pull/1589))
+- Generate `gdextension_interface.json` out of Godot binary for Godot versions newer than latest/stable ([#1572](https://github.com/godot-rust/gdext/pull/1572))
+- Fix version check in `godot_exe` ([#1579](https://github.com/godot-rust/gdext/pull/1579))
+- `custom-api-json` - allow to specify custom header ([#1583](https://github.com/godot-rust/gdext/pull/1583))
+- Fix several issues in GDScript test framework ([#1594](https://github.com/godot-rust/gdext/pull/1594))
+
+### 🏗️ Maintenance
+
+- Use new initialization for Godot 4.7 ([#1567](https://github.com/godot-rust/gdext/pull/1567))
+- Internal `AtomicEnum<T>` for global enum variables ([#1593](https://github.com/godot-rust/gdext/pull/1593))
+- `#[itest(editor)]` for itests running only with `-e --headless` ([#1591](https://github.com/godot-rust/gdext/pull/1591))
+- Reduce number of "ERROR" prints in itest ([#1595](https://github.com/godot-rust/gdext/pull/1595))
+- Remove LLVM from CI; runner updates ([#1599](https://github.com/godot-rust/gdext/pull/1599))
+- Make `godot::signal` the canonical signal API ([#1602](https://github.com/godot-rust/gdext/pull/1602))
+
+### 📚 Documentation
+
+- Add more realistic `godot::task::spawn` example ([#1581](https://github.com/godot-rust/gdext/pull/1581))
+- Add info about `#[func(rename = ...)]` to `#[godot_api]` docs ([#1605](https://github.com/godot-rust/gdext/pull/1605))
+
+
 ## [v0.5.2](https://docs.rs/godot/0.5.2)
+
+_28 April 2026_
 
 ### 🌻 Features
 
