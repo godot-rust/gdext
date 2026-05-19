@@ -9,7 +9,6 @@ use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 
-use super::signal_connections_registry::store_signal_connection;
 use super::signal_receiver::{IndirectSignalReceiver, SignalReceiver};
 use super::{ConnectBuilder, ConnectHandle, SignalObject, make_callable_name, make_godot_fn};
 use crate::builtin::{Callable, CowStr, Variant};
@@ -225,14 +224,13 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
 
         let mut owned_object = self.object.to_owned_object();
         owned_object.with_object_mut(|obj| {
+            // `Object::connect*` now tracks the (always custom) callable in the hot-reload registry, so it is auto-disconnected before reload.
             if let Some(flags) = flags {
                 obj.connect_flags(signal_name, &callable, flags);
             } else {
                 obj.connect(signal_name, &callable);
             }
         });
-
-        store_signal_connection(&owned_object, &self.name, &callable);
 
         ConnectHandle::new(owned_object, self.name.clone(), callable)
     }

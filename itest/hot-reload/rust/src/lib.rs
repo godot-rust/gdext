@@ -112,10 +112,10 @@ mod signal_test {
         // closure (raw `RustCallable`), and a `bindv` wrapper hiding the closure (only caught by the broad `is_custom()` check). No crash = pass.
         #[func]
         fn connect_custom_callables(&mut self) {
-            let plain = Callable::from_fn("plain_reload_handler", |_| Variant::nil());
+            let plain = Callable::from_fn("rust_fn", |_| Variant::nil());
             self.base_mut().connect("property_list_changed", &plain);
 
-            let bound = Callable::from_fn("bound_reload_handler", |_| Variant::nil()).bind(vslice![10]);
+            let bound = Callable::from_fn("rust_bound_fn", |_| Variant::nil()).bind(vslice![10]);
             self.base_mut().connect("property_list_changed", &bound);
         }
 
@@ -125,7 +125,8 @@ mod signal_test {
         #[func]
         fn connect_bound_engine_method(&mut self) {
             let receiver = self.to_gd();
-            let bound = Callable::from_object_method(&receiver, "set_block_signals").bind(vslice![false]);
+            let bound =
+                Callable::from_object_method(&receiver, "set_block_signals").bind(vslice![false]);
             self.base_mut().connect("script_changed", &bound);
         }
 

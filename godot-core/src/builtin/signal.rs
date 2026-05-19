@@ -18,6 +18,7 @@ use crate::meta;
 use crate::meta::{FromGodot, GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId};
+use crate::signal::store_custom_callable_connection;
 
 /// Untyped Godot signal.
 ///
@@ -74,6 +75,7 @@ impl Signal {
     pub fn connect(&self, callable: &Callable) -> Error {
         let error = self.as_inner().connect(callable, 0i64);
 
+        track_custom_callable(self, callable);
         Error::from_godot(error as i32)
     }
 
@@ -88,6 +90,7 @@ impl Signal {
     pub fn connect_flags(&self, callable: &Callable, flags: ConnectFlags) -> Error {
         let error = self.as_inner().connect(callable, flags.ord() as i64);
 
+        track_custom_callable(self, callable);
         Error::from_godot(error as i32)
     }
 
@@ -183,6 +186,16 @@ impl Signal {
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerSignal<'_> {
         inner::InnerSignal::from_outer(self)
+    }
+}
+
+/// See `Object::connect` companion in `type_safe_replacements.rs` for rationale.
+fn track_custom_callable(signal: &Signal, callable: &Callable) {
+    // Only the editor needs the registry; skip the `object()` FFI call entirely outside it.
+    if sys::is_editor()
+        && let Some(receiver) = signal.object()
+    {
+        store_custom_callable_connection(&receiver, &signal.name(), callable);
     }
 }
 

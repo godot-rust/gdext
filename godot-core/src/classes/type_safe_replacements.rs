@@ -17,8 +17,9 @@ use crate::classes::object::ConnectFlags;
 use crate::classes::scene_tree::GroupCallFlags;
 use crate::classes::{Node, Object, SceneTree, Script};
 use crate::global::Error;
-use crate::meta::{AsArg, ToGodot, arg_into_ref};
+use crate::meta::{AsArg, ToGodot, arg_into_owned, arg_into_ref};
 use crate::obj::{EngineBitfield, Gd};
+use crate::signal::store_custom_callable_connection;
 
 impl Object {
     pub fn get_script(&self) -> Option<Gd<Script>> {
@@ -37,7 +38,10 @@ impl Object {
     }
 
     pub fn connect(&mut self, signal: impl AsArg<StringName>, callable: &Callable) -> Error {
-        self.raw_connect(signal, callable)
+        arg_into_owned!(signal);
+        let result = self.raw_connect(&signal, callable);
+        track_callable_connection(self, &signal, callable);
+        result
     }
 
     pub fn connect_flags(
@@ -46,10 +50,30 @@ impl Object {
         callable: &Callable,
         flags: ConnectFlags,
     ) -> Error {
-        self.raw_connect_ex(signal, callable)
+        arg_into_owned!(signal);
+        let result = self
+            .raw_connect_ex(&signal, callable)
             .flags(flags.ord() as u32)
-            .done()
+            .done();
+        track_callable_connection(self, &signal, callable);
+        result
     }
+}
+
+/// Registers a custom-callable connection so it can be auto-disconnected before hot reload.
+///
+/// Called by `Object::connect` / `Object::connect_flags` APIs, used both directly and through typed signal APIs. Ignores non-custom callables.
+fn track_callable_connection(receiver: &Object, signal_name: &StringName, callable: &Callable) {
+    // Only the editor needs the registry; skip the weak-`Gd` construction entirely outside it.
+    if !crate::sys::is_editor() {
+        return;
+    }
+
+    // SAFETY: `receiver` is a live `Object` reference for the duration of this call. The weak `Gd` is passed to
+    // `store_custom_callable_connection` (which clones its own handle) and disposed of here via `drop_weak`.
+    let weak_gd: Gd<Object> = unsafe { Gd::from_obj_sys_weak(receiver.__object_ptr()) };
+    store_custom_callable_connection(&weak_gd, signal_name, callable);
+    weak_gd.drop_weak();
 }
 
 impl Node {
