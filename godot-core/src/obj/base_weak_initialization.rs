@@ -107,7 +107,7 @@ impl<T: GodotClass> Base<T> {
 
 pub use implementation::*;
 
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 mod implementation {
     use std::cell::Cell;
     use std::rc::Rc;
@@ -161,7 +161,7 @@ mod implementation {
     }
 }
 
-#[cfg(not(safeguards_balanced))]
+#[cfg(not(safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_balanced))))]
 mod implementation {
     use super::InitState;
 

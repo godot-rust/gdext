@@ -457,7 +457,7 @@ fn map_return_clause(return_value: &HeaderReturnValue) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use nanoserde::DeJson;
 

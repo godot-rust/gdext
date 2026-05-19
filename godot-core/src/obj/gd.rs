@@ -215,7 +215,7 @@ where
     ///
     /// In the Godot editor, classes that are not marked `#[class(tool)]` are replaced with _placeholder instances_ (Godot 4.3+ "runtime classes").
     /// From Godot's perspective the instance still exists, so scenes and script code referring to it do not break, but the Rust side is absent.
-    #[cfg(all(feature = "trace", feature = "upcoming-editor-placeholders"))]
+    #[cfg(all(feature = "trace", feature = "upcoming-editor-placeholders"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "trace", feature = "upcoming-editor-placeholders"))))]
     #[doc(hidden)]
     pub fn is_editor_placeholder(&self) -> bool {
         self.raw.storage().is_none()
@@ -561,7 +561,7 @@ impl<T: GodotClass> Gd<T> {
         //
         // Without the feature (v0.5-compatible default): editor branch is skipped; all states fall through to the direct `create` callback
         // below, returning a real Rust instance even for non-tool classes in the editor. Migration warning below flags the v0.6 change.
-        #[cfg(feature = "upcoming-editor-placeholders")]
+        #[cfg(feature = "upcoming-editor-placeholders")] #[cfg_attr(published_docs, doc(cfg(feature = "upcoming-editor-placeholders")))]
         if sys::is_editor_or_unknown().unwrap_or(false) {
             let class_name = T::class_id().to_string_name();
 
@@ -577,9 +577,9 @@ impl<T: GodotClass> Gd<T> {
         // v0.6 migration: under the legacy path (no `upcoming-editor-placeholders`), `T::new_alloc()` / `T::new_gd()` returns a real Rust
         // instance even for non-`#[class(tool)]` classes in the editor. In v0.6 this becomes a placeholder, silently losing Rust-side
         // logic (init/ready/...). One warning per class id, then backtrace printed to stderr so user can locate caller.
-        #[cfg(not(feature = "upcoming-editor-placeholders"))]
+        #[cfg(not(feature = "upcoming-editor-placeholders"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "upcoming-editor-placeholders"))))]
         let class_id = T::class_id();
-        #[cfg(not(feature = "upcoming-editor-placeholders"))]
+        #[cfg(not(feature = "upcoming-editor-placeholders"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "upcoming-editor-placeholders"))))]
         if sys::is_editor_or_unknown().unwrap_or(false)
             && crate::registry::class::is_class_tool(class_id) == Some(false)
         {
@@ -610,9 +610,9 @@ impl<T: GodotClass> Gd<T> {
         // Fast path if not running in the editor: bypass substitution and directly call creation func.
         unsafe {
             // Default value (and compat one) for `p_notify_postinitialize` is true in Godot.
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             let object_ptr = callbacks::create::<T>(std::ptr::null_mut(), sys::conv::SYS_TRUE);
-            #[cfg(before_api = "4.4")]
+            #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
             let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
 
             Gd::from_constructed_obj_sys(object_ptr)
@@ -690,10 +690,10 @@ impl<T: GodotClass> Gd<T> {
     /// # Safety
     /// `ptr` must point to a valid object of this type.
     pub(crate) unsafe fn from_constructed_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
-        #[cfg(before_api = "4.7")]
+        #[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
         let obj = unsafe { Gd::<T>::from_obj_sys(ptr) };
 
-        #[cfg(since_api = "4.7")]
+        #[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
         let obj = unsafe { Gd::<T>::from_obj_sys_weak(ptr) };
 
         obj
@@ -896,7 +896,7 @@ where
         // static type information to be correct. This is a no-op in Release mode.
         // Skip check during panic unwind; would need to rewrite whole thing to use Result instead. Having BOTH panic-in-panic and bad type is
         // a very unlikely corner case.
-        #[cfg(safeguards_strict)]
+        #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
         if !is_panic_unwind {
             self.raw
                 .check_dynamic_type(&crate::meta::CallContext::gd::<T>("free"));

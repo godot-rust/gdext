@@ -17,9 +17,9 @@
 //!
 //! For more information see also [`Base::to_init_gd`].
 
-#[cfg(since_api = "4.7")]
+#[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
 pub(super) use super::base_strong_initialization::InitTracker;
-#[cfg(before_api = "4.7")]
+#[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
 pub(super) use super::base_weak_initialization::InitTracker;
 
 /// Represents the initialization state of a `Base<T>` object.

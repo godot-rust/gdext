@@ -78,11 +78,11 @@ impl ParamMetadata {
             Self::REAL_IS_DOUBLE => sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE,
 
             // Could technically memorize the number and use runtime check with GdextBuild.
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             Self::INT_IS_CHAR16 => sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_CHAR16,
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             Self::INT_IS_CHAR32 => sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_CHAR32,
-            #[cfg(since_api = "4.6")]
+            #[cfg(since_api = "4.6")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.6")))]
             Self::OBJECT_IS_REQUIRED => {
                 sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_OBJECT_IS_REQUIRED
             }

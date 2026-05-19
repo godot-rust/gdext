@@ -24,9 +24,9 @@ mod raw_gd;
 mod traits;
 
 mod base_init;
-#[cfg(since_api = "4.7")]
+#[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
 mod base_strong_initialization;
-#[cfg(before_api = "4.7")]
+#[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
 mod base_weak_initialization;
 pub(crate) mod rtti;
 // TODO(v0.6): godot::obj::signal was accidentally public; kept for SemVer -> remove in next minor. Canonical is godot::signal.

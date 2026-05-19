@@ -95,7 +95,7 @@ impl ConvertError {
         ErasedConvertError::from(self)
     }
 
-    #[cfg(before_api = "4.4")]
+    #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
     pub(crate) fn kind(&self) -> &ErrorKind {
         &self.kind
     }
@@ -189,11 +189,11 @@ pub(crate) enum FromGodotError {
     BadArrayType(ArrayMismatch),
 
     /// Destination `Dictionary<K, V>` has different types than source's runtime types.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     BadDictionaryType(DictionaryMismatch),
 
     /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     BadArrayTypeInt {
         expected_int_type: &'static str,
         value: i64,
@@ -229,10 +229,10 @@ impl fmt::Display for FromGodotError {
         match self {
             Self::BadArrayType(mismatch) => write!(f, "{mismatch}"),
 
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             Self::BadDictionaryType(mismatch) => write!(f, "{mismatch}"),
 
-            #[cfg(safeguards_strict)]
+            #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
             Self::BadArrayTypeInt {
                 expected_int_type,
                 value,
@@ -288,7 +288,7 @@ impl fmt::Display for ArrayMismatch {
     }
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) struct DictionaryMismatch {
     pub expected_key: ElementType,
@@ -297,7 +297,7 @@ pub(crate) struct DictionaryMismatch {
     pub actual_value: ElementType,
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 impl fmt::Display for DictionaryMismatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let DictionaryMismatch {

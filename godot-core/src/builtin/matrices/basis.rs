@@ -548,7 +548,7 @@ impl GlamType for RMat3 {
     }
 }
 
-#[cfg(not(feature = "double-precision"))]
+#[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
 impl GlamType for glam::Mat3A {
     type Mapped = Basis;
 
@@ -634,7 +634,7 @@ unsafe impl GodotFfi for Basis {
 
 crate::meta::impl_godot_as_self!(Basis: ByValue);
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
     use crate::assert_eq_approx;
@@ -863,7 +863,7 @@ mod test {
         );
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let basis = Basis::IDENTITY;

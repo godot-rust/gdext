@@ -153,7 +153,7 @@ impl<T: ToGodot> ErrorToGodot<T> for Unexpected {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::*;
     use crate::meta::error::func_bail;

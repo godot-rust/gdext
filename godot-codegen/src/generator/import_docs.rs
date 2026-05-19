@@ -900,7 +900,7 @@ fn get_class_rust_path(godot_class_name: &str, ctx: &Context) -> CowStr {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Unit tests
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 #[allow(non_snake_case)]
 mod tests {
     use std::cell::OnceCell;
@@ -1002,7 +1002,7 @@ mod tests {
 
     // Deleted/disabled classes (e.g. Android-only) become a backtick code span, not a broken link.
     #[test]
-    #[cfg(not(target_os = "android"))]
+    #[cfg(not(target_os = "android"))] #[cfg_attr(published_docs, doc(cfg(not(target_os = "android"))))]
     fn type__deleted_class_backtick() {
         let description = "See [JavaClass].";
 
