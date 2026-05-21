@@ -204,7 +204,7 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
             rust-extra-env: GDRUST_MAIN_EXTENSION=IntegrationTests
-            hot-reload: stable
+            hot-reload: stable signal-test
 
           - name: linux-custom-api-json
             os: ubuntu-24.04

@@ -40,6 +40,8 @@ func _ready() -> void:
 
 	if ClassDB.class_exists("Signaller"):
 		self.signal_obj = ClassDB.instantiate("Signaller")
+		self.signal_obj.connect_custom_callables()
+		self.signal_obj.connect_bound_engine_method()
 		self.signal_obj.reloadable_signal.emit(42)
 		print("[GD Editor] Sanity check: Signaller emitted signal and holds ", self.signal_obj.value)
 	else:
@@ -86,6 +88,12 @@ func _process(delta: float) -> void:
 		self.signal_obj.reloadable_signal.emit(12)
 		# We did not crash thus all works well :).
 		print("[GD Editor] Signal has been properly hot reloaded!")
+
+		# The bound engine-method connection is safe across reload, and the registry only auto-disconnects callables created by this extension
+		# (see `Callable::is_rust_callable()`). A bound engine method is not one (even if it binds a Rust callable), so the connection survives.
+		if self.signal_obj.get_signal_connection_list("script_changed").is_empty():
+			fail("Connection to bind()-Callable dropped on reload")
+			return
 
 		self.signal_obj.free()
 
