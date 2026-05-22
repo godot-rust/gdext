@@ -61,7 +61,11 @@ pub fn is_hot_reload_enabled() -> bool {
     // destructors exist for good reasons.
     // This is needed for situations like unit-tests, where we may create TLS-destructors without explicitly calling any of the methods
     // that set hot reloading to be enabled or disabled.
-    *HOT_RELOADING_ENABLED.get_or_init(|| false)
+    //
+    // Do *not* eagerly initialize here. Our `__cxa_thread_atexit_impl` replaces the one from glibc, so any thread can call `thread_atexit`
+    // (and thus this function) before `__gdext_load_library` runs. If we stored `false` on that first read, the later `enable_hot_reload()`
+    // would try to set the value a second time and panic. See https://github.com/godot-rust/gdext/issues/1209.
+    HOT_RELOADING_ENABLED.get().copied().unwrap_or(false)
 }
 
 /// Turns glibc's TLS destructor register function, `__cxa_thread_atexit_impl`,
@@ -98,4 +102,24 @@ fn enable_hot_reload() {
 fn disable_hot_reload() {
     // If hot reloading is disabled then we may call this method multiple times.
     _ = HOT_RELOADING_ENABLED.set(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // An early read (before init) must not store a default value, otherwise the later `enable_hot_reload()` panics.
+    // See https://github.com/godot-rust/gdext/issues/1209.
+    #[test]
+    fn early_read_does_not_block_enable() {
+        // Simulates `thread_atexit` firing before `__gdext_load_library` runs.
+        let early = is_hot_reload_enabled();
+        assert!(!early, "default must be false before any enable/disable");
+
+        // Mimics what `__gdext_load_library` does next.
+        default_set_hot_reload();
+
+        // `default_set_hot_reload()` enables only under `debug_assertions`; release-mode test runs disable instead.
+        assert_eq!(is_hot_reload_enabled(), cfg!(debug_assertions));
+    }
 }
