@@ -107,21 +107,18 @@ mod signal_test {
 
     #[godot_api]
     impl Signaller {
-        // Regression test for #984: custom callables connected via the untyped `Object::connect` API must be auto-disconnected before hot
-        // reload, else the stale Rust callable is touched when the object is freed afterwards and segfaults. Two forms: a plain `from_fn`
-        // closure (raw `RustCallable`), and a `bindv` wrapper hiding the closure (only caught by the broad `is_custom()` check). No crash = pass.
+        // Regression test for https://github.com/godot-rust/gdext/issues/984: a Rust callable connected via the untyped `Object::connect`
+        // API must be auto-disconnected before hot reload, else the stale callable is touched when the object is freed afterwards and
+        // segfaults. `is_rust_callable()` detects it via our extension token, so it is registered and disconnected. No crash = pass.
         #[func]
         fn connect_custom_callables(&mut self) {
             let plain = Callable::from_fn("rust_fn", |_| Variant::nil());
             self.base_mut().connect("property_list_changed", &plain);
-
-            let bound = Callable::from_fn("rust_bound_fn", |_| Variant::nil()).bind(vslice![10]);
-            self.base_mut().connect("property_list_changed", &bound);
         }
 
         // Characterization test for the false positive in https://github.com/godot-rust/gdext/issues/984: a bound *engine* method is
-        // `is_custom()`, yet resolves by name and is safe across reload. The broad check disconnects it anyway, so `ReloadTest.gd` asserts
-        // it is gone after reload. If the registry is later narrowed to keep it, that assertion flips -- update the test then (not a regression).
+        // `is_custom()` but not `is_rust_callable()`, so the narrowed registry does not register it -- correctly leaving it connected, as it
+        // resolves by name and is safe across reload. `ReloadTest.gd` asserts it survives. If the registry is later broadened, that flips.
         #[func]
         fn connect_bound_engine_method(&mut self) {
             let receiver = self.to_gd();

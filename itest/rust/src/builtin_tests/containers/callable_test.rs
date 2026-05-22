@@ -45,6 +45,40 @@ impl CallableTestObj {
 }
 
 #[itest]
+fn callable_is_rust_callable() {
+    let obj = CallableTestObj::new_gd();
+    let rust_fn = || Callable::from_fn("rust_fn", |_args: &[&Variant]| Variant::nil());
+
+    // (description, callable, expected is_custom, expected is_rust_callable).
+    let cases: [(&str, Callable, bool, bool); 6] = [
+        ("invalid", Callable::invalid(), false, false),
+        ("engine method", obj.callable("assign_int"), false, false),
+        ("from_fn", rust_fn(), true, true),
+        ("from_fn + bind", rust_fn().bind(vslice![1]), true, false),
+        ("from_fn + unbind", rust_fn().unbind(1), true, false),
+        (
+            "engine method + bind",
+            obj.callable("stringify_int").bind(vslice![1]),
+            true,
+            false,
+        ),
+    ];
+
+    for (desc, callable, expected_custom, expected_rust) in cases {
+        assert_eq!(
+            callable.is_custom(),
+            expected_custom,
+            "is_custom() mismatch for: {desc}"
+        );
+        assert_eq!(
+            callable.is_rust_callable(),
+            expected_rust,
+            "is_rust_callable() mismatch for: {desc}"
+        );
+    }
+}
+
+#[itest]
 fn callable_validity() {
     let obj = CallableTestObj::new_gd();
 
