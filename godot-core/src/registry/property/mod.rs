@@ -316,7 +316,7 @@ impl<T: GodotNullableType> BuiltinExport for Option<T> {}
 ///
 /// You are not supposed to use these functions directly. They are used by the `#[export]` macro to generate the correct export hint.
 ///
-/// Each function is named the same as the equivalent Godot annotation.  
+/// Each function is named the same as the equivalent Godot annotation.
 /// For instance, `@export_range` in Godot is `fn export_range` here.
 pub mod export_fns {
     use godot_ffi::VariantType;
@@ -408,6 +408,40 @@ pub mod export_fns {
         PropertyHintInfo {
             hint: PropertyHint::RANGE,
             hint_string: GString::from(&hint_string),
+        }
+    }
+
+    /// Equivalent to `@export_node_path` in Godot.
+    ///
+    /// Accepts a list of node class names to restrict which node types can be selected.
+    /// An empty slice means any node type is allowed.
+    pub fn export_node_path<T: Export>(node_paths: &[&str]) -> PropertyHintInfo {
+        let hint_string = node_paths.join(",");
+        match T::Via::godot_shape() {
+            GodotShape::Builtin {
+                variant_type: VariantType::NODE_PATH,
+                ..
+            } => PropertyHintInfo {
+                hint: PropertyHint::NODE_PATH_VALID_TYPES,
+                hint_string: GString::from(&hint_string),
+            },
+            #[cfg(since_api = "4.3")]
+            GodotShape::TypedArray {
+                element:
+                    GodotElementShape::Builtin {
+                        variant_type: VariantType::NODE_PATH,
+                    },
+            } => PropertyHintInfo {
+                hint: PropertyHint::TYPE_STRING,
+                hint_string: GString::from(&crate::meta::shape::format_elements_typed(
+                    VariantType::NODE_PATH,
+                    PropertyHint::NODE_PATH_VALID_TYPES,
+                    &hint_string,
+                )),
+            },
+            other => panic!(
+                "#[export(node_path)] only supports NodePath or Array<NodePath> field types, found: {other:?}"
+            ),
         }
     }
 
