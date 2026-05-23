@@ -25,6 +25,8 @@ pub use reexport_pub::*;
 // Public functions
 
 /// Returns whether the engine is running inside the Godot editor.
+///
+/// This is different from whether the Godot binary is an _editor_ build (as opposed to an export/release build).
 pub fn is_editor_hint() -> bool {
     sys::is_editor()
 }
@@ -288,14 +290,21 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
                 )
             };
 
+            // Engine/OS classes are available at Core level on Godot 4.4+, so cache the editor states here.
             #[cfg(since_api = "4.4")]
-            sys::set_editor_hint(classes::Engine::singleton().is_editor_hint());
+            {
+                sys::set_editor_hint(classes::Engine::singleton().is_editor_hint());
+                sys::set_editor_binary(classes::Os::singleton().has_feature("editor"));
+            }
         }
         InitLevel::Servers => {}
         InitLevel::Scene => {
-            // On Godot < 4.4, Engine::singleton() is not available before Scene level, so populate here.
+            // On Godot < 4.4, the Engine/OS method tables are not available before Scene level, so populate here.
             #[cfg(before_api = "4.4")]
-            sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
+            {
+                sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
+                sys::set_editor_binary(crate::classes::Os::singleton().has_feature("editor"));
+            }
 
             // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
             unsafe { ensure_godot_features_compatible() };

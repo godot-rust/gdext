@@ -182,7 +182,8 @@
 //!   Generates documentation for your structs from your Rust documentation.
 //!   Documentation is visible in Godot via `F1` -> searching for that class.
 //!   This feature requires at least Godot 4.3.
-//!   See also: [`#[derive(GodotClass)]`](register/derive.GodotClass.html#documentation)
+//!
+//!   See also [`#[derive(GodotClass)]`](register/derive.GodotClass.html#documentation), especially the Security note.<br><br>
 //!
 //! _Safeguards:_
 //!
