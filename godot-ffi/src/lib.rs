@@ -132,6 +132,11 @@ static STARTUP_MESSAGES: Global<Vec<StartupMessage>> = Global::default();
 static STARTUP_MESSAGES_FLUSHED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
+/// Tracks message keys already emitted via the `once` flag of `defer_startup_warn!`/`defer_startup_error!`.
+/// Ensures each message is only shown once even if the code path fires multiple times. Keys are prefixed
+/// per source (`w:` warn, `e:` error explicit id, `e@` error implicit call site) to avoid collisions.
+static ONCE_EMITTED_MESSAGES: Global<std::collections::HashSet<&'static str>> = Global::default();
+
 /// A message to be displayed in the Godot editor once UI is ready.
 struct StartupMessage {
     message: std::ffi::CString,
@@ -339,6 +344,7 @@ pub fn collect_startup_message(
     file: &str,
     line: u32,
     module_path: &str,
+    once_id: Option<&'static str>,
 ) {
     // Check if this warning should be suppressed (only warnings can be suppressed, not errors).
     if let StartupMessageLevel::Warn { id } = &level {
@@ -349,6 +355,13 @@ pub fn collect_startup_message(
                 "{message}\n(Suppress this warning with env-var `GDRUST_SUPPRESSED_WARNINGS={id},...`)",
             );
         }
+    }
+
+    // Once-check (after suppression check).
+    if let Some(id) = once_id
+        && !ONCE_EMITTED_MESSAGES.lock().insert(id)
+    {
+        return;
     }
 
     let msg = StartupMessage {
@@ -759,12 +772,24 @@ macro_rules! interface_fn {
 /// ```no_run
 /// use godot_ffi::defer_startup_warn;
 /// # fn example() {
-/// // Warning with ID (can be suppressed via GDRUST_SUPPRESSED_WARNINGS env var).
 /// defer_startup_warn!(id: "FeatureDeprecated", "Feature X is deprecated");
+/// // One-time warning only:
+/// defer_startup_warn!(once; id: "BadCond", "A runtime condition is bad");
 /// # }
 /// ```
 #[macro_export]
 macro_rules! defer_startup_warn {
+    (once; id: $id:literal, $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
+        let message = format!($fmt $(, $args)*);
+        $crate::collect_startup_message(
+            message,
+            $crate::StartupMessageLevel::Warn { id: $id },
+            file!(),
+            line!(),
+            module_path!(),
+            Some(concat!("w:", $id)),
+        );
+    }};
     (id: $id:literal, $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
         let message = format!($fmt $(, $args)*);
         $crate::collect_startup_message(
@@ -773,6 +798,7 @@ macro_rules! defer_startup_warn {
             file!(),
             line!(),
             module_path!(),
+            None,
         );
     }};
 }
@@ -788,10 +814,36 @@ macro_rules! defer_startup_warn {
 /// # fn example() {
 /// # let reason = "some reason";
 /// defer_startup_error!("Failed to initialize: {reason}");
+/// // One-time error, deduplicated by call site:
+/// defer_startup_error!(once; "A runtime condition is bad");
+/// // One-time error, deduplicated by explicit ID (shared across call sites):
+/// defer_startup_error!(once; id: "InitFail", "Failed to initialize: {reason}");
 /// # }
 /// ```
 #[macro_export]
 macro_rules! defer_startup_error {
+    (once; id: $id:literal, $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
+        let message = format!($fmt $(, $args)*);
+        $crate::collect_startup_message(
+            message,
+            $crate::StartupMessageLevel::Error,
+            file!(),
+            line!(),
+            module_path!(),
+            Some(concat!("e:", $id)),
+        );
+    }};
+    (once; $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
+        let message = format!($fmt $(, $args)*);
+        $crate::collect_startup_message(
+            message,
+            $crate::StartupMessageLevel::Error,
+            file!(),
+            line!(),
+            module_path!(),
+            Some(concat!("e@", file!(), ":", line!())),
+        );
+    }};
     ($fmt:literal $(, $args:expr_2021)* $(,)?) => {{
         let message = format!($fmt $(, $args)*);
         $crate::collect_startup_message(
@@ -800,6 +852,7 @@ macro_rules! defer_startup_error {
             file!(),
             line!(),
             module_path!(),
+            None,
         );
     }};
 }
