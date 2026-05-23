@@ -283,9 +283,17 @@ impl<R: InParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
 
         let mut data_lock = self.data.lock().unwrap();
 
-        data_lock.state = SignalFutureState::Dropped;
+        let prev_state = std::mem::replace(&mut data_lock.state, SignalFutureState::Dropped);
 
         drop(data_lock);
+
+        // Only the still-`Pending` future has a live connection that needs cleanup. Once the signal has fired (`Ready`) or the resolver was
+        // already dropped (`Dead`), the `ONE_SHOT` connection is gone, so there is nothing to disconnect. Skipping the object access in that
+        // case is also crucial for correctness: the signal's object may be freed concurrently (e.g. emitted from another thread that then
+        // drops the last reference), and touching it here -- inside `Drop` -- would panic and escalate to a fatal non-unwinding abort.
+        if !matches!(prev_state, SignalFutureState::Pending) {
+            return;
+        }
 
         // We create a new Godot Callable from our RustCallable so we get independent reference counting.
         let gd_callable = Callable::from_custom(self.callable.clone());
