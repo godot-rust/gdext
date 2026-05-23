@@ -629,37 +629,50 @@ pub fn is_main_thread() -> bool {
 }
 
 atomic_enum! {
-    /// Cached editor state, populated during library initialization.
+    /// Tri-state boolean for flags that are cached during library initialization and thus may not be known yet.
     ///
-    /// - `Unknown`: not yet initialized.
-    /// - `Runtime`: running outside the editor.
-    /// - `Editor`: running inside the editor.
+    /// `Unknown` distinguishes "not yet populated" from a known `False`/`True`. Used to back the editor-hint and editor-binary
+    /// flags below; the semantics of `True`/`False` depend on the respective getter.
     #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-    pub enum EditorState {
-        /// Not yet initialized; populated at `InitLevel::Core` (Godot 4.4+) or `InitLevel::Scene` (Godot < 4.4).
+    pub enum TriBool {
+        /// Not yet populated -- the default.
         Unknown = 0,
-        /// Running outside the Godot editor.
-        Runtime = 1,
-        /// Running inside the Godot editor.
-        Editor = 2,
+        False = 1,
+        True = 2,
     }
 }
 
-static EDITOR_STATE: AtomicEnum<EditorState> = AtomicEnum::default();
+impl TriBool {
+    fn from_bool(value: bool) -> Self {
+        if value { TriBool::True } else { TriBool::False }
+    }
+
+    fn to_option(self) -> Option<bool> {
+        match self {
+            TriBool::Unknown => None,
+            TriBool::False => Some(false),
+            TriBool::True => Some(true),
+        }
+    }
+}
+
+// Reflects `Engine::is_editor_hint()`: `True` only while the editor UI is shown, `False` in play-mode (even when launched from the editor).
+// See `is_editor_hint()`. Populated at `InitLevel::Core` (Godot 4.4+) or `InitLevel::Scene` (Godot < 4.4, Engine singleton not available earlier).
+static IS_EDITOR_HINT: AtomicEnum<TriBool> = AtomicEnum::default();
+
+// Reflects `OS::has_feature("editor")`: `True` for editor builds (including play-mode launched from the editor), `False` for export templates.
+// See `is_editor_binary()`. Populated at `InitLevel::Core` (Godot 4.4+) or `InitLevel::Scene` (Godot < 4.4, OS method table not available earlier).
+static IS_EDITOR_BINARY: AtomicEnum<TriBool> = AtomicEnum::default();
 
 /// Caches the current value of `Engine::is_editor_hint`, populated during library initialization.
 ///
 /// - Godot 4.4+: called at `InitLevel::Core`.
 /// - Godot < 4.4: called at `InitLevel::Scene` (Engine singleton not available earlier).
-pub fn set_editor_hint(is_editor: bool) {
-    EDITOR_STATE.store(if is_editor {
-        EditorState::Editor
-    } else {
-        EditorState::Runtime
-    });
+pub fn set_editor_hint(is_editor_hint: bool) {
+    IS_EDITOR_HINT.store(TriBool::from_bool(is_editor_hint));
 }
 
-/// Returns the cached editor state, or `None` if not yet initialized.
+/// Returns the cached editor-hint state, or `None` if not yet initialized.
 ///
 /// Returns `None` if called before the level at which the state is populated:
 /// - Godot 4.4+: `None` before `InitLevel::Core`.
@@ -667,20 +680,38 @@ pub fn set_editor_hint(is_editor: bool) {
 ///
 /// See also [`is_editor`] for the panicking variant.
 pub fn is_editor_or_unknown() -> Option<bool> {
-    match EDITOR_STATE.load() {
-        EditorState::Unknown => None,
-        EditorState::Runtime => Some(false),
-        EditorState::Editor => Some(true),
-    }
+    IS_EDITOR_HINT.load().to_option()
 }
 
-/// Returns whether the engine is running inside the Godot editor.
+/// Returns whether the editor UI is currently shown, mirroring `Engine::is_editor_hint()`.
 ///
-/// Panics if called before the editor state has been populated (see [`is_editor_or_unknown`]).
-/// Use [`is_editor_or_unknown`] at call sites that may be reached before initialization is complete.
+/// This is `false` in play-mode, even when launched from the editor; use [`is_editor_binary`] to detect exported builds instead.
+///
+/// # Panics
+/// If called before the state has been populated. Use [`is_editor_or_unknown`] at call sites that may be reached before initialization
+/// is complete.
+// Rename to is_editor_hint() or something else to differentiate from is_editor_binary?
 pub fn is_editor() -> bool {
     is_editor_or_unknown()
-        .expect("editor state not yet known; called before InitLevel::Core (4.4+) or InitLevel::Scene (<4.4)")
+        .expect("editor-hint state not yet known; called before InitLevel::Core (4.4+) or InitLevel::Scene (<4.4)")
+}
+
+/// Caches whether the running binary is an editor build, populated during library initialization.
+pub fn set_editor_binary(is_editor_binary: bool) {
+    IS_EDITOR_BINARY.store(TriBool::from_bool(is_editor_binary));
+}
+
+/// Returns whether the running binary is an editor build (as opposed to an exported game), mirroring `OS::has_feature("editor")`.
+///
+/// Unlike [`is_editor`], this stays `true` during play-mode launched from the editor; it is only `false` for export templates.
+///
+/// # Panics
+/// If called before the state is populated (`InitLevel::Core` on Godot 4.4+, `InitLevel::Scene` on Godot < 4.4).
+pub fn is_editor_binary() -> bool {
+    IS_EDITOR_BINARY
+        .load()
+        .to_option()
+        .expect("editor-binary state not yet known; called before InitLevel::Core (4.4+) or InitLevel::Scene (<4.4)")
 }
 
 /// Assign the current thread id to be the main thread.

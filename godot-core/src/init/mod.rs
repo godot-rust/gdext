@@ -25,6 +25,8 @@ pub use reexport_pub::*;
 // Public functions
 
 /// Returns whether the engine is running inside the Godot editor.
+///
+/// This is different from whether the Godot binary is an _editor_ build (as opposed to an export/release build).
 pub fn is_editor_hint() -> bool {
     sys::is_editor()
 }
@@ -288,17 +290,27 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
                 )
             };
 
+            // Engine/OS classes are available at Core level on Godot 4.4+, so cache the editor states here.
             #[cfg(since_api = "4.4")]
-            sys::set_editor_hint(classes::Engine::singleton().is_editor_hint());
+            {
+                sys::set_editor_hint(classes::Engine::singleton().is_editor_hint());
+                sys::set_editor_binary(classes::Os::singleton().has_feature("editor"));
+            }
         }
         InitLevel::Servers => {}
         InitLevel::Scene => {
-            // On Godot < 4.4, Engine::singleton() is not available before Scene level, so populate here.
+            // On Godot < 4.4, the Engine/OS method tables are not available before Scene level, so populate here.
             #[cfg(before_api = "4.4")]
-            sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
+            {
+                sys::set_editor_hint(crate::classes::Engine::singleton().is_editor_hint());
+                sys::set_editor_binary(crate::classes::Os::singleton().has_feature("editor"));
+            }
 
             // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
             unsafe { ensure_godot_features_compatible() };
+
+            #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+            warn_docs_in_exported_build();
         }
         InitLevel::Editor => {
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
@@ -640,4 +652,23 @@ unsafe fn ensure_godot_features_compatible() {
             s(gdext_is_double),
         );
     }
+}
+
+/// Warn once if the `register-docs` feature is compiled into an exported build (export template, not editor).
+#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+fn warn_docs_in_exported_build() {
+    // `is_editor_binary()` is populated by the Core level, so it is safe to read here. Unlike `is_editor()`, it stays true
+    // during play-mode from the editor, so the warning fires only for actual export templates.
+    if sys::is_editor_binary() {
+        return;
+    }
+
+    sys::defer_startup_warn!(
+        once;
+        id: "RegisterDocsInExport",
+        "Feature `register-docs` is enabled in an exported (non-editor) build.\n\
+        Doing so embeds plaintext documentation of your Rust #[class], #[func] etc. into the binary.\n\
+        This has no runtime benefit, but can bloat binary size and make reverse-engineering easier.\n\
+        Consider disabling `register-docs` for exported builds."
+    );
 }

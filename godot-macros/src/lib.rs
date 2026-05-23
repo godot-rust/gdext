@@ -725,6 +725,12 @@ use crate::util::{KvParser, bail, ident};
 ///     }
 /// }
 /// ```
+///
+/// ## Security note
+/// The registered docs are embedded as plaintext into the compiled binary for all profiles including `--release`, and cannot be stripped
+/// automatically for exported games (editor vs. export is a runtime distinction). Disable the `register-docs` feature for builds where leaking
+/// class/field/method/... descriptions is a concern. Keep in mind that even then, the symbol _names_ and any GDScript logic will
+/// still be available in the binary.
 #[doc(
     alias = "class",
     alias = "base",
