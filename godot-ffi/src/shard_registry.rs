@@ -5,17 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Distributed self-registration of "plugins" without central list
+//! Distributed self-registration of "shards" without central list.
 
-// Note: code in this file is safe, however it seems that some annotations fall into the "unsafe" category.
-// For example, adding #![forbid(unsafe_code)] causes this error:
-//   note: the program's behavior with overridden link sections on items is unpredictable
-//   and Rust cannot provide guarantees when you manually override them
-
-/// Declare a global registry for plugins with a given name
+/// Declare a global registry for shards with a given name
 #[doc(hidden)]
 #[macro_export]
-macro_rules! plugin_registry {
+macro_rules! shard_registry {
     ($vis:vis $registry:ident: $Type:ty) => {
         #[used]
         #[allow(non_upper_case_globals)]
@@ -28,7 +23,7 @@ macro_rules! plugin_registry {
 /// Executes a block of code before main, by utilising platform specific linker instructions.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! plugin_execute_pre_main {
+macro_rules! shard_execute_pre_main {
     ($body:expr_2021) => {
         const _: () = {
             #[allow(non_upper_case_globals)]
@@ -62,20 +57,20 @@ macro_rules! plugin_execute_pre_main {
     };
 }
 
-/// Register a plugin to a registry.
+/// Register a shard to a registry.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! plugin_add {
-    ( $registry:path; $plugin:expr_2021 ) => {
-        $crate::plugin_execute_pre_main!({
-            $registry.lock().unwrap().push($plugin);
+macro_rules! shard_add {
+    ( $registry:path; $shard:expr_2021 ) => {
+        $crate::shard_execute_pre_main!({
+            $registry.lock().unwrap().push($shard);
         });
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! plugin_foreach_inner {
+macro_rules! shard_foreach_inner {
     ( $registry:ident; $closure:expr_2021; $( $path_tt:tt )* ) => {
         let guard = $( $path_tt )* $registry
             .lock()
@@ -88,16 +83,16 @@ macro_rules! plugin_foreach_inner {
     };
 }
 
-/// Iterate over all plugins in unspecified order.
+/// Iterate over all shards in unspecified order.
 #[doc(hidden)]
 #[macro_export]
-macro_rules! plugin_foreach {
+macro_rules! shard_foreach {
     ( $registry:ident; $closure:expr_2021 ) => {
-		$crate::plugin_foreach_inner!($registry; $closure; );
+		$crate::shard_foreach_inner!($registry; $closure; );
 	};
 
     ( $registry:ident in $path:path; $closure:expr_2021 ) => {
-		$crate::plugin_foreach_inner!($registry; $closure; $path ::);
+		$crate::shard_foreach_inner!($registry; $closure; $path ::);
 	};
 }
 
@@ -106,24 +101,19 @@ macro_rules! plugin_foreach {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    plugin_registry!(V: &'static str);
+    shard_registry!(V: &'static str);
 
-    plugin_add!(V; "three");
-    plugin_add!(V; "four");
-    plugin_add!(V; "one");
-    plugin_add!(V; "two");
+    shard_add!(V; "three");
+    shard_add!(V; "four");
+    shard_add!(V; "one");
+    shard_add!(V; "two");
 
-    // TODO(v0.6): unignore this test once plugins are added for Wasm
     #[test]
-    #[cfg_attr(
-        target_family = "wasm",
-        ignore = "Requires a plugin implementation for Wasm"
-    )]
-    fn plugin_registry() {
+    fn shard_registry() {
         let expected = HashSet::from(["one", "two", "three", "four"]);
         let mut actual = HashSet::new();
 
-        plugin_foreach!(V; |e: &'static str| {
+        shard_foreach!(V; |e: &'static str| {
             actual.insert(e);
         });
 

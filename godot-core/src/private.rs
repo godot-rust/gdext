@@ -23,7 +23,7 @@ use crate::{classes, sys};
 mod reexport_pub {
     pub use crate::arg_into_owned;
     #[cfg(all(since_api = "4.3", feature = "register-docs"))]
-    pub use crate::docs::{DocsItem, DocsPlugin, InherentImplDocs, StructDocs};
+    pub use crate::docs::{DocsItem, DocsShard, InherentImplDocs, StructDocs};
     pub use crate::r#gen::classes::class_macros;
     pub use crate::r#gen::virtuals; // virtual fn names, hashes, signatures
     pub use crate::meta::private_reexport::*;
@@ -31,9 +31,9 @@ mod reexport_pub {
     pub use crate::meta::{CowArg, FfiArg, trace};
     pub use crate::obj::rtti::ObjectRtti;
     pub use crate::registry::callbacks;
-    pub use crate::registry::plugin::{
-        ClassPlugin, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
-        PluginItem, Struct,
+    pub use crate::registry::shard::{
+        ClassShard, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
+        ShardItem, Struct,
     };
     pub use crate::signal::priv_re_export::*;
     pub use crate::storage::{
@@ -61,9 +61,9 @@ sys::atomic_enum! {
 
 static ERROR_PRINT_LEVEL: sys::AtomicEnum<ErrorPrintLevel> = sys::AtomicEnum::default();
 
-sys::plugin_registry!(pub __GODOT_PLUGIN_REGISTRY: ClassPlugin);
+sys::shard_registry!(pub __GODOT_SHARD_REGISTRY: ClassShard);
 #[cfg(all(since_api = "4.3", feature = "register-docs"))]
-sys::plugin_registry!(pub __GODOT_DOCS_REGISTRY: DocsPlugin);
+sys::shard_registry!(pub __GODOT_DOCS_REGISTRY: DocsShard);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Call error handling
@@ -119,30 +119,30 @@ impl Drop for OutCallGuard {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Plugin and global state handling
+// Shard and global state handling
 
 pub fn next_class_id() -> u16 {
     static NEXT_CLASS_ID: atomic::AtomicU16 = atomic::AtomicU16::new(0);
     NEXT_CLASS_ID.fetch_add(1, atomic::Ordering::Relaxed)
 }
 
-pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
-    sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
+pub(crate) fn iterate_shards(mut visitor: impl FnMut(&ClassShard)) {
+    sys::shard_foreach!(__GODOT_SHARD_REGISTRY; visitor);
 }
 
 #[cfg(all(since_api = "4.3", feature = "register-docs"))]
-pub(crate) fn iterate_docs_plugins(mut visitor: impl FnMut(&DocsPlugin)) {
-    sys::plugin_foreach!(__GODOT_DOCS_REGISTRY; visitor);
+pub(crate) fn iterate_docs_shards(mut visitor: impl FnMut(&DocsShard)) {
+    sys::shard_foreach!(__GODOT_DOCS_REGISTRY; visitor);
 }
 
 #[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
 pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassId) -> Option<InherentImpl> {
-    // We do this manually instead of using `iterate_plugins()` because we want to break as soon as we find a match.
-    let plugins = __GODOT_PLUGIN_REGISTRY.lock().unwrap();
+    // We do this manually instead of using `iterate_shards()` because we want to break as soon as we find a match.
+    let shards = __GODOT_SHARD_REGISTRY.lock().unwrap();
 
-    plugins.iter().find_map(|elem| {
+    shards.iter().find_map(|elem| {
         if elem.class_name == class_name
-            && let PluginItem::InherentImpl(inherent_impl) = &elem.item
+            && let ShardItem::InherentImpl(inherent_impl) = &elem.item
         {
             return Some(inherent_impl.clone());
         }

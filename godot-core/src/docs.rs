@@ -10,11 +10,11 @@ use std::collections::HashMap;
 use crate::meta::ClassId;
 use crate::obj::GodotClass;
 
-/// Piece of information that is gathered by the self-registration ("plugin") system.
+/// Piece of information that is gathered by the self-registration ("shard") system.
 ///
-/// You should not manually construct this struct, but rather use [`DocsPlugin::new()`].
+/// You should not manually construct this struct, but rather use [`DocsShard::new()`].
 #[derive(Debug)]
-pub struct DocsPlugin {
+pub struct DocsShard {
     /// The name of the class to register docs for.
     class_name: ClassId,
 
@@ -22,8 +22,8 @@ pub struct DocsPlugin {
     item: DocsItem,
 }
 
-impl DocsPlugin {
-    /// Creates a new `DocsPlugin`, automatically setting the `class_name` to the values defined in [`GodotClass`].
+impl DocsShard {
+    /// Creates a new `DocsShard`, automatically setting the `class_name` to the values defined in [`GodotClass`].
     pub fn new<T: GodotClass>(item: DocsItem) -> Self {
         Self {
             class_name: T::class_id(),
@@ -98,7 +98,7 @@ struct AggregatedDocs {
     constants_xmls: Vec<&'static str>,
 }
 
-/// This function scours the registered plugins to find their documentation pieces,
+/// This function scours the registered shards to find their documentation pieces,
 /// and strings them together.
 ///
 /// Returns an iterator over XML documents.
@@ -115,7 +115,7 @@ struct AggregatedDocs {
 pub fn gather_xml_docs() -> impl Iterator<Item = String> {
     let mut map = HashMap::<ClassId, AggregatedDocs>::new();
 
-    crate::private::iterate_docs_plugins(|shard| {
+    crate::private::iterate_docs_shards(|shard| {
         let class_name = shard.class_name;
         match &shard.item {
             DocsItem::Struct(struct_docs) => {

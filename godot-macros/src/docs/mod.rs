@@ -28,7 +28,7 @@ mod docs_generators {
     ) -> TokenStream {
         let struct_docs = extract_docs::document_struct(base, description, fields);
         quote! {
-            ::godot::sys::plugin_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsPlugin::new::<#class_name>(
+            ::godot::sys::shard_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsShard::new::<#class_name>(
                 #prv::DocsItem::Struct(
                     #struct_docs
                 )
@@ -50,7 +50,7 @@ mod docs_generators {
         } = extract_docs::document_inherent_impl(functions, constants, signals);
 
         quote! {
-            ::godot::sys::plugin_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsPlugin::new::<#class_name>(
+            ::godot::sys::shard_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsShard::new::<#class_name>(
                 #prv::DocsItem::InherentImpl(#prv::InherentImplDocs {
                     methods_xml: #method_xml_elems,
                     signals_xml: #signal_xml_elems,
@@ -68,7 +68,7 @@ mod docs_generators {
         let virtual_methods = extract_docs::document_interface_trait_impl(impl_members);
 
         quote! {
-            ::godot::sys::plugin_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsPlugin::new::<#class_name>(
+            ::godot::sys::shard_add!(#prv::__GODOT_DOCS_REGISTRY; #prv::DocsShard::new::<#class_name>(
                 #prv::DocsItem::ITraitImpl(#virtual_methods)
             ));
         }

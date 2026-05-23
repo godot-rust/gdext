@@ -147,7 +147,7 @@ pub fn transform_inherent_impl(
 
     let fill_storage = {
         quote! {
-            ::godot::sys::plugin_execute_pre_main!({
+            ::godot::sys::shard_execute_pre_main!({
                 let mut guard = #class_name::__registration_storage().lock().unwrap();
 
                 guard.0.push(|| {
@@ -200,8 +200,8 @@ pub fn transform_inherent_impl(
         };
 
         let class_registration = quote! {
-            ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
-                #prv::PluginItem::InherentImpl(#prv::InherentImpl::new::<#class_name>())
+            ::godot::sys::shard_add!(#prv::__GODOT_SHARD_REGISTRY; #prv::ClassShard::new::<#class_name>(
+                #prv::ShardItem::InherentImpl(#prv::InherentImpl::new::<#class_name>())
             ));
         };
 

@@ -18,37 +18,37 @@ use crate::registry::callbacks;
 use crate::registry::class::GodotGetVirtual;
 use crate::{classes, sys};
 
-// TODO(bromeon): some information coming from the proc-macro API is deferred through PluginItem, while others is directly
-// translated to code. Consider moving more code to the PluginItem, which allows for more dynamic registration and will
+// TODO(bromeon): some information coming from the proc-macro API is deferred through ShardItem, while others is directly
+// translated to code. Consider moving more code to the ShardItem, which allows for more dynamic registration and will
 // be easier for a future builder API.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Piece of information that is gathered by the self-registration ("plugin") system.
+/// Piece of information that is gathered by the self-registration ("shard") system.
 ///
-/// You should not manually construct this struct, but rather use [`ClassPlugin::new()`].
+/// You should not manually construct this struct, but rather use [`ClassShard::new()`].
 #[derive(Debug)]
-pub struct ClassPlugin {
-    /// The name of the class to register plugins for.
+pub struct ClassShard {
+    /// The name of the class to register shards for.
     ///
-    /// This is used to group plugins so that all class properties for a single class can be registered at the same time.
+    /// This is used to group shards so that all class properties for a single class can be registered at the same time.
     /// Incorrectly setting this value should not cause any UB but will likely cause errors during registration time.
     pub(crate) class_name: ClassId,
 
-    /// Which [`InitLevel`] this plugin should be registered at.
+    /// Which [`InitLevel`] this shard should be registered at.
     ///
     /// Incorrectly setting this value should not cause any UB but will likely cause errors during registration time.
-    // Init-level is per ClassPlugin and not per PluginItem, because all components of all classes are mixed together in one
+    // Init-level is per ClassShard and not per ShardItem, because all components of all classes are mixed together in one
     // huge linker list. There is no per-class aggregation going on, so this allows to easily filter relevant classes.
     pub(crate) init_level: InitLevel,
 
     /// The actual item being registered.
-    pub(crate) item: PluginItem,
+    pub(crate) item: ShardItem,
 }
 
-impl ClassPlugin {
-    /// Creates a new `ClassPlugin`, automatically setting the `class_name` and `init_level` to the values defined in [`GodotClass`].
-    pub fn new<T: GodotClass>(item: PluginItem) -> Self {
+impl ClassShard {
+    /// Creates a new `ClassShard`, automatically setting the `class_name` and `init_level` to the values defined in [`GodotClass`].
+    pub fn new<T: GodotClass>(item: ShardItem) -> Self {
         Self {
             class_name: T::class_id(),
             init_level: T::INIT_LEVEL,
@@ -112,14 +112,14 @@ type GodotCreateFn = unsafe extern "C" fn(
 ) -> sys::GDExtensionObjectPtr;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Plugin items
+// Shard items
 
-/// Represents the data part of a [`ClassPlugin`] instance.
+/// Represents the data part of a [`ClassShard`] instance.
 ///
 /// Each enumerator represents a different item in Rust code, which is processed by an independent proc macro (for example,
 /// `#[derive(GodotClass)]` on structs, or `#[godot_api]` on impl blocks).
 #[derive(Clone, Debug)]
-pub enum PluginItem {
+pub enum ShardItem {
     /// Class definition itself, must always be available -- created by `#[derive(GodotClass)]`.
     Struct(Struct),
 
@@ -544,7 +544,7 @@ pub struct DynTraitImpl {
     ///
     /// Godot doesn't guarantee availability of all the GDExtension classes through the ClassDb while generating `PropertyHintInfo` for our exports.
     /// Therefore, we rely on the built-in inherited base class in such cases.
-    /// Only [`class_name`][DynTraitImpl::class_name] is available at the time of adding given `DynTraitImpl` to plugin registry with `#[godot_dyn]`;
+    /// Only [`class_name`][DynTraitImpl::class_name] is available at the time of adding given `DynTraitImpl` to shard registry with `#[godot_dyn]`;
     /// It is important to fill this information before registration.
     ///
     /// See also [`get_dyn_implementor_class_ids`][crate::registry::class::get_dyn_implementor_class_ids].

@@ -21,12 +21,12 @@ pub use godot::test::{bench, itest};
 pub use runner::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Plugin registration
+// Shard registration
 
 // Registers all the `#[itest]` tests and `#[bench]` benchmarks.
-sys::plugin_registry!(pub(crate) __GODOT_ITEST: RustTestCase);
-sys::plugin_registry!(pub(crate) __GODOT_ASYNC_ITEST: AsyncRustTestCase);
-sys::plugin_registry!(pub(crate) __GODOT_BENCH: RustBenchmark);
+sys::shard_registry!(pub(crate) __GODOT_ITEST: RustTestCase);
+sys::shard_registry!(pub(crate) __GODOT_ASYNC_ITEST: AsyncRustTestCase);
+sys::shard_registry!(pub(crate) __GODOT_BENCH: RustBenchmark);
 
 /// Finds all `#[itest]` tests.
 fn collect_rust_tests(filters: &[String]) -> (Vec<RustTestCase>, HashSet<&str>, bool) {
@@ -35,7 +35,7 @@ fn collect_rust_tests(filters: &[String]) -> (Vec<RustTestCase>, HashSet<&str>, 
     let mut is_focused_run = false;
     let in_editor = Engine::singleton().is_editor_hint();
 
-    sys::plugin_foreach!(__GODOT_ITEST; |test: &RustTestCase| {
+    sys::shard_foreach!(__GODOT_ITEST; |test: &RustTestCase| {
         // Editor itests run only in editor; non-editor itests run only outside editor.
         if test.editor_only != in_editor {
             return;
@@ -71,7 +71,7 @@ fn collect_async_rust_tests(
     let mut is_focused_run = sync_focused_run;
     let in_editor = Engine::singleton().is_editor_hint();
 
-    sys::plugin_foreach!(__GODOT_ASYNC_ITEST; |test: &AsyncRustTestCase| {
+    sys::shard_foreach!(__GODOT_ASYNC_ITEST; |test: &AsyncRustTestCase| {
         // Editor itests run only in editor; non-editor itests run only outside editor.
         if test.editor_only != in_editor {
             return;
@@ -102,7 +102,7 @@ fn collect_rust_benchmarks() -> (Vec<RustBenchmark>, usize) {
     let mut all_files = HashSet::new();
     let mut benchmarks: Vec<RustBenchmark> = vec![];
 
-    sys::plugin_foreach!(__GODOT_BENCH; |bench: &RustBenchmark| {
+    sys::shard_foreach!(__GODOT_BENCH; |bench: &RustBenchmark| {
         benchmarks.push(*bench);
         all_files.insert(bench.file);
     });

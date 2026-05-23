@@ -211,8 +211,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #user_singleton_impl
 
         #struct_docs_registration
-        ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
-            #prv::PluginItem::Struct(
+        ::godot::sys::shard_add!(#prv::__GODOT_SHARD_REGISTRY; #prv::ClassShard::new::<#class_name>(
+            #prv::ShardItem::Struct(
                 #prv::Struct::new::<#class_name>()#(.#modifiers())*
             )
         ));
