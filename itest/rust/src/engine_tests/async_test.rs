@@ -193,6 +193,11 @@ fn signal_future_send_arg_no_panic() -> TaskHandle {
         assert_eq!(value, 1);
     });
 
+    // Important: this test deliberately frees the signal's object on another thread -- do NOT "fix" by keeping `object` alive here.
+    // `object` is the only strong ref to the `RefCounted`. Moved into the worker thread (below), which emits the signal then drops the `Gd`
+    // at its closure's end -- freeing the `RefCounted` off the main thread. So when the `SignalFuture` is dropped on the main thread, the
+    // object is already gone, exercising the drop-after-free path guarded in `FallibleSignalFuture::drop` (formerly aborted the process).
+    // Retaining a strong ref here would mask the bug. See https://github.com/godot-rust/gdext/pull/1617.
     let object = ThreadCrosser::new(object);
 
     std::thread::spawn(move || {
