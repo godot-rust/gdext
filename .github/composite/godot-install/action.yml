@@ -50,14 +50,20 @@ runs:
           url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-stable/master/$ARTIFACT_NAME.zip"
         fi
         
-        # `--retry-all-errors` needed, because default `--retry` only covers timeouts (error 28) and HTTP 5xx,
-        # but not recv failures (error 56) which can occur on flaky networks.
-        curl "$url" -Lo artifact.zip \
-          --retry 3 \
-          --retry-delay 3 \
-          --retry-all-errors \
-          --connect-timeout 10
-        unzip -q artifact.zip -d $RUNNER_DIR/godot_bin
+        # nightly.link occasionally returns an HTTP 200 with a small error/redirect page instead of the artifact, which curl
+        # treats as success but then fails to unzip. So we check unzip's exit code and re-download corrupt archives.
+        # `--retry-all-errors` covers transient curl failures (e.g. recv error 56), which default `--retry` (timeouts, HTTP 5xx) misses.
+        # `-o` overwrites without prompting, so a partial extract from a failed attempt can't hang the retry on a "replace?" prompt.
+        for delay in 3 7 15 ""; do
+          curl "$url" -Lo artifact.zip \
+            --retry 3 \
+            --retry-delay 3 \
+            --retry-all-errors \
+            --connect-timeout 10
+          unzip -oq artifact.zip -d $RUNNER_DIR/godot_bin && break
+          [[ -z "$delay" ]] && { echo "::error::Failed to download a valid Godot artifact."; exit 1; }
+          sleep "$delay"
+        done
       shell: bash
 
     - name: "Prepare Godot executable"
