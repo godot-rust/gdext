@@ -19,13 +19,12 @@ use crate::registry::property::Var;
 ///
 /// While deferred initialization is generally seen as bad practice, it is often inevitable in game development.
 /// Godot in particular encourages initialization inside `ready()`, e.g. to access the scene tree after a node is inserted into it.
-/// The alternative to using this pattern is [`Option<T>`][option], which needs to be explicitly unwrapped with `unwrap()` or `expect()` each time.
+/// The alternative to using this pattern is [`Option<T>`], which needs to be explicitly unwrapped with `unwrap()` or `expect()` each time.
 ///
 /// If you have a value that you expect to be initialized in the Godot editor, use [`OnEditor<T>`][crate::obj::OnEditor] instead.
 /// As a general "maybe initialized" type, `Option<Gd<T>>` is always available, even if more verbose.
 ///
 /// # Late-init semantics
-///
 /// `OnReady<T>` should always be used as a struct field. There are two modes to use it:
 ///
 /// 1. **Automatic mode, using [`new()`](OnReady::new), [`from_base_fn()`](OnReady::from_base_fn),
@@ -45,7 +44,19 @@ use crate::registry::property::Var;
 ///
 /// This type is not thread-safe. `ready()` runs on the main thread, and you are expected to access its value on the main thread, as well.
 ///
-/// [option]: std::option::Option
+/// # Editor reload
+/// For tool classes, the editor holds a live instance: a reload constructs a fresh one via `init()` but does **not** re-fire `_ready()`, so
+/// automatically-initialized `OnReady` fields end up uninitialized again, and accessing them panics.
+///
+/// To survive hot reload, re-initialize the field in response to the `EXTENSION_RELOADED` notification in
+/// [`INode::on_notification()`][crate::classes::INode::on_notification]. Alternatively, store the value in a `STORAGE`-flagged `#[var]` /
+/// `#[export]` field that the engine restores for you, but keep in mind that this serializes values to the `.tscn` scene files.
+/// See also [`#[derive(GodotClass)]` docs][derive] for the underlying reload model.
+///
+/// This only concerns `#[class(tool)]`. Non-tool classes are represented by engine-side placeholders in the editor, so no live Rust
+/// instance (and thus no `OnReady` field) exists there to be invalidated. At game runtime, hot reload does not occur.
+///
+/// [derive]: ../register/derive.GodotClass.html#editor-reload-and-instance-state
 /// [lazy]: https://docs.rs/once_cell/1/once_cell/unsync/struct.Lazy.html
 ///
 /// # Requirements
@@ -262,7 +273,11 @@ impl<T> std::ops::Deref for OnReady<T> {
                 panic!("OnReady manual value uninitialized, did you call init()?")
             }
             InitState::AutoPrepared { .. } => {
-                panic!("OnReady automatic value uninitialized, is only available in ready()")
+                panic!(
+                    "OnReady automatic value uninitialized; it is only available after ready(). \
+                     If this happens after an editor hot-reload: ready() is not re-fired on reload, see \
+                     https://godot-rust.github.io/docs/gdext/master/godot/register/derive.GodotClass.html#editor-reload-and-instance-state"
+                )
             }
             InitState::AutoInitializationFailed => {
                 panic!("OnReady automatic value initialization failed")
@@ -280,8 +295,15 @@ impl<T> std::ops::DerefMut for OnReady<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match &mut self.state {
             InitState::Initialized { value } => value,
-            InitState::ManualUninitialized | InitState::AutoPrepared { .. } => {
-                panic!("value not yet initialized")
+            InitState::ManualUninitialized => {
+                panic!("OnReady manual value uninitialized, did you call init()?")
+            }
+            InitState::AutoPrepared { .. } => {
+                panic!(
+                    "OnReady automatic value uninitialized; it is only available after ready(). \
+                     If this happens after an editor hot-reload: ready() is not re-fired on reload, see \
+                     https://godot-rust.github.io/docs/gdext/master/godot/register/derive.GodotClass.html#editor-reload-and-instance-state"
+                )
             }
             InitState::AutoInitializationFailed => {
                 panic!("OnReady automatic value initialization failed")
