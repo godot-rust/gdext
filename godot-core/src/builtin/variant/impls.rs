@@ -11,7 +11,7 @@ use sys::GodotFfi;
 use crate::builtin::*;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::sealed::Sealed;
-use crate::meta::{Element, GodotFfiVariant, GodotType, RefArg};
+use crate::meta::{Element, GodotFfiVariant, GodotType, RefArg, ThreadSafeArgContext};
 use crate::registry::info::ParamMetadata;
 use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_send};
 
@@ -57,9 +57,9 @@ macro_rules! impl_ffi_variant {
 
             fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
                 // Type check -- at the moment, a strict match is required.
-                if variant.get_type() != Self::VARIANT_TYPE.variant_as_nil() {
+                if variant.get_type() != <Self as godot_ffi::GodotFfi>::VARIANT_TYPE.variant_as_nil() {
                     return Err(FromVariantError::BadType {
-                        expected: Self::VARIANT_TYPE.variant_as_nil(),
+                        expected: <Self as godot_ffi::GodotFfi>::VARIANT_TYPE.variant_as_nil(),
                         actual: variant.get_type(),
                     }
                     .into_error(variant.clone()));
@@ -119,6 +119,9 @@ macro_rules! impl_ffi_variant {
 #[rustfmt::skip]
 #[allow(clippy::module_inception)]
 mod impls {
+    use crate::{impl_non_thread_safe_arg, impl_thread_safe_arg};
+    use crate::meta::PackedElement;
+
     use super::*;
 
     // IMPORTANT: the presence/absence of `ref` here should be aligned with the ArgPassing variant
@@ -145,10 +148,24 @@ mod impls {
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
     impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant);
     impl_ffi_variant!(ref GString, string_to_variant, string_from_variant);
+    impl_thread_safe_arg!(&GString);
     impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
+    impl_thread_safe_arg!(&StringName);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
+    impl_non_thread_safe_arg!(NodePath);
+    impl_non_thread_safe_arg!(&NodePath);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
+    impl_non_thread_safe_arg!(Signal, &Signal);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
+    impl_non_thread_safe_arg!(Callable, &Callable);
+    impl_non_thread_safe_arg!([K: Element, V: Element] Dictionary<K, V>);
+    impl_non_thread_safe_arg!([K: Element, V: Element] &Dictionary<K, V>);
+    impl_non_thread_safe_arg!(AnyDictionary, &AnyDictionary);
+    impl_non_thread_safe_arg!([T: Element] Array<T>);
+    impl_non_thread_safe_arg!( [T: Element] &Array<T>);
+    impl_non_thread_safe_arg!(AnyArray, &AnyArray);
+    impl_non_thread_safe_arg!([T: PackedElement] PackedArray<T>);
+    impl_non_thread_safe_arg!([T: PackedElement] &PackedArray<T>);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -220,11 +237,14 @@ mod api_4_3 {
 // - DynamicSend
 // - GodotType
 // - Element
+// - ThreadSafeArg
 const _: () = {
     use crate::classes::Object;
     use crate::obj::{Gd, IndexEnum};
 
-    const fn variant_type<T: crate::task::IntoDynamicSend + GodotType + Element>() -> VariantType {
+    const fn variant_type<
+        T: crate::task::IntoDynamicSend + GodotType + Element + ThreadSafeArgContext,
+    >() -> VariantType {
         <T::Ffi as sys::GodotFfi>::VARIANT_TYPE.variant_as_nil()
     }
 

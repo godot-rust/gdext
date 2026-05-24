@@ -216,7 +216,7 @@ impl_builtin_traits! {
     }
 }
 
-meta::impl_godot_as_self!(Signal: ByRef);
+meta::impl_godot_as_self!(Signal: ByRef, NonThreadSafeArg);
 
 impl fmt::Debug for Signal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

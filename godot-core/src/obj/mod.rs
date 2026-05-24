@@ -22,6 +22,7 @@ mod on_ready;
 mod passive_gd;
 mod raw_gd;
 mod traits;
+mod unique;
 
 mod base_init;
 #[cfg(since_api = "4.7")]
@@ -53,6 +54,7 @@ pub use on_ready::*;
 pub(crate) use passive_gd::PassiveGd;
 pub use raw_gd::*;
 pub use traits::*;
+pub use unique::{Unique, UniqueType};
 
 pub mod bounds;
 pub mod script;

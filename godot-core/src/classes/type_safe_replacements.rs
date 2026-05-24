@@ -17,6 +17,8 @@ use crate::classes::object::ConnectFlags;
 use crate::classes::scene_tree::GroupCallFlags;
 use crate::classes::{Node, Object, SceneTree, Script};
 use crate::global::Error;
+#[cfg(feature = "experimental-threads")]
+use crate::meta::ThreadSafeArgContext;
 use crate::meta::{AsArg, ToGodot, arg_into_ref};
 use crate::obj::{EngineBitfield, Gd};
 
@@ -31,12 +33,21 @@ impl Object {
     }
 
     pub fn set_script(&mut self, script: impl AsArg<Option<Gd<Script>>>) {
-        arg_into_ref!(script);
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            ThreadSafeArgContext::guarantee_thread_safe(&script);
+        }
 
+        arg_into_ref!(script);
         self.raw_set_script(&script.to_variant());
     }
 
     pub fn connect(&mut self, signal: impl AsArg<StringName>, callable: &Callable) -> Error {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            ThreadSafeArgContext::guarantee_thread_safe(&callable);
+        }
+
         self.raw_connect(signal, callable)
     }
 
@@ -46,9 +57,26 @@ impl Object {
         callable: &Callable,
         flags: ConnectFlags,
     ) -> Error {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            ThreadSafeArgContext::guarantee_thread_safe(&callable);
+        }
+
         self.raw_connect_ex(signal, callable)
             .flags(flags.ord() as u32)
             .done()
+    }
+
+    pub fn emit_signal(
+        &mut self,
+        name: impl AsArg<StringName>,
+        vargs: &[Variant],
+    ) -> crate::global::Error {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            ThreadSafeArgContext::guarantee_thread_safe(&vargs);
+        }
+        self.raw_emit_signal(name, vargs)
     }
 }
 
@@ -81,6 +109,11 @@ impl SceneTree {
         method: impl AsArg<StringName>,
         varargs: &[Variant],
     ) {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            ThreadSafeArgContext::guarantee_thread_safe(&varargs);
+        }
+
         self.raw_call_group_flags(flags.ord() as i64, group, method, varargs)
     }
 
@@ -91,6 +124,11 @@ impl SceneTree {
         property: impl AsArg<GString>,
         value: &Variant,
     ) {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            ThreadSafeArgContext::guarantee_thread_safe(&value);
+        }
+
         self.raw_set_group_flags(call_flags.ord() as u32, group, property, value)
     }
 

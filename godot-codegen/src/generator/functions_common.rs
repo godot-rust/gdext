@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ops::Not;
+
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
@@ -108,6 +110,7 @@ pub struct FnParamTokens {
     /// Generic argument list `<'a0, 'a1, ...>` after `type CallSig`, if available.
     pub callsig_lifetime_args: Option<TokenStream>,
     pub arg_exprs: Vec<TokenStream>,
+    pub arg_thread_validators: Vec<TokenStream>,
 }
 
 pub fn make_function_definition(
@@ -151,6 +154,7 @@ pub fn make_function_definition(
         callsig_param_types: param_types,
         callsig_lifetime_args,
         arg_exprs: arg_names,
+        arg_thread_validators,
     } = if sig.is_virtual() {
         make_params_exprs_virtual(sig.params().iter(), sig)
     } else {
@@ -210,6 +214,12 @@ pub fn make_function_definition(
         }
     };
 
+    let arg_thread_validators = if !sig.is_private() && !has_default_params {
+        arg_thread_validators
+    } else {
+        Vec::with_capacity(0)
+    };
+
     let return_decl = &sig.return_value().decl;
     let fn_body = if code.is_virtual_required {
         quote! { ; }
@@ -237,6 +247,13 @@ pub fn make_function_definition(
         // If the return type is not Variant, then convert to concrete target type.
         let varcall_invocation = &code.varcall_invocation;
 
+        let vararg_thread_validator = sig.is_private().not().then(|| {
+            quote! {
+                #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+                ThreadSafeArgContext::guarantee_thread_safe(&varargs);
+            }
+        });
+
         // TODO Utility functions: update as well.
         if !code.is_varcall_fallible {
             quote! {
@@ -250,6 +267,8 @@ pub fn make_function_definition(
                     varargs: &[Variant]
                 ) #return_decl {
                     #call_sig_decl
+                    #(#arg_thread_validators)*
+                    #vararg_thread_validator
 
                     let args = (#( #arg_names, )*);
 
@@ -284,6 +303,9 @@ pub fn make_function_definition(
                     #( #params, )*
                     varargs: &[Variant]
                 ) #return_decl {
+                    #(#arg_thread_validators)*
+                    #vararg_thread_validator
+
                     Self::#try_fn_name(self, #( #arg_names_without_asarg, )* varargs)
                         .unwrap_or_else(|e| panic!("{e}"))
                 }
@@ -324,6 +346,7 @@ pub fn make_function_definition(
             ) #return_decl
             {
                 #call_sig_decl
+                #(#arg_thread_validators)*
 
                 let args = (#( #arg_names, )*);
 
@@ -587,7 +610,8 @@ pub(crate) fn make_arg_expr(name: &Ident, ty: &RustTy, expr: FnArgExpr) -> Token
             ..
         } => match expr {
             FnArgExpr::PassToFfi => quote! { #name.into_arg() },
-            FnArgExpr::PassToFfiFromEx => quote! { #name }, // both field and parameter types are Cow -> forward.
+            // Both field and parameter types are Cow -> forward.
+            FnArgExpr::PassToFfiFromEx => quote! { #name },
             FnArgExpr::Forward => quote! { #name },
             FnArgExpr::StoreInField => quote! { #name.into_arg() },
             FnArgExpr::StoreInDefaultField => quote! { CowArg::Owned(#name) },
@@ -611,6 +635,25 @@ pub(crate) fn make_arg_expr(name: &Ident, ty: &RustTy, expr: FnArgExpr) -> Token
         _ => {
             quote! { #name }
         }
+    }
+}
+
+pub(crate) fn make_arg_thread_validator_expr(name: &Ident, ty: &RustTy) -> Option<TokenStream> {
+    match ty {
+        // Objects.
+        RustTy::EngineClass { .. }
+        | RustTy::BuiltinIdent {
+            arg_passing: ArgPassing::ByRef | ArgPassing::ImplAsArg,
+            ..
+        }
+        | RustTy::TypedArray { .. }
+        | RustTy::TypedDictionary { .. } => Some(quote! {
+            #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+            ThreadSafeArgContext::guarantee_thread_safe(&#name);
+        }),
+
+        // By value.
+        _ => None,
     }
 }
 
@@ -653,6 +696,10 @@ pub(crate) fn make_params_exprs<'a>(
         ret.param_decls.push(param_decl);
         ret.arg_exprs.push(arg_expr);
         ret.callsig_param_types.push(param_ty);
+
+        if let Some(arg_validator) = make_arg_thread_validator_expr(param_name, param_rust_ty) {
+            ret.arg_thread_validators.push(arg_validator);
+        }
     }
 
     ret.callsig_lifetime_args = lifetime_gen.all_generic_args();

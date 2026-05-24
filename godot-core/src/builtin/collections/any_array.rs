@@ -529,6 +529,7 @@ impl GodotConvert for AnyArray {
 
 impl ToGodot for AnyArray {
     type Pass = meta::ByValue;
+    type Threads = meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
         self.clone()

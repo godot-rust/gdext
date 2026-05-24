@@ -538,7 +538,7 @@ unsafe impl GodotFfi for Callable {
     }
 }
 
-meta::impl_godot_as_self!(Callable: ByRef);
+meta::impl_godot_as_self!(Callable: ByRef, NonThreadSafeArg);
 
 impl fmt::Debug for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

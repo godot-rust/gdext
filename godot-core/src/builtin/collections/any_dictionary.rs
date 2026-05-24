@@ -482,6 +482,7 @@ impl GodotConvert for AnyDictionary {
 
 impl ToGodot for AnyDictionary {
     type Pass = meta::ByValue;
+    type Threads = meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> meta::ToArg<'_, Self::Via, Self::Pass> {
         self.clone()

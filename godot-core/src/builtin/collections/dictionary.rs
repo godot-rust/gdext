@@ -315,6 +315,12 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     pub fn set(&mut self, key: impl AsArg<K>, value: impl AsArg<V>) {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            key.guarantee_thread_safe();
+            value.guarantee_thread_safe();
+        }
+
         meta::arg_into_ref!(key: K);
         meta::arg_into_ref!(value: V);
 
@@ -338,6 +344,12 @@ impl<K: Element, V: Element> Dictionary<K, V> {
     #[must_use]
     pub fn insert(&mut self, key: impl AsArg<K>, value: impl AsArg<V>) -> Option<V> {
         self.balanced_ensure_mutable();
+
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        {
+            key.guarantee_thread_safe();
+            value.guarantee_thread_safe();
+        }
 
         meta::arg_into_ref!(key: K);
         meta::arg_into_ref!(value: V);
@@ -863,6 +875,7 @@ impl<K: Element, V: Element> meta::GodotConvert for Dictionary<K, V> {
 
 impl<K: Element, V: Element> ToGodot for Dictionary<K, V> {
     type Pass = meta::ByRef;
+    type Threads = meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> &Self::Via {
         self
