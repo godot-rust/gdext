@@ -22,7 +22,7 @@ use crate::classes::Object;
 use crate::obj::{AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass, bounds, cap};
 use crate::private::{IntoVirtualMethodReceiver, PanicPayload, handle_panic};
 use crate::registry::info::PropertyInfo;
-use crate::registry::plugin::ErasedDynGd;
+use crate::registry::shard::ErasedDynGd;
 use crate::storage::{InstanceStorage, Storage, StorageRefCounted, as_storage};
 
 /// Godot FFI default constructor.

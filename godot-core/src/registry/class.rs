@@ -15,9 +15,9 @@ use crate::init::InitLevel;
 use crate::meta::ClassId;
 use crate::meta::error::FromGodotError;
 use crate::obj::{DynGd, Gd, GodotClass, Singleton, cap};
-use crate::private::{ClassPlugin, PluginItem};
+use crate::private::{ClassShard, ShardItem};
 use crate::registry::callbacks;
-use crate::registry::plugin::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
+use crate::registry::shard::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
 use crate::{godot_error, godot_warn, sys};
 
 /// Returns a lock to a global map of loaded classes, by initialization level.
@@ -124,18 +124,18 @@ struct ClassRegistrationInfo {
 }
 
 impl ClassRegistrationInfo {
-    fn validate_unique(&mut self, item: &PluginItem) {
+    fn validate_unique(&mut self, item: &ShardItem) {
         // We could use mem::Discriminant, but match will fail to compile when a new component is added.
 
         // Note: when changing this match, make sure the array has sufficient size.
         let index = match item {
-            PluginItem::Struct { .. } => 0,
-            PluginItem::InherentImpl(_) => 1,
-            PluginItem::ITraitImpl { .. } => 2,
+            ShardItem::Struct { .. } => 0,
+            ShardItem::InherentImpl(_) => 1,
+            ShardItem::ITraitImpl { .. } => 2,
 
             // Multiple dyn traits can be registered, thus don't validate for uniqueness.
             // (Still keep array size, so future additions don't have to regard this).
-            PluginItem::DynTraitImpl { .. } => return,
+            ShardItem::DynTraitImpl { .. } => return,
         };
 
         if self.component_already_filled[index] {
@@ -201,7 +201,7 @@ pub(crate) fn register_class<
     });
 }
 
-/// Lets Godot know about all classes that have self-registered through the plugin system.
+/// Lets Godot know about all classes that have self-registered through the shard system.
 pub fn auto_register_classes(init_level: InitLevel) {
     out!("Auto-register classes at level `{init_level:?}`...");
 
@@ -211,13 +211,13 @@ pub fn auto_register_classes(init_level: InitLevel) {
     //
     let mut map = HashMap::<ClassId, ClassRegistrationInfo>::new();
 
-    crate::private::iterate_plugins(|elem: &ClassPlugin| {
-        // Filter per ClassPlugin and not PluginItem, because all components of all classes are mixed together in one huge list.
+    crate::private::iterate_shards(|elem: &ClassShard| {
+        // Filter per ClassShard and not ShardItem, because all components of all classes are mixed together in one huge list.
         if elem.init_level != init_level {
             return;
         }
 
-        //out!("* Plugin: {elem:#?}");
+        //out!("* Shard: {elem:#?}");
 
         let name = elem.class_name;
         let class_info = map
@@ -297,7 +297,7 @@ fn register_classes_and_dyn_traits(
 
         // Transpose Class->Trait relations to Trait->Class relations.
         for (trait_type_id, mut dyn_trait_impl) in info.dynify_fns_by_trait.drain() {
-            // Note: Must be done after filling out the class info since plugins are being iterated in unspecified order.
+            // Note: Must be done after filling out the class info since shards are being iterated in unspecified order.
             dyn_trait_impl.parent_class_name = info.parent_class_name;
 
             dyn_traits_by_typeid
@@ -441,13 +441,13 @@ where
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
-fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
+fn fill_class_info(item: ShardItem, c: &mut ClassRegistrationInfo) {
     c.validate_unique(&item);
 
     // out!("|   reg (before):    {c:?}");
     // out!("|   comp:            {component:?}");
     match item {
-        PluginItem::Struct(Struct {
+        ShardItem::Struct(Struct {
             base_class_name,
             generated_create_fn,
             generated_recreate_fn,
@@ -507,14 +507,14 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             }
         }
 
-        PluginItem::InherentImpl(InherentImpl {
+        ShardItem::InherentImpl(InherentImpl {
             register_methods_constants_fn,
             register_rpcs_fn: _,
         }) => {
             c.register_methods_constants_fn = Some(register_methods_constants_fn);
         }
 
-        PluginItem::ITraitImpl(ITraitImpl {
+        ShardItem::ITraitImpl(ITraitImpl {
             user_register_fn,
             user_create_fn,
             user_recreate_fn,
@@ -553,7 +553,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
                 c.godot_params.validate_property_func = validate_property_fn;
             }
         }
-        PluginItem::DynTraitImpl(dyn_trait_impl) => {
+        ShardItem::DynTraitImpl(dyn_trait_impl) => {
             let type_id = dyn_trait_impl.dyn_trait_typeid();
 
             let prev = c.dynify_fns_by_trait.insert(type_id, dyn_trait_impl);

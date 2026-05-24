@@ -167,10 +167,10 @@ impl godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
 }
 
 // TODO once this is done via proc-macro, see if `register-docs` is still used in register_docs_test.rs. Otherwise, remove feature from Cargo.toml.
-godot::sys::plugin_add!(
-    godot::private::__GODOT_PLUGIN_REGISTRY;
-    godot::private::ClassPlugin::new::<HasOtherConstants>(
-        godot::private::PluginItem::InherentImpl(
+godot::sys::shard_add!(
+    godot::private::__GODOT_SHARD_REGISTRY;
+    godot::private::ClassShard::new::<HasOtherConstants>(
+        godot::private::ShardItem::InherentImpl(
             godot::private::InherentImpl::new::<HasOtherConstants>(
             )
         )

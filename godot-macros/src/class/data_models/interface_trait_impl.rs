@@ -173,8 +173,8 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
             }
         }
 
-        ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_name>(
-            #prv::PluginItem::ITraitImpl(#item_constructor)
+        ::godot::sys::shard_add!(#prv::__GODOT_SHARD_REGISTRY; #prv::ClassShard::new::<#class_name>(
+            #prv::ShardItem::ITraitImpl(#item_constructor)
         ));
 
         #register_docs

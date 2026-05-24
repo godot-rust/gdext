@@ -81,7 +81,7 @@ mod interface_init;
 #[cfg(target_os = "linux")]
 pub mod linux_reload_workaround;
 mod opaque;
-mod plugins;
+mod shard_registry;
 mod string_cache;
 mod toolbox;
 

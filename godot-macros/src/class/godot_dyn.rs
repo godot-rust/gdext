@@ -67,8 +67,8 @@ pub fn attribute_godot_dyn(input_decl: venial::Item) -> ParseResult<TokenStream>
             }
         }
 
-        ::godot::sys::plugin_add!(#prv::__GODOT_PLUGIN_REGISTRY; #prv::ClassPlugin::new::<#class_path>(
-            #prv::PluginItem::DynTraitImpl(#prv::DynTraitImpl::new::<#class_path, dyn #trait_path #assoc_type_constraints>()))
+        ::godot::sys::shard_add!(#prv::__GODOT_SHARD_REGISTRY; #prv::ClassShard::new::<#class_path>(
+            #prv::ShardItem::DynTraitImpl(#prv::DynTraitImpl::new::<#class_path, dyn #trait_path #assoc_type_constraints>()))
         );
 
     };
