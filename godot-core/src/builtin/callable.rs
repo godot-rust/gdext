@@ -125,7 +125,9 @@ impl Callable {
     fn default_callable_custom_info() -> CallableCustomInfo {
         CallableCustomInfo {
             callable_userdata: ptr::null_mut(),
-            token: ptr::null_mut(),
+            // Token uniquely identifies this GDExtension. Set it so we can later recognize our own custom callables via `is_rust_callable()` --
+            // the engine returns userdata only when the token matches. Used e.g. during hot-reload cleanup.
+            token: rust_callable_token(),
             object_id: 0,
             call_func: None,
             is_valid_func: None, // overwritten later.
@@ -453,6 +455,23 @@ impl Callable {
         self.as_inner().is_custom()
     }
 
+    /// Returns true if this is a custom callable created by **this** godot-rust extension.
+    ///
+    /// Stricter than [`is_custom()`][Self::is_custom]: returns `false` for engine-side custom callables (e.g. GDScript lambdas, bound
+    /// methods) and for custom callables created by other GDExtensions. Detection relies on the GDExtension token set at creation, which
+    /// the engine only echoes back on a match.
+    ///
+    /// Note: callables produced by `bind()`/`bindv()`/`unbind()` on a Rust callable are re-wrapped **engine-side** and carry the engine's
+    /// token, not ours -- so this returns `false` for them, even though the underlying function is ours.
+    #[doc(hidden)] // Not yet exposed; name considerations: custom, local to *this* extension?
+    pub fn is_rust_callable(&self) -> bool {
+        // SAFETY: `self.sys()` is a valid Callable pointer; `get_userdata` only reads it and compares the token.
+        let userdata = unsafe {
+            sys::interface_fn!(callable_custom_get_userdata)(self.sys(), rust_callable_token())
+        };
+        !userdata.is_null()
+    }
+
     /// Returns true if this callable has no target to call the method on.
     ///
     /// This is not the negated form of [`is_valid`][Self::is_valid], as `is_valid` will return `false` if the callable has a
@@ -560,6 +579,15 @@ impl fmt::Display for Callable {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Callbacks for custom implementations
+
+/// Token uniquely identifying this godot-rust extension, stamped on every custom callable we create.
+///
+/// The engine's `callable_custom_get_userdata` returns the userdata only when this exact token is passed back, which lets us recognize our
+/// own custom callables. We reuse the library pointer (same value passed to the entry symbol), as the GDExtension API recommends.
+fn rust_callable_token() -> *mut std::ffi::c_void {
+    // SAFETY: `get_library()` is valid after initialization, which has happened by the time any callable is created.
+    unsafe { sys::get_library().cast::<std::ffi::c_void>() }
+}
 
 pub use custom_callable::RustCallable;
 use custom_callable::*;

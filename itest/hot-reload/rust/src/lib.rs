@@ -107,6 +107,26 @@ mod signal_test {
 
     #[godot_api]
     impl Signaller {
+        // Regression test for https://github.com/godot-rust/gdext/issues/984: a Rust callable connected via the untyped `Object::connect`
+        // API must be auto-disconnected before hot reload, else the stale callable is touched when the object is freed afterwards and
+        // segfaults. `is_rust_callable()` detects it via our extension token, so it is registered and disconnected. No crash = pass.
+        #[func]
+        fn connect_custom_callables(&mut self) {
+            let plain = Callable::from_fn("rust_fn", |_| Variant::nil());
+            self.base_mut().connect("property_list_changed", &plain);
+        }
+
+        // Characterization test for the false positive in https://github.com/godot-rust/gdext/issues/984: a bound *engine* method is
+        // `is_custom()` but not `is_rust_callable()`, so the narrowed registry does not register it -- correctly leaving it connected, as it
+        // resolves by name and is safe across reload. `ReloadTest.gd` asserts it survives. If the registry is later broadened, that flips.
+        #[func]
+        fn connect_bound_engine_method(&mut self) {
+            let receiver = self.to_gd();
+            let bound =
+                Callable::from_object_method(&receiver, "set_block_signals").bind(vslice![false]);
+            self.base_mut().connect("script_changed", &bound);
+        }
+
         #[func]
         fn initialize_connections(&mut self) {
             self.signals()

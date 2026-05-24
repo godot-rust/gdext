@@ -31,7 +31,9 @@ pub mod priv_re_export {
 }
 
 // Crate-internal items used outside this module.
-pub(crate) use signal_connections_registry::prune_stored_signal_connections;
+pub(crate) use signal_connections_registry::{
+    prune_stored_signal_connections, store_custom_callable_connection,
+};
 pub(crate) use signal_object::SignalObject;
 
 use crate::builtin::{CowStr, Variant};

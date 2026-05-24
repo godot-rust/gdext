@@ -16,7 +16,7 @@
 
 use std::cell::RefCell;
 
-use crate::builtin::{Callable, CowStr};
+use crate::builtin::{Callable, StringName};
 use crate::classes::Object;
 use crate::obj::Gd;
 use crate::{godot_warn, sys};
@@ -28,7 +28,7 @@ thread_local! {
 struct CachedSignalConnection {
     // `Option`, so we can mark objects for removal by setting receiver to None.
     receiver_object: Option<Gd<Object>>,
-    signal_name: CowStr,
+    signal_name: String,
     callable: Callable,
 }
 
@@ -51,14 +51,32 @@ fn prune_stale_connections(registry: &mut Vec<CachedSignalConnection>) {
     });
 }
 
-/// Stores the given connection in a registry so it can be disconnected during library deinitialization,
-/// and prunes any existing connections to objects that are no longer valid.
-pub(crate) fn store_signal_connection(
+/// Stores a custom-callable connection so it can be disconnected before hot reload, and prunes connections to invalid objects.
+pub(crate) fn store_custom_callable_connection(
     receiver_object: &Gd<Object>,
-    signal_name: &CowStr,
+    signal_name: &StringName,
     callable: &Callable,
 ) {
-    if !sys::is_editor() {
+    // We register only callables created by *this* extension, identified through `is_rust_callable()` relying on `rust_callable_token()`.
+    // Behavior per callable kind:
+    //
+    //   Callable kind                     | is_custom | is_rust_callable | stale on reload
+    //   ----------------------------------+-----------+------------------+------------------------------------------------------------
+    //   Rust callable                     |   yes     |     yes          |    yes  <- registered, disconnected before reload
+    //   Rust callable + bind/bindv        |   yes     |     no           |    yes  <- MISSED, see below
+    //   Rust callable, other extension    |   yes     |     no           |    no   <- other extension takes care of it
+    //   Object method                     |   no      |     no           |    no
+    //   Engine+bind, GDScript lambda, ... |   yes     |     no           |    no
+    //
+    // `is_rust_callable()` avoids touching connections we shouldn't (bound engine methods, other extensions' callables, GDScript lambdas
+    // routed through our `connect`) -- all of which the broad `is_custom()` would wrongly disconnect on every reload.
+    //
+    // Limitation: `bind/bindv/unbind` re-wrap their argument engine-side, so a bound Rust callable is no longer detected as Rust callable.
+    // However, it still becomes stale after reload (UAF). We accept this: binding a Rust callable is rare (closures are more powerful than
+    // `bind`), and a GDScript lambda calling a Rust callable would suffer from the same anyway. If we auto-disconnected these, we'd lose
+    // a lot Callables that would perfectly survive hot-reload. In other words, we trade many false positives for very few false negatives.
+
+    if !sys::is_editor() || !callable.is_rust_callable() {
         return;
     }
 
@@ -70,7 +88,7 @@ pub(crate) fn store_signal_connection(
         let weak_object_ptr = unsafe { receiver_object.clone_weak() };
         connection_registry.push(CachedSignalConnection {
             receiver_object: Some(weak_object_ptr),
-            signal_name: signal_name.clone(),
+            signal_name: signal_name.to_string(),
             callable: callable.clone(),
         });
     });
