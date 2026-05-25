@@ -38,10 +38,10 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
             for (param, _) in params.params.iter_mut() {
                 if param.is_ty() || param.is_lifetime() {
                     if let Some(bound) = &mut param.bound {
-                        // If we're in here we have at least 1 bound, and rust doesn't error if the
-                        // bound is already 'static, i.e. `T: 'static + 'static` works. It's a
-                        // little hacky, but there's not really a reason to inspect all of the
-                        // bound's tokens if we really don't care what it is.
+                        // We have at least 1 bound, and rust doesn't error if the bound is already 'static, i.e. `T: 'static + 'static` works.
+                        // If it were to error, we would have to inspect the bounds to make sure the tokens `+ 'static` are valid. It feels a
+                        // little hacky, but there's not really a reason to inspect all of the bound's tokens if rust doesn't really care what
+                        // they are.
                         bound
                             .tokens
                             .append(&mut quote! {+ 'static}.into_iter().collect());
