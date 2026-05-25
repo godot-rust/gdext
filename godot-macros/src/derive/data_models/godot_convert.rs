@@ -27,18 +27,15 @@ pub struct GodotConvert {
 
 impl GodotConvert {
     pub fn parse_declaration(item: venial::Item) -> ParseResult<Self> {
-        let (name, where_clause, generic_params) = match &item {
-            venial::Item::Struct(struct_) => (
-                struct_.name.clone(),
-                &struct_.where_clause,
-                &struct_.generic_params,
-            ),
-            venial::Item::Enum(enum_) => {
-                // These checks aren't really necessary anyways, because we're guaranteed to have
-                // only c-style enums anywas, and so rust would complain that the generics aren't
-                // being used. These error messages are a bit more clear with our intentions,
-                // though.
+        let data = ConvertType::parse_declaration(&item)?;
 
+        let (name, where_clause, generic_params) = match item {
+            venial::Item::Struct(struct_) => {
+                (struct_.name, struct_.where_clause, struct_.generic_params)
+            }
+            venial::Item::Enum(enum_) => {
+                // We only have C-style enums, so Rust would already complain that generics are unused.
+                // This provides clearer error messages though.
                 if let Some(generic_params) = &enum_.generic_params {
                     return bail!(
                         generic_params,
@@ -55,11 +52,7 @@ impl GodotConvert {
                     );
                 }
 
-                (
-                    enum_.name.clone(),
-                    &enum_.where_clause,
-                    &enum_.generic_params,
-                )
+                (enum_.name, enum_.where_clause, enum_.generic_params)
             }
             other => {
                 return bail!(
@@ -69,12 +62,10 @@ impl GodotConvert {
             }
         };
 
-        let data = ConvertType::parse_declaration(item.clone())?;
-
         Ok(Self {
             ty_name: name,
-            where_clause: where_clause.clone(),
-            generic_params: generic_params.clone(),
+            where_clause: where_clause,
+            generic_params: generic_params,
             convert_type: data,
         })
     }
@@ -89,10 +80,10 @@ pub enum ConvertType {
 }
 
 impl ConvertType {
-    pub fn parse_declaration(item: venial::Item) -> ParseResult<Self> {
-        let attribute = GodotAttribute::parse_attribute(&item)?;
+    pub fn parse_declaration(item: &venial::Item) -> ParseResult<Self> {
+        let attribute = GodotAttribute::parse_attribute(item)?;
 
-        match &item {
+        match item {
             venial::Item::Struct(struct_) => {
                 let GodotAttribute::Transparent { .. } = attribute else {
                     return bail!(
