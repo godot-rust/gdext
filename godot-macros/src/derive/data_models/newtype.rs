@@ -23,6 +23,8 @@ pub enum FieldsType {
 }
 
 /// Stores info from the field of a newtype struct for use in deriving `GodotConvert` and other related traits.
+///
+/// Here, a newtype struct must have exactly 1 non-ZST field, and can have an arbitrary amount of ZST fields.
 pub struct NewtypeStruct {
     /// The name of the field.
     ///
