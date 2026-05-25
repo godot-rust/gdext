@@ -1366,15 +1366,25 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// assert_eq!(obj.to_godot(), &GString::from("hello!"));
 /// ```
 ///
-/// However, it will not work for structs with more than one field, even if that field is zero sized:
+/// It will not work for structs with more than one field, unless the extra fields are `PhantomData`
 /// ```compile_fail
 /// use godot::prelude::*;
+/// use std::marker::PhantomData;
 ///
+/// // This will not compile
 /// #[derive(GodotConvert)]
 /// #[godot(transparent)]
-/// struct SomeNewtype {
+/// struct SomeNewtype1 {
 ///     int: i64,
-///     zst: (),
+///     bool: bool,
+/// }
+///
+/// // This will compile
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// struct SomeNewtype2<T> {
+///     int: i64,
+///     _marker: PhantomData<T>,
 /// }
 /// ```
 ///
