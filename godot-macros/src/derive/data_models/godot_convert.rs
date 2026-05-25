@@ -7,6 +7,7 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
+use venial::{GenericParamList, WhereClause};
 
 use super::c_style_enum::CStyleEnum;
 use super::godot_attribute::{GodotAttribute, ViaType};
@@ -18,6 +19,8 @@ use crate::util::bail;
 pub struct GodotConvert {
     /// The name of the type we're deriving for.
     pub ty_name: Ident,
+    pub where_clause: Option<WhereClause>,
+    pub generic_params: Option<GenericParamList>,
     /// The data from the type and `godot` attribute.
     pub convert_type: ConvertType,
 }
@@ -30,11 +33,34 @@ impl GodotConvert {
                 &struct_.where_clause,
                 &struct_.generic_params,
             ),
-            venial::Item::Enum(enum_) => (
-                enum_.name.clone(),
-                &enum_.where_clause,
-                &enum_.generic_params,
-            ),
+            venial::Item::Enum(enum_) => {
+                // These checks aren't really necessary anyways, because we're guaranteed to have
+                // only c-style enums anywas, and so rust would complain that the generics aren't
+                // being used. These error messages are a bit more clear with our intentions,
+                // though.
+
+                if let Some(generic_params) = &enum_.generic_params {
+                    return bail!(
+                        generic_params,
+                        "#[derive(GodotConvert)] does not support lifetimes or generic parameters on enums"
+                    );
+                }
+
+                // Is this check even necessary? What's the use case of where clauses without generics?
+                // For traits, one can imagine `Self: SomeBound`, but for structs/enums?
+                if let Some(where_clause) = &enum_.where_clause {
+                    return bail!(
+                        where_clause,
+                        "#[derive(GodotConvert)] does not support where clauses"
+                    );
+                }
+
+                (
+                    enum_.name.clone(),
+                    &enum_.where_clause,
+                    &enum_.generic_params,
+                )
+            }
             other => {
                 return bail!(
                     other,
@@ -43,26 +69,12 @@ impl GodotConvert {
             }
         };
 
-        if let Some(generic_params) = generic_params {
-            return bail!(
-                generic_params,
-                "#[derive(GodotConvert)] does not support lifetimes or generic parameters"
-            );
-        }
-
-        // Is this check even necessary? What's the use case of where clauses without generics?
-        // For traits, one can imagine `Self: SomeBound`, but for structs/enums?
-        if let Some(where_clause) = where_clause {
-            return bail!(
-                where_clause,
-                "#[derive(GodotConvert)] does not support where clauses"
-            );
-        }
-
-        let data = ConvertType::parse_declaration(item)?;
+        let data = ConvertType::parse_declaration(item.clone())?;
 
         Ok(Self {
             ty_name: name,
+            where_clause: where_clause.clone(),
+            generic_params: generic_params.clone(),
             convert_type: data,
         })
     }

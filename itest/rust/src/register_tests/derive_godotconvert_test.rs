@@ -6,6 +6,7 @@
  */
 
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use godot::builtin::{GString, Vector2, array, dict};
 use godot::meta::{GodotConvert, ToGodot};
@@ -16,14 +17,29 @@ use crate::framework::itest;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // General FromGodot/ToGodot derive tests
 
+// #[derive(PartialEq, Debug)]
 #[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
 struct TupleNewtype(GString);
 
 #[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
+struct TuplePhantomNewtype<T: Debug + godot::meta::Element>(
+    PhantomData<T>,
+    godot::prelude::Array<T>,
+);
+
+#[derive(GodotConvert, PartialEq, Debug)]
+#[godot(transparent)]
 struct NamedNewtype {
     field1: Vector2,
+}
+
+#[derive(GodotConvert, PartialEq, Debug)]
+#[godot(transparent)]
+struct NamedPhantomNewtype<T> {
+    field1: Vector2,
+    _marker: std::marker::PhantomData<T>,
 }
 
 #[derive(GodotConvert, Clone, PartialEq, Debug)]
@@ -58,12 +74,17 @@ enum EnumIntyWithExprs {
 #[itest]
 fn newtype_tuple_struct() {
     roundtrip(TupleNewtype(GString::from("hello!")));
+    roundtrip(TuplePhantomNewtype::<u32>(PhantomData, array![]))
 }
 
 #[itest]
 fn newtype_named_struct() {
     roundtrip(NamedNewtype {
         field1: Vector2::new(10.0, 25.0),
+    });
+    roundtrip(NamedPhantomNewtype::<usize> {
+        field1: Vector2::new(10.0, 25.0),
+        _marker: PhantomData,
     });
 }
 

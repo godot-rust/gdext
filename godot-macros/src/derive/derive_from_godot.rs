@@ -19,10 +19,11 @@ pub fn make_fromgodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -
     let GodotConvert {
         ty_name: name,
         convert_type: data,
+        ..
     } = convert;
 
     match data {
-        ConvertType::NewType { field } => make_fromgodot_for_newtype_struct(name, field),
+        ConvertType::NewType { field } => make_fromgodot_for_newtype_struct(convert, field),
 
         ConvertType::Enum {
             variants,
@@ -37,16 +38,29 @@ pub fn make_fromgodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -
 }
 
 /// Derives `FromGodot` for newtype structs.
-fn make_fromgodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> TokenStream {
+fn make_fromgodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStruct) -> TokenStream {
     // For tuple structs this ends up using the alternate tuple-struct constructor syntax of
     // TupleStruct { 0: value }
+    let GodotConvert {
+        ty_name: name,
+        generic_params,
+        where_clause,
+        ..
+    } = convert;
+    let generic_args = generic_params
+        .as_ref()
+        .map(|params| params.as_inline_args());
     let field_name = field.field_name();
+    let phantom_field_names = field.phantom_field_names();
     let via_type = &field.ty;
 
     quote! {
-        impl ::godot::meta::FromGodot for #name {
+        impl #generic_params ::godot::meta::FromGodot for #name #generic_args #where_clause {
             fn try_from_godot(via: #via_type) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
-                Ok(Self { #field_name: via })
+                Ok(Self {
+                    #field_name: via,
+                    #(#phantom_field_names: ::std::marker::PhantomData),*
+                })
             }
         }
     }
