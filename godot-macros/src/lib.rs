@@ -1388,6 +1388,17 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// This is useful for cases where you want to have generics in Rust, but you still want to use that struct from Godot. For example, you have a
+/// key `Key<T>` to a registry `Registry<T>` that contains `T`.
+/// ```rs
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// struct Key<T> {
+///     id: u32,
+///     _marker: PhantomData<T>,
+/// }
+/// ```
+///
 /// You can also not use `transparent` with enums:
 /// ```compile_fail
 /// use godot::prelude::*;
