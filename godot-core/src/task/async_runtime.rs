@@ -52,29 +52,42 @@ use crate::private::handle_panic;
 ///     base: Base<Node>,
 /// }
 ///
-/// # // Trick to avoid adding SceneTreeTimer to minimal codegen.
-/// # struct B; impl B { fn get_tree(&self) -> &Self { &self } fn create_timer(&self, d: f64) -> &mut Game { panic!("never called") } }
+/// # // Trick to avoid adding SceneTreeTimer to minimal codegen. Return Gd<Game> -> timer.signals().timeout() resolves to Game's own signal.
+/// # trait Ct { fn create_timer(&self, duration: f64) -> Gd<Game>; }
+/// # impl Ct for Gd<godot::classes::SceneTree> { fn create_timer(&self, _d: f64) -> Gd<Game> { unreachable!() } }
 /// #[godot_api]
 /// impl Game {
+/// # fn do_something(&self) {}
 /// # #[signal] fn timeout();
-/// # fn base(&self) -> &B { panic!("never called") }
-///     // Async function that implements sleep using Godot timers.
-///     async fn sleep(&self, duration: f64) {
-///         let timer = self.base().get_tree().create_timer(duration);
+///     // Async sleep using Godot timers. Takes `Gd<Self>` by value, so no `&self`/`&mut self`
+///     // reference is held while the task is suspended at the await point.
+///     async fn sleep(this: Gd<Self>, duration: f64) {
+///         // To access object, use short-lived bind/bind_mut -> guard dropped after statement.
+///         this.bind().do_something();
 ///
-///         // Use a future to wait for the timeout signal.
+///         // Godot APIs don't need to go through bind/bind_mut at all.
+///         let timer = this.get_tree().create_timer(duration);
+///
+///         // Await without holding any borrow on `this`. Keeping a bind()/bind_mut() guard
+///         // across an await point is problematic: while suspended, other access to the
+///         // object, for example through process(&mut self), will panic.
 ///         timer.signals().timeout().to_future().await;
 ///     }
 ///
 ///     fn show_messages(&mut self) {
-///         // Obtain Gd<Self>, since closure cannot capture `&mut Self` due to lifetimes.
+///         // Obtain Gd<Self>, since the closure cannot capture `&mut self` due to lifetimes.
 ///         // If this method is linked to a signal, consider using a #[func(gd_self)] parameter.
 ///         let this = self.to_gd();
 ///
+///         // spawn() polls the future up to the first .await point, during which `&mut self` is
+///         // still held. base_mut() yields a guard that allows re-borrowing `self`, so the bind()
+///         // inside sleep() doesn't panic with "already bound".
+///         let _guard = self.base_mut();
+///
 ///         godot::task::spawn(async move {
 ///             godot_print!("Start!");
-///             this.bind().sleep(1.0).await;
-///             godot_print!("One second later!")
+///             Self::sleep(this, 1.0).await;
+///             godot_print!("One second later!");
 ///         });
 ///     }
 /// }
