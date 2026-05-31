@@ -466,13 +466,7 @@ impl<T: Element> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`][AnyArray::shrink] instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
-        self.balanced_ensure_mutable();
-
-        let original_size = self.len();
-
-        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
-        // array are of type `T` still.
-        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        let original_size = self.resize_inner(new_size);
 
         meta::arg_into_ref!(value: T);
 
@@ -489,6 +483,30 @@ impl<T: Element> Array<T> {
             // ptr_mut() lookup could be optimized if we know the internal layout.
             unsafe { variant.move_into_var_ptr(ptr_mut) };
         }
+    }
+
+    /// Resizes the array, limited to certain element types and values.
+    ///
+    /// Limited to default-constructible `Copy` types, to allow efficient batch initialization. Use [`resize()`][Self::resize] if you need
+    /// more flexibility.
+    pub fn resize_default(&mut self, new_size: usize)
+    where
+        // Do not remove these bounds. Allowing e.g. Gd<RefCounted> would create null elements.
+        // Limiting to Copy only would be possible, but inconsistent for types like Plane that don't support default-initialization in Rust.
+        T: Default + Copy,
+    {
+        self.resize_inner(new_size);
+    }
+
+    fn resize_inner(&mut self, new_size: usize) -> usize {
+        self.balanced_ensure_mutable();
+
+        let original_size = self.len();
+
+        // SAFETY: Godot's `resize()` fills new slots with type-appropriate defaults for typed arrays (e.g. 0 for int, nil for Variant).
+        // Callers that need non-default values (like `resize()`) must overwrite the new slots afterward.
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        original_size
     }
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
@@ -828,8 +846,11 @@ impl<T: Element> Array<T> {
     /// Returns a mutable pointer to the element at the given index.
     ///
     /// # Panics
-    ///
     /// If `index` is out of bounds.
+    ///
+    /// # Note on mut slices
+    /// Do not form a multi-slot `&mut [Variant]` from this pointer unless the array is uniquely owned (refcount == 1): `Array` is ref-counted,
+    /// so another handle may alias the backing storage, violating Rust's rules. Otherwise write elements via `ptr::write`. See `Variant::borrow_slice_mut`.
     fn ptr_mut(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
         let ptr = self.ptr_mut_or_null(index);
         assert!(
@@ -1373,9 +1394,8 @@ impl<T: Element + ToGodot> From<&[T]> for Array<T> {
         // the nulls with values of type `T`.
         unsafe { array.as_inner_mut() }.resize(to_i64(len));
 
-        // SAFETY: `array` has `len` elements since we just resized it, and they are all valid `Variant`s. Additionally, since
-        // the array was created in this function, and we do not access the array while this slice exists, the slice has unique
-        // access to the elements.
+        // SAFETY: `array` has `len` elements since we just resized it, all valid Variants. The array was just created here and is not yet
+        // shared (refcount == 1), so no other handle aliases the backing buffer; forming &mut [Variant] is sound in this unique-ownership context.
         let elements = unsafe { Variant::borrow_slice_mut(array.ptr_mut(0), len) };
         for (element, array_slot) in slice.iter().zip(elements.iter_mut()) {
             *array_slot = element.to_variant();
@@ -1397,13 +1417,39 @@ impl<T: Element + ToGodot> FromIterator<T> for Array<T> {
 /// Extends a `Array` with the contents of an iterator.
 impl<T: Element> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
-        // Otherwise, we could use it to pre-allocate based on `iter.size_hint()`.
-        //
-        // A faster implementation using `resize()` and direct pointer writes might still be possible.
-        // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
-        for item in iter.into_iter() {
-            // self.push(AsArg::into_arg(&item));
+        let mut iter = iter.into_iter();
+        let (lower, _upper) = iter.size_hint();
+
+        // Fast path: pre-allocate space for the lower bound and write variants directly, avoiding per-element resize calls.
+        if lower > 0 {
+            let current_len = self.len();
+            let new_len = current_len + lower;
+
+            self.resize_inner(new_len);
+
+            let mut filled = current_len;
+            for i in current_len..new_len {
+                // `size_hint().0` is only a lower bound; a correct iterator may yield fewer than reported, so stop instead of panicking.
+                let Some(item) = iter.next() else { break };
+
+                let elem_ptr: *mut Variant = self.ptr_mut(i).cast::<Variant>();
+
+                // SAFETY:
+                // * `i` is in bounds after `resize_inner()`.
+                // * Assignment via `=` (not `ptr::write`) drops the default that `resize_inner` placed there -> no leak.
+                // * Single-element place assignment avoids a multi-slot `&mut [Variant]`, unsound here since `Array` is refcounted (see `ptr_mut`).
+                unsafe { *elem_ptr = item.to_variant() };
+                filled = i + 1;
+            }
+
+            // Iterator under-delivered relative to its hint; drop the default-filled trailing slots so they don't leak into the array.
+            if filled < new_len {
+                self.resize_inner(filled);
+            }
+        }
+
+        // Push any remaining elements (for inexact-size iterators, or when lower == 0).
+        for item in iter {
             self.push(meta::owned_into_arg(item));
         }
     }
