@@ -365,6 +365,27 @@ fn array_extend() {
     assert_eq!(array, array![1, 2, 3, 4]);
 }
 
+// `Array::extend()` uses `size_hint().0` only as a lower-bound pre-allocation hint, not an exact count. An iterator that over-reports its
+// lower bound (yielding fewer elements than promised) must append the actually-yielded elements without panicking or leaving trailing slots.
+#[itest]
+fn array_extend_overreported_size_hint() {
+    // Iterator whose `size_hint` lower bound (5) exceeds the number of elements it actually yields (3).
+    struct OverReporting(std::vec::IntoIter<i64>);
+    impl Iterator for OverReporting {
+        type Item = i64;
+        fn next(&mut self) -> Option<i64> {
+            self.0.next()
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (5, None)
+        }
+    }
+
+    let mut array = iarray![1, 2];
+    array.extend(OverReporting(vec![3, 4, 5].into_iter()));
+    assert_eq!(array, array![1, 2, 3, 4, 5]);
+}
+
 #[itest]
 fn array_reverse() {
     let mut array = iarray![1, 2];
