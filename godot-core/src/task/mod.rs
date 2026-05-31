@@ -32,7 +32,7 @@ pub use reexport_test::*;
 
 // Crate-local re-exports.
 mod reexport_crate {
-    pub(crate) use super::async_runtime::cleanup;
+    pub(crate) use super::async_runtime::{await_point_dec, await_point_inc, cleanup};
     pub(crate) use super::futures::{ThreadConfined, impl_dynamic_send};
 }
 
