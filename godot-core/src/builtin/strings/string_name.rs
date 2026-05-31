@@ -10,7 +10,7 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-use crate::builtin::{Encoding, GString, NodePath, Variant, inner};
+use crate::builtin::{Encoding, GString, GodotStringExt, NodePath, Variant, inner};
 use crate::meta::AsArg;
 use crate::meta::error::StringError;
 use crate::{impl_shared_string_api, meta};
@@ -373,18 +373,7 @@ impl_rust_string_conv!(StringName);
 
 impl From<&str> for StringName {
     fn from(string: &str) -> Self {
-        let utf8 = string.as_bytes();
-
-        // SAFETY: Rust guarantees validity and range of string.
-        unsafe {
-            Self::new_with_string_uninit(|ptr| {
-                sys::interface_fn!(string_name_new_with_utf8_chars_and_len)(
-                    ptr,
-                    utf8.as_ptr() as *const std::ffi::c_char,
-                    utf8.len() as i64,
-                );
-            })
-        }
+        string.to_string_name()
     }
 }
 
@@ -395,15 +384,9 @@ impl From<&String> for StringName {
 }
 
 impl From<&GString> for StringName {
-    /// See also [`GString::to_string_name()`].
+    /// See also [`GodotStringExt::to_string_name()`].
     fn from(string: &GString) -> Self {
-        unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(string_name_from_string);
-                let args = [string.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+        string.to_string_name()
     }
 }
 

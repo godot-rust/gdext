@@ -4,18 +4,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
+use std::borrow::Cow;
 use std::collections::HashSet;
+use std::fmt;
 
-use godot::builtin::{Encoding, GString, PackedStringArray};
+use godot::builtin::{Encoding, GString, GodotStringExt, PackedStringArray};
 
 use super::string_test_macros::{APPLE_CHARS, APPLE_STR};
 use crate::framework::{expect_panic_or_nothing, itest};
 
-// TODO use tests from godot-rust/gdnative
-
 #[itest]
-fn string_default() {
+fn gstring_default() {
     let string = GString::new();
     let back = String::from(&string);
 
@@ -23,7 +22,7 @@ fn string_default() {
 }
 
 #[itest]
-fn string_conversion() {
+fn gstring_conversion() {
     let string = String::from("some string");
     let second = GString::from(&string);
     let back = String::from(&second);
@@ -32,7 +31,7 @@ fn string_conversion() {
 }
 
 #[itest]
-fn string_equality() {
+fn gstring_equality() {
     let string = GString::from("some string");
     let second = GString::from("some string");
     let different = GString::from("some");
@@ -49,7 +48,7 @@ fn string_eq_str() {
 }
 
 #[itest]
-fn string_ordering() {
+fn gstring_ordering() {
     let low = GString::from("Alpha");
     let high = GString::from("Beta");
 
@@ -60,7 +59,7 @@ fn string_ordering() {
 }
 
 #[itest]
-fn string_clone() {
+fn gstring_clone() {
     let first = GString::from("some string");
     #[allow(clippy::redundant_clone)]
     let cloned = first.clone();
@@ -69,7 +68,7 @@ fn string_clone() {
 }
 
 #[itest]
-fn string_chars() {
+fn gstring_chars() {
     // Empty tests regression from #228: Null pointer passed to slice::from_raw_parts().
     let string = GString::new();
     let empty_char_slice: &[char] = &[];
@@ -87,7 +86,7 @@ fn string_chars() {
 }
 
 #[itest]
-fn string_unicode_at() {
+fn gstring_unicode_at() {
     let s = GString::from(APPLE_STR);
     assert_eq!(s.unicode_at(0), 'ö');
     assert_eq!(s.unicode_at(1), '🍎');
@@ -101,7 +100,7 @@ fn string_unicode_at() {
 }
 
 #[itest]
-fn string_hash() {
+fn gstring_hash() {
     let set: HashSet<GString> = [
         "string_1",
         "SECOND string! :D",
@@ -116,7 +115,7 @@ fn string_hash() {
 }
 
 #[itest]
-fn string_with_null() {
+fn gstring_with_null() {
     // Godot always ignores bytes after a null byte.
     let cases: &[(&str, &str)] = &[
         (
@@ -135,7 +134,7 @@ fn string_with_null() {
 }
 
 #[itest]
-fn string_substr() {
+fn gstring_substr() {
     let string = GString::from("stable");
     assert_eq!(string.substr(..), "stable");
     assert_eq!(string.substr(1..), "table");
@@ -288,4 +287,46 @@ crate::generate_string_standard_fmt_tests!(
 
 fn packed(strings: &[&str]) -> PackedStringArray {
     strings.iter().map(|&s| GString::from(s)).collect()
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// GodotStringExt roundtrips
+
+fn check_string_ext<T: fmt::Display + GodotStringExt>(value: T) {
+    let expected = value.to_string();
+    assert_eq!(value.to_gstring().to_string(), expected);
+    assert_eq!(value.to_string_name().to_string(), expected);
+    assert_eq!(value.to_node_path().to_string(), expected);
+}
+
+#[itest]
+fn string_ext_roundtrips() {
+    let utf8 = String::from("godöt-rust 🦀 ゴドー");
+    let utf8: &str = utf8.as_str(); // Ensure that non-'static lifetime is supported.
+
+    check_string_ext(utf8);
+    check_string_ext(utf8.to_string());
+    check_string_ext(utf8.to_gstring());
+    check_string_ext(utf8.to_string_name());
+    check_string_ext(utf8.to_node_path());
+    check_string_ext(Cow::Borrowed(utf8));
+}
+
+#[itest]
+fn string_ext_char_roundtrips() {
+    let utf32: &[char] = &['G', 'ゴ', ' ', '🦀'];
+    assert_eq!(utf32.to_gstring().chars(), utf32);
+
+    // StringName::chars() only in >= 4.5; fall back via to_string().
+    #[cfg(since_api = "4.5")]
+    assert_eq!(utf32.to_string_name().chars(), utf32);
+    #[cfg(before_api = "4.5")]
+    {
+        let np_string = utf32.to_string_name().to_string();
+        assert_eq!(np_string.chars().collect::<Vec<char>>(), utf32);
+    }
+
+    // NodePath has no chars() function, so use to_string().
+    let np_string = utf32.to_node_path().to_string();
+    assert_eq!(np_string.chars().collect::<Vec<char>>(), utf32);
 }

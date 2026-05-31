@@ -12,6 +12,7 @@ use godot_ffi::{ExtVariantType, GdextBuild, GodotFfi, ffi_methods};
 
 use super::{GString, StringName};
 use crate::builtin::inner;
+use crate::builtin::strings::GodotStringExt;
 use crate::meta::signed_range::SignedRange;
 
 /// A pre-parsed scene tree path.
@@ -233,34 +234,26 @@ impl fmt::Debug for NodePath {
 impl_rust_string_conv!(NodePath);
 
 impl From<&str> for NodePath {
-    // NodePath doesn't offer direct construction from bytes; go via GString.
     fn from(s: &str) -> Self {
-        Self::from(&GString::from(s))
+        s.to_node_path()
     }
 }
 
 impl From<&String> for NodePath {
     fn from(s: &String) -> Self {
-        // NodePath doesn't offer direct construction from bytes; go via GString.
-        Self::from(&GString::from(s))
+        s.to_node_path()
     }
 }
 
 impl From<&GString> for NodePath {
     fn from(string: &GString) -> Self {
-        unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(node_path_from_string);
-                let args = [string.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+        string.to_node_path()
     }
 }
 
 impl From<&StringName> for NodePath {
     fn from(s: &StringName) -> Self {
-        Self::from(&GString::from(s))
+        s.to_node_path()
     }
 }
 

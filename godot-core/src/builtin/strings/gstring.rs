@@ -13,7 +13,7 @@ use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods, interface_fn};
 
 use crate::builtin::strings::{Encoding, pad_if_needed};
-use crate::builtin::{NodePath, StringName, Variant, inner};
+use crate::builtin::{GodotStringExt, NodePath, StringName, Variant, inner};
 use crate::meta::AsArg;
 use crate::meta::error::StringError;
 use crate::{impl_shared_string_api, meta};
@@ -328,38 +328,13 @@ impl PartialEq<&str> for GString {
 
 impl From<&str> for GString {
     fn from(s: &str) -> Self {
-        let bytes = s.as_bytes();
-
-        unsafe {
-            Self::new_with_string_uninit(|string_ptr| {
-                #[cfg(before_api = "4.3")]
-                let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
-                #[cfg(since_api = "4.3")]
-                let ctor = interface_fn!(string_new_with_utf8_chars_and_len2);
-
-                ctor(
-                    string_ptr,
-                    bytes.as_ptr() as *const std::ffi::c_char,
-                    bytes.len() as i64,
-                );
-            })
-        }
+        s.to_gstring()
     }
 }
 
 impl From<&[char]> for GString {
     fn from(chars: &[char]) -> Self {
-        // SAFETY: A `char` value is by definition a valid Unicode code point.
-        unsafe {
-            Self::new_with_string_uninit(|string_ptr| {
-                let ctor = interface_fn!(string_new_with_utf32_chars_and_len);
-                ctor(
-                    string_ptr,
-                    chars.as_ptr() as *const sys::char32_t,
-                    chars.len() as i64,
-                );
-            })
-        }
+        chars.to_gstring()
     }
 }
 
@@ -412,25 +387,13 @@ impl std::str::FromStr for GString {
 
 impl From<&StringName> for GString {
     fn from(string: &StringName) -> Self {
-        unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(string_from_string_name);
-                let args = [string.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+        string.to_gstring()
     }
 }
 
 impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
-        unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(string_from_node_path);
-                let args = [path.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+        path.to_gstring()
     }
 }
 
