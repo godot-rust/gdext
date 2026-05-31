@@ -52,29 +52,42 @@ use crate::private::handle_panic;
 ///     base: Base<Node>,
 /// }
 ///
-/// # // Trick to avoid adding SceneTreeTimer to minimal codegen.
-/// # struct B; impl B { fn get_tree(&self) -> &Self { &self } fn create_timer(&self, d: f64) -> &mut Game { panic!("never called") } }
+/// # // Trick to avoid adding SceneTreeTimer to minimal codegen. Return Gd<Game> -> timer.signals().timeout() resolves to Game's own signal.
+/// # trait Ct { fn create_timer(&self, duration: f64) -> Gd<Game>; }
+/// # impl Ct for Gd<godot::classes::SceneTree> { fn create_timer(&self, _d: f64) -> Gd<Game> { unreachable!() } }
 /// #[godot_api]
 /// impl Game {
+/// # fn do_something(&self) {}
 /// # #[signal] fn timeout();
-/// # fn base(&self) -> &B { panic!("never called") }
-///     // Async function that implements sleep using Godot timers.
-///     async fn sleep(&self, duration: f64) {
-///         let timer = self.base().get_tree().create_timer(duration);
+///     // Async sleep using Godot timers. Takes `Gd<Self>` by value, so no `&self`/`&mut self`
+///     // reference is held while the task is suspended at the await point.
+///     async fn sleep(this: Gd<Self>, duration: f64) {
+///         // To access object, use short-lived bind/bind_mut -> guard dropped after statement.
+///         this.bind().do_something();
 ///
-///         // Use a future to wait for the timeout signal.
+///         // Godot APIs don't need to go through bind/bind_mut at all.
+///         let timer = this.get_tree().create_timer(duration);
+///
+///         // Await without holding any borrow on `this`. Keeping a bind()/bind_mut() guard
+///         // across an await point is problematic: while suspended, other access to the
+///         // object, for example through process(&mut self), will panic.
 ///         timer.signals().timeout().to_future().await;
 ///     }
 ///
 ///     fn show_messages(&mut self) {
-///         // Obtain Gd<Self>, since closure cannot capture `&mut Self` due to lifetimes.
+///         // Obtain Gd<Self>, since the closure cannot capture `&mut self` due to lifetimes.
 ///         // If this method is linked to a signal, consider using a #[func(gd_self)] parameter.
 ///         let this = self.to_gd();
 ///
+///         // spawn() polls the future up to the first .await point, during which `&mut self` is
+///         // still held. base_mut() yields a guard that allows re-borrowing `self`, so the bind()
+///         // inside sleep() doesn't panic with "already bound".
+///         let _guard = self.base_mut();
+///
 ///         godot::task::spawn(async move {
 ///             godot_print!("Start!");
-///             this.bind().sleep(1.0).await;
-///             godot_print!("One second later!")
+///             Self::sleep(this, 1.0).await;
+///             godot_print!("One second later!");
 ///         });
 ///     }
 /// }
@@ -485,6 +498,11 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     // thus any state that may not have been unwind-safe cannot be observed later.
     let mut future = AssertUnwindSafe(future);
 
+    // Snapshot the bind-guard count before polling. Any guards held by the caller of spawn() (not
+    // the future itself) are already counted here and must not be treated as a violation.
+    #[cfg(safeguards_strict)]
+    let bind_guard_baseline = await_point_read();
+
     let panic_result = handle_panic(error_context, move || {
         (future.as_mut().poll(&mut ctx), future)
     });
@@ -503,7 +521,22 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     // Update the state of the Future in the runtime.
     ASYNC_RUNTIME.with_runtime_mut(|rt| match poll_result {
         // Future is still pending, so we park it again.
-        Poll::Pending => rt.park_task(godot_waker.runtime_index, future.0),
+        Poll::Pending => {
+            // A bind guard that outlives the suspension point will prevent any re-entrant access to
+            // the object (e.g. from process()), causing a panic or double-panic abort. Warn once so
+            // the developer sees it at the suspension site rather than at the conflicting access.
+            #[cfg(safeguards_strict)]
+            if await_point_read() > bind_guard_baseline {
+                crate::sys::defer_startup_warn!(
+                    once;
+                    id: "GdGuardAcrossAwait",
+                    "Guard from `Gd::bind()` or `Gd::bind_mut()` is held across an `.await` point in an async task.\n\
+                     While the task is suspended, the object can be re-entered (e.g. from `process()`), which panics.\n\
+                     Consider using Gd and binding on demand. See also `godot::task::spawn()` documentation.",
+                );
+            }
+            rt.park_task(godot_waker.runtime_index, future.0)
+        }
 
         // Future has resolved, so we remove it from the runtime.
         Poll::Ready(()) => rt.clear_task(godot_waker.runtime_index),
@@ -558,4 +591,33 @@ impl Wake for GodotWaker {
         // Schedule waker to poll the Future at the end of the frame.
         callable.call_deferred(&[]);
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Bind guard tracking for cross-await detection. No-op for safeguard level < strict.
+
+#[cfg(safeguards_strict)]
+thread_local! {
+    /// Counts live `GdRef`/`GdMut` bind guards on the current thread.
+    static AWAIT_POINT_GUARD_COUNT: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// Increment the live bind-guard counter. Called from `GdRef`/`GdMut` constructors.
+pub(crate) fn await_point_inc() {
+    #[cfg(safeguards_strict)]
+    AWAIT_POINT_GUARD_COUNT.set(AWAIT_POINT_GUARD_COUNT.get() + 1);
+}
+
+/// Decrement the live bind-guard counter. Called from `GdRef`/`GdMut` `Drop` impls.
+pub(crate) fn await_point_dec() {
+    #[cfg(safeguards_strict)]
+    AWAIT_POINT_GUARD_COUNT.with(|c| {
+        debug_assert!(c.get() > 0, "bind guard count underflow");
+        c.set(c.get().saturating_sub(1));
+    });
+}
+
+#[cfg(safeguards_strict)]
+fn await_point_read() -> u32 {
+    AWAIT_POINT_GUARD_COUNT.get()
 }

@@ -9,7 +9,7 @@ use std::ops::Deref;
 
 use godot::builtin::{Array, Callable, Signal, array, iarray, vslice};
 use godot::classes::{Object, RefCounted};
-use godot::obj::{Base, Gd, NewAlloc, NewGd};
+use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::prelude::{GodotClass, godot_api};
 use godot::task::{self, SignalFuture, TaskHandle, create_test_signal_future_resolver};
 
@@ -27,6 +27,24 @@ impl AsyncRefCounted {
     fn custom_signal(value: u32);
     #[signal]
     fn custom_signal_array(value: Array<i64>);
+
+    // Mirrors the `spawn()` doc example. Verifies two things:
+    // 1. The `base_mut()` guard allows the bind() during spawn()'s eager poll (up to the first `.await`).
+    // 2. The async fn drops its bind() before awaiting, so no object reference is held across suspension.
+    fn guarded_spawn(&mut self) -> TaskHandle {
+        let this = self.to_gd();
+        let _guard = self.base_mut();
+
+        task::spawn(Self::wait_for_signal(this))
+    }
+
+    // Takes `Gd<Self>` by value, mirroring the recommended pattern -- never holds a bind across `.await`.
+    async fn wait_for_signal(this: Gd<Self>) {
+        let guard = this.bind(); // doesn't panic due to outer base_mut() guard.
+        drop(guard); // before await point.
+
+        this.signals().custom_signal().to_future().await;
+    }
 }
 
 #[itest(async)]
@@ -222,6 +240,16 @@ fn resolver_callabable_equality() {
     assert_eq!(callable, cloned_callable);
     assert_ne!(callable, unrelated_callable);
     assert_ne!(cloned_callable, unrelated_callable);
+}
+
+// See guarded_spawn().
+#[itest(async)]
+fn async_task_bind_before_await() -> TaskHandle {
+    let mut object = AsyncRefCounted::new_gd();
+    let handle = object.bind_mut().guarded_spawn();
+    object.signals().custom_signal().emit(0);
+
+    handle
 }
 
 #[itest(async)]

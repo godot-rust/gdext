@@ -28,6 +28,7 @@ pub struct GdRef<'a, T: GodotClass> {
 
 impl<'a, T: GodotClass> GdRef<'a, T> {
     pub(crate) fn from_guard(guard: RefGuard<'a, T>) -> Self {
+        crate::task::await_point_inc();
         Self { guard }
     }
 }
@@ -42,6 +43,7 @@ impl<T: GodotClass> Deref for GdRef<'_, T> {
 
 impl<T: GodotClass> Drop for GdRef<'_, T> {
     fn drop(&mut self) {
+        crate::task::await_point_dec();
         out!("GdRef drop: {:?}", std::any::type_name::<T>());
     }
 }
@@ -58,6 +60,7 @@ pub struct GdMut<'a, T: GodotClass> {
 
 impl<'a, T: GodotClass> GdMut<'a, T> {
     pub(crate) fn from_guard(guard: MutGuard<'a, T>) -> Self {
+        crate::task::await_point_inc();
         Self { guard }
     }
 }
@@ -78,6 +81,7 @@ impl<T: GodotClass> DerefMut for GdMut<'_, T> {
 
 impl<T: GodotClass> Drop for GdMut<'_, T> {
     fn drop(&mut self) {
+        crate::task::await_point_dec();
         out!("GdMut drop: {:?}", std::any::type_name::<T>());
     }
 }
