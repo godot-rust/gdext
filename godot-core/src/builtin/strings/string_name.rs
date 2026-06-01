@@ -21,28 +21,29 @@ use crate::{impl_shared_string_api, meta};
 /// one instance of a given name exists.
 ///
 /// # Ordering
-///
 /// In Godot, `StringName`s are **not** ordered lexicographically, and the ordering relation is **not** stable across multiple runs of your
 /// application. Therefore, this type does not implement `PartialOrd` and `Ord`, as it would be very easy to introduce bugs by accidentally
 /// relying on lexicographical ordering.
 ///
 /// Instead, we provide [`transient_ord()`][Self::transient_ord] for ordering relations.
 ///
-/// # Null bytes
+/// # All string types + conversions
+/// | String type                                | Intended use case       | Encoding  | Convert to                                 |
+/// |--------------------------------------------|-------------------------|-----------|--------------------------------------------|
+/// | [`GString`][crate::builtin::GString]       | General purpose         | UTF-32    | [`to_gstring()`][Self::to_gstring]         |
+/// | **`StringName`**                           | Interned names          | UTF-32    | `to_string_name()`                         |
+/// | [`NodePath`][crate::builtin::NodePath]     | Scene-node paths        | segmented | [`to_node_path()`][Self::to_node_path]     |
+/// | `String`                                   | Owned, general purpose  | UTF-8     | [`to_string()`](#method.to_string)         |
+/// | `&str`                                     | Borrowed slice          | UTF-8     | _not supported_                            |
+/// | `&[char]`                                  | Borrowed slice (UTF-32) | UTF-32    | [`chars()`][Self::chars]                   |
 ///
+/// See also `StringName` constructors for more low-level conversions from `&[u8]` and `CStr`.
+///
+/// # Null bytes
 /// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and  \
 /// `"hello, world!\0 ignored by Godot"` will be treated as the same string if converted to a `StringName`.
 ///
-/// # All string types
-///
-/// | Intended use case | String type                                |
-/// |-------------------|--------------------------------------------|
-/// | General purpose   | [`GString`][crate::builtin::GString]       |
-/// | Interned names    | **`StringName`**                           |
-/// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
-///
 /// # Godot docs
-///
 /// [`StringName` (stable)](https://docs.godotengine.org/en/stable/classes/class_stringname.html)
 // Currently we rely on `transparent` for `borrow_string_sys`.
 #[repr(transparent)]
