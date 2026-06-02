@@ -5,7 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::future::Future;
 use std::ops::Deref;
+use std::pin::pin;
+use std::task::{Context, Poll, Waker};
 
 use godot::builtin::{Array, Callable, Signal, array, iarray, vslice};
 use godot::classes::{Object, RefCounted};
@@ -144,6 +147,34 @@ fn async_task_signal_future_panic() -> TaskHandle {
     obj.call_deferred("free", &[]);
 
     handle
+}
+
+// Regression test for https://github.com/godot-rust/gdext/issues/1624:
+// A `SignalFuture` whose object is freed during engine teardown must not panic, but be silently cancelled.
+#[itest]
+fn signal_future_cancelled_at_engine_exit() {
+    // We simulate teardown and free the object synchronously, so the whole flow is deterministic. The guard resets the flag on drop.
+    let _exiting_guard = task::simulate_engine_exiting();
+
+    let obj = Object::new_alloc();
+    let signal = Signal::from_object_signal(&obj, "script_changed");
+
+    let mut future = pin!(signal.to_future::<()>());
+    let mut cx = Context::from_waker(Waker::noop());
+
+    // First poll registers the one-shot connection and parks.
+    assert_eq!(future.as_mut().poll(&mut cx), Poll::Pending);
+
+    // Freeing the object drops the resolver:
+    // * In regular use, this marks the future dead and the next poll would panic.
+    // * While the engine is shutting down, the resolver leaves the future `Pending` instead, so it parks silently.
+    obj.free();
+
+    assert_eq!(
+        future.as_mut().poll(&mut cx),
+        Poll::Pending,
+        "SignalFuture must park silently (not panic) when its object is freed during engine teardown"
+    );
 }
 
 #[cfg(feature = "experimental-threads")]

@@ -11,6 +11,7 @@ use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll, Wake, Waker};
 use std::thread::{self, LocalKey, ThreadId};
 
@@ -40,6 +41,12 @@ use crate::private::handle_panic;
 ///
 /// # Panics
 /// If called from any other thread than the main thread.
+///
+/// # Engine shutdown
+/// If the awaited signal's object is freed *before* the signal fires during engine teardown, the task does not resume: it stays suspended and is
+/// dropped when the runtime shuts down, without panicking. If the signal *does* fire (e.g. `tree_exiting`, emitted while the node is still alive),
+/// the task resumes as usual -- but by then the engine may have freed the node and any other captured `Gd<T>`, so accessing one follows the usual
+/// liveness rules (panic with safeguards, UB when disengaged).
 ///
 /// # Examples
 /// An example using timers:
@@ -249,12 +256,71 @@ thread_local! {
 /// try to access engine resources, which leads to SEGFAULTs.
 pub(crate) fn cleanup() {
     ASYNC_RUNTIME.set(None);
+
+    // Reset the flag, so a subsequent re-initialization (e.g. hot-reload on Linux) starts in a clean state.
+    ENGINE_EXITING.store(false, Ordering::Relaxed);
+}
+
+static ENGINE_EXITING: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn mark_engine_exiting() {
+    ENGINE_EXITING.store(true, Ordering::Relaxed);
+}
+
+pub(crate) fn is_engine_exiting() -> bool {
+    if ENGINE_EXITING.load(Ordering::Relaxed) {
+        return true;
+    }
+
+    // Godot < 4.5 has no `MainLoop` shutdown hook, so detect teardown heuristically: the `SceneTree`'s root window is freed during shutdown, but
+    // persists across scene changes otherwise.
+    #[cfg(before_api = "4.5")]
+    {
+        use crate::obj::Singleton as _;
+
+        match crate::classes::Engine::singleton().get_main_loop() {
+            // No main loop: the engine is shutting down (or has not started yet, in which case no signal future can be pending).
+            None => true,
+            Some(main_loop) => match main_loop.try_cast::<crate::classes::SceneTree>() {
+                Ok(tree) => tree.get_root().is_none(),
+                Err(_) => false,
+            },
+        }
+    }
+
+    #[cfg(since_api = "4.5")]
+    false
 }
 
 #[cfg(feature = "trace")]
-pub fn has_godot_task_panicked(task_handle: TaskHandle) -> bool {
-    ASYNC_RUNTIME.with_runtime(|rt| rt.panicked_tasks.contains(&task_handle.id))
+mod itest_only {
+    use super::*;
+
+    pub fn has_godot_task_panicked(task_handle: TaskHandle) -> bool {
+        ASYNC_RUNTIME.with_runtime(|rt| rt.panicked_tasks.contains(&task_handle.id))
+    }
+
+    /// Simulate engine teardown from integration tests, to test signal resolver's shutdown behavior.
+    ///
+    /// Sets the engine-exiting flag and restores it to `false` when the returned guard is dropped, so the flag never leaks into other tests
+    /// (even if the test panics).
+    #[must_use = "the engine-exiting flag is reset when the guard is dropped"]
+    pub fn simulate_engine_exiting() -> EngineExitingGuard {
+        ENGINE_EXITING.store(true, Ordering::Relaxed);
+        EngineExitingGuard { _private: () }
+    }
+
+    pub struct EngineExitingGuard {
+        _private: (), // needs field to be non-instantiable.
+    }
+    impl Drop for EngineExitingGuard {
+        fn drop(&mut self) {
+            ENGINE_EXITING.store(false, Ordering::Relaxed);
+        }
+    }
 }
+#[cfg(feature = "trace")]
+pub use itest_only::*;
 
 /// The current state of a future inside the async runtime.
 enum FutureSlotState<T> {
