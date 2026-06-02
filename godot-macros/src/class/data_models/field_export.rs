@@ -60,6 +60,13 @@ pub enum ExportType {
     Storage,
 
     /// ### GDScript annotations
+    /// - `@export_node_path`
+    ///
+    /// ### Property hints
+    /// - `NODE_PATH_VALID_TYPES`
+    NodePath { node_paths: Vec<TokenStream> },
+
+    /// ### GDScript annotations
     /// - `@export_range`
     ///
     /// ### Property hints
@@ -170,6 +177,10 @@ impl ExportType {
     pub(crate) fn new_from_kv(parser: &mut KvParser) -> ParseResult<Self> {
         if parser.handle_alone("storage")? {
             return Self::new_storage();
+        }
+
+        if let Some(list_parser) = parser.handle_list("node_path")? {
+            return Self::new_node_path_list(list_parser);
         }
 
         if let Some(list_parser) = parser.handle_list("range")? {
@@ -297,6 +308,14 @@ impl ExportType {
 
     fn new_storage() -> ParseResult<Self> {
         Ok(Self::Storage)
+    }
+
+    fn new_node_path_list(mut parser: ListParser) -> ParseResult<Self> {
+        let mut node_paths: Vec<TokenStream> = vec![];
+        while let Some(expr) = parser.try_next_expr()? {
+            node_paths.push(expr);
+        }
+        Ok(Self::NodePath { node_paths })
     }
 
     fn new_range_list(mut parser: ListParser) -> ParseResult<Self> {
@@ -438,6 +457,12 @@ impl ExportType {
             Self::Default => None,
 
             Self::Storage => quote_export_func! { export_storage() },
+
+            Self::NodePath { node_paths } => {
+                quote_export_func! {
+                    export_node_path<T>(&[#(#node_paths),*])
+                }
+            }
 
             Self::Range {
                 min,

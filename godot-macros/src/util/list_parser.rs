@@ -147,6 +147,19 @@ impl ListParser {
         Ok(Some(id))
     }
 
+    /// Take the next element of the list, if one exists, ensuring it is an expression.
+    ///
+    /// Returns `Ok(Some(expr))` if the next element exists and is a valid expression,
+    /// `Ok(None)` if there are no more elements left,
+    /// or `Err` if the next element is not a valid expression.
+    pub fn try_next_expr(&mut self) -> ParseResult<Option<TokenStream>> {
+        let Some(_kv) = self.peek() else {
+            return Ok(None);
+        };
+
+        Ok(Some(self.pop_next().unwrap().expr()?))
+    }
+
     /// Checks to see if there is a next element, and if so,
     /// whether it is one of the allowed identifiers,
     /// returning `Ok(Some(ident))` if successful.

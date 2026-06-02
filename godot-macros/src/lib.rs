@@ -275,6 +275,10 @@ use crate::util::{KvParser, bail, ident};
 ///     #[export(storage)]
 ///     hidden_string: GString,
 ///
+///     // @export_node_path("Button", "TouchScreenButton")
+///     #[export(node_path = ("Button", "TouchScreenButton"))]
+///     node_path: NodePath,
+///
 ///     // @export_range(0.0, 10.0, or_greater)
 ///     #[export(range = (0.0, 10.0, or_greater))]
 ///     range_f64: f64,

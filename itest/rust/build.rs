@@ -491,6 +491,15 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
         TokenStream::new()
     } else {
         quote! {
+            #[export(node_path)]
+            export_untyped_node_path_array: Array<NodePath>,
+
+            #[export(node_path = ("Button"))]
+            export_node_path_button_array: Array<NodePath>,
+
+            #[export(node_path = ("Button", "TouchScreenButton"))]
+            export_node_path_button_touch_screen_button_array: Array<NodePath>,
+
             #[export(storage)]
             export_storage: GString,
 
@@ -602,6 +611,13 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
             #rust_exports_4_3
             #rust_exports_4_4
 
+            #[export(node_path)]
+            export_node_path_untyped: NodePath,
+            #[export(node_path = ("Button"))]
+            export_node_path_button: NodePath,
+            #[export(node_path = ("Button", "TouchScreenButton"))]
+            export_node_path_button_touch_screen_button: NodePath,
+
             // All the @export_file/dir variants, with GString, Array<GString> and PackedStringArray.
             #[export(file)]
             export_file: GString,
@@ -672,6 +688,8 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 @export_range(0, 100, 1, "or_greater", "or_less") var export_range_int_0_100_1_or_greater_or_less: int
 @export_exp_easing var export_exp_easing: float
 @export_color_no_alpha var export_color_no_alpha: Color
+@export_node_path var export_node_path_untyped: NodePath
+@export_node_path("Button") var export_node_path_button: NodePath
 @export_node_path("Button", "TouchScreenButton") var export_node_path_button_touch_screen_button: NodePath
 @export_flags("Fire", "Water", "Earth", "Wind") var export_flags_fire_water_earth_wind: int
 @export_flags("Self:4", "Allies:8", "Foes:16") var export_flags_self_4_allies_8_foes_16: int
@@ -701,6 +719,9 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 @export_dir var export_dir_parray: PackedStringArray
 @export_global_dir var export_global_dir_array: Array[String]
 @export_global_dir var export_global_dir_parray: PackedStringArray
+@export_node_path var export_untyped_node_path_array: Array[NodePath]
+@export_node_path("Button") var export_node_path_button_array: Array[NodePath]
+@export_node_path("Button", "TouchScreenButton") var export_node_path_button_touch_screen_button_array: Array[NodePath]
     "#;
 
     // Only available in Godot 4.4+.
