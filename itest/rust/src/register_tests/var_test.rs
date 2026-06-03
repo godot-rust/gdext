@@ -335,6 +335,66 @@ fn var_pub_access_on_editor_builtin() {
     obj.free();
 }
 
+/// Runs `f` and returns whether it panicked *internally* (not reaching the call site).
+///
+/// godot-rust catches panics at the FFI boundary, so a Godot-side accessor returns normally even when its body panicked, and the return value
+/// alone can't reveal it. A temporary panic hook records the panic, as the hook runs before the `catch_unwind`.
+fn detect_internal_panic(f: impl FnOnce()) -> bool {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    // Per-call flag (not a `static`), so concurrent tests (if implemented in the future) don't interfere.
+    let panicked = Arc::new(AtomicBool::new(false));
+    let flag = Arc::clone(&panicked);
+    let prev_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |_| flag.store(true, Ordering::SeqCst)));
+    f();
+    std::panic::set_hook(prev_hook);
+    panicked.load(Ordering::SeqCst)
+}
+
+// The getter/setter registered with Godot (used during property serialization, e.g. hot reload) must not panic on an uninitialized
+// `OnEditor<Gd<T>>`, even though the Rust-facing `#[var(pub)]` accessors do -- they go through nullable `Var::Via`. Regression test for
+// https://github.com/godot-rust/gdext/issues/1566.
+#[itest]
+fn var_pub_godot_get_uninit() {
+    let obj = VarPubEdgeCases::new_alloc();
+
+    let mut value = Variant::nil();
+    let panicked =
+        detect_internal_panic(|| value = obj.upcast_ref::<Object>().get("on_editor_node"));
+
+    assert!(
+        !panicked,
+        "Godot-side getter panicked on uninitialized OnEditor<Gd<T>>"
+    );
+    assert_eq!(value, Variant::nil());
+
+    obj.free();
+}
+
+#[itest]
+fn var_pub_godot_set_null() {
+    let mut obj = VarPubEdgeCases::new_alloc();
+    let node = Node::new_alloc();
+
+    // Godot writes null back to fields when restoring serialized state. The setter must accept it through nullable `Var::Via`; a `PubType`
+    // setter would reject the conversion (logged error, no panic), silently leaving the previous value in place.
+    obj.upcast_mut::<Object>()
+        .set("on_editor_node", &node.to_variant());
+    obj.upcast_mut::<Object>()
+        .set("on_editor_node", &Variant::nil());
+
+    assert_eq!(
+        obj.upcast_ref::<Object>().get("on_editor_node"),
+        Variant::nil(),
+        "Godot-side setter failed to write null to OnEditor<Gd<T>>"
+    );
+
+    node.free();
+    obj.free();
+}
+
 #[itest]
 fn var_pub_access_on_editor_gd() {
     let mut obj = VarPubEdgeCases::new_alloc();
