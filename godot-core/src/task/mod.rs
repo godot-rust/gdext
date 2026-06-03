@@ -23,7 +23,9 @@ pub use futures::{
 // For use in integration tests.
 #[cfg(feature = "trace")]
 mod reexport_test {
-    pub use super::async_runtime::has_godot_task_panicked;
+    pub use super::async_runtime::{
+        EngineExitingGuard, has_godot_task_panicked, simulate_engine_exiting,
+    };
     pub use super::futures::{SignalFutureResolver, create_test_signal_future_resolver};
 }
 
@@ -32,7 +34,9 @@ pub use reexport_test::*;
 
 // Crate-local re-exports.
 mod reexport_crate {
-    pub(crate) use super::async_runtime::{await_point_dec, await_point_inc, cleanup};
+    pub(crate) use super::async_runtime::{
+        await_point_dec, await_point_inc, cleanup, is_engine_exiting, mark_engine_exiting,
+    };
     pub(crate) use super::futures::{ThreadConfined, impl_dynamic_send};
 }
 

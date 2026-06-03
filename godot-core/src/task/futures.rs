@@ -36,6 +36,9 @@ pub(crate) use crate::impl_dynamic_send;
 /// - If the signal object is freed before the signal has been emitted.
 /// - If one of the signal arguments is `!Send`, but the signal was emitted on a different thread.
 ///
+/// During engine shutdown, this does **not** panic: when the signal object is freed before emission as part of the main loop being torn down,
+/// the awaiting task stays suspended and is dropped silently instead. This keeps "fire-and-forget" tasks from spamming errors on application exit.
+///
 /// # Keeping the signal object alive
 /// If the signal object is freed *concurrently* while the future is being dropped, connection cleanup is skipped and the stale connection is
 /// leaked (Godot removes it once the object dies), rather than aborting the process. This is only reachable by moving a `Gd` across threads,
@@ -152,6 +155,12 @@ impl<R: IntoDynamicSend> Drop for SignalFutureResolver<R> {
 
         if !matches!(data.state, SignalFutureState::Pending) {
             // The future is no longer pending, so no clean up is required.
+            return;
+        }
+
+        // During teardown, leave the future `Pending` (runtime drops it in `cleanup()`) instead of marking it `Dead` and waking it -> that would
+        // cause "signal object freed" error, i.e. a panic for `SignalFuture`, spamming on every exit. See `async_runtime::is_engine_exiting()`.
+        if crate::task::is_engine_exiting() {
             return;
         }
 

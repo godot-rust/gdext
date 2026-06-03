@@ -113,6 +113,10 @@ unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
+    // The main loop (SceneTree) is being torn down. Mark the async runtime as exiting, so a signal future whose object is freed during teardown
+    // is left suspended (and dropped in cleanup()) instead of being woken into a spurious panic. See `async_runtime::is_engine_exiting()`.
+    crate::task::mark_engine_exiting();
+
     let ctx = || "ExtensionLibrary::on_stage_deinit(MainLoop)".to_string();
 
     swallow_panics(ctx, || {
