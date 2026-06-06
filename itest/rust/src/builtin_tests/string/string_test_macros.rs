@@ -18,6 +18,7 @@ pub(super) const APPLE_CHARS: &[char] = &[
     '\u{1F4A1}', // 💡
 ];
 
+/// Tests conversions from bytes and c-strings.
 #[macro_export]
 macro_rules! generate_string_bytes_and_cstr_tests {
     (
@@ -174,7 +175,7 @@ macro_rules! generate_string_bytes_and_cstr_tests {
     };
 }
 
-// Tests padding with the standard formatter.
+/// Tests `Display` + padding with the standard formatter.
 #[macro_export]
 macro_rules! generate_string_standard_fmt_tests {
     (

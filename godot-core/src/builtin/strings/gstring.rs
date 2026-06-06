@@ -13,7 +13,7 @@ use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods, interface_fn};
 
 use crate::builtin::strings::{Encoding, pad_if_needed};
-use crate::builtin::{NodePath, StringName, Variant, inner};
+use crate::builtin::{GodotStringExt, NodePath, StringName, Variant, inner};
 use crate::meta::AsArg;
 use crate::meta::error::StringError;
 use crate::{impl_shared_string_api, meta};
@@ -30,7 +30,6 @@ use crate::{impl_shared_string_api, meta};
 /// In order to modify Godot strings, it's often easiest to convert them to Rust strings, perform the modifications and convert back.
 ///
 /// # `GString` vs. `String`
-///
 /// When interfacing with the Godot engine API, you often have the choice between `String` and `GString`. In user-declared methods
 /// exposed to Godot through the `#[func]` attribute, both types can be used as parameters and return types, and conversions
 /// are done transparently. For auto-generated binding APIs in `godot::classes`, both parameters and return types are `GString`.
@@ -48,21 +47,23 @@ use crate::{impl_shared_string_api, meta};
 /// * you have a large number of method calls per string instance (which are more expensive due to indirectly calling into Godot)
 /// * you need UTF-8 encoding (`GString` uses UTF-32)
 ///
-/// # Null bytes
+/// # All string types + conversions
+/// | String type                                | Intended use case       | Encoding  | Convert to                                 |
+/// |--------------------------------------------|-------------------------|-----------|--------------------------------------------|
+/// | **`GString`**                              | General purpose         | UTF-32    | `to_gstring()`                             |
+/// | [`StringName`][crate::builtin::StringName] | Interned names          | UTF-32    | [`to_string_name()`][Self::to_string_name] |
+/// | [`NodePath`][crate::builtin::NodePath]     | Scene-node paths        | segmented | [`to_node_path()`][Self::to_node_path]     |
+/// | `String`                                   | Owned, general purpose  | UTF-8     | [`to_string()`](#method.to_string)         |
+/// | `&str`                                     | Borrowed slice          | UTF-8     | _not supported_                            |
+/// | `&[char]`                                  | Borrowed slice (UTF-32) | UTF-32    | [`chars()`][Self::chars]                   |
 ///
+/// See also `GString` constructors for more low-level conversions from `&[u8]` and `CStr`.
+///
+/// # Null bytes
 /// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
 /// will be treated as the same string if converted to a `GString`.
 ///
-/// # All string types
-///
-/// | Intended use case | String type                                |
-/// |-------------------|--------------------------------------------|
-/// | General purpose   | **`GString`**                              |
-/// | Interned names    | [`StringName`][crate::builtin::StringName] |
-/// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
-///
 /// # Godot docs
-///
 /// [`String` (stable)](https://docs.godotengine.org/en/stable/classes/class_string.html)
 #[doc(alias = "String")]
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
@@ -328,38 +329,13 @@ impl PartialEq<&str> for GString {
 
 impl From<&str> for GString {
     fn from(s: &str) -> Self {
-        let bytes = s.as_bytes();
-
-        unsafe {
-            Self::new_with_string_uninit(|string_ptr| {
-                #[cfg(before_api = "4.3")]
-                let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
-                #[cfg(since_api = "4.3")]
-                let ctor = interface_fn!(string_new_with_utf8_chars_and_len2);
-
-                ctor(
-                    string_ptr,
-                    bytes.as_ptr() as *const std::ffi::c_char,
-                    bytes.len() as i64,
-                );
-            })
-        }
+        s.to_gstring()
     }
 }
 
 impl From<&[char]> for GString {
     fn from(chars: &[char]) -> Self {
-        // SAFETY: A `char` value is by definition a valid Unicode code point.
-        unsafe {
-            Self::new_with_string_uninit(|string_ptr| {
-                let ctor = interface_fn!(string_new_with_utf32_chars_and_len);
-                ctor(
-                    string_ptr,
-                    chars.as_ptr() as *const sys::char32_t,
-                    chars.len() as i64,
-                );
-            })
-        }
+        chars.to_gstring()
     }
 }
 
@@ -412,25 +388,13 @@ impl std::str::FromStr for GString {
 
 impl From<&StringName> for GString {
     fn from(string: &StringName) -> Self {
-        unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(string_from_string_name);
-                let args = [string.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+        string.to_gstring()
     }
 }
 
 impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
-        unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(string_from_node_path);
-                let args = [path.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+        path.to_gstring()
     }
 }
 

@@ -12,25 +12,26 @@ use godot_ffi::{ExtVariantType, GdextBuild, GodotFfi, ffi_methods};
 
 use super::{GString, StringName};
 use crate::builtin::inner;
+use crate::builtin::strings::GodotStringExt;
 use crate::meta::signed_range::SignedRange;
 
 /// A pre-parsed scene tree path.
 ///
-/// # Null bytes
+/// # All string types + conversions
+/// | String type                                | Intended use case       | Encoding  | Convert to                                 |
+/// |--------------------------------------------|-------------------------|-----------|--------------------------------------------|
+/// | [`GString`][crate::builtin::GString]       | General purpose         | UTF-32    | [`to_gstring()`][Self::to_gstring]         |
+/// | [`StringName`][crate::builtin::StringName] | Interned names          | UTF-32    | [`to_string_name()`][Self::to_string_name] |
+/// | **`NodePath`**                             | Scene-node paths        | segmented | `to_node_path()`                           |
+/// | `String`                                   | Owned, general purpose  | UTF-8     | [`to_string()`](#method.to_string)         |
+/// | `&str`                                     | Borrowed slice          | UTF-8     | _not supported_                            |
+/// | `&[char]`                                  | Borrowed slice (UTF-32) | UTF-32    | _not supported_                            |
 ///
+/// # Null bytes
 /// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
 /// will be treated as the same string if converted to a `NodePath`.
 ///
-/// # All string types
-///
-/// | Intended use case | String type                                |
-/// |-------------------|--------------------------------------------|
-/// | General purpose   | [`GString`][crate::builtin::GString]       |
-/// | Interned names    | [`StringName`][crate::builtin::StringName] |
-/// | Scene-node paths  | **`NodePath`**                             |
-///
 /// # Godot docs
-///
 /// [`NodePath` (stable)](https://docs.godotengine.org/en/stable/classes/class_nodepath.html)
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
@@ -233,34 +234,26 @@ impl fmt::Debug for NodePath {
 impl_rust_string_conv!(NodePath);
 
 impl From<&str> for NodePath {
-    // NodePath doesn't offer direct construction from bytes; go via GString.
     fn from(s: &str) -> Self {
-        Self::from(&GString::from(s))
+        s.to_node_path()
     }
 }
 
 impl From<&String> for NodePath {
     fn from(s: &String) -> Self {
-        // NodePath doesn't offer direct construction from bytes; go via GString.
-        Self::from(&GString::from(s))
+        s.to_node_path()
     }
 }
 
 impl From<&GString> for NodePath {
     fn from(string: &GString) -> Self {
-        unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(node_path_from_string);
-                let args = [string.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+        string.to_node_path()
     }
 }
 
 impl From<&StringName> for NodePath {
     fn from(s: &StringName) -> Self {
-        Self::from(&GString::from(s))
+        s.to_node_path()
     }
 }
 

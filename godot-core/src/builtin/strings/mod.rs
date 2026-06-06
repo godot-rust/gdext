@@ -7,12 +7,14 @@
 
 //! Godot-types that are Strings.
 
+mod godot_string_ext;
 mod gstring;
 mod macros;
 mod node_path;
 mod string_macros;
 mod string_name;
 
+pub use godot_string_ext::GodotStringExt;
 pub use gstring::{ExFind as GStringExFind, ExSplit as GStringExSplit, *};
 pub use node_path::NodePath;
 pub use string_name::{ExFind as StringNameExFind, ExSplit as StringNameExSplit, *};
