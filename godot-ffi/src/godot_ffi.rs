@@ -95,6 +95,15 @@ pub unsafe trait GodotFfi {
     ///   `call_type`'s encoding of return values.
     #[doc(hidden)]
     unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: PtrcallType);
+
+    /// Make sure reference counts on values returned from an outbound ptrcall are correct.
+    ///
+    /// Most types don't need this (default no-op). It only matters for `Object`: class methods returning it return a raw `Object*` on C++ side,
+    /// for which Godot does *not* increment the reference count, even when the dynamic type is `RefCounted`. Since our `Drop` will decrement
+    /// such reference counts, we have to increment here to balance. For statically `RefCounted` return types, Godot already returns an owning
+    /// `Ref<T>` (incremented), so nothing is done.
+    #[doc(hidden)]
+    fn adjust_refcount_on_ptrcall_return(&mut self) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

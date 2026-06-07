@@ -16,7 +16,7 @@ use crate::meta::CallContext;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::shape::GodotShape;
 use crate::meta::{FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot};
-use crate::obj::bounds::{Declarer, DynMemory as _};
+use crate::obj::bounds::{Declarer, DynMemory as _, Memory};
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{Bounds, Gd, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId, bounds};
 use crate::storage::{InstanceCache, InstanceStorage, Storage};
@@ -625,6 +625,14 @@ where
             unsafe { ptr::write(ptr as *mut *mut T, self.obj) };
             // We've passed ownership to caller.
             std::mem::forget(self);
+        }
+    }
+
+    fn adjust_refcount_on_ptrcall_return(&mut self) {
+        // Static type not ref-counted -> is Object, Node etc -> possibly needs incrementing refcount.
+        // maybe_inc_ref() is a no-op for Node etc.
+        if !<T::Memory as Memory>::IS_REF_COUNTED {
+            T::DynMemory::maybe_inc_ref(self);
         }
     }
 }
