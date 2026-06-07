@@ -489,6 +489,31 @@ fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
     assert_eq!(obj.get_reference_count(), 1);
 }
 
+// Regression test for https://github.com/godot-rust/gdext/issues/1626. Class methods with static return type Object, but dynamic type
+// RefCounted need to be incremented by godot-rust.
+#[cfg(feature = "codegen-full")]
+#[itest]
+fn object_engine_get_object_but_dynamic_refcount() {
+    use godot::classes::Area2D;
+
+    let mut area = Area2D::new_alloc();
+
+    let owner = RefCounted::new_gd();
+    let owner_id = area.create_shape_owner(&owner);
+    let count_before = owner.get_reference_count();
+
+    // `shape_owner_get_owner()` returns `Gd<Object>`, but the instance is actually `RefCounted`.
+    let fetched: Gd<Object> = area
+        .shape_owner_get_owner(owner_id)
+        .expect("shape owner was just created");
+    assert_eq!(owner.get_reference_count(), count_before + 1);
+
+    drop(fetched);
+    area.free();
+
+    assert_eq!(owner.get_reference_count(), count_before);
+}
+
 #[itest]
 fn object_engine_convert_variant_nil() {
     let nil = Variant::nil();

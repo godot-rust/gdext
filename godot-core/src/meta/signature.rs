@@ -265,7 +265,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, &mut |return_ptr| {
+                finish_ptrcall(&call_ctx, false, &mut |return_ptr| {
                     let type_ptrs = concat_varargs_ptrs(explicit_args, arg_count, varargs);
                     // Important: this calls from_sys_init_default().
                     // SAFETY: TODO.
@@ -293,7 +293,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, &mut |return_ptr| {
+                finish_ptrcall(&call_ctx, false, &mut |return_ptr| {
                     let type_ptrs = concat_varargs_ptrs(explicit_args, arg_count, varargs);
                     // Important: this calls from_sys_init_default().
                     builtin_fn(
@@ -325,7 +325,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, _arg_count| {
-                finish_ptrcall(&call_ctx, &mut |return_ptr| {
+                finish_ptrcall(&call_ctx, true, &mut |return_ptr| {
                     dispatch_class_ptrcall(method_bind, object_ptr, explicit_args, return_ptr);
                 })
             })
@@ -349,7 +349,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, &mut |return_ptr| {
+                finish_ptrcall(&call_ctx, false, &mut |return_ptr| {
                     dispatch_builtin_ptrcall(
                         builtin_fn,
                         type_ptr,
@@ -376,7 +376,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
 
         unsafe {
             pack_ptrcall_args(args, |explicit_args, arg_count| {
-                finish_ptrcall(&call_ctx, &mut |return_ptr| {
+                finish_ptrcall(&call_ctx, false, &mut |return_ptr| {
                     dispatch_utility_ptrcall(utility_fn, explicit_args, arg_count, return_ptr);
                 })
             })
@@ -428,9 +428,17 @@ unsafe fn concat_varargs_ptrs(
 /// This calls [`GodotFfi::new_with_init`] and passes the return pointer to `init`, see that function for safety docs.
 unsafe fn finish_ptrcall<Ret: EngineFromGodot>(
     call_ctx: &CallContext,
+    is_class_method: bool,
     init: &mut dyn FnMut(sys::GDExtensionTypePtr),
 ) -> Ret {
-    let ffi = unsafe { <<Ret::Via as GodotType>::Ffi>::new_with_init(init) };
+    let mut ffi = unsafe { <<Ret::Via as GodotType>::Ffi>::new_with_init(init) };
+
+    // Class methods returning static type Object (e.g. `EditorProperty::get_edited_object()`) hand back a raw `Object*` without incrementing the
+    // reference count. If the runtime type is `RefCounted`, we need to do that ourselves. Builtin/utility methods (e.g. `Callable::get_object()`)
+    // already return an owning `Ref<T>`, so they are not touched. See also https://github.com/godot-rust/gdext/issues/1626.
+    if is_class_method {
+        ffi.adjust_refcount_on_ptrcall_return();
+    }
 
     match Ret::Via::try_from_ffi(ffi).and_then(Ret::engine_try_from_godot) {
         Ok(ret) => ret,
