@@ -215,8 +215,32 @@ where
     ///
     /// In the Godot editor, classes that are not marked `#[class(tool)]` are replaced with _placeholder instances_ (Godot 4.3+ "runtime classes").
     /// From Godot's perspective the instance still exists, so scenes and script code referring to it do not break, but the Rust side is absent.
+    ///
+    /// Specifically, the following logic is **disabled** for a placeholder:
+    /// * Rust-side objects. As a result, [`bind()`][Self::bind] and [`bind_mut()`][Self::bind_mut] panic on placeholders.
+    ///   Use this method to branch, or mark the class `#[class(tool)]` if editor-side Rust state is required.
+    /// * `init()` constructor -- *not* called on `new_alloc()` / `new_gd()` / `ClassDB.instantiate()` in the editor. However, Godot _does_
+    ///   invoke `init()` exactly once per class at editor startup, to populate its default-value cache.
+    /// * Custom property accessors (`#[var(get = ..., set = ...)]`, `IObject::get_property` / `set_property`). Placeholders keep their
+    ///   own property map: `set()` stores into it; `get()` returns the stored value or falls back to the class's default-value cache.
+    /// * Virtual callbacks (`ready`, `process`, `enter_tree`, `notification`, `on_property_get_revert`, ...) -- replaced with Godot-side stubs
+    ///   (e.g. `property_can_revert` always returns `false`, `property_get_revert` always returns nil). Rust overrides never run.
+    /// * `#[func]` methods -- callable through GDScript / `Callable`, but they `bind()` the receiver internally and will therefore panic.
+    /// * Signal connections wired up in `init()` or `ready()` -- since those methods don't run (except for one-time `init()` filling defaults).
+    ///
+    /// Note that only `#[export]` fields populate the default-value cache (their `PropertyUsageFlags` include the storage/editor bits).
+    /// `#[var]`-only fields do not, so placeholder `get()` returns `nil` for them rather than the value assigned in `init()`. `set()` on the
+    /// placeholder accepts both kinds and stores them, but cross-instance state is not shared.
+    ///
+    /// The following operations still work as usual on a placeholder:
+    /// * Holding the `Gd<T>` pointer, cloning it, comparing instance IDs, freeing it.
+    /// * Upcasts and downcasts -- the Godot class hierarchy is intact, and `Object::get_class()` reports the user-declared name (not internal
+    ///   `PlaceholderExtensionInstance`).
+    /// * `get`, `set`, `get_property_list()`, etc. However, they access the static map and don't route to Rust `IObject` virtual methods.
+    ///
+    /// On Godot versions before 4.3 placeholder substitution does not exist; non-tool classes are instead filtered out at registration when the
+    /// `tool_only_in_editor` config option is enabled (the default). This method then always returns `false`.
     #[cfg(all(feature = "trace", feature = "upcoming-editor-placeholders"))]
-    #[doc(hidden)]
     pub fn is_editor_placeholder(&self) -> bool {
         self.raw.storage().is_none()
     }
