@@ -157,7 +157,7 @@ where
     arg_into_ref!(path);
 
     save_impl(obj, path)
-        .unwrap_or_else(|err| panic!("failed to save resource at path '{}': {}", &path, err));
+        .unwrap_or_else(|err| panic!("failed to save resource at path '{path}': {err}"));
 }
 
 /// Saves a [`Resource`]-inheriting object into the file located at `path`.
