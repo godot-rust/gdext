@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::borrow::Cow;
-
 use godot_ffi as sys;
 use sys::GodotFfi;
 
@@ -96,7 +94,7 @@ impl GodotStringExt for NodePath {
     }
 }
 
-impl GodotStringExt for &str {
+impl GodotStringExt for str {
     fn to_gstring(&self) -> GString {
         let utf8_bytes = self.as_bytes();
 
@@ -133,9 +131,9 @@ impl GodotStringExt for &str {
     }
 }
 
-impl GodotStringExt for &[char] {
+impl GodotStringExt for [char] {
     fn to_gstring(&self) -> GString {
-        let chars = *self;
+        let chars = self;
 
         // SAFETY: A `char` value is by definition a valid Unicode code point. Bounded by len().
         unsafe {
@@ -155,17 +153,15 @@ impl GodotStringExt for &[char] {
     }
 }
 
-impl GodotStringExt for String {
-    fn to_gstring(&self) -> GString {
-        self.as_str().to_gstring()
-    }
+/*
+This blanket impl can be enabled if users need `T: GodotStringExt` as a generic bound. `expr.to_gstring()` is already supported for
+String, Cow<'_, str>, Rc<str>, Box<str>, Vec<char> etc. However, the str-based ones cannot be passed in generic contexts.
+Adding a blanket impl is always a coherence hazard in Rust; consider if truly needed or explicit impls (e.g. String/Cow) fit better.
 
-    fn to_string_name(&self) -> StringName {
-        self.as_str().to_string_name()
-    }
-}
-
-impl GodotStringExt for Cow<'_, str> {
+impl<T> GodotStringExt for T
+where
+    T: AsRef<str>,
+{
     fn to_gstring(&self) -> GString {
         self.as_ref().to_gstring()
     }
@@ -174,3 +170,4 @@ impl GodotStringExt for Cow<'_, str> {
         self.as_ref().to_string_name()
     }
 }
+*/

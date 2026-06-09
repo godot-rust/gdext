@@ -7,6 +7,7 @@
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fmt;
+use std::rc::Rc;
 
 use godot::builtin::{Encoding, GString, GodotStringExt, PackedStringArray};
 
@@ -292,28 +293,30 @@ fn packed(strings: &[&str]) -> PackedStringArray {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GodotStringExt roundtrips
 
-fn check_string_ext<T: fmt::Display + GodotStringExt>(value: T) {
-    let expected = value.to_string();
-    assert_eq!(value.to_gstring().to_string(), expected);
-    assert_eq!(value.to_string_name().to_string(), expected);
-    assert_eq!(value.to_node_path().to_string(), expected);
-}
-
 #[itest]
-fn string_ext_roundtrips() {
+// Ignore warnings -- explicitly test Box<str>, &[char], Vec<char> auto-deref.
+#[expect(unused_allocation, clippy::needless_borrow, clippy::useless_vec)]
+fn string_ext_conversion() {
     let utf8 = String::from("godöt-rust 🦀 ゴドー");
     let utf8: &str = utf8.as_str(); // Ensure that non-'static lifetime is supported.
 
-    check_string_ext(utf8);
-    check_string_ext(utf8.to_string());
-    check_string_ext(utf8.to_gstring());
-    check_string_ext(utf8.to_string_name());
-    check_string_ext(utf8.to_node_path());
-    check_string_ext(Cow::Borrowed(utf8));
+    assert_eq!(utf8.to_gstring(), utf8);
+    assert_eq!(utf8.to_string_name(), utf8);
+    assert_eq!(utf8.to_node_path().to_string(), utf8); // NodePath == &str operator is not supported.
+
+    // Standard types converted to GString.
+    assert_eq!(utf8.to_gstring(), utf8); // &str
+    assert_eq!(Cow::Borrowed(utf8).to_gstring(), utf8); // String
+    assert_eq!(String::from(utf8).to_gstring(), utf8); // Cow<'_, str>
+    assert_eq!(Box::new(utf8).to_gstring(), utf8); // Box<str>
+    assert_eq!(Rc::new(utf8).to_gstring(), utf8); // Rc<str>
+    assert_eq!(['ĝ', 'ド'].to_gstring(), "ĝド"); // [char]
+    assert_eq!((&['ĝ', 'ド']).to_gstring(), "ĝド"); // &[char]
+    assert_eq!(vec!['ĝ', 'ド'].to_gstring(), "ĝド"); // Vec<char>
 }
 
 #[itest]
-fn string_ext_char_roundtrips() {
+fn string_ext_char_conversion() {
     let utf32: &[char] = &['G', 'ゴ', ' ', '🦀'];
     assert_eq!(utf32.to_gstring().chars(), utf32);
 
@@ -329,4 +332,24 @@ fn string_ext_char_roundtrips() {
     // NodePath has no chars() function, so use to_string().
     let np_string = utf32.to_node_path().to_string();
     assert_eq!(np_string.chars().collect::<Vec<char>>(), utf32);
+}
+
+#[itest]
+fn string_ext_bounds() {
+    let utf8 = String::from("godöt-rust 🦀 ゴドー");
+    let utf8: &str = utf8.as_str(); // Ensure that non-'static lifetime is supported.
+
+    check_string_ext(utf8.to_gstring());
+    check_string_ext(utf8.to_string_name());
+    check_string_ext(utf8.to_node_path());
+
+    // Standard string types currently not supported as Sized bound. Could be enabled if we add such impls in the future.
+}
+
+// Tests generic bounds (currently only Sized impls).
+fn check_string_ext<T: fmt::Display + GodotStringExt>(value: T) {
+    let expected = value.to_string();
+    assert_eq!(value.to_gstring().to_string(), expected);
+    assert_eq!(value.to_string_name().to_string(), expected);
+    assert_eq!(value.to_node_path().to_string(), expected);
 }

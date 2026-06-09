@@ -750,10 +750,9 @@ fn convert_to_method_path(
     let (link_godot_class, link_godot_method) =
         if let Some((class_name, method_name)) = class_method.split_once('.') {
             (class_name, method_name)
-        } else if let Some(class) = surrounding_class {
-            (class.name().godot_ty.as_str(), class_method)
         } else {
-            return None;
+            let class = surrounding_class?;
+            (class.name().godot_ty.as_str(), class_method)
         };
 
     let link_godot_method = util::safe_ident(link_godot_method).to_string();
