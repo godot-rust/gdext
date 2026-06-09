@@ -12,6 +12,7 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::ClassId;
 use crate::meta::inspect::EnumConstant;
+use crate::obj::rpc::{RpcCollection, UserRpcObject};
 use crate::obj::{Base, BaseMut, BaseRef, Bounds, Gd, bounds};
 use crate::signal::SignalObject;
 use crate::storage::Storage;
@@ -627,6 +628,52 @@ pub trait WithUserSignals: WithSignals + WithBaseField {
     ///
     /// See [`TypedSignal`][crate::signal::TypedSignal] for more information.
     fn signals(&mut self) -> Self::SignalCollection<'_, Self>;
+}
+
+/// Represents an object, generally a node, that can provide a [collection](RpcCollection) of RPCs available on this object.
+///
+/// Implemented by default for classes that inherit [`Node`](crate::classes::Node) and contain at least one `#[rpc]`.
+pub trait WithUserRpcs<'c, C>
+where
+    C: GodotClass,
+{
+    type Collection: RpcCollection<'c, C>;
+
+    /// Returns [`Self::Collection`], which generally holds a reference to [`Self`].
+    /// Refer to the [chapter about RPCs]() in the book for more information.
+    ///
+    /// # Provided API
+    ///
+    /// The returned collection provides an API for calling all defined RPCs.
+    ///
+    /// For example, the following RPC:
+    ///
+    /// ```ignore
+    /// #[rpc]
+    /// fn say_hello_to(&mut self, to: String) {
+    ///     godot_print!("hello, {to}");
+    /// }
+    /// ```
+    ///
+    /// can be called with:
+    ///
+    /// ```ignore
+    /// my_node.rpcs().say_hello_to("world".to_string()).call();
+    /// my_node.rpcs().say_hello_to("world".to_string()).call_id(1); // call RPC on specific peer
+    /// ```
+    fn rpcs(&'c mut self) -> Self::Collection;
+}
+
+impl<'c, C> WithUserRpcs<'c, C> for Gd<C>
+where
+    C: Inherits<crate::classes::Node> + WithUserRpcs<'c, C>,
+{
+    type Collection = <C as WithUserRpcs<'c, C>>::Collection;
+
+    /// Returns `Self::Collection`, which generally holds a [`Gd`] pointer to [`Self`].
+    fn rpcs(&'c mut self) -> Self::Collection {
+        Self::Collection::from_user_rpc_object(UserRpcObject::External(self.clone()))
+    }
 }
 
 /// Extension trait for all reference-counted classes.

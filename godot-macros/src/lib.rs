@@ -1081,6 +1081,9 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///         ..Default::default() // only possible in fn, not in const.
 ///     }
 /// }
+/// # // Required because the type-safe RPC API generates a submodule that imports the owning class with `super`.
+/// # // See https://github.com/rust-lang/rust/issues/130274
+/// # fn main() {}
 /// ```
 ///
 // Note: for some reason, the intra-doc links don't work here, despite dev-dependency on godot.

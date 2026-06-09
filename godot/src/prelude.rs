@@ -37,6 +37,7 @@ mod trait_reexports {
     pub use crate::obj::WithBaseField as _; // base(), base_mut(), to_gd(), run_deferred(), run_deferred_gd()
     pub use crate::obj::WithSignals as _; // Gd::signals()
     pub use crate::obj::WithUserSignals as _; // self.signals()
+    pub use crate::obj::WithUserRpcs as _; // rpcs()
 }
 
 pub use trait_reexports::*;
