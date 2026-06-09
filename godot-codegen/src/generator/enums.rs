@@ -115,6 +115,18 @@ pub fn make_enum_definition_with(
         let index_enum_impl = make_enum_index_impl(enum_);
         let bitwise_impls = make_enum_bitwise_operators(enum_, enum_bitmask.as_ref());
 
+        let special_default_impl = if let Some(override_default) = enum_.override_default.as_ref() {
+            quote! {
+                impl Default for #name {
+                    fn default() -> Self {
+                        #override_default
+                    }
+                }
+            }
+        } else {
+            TokenStream::new()
+        };
+
         let var_trait_set = if enum_.is_exhaustive {
             quote! {
                 fn var_set(field: &mut Self, value: Self::Via) {
@@ -144,6 +156,7 @@ pub fn make_enum_definition_with(
             #engine_trait_impl
             #index_enum_impl
             #bitwise_impls
+            #special_default_impl
 
             impl crate::meta::GodotConvert for #name {
                 type Via = #ord_type;

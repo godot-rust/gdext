@@ -766,6 +766,8 @@ impl Enum {
             .unwrap_or(json_is_bitfield);
         let is_private = special_cases::is_enum_private(surrounding_class, &godot_name);
         let is_exhaustive = special_cases::is_enum_exhaustive(surrounding_class, &godot_name);
+        let override_default =
+            special_cases::does_enum_have_special_default(surrounding_class, &godot_name);
 
         let rust_enum_name = conv::make_enum_name_str(&godot_name);
         let rust_enumerator_names = {
@@ -800,6 +802,7 @@ impl Enum {
             godot_name,
             surrounding_class: surrounding_class.cloned(),
             is_bitfield,
+            override_default,
             is_private,
             is_exhaustive,
             enumerators,
