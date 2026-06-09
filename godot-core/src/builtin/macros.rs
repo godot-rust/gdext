@@ -7,77 +7,72 @@
 
 #![macro_use]
 
+// Trait bodies parametrized on the lifecycle accessor `$lifecycle`: the main-thread table or the reviewed thread-safe subset. See
+// `impl_builtin_traits!` for how the accessor is chosen.
 macro_rules! impl_builtin_traits_inner {
-    ( Default for $Type:ty => $gd_method:ident ) => {
+    ( Default for $Type:ty => $gd_method:ident, $lifecycle:path ) => {
         impl Default for $Type {
             #[inline]
             fn default() -> Self {
                 unsafe {
                     Self::new_with_uninit(|self_ptr| {
-                        let ctor = ::godot_ffi::builtin_fn!($gd_method);
-                        ctor(self_ptr, std::ptr::null_mut())
+                        ($lifecycle().$gd_method)(self_ptr, std::ptr::null());
                     })
                 }
             }
         }
     };
 
-    ( Clone for $Type:ty => $gd_method:ident ) => {
+    ( Clone for $Type:ty => $gd_method:ident, $lifecycle:path ) => {
         impl Clone for $Type {
             #[inline]
             fn clone(&self) -> Self {
                 unsafe {
                     Self::new_with_uninit(|self_ptr| {
-                        let ctor = ::godot_ffi::builtin_fn!($gd_method);
                         let args = [self.sys()];
-                        ctor(self_ptr, args.as_ptr());
+                        ($lifecycle().$gd_method)(self_ptr, args.as_ptr());
                     })
                 }
             }
         }
     };
 
-    ( Drop for $Type:ty => $gd_method:ident ) => {
+    ( Drop for $Type:ty => $gd_method:ident, $lifecycle:path ) => {
         impl Drop for $Type {
             #[inline]
             fn drop(&mut self) {
                 unsafe {
-                    let destructor = ::godot_ffi::builtin_fn!($gd_method @1);
-                    destructor(self.sys_mut());
+                    ($lifecycle().$gd_method)(self.sys_mut());
                 }
             }
         }
     };
 
-    ( PartialEq for $Type:ty => $gd_method:ident ) => {
+    ( PartialEq for $Type:ty => $gd_method:ident, $lifecycle:path ) => {
         impl PartialEq for $Type {
             #[inline]
             fn eq(&self, other: &Self) -> bool {
                 unsafe {
                     let mut result = false;
-                    ::godot_ffi::builtin_call! {
-                        $gd_method(self.sys(), other.sys(), result.sys_mut())
-                    };
+                    ($lifecycle().$gd_method)(self.sys(), other.sys(), result.sys_mut());
                     result
                 }
             }
         }
     };
 
-    ( Eq for $Type:ty => $gd_method:ident ) => {
-        impl_builtin_traits_inner!(PartialEq for $Type => $gd_method);
+    ( Eq for $Type:ty => $gd_method:ident, $lifecycle:path ) => {
+        impl_builtin_traits_inner!(PartialEq for $Type => $gd_method, $lifecycle);
         impl Eq for $Type {}
     };
 
-    ( Ord for $Type:ty => $gd_method:ident ) => {
+    ( Ord for $Type:ty => $gd_method:ident, $lifecycle:path ) => {
         impl Ord for $Type {
             #[inline]
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
                 let op_less = |lhs, rhs| unsafe {
                     let mut result = false;
-                    ::godot_ffi::builtin_call! {
-                        $gd_method(lhs, rhs, result.sys_mut())
-                    };
+                    ($lifecycle().$gd_method)(lhs, rhs, result.sys_mut());
                     result
                 };
 
@@ -98,9 +93,8 @@ macro_rules! impl_builtin_traits_inner {
         }
     };
 
-
-    // Requires a `hash` function.
-    ( Hash for $Type:ty ) => {
+    // Hash is pure Rust-side (no FFI), so it ignores the lifecycle accessor.
+    ( Hash for $Type:ty, $lifecycle:path ) => {
         impl std::hash::Hash for $Type {
             fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
                 // The GDExtension interface only deals in `int64_t`, but the engine's own `hash()` function
@@ -119,7 +113,22 @@ macro_rules! impl_builtin_traits {
     ) => (
         $(
             impl_builtin_traits_inner! {
-                $Trait for $Type $(=> $gd_method)?
+                $Trait for $Type $(=> $gd_method)?, ::godot_ffi::builtin_lifecycle_api
+            }
+        )*
+    );
+
+    // Thread-safe variant: routes through the reviewed `sys::thread_safe_lifecycle()` subset. Only traits whose lifecycle functions are in
+    // that subset may be listed; anything else is a compile error on the missing field. Additionally, $Type must implement Send.
+    (
+        thread_safe for $Type:ty {
+            $( $Trait:ident $(=> $gd_method:ident)?; )*
+        }
+    ) => (
+        const _: () = ::godot_ffi::require_send::<$Type>();
+        $(
+            impl_builtin_traits_inner! {
+                $Trait for $Type $(=> $gd_method)?, ::godot_ffi::thread_safe_lifecycle
             }
         )*
     )

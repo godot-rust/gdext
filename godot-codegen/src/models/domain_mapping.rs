@@ -704,6 +704,7 @@ impl UtilityFunction {
             return None;
         }
         let is_private = special_cases::is_utility_function_private(&function);
+        let is_thread_safe = special_cases::is_utility_function_thread_safe(&function);
 
         let JsonUtilityFunction {
             name,
@@ -747,6 +748,7 @@ impl UtilityFunction {
                 deprecation_msg: None, // Utility functions are not deprecated.
                 description,
             },
+            is_thread_safe,
         })
     }
 }

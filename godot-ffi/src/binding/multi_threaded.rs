@@ -83,6 +83,11 @@ impl BindingStorage {
         let storage = Self::storage();
         storage.binding.is_initialized()
     }
+
+    /// No-op in multi-threaded builds: with "experimental-threads", FFI access from any thread is permitted, so there is no main-thread
+    /// assertion to make. Exists for API parity with the single-threaded storage, which the shared `get_binding()` relies on.
+    #[inline(always)]
+    pub(super) fn ensure_main_thread() {}
 }
 
 pub struct GdextConfig {

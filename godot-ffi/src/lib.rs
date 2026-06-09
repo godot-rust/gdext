@@ -762,6 +762,9 @@ pub unsafe fn classdb_construct_object(
     unsafe { f(class_name) }
 }
 
+pub const fn require_send<T: Send>() {}
+pub const fn require_send_sync<T: Send + Sync>() {}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros to access low-level function bindings
 

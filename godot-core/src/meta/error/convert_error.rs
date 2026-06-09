@@ -8,9 +8,7 @@
 use std::error::Error;
 use std::fmt;
 
-use godot_ffi::VariantType;
-
-use crate::builtin::Variant;
+use crate::builtin::{Variant, VariantType};
 use crate::meta::inspect::ElementType;
 use crate::meta::{ClassId, ToGodot};
 
@@ -399,7 +397,4 @@ impl fmt::Display for FromVariantError {
     }
 }
 
-fn __ensure_send_sync() {
-    fn check<T: Send + Sync>() {}
-    check::<ErasedConvertError>();
-}
+const _: () = godot_ffi::require_send_sync::<ErasedConvertError>();
