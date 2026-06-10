@@ -7,14 +7,54 @@
 
 use std::fmt::Debug;
 
-use godot::builtin::{GString, Vector2, array, dict};
+use godot::builtin::{GString, Vector2, array, dict, vslice};
+use godot::classes::RefCounted;
 use godot::meta::{GodotConvert, ToGodot};
+use godot::obj::{Base, NewGd};
+use godot::register::{GodotClass, godot_api};
 
 use crate::common::roundtrip;
 use crate::framework::itest;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // General FromGodot/ToGodot derive tests
+
+#[derive(GodotClass)]
+#[class(init)]
+struct EnumFuncs {
+    _base: Base<RefCounted>,
+    last_int: Option<EnumInty>,
+    last_str: Option<EnumStringy>,
+}
+
+#[godot_api]
+impl EnumFuncs {
+    #[func]
+    fn next_int(&self, i: EnumInty) -> EnumInty {
+        match i {
+            EnumInty::A => EnumInty::B,
+            EnumInty::B => EnumInty::C,
+            EnumInty::C => EnumInty::D,
+            EnumInty::D => EnumInty::E,
+            EnumInty::E => EnumInty::A,
+        }
+    }
+
+    #[func]
+    fn next_str(&self, s: EnumStringy) -> EnumStringy {
+        match s {
+            EnumStringy::A => EnumStringy::B,
+            EnumStringy::B => EnumStringy::C,
+            EnumStringy::C => EnumStringy::D,
+            EnumStringy::D => EnumStringy::E,
+            EnumStringy::E => EnumStringy::F,
+            EnumStringy::F => EnumStringy::A,
+        }
+    }
+
+    #[signal]
+    fn take_enums(i: EnumInty, s: EnumStringy);
+}
 
 #[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
@@ -121,6 +161,40 @@ fn enum_inty_with_complex_exprs() {
     assert_eq!(EnumIntyWithExprs::G as isize, 3);
     assert_eq!(EnumIntyWithExprs::H as isize, 4);
     assert_eq!(EnumIntyWithExprs::I as isize, 11);
+}
+
+#[itest]
+fn enum_in_func() {
+    let f = EnumFuncs::new_gd();
+
+    f.signals().take_enums().connect_self(|this, i, s| {
+        this.last_int = Some(this.next_int(i));
+        this.last_str = Some(this.next_str(s));
+    });
+
+    assert_eq!(f.bind().last_int, None);
+    assert_eq!(f.bind().last_str, None);
+
+    f.signals().take_enums().emit(EnumInty::B, EnumStringy::F);
+
+    assert_eq!(f.bind().last_int, Some(EnumInty::C));
+    assert_eq!(f.bind().last_str, Some(EnumStringy::A));
+}
+
+#[itest]
+fn enum_in_func_dynamic() {
+    let mut f = EnumFuncs::new_gd();
+
+    // Try with both the strongly-typed enum and the underlying int/string.
+    let ia_next = f.call("next_int", vslice![EnumInty::A as i32]);
+    let ib_next = f.call("next_int", vslice![EnumInty::B]);
+    let sc_next = f.call("next_str", vslice!["C"]);
+    let sd_next = f.call("next_str", vslice![EnumStringy::D]);
+
+    assert_eq!(ia_next.to::<EnumInty>(), EnumInty::B);
+    assert_eq!(ib_next.to::<EnumInty>(), EnumInty::C);
+    assert_eq!(sc_next.to::<EnumStringy>(), EnumStringy::D);
+    assert_eq!(sd_next.to::<EnumStringy>(), EnumStringy::E);
 }
 
 macro_rules! test_inty {
