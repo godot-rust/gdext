@@ -18,6 +18,7 @@ mod native_st_niche_pointer_test;
 mod native_structures_test;
 mod node_test;
 mod save_load_test;
+mod thread_safe_apis_test;
 mod translate_test;
 mod utilities_test;
 

@@ -860,6 +860,28 @@ pub fn is_utility_function_deleted(function: &JsonUtilityFunction, ctx: &mut Con
     hardcoded || codegen_special_cases::is_utility_function_excluded(function, ctx)
 }
 
+/// Utility functions manually reviewed as thread-safe (callable from any thread).
+#[rustfmt::skip]
+pub fn is_utility_function_thread_safe(function: &JsonUtilityFunction) -> bool {
+    match function.name.as_str() {
+        // Print group -> Godot's `OS::print()` -> active logger. See print.rs for the per-backend C++ analysis.
+        | "print"
+        | "print_rich"
+        | "printerr"
+        | "printraw"
+        | "printt"
+        | "prints"
+        | "print_verbose"
+        | "push_error"
+        | "push_warning"
+        
+        // Pure Variant -> GString conversion, touches only caller-owned memory.
+        | "str"
+
+        => true, _ => false
+    }
+}
+
 #[rustfmt::skip]
 pub fn is_utility_function_private(function: &JsonUtilityFunction) -> bool {
     match function.name.as_str() {

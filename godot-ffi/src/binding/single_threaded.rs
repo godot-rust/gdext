@@ -9,15 +9,16 @@
 //!
 //! If used from different threads then there will be runtime errors in debug mode and UB in release mode.
 
-use std::cell::Cell;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::GodotBinding;
 use crate::ManualInitCell;
 
 pub(super) struct BindingStorage {
-    // No threading when linking against Godot with a nothreads Wasm build.
-    // Therefore, we just need to check if the bindings were initialized, as all accesses are from the main thread.
-    initialized: Cell<bool>,
+    // Guards the binding-live window (set on init, cleared on deinit). `AtomicBool` instead of `Cell<bool>` so thread-safe FFI calls off the main
+    // thread still have well-defined ordering: `Release`-stores on init/deinit pair with `Acquire`-loads on read, establishing happens-before.
+    // Does *not* protect against concurrent teardown races -- the engine must join extension threads before unloading the library.
+    initialized: AtomicBool,
     binding: ManualInitCell<GodotBinding>,
 }
 
@@ -25,12 +26,12 @@ impl BindingStorage {
     /// Get the static binding storage.
     ///
     /// # Safety
-    ///
-    /// You must not access `binding` from a thread different from the thread [`initialize`](BindingStorage::initialize) was first called from.
+    /// You must not access `binding` from a thread different from the thread [`initialize`](BindingStorage::initialize) was first called from,
+    /// unless the accessed FFI function is itself thread-safe (see [`get_binding_unchecked`](BindingStorage::get_binding_unchecked)).
     #[inline(always)]
     unsafe fn storage() -> &'static Self {
         static BINDING: BindingStorage = BindingStorage {
-            initialized: Cell::new(false),
+            initialized: AtomicBool::new(false),
             binding: ManualInitCell::new(),
         };
 
@@ -41,28 +42,7 @@ impl BindingStorage {
     ///
     /// It is recommended to use this function for that purpose as the field to check varies depending on the compilation target.
     fn initialized(&self) -> bool {
-        self.initialized.get()
-    }
-
-    /// Marks the binding storage as initialized or deinitialized.
-    /// We store the thread ID to ensure future accesses to the binding only come from the main thread.
-    ///
-    /// # Safety
-    /// Must be called from the main thread. Additionally, the binding storage must be initialized immediately
-    /// after this function if `initialized` is `true`, or deinitialized if it is `false`.
-    ///
-    /// # Panics
-    /// If attempting to deinitialize before initializing, or vice-versa.
-    unsafe fn set_initialized(&self, initialized: bool) {
-        if initialized == self.initialized() {
-            if initialized {
-                panic!("already initialized");
-            } else {
-                panic!("deinitialize without prior initialize");
-            }
-        }
-
-        self.initialized.set(initialized);
+        self.initialized.load(Ordering::Acquire)
     }
 
     /// Initialize the binding storage, this must be called before any other public functions.
@@ -77,15 +57,16 @@ impl BindingStorage {
         // in which case we can tell that the storage has been initialized, and we don't access `binding`.
         let storage = unsafe { Self::storage() };
 
-        // SAFETY: We are about to initialize the binding below, so marking the binding as initialized is correct.
-        // If we can't initialize the binding at this point, we get a panic before changing the status, thus the
-        // binding won't be set.
-        unsafe { storage.set_initialized(true) };
+        assert!(!storage.initialized(), "already initialized");
 
-        // SAFETY: We are the first thread to set this binding (possibly after deinitialize), as otherwise the above set() would fail and
-        // return early. We also know initialize() is not called concurrently with anything else that can call another method on the binding,
-        // since this method is called from the main thread and so must any other methods.
+        // SAFETY: We are the first thread to set this binding (possibly after deinitialize), as otherwise the above assert would fail. We also
+        // know initialize() is not called concurrently with anything else that can call another method on the binding, since this method is
+        // called from the main thread and so must any other methods.
         unsafe { storage.binding.set(binding) };
+
+        // Publish the binding *before* marking it live: a reader observing `true` (with the corresponding `Acquire`-load) is then guaranteed to
+        // see the fully-written binding.
+        storage.initialized.store(true, Ordering::Release);
     }
 
     /// Deinitialize the binding storage.
@@ -99,10 +80,13 @@ impl BindingStorage {
         // SAFETY: We only call this once no other operations happen anymore, i.e. no other access to the binding.
         let storage = unsafe { Self::storage() };
 
-        // SAFETY: We are about to deinitialize the binding below, so marking the binding as deinitialized is correct.
-        // If we can't deinitialize the binding at this point, we get a panic before changing the status, thus the
-        // binding won't be deinitialized.
-        unsafe { storage.set_initialized(false) };
+        assert!(
+            storage.initialized(),
+            "deinitialize without prior initialize"
+        );
+
+        // Mark the binding not-live *before* clearing it: a reader observing `false` will not dereference the binding.
+        storage.initialized.store(false, Ordering::Release);
 
         // SAFETY: We are the only thread that can access the binding, and we know that it's initialized.
         unsafe { storage.binding.clear() };
@@ -110,18 +94,22 @@ impl BindingStorage {
 
     /// Get the binding from the binding storage.
     ///
+    /// This performs the "binding is live" check (turning before-init / after-deinit access into a clean panic), but does *not* assert that the
+    /// caller is on the main thread -- so it is the right entry point for thread-safe FFI functions. Callers that touch engine/scene state must
+    /// additionally go through [`ensure_main_thread`](BindingStorage::ensure_main_thread).
+    ///
     /// # Safety
-    /// - Must be called from the main thread.
     /// - The binding must be initialized.
     #[inline(always)]
     pub unsafe fn get_binding_unchecked() -> &'static GodotBinding {
-        // SAFETY: The bindings were initialized on the main thread because `initialize` must be called from the main thread,
-        // and this function is called from the main thread.
         let storage = unsafe { Self::storage() };
 
-        Self::ensure_main_thread();
+        // Live check: passes in ~100% of real calls. Compiled out under the disengaged safety profile, recovering unchecked speed for users who
+        // promise the invariant. The actual check lives in a standalone function so it can be unit-tested without a real binding.
+        #[cfg(safeguards_balanced)]
+        assert_binding_live(&storage.initialized);
 
-        // SAFETY: This function can only be called when the binding is initialized and from the main thread, so we know that it's initialized.
+        // SAFETY: Per the safety contract the binding is initialized, so the cell holds a value.
         unsafe { storage.binding.get_unchecked() }
     }
 
@@ -132,7 +120,9 @@ impl BindingStorage {
         storage.initialized()
     }
 
-    fn ensure_main_thread() {
+    /// Asserts that the caller is on the main thread. Used by the restricted accessor (`sys::on_main()`) for FFI functions that touch
+    /// engine/scene state; thread-safe functions skip this.
+    pub(super) fn ensure_main_thread() {
         // Check that we're on the main thread. Only enabled with balanced+ safeguards and, for Wasm, in threaded builds.
         // In wasm_nothreads, there's only one thread, so no check is needed.
         #[cfg(all(safeguards_balanced, not(wasm_nothreads)))]
@@ -160,6 +150,46 @@ impl BindingStorage {
 unsafe impl Sync for BindingStorage {}
 // SAFETY: We ensure that `binding` is only ever accessed from the same thread that initialized it.
 unsafe impl Send for BindingStorage {}
+
+/// Panics if the binding is not currently live, turning before-init / after-deinit access into a clean error instead of UB.
+///
+/// Standalone (not a method) so it can be unit-tested against a hand-made `AtomicBool` without a real binding behind it.
+#[cfg(safeguards_balanced)]
+#[inline(always)]
+fn assert_binding_live(initialized: &AtomicBool) {
+    if !initialized.load(Ordering::Acquire) {
+        not_live_panic();
+    }
+}
+
+/// Failure path for the live check; separated out and marked cold so the hot path stays a predicted-not-taken branch.
+#[cfg(safeguards_balanced)]
+#[cold]
+#[inline(never)]
+fn not_live_panic() -> ! {
+    panic!(
+        "Godot binding accessed before initialization or after deinitialization. \
+        This typically means a `#[ctor]`/`#[dtor]` constructor, a library destructor, or a leftover user thread touched the Godot API \
+        outside the engine's load/unload window."
+    )
+}
+
+#[cfg(all(test, safeguards_balanced))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn live_check_passes_when_initialized() {
+        // Must not panic.
+        assert_binding_live(&AtomicBool::new(true));
+    }
+
+    #[test]
+    #[should_panic(expected = "accessed before initialization or after deinitialization")]
+    fn live_check_panics_when_not_initialized() {
+        assert_binding_live(&AtomicBool::new(false));
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

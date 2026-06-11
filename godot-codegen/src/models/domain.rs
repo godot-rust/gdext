@@ -436,6 +436,9 @@ pub trait Function: fmt::Display {
 
 pub struct UtilityFunction {
     pub common: FunctionCommon,
+
+    /// True if manually approved as thread-safe. Routed through the thread-safe binding accessor in codegen.
+    pub is_thread_safe: bool,
 }
 
 impl UtilityFunction {

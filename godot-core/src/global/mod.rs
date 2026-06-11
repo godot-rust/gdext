@@ -45,7 +45,7 @@
 
 mod print;
 
-pub use print::{PrintLevel, PrintRecord, PrintSource, print_custom};
+pub use print::{__threadsafe_print, PrintLevel, PrintRecord, PrintSource, print_custom};
 
 // Some enums are directly re-exported from crate::builtin.
 pub use crate::r#gen::central::global_enums::*;

@@ -343,7 +343,26 @@ impl Variant {
         crate::global::is_instance_valid(self)
 
         // In case there are ever problems with this approach, alternative implementation:
-        // self.stringify() != "<Freed Object>".into()
+        // self.stringify() != "<Freed Object>"
+    }
+
+    /// Destroys this `Variant` without the main-thread assertion of [`Drop`], then forgets it.
+    ///
+    /// # Safety
+    /// Only sound for variant types that implement `Send`. Types such as `VariantType::OBJECT` can run Rust `Drop` code, which may not be
+    /// thread-safe.
+    // TODO(v0.6): pick this path automatically in `Drop`, based on a per-`VariantType` flag for which types are safe to destroy off the main thread.
+    pub(crate) unsafe fn destroy_unchecked_thread(self) {
+        let mut this = self;
+
+        // SAFETY: binding initialized; `variant_destroy` only reads `this` and frees its caller-owned payload (guaranteed a string here).
+        unsafe {
+            let variant_destroy = sys::thread_safe().variant_destroy;
+            variant_destroy(this.var_sys_mut());
+        }
+
+        // Skip `Drop`, since we already destroyed the payload above.
+        std::mem::forget(this);
     }
 
     // Conversions from/to Godot C++ `Variant*` pointers
@@ -531,6 +550,8 @@ unsafe impl GodotFfi for Variant {
 
 crate::meta::impl_godot_as_self!(Variant: ByVariant);
 
+// TODO(v0.6): Variant lifecycle stays on the main-thread accessor because a Variant can hold a reference type (Object), whose refcount/free is
+// not safe off the main thread. Once we can classify the inner type, the value-type cases could opt into thread-safe access.
 impl Default for Variant {
     fn default() -> Self {
         unsafe {

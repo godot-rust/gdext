@@ -8,7 +8,9 @@
 use crate::{
     BuiltinLifecycleTable, BuiltinMethodTable, ClassCoreMethodTable, ClassEditorMethodTable,
     ClassSceneMethodTable, ClassServersMethodTable, GDExtensionClassLibraryPtr,
-    GDExtensionInterface, GdextRuntimeMetadata, ManualInitCell, UtilityFunctionTable,
+    GDExtensionConstTypePtr, GDExtensionInterface, GDExtensionTypePtr,
+    GDExtensionUninitializedTypePtr, GDExtensionUninitializedVariantPtr, GDExtensionVariantPtr,
+    GdextRuntimeMetadata, ManualInitCell, UtilityFunctionTable,
 };
 
 #[cfg(feature = "experimental-threads")]
@@ -43,6 +45,45 @@ pub(crate) struct GodotBinding {
     utility_function_table: UtilityFunctionTable,
     runtime_metadata: GdextRuntimeMetadata,
     config: GdextConfig,
+    thread_safe_lifecycle: ThreadSafeLifecycle,
+}
+
+// The reviewed thread-safe subset of `BuiltinLifecycleTable`. Field names must match the table 1:1; listed once here, so the struct
+// declaration and `from_table` copy cannot drift. Each entry being a separate field is the guardrail: macros can only reach reviewed functions.
+macro_rules! thread_safe_lifecycle {
+    ($( $field:ident: $sig:ty ),* $(,)?) => {
+        #[derive(Copy, Clone)]
+        pub struct ThreadSafeLifecycle {
+            $( pub $field: $sig, )*
+        }
+
+        impl ThreadSafeLifecycle {
+            /// Picks the reviewed thread-safe subset out of the full lifecycle table. Built once at binding init, handed out by reference.
+            fn from_table(table: &BuiltinLifecycleTable) -> Self {
+                Self { $( $field: table.$field, )* }
+            }
+        }
+    };
+}
+
+thread_safe_lifecycle! {
+    string_construct_default: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+    string_construct_copy: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+    string_destroy: unsafe extern "C" fn(GDExtensionTypePtr),
+    string_operator_equal: unsafe extern "C" fn(GDExtensionConstTypePtr, GDExtensionConstTypePtr, GDExtensionTypePtr),
+    string_operator_less: unsafe extern "C" fn(GDExtensionConstTypePtr, GDExtensionConstTypePtr, GDExtensionTypePtr),
+    string_from_string_name: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+    string_from_node_path: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+    string_to_variant: unsafe extern "C" fn(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr),
+    string_from_variant: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr),
+    string_name_construct_default: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+    string_name_construct_copy: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+    string_name_destroy: unsafe extern "C" fn(GDExtensionTypePtr),
+    string_name_operator_equal: unsafe extern "C" fn(GDExtensionConstTypePtr, GDExtensionConstTypePtr, GDExtensionTypePtr),
+    string_name_operator_less: unsafe extern "C" fn(GDExtensionConstTypePtr, GDExtensionConstTypePtr, GDExtensionTypePtr),
+    string_name_from_string: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+    string_name_to_variant: unsafe extern "C" fn(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr),
+    string_name_from_variant: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr),
 }
 
 impl GodotBinding {
@@ -55,11 +96,14 @@ impl GodotBinding {
         runtime_metadata: GdextRuntimeMetadata,
         config: GdextConfig,
     ) -> Self {
+        let thread_safe_lifecycle = ThreadSafeLifecycle::from_table(&global_method_table);
+
         Self {
             interface,
             get_proc_address,
             library: ClassLibraryPtr(library),
             global_method_table,
+            thread_safe_lifecycle,
             class_core_method_table: ManualInitCell::new(),
             class_server_method_table: ManualInitCell::new(),
             class_scene_method_table: ManualInitCell::new(),
@@ -123,6 +167,33 @@ pub unsafe fn get_interface() -> &'static GDExtensionInterface {
     &get_binding().interface
 }
 
+/// Interface for FFI functions that touch shared engine/scene state and must run on the main thread.
+///
+/// Asserts main thread (non-disengaged profiles) plus binding-live check. For `classdb_*`, `object_method_bind_*`, etc.
+/// Not a thread-safe alternative; use [`thread_safe()`] for functions that only touch caller-owned memory.
+///
+/// # Safety
+/// The Godot binding must have been initialized before calling this function.
+#[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
+pub unsafe fn on_main() -> &'static GDExtensionInterface {
+    &get_binding().interface
+}
+
+/// Access the interface for thread-safe FFI functions (they only touch caller-owned memory).
+///
+/// Skips the main-thread assertion, keeping only the binding-live check. Default to [`on_main`] until a function is reviewed thread-safe.
+/// Returns the full interface, so the restriction holds by convention only. TODO(v0.6): codegen a typed subset like [`thread_safe_lifecycle`],
+/// so misuse becomes a compile error.
+///
+/// # Safety
+/// The Godot binding must have been initialized before calling this function, and the accessed function must not touch shared engine state.
+#[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
+pub unsafe fn thread_safe() -> &'static GDExtensionInterface {
+    &get_binding_thread_safe().interface
+}
+
 /// # Safety
 ///
 /// The Godot binding must have been initialized before calling this function.
@@ -153,6 +224,8 @@ pub unsafe fn get_ffi_ptr_by_cstr(name: &[u8]) -> crate::GDExtensionInterfaceFun
     get_proc_address(crate::c_str(name))
 }
 
+/// Access the builtin lifecycle table.
+///
 /// # Safety
 ///
 /// The Godot binding must have been initialized before calling this function.
@@ -162,6 +235,18 @@ pub unsafe fn get_ffi_ptr_by_cstr(name: &[u8]) -> crate::GDExtensionInterfaceFun
 #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn builtin_lifecycle_api() -> &'static BuiltinLifecycleTable {
     &get_binding().global_method_table
+}
+
+/// Access the reviewed builtin lifecycle functions that are thread-safe.
+///
+/// Intentionally a narrow subset, not the full lifecycle table; additions must be reviewed individually.
+///
+/// # Safety
+/// The Godot binding must have been initialized before calling this function, and the accessed function must not touch shared engine state.
+#[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
+pub unsafe fn thread_safe_lifecycle() -> &'static ThreadSafeLifecycle {
+    &get_binding_thread_safe().thread_safe_lifecycle
 }
 
 /// # Safety
@@ -250,6 +335,21 @@ pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
     &get_binding().utility_function_table
 }
 
+/// Access the utility-function table for functions reviewed as thread-safe (currently the print group and `str`).
+///
+/// Skips the main-thread assertion, keeping only the binding-live check. Most utility functions touch shared engine state and must therefore
+/// keep going through [`utility_function_table`]; codegen routes only the individually reviewed ones here (see `is_utility_function_thread_safe`
+/// in `godot-codegen`).
+///
+/// # Safety
+///
+/// The Godot binding must have been initialized before calling this function, and the accessed function must not touch shared engine state.
+#[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
+pub unsafe fn utility_function_table_thread_safe() -> &'static UtilityFunctionTable {
+    &get_binding_thread_safe().utility_function_table
+}
+
 /// # Safety
 ///
 /// The Godot binding must have been initialized before calling this function.
@@ -306,6 +406,19 @@ pub(crate) unsafe fn deinitialize_binding() {
 #[inline(always)]
 #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub(crate) unsafe fn get_binding() -> &'static GodotBinding {
+    // Restricted access: assert main thread (no-op in multi-threaded builds), then perform the binding-live check.
+    BindingStorage::ensure_main_thread();
+    BindingStorage::get_binding_unchecked()
+}
+
+/// Like [`get_binding`], but without the main-thread assertion -- for thread-safe FFI functions.
+///
+/// # Safety
+/// The Godot binding must have been initialized before calling this function. The accessed FFI function must only touch caller-owned memory
+/// (e.g. builtin value-type ctors/dtors, mem alloc/free, type constructors), not shared engine or scene state.
+#[inline(always)]
+#[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
+pub(crate) unsafe fn get_binding_thread_safe() -> &'static GodotBinding {
     BindingStorage::get_binding_unchecked()
 }
 

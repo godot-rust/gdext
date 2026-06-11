@@ -27,27 +27,37 @@ use crate::task::{DynamicSend, IntoDynamicSend, ThreadConfined, impl_dynamic_sen
 macro_rules! impl_ffi_variant {
     // With explicit metadata (e.g. for i64, f64).
     (ref $T:ty, $from_fn:ident, $to_fn:ident; $metadata:expr) => {
-        impl_ffi_variant!(@impls by_ref, $metadata; $T, $from_fn, $to_fn);
+        impl_ffi_variant!(@impls by_ref, $metadata, main_thread; $T, $from_fn, $to_fn);
     };
     ($T:ty, $from_fn:ident, $to_fn:ident; $metadata:expr) => {
-        impl_ffi_variant!(@impls by_val, $metadata; $T, $from_fn, $to_fn);
+        impl_ffi_variant!(@impls by_val, $metadata, main_thread; $T, $from_fn, $to_fn);
     };
 
     // Without metadata (defaults to ParamMetadata::NONE).
     (ref $T:ty, $from_fn:ident, $to_fn:ident) => {
-        impl_ffi_variant!(@impls by_ref, ParamMetadata::NONE; $T, $from_fn, $to_fn);
+        impl_ffi_variant!(@impls by_ref, ParamMetadata::NONE, main_thread; $T, $from_fn, $to_fn);
     };
     ($T:ty, $from_fn:ident, $to_fn:ident) => {
-        impl_ffi_variant!(@impls by_val, ParamMetadata::NONE; $T, $from_fn, $to_fn);
+        impl_ffi_variant!(@impls by_val, ParamMetadata::NONE, main_thread; $T, $from_fn, $to_fn);
     };
 
+    // Thread-safe variant: the to/from-variant converters resolve through the reviewed `sys::thread_safe_lifecycle()` subset instead of the
+    // main-thread-only `builtin_fn!` (string value types only touch caller-owned memory).
+    (thread_safe ref $T:ty, $from_fn:ident, $to_fn:ident) => {
+        impl_ffi_variant!(@impls by_ref, ParamMetadata::NONE, thread_safe; $T, $from_fn, $to_fn);
+    };
+
+    // Converter resolution: `main_thread` uses the main-thread table, `thread_safe` the reviewed subset.
+    (@converter main_thread, $fn:ident) => { sys::builtin_fn!($fn) };
+    (@converter thread_safe, $fn:ident) => { sys::thread_safe_lifecycle().$fn };
+
     // Implementations
-    (@impls $by_ref_or_val:ident, $metadata:expr; $T:ty, $from_fn:ident, $to_fn:ident) => {
+    (@impls $by_ref_or_val:ident, $metadata:expr, $mode:ident; $T:ty, $from_fn:ident, $to_fn:ident) => {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
                     Variant::new_with_var_uninit(|variant_ptr| {
-                        let converter = sys::builtin_fn!($from_fn);
+                        let converter = impl_ffi_variant!(@converter $mode, $from_fn);
                         converter(variant_ptr, sys::SysPtr::force_mut(self.sys()));
                     })
                 };
@@ -67,7 +77,7 @@ macro_rules! impl_ffi_variant {
 
                 let result = unsafe {
                     Self::new_with_uninit(|self_ptr| {
-                        let converter = sys::builtin_fn!($to_fn);
+                        let converter = impl_ffi_variant!(@converter $mode, $to_fn);
                         converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
                     })
                 };
@@ -144,11 +154,13 @@ mod impls {
     impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
     impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant);
-    impl_ffi_variant!(ref GString, string_to_variant, string_from_variant);
-    impl_ffi_variant!(ref StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(ref NodePath, node_path_to_variant, node_path_from_variant);
     impl_ffi_variant!(ref Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(ref Callable, callable_to_variant, callable_from_variant);
+
+    // GString and StringName are string value types that only touch caller-owned memory, so their variant conversions are thread-safe.
+    impl_ffi_variant!(thread_safe ref GString, string_to_variant, string_from_variant);
+    impl_ffi_variant!(thread_safe ref StringName, string_name_to_variant, string_name_from_variant);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

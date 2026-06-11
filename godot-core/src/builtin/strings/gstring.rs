@@ -10,7 +10,7 @@ use std::fmt;
 use std::fmt::Write;
 
 use godot_ffi as sys;
-use sys::{ExtVariantType, GodotFfi, ffi_methods, interface_fn};
+use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::strings::{Encoding, pad_if_needed};
 use crate::builtin::{GodotStringExt, NodePath, StringName, Variant, inner};
@@ -128,7 +128,7 @@ impl GString {
 
                 let s = unsafe {
                     Self::new_with_string_uninit(|string_ptr| {
-                        let ctor = interface_fn!(string_new_with_latin1_chars_and_len);
+                        let ctor = sys::thread_safe().string_new_with_latin1_chars_and_len;
                         ctor(
                             string_ptr,
                             bytes.as_ptr() as *const std::ffi::c_char,
@@ -184,8 +184,8 @@ impl GString {
         let len: sys::GDExtensionInt;
         let ptr: *const sys::char32_t;
         unsafe {
-            len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
-            ptr = interface_fn!(string_operator_index_const)(s, 0);
+            len = (sys::thread_safe().string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
+            ptr = (sys::thread_safe().string_operator_index_const)(s, 0);
         }
 
         (ptr.cast(), len as usize)
@@ -273,8 +273,9 @@ unsafe impl GodotFfi for GString {
 
 meta::impl_godot_as_self!(GString: ByRef);
 
+// These run through `sys::thread_safe_lifecycle()`, so they are thread-safe (string value types only touch caller-owned memory).
 impl_builtin_traits! {
-    for GString {
+    thread_safe for GString {
         Default => string_construct_default;
         Clone => string_construct_copy;
         Drop => string_destroy;
@@ -348,13 +349,16 @@ impl From<&String> for GString {
 impl From<&GString> for String {
     fn from(string: &GString) -> Self {
         unsafe {
-            let len =
-                interface_fn!(string_to_utf8_chars)(string.string_sys(), std::ptr::null_mut(), 0);
+            let len = (sys::thread_safe().string_to_utf8_chars)(
+                string.string_sys(),
+                std::ptr::null_mut(),
+                0,
+            );
 
             assert!(len >= 0);
             let mut buf = vec![0u8; len as usize];
 
-            interface_fn!(string_to_utf8_chars)(
+            (sys::thread_safe().string_to_utf8_chars)(
                 string.string_sys(),
                 buf.as_mut_ptr() as *mut std::ffi::c_char,
                 len,

@@ -36,18 +36,27 @@ pub trait GodotStringExt {
 
 /// Macro to delegate a builtin conversion to the FFI layer.
 ///
-/// Use: `let dest = unsafe_from_builtin!(dest_from_source -> Dest, source);`
+/// Use: `let dest = unsafe_builtin_convert!(dest_from_source -> Dest, source);`
+///
+/// The `@thread_safe` variant routes through the reviewed `sys::thread_safe_lifecycle()` subset. This is currently needed because not all
+/// types are yet proven thread-safe (in particular `NodePath`). Can possibly be removed.
 ///
 /// # Safety
 /// The `Dest` type must match what the FFI function `dest_from_source` returns.
 macro_rules! unsafe_builtin_convert {
-    ($ctor:ident -> $Type:ty, $arg:expr) => {{
+    ($ctor:ident -> $Type:ty, $arg:expr) => {
+        unsafe_builtin_convert!(@impl sys::builtin_fn!($ctor), $Type, $arg)
+    };
+    (@thread_safe $ctor:ident -> $Type:ty, $arg:expr) => {
+        unsafe_builtin_convert!(@impl sys::thread_safe_lifecycle().$ctor, $Type, $arg)
+    };
+    (@impl $ctor:expr, $Type:ty, $arg:expr) => {{
         let __arg = $arg; // Must outlive the sys() call.
 
         // SAFETY: Matching $Type and $ctor is caller responsibility. The rest adheres to Godot FFI for conversion constructors.
         unsafe {
             <$Type>::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!($ctor);
+                let ctor = $ctor;
                 let args = [__arg.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
@@ -61,17 +70,18 @@ impl GodotStringExt for GString {
     }
 
     fn to_string_name(&self) -> StringName {
-        unsafe_builtin_convert!(string_name_from_string -> StringName, self)
+        unsafe_builtin_convert!(@thread_safe string_name_from_string -> StringName, self)
     }
 
     fn to_node_path(&self) -> NodePath {
+        // `node_path_from_string` is not part of the reviewed thread-safe subset, so this stays main-thread-only.
         unsafe_builtin_convert!(node_path_from_string -> NodePath, self)
     }
 }
 
 impl GodotStringExt for StringName {
     fn to_gstring(&self) -> GString {
-        unsafe_builtin_convert!(string_from_string_name -> GString, self)
+        unsafe_builtin_convert!(@thread_safe string_from_string_name -> GString, self)
     }
 
     fn to_string_name(&self) -> StringName {
@@ -81,7 +91,7 @@ impl GodotStringExt for StringName {
 
 impl GodotStringExt for NodePath {
     fn to_gstring(&self) -> GString {
-        unsafe_builtin_convert!(string_from_node_path -> GString, self)
+        unsafe_builtin_convert!(@thread_safe string_from_node_path -> GString, self)
     }
 
     fn to_string_name(&self) -> StringName {
@@ -102,9 +112,9 @@ impl GodotStringExt for str {
         unsafe {
             GString::new_with_string_uninit(|string_ptr| {
                 #[cfg(before_api = "4.3")]
-                let ctor = sys::interface_fn!(string_new_with_utf8_chars_and_len);
+                let ctor = sys::thread_safe().string_new_with_utf8_chars_and_len;
                 #[cfg(since_api = "4.3")]
-                let ctor = sys::interface_fn!(string_new_with_utf8_chars_and_len2);
+                let ctor = sys::thread_safe().string_new_with_utf8_chars_and_len2;
 
                 ctor(
                     string_ptr,
@@ -121,7 +131,7 @@ impl GodotStringExt for str {
         // SAFETY: string is UTF-8 encoded and len-bounded. Godot takes byte length, not character count.
         unsafe {
             StringName::new_with_string_uninit(|string_ptr| {
-                sys::interface_fn!(string_name_new_with_utf8_chars_and_len)(
+                (sys::thread_safe().string_name_new_with_utf8_chars_and_len)(
                     string_ptr,
                     utf8_bytes.as_ptr().cast::<std::ffi::c_char>(),
                     utf8_bytes.len() as i64,
@@ -138,7 +148,7 @@ impl GodotStringExt for [char] {
         // SAFETY: A `char` value is by definition a valid Unicode code point. Bounded by len().
         unsafe {
             GString::new_with_string_uninit(|string_ptr| {
-                sys::interface_fn!(string_new_with_utf32_chars_and_len)(
+                (sys::thread_safe().string_new_with_utf32_chars_and_len)(
                     string_ptr,
                     chars.as_ptr().cast::<sys::char32_t>(),
                     chars.len() as i64,

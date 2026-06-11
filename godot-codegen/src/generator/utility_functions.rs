@@ -52,8 +52,16 @@ pub(crate) fn make_utility_function_definition(
     let function_ident = make_utility_function_ptr_name(function);
     let function_name_str = function.name();
 
+    // Most utility functions access shared engine state and go through the main-thread-asserting accessor. Those that are manually approved as
+    // thread-safe use the thread-safe accessor instead, which doesn't panic.
+    let table = if function.is_thread_safe {
+        quote! { sys::utility_function_table_thread_safe() }
+    } else {
+        quote! { sys::utility_function_table() }
+    };
+
     let ptrcall_invocation = quote! {
-        let utility_fn = sys::utility_function_table().#function_ident;
+        let utility_fn = #table.#function_ident;
 
         Signature::<CallParams, CallRet>::out_utility_ptrcall(
             utility_fn,
@@ -63,7 +71,7 @@ pub(crate) fn make_utility_function_definition(
     };
 
     let varcall_invocation = quote! {
-        let utility_fn = sys::utility_function_table().#function_ident;
+        let utility_fn = #table.#function_ident;
 
         Signature::<CallParams, CallRet>::out_utility_ptrcall_varargs(
             utility_fn,
