@@ -155,7 +155,7 @@ mod implementation {
         pub fn assert_script(&self) {
             sys::balanced_assert!(
                 self.init_state.get() == InitState::Script,
-                "to_script_passive() can only be called on script-context Base objects"
+                "to_script_borrowed() can only be called on script-context Base objects"
             );
         }
     }
