@@ -12,7 +12,6 @@ use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::meta::ClassId;
 use crate::meta::inspect::EnumConstant;
-use crate::obj::rpc::{RpcCollection, UserRpcObject};
 use crate::obj::{Base, BaseMut, BaseRef, BorrowedGd, Bounds, Gd, bounds};
 use crate::signal::SignalObject;
 use crate::storage::Storage;
@@ -630,22 +629,25 @@ pub trait WithUserSignals: WithSignals + WithBaseField {
     fn signals(&mut self) -> Self::SignalCollection<'_, Self>;
 }
 
-/// Represents an object, generally a node, that can provide a [collection](RpcCollection) of RPCs available on this object.
+/// Implemented for user-defined classes with at least one `#[rpc]` declaration.
 ///
-/// Implemented by default for classes that inherit [`Node`](crate::classes::Node) and contain at least one `#[rpc]`.
-pub trait WithUserRpcs<'c, C>
-where
-    C: GodotClass,
-{
-    type Collection: RpcCollection<'c, C>;
+/// Allows accessing type-safe RPCs from within the class, as `self.rpcs()`. This requires a `Base<T>` field and a `Node`-derived class.
+/// To access RPCs from outside (given a `Gd` pointer), use [`Gd::rpcs()`] instead.
+// `Inherits<Node>` supertrait makes the up-casting to `Node` in the RPC implementation possible, and avoids repeating the bound in
+// generic user code. There is no scenario where user-defined RPCs can be used if the class isn't `Node`-based.
+pub trait WithUserRpcs: WithBaseField + Inherits<crate::classes::Node> {
+    /// The associated struct listing all RPCs of this class.
+    ///
+    /// `'c` denotes the lifetime during which the class instance is borrowed and its RPCs can be called.
+    type RpcCollection<'c>;
 
-    /// Returns [`Self::Collection`], which generally holds a reference to [`Self`].
-    /// Refer to the [chapter about RPCs]() in the book for more information.
+    /// Access type-safe RPCs of the current object `self`.
+    ///
+    /// For classes that have at least one `#[rpc]` defined, returns a collection with one method per RPC. If you need to access RPCs from
+    /// outside (given a `Gd` pointer), use [`Gd::rpcs()`] instead.
     ///
     /// # Provided API
-    ///
-    /// The returned collection provides an API for calling all defined RPCs.
-    ///
+    /// The returned collection provides a method for each RPC, with the same name as the corresponding `#[rpc]`.  \
     /// For example, the following RPC:
     ///
     /// ```ignore
@@ -661,19 +663,13 @@ where
     /// my_node.rpcs().say_hello_to("world".to_string()).call();
     /// my_node.rpcs().say_hello_to("world".to_string()).call_id(1); // call RPC on specific peer
     /// ```
-    fn rpcs(&'c mut self) -> Self::Collection;
-}
+    fn rpcs(&mut self) -> Self::RpcCollection<'_>;
 
-impl<'c, C> WithUserRpcs<'c, C> for Gd<C>
-where
-    C: Inherits<crate::classes::Node> + WithUserRpcs<'c, C>,
-{
-    type Collection = <C as WithUserRpcs<'c, C>>::Collection;
-
-    /// Returns `Self::Collection`, which generally holds a [`Gd`] pointer to [`Self`].
-    fn rpcs(&'c mut self) -> Self::Collection {
-        Self::Collection::from_user_rpc_object(UserRpcObject::External(self.clone()))
-    }
+    /// Create from existing `Gd`, to enable [`Gd::rpcs()`].
+    ///
+    /// Only used for constructing from a concrete class, so `C = Self`. Takes by reference to retain the lifetime chain.
+    #[doc(hidden)]
+    fn __rpcs_from_external(external: &Gd<Self>) -> Self::RpcCollection<'_>;
 }
 
 /// Extension trait for all reference-counted classes.

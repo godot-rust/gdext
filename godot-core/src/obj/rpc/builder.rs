@@ -8,11 +8,14 @@
 use crate::builtin::Variant;
 use crate::r#gen::classes::Node;
 use crate::meta::error::RpcError;
-use crate::obj::rpc::{GodotClass, UserRpcObject};
-use crate::obj::{Inherits, WithBaseField};
+use crate::obj::rpc::UserRpcObject;
+use crate::obj::{GodotClass, Inherits, WithBaseField};
 
-/// Represents an RPC, and the object that it can be called on, and is usually obtained through the type-safe RPC API. See
-/// the [relevant section]() in the book for more information about type-safe RPC calls.
+/// Pending type-safe RPC call, holding the target object, RPC name and arguments until the call is dispatched.
+///
+/// You generally do not construct this directly. It is returned by the per-RPC methods on the collection from
+/// [`WithUserRpcs::rpcs()`][crate::obj::WithUserRpcs::rpcs] (or [`Gd::rpcs()`][crate::obj::Gd::rpcs]). Finalize the call with
+/// [`call()`][Self::call] to broadcast, or [`call_id()`][Self::call_id] to target a specific peer.
 pub struct RpcBuilder<'c, C: GodotClass> {
     object: UserRpcObject<'c, C>,
     rpc_name: &'c str,

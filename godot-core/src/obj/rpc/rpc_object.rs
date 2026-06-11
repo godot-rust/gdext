@@ -7,17 +7,18 @@
 
 use crate::builtin::Variant;
 use crate::r#gen::classes::Node;
-use crate::r#gen::virtuals::RefCounted::Gd;
 use crate::meta::error::RpcError;
-use crate::obj::{GodotClass, Inherits, WithBaseField};
+use crate::obj::{Gd, GodotClass, Inherits, WithBaseField};
 
-/// Represents an object that RPCs can be called on.
+/// The object a type-safe RPC is dispatched on, abstracting over the two ways RPCs are accessed: borrowed `&mut self` from within the class
+/// ([`Internal`][Self::Internal]), or a `Gd` pointer from the outside ([`External`][Self::External]). Both converge on the same dispatch.
 ///
-/// You generally do not need to create this manually, rather it used internally by the type-safe RPC API.
+/// You do not construct this manually; it is held by an [`RpcBuilder`] created through the type-safe RPC API.
+#[doc(hidden)]
 pub enum UserRpcObject<'c, C: GodotClass> {
-    /// Used in [`Self::call_rpc`] and [`Self::call_rpc_id`] to access the base class and call an RPC.
+    /// Borrowed access from within the class, via `self.rpcs()`.
     Internal(&'c mut C),
-    /// RPCs are called on this object directly in [`Self::call_rpc`] and [`Self::call_rpc_id`].
+    /// External access via `gd.rpcs()`, holding the `Gd` pointer directly.
     External(Gd<C>),
 }
 
@@ -27,13 +28,9 @@ where
 {
     /// Consumes [`Self`], calling the RPC with the provided arguments.
     pub fn call_rpc(self, name: &str, args: &[Variant]) -> Result<(), RpcError> {
+        // `C: Inherits<Node>` guarantees the upcast is infallible.
         let error = match self {
-            UserRpcObject::Internal(self_mut) => self_mut
-                .base_mut()
-                .clone()
-                .owned_cast::<Node>()
-                .expect("This is a bug, please report it.")
-                .rpc(name, args),
+            UserRpcObject::Internal(self_mut) => self_mut.to_gd().upcast::<Node>().rpc(name, args),
             UserRpcObject::External(mut gd) => gd.upcast_mut::<Node>().rpc(name, args),
         };
 
@@ -46,13 +43,11 @@ where
 
     /// Consumes [`Self`], calling the RPC by a specific ID with the provided arguments.
     pub fn call_rpc_id(self, name: &str, id: i64, args: &[Variant]) -> Result<(), RpcError> {
+        // `C: Inherits<Node>` guarantees the upcast is infallible.
         let error = match self {
-            UserRpcObject::Internal(self_mut) => self_mut
-                .base_mut()
-                .clone()
-                .owned_cast::<Node>()
-                .expect("This is a bug, please report it.")
-                .rpc_id(id, name, args),
+            UserRpcObject::Internal(self_mut) => {
+                self_mut.to_gd().upcast::<Node>().rpc_id(id, name, args)
+            }
             UserRpcObject::External(mut gd) => gd.upcast_mut::<Node>().rpc_id(id, name, args),
         };
 

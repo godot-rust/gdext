@@ -183,7 +183,9 @@ fn make_rpc_registration(func_def: &FuncDefinition) -> Option<TokenStream> {
     Some(registration)
 }
 
-// TODO: respect function visibility when generating builders
+// TODO(v0.7): cap per-RPC methods at the actual #[rpc] fn visibility instead of `pub(crate)`. Consider reusing `SignalVisibility` from
+// `signal.rs`; requires threading the fn's `vis_marker` into `FuncDefinition`. The collection struct must remain `pub` (it's the return
+// type of public `Gd::rpcs()`), only the generated methods are affected.
 pub fn make_rpc_api(class_name: &Ident, rpcs: Vec<&FuncDefinition>) -> Option<TokenStream> {
     if rpcs.is_empty() {
         return None;
@@ -206,8 +208,10 @@ pub fn make_rpc_api(class_name: &Ident, rpcs: Vec<&FuncDefinition>) -> Option<To
             });
 
         collection_impl_methods.append_all(quote! {
+            // `pub(crate)`, not `pub`: these are invoked through `.rpcs()` within the declaring crate, so crate visibility suffices. Keeping
+            // them out of `pub` avoids leaking one method per `#[rpc]` into the user's public API surface and downstream crates.
             #[must_use]
-            pub fn #rust_name(self, #( #rpc_typed_args ),*) -> RpcBuilder<'c, #class_name> {
+            pub(crate) fn #rust_name(self, #( #rpc_typed_args ),*) -> RpcBuilder<'c, #class_name> {
                 RpcBuilder::new(
                     self.object,
                     #rpc_name,
@@ -224,7 +228,8 @@ pub fn make_rpc_api(class_name: &Ident, rpcs: Vec<&FuncDefinition>) -> Option<To
         #[allow(non_camel_case_types)]
         mod #rpc_mod {
             use super::*;
-            use ::godot::obj::rpc::{RpcCollection, UserRpcObject, RpcBuilder};
+            use ::godot::obj::rpc::RpcBuilder;
+            use ::godot::private::UserRpcObject;
 
             #[doc(hidden)]
             pub struct #collection_name<'c> {
@@ -235,24 +240,20 @@ pub fn make_rpc_api(class_name: &Ident, rpcs: Vec<&FuncDefinition>) -> Option<To
                 #collection_impl_methods
             }
 
-            impl<'c> RpcCollection<'c, #class_name> for #collection_name<'c> {
-                fn from_user_rpc_object(object: UserRpcObject<'c, #class_name>) -> Self {
+            impl ::godot::obj::WithUserRpcs for #class_name {
+                type RpcCollection<'c> = #collection_name<'c>;
+
+                fn rpcs(&mut self) -> Self::RpcCollection<'_> {
                     #collection_name {
-                        object,
+                        object: UserRpcObject::Internal(self),
                     }
                 }
-            }
 
-            impl<'c> ::godot::obj::WithUserRpcs<'c, #class_name> for #class_name
-            where
-                #class_name: ::godot::obj::WithBaseField,
-            {
-                type Collection = #collection_name<'c>;
-
-                fn rpcs(&'c mut self) -> Self::Collection {
-                    Self::Collection::from_user_rpc_object(
-                        UserRpcObject::Internal(self)
-                    )
+                #[doc(hidden)]
+                fn __rpcs_from_external(external: & ::godot::obj::Gd<Self>) -> Self::RpcCollection<'_> {
+                    #collection_name {
+                        object: UserRpcObject::External(external.clone()),
+                    }
                 }
             }
         }
