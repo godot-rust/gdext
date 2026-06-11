@@ -9,7 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
 use crate::obj::base_init::{InitState, InitTracker};
-use crate::obj::{Gd, GodotClass, PassiveGd};
+use crate::obj::{BorrowedGd, Gd, GodotClass};
 use crate::{classes, sys};
 
 macro_rules! base_from_obj {
@@ -177,12 +177,11 @@ impl<T: GodotClass> Base<T> {
         self.obj.instance_id()
     }
 
-    /// Returns a passive reference to the base object, for use in script contexts only.
-    pub(crate) fn to_script_passive(&self) -> PassiveGd<T> {
+    /// Returns a borrowed reference to the base object, for use in script contexts only.
+    pub(crate) fn to_script_borrowed(&self) -> BorrowedGd<'_, T> {
         self.init_state.assert_script();
 
-        // SAFETY: the object remains valid for script contexts as per the assertion above.
-        unsafe { PassiveGd::from_strong_ref(&self.obj) }
+        BorrowedGd::from_gd(&self.obj)
     }
 
     /// Returns a [`Gd`] referencing the base object, assuming the derived object is fully constructed.
@@ -192,18 +191,24 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
-    /// Returns a [`PassiveGd`] referencing the base object, assuming the derived object is fully constructed.
+    /// Returns a [`BorrowedGd`] referencing the base object, assuming the derived object is fully constructed.
     ///
     /// Unlike [`Self::__constructed_gd()`], this does not increment the reference count for ref-counted `T`s.
-    /// The returned weak reference is safe to use only as long as the associated instance remains alive.
-    ///
-    /// # Safety
-    /// Caller must ensure that the underlying object remains valid for the entire lifetime of the returned `PassiveGd`.
-    pub(crate) unsafe fn constructed_passive(&self) -> PassiveGd<T> {
+    pub(crate) fn constructed_borrowed(&self) -> BorrowedGd<'_, T> {
         self.init_state.assert_constructed();
 
-        // SAFETY: object pointer is valid and remains valid as long as self is alive (per safety precondition of this fn).
-        unsafe { PassiveGd::from_obj_sys(self.obj.obj_sys()) }
+        BorrowedGd::from_gd(&self.obj)
+    }
+
+    /// Returns the raw object pointer of the base, assuming the derived object is fully constructed.
+    ///
+    /// Used by `base_mut()`, which cannot use [`Self::constructed_borrowed()`]: holding its `&self` borrow would conflict with the
+    /// mutable instance borrow taken right after. The raw pointer carries no borrow; `base_mut()` constructs the `BorrowedGd` later,
+    /// with its lifetime tied to the instance guard.
+    pub(crate) fn constructed_obj_sys(&self) -> sys::GDExtensionObjectPtr {
+        self.init_state.assert_constructed();
+
+        self.obj.obj_sys()
     }
 }
 

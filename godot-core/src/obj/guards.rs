@@ -15,7 +15,7 @@ use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 use godot_ffi::out;
 
 use crate::obj::script::ScriptInstance;
-use crate::obj::{AsDyn, Gd, GodotClass, PassiveGd};
+use crate::obj::{AsDyn, BorrowedGd, Gd, GodotClass};
 
 /// Immutably/shared bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
 ///
@@ -202,16 +202,13 @@ macro_rules! make_base_ref {
         #[doc = concat!("This can be used to call methods on the base object of a ", $object_name, " that takes `&self` as the receiver.\n\n")]
         #[doc = concat!("See [`", stringify!($doc_type), "::base()`](", stringify!($doc_path), "::base()) for usage.")]
         pub struct $ident<'a, T: $bound> {
-            passive_gd: PassiveGd<T::Base>,
-            _instance: &'a T,
+            // The base() signature ties 'a to the instance borrow; no separate `&'a T` field needed.
+            borrowed_gd: BorrowedGd<'a, T::Base>,
         }
 
         impl<'a, T: $bound> $ident<'a, T> {
-            pub(crate) fn new(passive_gd: PassiveGd<T::Base>, instance: &'a T) -> Self {
-                Self {
-                    passive_gd,
-                    _instance: instance,
-                }
+            pub(crate) fn new(borrowed_gd: BorrowedGd<'a, T::Base>) -> Self {
+                Self { borrowed_gd }
             }
         }
 
@@ -219,7 +216,7 @@ macro_rules! make_base_ref {
             type Target = Gd<T::Base>;
 
             fn deref(&self) -> &Gd<T::Base> {
-                &self.passive_gd
+                &self.borrowed_gd
             }
         }
     };
@@ -235,17 +232,19 @@ macro_rules! make_base_mut {
         ///
         #[doc = concat!("See [`", stringify!($doc_type), "::base_mut()`](", stringify!($doc_path), "::base_mut()) for usage.\n")]
         pub struct $ident<'a, T: $bound> {
-            passive_gd: PassiveGd<T::Base>,
+            borrowed_gd: BorrowedGd<'a, T::Base>,
             _inaccessible_guard: InaccessibleGuard<'a, T>,
         }
 
         impl<'a, T: $bound> $ident<'a, T> {
+            /// Both parameters share `'a`: a `BorrowedGd` constructed with an unbound lifetime (raw pointer) is thereby unified with the
+            /// guard's borrow of the instance, which keeps the base object alive.
             pub(crate) fn new(
-                passive_gd: PassiveGd<T::Base>,
+                borrowed_gd: BorrowedGd<'a, T::Base>,
                 inaccessible_guard: InaccessibleGuard<'a, T>,
             ) -> Self {
                 Self {
-                    passive_gd,
+                    borrowed_gd,
                     _inaccessible_guard: inaccessible_guard,
                 }
             }
@@ -255,13 +254,13 @@ macro_rules! make_base_mut {
             type Target = Gd<T::Base>;
 
             fn deref(&self) -> &Gd<T::Base> {
-                &self.passive_gd
+                &self.borrowed_gd
             }
         }
 
         impl<T: $bound> DerefMut for $ident<'_, T> {
             fn deref_mut(&mut self) -> &mut Gd<T::Base> {
-                &mut self.passive_gd
+                &mut self.borrowed_gd
             }
         }
     };

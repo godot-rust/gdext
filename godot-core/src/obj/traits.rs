@@ -13,7 +13,7 @@ use crate::init::InitLevel;
 use crate::meta::ClassId;
 use crate::meta::inspect::EnumConstant;
 use crate::obj::rpc::{RpcCollection, UserRpcObject};
-use crate::obj::{Base, BaseMut, BaseRef, Bounds, Gd, bounds};
+use crate::obj::{Base, BaseMut, BaseRef, BorrowedGd, Bounds, Gd, bounds};
 use crate::signal::SignalObject;
 use crate::storage::Storage;
 
@@ -409,9 +409,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
     fn base(&self) -> BaseRef<'_, Self> {
-        // SAFETY: lifetime is bound to self through BaseRef, ensuring the object remains valid.
-        let passive_gd = unsafe { self.base_field().constructed_passive() };
-        BaseRef::new(passive_gd, self)
+        BaseRef::new(self.base_field().constructed_borrowed())
     }
 
     /// Returns an exclusive reference guard, suitable for calling `&self`/`&mut self` engine methods on this object.
@@ -492,9 +490,9 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// ```
     #[allow(clippy::let_unit_value)]
     fn base_mut(&mut self) -> BaseMut<'_, Self> {
-        // We need to construct this first, as the mut-borrow below will block all other access.
-        // SAFETY: lifetime is re-established at the bottom BaseMut construction, since return type of this fn has lifetime bound to instance.
-        let passive_gd = unsafe { self.base_field().constructed_passive() };
+        // We need to acquire this first, as the mut-borrow below will block all other access. A raw pointer (not a BorrowedGd tied to
+        // &self) is needed, since any shared borrow of self would conflict with that mut-borrow.
+        let base_ptr = self.base_field().constructed_obj_sys();
 
         let gd = self.to_gd();
 
@@ -516,8 +514,11 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
 
         let guard = storage.get_inaccessible(self);
 
-        // Narrows lifetime again from 'static to 'self.
-        BaseMut::new(passive_gd, guard)
+        // SAFETY: `base_ptr` is the base object of this instance, and BaseMut::new() unifies the BorrowedGd's lifetime with `guard`'s
+        // borrow of the instance -- which keeps the object alive for that entire lifetime.
+        let borrowed_gd = unsafe { BorrowedGd::from_obj_sys(base_ptr) };
+
+        BaseMut::new(borrowed_gd, guard)
     }
 
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).

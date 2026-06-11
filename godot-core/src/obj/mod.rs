@@ -51,7 +51,7 @@ pub use guards::{BaseMut, BaseRef, DynGdMut, DynGdRef, GdMut, GdRef};
 pub use instance_id::*;
 pub use on_editor::*;
 pub use on_ready::*;
-pub(crate) use passive_gd::PassiveGd;
+pub(crate) use passive_gd::BorrowedGd;
 pub use raw_gd::*;
 pub use traits::*;
 
