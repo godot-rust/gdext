@@ -588,7 +588,7 @@ impl<'a> InterfaceBuilder<'a> {
 /// `#[godot_api]` has currently no way of checking base class at macro-resolve time, so the `_ready` branch is unconditionally
 /// added, even for classes that don't inherit from `Node`. As a best-effort, we exclude some very common non-Node classes explicitly, to
 /// generate less useless code.
-fn is_possibly_node_class(trait_base_class: &Ident) -> bool {
+pub(crate) fn is_possibly_node_class(trait_base_class: &Ident) -> bool {
     !matches!(
         trait_base_class.to_string().as_str(), //.
         "Object"

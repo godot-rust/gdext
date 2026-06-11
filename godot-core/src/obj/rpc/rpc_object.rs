@@ -28,7 +28,6 @@ where
 {
     /// Consumes [`Self`], calling the RPC with the provided arguments.
     pub fn call_rpc(self, name: &str, args: &[Variant]) -> Result<(), RpcError> {
-        // `C: Inherits<Node>` guarantees the upcast is infallible.
         let error = match self {
             UserRpcObject::Internal(self_mut) => self_mut.to_gd().upcast::<Node>().rpc(name, args),
             UserRpcObject::External(mut gd) => gd.upcast_mut::<Node>().rpc(name, args),
@@ -43,7 +42,6 @@ where
 
     /// Consumes [`Self`], calling the RPC by a specific ID with the provided arguments.
     pub fn call_rpc_id(self, name: &str, id: i64, args: &[Variant]) -> Result<(), RpcError> {
-        // `C: Inherits<Node>` guarantees the upcast is infallible.
         let error = match self {
             UserRpcObject::Internal(self_mut) => {
                 self_mut.to_gd().upcast::<Node>().rpc_id(id, name, args)
