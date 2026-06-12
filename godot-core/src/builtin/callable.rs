@@ -837,11 +837,21 @@ mod custom_callable {
     }
 
     // Implementing this is necessary because the default (nullptr) may consider custom callables as invalid in some cases.
+    //
+    // Linked callables (`from_linked_fn()`/`Gd::linked_callable()`, used e.g. by `connect_self()`) capture only the instance ID, so they can
+    // outlive their object. Signal emission and the deferred queue skip dead connections via `CallableCustomInfo::object_id`, but Godot's
+    // `is_valid_func` ignores that field, so a direct `Callable::is_valid()` query (e.g. from GDScript) would lie unless we check liveness here.
+    // Unlinked callables have no object to check, hence always valid.
     pub unsafe extern "C" fn rust_callable_is_valid(
-        _callable_userdata: *mut std::ffi::c_void,
+        callable_userdata: *mut std::ffi::c_void,
     ) -> sys::GDExtensionBool {
-        // If we had an object (CallableCustomInfo::object_id field), we could check whether that object is alive.
-        // But since we just take a Rust function/closure, not knowing what happens inside, we assume always valid.
-        sys::conv::SYS_TRUE
+        let meta = unsafe { FnWrapperHeader::from_raw(callable_userdata) };
+
+        let valid = match meta.linked_object_id {
+            Some(id) => id.lookup_validity(),
+            None => true,
+        };
+
+        sys::conv::bool_to_sys(valid)
     }
 }
