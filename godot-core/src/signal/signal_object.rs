@@ -38,24 +38,6 @@ pub enum UserSignalObject<'c, C> {
     External { gd: Gd<Object> },
 }
 
-impl<'c, C> UserSignalObject<'c, C>
-where
-    // 2nd bound necessary, so generics match for TypedSignal construction.
-    C: WithUserSignals + WithSignals<__SignalObj<'c> = UserSignalObject<'c, C>>,
-{
-    #[inline]
-    pub fn from_external(object: Gd<C>) -> Self {
-        Self::External {
-            gd: object.upcast(),
-        }
-    }
-
-    #[inline]
-    pub fn from_internal(self_mut: &'c mut C) -> Self {
-        Self::Internal { self_mut }
-    }
-}
-
 impl<'c, C: WithUserSignals> SignalObject<'c> for UserSignalObject<'c, C> {
     #[inline]
     fn with_object_mut(&mut self, f: impl FnOnce(&mut Object)) {

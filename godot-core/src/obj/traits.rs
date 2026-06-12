@@ -605,7 +605,6 @@ pub trait WithUserSignals: WithSignals + WithBaseField {
     /// walkthrough.
     ///
     /// # Provided API
-    ///
     /// The returned collection provides a method for each signal, with the same name as the corresponding `#[signal]`.  \
     /// For example, if you have...
     /// ```ignore
