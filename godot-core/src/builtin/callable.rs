@@ -311,15 +311,17 @@ impl Callable {
         let name = name.into();
 
         let wrapper = FnWrapper {
+            meta: FnWrapperHeader {
+                name,
+                name_cached: OnceLock::new(),
+                #[cfg(safeguards_balanced)]
+                thread_id: _thread_id,
+                linked_object_id,
+            },
             rust_function,
-            name,
-            name_cached: OnceLock::new(),
-            #[cfg(safeguards_balanced)]
-            thread_id: _thread_id,
-            linked_object_id,
         };
 
-        let object_id = wrapper.linked_object_id();
+        let object_id = wrapper.meta.linked_object_id();
         let userdata = CallableUserdata::new(wrapper);
 
         let info = CallableCustomInfo {
@@ -327,7 +329,7 @@ impl Callable {
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
             call_func: Some(rust_callable_call_fn::<F, R>),
             free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
-            to_string_func: Some(rust_callable_to_string_named::<F>),
+            to_string_func: Some(rust_callable_to_string_named),
             is_valid_func: Some(rust_callable_is_valid),
             ..Self::default_callable_custom_info()
         };
@@ -600,6 +602,8 @@ mod custom_callable {
     use super::*;
     use crate::builtin::GString;
 
+    // repr(transparent), so that for T = FnWrapper<F>, the userdata pointer can be read as `FnWrapperHeader` (see there).
+    #[repr(transparent)]
     pub struct CallableUserdata<T> {
         pub inner: T,
     }
@@ -618,9 +622,12 @@ mod custom_callable {
         }
     }
 
-    pub(crate) struct FnWrapper<F> {
-        pub(super) rust_function: F,
-
+    /// Non-generic part of [`FnWrapper`], must remain its first field.
+    ///
+    /// Since `FnWrapper` is `repr(C)` and `CallableUserdata` is `repr(transparent)`, this struct sits at offset 0 of the userdata pointer,
+    /// regardless of `F`. FFI functions that only need metadata ([`rust_callable_is_valid`], [`rust_callable_to_string_named`]) can thus
+    /// remain non-generic, avoiding one monomorphized function per closure type.
+    pub(crate) struct FnWrapperHeader {
         /// Stored as `Cow<'static, str>` to optimize the hot path (callable invocation, needing call context), vs. cold path (`to_string`).
         pub(super) name: CowStr,
 
@@ -628,7 +635,7 @@ mod custom_callable {
         /// `Sync`. Could be split into separate single/multi-threaded locks, but atomic overhead of `OnceLock` is good enough for now.
         pub(super) name_cached: OnceLock<GString>,
 
-        /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).       
+        /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
         #[cfg(safeguards_balanced)]
         pub(super) thread_id: Option<std::thread::ThreadId>,
 
@@ -636,10 +643,26 @@ mod custom_callable {
         pub(super) linked_object_id: Option<InstanceId>,
     }
 
-    impl<F> FnWrapper<F> {
+    impl FnWrapperHeader {
+        /// # Safety
+        /// `void_ptr` must be a valid pointer to a `CallableUserdata<FnWrapper<F>>`, for an arbitrary `F`.
+        unsafe fn from_raw<'a>(void_ptr: *mut std::ffi::c_void) -> &'a FnWrapperHeader {
+            // CallableUserdata is repr(transparent) and FnWrapper is repr(C) with `meta` as first field, so all three share offset 0.
+            let ptr = void_ptr as *mut FnWrapperHeader;
+            unsafe { &*ptr }
+        }
+
         pub(crate) fn linked_object_id(&self) -> GDObjectInstanceID {
             self.linked_object_id.map(InstanceId::to_u64).unwrap_or(0)
         }
+    }
+
+    // repr(C), so that `meta` is guaranteed at offset 0, independently of `F`. See FnWrapperHeader.
+    #[repr(C)]
+    pub(crate) struct FnWrapper<F> {
+        /// Must remain the first field, see [`FnWrapperHeader`].
+        pub(super) meta: FnWrapperHeader,
+        pub(super) rust_function: F,
     }
 
     /// Represents a custom callable object defined in Rust.
@@ -722,7 +745,7 @@ mod custom_callable {
             unsafe { Variant::borrow_ref_slice(p_args, p_argument_count as usize) };
 
         let w: &FnWrapper<F> = unsafe { CallableUserdata::inner_from_raw(callable_userdata) };
-        let ctx = meta::CallContext::custom_callable(&w.name);
+        let ctx = meta::CallContext::custom_callable(&w.meta.name);
 
         let err = unsafe { &mut *r_error };
         crate::private::handle_fallible_varcall(&ctx, err, || {
@@ -733,10 +756,10 @@ mod custom_callable {
             // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
             // See comments in itest callable_call() for details.
             sys::balanced_assert!(
-                w.thread_id.is_none() || w.thread_id == Some(std::thread::current().id()),
+                w.meta.thread_id.is_none() || w.meta.thread_id == Some(std::thread::current().id()),
                 "Callable '{}' created with from_fn() must be called from the same thread it was created in.\n\
                 If you need to call it from any thread, use from_sync_fn() instead (requires `experimental-threads` feature).",
-                w.name
+                w.meta.name
             );
 
             let result = (w.rust_function)(arg_refs).to_variant();
@@ -788,15 +811,17 @@ mod custom_callable {
     }
 
     #[allow(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
-    pub unsafe extern "C" fn rust_callable_to_string_named<F>(
+    pub unsafe extern "C" fn rust_callable_to_string_named(
         callable_userdata: *mut std::ffi::c_void,
         r_is_valid: *mut sys::GDExtensionBool,
         r_out: sys::GDExtensionStringPtr,
     ) {
-        let w: &FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
+        let meta = FnWrapperHeader::from_raw(callable_userdata);
 
         // Use cached GString if available, otherwise create and cache it (rare cold path).
-        let gstring = w.name_cached.get_or_init(|| GString::from(w.name.as_ref()));
+        let gstring = meta
+            .name_cached
+            .get_or_init(|| GString::from(meta.name.as_ref()));
         gstring.clone().move_into_string_ptr(r_out);
         *r_is_valid = sys::conv::SYS_TRUE;
     }
