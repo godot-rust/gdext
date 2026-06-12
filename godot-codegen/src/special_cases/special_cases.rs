@@ -934,6 +934,7 @@ pub fn maybe_rename_virtual_method<'m>(
 }
 
 // TODO method-level extra docs, for:
+// - Object::get_class() + is_class() -> point to Gd::dynamic_class() + is_dynamic_class().
 // - Node::rpc_config() -> link to RpcConfig.
 // - Node::process/physics_process -> mention `f32`/`f64` duality.
 // - Node::duplicate -> to copy #[var] fields, needs STORAGE property usage, or #[export],
