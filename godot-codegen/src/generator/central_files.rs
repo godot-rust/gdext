@@ -19,7 +19,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let variant_type_enum = make_variant_type_enum(api, true);
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
     let godot_type_name_method = make_godot_type_name_method(api);
-    let has_destructor_method = make_needs_ffi_destruction_method(api);
+    let needs_ffi_destruction_method = make_needs_ffi_destruction_method(api);
 
     quote! {
         #[cfg(target_pointer_width = "32")]
@@ -50,7 +50,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             }
 
             #godot_type_name_method
-            #has_destructor_method
+            #needs_ffi_destruction_method
         }
     }
 }
