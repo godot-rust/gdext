@@ -20,7 +20,7 @@ use crate::meta::{
 };
 use crate::obj::{
     Bounds, DynGd, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnEditor, RawGd,
-    WithBaseField, WithSignals, bounds, cap,
+    WithBaseField, WithSignals, WithUserRpcs, bounds, cap,
 };
 use crate::private::{PanicPayload, callbacks};
 use crate::registry::class::try_dynify_object;
@@ -1069,6 +1069,22 @@ where
     /// [`WithUserSignals::signals()`]: crate::obj::WithUserSignals::signals()
     pub fn signals(&self) -> T::SignalCollection<'_, T> {
         T::__signals_from_external(self)
+    }
+}
+
+impl<T> Gd<T>
+where
+    T: WithUserRpcs,
+{
+    /// Access type-safe RPCs of this object.
+    ///
+    /// For classes that have at least one `#[rpc]` defined, returns a collection with one method per RPC, allowing them to be called in a
+    /// type-safe way. This method is the equivalent of [`WithUserRpcs::rpcs()`][crate::obj::WithUserRpcs::rpcs], but when called externally
+    /// (not from `self`).
+    ///
+    /// When you are within the `impl` of a class, use `self.rpcs()` directly instead.
+    pub fn rpcs(&self) -> T::RpcCollection<'_> {
+        T::__rpcs_from_external(self)
     }
 }
 

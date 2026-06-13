@@ -6,18 +6,16 @@
  */
 
 pub use builder::*;
-pub use rpc_object::*;
-
-use crate::obj::GodotClass;
 
 mod builder;
 mod rpc_object;
 
-/// Represents a collection of RPCs that can be constructed with a [`UserRpcObject`].
-pub trait RpcCollection<'c, C>
-where
-    C: GodotClass,
-{
-    #[doc(hidden)]
-    fn from_user_rpc_object(object: UserRpcObject<'c, C>) -> Self;
+// `UserRpcObject` is plumbing for macro-generated code, never named by users; kept off the public path. Used internally via the crate path,
+// and by macro expansion through the `godot::private` bridge below. Mirrors `signal::priv_re_export`.
+pub(crate) use rpc_object::UserRpcObject;
+
+// Bridge for `godot::private` (proc-macro internals).
+#[doc(hidden)]
+pub mod priv_re_export {
+    pub use super::rpc_object::UserRpcObject;
 }

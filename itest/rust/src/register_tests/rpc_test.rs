@@ -84,13 +84,16 @@ impl RpcTest {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests
 
-// There's no way to check if the method was registered as an RPC.
-// We could set up a multiplayer environment to test this in practice, but that would be a lot of work.
+/// Verifies that a class with many `#[rpc]` attribute variants can be added to a tree without panicking.
+/// RPC registration runs inside `__before_ready()` and requires a `MultiplayerApi` to be present.
+///
+/// Unlike `RpcCallableNode` (in `builtin_tests::containers::rpc_test`), `RpcTest` has no `impl INode` block and no `OnReady` fields, so the
+/// derive-macro's default `_ready` is the only thing that can trigger registration -- this is the regression test for that path. Dispatch
+/// behavior itself (`call_local`, argument roundtrips) is covered there; here we only assert that registration happened at all.
 #[itest]
-fn node_enters_tree() {
+fn rpc_registration_all_attr_variants() {
     let node = RpcTest::new_alloc();
 
-    // Registering is done in `UserClass::__before_ready()`, and it requires a multiplayer API to exist.
     let mut scene_tree = Engine::singleton()
         .get_main_loop()
         .unwrap()
@@ -102,6 +105,19 @@ fn node_enters_tree() {
     #[cfg(before_api = "4.7")]
     let mut root = scene_tree.get_root().unwrap();
     root.add_child(&node);
+
+    #[cfg(feature = "codegen-full")]
+    {
+        let own_id = node
+            .get_multiplayer()
+            .expect("multiplayer should exist")
+            .get_unique_id() as i64;
+
+        // `arg_call_local` has `call_local = true`, so targeting own peer ID succeeds -- but only if the RPC was actually registered.
+        // Without registration, Godot rejects the call with `InvalidArguments`, which is what this assertion guards against.
+        assert_eq!(node.rpcs().arg_call_local().call_id(own_id), Ok(()));
+    }
+
     root.remove_child(&node);
     node.free();
 }

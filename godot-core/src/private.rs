@@ -29,6 +29,7 @@ mod reexport_pub {
     pub use crate::meta::private_reexport::*;
     #[cfg(feature = "trace")]
     pub use crate::meta::{CowArg, FfiArg, trace};
+    pub use crate::obj::rpc::priv_re_export::*;
     pub use crate::obj::rtti::ObjectRtti;
     pub use crate::registry::callbacks;
     pub use crate::registry::shard::{

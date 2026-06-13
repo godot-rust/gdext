@@ -510,7 +510,14 @@ fn make_user_class_impl(
     let onready_inits = make_onready_init(all_fields);
     let oneditor_panic_inits = make_oneditor_panic_inits(class_name, all_fields);
 
-    let run_before_ready = !onready_inits.is_empty() || !oneditor_panic_inits.is_empty();
+    // `#[rpc]` methods register inside `__before_ready()`, which only runs if a `_ready` virtual is installed. The derive-macro can't see the
+    // `#[godot_api]` block to know whether RPCs exist, so install `_ready` for any possible-`Node` class (no-op if there are none). This mirrors
+    // the `I*` path, which also adds `_ready` unconditionally. Only under `codegen-full`, where RPCs are actually registered with Godot.
+    let needs_rpc_registration =
+        cfg!(feature = "codegen-full") && crate::class::is_possibly_node_class(trait_base_class);
+
+    let run_before_ready =
+        !onready_inits.is_empty() || !oneditor_panic_inits.is_empty() || needs_rpc_registration;
 
     let default_virtual_fn = if run_before_ready {
         let tool_check = util::make_virtual_tool_check();
