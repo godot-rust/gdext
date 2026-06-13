@@ -75,15 +75,25 @@ fn init_level_no_panics() {
     );
 }
 
-// Asserts that T's singleton availability matches `present`. If absent, also verifies `singleton()` panics rather than handing out a
-// dangling/null pointer (regression test for the deinit-dangling fix, see https://github.com/godot-rust/gdext/pull/1638).
+// Asserts that T's singleton availability matches `present`. When present, also verifies that cached and uncached `singleton()` calls are
+// consistent; when absent, verifies `singleton()` panics rather than handing out a dangling/null pointer (regression test, see
+// https://github.com/godot-rust/gdext/pull/1638).
 fn assert_singleton_present<T: Singleton + GodotClass>(present: bool) {
+    use godot::init::__invalidate_singleton_caches;
+
     // First test the dedicated availability API.
     assert_eq!(is_singleton_available::<T>(), present);
 
     if present {
-        // Must not panic and must yield a live instance.
-        let _ = T::singleton().instance_id();
+        // Must not panic; cached and uncached fetches must resolve to the same live instance.
+        __invalidate_singleton_caches();
+        let uncached = T::singleton().instance_id();
+        let cached = T::singleton().instance_id();
+        assert_eq!(uncached, cached);
+
+        __invalidate_singleton_caches();
+        let uncached_again = T::singleton().instance_id();
+        assert_eq!(cached, uncached_again);
     } else {
         // Probing a missing singleton makes Godot print an error; suppress it when possible. Suppression itself goes through the Engine
         // singleton, which on Godot < 4.4 is not registered before the Scene level -- skip suppression in that window.
@@ -99,6 +109,29 @@ fn assert_singleton_present<T: Singleton + GodotClass>(present: bool) {
             probe();
         }
     }
+}
+
+// Verify cached singleton pointers return same live instance, never stale or wrong.
+#[itest]
+fn singleton_caching_stable_instance() {
+    let engine = Engine::singleton();
+    let engine_id = engine.instance_id();
+    assert_eq!(engine_id, Engine::singleton().instance_id());
+
+    let os = Os::singleton();
+    let os_id = os.instance_id();
+    assert_eq!(os_id, Os::singleton().instance_id());
+
+    let time_id = Time::singleton().instance_id();
+    assert_eq!(time_id, Time::singleton().instance_id());
+
+    assert_ne!(engine_id, os_id);
+    assert_ne!(engine_id, time_id);
+    assert_ne!(os_id, time_id);
+
+    // Functional sanity checks.
+    assert!(engine.get_physics_ticks_per_second() > 0);
+    assert!(!os.get_name().is_empty());
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -140,6 +173,7 @@ fn on_init_core() {
     assert!(!is_class_available::<RenderingServer>()); // Servers
 
     // Core singletons (Engine/Os/Time) are reachable at Core level; RenderingServer is not.
+    // Each call also checks cached/uncached consistency (if present) or that access panics (if absent).
     assert_singleton_present::<Engine>(true);
     assert_singleton_present::<Os>(true);
     assert_singleton_present::<Time>(true);
@@ -158,12 +192,9 @@ fn on_init_core() {
         );
     }
 
-    let engine = Engine::singleton();
-    assert!(engine.get_physics_ticks_per_second() > 0);
-
-    let os = Os::singleton();
-    assert!(!os.get_name().is_empty());
-
+    // Functional: the cached pointers are usable for real method calls, not just identity-stable.
+    assert!(Engine::singleton().get_physics_ticks_per_second() > 0);
+    assert!(!Os::singleton().get_name().is_empty());
     let time = Time::singleton();
     assert!(time.get_ticks_usec() <= time.get_ticks_usec());
 }
@@ -225,7 +256,7 @@ impl IObject for MainLoopCallbackSingleton {
 
 #[cfg(since_api = "4.5")]
 fn on_init_main_loop() {
-    // By MainLoop, the RenderingServer singleton is registered.
+    // By MainLoop, the RenderingServer singleton is registered. Verify availability + both cache paths.
     assert!(is_class_available::<RenderingServer>());
     assert_singleton_present::<RenderingServer>(true);
 
@@ -280,7 +311,7 @@ pub fn on_stage_deinit(stage: InitStage) {
 
 #[cfg(since_api = "4.5")]
 fn on_deinit_main_loop() {
-    // RenderingServer singleton still available at MainLoop deinit; same level still loaded on the way down.
+    // RenderingServer singleton still available at MainLoop deinit; same level still loaded on the way down, so both cache paths must resolve.
     assert_singleton_present::<RenderingServer>(true);
 
     let singleton = Engine::singleton()

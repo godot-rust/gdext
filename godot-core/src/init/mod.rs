@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use godot_ffi as sys;
 use sys::GodotFfi;
@@ -48,6 +48,23 @@ pub(crate) fn current_init_level() -> Option<InitLevel> {
     CURRENT_INIT_LEVEL.load()
 }
 
+/// Counter bumped on each full deinitialization, used to invalidate caches that hold pointers from a previous init cycle.
+///
+/// A full deinit/reinit within the same library load would otherwise let a level-gated cache serve a stale pointer (same level, new
+/// instance). Comparing the cached generation against this one structurally rejects that.
+pub(crate) fn singleton_cache_generation() -> u64 {
+    SINGLETON_CACHE_GENERATION.load(Ordering::Acquire)
+}
+
+/// Test-only: bump the singleton-cache generation, forcing every singleton cache to miss on its next access (re-fetch via the slow path).
+///
+/// Mirrors what a full Core deinit does, letting itests exercise the uncached path on demand without a real deinit/reinit cycle.
+#[cfg(feature = "trace")]
+#[doc(hidden)]
+pub fn __invalidate_singleton_caches() {
+    SINGLETON_CACHE_GENERATION.fetch_add(1, Ordering::Release);
+}
+
 /// Return whether a certain singleton can currently be retrieved from Godot.
 ///
 /// This differs from [`is_class_available()`]: a singleton instance may become available later than its class API.
@@ -87,6 +104,9 @@ pub fn is_singleton_available<T: Singleton>() -> bool {
 use crate::signal::prune_stored_signal_connections;
 
 static CURRENT_INIT_LEVEL: sys::AtomicEnum<Option<InitLevel>> = sys::AtomicEnum::default();
+
+/// See [`singleton_cache_generation()`]. Bumped once per full deinit (lowest level unloaded).
+static SINGLETON_CACHE_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[repr(C)]
 struct InitUserData {
@@ -346,6 +366,9 @@ fn gdext_on_level_deinit(level: InitLevel) {
     if level == InitLevel::Core {
         // If lowest level is unloaded, call global deinitialization.
         // No business logic by itself, but ensures consistency if re-initialization (hot-reload on Linux) occurs.
+
+        // Invalidate cached singleton pointers: a later reinit would reuse the same init level but fresh instances.
+        SINGLETON_CACHE_GENERATION.fetch_add(1, Ordering::Release);
 
         crate::task::cleanup();
         crate::tools::cleanup();
