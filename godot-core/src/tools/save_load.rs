@@ -7,7 +7,7 @@
 
 use crate::builtin::GString;
 use crate::classes::{Resource, ResourceLoader, ResourceSaver};
-use crate::global::Error as GodotError;
+use crate::global::{Error as GodotError, suppress_godot_errors};
 use crate::meta::error::IoError;
 use crate::meta::{AsArg, arg_into_ref};
 use crate::obj::{Gd, Inherits, Singleton};
@@ -50,6 +50,8 @@ where
 /// or by dragging the file from the _FileSystem_ dock into the script.
 ///
 /// The path must be absolute (typically starting with `res://`), a local path will fail.
+///
+/// On failure, Godot error printing is temporarily suppressed, so no console error appears.
 ///
 /// # Example
 /// Loads a scene called `Main` located in the `path/to` subdirectory of the Godot project and caches it in a variable.
@@ -165,6 +167,8 @@ where
 /// This function can fail if [`ResourceSaver`] can't save the resource to file, as it is a simplified version of
 /// [`ResourceSaver::save()`][crate::classes::ResourceSaver::save]. The underlying method can be used for more advances scenarios.
 ///
+/// On failure, Godot error printing is temporarily suppressed, so no console error appears.
+///
 /// # Note
 /// Target path must be presented in Godot-recognized format, mainly the ones beginning with `res://` and `user://`. Saving
 /// to `res://` is possible only when working with unexported project - after its export only `user://` is viable.
@@ -199,12 +203,14 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation of this file
 
-// Separate function, to avoid constructing string twice
-// Note that more optimizations than that likely make no sense, as loading is quite expensive
+// Separate function, to avoid constructing string twice.
+// Note that more optimizations than that likely make no sense, as loading is quite expensive.
 fn load_impl<T>(path: &GString) -> Result<Gd<T>, IoError>
 where
     T: Inherits<Resource>,
 {
+    let _guard = suppress_godot_errors();
+
     let loaded = ResourceLoader::singleton()
         .load_ex(path)
         .type_hint(&T::class_id().to_gstring())
@@ -295,6 +301,8 @@ fn save_impl<T>(obj: &Gd<T>, path: &GString) -> Result<(), IoError>
 where
     T: Inherits<Resource>,
 {
+    let _guard = suppress_godot_errors();
+
     let res = ResourceSaver::singleton().save_ex(obj).path(path).done();
 
     if res == GodotError::OK {

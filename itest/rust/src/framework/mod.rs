@@ -335,22 +335,12 @@ where
     }
 }
 
-/// Disable printing errors from Godot while running `f`.
+/// Disable printing errors from Godot while running `f`, restoring afterwards (panic-safe via RAII).
 ///
 /// Ideally we should catch and handle errors, ensuring they happen when expected. But that isn't always possible,
 /// so for now we can just disable printing the error to avoid spamming the terminal when tests should error.
-///
-/// This function is panic-safe via RAII; if the inner function `f` panics; error printing will be re-enabled.
 pub fn suppress_godot_print<R>(f: impl FnOnce() -> R) -> R {
-    struct RestoreGodotPrint;
-    impl Drop for RestoreGodotPrint {
-        fn drop(&mut self) {
-            Engine::singleton().set_print_error_messages(true); // Assume it was true before -> good enough.
-        }
-    }
-
-    Engine::singleton().set_print_error_messages(false);
-    let _guard = RestoreGodotPrint;
+    let _guard = godot::global::suppress_godot_errors();
     f()
 }
 

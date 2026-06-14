@@ -9,7 +9,9 @@
 // https://github.com/godotengine/godot-cpp/issues/1390.
 
 use godot::builtin::{GString, Variant, vslice};
+use godot::classes::Engine;
 use godot::global::*;
+use godot::obj::Singleton;
 
 use crate::framework::itest;
 
@@ -123,4 +125,34 @@ fn utilities_max() {
         vslice![-5.0, -7.0],
     );
     assert_eq!(output, Variant::from(-1.0));
+}
+
+#[itest]
+fn utilities_suppress_print() {
+    let suppressed = || !Engine::singleton().is_printing_error_messages();
+
+    // Assume at start of test, no suppression is active. Also detects not-cleaned-up global state from earlier tests.
+    assert!(!suppressed());
+
+    // Printing is disabled while a guard is alive, and restored to the original value once the outermost guard drops.
+    let outer = suppress_godot_errors();
+    assert!(suppressed());
+
+    {
+        let _inner = suppress_godot_errors();
+        assert!(suppressed());
+    }
+    // Inner drop must not re-enable while the outer guard is still active.
+    assert!(suppressed());
+
+    drop(outer);
+    assert!(!suppressed());
+
+    // When printing is already disabled, the guard must restore to disabled -- not enable it.
+    Engine::singleton().set_print_error_messages(false);
+    {
+        let _guard = suppress_godot_errors();
+        assert!(suppressed());
+    }
+    assert!(suppressed());
 }

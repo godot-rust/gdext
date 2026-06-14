@@ -32,7 +32,11 @@
 // exotic-platform `FileAccess` that buffers in its own non-thread-safe state could turn the formal `file` race into real torn writes. We accept
 // this -- it is not the default desktop/headless configuration -- rather than gate printing, which is a core cross-thread debugging tool.
 
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+
 use crate::builtin::Variant;
+use crate::classes::Engine;
+use crate::obj::Singleton;
 use crate::sys;
 
 // https://stackoverflow.com/a/40234666
@@ -413,4 +417,51 @@ macro_rules! godot_str {
             )
         ])
     };
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Print suppress logic
+
+/// Number of active [`suppress_godot_errors()`] scopes; the flag toggles on the `0 <-> 1` transitions. For multithreading robustness.
+static SUPPRESS_DEPTH: AtomicU32 = AtomicU32::new(0);
+
+/// Value of `Engine::is_printing_error_messages()` captured when the outermost scope began, restored when it exits.
+static SUPPRESS_ORIG_STATE: AtomicBool = AtomicBool::new(true);
+
+/// RAII guard returned by [`suppress_godot_errors()`]; restores Godot error printing once the outermost scope drops.
+#[doc(hidden)]
+#[must_use = "keep RAII guard alive, e.g. `let _guard = suppress_godot_errors();`"]
+pub struct SuppressGuard {
+    _private: (),
+}
+
+impl Drop for SuppressGuard {
+    fn drop(&mut self) {
+        let prev = SUPPRESS_DEPTH.fetch_sub(1, Ordering::AcqRel);
+        sys::strict_assert!(prev >= 1, "suppress_godot_errors: depth underflow");
+        if prev == 1 {
+            let restore = SUPPRESS_ORIG_STATE.load(Ordering::Acquire);
+            Engine::singleton().set_print_error_messages(restore);
+        }
+    }
+}
+
+/// Disables Godot's console error printing until the returned [`SuppressGuard`] drops.
+///
+/// Silences expected, Rust-handled failures (e.g. [`try_load()`][crate::tools::try_load] returning `Err`). Panic-safe via the guard's
+/// `Drop`. The flag is process-wide: nested/concurrent scopes only toggle at the `0 <-> 1` boundary, and the outermost scope restores the
+/// prior state (races are self-healing -- worst case a transient cosmetic over/under-print). Genuine errors on other threads are hidden
+/// while any scope is active, so keep the suppressed region small.
+///
+/// Note: [`Engine::set_print_error_messages()`] uses the main-thread-asserting binding; off-thread use would be UB.
+#[doc(hidden)]
+pub fn suppress_godot_errors() -> SuppressGuard {
+    if SUPPRESS_DEPTH.fetch_add(1, Ordering::AcqRel) == 0 {
+        SUPPRESS_ORIG_STATE.store(
+            Engine::singleton().is_printing_error_messages(),
+            Ordering::Release,
+        );
+        Engine::singleton().set_print_error_messages(false);
+    }
+    SuppressGuard { _private: () }
 }
