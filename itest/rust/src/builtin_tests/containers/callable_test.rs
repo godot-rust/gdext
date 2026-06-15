@@ -522,6 +522,22 @@ pub mod custom_callable {
         args.iter().map(|arg| arg.to::<i32>()).sum()
     }
 
+    // A linked callable (`Gd::linked_callable()`, used e.g. by `connect_self()`) captures only the object's instance ID, so it can outlive the
+    // object. Once freed, `is_valid()` must report false. Godot's `is_valid_func` ignores the `object_id` we set, so `rust_callable_is_valid()`
+    // performs the liveness check itself; this is the regression test for it.
+    #[itest]
+    fn callable_linked_invalidated_after_free() {
+        let receiver = godot::classes::Node::new_alloc();
+        let linked = receiver.linked_callable("nop", |_args| {});
+
+        assert!(linked.is_valid());
+        receiver.free();
+        assert!(
+            !linked.is_valid(),
+            "linked callable invalid after freeing its object"
+        );
+    }
+
     #[itest]
     fn callable_custom_invoke() {
         let my_rust_callable = Adder::new(0);

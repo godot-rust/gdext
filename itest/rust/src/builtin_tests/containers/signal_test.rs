@@ -571,6 +571,66 @@ fn enums_as_signal_args() {
     object.signals().game_event().emit(event);
 }
 
+#[itest]
+fn signal_engine_no_leak() {
+    let f = RefCounted::new_gd();
+
+    f.signals().script_changed().connect_self(|_this| {});
+}
+
+#[itest]
+fn signal_user_no_leak() {
+    #[derive(GodotClass)]
+    #[class(base = RefCounted, init)]
+    struct RefcountedSignaller {
+        base: Base<RefCounted>,
+    }
+
+    #[godot_api]
+    impl RefcountedSignaller {
+        #[signal]
+        fn game_event();
+    }
+
+    let f = RefcountedSignaller::new_gd();
+
+    // TODO game_event() should be #[must_use].
+    f.signals().game_event().connect_self(|_this| {});
+}
+
+// Ensures that despite the weak capture in connect_self() (instance ID instead of Gd, to avoid leaks), the receiver is still invoked on emit.
+#[itest]
+fn signal_self_weak_connection_invoked() {
+    #[derive(GodotClass)]
+    #[class(base = RefCounted, init)]
+    struct HitCounter {
+        hits: i32,
+        base: Base<RefCounted>,
+    }
+
+    #[godot_api]
+    impl HitCounter {
+        #[signal]
+        fn game_event();
+    }
+
+    let f = HitCounter::new_gd();
+    f.signals().game_event().connect_self(|this| this.hits += 1);
+    f.signals()
+        .game_event()
+        .builder()
+        .connect_self_mut(|this| this.hits += 10);
+    f.signals()
+        .game_event()
+        .builder()
+        .connect_self_gd(|mut this| this.bind_mut().hits += 100);
+
+    f.signals().game_event().emit();
+    f.signals().game_event().emit();
+
+    assert_eq!(f.bind().hits, 222);
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helper types
 
