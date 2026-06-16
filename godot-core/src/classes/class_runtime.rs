@@ -251,10 +251,22 @@ where
 
 /// # Safety
 /// The caller must ensure that `class_name` corresponds to the actual class name of type `T`.
-pub(crate) unsafe fn singleton_unchecked<T>(class_name: &StringName) -> Gd<T>
+pub(crate) unsafe fn singleton_unchecked_type<T>(class_name: &StringName) -> Gd<T>
 where
     T: GodotClass,
 {
+    // The pointer from global_get_singleton() is only valid while T's init level is loaded. After it unloads, Godot frees the singleton but keeps
+    // a dangling map entry, so dereferencing that pointer would be UB. Validate (balanced+ safeguards). Not a problem _before_ the singleton is
+    // loaded: Godot correctly returns null then, which from_obj_sys turns into a panic.
+    if let Some(current) = crate::init::current_init_level() {
+        sys::balanced_assert!(
+            current >= T::INIT_LEVEL,
+            "{}::singleton() called after the singleton was unloaded (deinit stage).\n\
+            Use `godot::init::is_singleton_available()` to check.",
+            std::any::type_name::<T>(),
+        );
+    }
+
     // SAFETY: class_name validity upheld by caller; binding is initialized.
     unsafe {
         let object_ptr = sys::interface_fn!(global_get_singleton)(class_name.string_sys());
