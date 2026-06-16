@@ -43,6 +43,11 @@ pub fn is_class_available<T: GodotClass>() -> bool {
         .is_some_and(|level| T::INIT_LEVEL <= level)
 }
 
+/// Returns the init level currently loaded, or `None` if bindings are not (yet/anymore) at a known level.
+pub(crate) fn current_init_level() -> Option<InitLevel> {
+    CURRENT_INIT_LEVEL.load()
+}
+
 /// Return whether a certain singleton can currently be retrieved from Godot.
 ///
 /// This differs from [`is_class_available()`]: a singleton instance may become available later than its class API.

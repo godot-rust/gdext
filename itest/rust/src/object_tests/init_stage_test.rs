@@ -16,7 +16,7 @@ use godot::register::{GodotClass, godot_api};
 use godot::sys::{GdextBuild, Global};
 
 use crate::engine_tests::check_classdb_full_api;
-use crate::framework::{expect_panic, itest, runs_release, suppress_godot_print};
+use crate::framework::{expect_panic_or_ub, itest, runs_release, suppress_godot_print};
 
 static STAGES_SEEN: Global<Vec<InitStage>> = Global::default();
 static STAGES_PANICKED: Global<Vec<InitStage>> = Global::default();
@@ -75,6 +75,32 @@ fn init_level_no_panics() {
     );
 }
 
+// Asserts that T's singleton availability matches `present`. If absent, also verifies `singleton()` panics rather than handing out a
+// dangling/null pointer (regression test for the deinit-dangling fix, see https://github.com/godot-rust/gdext/pull/1638).
+fn assert_singleton_present<T: Singleton + GodotClass>(present: bool) {
+    // First test the dedicated availability API.
+    assert_eq!(is_singleton_available::<T>(), present);
+
+    if present {
+        // Must not panic and must yield a live instance.
+        let _ = T::singleton().instance_id();
+    } else {
+        // Probing a missing singleton makes Godot print an error; suppress it when possible. Suppression itself goes through the Engine
+        // singleton, which on Godot < 4.4 is not registered before the Scene level -- skip suppression in that window.
+        let probe = || {
+            expect_panic_or_ub("singleton unavailable", || {
+                let _ = T::singleton();
+            });
+        };
+
+        if is_singleton_available::<Engine>() {
+            suppress_godot_print(probe);
+        } else {
+            probe();
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Stage-specific callbacks
 
@@ -114,10 +140,10 @@ fn on_init_core() {
     assert!(!is_class_available::<RenderingServer>()); // Servers
 
     // Core singletons (Engine/Os/Time) are reachable at Core level; RenderingServer is not.
-    assert!(is_singleton_available::<Engine>());
-    assert!(is_singleton_available::<Os>());
-    assert!(is_singleton_available::<Time>());
-    assert!(!is_singleton_available::<RenderingServer>());
+    assert_singleton_present::<Engine>(true);
+    assert_singleton_present::<Os>(true);
+    assert_singleton_present::<Time>(true);
+    assert_singleton_present::<RenderingServer>(false);
 
     // Ensure we can create and use an Object-derived class during Core init level.
     SomeObject::test();
@@ -161,7 +187,7 @@ fn on_init_servers() {
     // RenderingServer class becomes available at Servers level, but the singleton instance is
     // only registered later (see comment in on_init_scene).
     assert!(is_class_available::<RenderingServer>());
-    assert!(!is_singleton_available::<RenderingServer>());
+    assert_singleton_present::<RenderingServer>(false);
 
     // Scene-level classes still not available.
     assert!(!is_class_available::<Node>());
@@ -173,13 +199,7 @@ fn on_init_scene() {
 
     // Known limitation that singletons only become available later:
     // https://github.com/godotengine/godot-cpp/issues/1180#issuecomment-3074351805
-    assert!(!is_singleton_available::<RenderingServer>());
-
-    suppress_godot_print(|| {
-        expect_panic("Singletons not loaded during Scene init level", || {
-            let _ = RenderingServer::singleton();
-        });
-    });
+    assert_singleton_present::<RenderingServer>(false);
 }
 
 pub fn on_init_editor() {
@@ -207,7 +227,7 @@ impl IObject for MainLoopCallbackSingleton {
 fn on_init_main_loop() {
     // By MainLoop, the RenderingServer singleton is registered.
     assert!(is_class_available::<RenderingServer>());
-    assert!(is_singleton_available::<RenderingServer>());
+    assert_singleton_present::<RenderingServer>(true);
 
     // RenderingServer should be accessible in MainLoop init and deinit.
     let singleton = MainLoopCallbackSingleton::new_alloc();
@@ -260,8 +280,8 @@ pub fn on_stage_deinit(stage: InitStage) {
 
 #[cfg(since_api = "4.5")]
 fn on_deinit_main_loop() {
-    // RenderingServer singleton still available at MainLoop deinit.
-    assert!(is_singleton_available::<RenderingServer>());
+    // RenderingServer singleton still available at MainLoop deinit; same level still loaded on the way down.
+    assert_singleton_present::<RenderingServer>(true);
 
     let singleton = Engine::singleton()
         .get_singleton(&MainLoopCallbackSingleton::class_id().to_string_name())
@@ -289,6 +309,21 @@ fn on_deinit_core() {
     assert!(is_class_available::<Object>());
     assert!(!is_class_available::<Node>());
     assert!(!is_class_available::<RenderingServer>());
+
+    // These singletons aren't available on those levels in older versions.
+    #[cfg(since_api = "4.4")]
+    {
+        // Core singletons are still reachable at Core deinit.
+        assert_singleton_present::<Engine>(true);
+        assert_singleton_present::<Os>(true);
+        assert_singleton_present::<Time>(true);
+
+        // RenderingServer is already unloaded. Godot internally keeps a dangling map entry; godot-rust must panic instead of dereferencing it.
+        assert_singleton_present::<RenderingServer>(false);
+
+        // Functional: the still-loaded singleton is usable for a real method call.
+        assert!(Engine::singleton().get_physics_ticks_per_second() > 0);
+    }
 
     // Exit logic happens in on_stage_deinit.
 }

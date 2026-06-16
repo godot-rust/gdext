@@ -783,12 +783,12 @@ where
     T: UserSingleton + Inherits<crate::classes::Object>,
 {
     fn singleton() -> Gd<T> {
-        // Note: Under any safeguards level `singleton_unchecked` will panic if Singleton can't be retrieved.
+        // Note: Under any safeguards level `singleton_unchecked_type` will panic if Singleton can't be retrieved.
 
         let class_name = <T as GodotClass>::class_id().to_string_name();
         // SAFETY: The caller must ensure that `class_name` corresponds to the actual class name of type `T`.
         // This is always true for `#[class(singleton)]`.
-        unsafe { crate::classes::singleton_unchecked(&class_name) }
+        unsafe { crate::classes::singleton_unchecked_type(&class_name) }
     }
 }
 

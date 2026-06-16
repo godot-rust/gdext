@@ -489,7 +489,7 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
             impl crate::obj::Singleton for #class_name {
                 fn singleton() -> crate::obj::Gd<Self> {
                     // SAFETY: Class name matches type T, per code generator.
-                    unsafe { crate::classes::singleton_unchecked(&#godot_class_stringname) }
+                    unsafe { crate::classes::singleton_unchecked_type(&#godot_class_stringname) }
                 }
             }
         }
