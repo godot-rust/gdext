@@ -248,6 +248,52 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         result.unwrap_or_else(|err| return_error_dyn(&call_ctx, std::any::type_name::<Ret>(), err))
     }
 
+    /// Make a script-virtual call that may resolve asynchronously (GDScript `await`).
+    ///
+    /// Behaves like [`out_script_virtual_call`](Self::out_script_virtual_call), but if the GDScript override uses `await`, the engine returns a
+    /// coroutine handle instead of the final value. This function then awaits its completion and converts the eventual result to `Ret`.
+    ///
+    /// The synchronous engine call (which starts the coroutine) happens immediately; the returned future only keeps the coroutine handle alive,
+    /// so it does not borrow the calling object across `.await`.
+    ///
+    /// # Safety
+    /// Same as [`out_script_virtual_call`](Self::out_script_virtual_call).
+    pub unsafe fn out_script_virtual_call_async(
+        // Separate parameters to reduce tokens in macro-generated API.
+        class_name: &'static str,
+        method_name: &'static str,
+        method_sname_ptr: sys::GDExtensionConstStringNamePtr,
+        object_ptr: sys::GDExtensionObjectPtr,
+        args: Params,
+    ) -> impl std::future::Future<Output = Ret>
+    where
+        Ret: FromGodot,
+    {
+        // Assumes that caller has previously checked existence of a virtual method.
+
+        let call_ctx = CallContext::outbound(class_name, method_name);
+        let object_call_script_method = sys::interface_fn!(object_call_script_method);
+
+        let variant = args.with_variant_pointers(|sys_args| {
+            // SAFETY: TODO.
+            unsafe {
+                Variant::new_with_var_uninit(|return_ptr| {
+                    let mut err = sys::default_call_error();
+                    object_call_script_method(
+                        object_ptr,
+                        method_sname_ptr,
+                        sys_args.as_ptr(),
+                        sys_args.len() as i64,
+                        return_ptr,
+                        &raw mut err,
+                    );
+                })
+            }
+        });
+
+        resolve_gdscript_coroutine::<Ret>(call_ctx, variant)
+    }
+
     /// Make a ptrcall to the Godot engine for a utility function that has varargs.
     ///
     /// # Safety
@@ -562,6 +608,36 @@ unsafe fn ptrcall_return<R: EngineToGodot>(
 #[inline(never)]
 fn return_error_dyn(call_ctx: &CallContext, return_ty: &'static str, err: ConvertError) -> ! {
     panic!("in function `{call_ctx}` at return type {return_ty}: {err}");
+}
+
+/// Converts the return value of a script-virtual call, awaiting completion if the GDScript override used `await`.
+///
+/// A GDScript function that uses `await` returns a `GDScriptFunctionState` object whose `completed` signal eventually carries the real return
+/// value. That type is not exposed in the GDExtension API, so it is detected by its class name.
+async fn resolve_gdscript_coroutine<Ret: FromGodot>(
+    call_ctx: CallContext<'static>,
+    variant: Variant,
+) -> Ret {
+    use crate::builtin::Signal;
+    use crate::classes::Object;
+    use crate::obj::Gd;
+
+    // `get_class()` (engine method) is used instead of `Gd::dynamic_class()`: the latter is backed by `object_get_class_name`, which only
+    // reports exposed extension classes and returns "RefCounted" for the hidden `GDScriptFunctionState`. `get_class()` returns the real name.
+    let result = if let Ok(state) = variant.try_to::<Gd<Object>>()
+        && state.get_class() == "GDScriptFunctionState"
+    {
+        let signal = Signal::from_object_signal(&state, "completed");
+        let (result,) = signal.to_future::<(Variant,)>().await;
+        // `state` is kept alive across the await point, so the coroutine isn't dropped before completion.
+        drop(state);
+        result
+    } else {
+        variant
+    };
+
+    <Ret as FromGodot>::try_from_variant(&result)
+        .unwrap_or_else(|err| return_error_dyn(&call_ctx, std::any::type_name::<Ret>(), err))
 }
 
 // Lazy Display, so we don't create tens of thousands of extra string literals.

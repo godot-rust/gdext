@@ -1007,6 +1007,33 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///
 /// Make sure you understand the limitations in the [tutorial](https://godot-rust.github.io/book/register/virtual-functions.html).
 ///
+/// ### Async virtual functions
+///
+/// A `#[func(virtual)]` may be declared `async fn`, to allow GDScript overrides that use `await`. The Rust caller then awaits the override's
+/// completion and receives its return value. Calling the method returns a future that integrates with [`task::spawn`][crate::task::spawn].
+///
+/// ```no_run
+/// # #[cfg(since_api = "4.3")]
+/// # mod conditional {
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(init, base = Node)]
+/// # struct MyStruct { base: Base<Node> }
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func(virtual, gd_self)]
+///     async fn compute(this: Gd<Self>, input: i64) -> i64 {
+///         input * 10
+///     }
+/// }
+/// # }
+/// ```
+///
+/// Limitations:
+/// - Only GDScript overrides may use `await`; other scripting languages are not supported.
+/// - The Rust default body (run when no script overrides the method) must be synchronous.
+/// - To await across `task::spawn` (not just inline), use `gd_self`, since `&self`/`&mut self` cannot be held across `.await`.
+///
 /// ## RPC attributes
 /// You can use the `#[rpc]` attribute to let your functions act as remote procedure calls (RPCs) in Godot. This is the Rust equivalent of
 /// GDScript's [`@rpc` annotation](https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html#remote-procedure-calls).

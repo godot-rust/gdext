@@ -270,16 +270,18 @@ fn process_godot_fns(
             continue;
         };
 
+        // `async` is allowed for `#[func(virtual)]` (to await a GDScript coroutine override); all other qualifiers are rejected.
+        let async_allowed = matches!(&attr.ty, ItemAttrType::Func(func, _) if func.is_virtual);
         if function.qualifiers.tk_default.is_some()
             || function.qualifiers.tk_const.is_some()
-            || function.qualifiers.tk_async.is_some()
+            || (function.qualifiers.tk_async.is_some() && !async_allowed)
             || function.qualifiers.tk_unsafe.is_some()
             || function.qualifiers.tk_extern.is_some()
             || function.qualifiers.extern_abi.is_some()
         {
             return bail!(
                 &function.qualifiers,
-                "#[func]: fn qualifiers are not allowed"
+                "#[func]: fn qualifiers are not allowed (except `async` on `#[func(virtual)]`)"
             );
         }
 
@@ -322,17 +324,27 @@ fn process_godot_fns(
                 signature_info.optional_param_default_exprs =
                     validate_default_exprs(all_param_maybe_defaults, &signature_info.param_idents)?;
 
+                // `async fn` is only valid on `#[func(virtual)]` (enforced by the qualifier check above); it awaits a GDScript coroutine override.
+                let is_async = function.qualifiers.tk_async.is_some();
+
                 // For virtual methods, rename/mangle existing user method and create a new method with the original name,
                 // which performs a dynamic dispatch.
                 let registered_name = if func.is_virtual {
-                    let registered_name = add_virtual_script_call(
+                    let (registered_name, early_bound_name) = add_virtual_script_call(
                         &mut virtual_functions,
                         function,
                         &signature_info,
                         class_name,
                         &func.rename,
                         gd_self_parameter,
+                        is_async,
                     );
+
+                    // For async virtuals, the engine-facing default impl must be synchronous, so the registered callback targets the
+                    // (sync) early-bound method directly instead of the async dispatcher. See `add_virtual_script_call`.
+                    if is_async {
+                        signature_info.method_name = early_bound_name;
+                    }
 
                     Some(registered_name)
                 } else {
@@ -446,7 +458,8 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
 ///
 /// Appends the virtual function to `virtual_functions`.
 ///
-/// Returns the Godot-registered name of the virtual function, usually `_<name>` (but overridable with `#[func(rename = ...)]`).
+/// Returns `(godot_name, early_bound_name)`: the Godot-registered name of the virtual function (usually `_<name>`, but overridable with
+/// `#[func(rename = ...)]`) and the identifier of the synchronous early-bound default method.
 fn add_virtual_script_call(
     virtual_functions: &mut Vec<venial::Function>,
     function: &mut venial::Function,
@@ -454,7 +467,8 @@ fn add_virtual_script_call(
     class_name: &Ident,
     rename: &Option<String>,
     gd_self_parameter: Option<Ident>,
-) -> String {
+    is_async: bool,
+) -> (String, Ident) {
     #[allow(clippy::assertions_on_constants)]
     {
         // Without braces, clippy removes the #[allow] for some reason...
@@ -498,6 +512,13 @@ fn add_virtual_script_call(
         receiver = ident("self");
     };
 
+    // Async virtuals await a possibly-coroutine GDScript override; the early-bound default stays synchronous and is called without `.await`.
+    let (out_call, override_dispatch) = if is_async {
+        (quote! { out_script_virtual_call_async }, quote! { .await })
+    } else {
+        (quote! { out_script_virtual_call }, quote! {})
+    };
+
     let code = quote! {
         let object_ptr = #object_ptr;
         let method_sname = ::godot::builtin::StringName::__cstr(#method_name_cstr);
@@ -510,30 +531,35 @@ fn add_virtual_script_call(
             type CallRet = #call_ret;
             let args = (#( #arg_names, )*);
             unsafe {
-                ::godot::private::Signature::<CallParams, CallRet>::out_script_virtual_call(
+                ::godot::private::Signature::<CallParams, CallRet>::#out_call(
                     #class_name_str,
                     #method_name_str,
                     method_sname_ptr,
                     object_ptr,
                     args,
                 )
-            }
+            } #override_dispatch
         } else {
-            // Fall back to default implementation.
+            // Fall back to default implementation (synchronous, even for async virtuals).
             Self::#early_bound_name(#receiver, #( #arg_names ),*)
         }
     };
 
     let mut early_bound_function = venial::Function {
-        name: early_bound_name,
+        name: early_bound_name.clone(),
         body: Some(Group::new(Delimiter::Brace, code)),
         ..function.clone()
     };
 
     std::mem::swap(&mut function.body, &mut early_bound_function.body);
+
+    // The early-bound default impl is invoked synchronously (also by the engine-registered callback), so strip any `async` qualifier;
+    // the user's default body must therefore be synchronous.
+    early_bound_function.qualifiers.tk_async = None;
+
     virtual_functions.push(early_bound_function);
 
-    method_name_str
+    (method_name_str, early_bound_name)
 }
 
 /// Validates that a function uses no reference types (`&T`, `&mut T`) in parameters or return type.

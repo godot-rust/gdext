@@ -20,6 +20,8 @@ mod register_docs_test;
 mod rpc_test;
 mod var_test;
 
+#[cfg(since_api = "4.3")]
+mod async_virtual_test;
 #[cfg(feature = "test-gdextension-dependency")]
 mod dependency_test;
 #[cfg(since_api = "4.3")]
