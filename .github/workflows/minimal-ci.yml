@@ -206,6 +206,7 @@ jobs:
             rust-extra-env: GDRUST_MAIN_EXTENSION=IntegrationTests
             hot-reload: stable signal-test
 
+          # JSON-based codegen path is kept in minimal CI, as it has surfaced config errors several times in the past.
           - name: linux-custom-api-json
             os: ubuntu-24.04
             artifact-name: linux-nightly
@@ -213,50 +214,23 @@ jobs:
             rust-extra-args: --features godot/api-custom-json
             godot-indirect-json: true
 
-          - name: linux-features-experimental
+          # Linux compat. Minimal CI only checks the ends (min supported, max supported - 1, max supported). Full CI tests all.
+
+          # Latest stable release (above default API level), thus needs explicit api-4-7.
+          - name: linux-4.7
             os: ubuntu-24.04
-            artifact-name: linux-nightly
+            artifact-name: linux-4.7
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,itest/upcoming-editor-placeholders,godot/api-custom,godot/serde,itest/register-docs
-            hot-reload: api-custom
+            godot-prebuilt-patch: '4.7'
 
-          - name: linux-release
-            os: ubuntu-24.04
-            artifact-name: linux-release-nightly
-            godot-binary: godot.linuxbsd.template_release.x86_64
-            # Use `codegen-full-experimental` to make sure that all function tables can be loaded in Godot release builds.
-            # If the experimental part causes problems, downgrade to `codegen-full`.
-            rust-extra-args: --release --features itest/codegen-full-experimental
-            rust-cache-key: release
-            run-editor-itest: 'false' # template_release binary has no editor.
-
-          # Linux compat
-
+          # Default API level (no api-* feature); runs against its matching stable binary.
           - name: linux-4.6
             os: ubuntu-24.04
             artifact-name: linux-4.6
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.6'
 
-          - name: linux-4.5
-            os: ubuntu-24.04
-            artifact-name: linux-4.5
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.5'
-
-          - name: linux-4.4
-            os: ubuntu-24.04
-            artifact-name: linux-4.4
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.4'
-
-          - name: linux-4.3
-            os: ubuntu-24.04
-            artifact-name: linux-4.3
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.3'
-            rust-extra-args: --features itest/upcoming-editor-placeholders # enabled at 4.3 boundary
-
+          # Minimum supported version.
           - name: linux-4.2
             os: ubuntu-24.04
             artifact-name: linux-4.2
@@ -264,7 +238,7 @@ jobs:
             godot-prebuilt-patch: '4.2'
             rust-extra-args: --features itest/upcoming-editor-placeholders # enabled before 4.3 boundary
 
-          # Memory checkers (always Linux).
+          # Memory checker (always Linux). One representative sanitizer run; the safeguard-level variants run in full-ci.
 
           - name: memcheck
             os: ubuntu-24.04
@@ -274,29 +248,6 @@ jobs:
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             rust-extra-args: --features godot/api-custom
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
-            rust-target: x86_64-unknown-linux-gnu
-            run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
-
-          - name: memcheck-release-disengaged
-            os: ubuntu-24.04
-            artifact-name: linux-memcheck-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
-            # Currently without itest/codegen-full-experimental.
-            rust-extra-args: --release --features godot/safeguards-release-disengaged
-            rust-target: x86_64-unknown-linux-gnu
-            rust-target-dir: release # We're running Godot debug build with Rust release dylib.
-            run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
-
-          - name: memcheck-dev-balanced
-            os: ubuntu-24.04
-            artifact-name: linux-memcheck-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
-            # Currently without itest/codegen-full-experimental.
-            rust-extra-args: --features godot/safeguards-dev-balanced
             rust-target: x86_64-unknown-linux-gnu
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
