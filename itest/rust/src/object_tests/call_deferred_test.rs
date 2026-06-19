@@ -86,7 +86,7 @@ fn call_deferred_untyped(ctx: &crate::framework::TestContext) -> TaskHandle {
     ctx.scene_tree.clone().add_child(&test_node);
 
     // Called through Godot and therefore requires #[func] on the method.
-    test_node.call_deferred("accept", &[]);
+    test_node.call_ex("accept", &[]).deferred();
 
     let mut guard = test_node.bind_mut();
     guard.create_assertion_task()

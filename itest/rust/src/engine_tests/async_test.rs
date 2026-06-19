@@ -116,7 +116,7 @@ fn cancel_async_task(ctx: &TestContext) {
 
 #[itest(async)]
 fn async_task_fallible_signal_future() -> TaskHandle {
-    let mut obj = Object::new_alloc();
+    let obj = Object::new_alloc();
 
     let signal = Signal::from_object_signal(&obj, "script_changed");
 
@@ -126,14 +126,14 @@ fn async_task_fallible_signal_future() -> TaskHandle {
         assert!(result.is_err());
     });
 
-    obj.call_deferred("free", &[]);
+    obj.call_ex("free", &[]).deferred();
 
     handle
 }
 
 #[itest(async)]
 fn async_task_signal_future_panic() -> TaskHandle {
-    let mut obj = Object::new_alloc();
+    let obj = Object::new_alloc();
 
     let signal = Signal::from_object_signal(&obj, "script_changed");
 
@@ -144,7 +144,7 @@ fn async_task_signal_future_panic() -> TaskHandle {
         },
     ));
 
-    obj.call_deferred("free", &[]);
+    obj.call_ex("free", &[]).deferred();
 
     handle
 }

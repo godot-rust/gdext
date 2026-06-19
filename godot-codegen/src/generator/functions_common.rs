@@ -185,7 +185,7 @@ pub fn make_function_definition(
         default_structs_code = TokenStream::new();
     };
 
-    let (maybe_deprecated, _maybe_expect_deprecated) = make_deprecation_attribute(sig);
+    let (maybe_deprecated, maybe_expect_deprecated) = make_deprecation_attribute(sig);
     let maybe_specific_doc = &meta.specific_docs;
 
     // If a sectioned doc precedes the Godot doc (`# Safety` from unsafe pointers, `# Specific notes for this function` from utility-fn extra
@@ -279,6 +279,8 @@ pub fn make_function_definition(
                 /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
                 /// It can detect call failures and will panic in such a case.
                 #maybe_safety_doc
+                // When this method is deprecated, so is its `try_` counterpart it forwards to; silence the internal call.
+                #maybe_expect_deprecated
                 #vis #maybe_unsafe fn #primary_fn_name (
                     #receiver_param
                     #( #params, )*

@@ -12,7 +12,7 @@ use godot_ffi as sys;
 use godot_ffi::is_main_thread;
 use sys::{SysPtr as _, static_assert_eq_size_align};
 
-use crate::builtin::{Callable, NodePath, StringName, Variant};
+use crate::builtin::{Call, Callable, NodePath, StringName, Variant};
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::shape::GodotShape;
 use crate::meta::{
@@ -702,6 +702,17 @@ impl<T: GodotClass> Gd<T> {
     /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
     pub fn callable(&self, method_name: impl AsArg<StringName>) -> Callable {
         Callable::from_object_method(self, method_name)
+    }
+
+    /// Builder for advanced calls: deferred, fallible, async or `Array`-based argument passing.
+    ///
+    /// This is the unified successor to `Object::call`, `Object::callv`, `Object::call_deferred` and `Object::try_call`. See
+    /// [`Call`][crate::builtin::Call] for the available terminal operations.
+    ///
+    /// For the common case of an immediate synchronous call, `Object::call(method, args)` (through `Deref`) remains the shorthand.
+    pub fn call_ex<'a>(&self, method: impl AsArg<StringName>, args: &'a [Variant]) -> Call<'a> {
+        crate::meta::arg_into_owned!(method);
+        Call::on_owned_variant(self.to_variant(), method, args)
     }
 
     /// Creates a new callable linked to the given object from **single-threaded** Rust function or closure.

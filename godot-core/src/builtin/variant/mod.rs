@@ -11,13 +11,13 @@ use godot_ffi as sys;
 use sys::{GodotFfi, ffi_methods, interface_fn};
 
 use crate::builtin::{
-    GString, StringName, VarArray, VariantDispatch, VariantOperator, VariantType,
+    Call, GString, StringName, VarArray, VariantDispatch, VariantOperator, VariantType,
 };
 use crate::classes;
-use crate::meta::error::{ConvertError, FromVariantError};
+use crate::meta::error::{CallError, ConvertError, FromVariantError};
 use crate::meta::{
-    AsArg, Element, EngineFromGodot, ExtVariantType, FromGodot, GodotType, ToGodot, arg_into_ref,
-    ffi_variant_type,
+    AsArg, CallContext, Element, EngineFromGodot, ExtVariantType, FromGodot, GodotType, ToGodot,
+    arg_into_ref, ffi_variant_type,
 };
 
 mod impls;
@@ -237,7 +237,28 @@ impl Variant {
         self.call_inner(method, args)
     }
 
-    fn call_inner(&self, method: &StringName, args: &[Variant]) -> Variant {
+    /// Builder for advanced calls: deferred, fallible, async or `Array`-based argument passing.
+    ///
+    /// The bare [`call()`][Self::call] is shorthand for `call_ex(method, args).done()`. See [`Call`][crate::builtin::Call] for the available
+    /// terminal operations.
+    pub fn call_ex<'a>(&'a self, method: impl AsArg<StringName>, args: &'a [Variant]) -> Call<'a> {
+        crate::meta::arg_into_owned!(method);
+        Call::on_variant(self, method, args)
+    }
+
+    pub(crate) fn call_inner(&self, method: &StringName, args: &[Variant]) -> Variant {
+        self.try_call_inner(method, args)
+            .unwrap_or_else(|err| panic!("{err}"))
+    }
+
+    /// Fallible variant of [`call_inner`](Self::call_inner): returns the call error instead of panicking.
+    ///
+    /// Powers the `try_done()` terminal of the unified call builder.
+    pub(crate) fn try_call_inner(
+        &self,
+        method: &StringName,
+        args: &[Variant],
+    ) -> Result<Variant, CallError> {
         let args_sys: Vec<_> = args.iter().map(|v| v.var_sys()).collect();
         let mut error = sys::default_call_error();
 
@@ -254,11 +275,11 @@ impl Variant {
             })
         };
 
-        if error.error != sys::GDEXTENSION_CALL_OK {
-            let arg_types: Vec<_> = args.iter().map(Variant::get_type).collect();
-            sys::panic_call_error(&error, "call", &arg_types);
-        }
-        result
+        // No explicit args, only varargs: the method name is not a Variant argument of `variant_call`.
+        let call_ctx = CallContext::outbound("Variant", "call");
+        CallError::check_out_varcall(&call_ctx, error, &[] as &[Variant], args)?;
+
+        Ok(result)
     }
 
     /// Evaluates an expression using a GDScript operator.

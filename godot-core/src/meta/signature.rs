@@ -614,7 +614,7 @@ fn return_error_dyn(call_ctx: &CallContext, return_ty: &'static str, err: Conver
 ///
 /// A GDScript function that uses `await` returns a `GDScriptFunctionState` object whose `completed` signal eventually carries the real return
 /// value. That type is not exposed in the GDExtension API, so it is detected by its class name.
-async fn resolve_gdscript_coroutine<Ret: FromGodot>(
+pub(crate) async fn resolve_gdscript_coroutine<Ret: FromGodot>(
     call_ctx: CallContext<'static>,
     variant: Variant,
 ) -> Ret {

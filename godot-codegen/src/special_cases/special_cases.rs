@@ -102,6 +102,10 @@ pub fn get_class_method_deprecation(class_name: &TyName, method: &JsonClassMetho
         | ("Resource", "duplicate_deep")
         | ("Resource", "duplicate_deep_ex") => "Use `Gd::duplicate_resource()` or `Gd::duplicate_resource_ex()`.",
 
+        | ("Object", "callv") => "Use `Gd::call_ex(method, &[]).args_array(array).done()`.",
+
+        | ("Object", "call_deferred") => "Use `Gd::call_ex(method, args).deferred()`.",
+
         _ => return None,
     };
 
