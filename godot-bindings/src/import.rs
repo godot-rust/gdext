@@ -21,6 +21,7 @@ pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
     (4, 5, 0),
     (4, 6, 0),
     (4, 7, 0),
+    (4, 8, 0),
     // ]]
 ];
 
@@ -42,6 +43,8 @@ pub use gdextension_api::version_4_4 as prebuilt;
 pub use gdextension_api::version_4_5 as prebuilt;
 #[cfg(feature = "api-4-6")]
 pub use gdextension_api::version_4_6 as prebuilt;
+#[cfg(feature = "api-4-7")]
+pub use gdextension_api::version_4_7 as prebuilt;
 // ]]
 
 // If none of the api-* features are provided, use default prebuilt version (typically latest Godot stable release).
@@ -56,13 +59,16 @@ pub use gdextension_api::version_4_6 as prebuilt;
     feature = "api-4-4",
     feature = "api-4-5",
     feature = "api-4-6",
+    feature = "api-4-7",
     feature = "api-custom",
     feature = "api-custom-json",
 )))]
 // ]]
+// `rustfmt::skip` pins this use, else rustfmt sorts the higher api-* uses above into this block.
 // [version-sync] [[
-//  [include] current.minor
-//  [line] pub use gdextension_api::version_$snakeVersion as prebuilt;
+//  [include] default.minor
+//  [line] #[rustfmt::skip]\npub use gdextension_api::version_$snakeVersion as prebuilt;
+#[rustfmt::skip]
 pub use gdextension_api::version_4_6 as prebuilt;
 // ]]
 
@@ -71,5 +77,5 @@ pub use gdextension_api::version_4_6 as prebuilt;
 // [version-sync] [[
 //  [include] current
 //  [line] pub const LATEST_API_VERSION: (u8, u8, u8) = $triple;
-pub const LATEST_API_VERSION: (u8, u8, u8) = (4, 6, 0);
+pub const LATEST_API_VERSION: (u8, u8, u8) = (4, 7, 0);
 // ]]

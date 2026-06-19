@@ -28,7 +28,12 @@ pub const GODOT_LATEST_PATCH_VERSIONS: &[&str] = &[
 ];*/
 
 /// `(Min supported version, next version)`. Read as `4.x`.
-pub const GODOT_VERSION_RANGE: (u8, u8) = (2, 7);
+pub const GODOT_VERSION_RANGE: (u8, u8) = (2, 8);
+
+/// Minor version used as default when no `api-*` feature is selected (read as `4.x`).
+///
+/// Usually equals the current/latest supported version (`GODOT_VERSION_RANGE.1 - 1`), but can be different for backwards compatibility.
+pub const GODOT_DEFAULT_MINOR: u8 = 6;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -137,12 +142,16 @@ fn substitute_template(
 
     for part in parts {
         let current_minor = versions_max[versions_max.len() - 2].0;
+        let default_minor = GODOT_DEFAULT_MINOR;
 
         let filter: Box<dyn Fn(u8, u8) -> bool> = match part {
             "past" => Box::new(|m, _p| m < current_minor),
             "current" => Box::new(|m, _p| m == current_minor),
             "future" => Box::new(|m, _p| m > current_minor),
-            "current.minor" => Box::new(|m, p| m == current_minor && p == 0),
+
+            // Relevant only if patch levels matter again.
+            // "current.minor" => Box::new(|m, p| m == current_minor && p == 0),
+            "default.minor" => Box::new(move |m, p| m == default_minor && p == 0),
 
             other => {
                 panic!("version-sync: invalid value '{other}' for [include] key")
