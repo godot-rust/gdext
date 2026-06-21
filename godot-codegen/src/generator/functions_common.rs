@@ -13,7 +13,7 @@ use quote::{format_ident, quote};
 use crate::context::Context;
 use crate::generator::{default_parameters, import_docs};
 use crate::models::domain::{ApiView, ArgPassing, FnParam, FnQualifier, Function, RustTy};
-use crate::special_cases;
+use crate::special_cases::{self, is_method_threadsafe_return};
 use crate::util::lifetime;
 
 pub struct FnReceiver {
@@ -222,11 +222,36 @@ pub fn make_function_definition(
         Vec::with_capacity(0)
     };
 
-    let return_decl = &sig.return_value().decl;
+    let return_decl = if let Some(class_name) = sig.surrounding_class()
+        && is_method_threadsafe_return(class_name, sig.godot_name())
+    {
+        sig.return_value().thread_safe_decl()
+    } else {
+        sig.return_value().decl.clone()
+    };
+
     let fn_body = if code.is_virtual_required {
         quote! { ; }
     } else {
         quote! { { unimplemented!() } }
+    };
+
+    let return_wrapper = if let Some(class_name) = sig.surrounding_class()
+        && is_method_threadsafe_return(class_name, sig.godot_name())
+    {
+        if matches!(
+            sig.return_value().type_,
+            Some(RustTy::EngineClass {
+                is_nullable: true,
+                ..
+            })
+        ) {
+            quote! { unsafe { crate::obj::Unique::new_optional_unchecked(return_value) } }
+        } else {
+            quote! { unsafe { crate::obj::Unique::new_unchecked(return_value) } }
+        }
+    } else {
+        quote! { return_value }
     };
 
     let receiver_param = &code.receiver.param;
@@ -274,9 +299,11 @@ pub fn make_function_definition(
 
                     let args = (#( #arg_names, )*);
 
-                    unsafe {
+                    let return_value = unsafe {
                         #varcall_invocation
-                    }
+                    };
+
+                    #return_wrapper
                 }
             }
         } else {
@@ -326,9 +353,11 @@ pub fn make_function_definition(
 
                     let args = (#( #arg_names, )*);
 
-                    unsafe {
+                    let return_value = unsafe {
                         #varcall_invocation
-                    }
+                    };
+
+                    #return_wrapper
                 }
             }
         }
@@ -352,9 +381,11 @@ pub fn make_function_definition(
 
                 let args = (#( #arg_names, )*);
 
-                unsafe {
+                let return_value = unsafe {
                     #ptrcall_invocation
-                }
+                };
+
+                #return_wrapper
             }
         }
     };
