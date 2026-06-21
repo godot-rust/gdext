@@ -8,12 +8,15 @@
 // Needed for Clippy to accept #[cfg(all())]
 #![allow(clippy::non_minimal_cfg)]
 
-use godot::builtin::vslice;
 use godot::classes::GDScript;
 use godot::global::godot_str;
 use godot::prelude::*;
+use godot::task::{self, TaskHandle};
 
-use crate::framework::{create_gdscript, itest};
+use crate::framework::{TestContext, create_gdscript, itest};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Synchronous virtual functions
 
 #[derive(GodotClass)]
 #[class(init)]
@@ -165,4 +168,92 @@ func _get_thing():
     );
 
     script
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Asynchronous virtual functions
+
+// Do NOT merge this class with the RefCounted-based `VirtualScriptCalls` above. The coroutine test relies on `Base<Node>` so the GDScript
+// override can `await get_tree().process_frame` -- the canonical scenario for async virtuals -- which is unavailable on `RefCounted`.
+#[derive(GodotClass)]
+#[class(init, base = Node)]
+struct AsyncVirtualNode {
+    base: Base<Node>,
+}
+
+#[godot_api]
+impl AsyncVirtualNode {
+    // `gd_self` is the recommended receiver for async virtuals: it avoids holding a `bind()` guard across the `.await`.
+    #[func(virtual, gd_self)]
+    async fn compute(_this: Gd<Self>, input: i64) -> i64 {
+        // Synchronous Rust default, used when no script overrides `_compute`.
+        input * 10
+    }
+}
+
+/// Script overriding `_compute` with an `await`, so the call returns a `GDScriptFunctionState` first.
+fn make_coroutine_script() -> Gd<GDScript> {
+    create_gdscript(
+        r#"
+extends AsyncVirtualNode
+
+func _compute(input: int) -> int:
+    await get_tree().process_frame
+    return input * 2
+"#,
+    )
+}
+
+/// Script overriding `_compute` synchronously (no `await`), returning the value directly.
+fn make_sync_async_script() -> Gd<GDScript> {
+    create_gdscript(
+        r#"
+extends AsyncVirtualNode
+
+func _compute(input: int) -> int:
+    return input * 2
+"#,
+    )
+}
+
+/// Attaches `script` (if any), awaits `compute(input)` and asserts the result, then cleans up.
+fn run_async_compute(
+    ctx: &TestContext,
+    script: Option<Gd<GDScript>>,
+    input: i64,
+    expected: i64,
+) -> TaskHandle {
+    let mut node = AsyncVirtualNode::new_alloc();
+    if let Some(script) = script {
+        node.set_script(&script);
+    }
+
+    let mut tree = ctx.scene_tree.clone();
+    tree.add_child(&node);
+
+    task::spawn(async move {
+        let result = AsyncVirtualNode::compute(node.clone(), input).await;
+        assert_eq!(result, expected);
+
+        tree.remove_child(&node);
+        node.free();
+    })
+}
+
+// No script attached -> the synchronous Rust default runs, but is still awaited through the async API.
+#[itest(async)]
+fn func_async_virtual_rust_sync(ctx: &TestContext) -> TaskHandle {
+    run_async_compute(ctx, None, 5, 50)
+}
+
+// GDScript override without `await`: the call returns the value directly (no coroutine).
+#[itest(async)]
+fn func_async_virtual_gdscript_sync(ctx: &TestContext) -> TaskHandle {
+    run_async_compute(ctx, Some(make_sync_async_script()), 21, 42)
+}
+
+// GDScript override with `await`: the call returns a coroutine handle, whose `completed` signal carries the eventual result.
+#[itest(async)]
+fn func_async_virtual_gdscript_coroutine(ctx: &TestContext) -> TaskHandle {
+    run_async_compute(ctx, Some(make_coroutine_script()), 21, 42)
 }
