@@ -16,6 +16,7 @@ use crate::generator::functions_common::{
 };
 use crate::generator::import_docs;
 use crate::models::domain::{ApiView, FnParam, FnQualifier, Function, RustTy, TyName};
+use crate::special_cases::is_method_threadsafe_return;
 use crate::util::{ident, safe_ident};
 use crate::{conv, special_cases};
 
@@ -66,7 +67,14 @@ pub fn make_function_definition_with_defaults(
         &default_fn_params,
     );
 
-    let return_decl = &sig.return_value().decl;
+    let return_decl = if let Some(class_name) = sig.surrounding_class()
+        && is_method_threadsafe_return(class_name, sig.godot_name())
+    {
+        sig.return_value().thread_safe_decl()
+    } else {
+        sig.return_value().decl.clone()
+    };
+
     let (maybe_deprecated, maybe_expect_deprecated) = fns::make_deprecation_attribute(sig);
 
     // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
