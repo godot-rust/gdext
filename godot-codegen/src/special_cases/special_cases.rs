@@ -874,6 +874,19 @@ pub fn is_utility_function_private(function: &JsonUtilityFunction) -> bool {
     }
 }
 
+/// Whether a class or builtin methods return value is thread-safe.
+///
+/// This is a hand-picked list of methods which have been manually verified to return unique values. 
+#[rustfmt::skip]
+pub fn is_method_threadsafe_return(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
+    match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
+        | ("SurfaceTool", "commit")
+        | ("SurfaceTool", "commit_to_arrays")
+
+        => true, _ => false
+    }
+}
+
 pub fn maybe_rename_class_method<'m>(
     class_name: &TyName,
     godot_method_name: &'m str,

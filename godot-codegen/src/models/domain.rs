@@ -802,6 +802,29 @@ impl FnReturn {
         }
     }
 
+    pub fn type_tokens_non_null(&self) -> TokenStream {
+        match &self.type_ {
+            Some(ty) => ty.tokens_non_null(),
+            _ => quote! { () },
+        }
+    }
+
+    pub fn thread_safe_decl(&self) -> TokenStream {
+        let ret = self.type_tokens_non_null();
+
+        if matches!(
+            self.type_,
+            Some(RustTy::EngineClass {
+                is_nullable: true,
+                ..
+            })
+        ) {
+            quote! { -> Option<crate::obj::Unique<#ret>> }
+        } else {
+            quote! { -> crate::obj::Unique<#ret> }
+        }
+    }
+
     pub fn call_result_decl(&self) -> TokenStream {
         let ret = self.type_tokens();
         quote! { -> Result<#ret, crate::meta::error::CallError> }
