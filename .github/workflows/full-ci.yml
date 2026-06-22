@@ -16,7 +16,7 @@ on:
 
 env:
   # Applies to all 'register-docs' features across crates.
-  CLIPPY_FEATURES: "--features register-docs,godot/experimental-godot-api,godot/serde"
+  CLIPPY_FEATURES: "--features register-docs,register-translations,godot/experimental-godot-api,godot/serde"
   TEST_FEATURES: ""
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
@@ -133,6 +133,8 @@ jobs:
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
           - name: linux
             os: ubuntu-24.04
+            # Runs the `register-translations` unit tests (godot-core); no Godot needed, so unit-test is the right place.
+            rust-extra-args: --features godot/register-translations
 
           - name: linux
             os: ubuntu-24.04

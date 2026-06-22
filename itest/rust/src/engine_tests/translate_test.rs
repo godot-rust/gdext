@@ -26,9 +26,9 @@ fn tr_macro_format() {
     // Create a Vector2 to test named field-access formatting.
     let vector2 = Vector2 { x: 1.25, y: 1.5 };
 
-    // Test named (with context).
+    // Test named (with context). A literal context must be a string literal, so it can be extracted as a `msgctxt`.
     let context_named = tr!(
-        false; "Named: x: {x}, y: {y}",
+        "geometry"; "Named: x: {x}, y: {y}",
         x = vector2.x,
         y = vector2.y,
     );

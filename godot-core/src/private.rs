@@ -43,6 +43,8 @@ mod reexport_pub {
         as_storage,
     };
     pub use crate::sys::out;
+    #[cfg(feature = "register-translations")]
+    pub use crate::tools::TranslationShard;
 }
 pub use reexport_pub::*;
 
@@ -66,6 +68,8 @@ static ERROR_PRINT_LEVEL: sys::AtomicEnum<ErrorPrintLevel> = sys::AtomicEnum::de
 sys::shard_registry!(pub __GODOT_SHARD_REGISTRY: ClassShard);
 #[cfg(all(since_api = "4.3", feature = "register-docs"))]
 sys::shard_registry!(pub __GODOT_DOCS_REGISTRY: DocsShard);
+#[cfg(feature = "register-translations")]
+sys::shard_registry!(pub __GODOT_TRANSLATIONS_REGISTRY: TranslationShard);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Call error handling
@@ -135,6 +139,11 @@ pub(crate) fn iterate_shards(mut visitor: impl FnMut(&ClassShard)) {
 #[cfg(all(since_api = "4.3", feature = "register-docs"))]
 pub(crate) fn iterate_docs_shards(mut visitor: impl FnMut(&DocsShard)) {
     sys::shard_foreach!(__GODOT_DOCS_REGISTRY; visitor);
+}
+
+#[cfg(feature = "register-translations")]
+pub(crate) fn iterate_translation_shards(mut visitor: impl FnMut(&TranslationShard)) {
+    sys::shard_foreach!(__GODOT_TRANSLATIONS_REGISTRY; visitor);
 }
 
 #[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
