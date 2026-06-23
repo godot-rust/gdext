@@ -512,7 +512,9 @@ fn untyped_out_array_pass_to_godot_func() {
 
     let args: VarArray = varray!["tree_entered"];
     assert_eq!(
-        node.callv(&StringName::from("has_signal"), &args),
+        node.call_ex(&StringName::from("has_signal"))
+            .args_array(&args)
+            .done(),
         true.to_variant()
     );
 }
@@ -524,7 +526,9 @@ fn typed_out_array_pass_to_godot_func() {
 
     let args: Array<GString> = array!["tree_entered"];
     assert_eq!(
-        node.callv(&StringName::from("has_signal"), &args),
+        node.call_ex(&StringName::from("has_signal"))
+            .args_array(&args)
+            .done(),
         true.to_variant()
     );
 }

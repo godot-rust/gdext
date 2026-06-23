@@ -377,6 +377,7 @@ impl Callable {
     /// - If called on an invalid Callable then no error is printed, and `NIL` is returned.
     ///
     /// _Godot equivalent: `callv`_
+    #[deprecated = "Use `Callable::call_ex().args_array(array).done()`."]
     pub fn callv(&self, arguments: &AnyArray) -> Variant {
         self.as_inner().callv(arguments)
     }
