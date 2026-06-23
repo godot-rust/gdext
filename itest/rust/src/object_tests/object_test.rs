@@ -435,6 +435,7 @@ fn object_engine_use_after_free() {
 }
 
 #[itest]
+#[allow(deprecated)] // Tests use-after-free semantics of the deprecated `call_deferred`.
 fn object_engine_use_after_free_varcall() {
     let node: Gd<Node3D> = Node3D::new_alloc();
     let mut copy = node.clone();

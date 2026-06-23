@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#![allow(deprecated)] // TODO(v0.6): remove alongside deprecated Callable methods
+
 use std::hash::Hasher;
 use std::sync::atomic::{AtomicU32, Ordering};
 

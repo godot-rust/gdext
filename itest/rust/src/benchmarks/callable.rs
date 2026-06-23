@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Benchmarks the deprecated `callv` invocation path directly; keep until removal.
+#![allow(deprecated)]
+
 use godot::builtin::Variant;
 use godot::prelude::{Callable, RustCallable, varray};
 
