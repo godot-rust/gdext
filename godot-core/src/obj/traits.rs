@@ -285,6 +285,16 @@ pub trait EngineBitfield: Copy + 'static {
     /// }
     /// ```
     fn all_constants() -> &'static [EnumConstant<Self>];
+
+    /// Returns the flag(s) from `self` combined with the flag(s) from `add_flags` arg.
+    fn with(self, add_flags: Self) -> Self {
+        Self::from_ord(self.ord() | add_flags.ord())
+    }
+
+    /// Returns the flag(s) from `self`, except for any that were present in the `remove_flags` arg.
+    fn without(self, remove_flags: Self) -> Self {
+        Self::from_ord(self.ord() & !remove_flags.ord())
+    }
 }
 
 /// Trait for enums that can be used as indices in arrays.

@@ -6,6 +6,7 @@
  */
 
 mod base_test;
+mod bitfield_ops_test;
 mod call_deferred_test;
 mod class_id_test;
 mod class_rename_test;
