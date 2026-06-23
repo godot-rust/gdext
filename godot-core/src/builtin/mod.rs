@@ -33,6 +33,7 @@ pub mod __prelude_reexport {
     use super::*;
 
     pub use aabb::*;
+    pub use call::ExCall;
     pub use callable::*;
     pub use collections::containers::*;
     pub use color::*;
@@ -95,6 +96,7 @@ mod macros;
 
 // Other modules
 mod aabb;
+mod call;
 mod callable;
 mod collections;
 mod color;

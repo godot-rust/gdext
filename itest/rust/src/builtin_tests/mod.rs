@@ -48,6 +48,8 @@ mod script {
     mod script_instance_tests;
 }
 
+mod call_builder_test;
+
 mod color_test;
 
 mod convert_test;

@@ -90,7 +90,9 @@ pub use crate::arg_into_ref;
 // Crate-local re-exports. Done like this to prevent rustfmt from mixing with public export.
 mod reexport_crate {
     pub(crate) use super::param_tuple::TupleFromGodot;
-    pub(crate) use super::signature::{CallContext, Signature, varcall_return_checked};
+    pub(crate) use super::signature::{
+        CallContext, Signature, resolve_gdscript_coroutine, varcall_return_checked,
+    };
     pub(crate) use super::traits::{
         ExtVariantType, GodotFfiVariant, GodotNullableType, ffi_variant_type,
     };
