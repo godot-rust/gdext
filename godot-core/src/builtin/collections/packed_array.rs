@@ -45,7 +45,7 @@ pub type PackedFloat64Array = PackedArray<f64>;
 pub type PackedStringArray = PackedArray<GString>;
 pub type PackedVector2Array = PackedArray<Vector2>;
 pub type PackedVector3Array = PackedArray<Vector3>;
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub type PackedVector4Array = PackedArray<Vector4>;
 pub type PackedColorArray = PackedArray<Color>;
 
@@ -889,7 +889,7 @@ impl_to_byte_array!(PackedFloat64Array);
 impl_to_byte_array!(PackedStringArray);
 impl_to_byte_array!(PackedVector2Array);
 impl_to_byte_array!(PackedVector3Array);
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 impl_to_byte_array!(PackedVector4Array);
 impl_to_byte_array!(PackedColorArray);
 

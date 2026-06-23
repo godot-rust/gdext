@@ -75,7 +75,7 @@ impl IoError {
         }
     }
 
-    #[cfg(feature = "experimental-threads")]
+    #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
     pub(crate) fn loading_precondition(
         class: String,
         path: String,
@@ -138,7 +138,7 @@ struct LoaderError {
 enum LoaderErrorKind {
     Load,
     Cast,
-    #[cfg(feature = "experimental-threads")]
+    #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
     Precondition(&'static str),
 }
 
@@ -158,7 +158,7 @@ impl fmt::Display for LoaderError {
                 f,
                 "can't cast loaded resource to class: '{class}' from path: '{path}'"
             ),
-            #[cfg(feature = "experimental-threads")]
+            #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
             LoaderErrorKind::Precondition(condition) => write!(
                 f,
                 "can't load resource due to missing precondition: {condition}, class: '{path}', path: '{path}"

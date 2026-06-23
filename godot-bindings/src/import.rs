@@ -33,17 +33,17 @@ pub const MIN_SUPPORTED_VERSION: (u8, u8) = {
 
 // [version-sync] [[
 //  [line] #[cfg(feature = "api-$kebabVersion")]\npub use gdextension_api::version_$snakeVersion as prebuilt;
-#[cfg(feature = "api-4-2")]
+#[cfg(feature = "api-4-2")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-2")))]
 pub use gdextension_api::version_4_2 as prebuilt;
-#[cfg(feature = "api-4-3")]
+#[cfg(feature = "api-4-3")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-3")))]
 pub use gdextension_api::version_4_3 as prebuilt;
-#[cfg(feature = "api-4-4")]
+#[cfg(feature = "api-4-4")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-4")))]
 pub use gdextension_api::version_4_4 as prebuilt;
-#[cfg(feature = "api-4-5")]
+#[cfg(feature = "api-4-5")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-5")))]
 pub use gdextension_api::version_4_5 as prebuilt;
-#[cfg(feature = "api-4-6")]
+#[cfg(feature = "api-4-6")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-6")))]
 pub use gdextension_api::version_4_6 as prebuilt;
-#[cfg(feature = "api-4-7")]
+#[cfg(feature = "api-4-7")] #[cfg_attr(published_docs, doc(cfg(feature = "api-4-7")))]
 pub use gdextension_api::version_4_7 as prebuilt;
 // ]]
 

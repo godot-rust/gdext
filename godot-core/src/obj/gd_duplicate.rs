@@ -8,7 +8,7 @@
 //! Type-safe duplicate methods for Node and Resource.
 
 use crate::classes::node::DuplicateFlags;
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 use crate::classes::resource::DeepDuplicateMode;
 use crate::classes::{Node, Resource};
 use crate::obj::{Gd, Inherits};
@@ -220,7 +220,7 @@ enum GodotDuplicateApi {
     Duplicate {
         deep: bool,
     },
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     DuplicateDeep {
         mode: crate::classes::resource::DeepDuplicateMode,
     },
@@ -262,7 +262,7 @@ where
     ///
     /// # Compatibility
     /// Requires Godot 4.5, as it uses Godot's new `Resource::duplicate_deep()` API.
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     pub fn deep(mut self, subresources: DeepDuplicateMode) -> Self {
         self.godot_api = GodotDuplicateApi::DuplicateDeep { mode: subresources };
         self
@@ -296,15 +296,15 @@ where
 
         match self.godot_api {
             // Godot 4.5 renamed parameter, so our default-param method is different.
-            #[cfg(since_api = "4.5")]
+            #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
             GodotDuplicateApi::Duplicate { deep } => resource_ref.duplicate_ex().deep(deep).done(),
 
-            #[cfg(before_api = "4.5")]
+            #[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
             GodotDuplicateApi::Duplicate { deep } => {
                 resource_ref.duplicate_ex().subresources(deep).done()
             }
 
-            #[cfg(since_api = "4.5")]
+            #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
             GodotDuplicateApi::DuplicateDeep { mode } => resource_ref
                 .duplicate_deep_ex()
                 .deep_subresources_mode(mode)

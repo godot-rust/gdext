@@ -21,7 +21,7 @@ pub use futures::{
 };
 
 // For use in integration tests.
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 mod reexport_test {
     pub use super::async_runtime::{
         EngineExitingGuard, has_godot_task_panicked, simulate_engine_exiting,
@@ -29,7 +29,7 @@ mod reexport_test {
     pub use super::futures::{SignalFutureResolver, create_test_signal_future_resolver};
 }
 
-#[cfg(feature = "trace")]
+#[cfg(feature = "trace")] #[cfg_attr(published_docs, doc(cfg(feature = "trace")))]
 pub use reexport_test::*;
 
 // Crate-local re-exports.

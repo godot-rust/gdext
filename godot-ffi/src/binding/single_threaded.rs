@@ -106,7 +106,7 @@ impl BindingStorage {
 
         // Live check: passes in ~100% of real calls. Compiled out under the disengaged safety profile, recovering unchecked speed for users who
         // promise the invariant. The actual check lives in a standalone function so it can be unit-tested without a real binding.
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         assert_binding_live(&storage.initialized);
 
         // SAFETY: Per the safety contract the binding is initialized, so the cell holds a value.
@@ -125,7 +125,7 @@ impl BindingStorage {
     pub(super) fn ensure_main_thread() {
         // Check that we're on the main thread. Only enabled with balanced+ safeguards and, for Wasm, in threaded builds.
         // In wasm_nothreads, there's only one thread, so no check is needed.
-        #[cfg(all(safeguards_balanced, not(wasm_nothreads)))]
+        #[cfg(all(safeguards_balanced, not(wasm_nothreads)))] #[cfg_attr(published_docs, doc(cfg(all(safeguards_balanced, not(wasm_nothreads)))))]
         if !crate::is_main_thread() {
             // If a binding is accessed the first time, this will panic and start unwinding. It can then happen that during unwinding,
             // another FFI call happens (e.g. Godot destructor), which would cause immediate abort, swallowing the error message.
@@ -154,7 +154,7 @@ unsafe impl Send for BindingStorage {}
 /// Panics if the binding is not currently live, turning before-init / after-deinit access into a clean error instead of UB.
 ///
 /// Standalone (not a method) so it can be unit-tested against a hand-made `AtomicBool` without a real binding behind it.
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 #[inline(always)]
 fn assert_binding_live(initialized: &AtomicBool) {
     if !initialized.load(Ordering::Acquire) {
@@ -163,7 +163,7 @@ fn assert_binding_live(initialized: &AtomicBool) {
 }
 
 /// Failure path for the live check; separated out and marked cold so the hot path stays a predicted-not-taken branch.
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 #[cold]
 #[inline(never)]
 fn not_live_panic() -> ! {
@@ -174,7 +174,7 @@ fn not_live_panic() -> ! {
     )
 }
 
-#[cfg(all(test, safeguards_balanced))]
+#[cfg(all(test, safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(all(test, safeguards_balanced))))]
 mod tests {
     use super::*;
 

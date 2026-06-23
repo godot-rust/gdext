@@ -881,7 +881,7 @@ impl<T: Element> Array<T> {
     /// Note also that any `GodotType` can be written to a `Variant` array.
     ///
     /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     unsafe fn assume_type_ref<U: Element>(&self) -> &Array<U> {
         // SAFETY: per function precondition.
         unsafe { std::mem::transmute::<&Array<T>, &Array<U>>(self) }
@@ -928,7 +928,7 @@ impl<T: Element> Array<T> {
     }
 
     /// Validates that all elements in this array can be converted to integers of type `T`.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     pub(crate) fn debug_validate_int_elements(&self) -> Result<(), ConvertError> {
         // SAFETY: every element is internally represented as Variant.
         let canonical_array = unsafe { self.assume_type_ref::<Variant>() };
@@ -950,7 +950,7 @@ impl<T: Element> Array<T> {
     }
 
     // No-op in Release. Avoids O(n) conversion checks, but still panics on access.
-    #[cfg(not(safeguards_strict))]
+    #[cfg(not(safeguards_strict))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_strict))))]
     pub(crate) fn debug_validate_int_elements(&self) -> Result<(), ConvertError> {
         Ok(())
     }
@@ -1629,7 +1629,7 @@ macro_rules! vslice {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Serde support
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
 mod serialize {
     use std::marker::PhantomData;
 

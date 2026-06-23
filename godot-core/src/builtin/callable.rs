@@ -17,9 +17,9 @@ use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
 use crate::{classes, meta};
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo;
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 type CallableCustomInfo = sys::GDExtensionCallableCustomInfo2;
 
 /// A `Callable` represents a function in Godot.
@@ -76,7 +76,7 @@ impl Callable {
     /// use [`from_class_static()`][Self::from_class_static] instead.
     ///
     /// _Godot equivalent: `Callable.create(Variant variant, StringName method)`_
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub fn from_variant_method<S>(variant: &Variant, method_name: S) -> Self
     where
         S: meta::AsArg<StringName>,
@@ -92,7 +92,7 @@ impl Callable {
     ///
     /// Does not support built-in types (such as `String`), only classes. Static functions on built-in types are not supported in Godot's
     /// reflection APIs at the moment.
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     pub fn from_class_static(
         class_name: impl meta::AsArg<StringName>,
         function_name: impl meta::AsArg<StringName>,
@@ -113,10 +113,10 @@ impl Callable {
             result
         };
 
-        #[cfg(feature = "experimental-threads")]
+        #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
         let callable = Self::from_sync_fn(callable_name, function);
 
-        #[cfg(not(feature = "experimental-threads"))]
+        #[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
         let callable = Self::from_fn(callable_name, function);
 
         callable
@@ -137,7 +137,7 @@ impl Callable {
             // Op < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
             less_than_func: None,
             to_string_func: None,
-            #[cfg(since_api = "4.3")]
+            #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
             get_argument_count_func: None,
         }
     }
@@ -243,7 +243,7 @@ impl Callable {
     ///     sum
     /// });
     /// ```
-    #[cfg(feature = "experimental-threads")]
+    #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
     pub fn from_sync_fn<R, F, S>(name: S, rust_function: F) -> Self
     where
         R: ToGodot,
@@ -314,7 +314,7 @@ impl Callable {
             meta: FnWrapperHeader {
                 name,
                 name_cached: OnceLock::new(),
-                #[cfg(safeguards_balanced)]
+                #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
                 thread_id: _thread_id,
                 linked_object_id,
             },
@@ -500,7 +500,7 @@ impl Callable {
         self.as_inner().unbind(args as i64)
     }
 
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub fn get_argument_count(&self) -> usize {
         self.as_inner().get_argument_count() as usize
     }
@@ -636,7 +636,7 @@ mod custom_callable {
         pub(super) name_cached: OnceLock<GString>,
 
         /// `None` if the callable is multi-threaded ([`Callable::from_sync_fn`]).
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         pub(super) thread_id: Option<std::thread::ThreadId>,
 
         /// `None` if callable is not linked with any object.
