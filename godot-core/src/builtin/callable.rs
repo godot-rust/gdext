@@ -11,7 +11,7 @@ use std::{fmt, ptr};
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-use crate::builtin::{AnyArray, CowStr, StringName, Variant, inner};
+use crate::builtin::{AnyArray, CowStr, ExCall, StringName, Variant, inner};
 use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
@@ -379,6 +379,14 @@ impl Callable {
     /// _Godot equivalent: `callv`_
     pub fn callv(&self, arguments: &AnyArray) -> Variant {
         self.as_inner().callv(arguments)
+    }
+
+    /// Builder for advanced invocations: deferred, fallible, async or `Array`-based argument passing.
+    ///
+    /// Unlike the receiver-method builders on `Gd`/`Variant`, this invokes the callable itself, so there is no method name. The bare
+    /// [`call()`][Self::call] is shorthand for `call_ex().args(args).done()`. See [`ExCall`][crate::builtin::ExCall] for terminal operations.
+    pub fn call_ex(&self) -> ExCall<'_> {
+        ExCall::on_callable(self)
     }
 
     /// Returns a copy of this Callable with one or more arguments bound, reading them from an array.
