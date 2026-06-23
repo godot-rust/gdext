@@ -10,7 +10,9 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 /// A lock-free cell that stores a value of enum type `E` using a single byte.
 ///
-/// All operations use [`Ordering::Relaxed`] -- sufficient for this crate (global flags not involved in acquire/release synchronisation chains).
+/// Loads use [`Acquire`][Ordering::Acquire] and stores use [`Release`][Ordering::Release], so a stored value can act as a release gate that
+/// publishes other (e.g. `Relaxed`) writes made before it. This is stronger than needed for plain global flags, but free on x86 and negligible
+/// elsewhere, and keeps the type safe to reuse as a publishing gate.
 pub struct AtomicEnum<E> {
     atomic: AtomicU8,
     _phantom: PhantomData<E>,
@@ -37,18 +39,18 @@ impl<E: AtomicIntLike> AtomicEnum<E> {
 
     /// Loads the current value.
     pub fn load(&self) -> E {
-        let raw = self.atomic.load(Ordering::Relaxed);
+        let raw = self.atomic.load(Ordering::Acquire);
         E::from_u8(raw)
     }
 
     /// Stores a new value.
     pub fn store(&self, value: E) {
-        self.atomic.store(value.to_u8(), Ordering::Relaxed);
+        self.atomic.store(value.to_u8(), Ordering::Release);
     }
 
     /// Stores a new value and returns the previous one.
     pub fn replace(&self, value: E) -> E {
-        let old = self.atomic.swap(value.to_u8(), Ordering::Relaxed);
+        let old = self.atomic.swap(value.to_u8(), Ordering::AcqRel);
         E::from_u8(old)
     }
 }

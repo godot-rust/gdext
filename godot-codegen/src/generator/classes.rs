@@ -488,8 +488,10 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> Construction {
         quote! {
             impl crate::obj::Singleton for #class_name {
                 fn singleton() -> crate::obj::Gd<Self> {
-                    // SAFETY: Class name matches type T, per code generator.
-                    unsafe { crate::classes::singleton_unchecked_type(&#godot_class_stringname) }
+                    static CACHE: crate::classes::SingletonCache = crate::classes::SingletonCache::new();
+
+                    // SAFETY: Class name matches type T, per code generator. Built-in engine singleton -> safe to cache.
+                    unsafe { crate::classes::cached_singleton::<Self>(&CACHE, || #godot_class_stringname) }
                 }
             }
         }

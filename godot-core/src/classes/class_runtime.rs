@@ -8,10 +8,11 @@
 //! Runtime checks and inspection of Godot classes.
 
 use std::fmt::Write;
+use std::sync::atomic::{AtomicPtr, AtomicU64};
 
 use crate::builtin::{GString, StringName, Variant};
 use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId, RawGd, bounds};
-use crate::sys;
+use crate::{init, sys};
 
 #[cfg(safeguards_strict)]
 mod strict {
@@ -272,6 +273,100 @@ where
         let object_ptr = sys::interface_fn!(global_get_singleton)(class_name.string_sys());
         Gd::<T>::from_obj_sys(object_ptr)
     }
+}
+
+/// Per-singleton cache for built-in engine singletons.
+///
+/// `level == None` means "not cached"; otherwise it holds the level at which `ptr` was fetched and `generation` the deinit generation then. `ptr` is
+/// trusted only while the current level still covers `level` and no full deinit happened since (see [`init::singleton_cache_generation`]).
+///
+/// Ordering: the slow path writes `ptr`/`generation` `Relaxed`, then stores `level` last with `Release`. The fast path reads `level` first with
+/// `Acquire`; that pairs with the store, making the earlier `ptr`/`generation` writes visible, so they can be read `Relaxed`.
+pub(crate) struct SingletonCache {
+    ptr: AtomicPtr<std::ffi::c_void>,
+    generation: AtomicU64,
+    level: sys::AtomicEnum<Option<init::InitLevel>>,
+}
+
+impl SingletonCache {
+    // Not Default::default() because of const.
+    pub const fn new() -> Self {
+        Self {
+            ptr: AtomicPtr::new(std::ptr::null_mut()),
+            generation: AtomicU64::new(0),
+            level: sys::AtomicEnum::default(), // None.
+        }
+    }
+}
+
+/// Cached variant of [`singleton_unchecked_type`], for built-in engine singletons.
+///
+/// Engine singletons have a stable pointer for as long as their init level is loaded, so the `global_get_singleton()` lookup (plus `StringName`
+/// construction) is just overhead. This caches the ptr per singleton type, gated on the init level to structurally prevent stale-pointer use.
+///
+/// # Safety
+/// Same as [`singleton_unchecked_type`]: `make_class_name` must yield the class name matching type `T`, and this must only be used for engine
+/// singletons (stable pointer for their level's lifetime).
+pub(crate) unsafe fn cached_singleton<T>(
+    cache: &SingletonCache,
+    make_class_name: impl FnOnce() -> StringName,
+) -> Gd<T>
+where
+    T: GodotClass,
+{
+    use std::sync::atomic::Ordering;
+
+    let current = init::current_init_level();
+    let generation = init::singleton_cache_generation();
+
+    // Fast path: trust cache if current level still covers cached level and no full deinit since. Read `level` first (`Acquire`), then
+    // `ptr`/`generation` `Relaxed` (see SingletonCache docs).
+    if let Some(cached_level) = cache.level.load()
+        && current.is_some_and(|current| current >= cached_level)
+        && cache.generation.load(Ordering::Relaxed) == generation
+    {
+        let ptr = cache.ptr.load(Ordering::Relaxed);
+        // SAFETY: level + generation guard guarantee singleton still alive; from_obj_sys handles ref-count.
+        return unsafe { Gd::<T>::from_obj_sys(ptr.cast()) };
+    }
+
+    // Slow path. Missing FFI binding makes a call UB -> turn that into a clean panic (covers global ctor/dtor). A `None` level with binding up
+    // is the legit early-Core registration window: fall back to an uncached fetch, just don't cache.
+    assert!(
+        sys::is_initialized(),
+        "{}::singleton() called while the Godot FFI binding is unavailable (global init/deinit). \
+        See is_singleton_available().",
+        std::any::type_name::<T>(),
+    );
+
+    // The pointer from global_get_singleton() is only valid while T's init level is loaded. After it unloads, Godot frees the singleton but
+    // keeps a dangling map entry, so dereferencing that pointer would be UB. Validate except for safeguards-disengaged. This is not a problem
+    // _before_ singleton is loaded; Godot correctly returns null.
+    if let Some(current) = current {
+        sys::balanced_assert!(
+            current >= T::INIT_LEVEL,
+            "{}::singleton() called after its init level was unloaded; the singleton no longer exists.\n\
+            Use `godot::init::is_singleton_available()` to check.",
+            std::any::type_name::<T>(),
+        );
+    }
+
+    let class_name = make_class_name();
+    // SAFETY: class_name matches T; binding initialized (asserted above).
+    let object_ptr = unsafe { sys::interface_fn!(global_get_singleton)(class_name.string_sys()) };
+
+    // Cache only a valid ptr with the level it was observed at; null ptr or `None` level => no valid key, don't cache (fetch still returns it).
+    if !object_ptr.is_null()
+        && let Some(current) = current
+    {
+        // Write `ptr`/`generation` `Relaxed`, then store `level` last with `Release` (see SingletonCache docs).
+        cache.ptr.store(object_ptr.cast(), Ordering::Relaxed);
+        cache.generation.store(generation, Ordering::Relaxed);
+        cache.level.store(Some(current));
+    }
+
+    // SAFETY: null => from_obj_sys panics, identical to current behavior.
+    unsafe { Gd::<T>::from_obj_sys(object_ptr) }
 }
 
 /// Checks that the object with the given instance ID is still alive and that the pointer is valid.
