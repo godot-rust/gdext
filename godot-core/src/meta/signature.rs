@@ -174,26 +174,22 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         // Silence inbound `#[func]` failure prints during this out-call; caller observes the error via the returned `CallError`.
         let _guard = crate::private::OutCallGuard::new();
 
-        let variant = args.with_variants(|explicit_args| {
-            let mut variant_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-            variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys));
-            variant_ptrs.extend(varargs.iter().map(Variant::var_sys));
-
-            unsafe {
-                Variant::new_with_var_uninit_result(|return_ptr| {
-                    let mut err = sys::default_call_error();
+        let variant = args.with_variants(|explicit_args| unsafe {
+            run_out_varcall(
+                &call_ctx,
+                explicit_args,
+                varargs,
+                |args_ptr, arg_count, return_ptr, err| {
                     class_fn(
                         method_bind.0,
                         ValidatedObject::object_ptr(validated_obj.as_ref()),
-                        variant_ptrs.as_ptr(),
-                        variant_ptrs.len() as i64,
+                        args_ptr,
+                        arg_count,
                         return_ptr,
-                        &raw mut err,
+                        err,
                     );
-
-                    CallError::check_out_varcall(&call_ctx, err, explicit_args, varargs)
-                })
-            }
+                },
+            )
         });
 
         variant.and_then(|v| {
@@ -583,6 +579,41 @@ fn return_error_dyn(call_ctx: &CallContext, return_ty: &'static str, err: Conver
     panic!("in function `{call_ctx}` at return type {return_ty}: {err}");
 }
 
+/// Performs an outbound varcall: packs `explicit_args` followed by `varargs` into a variant pointer array, invokes the engine via `invoke`,
+/// and surfaces an engine-side call error as a [`CallError`]. `invoke` receives the argument array pointer/length, the uninitialized return
+/// pointer, and the error-out pointer.
+///
+/// # Safety
+/// `invoke` must perform a valid varcall consistent with `explicit_args`/`varargs`, writing the result to its return pointer on success.
+unsafe fn run_out_varcall(
+    call_ctx: &CallContext,
+    explicit_args: &[Variant],
+    varargs: &[Variant],
+    invoke: impl FnOnce(
+        *const sys::GDExtensionConstVariantPtr,
+        i64,
+        sys::GDExtensionUninitializedVariantPtr,
+        *mut sys::GDExtensionCallError,
+    ),
+) -> CallResult<Variant> {
+    let mut variant_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
+    variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys));
+    variant_ptrs.extend(varargs.iter().map(Variant::var_sys));
+
+    unsafe {
+        Variant::new_with_var_uninit_result(|return_ptr| {
+            let mut err = sys::default_call_error();
+            invoke(
+                variant_ptrs.as_ptr(),
+                variant_ptrs.len() as i64,
+                return_ptr,
+                &raw mut err,
+            );
+            CallError::check_out_varcall(call_ctx, err, explicit_args, varargs)
+        })
+    }
+}
+
 /// Shared engine call for [`Signature::out_script_virtual_call`] and its async variant: performs the `object_call_script_method` varcall and
 /// surfaces a Godot-side call error as a panic. Returns the raw `Variant` result (a coroutine handle if the GDScript override used `await`).
 ///
@@ -597,26 +628,23 @@ unsafe fn out_script_virtual_call_inner<Params: OutParamTuple>(
 ) -> Variant {
     let object_call_script_method = sys::interface_fn!(object_call_script_method);
 
-    let variant = args.with_variants(|call_args| {
-        let variant_ptrs: Vec<_> = call_args.iter().map(Variant::var_sys).collect();
-
-        // SAFETY: `object_ptr`/`method_sname_ptr` and the argument pointers are valid per the caller's guarantee; `return_ptr` is uninitialized
-        // result storage that the engine writes on success.
-        unsafe {
-            Variant::new_with_var_uninit_result(|return_ptr| {
-                let mut err = sys::default_call_error();
+    // SAFETY: `object_ptr`/`method_sname_ptr` and the argument pointers are valid per the caller's guarantee.
+    let variant = args.with_variants(|call_args| unsafe {
+        run_out_varcall(
+            call_ctx,
+            call_args,
+            &[],
+            |args_ptr, arg_count, return_ptr, err| {
                 object_call_script_method(
                     object_ptr,
                     method_sname_ptr,
-                    variant_ptrs.as_ptr(),
-                    variant_ptrs.len() as i64,
+                    args_ptr,
+                    arg_count,
                     return_ptr,
-                    &raw mut err,
+                    err,
                 );
-
-                CallError::check_out_varcall(call_ctx, err, call_args, &[] as &[Variant])
-            })
-        }
+            },
+        )
     });
 
     variant.unwrap_or_else(|err| panic!("{err}"))
