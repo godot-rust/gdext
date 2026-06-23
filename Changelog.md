@@ -10,11 +10,55 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.5.0](#v050), [v0.5.1](#v051), [v0.5.2](#v052), [v0.5.3](#v053)
+- [v0.5.0](#v050), [v0.5.1](#v051), [v0.5.2](#v052), [v0.5.3](#v053), [v0.5.4](#v054)
 - [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043), [v0.4.4](#v044), [v0.4.5](#v045)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.5.4](https://docs.rs/godot/0.5.4)
+
+_23 June 2026_
+
+### 🌻 Features
+
+- Godot 4.7: add `api-4-7` level ([#1641](https://github.com/godot-rust/gdext/pull/1641))
+- Type-Safe API for User-defined RPCs ([#1535](https://github.com/godot-rust/gdext/pull/1535), [#1634](https://github.com/godot-rust/gdext/pull/1634))
+- String conversions: ` to_gstring()`, `to_string_name()` etc ([#1623](https://github.com/godot-rust/gdext/pull/1623))
+- Thread-safe FFI scaffolding + cross-thread printing ([#1632](https://github.com/godot-rust/gdext/pull/1632))
+- `Gd` introspection APIs: `dynamic_class`, `is_dynamic_class[_of]`, `is_ref_counted` ([#1631](https://github.com/godot-rust/gdext/pull/1631))
+- Support async versions of `tools::load()` and `tools::try_load()` ([#1601](https://github.com/godot-rust/gdext/pull/1601))
+- Support `@export_node_path` attribute ([#1620](https://github.com/godot-rust/gdext/pull/1620))
+
+### 🧹 Quality of life
+
+- Slightly more flexible `GodotStringExt` through unsized impls ([#1629](https://github.com/godot-rust/gdext/pull/1629))
+- Suppress Godot errors in fallible functions ([#1637](https://github.com/godot-rust/gdext/pull/1637))
+
+### 🛠️ Bugfixes
+
+- Fix Linux hot-reload panic when TLS destructors fire before init ([#1611](https://github.com/godot-rust/gdext/pull/1611))
+- Fix panic-in-drop in future tests; harden against race conditions ([#1617](https://github.com/godot-rust/gdext/pull/1617))
+- Auto-remove custom callables also when connected in untyped APIs ([#1612](https://github.com/godot-rust/gdext/pull/1612))
+- Fix async panics at shutdown ([#1625](https://github.com/godot-rust/gdext/pull/1625))
+- Fix `Object` returns with dynamic type `RefCounted` ([#1628](https://github.com/godot-rust/gdext/pull/1628))
+- Fix memory leak for `connect_self()` on `RefCounted` ([#1635](https://github.com/godot-rust/gdext/pull/1635))
+- Fix dangling singleton pointer after deinit ([#1638](https://github.com/godot-rust/gdext/pull/1638))
+- Fix RPC borrow panic for `call_local` ([#1643](https://github.com/godot-rust/gdext/pull/1643))
+
+### 🏗️ Maintenance
+
+- Add `once` flag to `defer_startup_warn!` and `defer_startup_error!` ([#1613](https://github.com/godot-rust/gdext/pull/1613))
+- CI: unzip occasionally fails; retry ([#1616](https://github.com/godot-rust/gdext/pull/1616))
+- Rename self-registration parts: `plugin` -> `shard` ([#1618](https://github.com/godot-rust/gdext/pull/1618))
+- Replace internal `PassiveGd` with safer `BorrowedGd` ([#1633](https://github.com/godot-rust/gdext/pull/1633))
+
+### 📚 Documentation
+
+- Document `register-docs` security; warn when used in export builds ([#1615](https://github.com/godot-rust/gdext/pull/1615))
+- Document `#[class(tool)]` + `ready()` behavior across editor reload ([#1614](https://github.com/godot-rust/gdext/pull/1614))
+- Fix borrow panic in `godot::task::spawn` doc example ([#1622](https://github.com/godot-rust/gdext/pull/1622))
 
 
 ## [v0.5.3](https://docs.rs/godot/0.5.3)

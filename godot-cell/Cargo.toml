@@ -1,6 +1,6 @@
 [package]
 name = "godot-cell"
-version = "0.5.3"
+version = "0.5.4"
 edition.workspace = true
 rust-version.workspace = true
 license = "MPL-2.0"
