@@ -337,56 +337,21 @@ impl GetterSetterImpl {
                 &rust_accessor,
                 tool_button_fn,
             );
-        } else if rust_public {
-            rust_accessor = godot_function_name.clone();
-            doc_hidden = TokenStream::new();
-            deprecated_function = TokenStream::new();
-
-            match kind {
-                GetSet::Get => {
-                    signature = quote_spanned! { field_ty_span=>
-                        fn #rust_accessor(&self) -> <#field_type as ::godot::register::property::Var>::PubType
-                    };
-                    function_body = quote_spanned! { field_ty_span=>
-                        <#field_type as ::godot::register::property::Var>::var_pub_get(&self.#field_name)
-                    };
-                }
-                GetSet::Set => {
-                    signature = quote_spanned! { field_ty_span=>
-                        fn #rust_accessor(&mut self, #field_name: <#field_type as ::godot::register::property::Var>::PubType)
-                    };
-                    function_body = quote_spanned! { field_ty_span=>
-                        <#field_type as ::godot::register::property::Var>::var_pub_set(&mut self.#field_name, #field_name)
-                    };
-                }
-            }
         } else {
+            // Godot accessor always uses `GodotConvert::Via` (not `PubType`): it satisfies the `GodotType` bound and is nullable for
+            // `OnEditor<Gd<T>>` so hot-reload reads uninit fields as null rather than panicking. `make_named_accessor()` then adds
+            // an ergonomic `PubType` accessor for `#[var(pub)]`, or a deprecated `Via` forwarder for plain `#[var]`.
             let prefix = kind.prefix();
             rust_accessor = format_ident!("__godot_{prefix}{field_name}", span = field_span);
             doc_hidden = quote! { #[doc(hidden)] };
 
-            // Uses GodotConvert::Via as opposed to Var::PubType, because the latter has no ToGodot/FromGodot bound, while Via always
-            // has GodotType (and thus EngineToGodot). This is needed for the Signature machinery in method registration.
-            let deprecated_fn = match kind {
-                GetSet::Get => quote_spanned! { field_ty_span=>
-                    pub fn #godot_function_name(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via {
-                        self.#rust_accessor()
-                    }
-                },
-                GetSet::Set => quote_spanned! { field_ty_span=>
-                    pub fn #godot_function_name(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via) {
-                        self.#rust_accessor(#field_name)
-                    }
-                },
-            };
-
-            deprecated_function = quote! {
-                // Deprecated forwarding function with the nice name.
-                #[deprecated = "Auto-generated Rust getters/setters for `#[var]` are being phased out until v0.6.\n\
-                    If you need them, opt in with #[var(pub)]."]
-                #[allow(dead_code)] // These functions are not used for registration; pub fns in private modules remain unused.
-                #deprecated_fn
-            };
+            deprecated_function = Self::make_named_accessor(
+                kind,
+                rust_public,
+                field,
+                &godot_function_name,
+                &rust_accessor,
+            );
 
             match kind {
                 GetSet::Get => {
@@ -511,6 +476,65 @@ impl GetterSetterImpl {
         let export_token = export_token.expect("accessor registration should not fail");
 
         (funcs_collection_constant, export_token)
+    }
+
+    // Nice-named function emitted alongside the registered (`Via`) accessor. For `#[var(pub)]`, an ergonomic `PubType` accessor;
+    // otherwise a deprecated `Via` forwarder that delegates to the mangled `rust_accessor`.
+    fn make_named_accessor(
+        kind: GetSet,
+        rust_public: bool,
+        field: &Field,
+        godot_function_name: &Ident,
+        rust_accessor: &Ident,
+    ) -> TokenStream {
+        let Field {
+            name: field_name,
+            ty: field_type,
+            ..
+        } = field;
+        let field_ty_span = field_type.span();
+
+        if rust_public {
+            let pub_fn = match kind {
+                GetSet::Get => quote_spanned! { field_ty_span=>
+                    pub fn #godot_function_name(&self) -> <#field_type as ::godot::register::property::Var>::PubType {
+                        <#field_type as ::godot::register::property::Var>::var_pub_get(&self.#field_name)
+                    }
+                },
+                GetSet::Set => quote_spanned! { field_ty_span=>
+                    pub fn #godot_function_name(&mut self, #field_name: <#field_type as ::godot::register::property::Var>::PubType) {
+                        <#field_type as ::godot::register::property::Var>::var_pub_set(&mut self.#field_name, #field_name)
+                    }
+                },
+            };
+
+            quote! {
+                #[allow(dead_code)] // Public accessor may be unused within the defining crate (e.g. cdylib with no Rust callers).
+                #pub_fn
+            }
+        } else {
+            // Uses GodotConvert::Via as opposed to Var::PubType, because the latter has no ToGodot/FromGodot bound, while Via always
+            // has GodotType (and thus EngineToGodot). This is needed for the Signature machinery in method registration.
+            let deprecated_fn = match kind {
+                GetSet::Get => quote_spanned! { field_ty_span=>
+                    pub fn #godot_function_name(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via {
+                        self.#rust_accessor()
+                    }
+                },
+                GetSet::Set => quote_spanned! { field_ty_span=>
+                    pub fn #godot_function_name(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via) {
+                        self.#rust_accessor(#field_name)
+                    }
+                },
+            };
+
+            quote! {
+                #[deprecated = "Auto-generated Rust getters/setters for `#[var]` are being phased out until v0.6.\n\
+                    If you need them, opt in with #[var(pub)]."]
+                #[allow(dead_code)] // These functions are not used for registration; pub fns in private modules remain unused.
+                #deprecated_fn
+            }
+        }
     }
 
     fn generate_tool_button_impl(
