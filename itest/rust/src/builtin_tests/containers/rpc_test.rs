@@ -152,3 +152,27 @@ fn rpc_call_local_side_effects(context: &TestContext) {
     context.scene_tree.clone().remove_child(&node);
     node.free();
 }
+
+/// Internal path (`self.rpcs()`) + `call_local` targeting own peer: the RPC body re-enters the `GdCell` while the outer `bind_mut()` borrow is
+/// still held. Must not panic.
+///
+/// Regression test, see https://github.com/godot-rust/gdext/pull/1643.
+#[cfg(feature = "codegen-full")]
+#[itest]
+fn rpc_internal_call_local_reentrant(context: &TestContext) {
+    let mut node = RpcCallableNode::new_alloc();
+    context.scene_tree.clone().add_child(&node);
+    let own_id = node
+        .get_multiplayer()
+        .expect("multiplayer should exist")
+        .get_unique_id() as i64;
+
+    {
+        let mut guard = node.bind_mut();
+        assert_eq!(guard.rpcs().rpc_local_also().call_id(own_id), Ok(()));
+    }
+    assert_eq!(node.bind().call_count, 1);
+
+    context.scene_tree.clone().remove_child(&node);
+    node.free();
+}

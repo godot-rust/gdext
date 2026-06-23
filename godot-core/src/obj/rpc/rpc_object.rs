@@ -29,7 +29,13 @@ where
     /// Consumes [`Self`], calling the RPC with the provided arguments.
     pub fn call_rpc(self, name: &str, args: &[Variant]) -> Result<(), RpcError> {
         let error = match self {
-            UserRpcObject::Internal(self_mut) => self_mut.to_gd().upcast::<Node>().rpc(name, args),
+            UserRpcObject::Internal(self_mut) => {
+                let mut node = self_mut.to_gd().upcast::<Node>();
+
+                // base_mut(), not to_gd(): call_local RPC runs its body synchronously inside rpc(). base_mut() allows re_borrow without panic.
+                let _reentrant_guard = self_mut.base_mut();
+                node.rpc(name, args)
+            }
             UserRpcObject::External(mut gd) => gd.upcast_mut::<Node>().rpc(name, args),
         };
 
@@ -44,7 +50,11 @@ where
     pub fn call_rpc_id(self, name: &str, id: i64, args: &[Variant]) -> Result<(), RpcError> {
         let error = match self {
             UserRpcObject::Internal(self_mut) => {
-                self_mut.to_gd().upcast::<Node>().rpc_id(id, name, args)
+                let mut node = self_mut.to_gd().upcast::<Node>();
+
+                // base_mut(), not to_gd(): see call_rpc().
+                let _reentrant_guard = self_mut.base_mut();
+                node.rpc_id(id, name, args)
             }
             UserRpcObject::External(mut gd) => gd.upcast_mut::<Node>().rpc_id(id, name, args),
         };
