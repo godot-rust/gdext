@@ -40,4 +40,7 @@ pub mod native {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Crate-local utilities
 
+// Re-exported (doc-hidden) so that `#[class(singleton)]`-generated code can reference it via `godot::private`.
+#[doc(hidden)]
+pub use class_runtime::SingletonCache;
 pub(crate) use class_runtime::*;

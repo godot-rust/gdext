@@ -275,14 +275,17 @@ where
     }
 }
 
-/// Per-singleton cache for built-in engine singletons.
+/// Per-singleton cache for engine and user singletons.
 ///
 /// `level == None` means "not cached"; otherwise it holds the level at which `ptr` was fetched and `generation` the deinit generation then. `ptr` is
 /// trusted only while the current level still covers `level` and no full deinit happened since (see [`init::singleton_cache_generation`]).
 ///
 /// Ordering: the slow path writes `ptr`/`generation` `Relaxed`, then stores `level` last with `Release`. The fast path reads `level` first with
 /// `Acquire`; that pairs with the store, making the earlier `ptr`/`generation` writes visible, so they can be read `Relaxed`.
-pub(crate) struct SingletonCache {
+///
+/// Public (doc-hidden) only so that `#[class(singleton)]`-generated code can declare a per-type static; not part of the supported API.
+#[doc(hidden)]
+pub struct SingletonCache {
     ptr: AtomicPtr<std::ffi::c_void>,
     generation: AtomicU64,
     level: sys::AtomicEnum<Option<init::InitLevel>>,
@@ -290,6 +293,7 @@ pub(crate) struct SingletonCache {
 
 impl SingletonCache {
     // Not Default::default() because of const.
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
             ptr: AtomicPtr::new(std::ptr::null_mut()),
@@ -299,14 +303,13 @@ impl SingletonCache {
     }
 }
 
-/// Cached variant of [`singleton_unchecked_type`], for built-in engine singletons.
+/// Cached variant of [`singleton_unchecked_type`], for engine and user (`#[class(singleton)]`) singletons alike.
 ///
-/// Engine singletons have a stable pointer for as long as their init level is loaded, so the `global_get_singleton()` lookup (plus `StringName`
-/// construction) is just overhead. This caches the ptr per singleton type, gated on the init level to structurally prevent stale-pointer use.
+/// A singleton's pointer is stable while its init level is loaded, so the `global_get_singleton()` lookup + `StringName` construction is just
+/// overhead. This caches the ptr per type, gated on the init level (and a deinit generation) to structurally prevent stale-pointer use.
 ///
 /// # Safety
-/// Same as [`singleton_unchecked_type`]: `make_class_name` must yield the class name matching type `T`, and this must only be used for engine
-/// singletons (stable pointer for their level's lifetime).
+/// Same as [`singleton_unchecked_type`]: `make_class_name` must yield `T` class name, and its pointer must be stable during its level lifetime.
 pub(crate) unsafe fn cached_singleton<T>(
     cache: &SingletonCache,
     make_class_name: impl FnOnce() -> StringName,

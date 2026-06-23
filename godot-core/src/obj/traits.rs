@@ -786,6 +786,14 @@ pub trait Singleton: GodotClass {
 pub trait UserSingleton:
     GodotClass + Bounds<Declarer = bounds::DeclUser, Memory = bounds::MemManual>
 {
+    /// Per-type cache for [`cached_singleton`](crate::classes::cached_singleton), or `None` to opt out.
+    ///
+    /// `#[class(singleton)]` overrides this with a `static`; manual `impl UserSingleton` keeps the default `None`, since its registration
+    /// lifetime is not guaranteed to match the cache invariants. Dispatch lives here because the blanket `Singleton` impl below cannot specialize.
+    #[doc(hidden)]
+    fn __singleton_cache() -> Option<&'static crate::private::SingletonCache> {
+        None
+    }
 }
 
 impl<T> Singleton for T
@@ -793,12 +801,18 @@ where
     T: UserSingleton + Inherits<crate::classes::Object>,
 {
     fn singleton() -> Gd<T> {
-        // Note: Under any safeguards level `singleton_unchecked_type` will panic if Singleton can't be retrieved.
+        // Note: under all safeguard levels, both paths will panic if the singleton can't be retrieved.
+        // Both functions called below are unsafe: they require the passed class name to name `T`'s class -- guaranteed by ::class_id().
+        let make_class_name = || T::class_id().to_string_name();
 
-        let class_name = <T as GodotClass>::class_id().to_string_name();
-        // SAFETY: The caller must ensure that `class_name` corresponds to the actual class name of type `T`.
-        // This is always true for `#[class(singleton)]`.
-        unsafe { crate::classes::singleton_unchecked_type(&class_name) }
+        match T::__singleton_cache() {
+            // SAFETY: a cache is only present for `#[class(singleton)]`, whose level-gated registration matches the cache's stable-pointer
+            // invariant; `make_class_name` yields `T`'s class name.
+            Some(cache) => unsafe { crate::classes::cached_singleton::<T>(cache, make_class_name) },
+
+            // SAFETY: `make_class_name` yields `T`'s class name.
+            None => unsafe { crate::classes::singleton_unchecked_type(&make_class_name()) },
+        }
     }
 }
 
