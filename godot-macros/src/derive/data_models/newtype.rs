@@ -5,37 +5,58 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, Literal, Span, TokenStream};
-use quote::quote;
-use venial::{NamedField, TupleField};
+use proc_macro2::{Ident, Literal, TokenStream};
+use quote::{ToTokens, quote};
 
-use crate::ParseResult;
 use crate::util::bail;
+use crate::{KvParser, ParseResult};
 
-pub enum FieldType {
+pub enum FieldIdentifier {
+    /// Index of the field
     Tuple(Literal),
+    /// Name of the field
     Named(Ident),
 }
 
-pub enum FieldsType {
+pub enum FieldIdentifiers {
+    /// Indices of the fields
     Tuple(Vec<Literal>),
+    /// Names of the fields
     Named(Vec<Ident>),
 }
 
 /// Stores info from the field of a newtype struct for use in deriving `GodotConvert` and other related traits.
 ///
-/// Here, a newtype struct must have exactly 1 non-ZST field, and can have an arbitrary amount of ZST fields.
+/// `NewtypeStruct` must have exactly 1 sized field, and can have an arbitrary amount of ZST fields.
 pub struct NewtypeStruct {
-    /// The name of the field.
-    ///
-    /// If `None`, then this represents a tuple-struct with one field.
-    pub name: FieldType,
+    /// The identifier of the sized field.
+    pub field: FieldIdentifier,
 
-    /// The names of the phantom fields.
-    pub phantom_names: FieldsType,
-
-    /// The type of the field.
+    /// The type of the sized field.
     pub ty: venial::TypeExpr,
+
+    /// The identifiers of the ZST fields.
+    pub zst_fields: FieldIdentifiers,
+
+    /// The types of the ZST fields.
+    pub zst_tys: Vec<venial::TypeExpr>,
+}
+
+// Helper trait to abstract over NamedField and TupleField.
+trait Field {
+    fn get_attributes(&self) -> &[venial::Attribute];
+}
+
+impl Field for (usize, &venial::TupleField) {
+    fn get_attributes(&self) -> &[venial::Attribute] {
+        self.1.attributes.as_slice()
+    }
+}
+
+impl Field for &venial::NamedField {
+    fn get_attributes(&self) -> &[venial::Attribute] {
+        self.attributes.as_slice()
+    }
 }
 
 impl NewtypeStruct {
@@ -46,106 +67,82 @@ impl NewtypeStruct {
         match &struct_.fields {
             venial::Fields::Unit => bail!(
                 &struct_.fields,
-                "GodotConvert expects a struct with a single field, unit structs are currently not supported"
+                "GodotConvert expects a struct with a single sized field, unit structs are currently not supported"
             ),
             venial::Fields::Tuple(fields) => {
-                fn phantom_predicate(field: &TupleField) -> bool {
-                    // Some types we don't care about are not paths, like references
-                    if let Some(path) = field.ty.as_path() {
-                        // This unwrap only fails if the field had no type specified, which isn't valid code anyways.
-                        return path.segments.last().unwrap().ident
-                            == Ident::new("PhantomData", Span::mixed_site());
-                    }
-                    false
-                }
+                let (field, zst_fields) = Self::partition_fields(
+                    fields.fields.iter().map(|(field, _)| field).enumerate(),
+                    fields,
+                )?;
 
-                let mut non_phantom_fields = fields
-                    .fields
-                    .items()
-                    .enumerate()
-                    .filter(|(_, field)| !phantom_predicate(field));
-
-                let maybe_field = non_phantom_fields.next();
-
-                let total_count = if maybe_field.is_none() {
-                    0
-                } else {
-                    non_phantom_fields.count() + 1
-                };
-
-                if total_count != 1 {
-                    return bail!(
-                        &fields.fields,
-                        "GodotConvert expects a struct with a single non-PhantomData field, not {} fields",
-                        total_count
-                    );
-                }
-
-                let (field_num, field) = maybe_field.unwrap();
-
-                let phantom_nums = (0..field_num)
-                    .chain(field_num + 1..fields.fields.len())
-                    .map(Literal::usize_unsuffixed)
-                    .collect();
+                let (zst_names, zst_tys) = zst_fields
+                    .into_iter()
+                    .map(|(id, field)| (Literal::usize_unsuffixed(id), field.ty.clone()))
+                    .unzip();
 
                 Ok(NewtypeStruct {
-                    name: FieldType::Tuple(Literal::usize_unsuffixed(field_num)),
-                    phantom_names: FieldsType::Tuple(phantom_nums),
-                    ty: field.ty.clone(),
+                    field: FieldIdentifier::Tuple(Literal::usize_unsuffixed(field.0)),
+                    ty: field.1.ty.clone(),
+                    zst_fields: FieldIdentifiers::Tuple(zst_names),
+                    zst_tys,
                 })
             }
             venial::Fields::Named(fields) => {
-                fn phantom_predicate(field: &NamedField) -> bool {
-                    // Some types we don't care about are not paths, like references
-                    if let Some(path) = field.ty.as_path() {
-                        // This unwrap only fails if the field had no type specified, which isn't valid code anyways.
-                        return path.segments.last().unwrap().ident
-                            == Ident::new("PhantomData", Span::mixed_site());
-                    }
-                    false
-                }
+                let (field, zst_fields) =
+                    Self::partition_fields(fields.fields.iter().map(|(field, _)| field), fields)?;
 
-                let mut non_phantom_fields = fields
-                    .fields
-                    .items()
-                    .filter(|field| !phantom_predicate(field));
-
-                let maybe_field = non_phantom_fields.next();
-
-                let total_count = if maybe_field.is_none() {
-                    0
-                } else {
-                    non_phantom_fields.count() + 1
-                };
-
-                if total_count != 1 {
-                    return bail!(
-                        &fields.fields,
-                        "GodotConvert expects a struct with a single non-PhantomData field, not {} fields",
-                        total_count
-                    );
-                }
-
-                let field = maybe_field.unwrap().clone();
-
-                let phantom_names = fields
-                    .fields
-                    .items()
-                    .filter_map(|field| {
-                        if phantom_predicate(field) {
-                            return Some(field.name.clone());
-                        }
-                        None
-                    })
-                    .collect();
+                let (zst_names, zst_tys) = zst_fields
+                    .into_iter()
+                    .map(|field| (field.name.clone(), field.ty.clone()))
+                    .unzip();
 
                 Ok(NewtypeStruct {
-                    name: FieldType::Named(field.name),
-                    phantom_names: FieldsType::Named(phantom_names),
-                    ty: field.ty,
+                    field: FieldIdentifier::Named(field.name.clone()),
+                    ty: field.ty.clone(),
+                    zst_fields: FieldIdentifiers::Named(zst_names),
+                    zst_tys,
                 })
             }
         }
+    }
+
+    /// Partitions fields into 1 sized field and an arbitrary amount of ZST fields
+    fn partition_fields<T: Field>(
+        fields: impl Iterator<Item = T>,
+        context: impl ToTokens,
+    ) -> ParseResult<(T, Vec<T>)> {
+        let mut sized_field = None;
+        let mut zst_fields = vec![];
+
+        for field in fields {
+            match KvParser::parse(field.get_attributes(), "godot")? {
+                Some(mut parser) => {
+                    if parser.handle_alone("skip")? {
+                        zst_fields.push(field)
+                    }
+                    // If we don't see "skip", assume its meant for someone else to handle
+                }
+                None => {
+                    if sized_field.is_none() {
+                        sized_field = Some(field);
+                    } else {
+                        bail!(
+                            &context,
+                            "GodotConvert expects a struct with a single unskipped field, found multple",
+                        )?;
+                    }
+                }
+            }
+        }
+
+        if sized_field.is_none() {
+            bail!(
+                &context,
+                "GodotConvert expects a struct with a single sized field, found none",
+            )?;
+        }
+
+        Ok((sized_field.unwrap(), zst_fields))
     }
 
     /// Gets the field name.
@@ -160,19 +157,19 @@ impl NewtypeStruct {
     /// println!("{}", foo.0);
     /// ```
     pub fn field_name(&self) -> TokenStream {
-        match &self.name {
-            FieldType::Named(name) => quote! { #name },
-            FieldType::Tuple(num) => quote! { #num },
+        match &self.field {
+            FieldIdentifier::Named(name) => quote! { #name },
+            FieldIdentifier::Tuple(num) => quote! { #num },
         }
     }
 
     /// Gets the phantom field names.
     ///
     /// If this represents a tuple-struct, then it will return numbers. See `Self::field_name`
-    pub fn phantom_field_names(&self) -> Vec<TokenStream> {
-        match &self.phantom_names {
-            FieldsType::Named(vec) => vec.iter().map(|ident| quote! {#ident}).collect(),
-            FieldsType::Tuple(vec) => vec.iter().map(|ident| quote! {#ident}).collect(),
+    pub fn zst_field_names(&self) -> Vec<TokenStream> {
+        match &self.zst_fields {
+            FieldIdentifiers::Named(vec) => vec.iter().map(|ident| quote! {#ident}).collect(),
+            FieldIdentifiers::Tuple(vec) => vec.iter().map(|ident| quote! {#ident}).collect(),
         }
     }
 }

@@ -1366,35 +1366,28 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// assert_eq!(obj.to_godot(), &GString::from("hello!"));
 /// ```
 ///
-/// It will not work for structs with more than one field, unless the extra fields are `PhantomData`
-/// ```compile_fail
+/// You may have other fields in your newtype struct if they are ZSTs by using the attribute `#[godot(skip)]`
+/// ```no_run
 /// use godot::prelude::*;
 /// use std::marker::PhantomData;
 ///
-/// // This will not compile
 /// #[derive(GodotConvert)]
 /// #[godot(transparent)]
-/// struct SomeNewtype1 {
+/// struct SomeNewtype<T> {
 ///     int: i64,
-///     bool: bool,
-/// }
-///
-/// // This will compile
-/// #[derive(GodotConvert)]
-/// #[godot(transparent)]
-/// struct SomeNewtype2<T> {
-///     int: i64,
+///     #[godot(skip)]
 ///     _marker: PhantomData<T>,
 /// }
 /// ```
 ///
 /// This is useful for cases where you want to have generics in Rust, but you still want to use that struct from Godot. For example, you have a
 /// key `Key<T>` to a registry `Registry<T>` that contains `T`.
-/// ```rs
+/// ```no_run
 /// #[derive(GodotConvert)]
 /// #[godot(transparent)]
 /// struct Key<T> {
 ///     id: u32,
+///     #[godot(skip)]
 ///     _marker: PhantomData<T>,
 /// }
 /// ```

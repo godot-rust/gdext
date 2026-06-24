@@ -51,15 +51,33 @@ fn make_fromgodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStru
         .as_ref()
         .map(|params| params.as_inline_args());
     let field_name = field.field_name();
-    let phantom_field_names = field.phantom_field_names();
     let via_type = &field.ty;
+
+    let field_zst_names = field.zst_field_names();
+    let field_zst_tys = &field.zst_tys;
+
+    // This is basically copy-paste of the unstable feature for creating arbitrary ZSTs.
+    // https://github.com/rust-lang/rust/issues/95383
+    let create_zst = quote! {
+        const {
+            #(assert!(size_of::<#field_zst_tys>() == 0, "Type is not a ZST");)*
+
+            // SAFETY: because the caller must guarantee that it's inhabited and zero-sized,
+            // there's nothing in the representation that needs to be set.
+            // `assume_init` calls `assert_inhabited`, so we don't need to here.
+            unsafe {
+                // #[allow(clippy::uninit_assumed_init)]
+                ::std::mem::MaybeUninit::uninit().assume_init()
+            }
+        }
+    };
 
     quote! {
         impl #generic_params ::godot::meta::FromGodot for #name #generic_args #where_clause {
             fn try_from_godot(via: #via_type) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
                 Ok(Self {
                     #field_name: via,
-                    #(#phantom_field_names: ::std::marker::PhantomData),*
+                    #(#field_zst_names: #create_zst),*
                 })
             }
         }

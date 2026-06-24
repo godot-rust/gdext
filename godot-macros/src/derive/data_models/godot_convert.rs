@@ -64,8 +64,8 @@ impl GodotConvert {
 
         Ok(Self {
             ty_name: name,
-            where_clause: where_clause,
-            generic_params: generic_params,
+            where_clause,
+            generic_params,
             convert_type: data,
         })
     }

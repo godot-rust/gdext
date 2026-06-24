@@ -24,9 +24,9 @@ struct TupleNewtype(GString);
 
 #[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
-struct TuplePhantomNewtype<T: Debug + godot::meta::Element>(
-    PhantomData<T>,
+struct TuplePhantomNewtype<T: Debug + godot::meta::Element, U>(
     godot::prelude::Array<T>,
+    #[godot(skip)] PhantomData<U>,
 );
 
 #[derive(GodotConvert, PartialEq, Debug)]
@@ -35,11 +35,16 @@ struct NamedNewtype {
     field1: Vector2,
 }
 
+type ZSTType<T> = PhantomData<T>;
+
 #[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
 struct NamedPhantomNewtype<T> {
     field1: Vector2,
-    _marker: std::marker::PhantomData<T>,
+    #[godot(skip)]
+    _marker: ZSTType<T>,
+    #[godot(skip)]
+    _zilch: (),
 }
 
 #[derive(GodotConvert, Clone, PartialEq, Debug)]
@@ -74,7 +79,7 @@ enum EnumIntyWithExprs {
 #[itest]
 fn newtype_tuple_struct() {
     roundtrip(TupleNewtype(GString::from("hello!")));
-    roundtrip(TuplePhantomNewtype::<u32>(PhantomData, array![]))
+    roundtrip(TuplePhantomNewtype::<u32, String>(array![], PhantomData))
 }
 
 #[itest]
@@ -85,6 +90,7 @@ fn newtype_named_struct() {
     roundtrip(NamedPhantomNewtype::<usize> {
         field1: Vector2::new(10.0, 25.0),
         _marker: PhantomData,
+        _zilch: (),
     });
 }
 
