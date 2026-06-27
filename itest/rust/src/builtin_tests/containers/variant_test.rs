@@ -883,3 +883,4 @@ fn gstr(s: &str) -> GString {
 fn sname(s: &str) -> StringName {
     StringName::from(s)
 }
+

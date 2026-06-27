@@ -19,6 +19,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let variant_type_enum = make_variant_type_enum(api, true);
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
     let godot_type_name_method = make_godot_type_name_method(api);
+    let needs_ffi_destruction_method = make_needs_ffi_destruction_method(api);
 
     quote! {
         #[cfg(target_pointer_width = "32")]
@@ -49,6 +50,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             }
 
             #godot_type_name_method
+            #needs_ffi_destruction_method
         }
     }
 }
@@ -226,6 +228,53 @@ fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> TokenStrea
     let define_traits = !is_definition;
 
     enums::make_enum_definition_with(variant_type_enum, define_enum, define_traits)
+}
+
+/// Generates the `VariantType::needs_ffi_destruction()` method from the builtins list.
+///
+/// Returns `true` if a variant of this type requires `variant_destroy` on drop, for two reasons:
+/// 1. Non-trivial destructor in `extension_api.json` (refcounted: `String`, `Array`, `Dictionary`, `Object`, ...).
+/// 2. Stored heap-allocated inside `Variant` because it exceeds the inline data segment (`Transform2D`, `Transform3D`, `Basis`, `Aabb`,
+///    `Projection`). Godot reports `has_destructor=false` for these (trivially destructible in C++), but `Variant` still owns the allocation.
+fn make_needs_ffi_destruction_method(api: &ExtensionApi) -> TokenStream {
+    use crate::models::domain::BuildConfiguration;
+
+    // Detecting case 2 needs the type's byte size, which differs per precision: the inline buffer is 16 bytes single / 32 bytes double, and a
+    // type's size at most doubles in double precision (real: 4 -> 8 bytes; int/ptr unchanged). Hence `size_single > 16` iff `size_double > 32`,
+    // so the single-precision (Float32) sizes alone decide it for both builds. The flagged pure-float types are too large either way.
+    const INLINE_DATA_SIZE_SINGLE: usize = 16;
+
+    let sizes: std::collections::HashMap<&str, usize> = api
+        .builtin_sizes
+        .iter()
+        .filter(|s| s.config == BuildConfiguration::Float32)
+        .map(|s| (s.builtin_original_name.as_str(), s.size))
+        .collect();
+
+    let mut destructor_ordinals = vec![];
+
+    for builtin in api.builtins.iter() {
+        let size = sizes
+            .get(builtin.godot_original_name())
+            .copied()
+            .unwrap_or(0);
+        let is_heap_in_variant = size > INLINE_DATA_SIZE_SINGLE;
+
+        if builtin.has_destructor || is_heap_in_variant {
+            destructor_ordinals.push(builtin.variant_type_ord);
+        }
+    }
+
+    quote! {
+        /// Returns `true` if variants of this type require destruction (i.e. are not plain-old-data).
+        ///
+        /// Combines `has_destructor` from `extension_api.json` (refcounted types) with builtin size (heap-allocated types such as
+        /// `Transform2D`/`Basis`/`Aabb`/`Transform3D`/`Projection`).
+        #[doc(hidden)]
+        pub fn needs_ffi_destruction(&self) -> bool {
+            matches!(self.ord, #( #destructor_ordinals )|*)
+        }
+    }
 }
 
 /// Generates the `VariantType::godot_type_name()` method from the builtins list.

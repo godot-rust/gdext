@@ -21,6 +21,15 @@ use crate::meta::{
 };
 
 mod impls;
+mod rust_variant;
+
+use rust_variant::{RustVariant, USE_RUST_MARSHAL};
+
+#[cfg(feature = "trace")] // Test only -- exposes internals to external test crates.
+#[doc(hidden)]
+pub mod __test_only {
+    pub use super::rust_variant::{RustMarshal, RustVariant, SetError};
+}
 
 /// Godot variant type, able to store a variety of different types.
 ///
@@ -35,7 +44,7 @@ mod impls;
 /// # Godot docs
 ///
 /// [`Variant` (stable)](https://docs.godotengine.org/en/stable/classes/class_variant.html)
-// We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`.
+// We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`, and for Array access.
 #[repr(transparent)]
 pub struct Variant {
     _opaque: sys::types::OpaqueVariant,
@@ -289,9 +298,11 @@ impl Variant {
     }
 
     pub(crate) fn sys_type(&self) -> sys::GDExtensionVariantType {
-        unsafe {
-            let ty: sys::GDExtensionVariantType = interface_fn!(variant_get_type)(self.var_sys());
-            ty
+        if USE_RUST_MARSHAL {
+            // Reading the type tag is a plain memory access; `RustVariant::view()` never goes through FFI.
+            RustVariant::view(self).type_tag()
+        } else {
+            unsafe { interface_fn!(variant_get_type)(self.var_sys()) }
         }
     }
 
@@ -483,6 +494,10 @@ impl Variant {
     ///
     /// Either `variant_array` is null, or it must be safe to call [`std::slice::from_raw_parts_mut`] with
     /// `variant_array` cast to `*mut Variant` and `length`.
+    ///
+    /// If the pointer aliases into a ref-counted container's backing store (e.g. `Array`), the caller must guarantee that container is uniquely
+    /// owned (refcount == 1) for the slice's lifetime; otherwise a multi-element `&mut [Variant]` aliases storage another handle can read,
+    /// violating Rust's rules. When uniqueness is not guaranteed, write individual elements via a raw pointer (see `Array::extend`).
     pub(crate) unsafe fn borrow_slice_mut<'a>(
         variant_array: sys::GDExtensionVariantPtr,
         length: usize,
@@ -554,16 +569,30 @@ crate::meta::impl_godot_as_self!(Variant: ByVariant);
 // not safe off the main thread. Once we can classify the inner type, the value-type cases could opt into thread-safe access.
 impl Default for Variant {
     fn default() -> Self {
-        unsafe {
-            Self::new_with_var_uninit(|variant_ptr| {
-                interface_fn!(variant_new_nil)(variant_ptr);
-            })
+        if USE_RUST_MARSHAL {
+            // A zeroed `Variant` is a valid NIL value: type_tag = GDEXTENSION_VARIANT_TYPE_NIL (0), data = 0.
+            // This matches Godot's `variant_new_nil`, which zero-initializes the variant.
+            // SAFETY: `Variant` is `#[repr(transparent)]` over `OpaqueVariant` (raw byte buffer); all-zero is valid.
+            unsafe { std::mem::zeroed() }
+        } else {
+            unsafe {
+                Self::new_with_var_uninit(|variant_ptr| {
+                    interface_fn!(variant_new_nil)(variant_ptr);
+                })
+            }
         }
     }
 }
 
 impl Clone for Variant {
     fn clone(&self) -> Self {
+        // POD types (`bool`, `i64`, `f64`, vectors, color, ...) have no shared ownership: a bytewise copy is sufficient.
+        // Both source and copy will skip `variant_destroy` in `Drop` (see below), so no double-free.
+        if USE_RUST_MARSHAL && RustVariant::view(self).is_pod() {
+            // SAFETY: `self` is initialized; POD types carry no destructor and copy-by-value is safe.
+            return unsafe { std::ptr::read(self) };
+        }
+
         unsafe {
             Self::new_with_var_uninit(|variant_ptr| {
                 interface_fn!(variant_new_copy)(variant_ptr, self.var_sys());
@@ -574,6 +603,11 @@ impl Clone for Variant {
 
 impl Drop for Variant {
     fn drop(&mut self) {
+        // POD types have no Godot-side destructor; `variant_destroy` is a no-op for them. Skip the FFI call entirely.
+        if USE_RUST_MARSHAL && RustVariant::view(self).is_pod() {
+            return;
+        }
+
         unsafe {
             interface_fn!(variant_destroy)(self.var_sys_mut());
         }

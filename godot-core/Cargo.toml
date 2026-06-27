@@ -27,6 +27,8 @@ experimental-threads = ["godot-ffi/experimental-threads", "godot-codegen/experim
 experimental-wasm-nothreads = ["godot-ffi/experimental-wasm-nothreads"]
 debug-log = ["godot-ffi/debug-log"]
 trace = []
+# Disables Variant's RustMarshal optimization, falling back to FFI. Intended for A/B tests + benchmarks.
+variant-ffi-marshal = []
 
 api-custom = ["godot-ffi/api-custom", "godot-codegen/api-custom"]
 api-custom-json = ["godot-codegen/api-custom-json"]
