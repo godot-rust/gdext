@@ -27,8 +27,11 @@ pub(super) use super::base_weak_initialization::InitTracker;
 pub enum InitState {
     /// Object is being constructed (inside `I*::init()` or `Gd::from_init_fn()`).
     ObjectConstructing,
+
     /// Object construction is complete.
+    #[cfg(before_api = "4.7")]
     ObjectInitialized,
+
     /// `ScriptInstance` context - always considered initialized (bypasses lifecycle checks).
     Script,
 }
