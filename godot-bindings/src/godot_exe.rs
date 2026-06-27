@@ -55,7 +55,10 @@ pub fn load_gdextension_interface_json(watch: &mut StopWatch) -> Cow<'static, st
     rerun_on_changed(&godot_bin);
     watch.record("locate_godot");
 
-    if !read_godot_version(&godot_bin).is_newer_than_latest() {
+    // Use the shipped prebuilt only when it actually covers the binary's version; dump from the binary when it's ahead.
+    // LATEST_API_VERSION is hand-maintained and may be behind prebuilt -> we extract true version from highest @since value in JSON.
+    // (Only the minor is compared, as godot-rust is 4.x-only and the major is thus implicitly 4.)
+    if read_godot_version(&godot_bin).minor <= prebuilt_max_supported_minor() {
         watch.record("load_prebuilt_header_json");
         return gdextension_api::load_gdextension_interface_json();
     }
@@ -69,6 +72,19 @@ pub fn load_gdextension_interface_json(watch: &mut StopWatch) -> Cow<'static, st
         .expect("failed to load freshly created gdextension_interface.json");
 
     Cow::Owned(contents)
+}
+
+/// Highest Godot minor version covered by the shipped prebuilt's interface JSON, derived from the maximum `since` field it lists.
+fn prebuilt_max_supported_minor() -> u8 {
+    let json = gdextension_api::load_gdextension_interface_json();
+
+    // `since` values look like `"4.7"`; godot-rust is 4.x-only, so only the minor matters.
+    let regex = regex::Regex::new(r#""since"\s*:\s*"4\.(\d+)""#).expect("valid regex");
+    regex
+        .captures_iter(&json)
+        .filter_map(|caps| caps[1].parse::<u8>().ok())
+        .max()
+        .expect("prebuilt gdextension_interface.json has no `since` fields")
 }
 
 /*
