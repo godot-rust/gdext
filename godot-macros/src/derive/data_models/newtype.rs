@@ -5,21 +5,58 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use proc_macro2::{Ident, Literal, TokenStream};
+use quote::{ToTokens, quote};
 
-use crate::ParseResult;
 use crate::util::bail;
+use crate::{KvParser, ParseResult};
+
+pub enum FieldIdentifier {
+    /// Index of the field
+    Tuple(Literal),
+    /// Name of the field
+    Named(Ident),
+}
+
+pub enum FieldIdentifiers {
+    /// Indices of the fields
+    Tuple(Vec<Literal>),
+    /// Names of the fields
+    Named(Vec<Ident>),
+}
 
 /// Stores info from the field of a newtype struct for use in deriving `GodotConvert` and other related traits.
+///
+/// `NewtypeStruct` must have exactly 1 sized field, and can have an arbitrary amount of ZST fields.
 pub struct NewtypeStruct {
-    /// The name of the field.
-    ///
-    /// If `None`, then this represents a tuple-struct with one field.
-    pub name: Option<Ident>,
+    /// The identifier of the sized field.
+    pub field: FieldIdentifier,
 
-    /// The type of the field.
+    /// The type of the sized field.
     pub ty: venial::TypeExpr,
+
+    /// The identifiers of the ZST fields.
+    pub zst_fields: FieldIdentifiers,
+
+    /// The types of the ZST fields.
+    pub zst_tys: Vec<venial::TypeExpr>,
+}
+
+// Helper trait to abstract over NamedField and TupleField.
+trait Field {
+    fn get_attributes(&self) -> &[venial::Attribute];
+}
+
+impl Field for (usize, &venial::TupleField) {
+    fn get_attributes(&self) -> &[venial::Attribute] {
+        self.1.attributes.as_slice()
+    }
+}
+
+impl Field for &venial::NamedField {
+    fn get_attributes(&self) -> &[venial::Attribute] {
+        self.attributes.as_slice()
+    }
 }
 
 impl NewtypeStruct {
@@ -30,46 +67,87 @@ impl NewtypeStruct {
         match &struct_.fields {
             venial::Fields::Unit => bail!(
                 &struct_.fields,
-                "GodotConvert expects a struct with a single field, unit structs are currently not supported"
+                "GodotConvert expects a struct with a single sized field, unit structs are currently not supported"
             ),
             venial::Fields::Tuple(fields) => {
-                if fields.fields.len() != 1 {
-                    return bail!(
-                        &fields.fields,
-                        "GodotConvert expects a struct with a single field, not {} fields",
-                        fields.fields.len()
-                    );
-                }
+                let (field, zst_fields) = Self::partition_fields(
+                    fields.fields.iter().map(|(field, _)| field).enumerate(),
+                    fields,
+                )?;
 
-                let (field, _) = fields.fields[0].clone();
+                let (zst_names, zst_tys) = zst_fields
+                    .into_iter()
+                    .map(|(id, field)| (Literal::usize_unsuffixed(id), field.ty.clone()))
+                    .unzip();
 
                 Ok(NewtypeStruct {
-                    name: None,
-                    ty: field.ty,
+                    field: FieldIdentifier::Tuple(Literal::usize_unsuffixed(field.0)),
+                    ty: field.1.ty.clone(),
+                    zst_fields: FieldIdentifiers::Tuple(zst_names),
+                    zst_tys,
                 })
             }
             venial::Fields::Named(fields) => {
-                if fields.fields.len() != 1 {
-                    return bail!(
-                        &fields.fields,
-                        "GodotConvert expects a struct with a single field, not {} fields",
-                        fields.fields.len()
-                    );
-                }
+                let (field, zst_fields) =
+                    Self::partition_fields(fields.fields.iter().map(|(field, _)| field), fields)?;
 
-                let (field, _) = fields.fields[0].clone();
+                let (zst_names, zst_tys) = zst_fields
+                    .into_iter()
+                    .map(|field| (field.name.clone(), field.ty.clone()))
+                    .unzip();
 
                 Ok(NewtypeStruct {
-                    name: Some(field.name),
-                    ty: field.ty,
+                    field: FieldIdentifier::Named(field.name.clone()),
+                    ty: field.ty.clone(),
+                    zst_fields: FieldIdentifiers::Named(zst_names),
+                    zst_tys,
                 })
             }
         }
     }
 
+    /// Partitions fields into 1 sized field and an arbitrary amount of ZST fields
+    fn partition_fields<T: Field>(
+        fields: impl Iterator<Item = T>,
+        context: impl ToTokens,
+    ) -> ParseResult<(T, Vec<T>)> {
+        let mut sized_field = None;
+        let mut zst_fields = vec![];
+
+        for field in fields {
+            match KvParser::parse(field.get_attributes(), "godot")? {
+                Some(mut parser) => {
+                    if parser.handle_alone("skip")? {
+                        zst_fields.push(field)
+                    }
+                    // If we don't see "skip", assume its meant for someone else to handle
+                }
+                None => {
+                    if sized_field.is_none() {
+                        sized_field = Some(field);
+                    } else {
+                        bail!(
+                            &context,
+                            "GodotConvert expects a struct with a single unskipped field, found multple",
+                        )?;
+                    }
+                }
+            }
+        }
+
+        if sized_field.is_none() {
+            bail!(
+                &context,
+                "GodotConvert expects a struct with a single sized field, found none",
+            )?;
+        }
+
+        Ok((sized_field.unwrap(), zst_fields))
+    }
+
     /// Gets the field name.
     ///
-    /// If this represents a tuple-struct, then it will return `0`. This can be used just like it was a named field with the name `0`.
+    /// If this represents a tuple-struct, then it will return a number. This can be used just like it was a named field.
     /// For instance:
     /// ```
     /// struct Foo(i64);
@@ -79,9 +157,19 @@ impl NewtypeStruct {
     /// println!("{}", foo.0);
     /// ```
     pub fn field_name(&self) -> TokenStream {
-        match &self.name {
-            Some(name) => quote! { #name },
-            None => quote! { 0 },
+        match &self.field {
+            FieldIdentifier::Named(name) => quote! { #name },
+            FieldIdentifier::Tuple(num) => quote! { #num },
+        }
+    }
+
+    /// Gets the phantom field names.
+    ///
+    /// If this represents a tuple-struct, then it will return numbers. See `Self::field_name`
+    pub fn zst_field_names(&self) -> Vec<TokenStream> {
+        match &self.zst_fields {
+            FieldIdentifiers::Named(vec) => vec.iter().map(|ident| quote! {#ident}).collect(),
+            FieldIdentifiers::Tuple(vec) => vec.iter().map(|ident| quote! {#ident}).collect(),
         }
     }
 }
