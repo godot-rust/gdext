@@ -319,21 +319,14 @@ macro_rules! format_backtrace {
     };
 }
 
-pub fn set_gdext_hook<F>(godot_print: F)
-where
-    F: Fn() -> bool + Send + Sync + 'static,
-{
+pub fn install_godot_rust_hook() {
     std::panic::set_hook(Box::new(move |panic_info| {
         // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed.
         let _ignored_result = std::io::stdout().flush();
 
         let message = format_panic_message(panic_info);
-        if godot_print() {
-            // Also prints to stdout/stderr -- do not print twice.
-            godot_error!("{message}");
-        } else {
-            eprintln!("{message}");
-        }
+        // Also prints to stdout/stderr -- do not print twice.
+        godot_error!("{message}");
 
         let backtrace = format_backtrace!("panic backtrace");
         eprintln!("{backtrace}");
@@ -529,7 +522,7 @@ where
     // (1)  ERROR: [panic hot-reload/rust/src/lib.rs:37]
     //      some panic message
     //      Context: MyClass::my_method
-    //       at: godot_core::private::set_gdext_hook::{{closure}} (/.../godot-core/src/private.rs:354)
+    //       at: godot_core::private::install_godot_rust_hook::{{closure}} (/.../godot-core/src/private.rs:354)
     //       GDScript backtrace (most recent call first):
     //           [0] _ready (res://script.gd:9)
     //     (backtrace disabled, run application with `RUST_BACKTRACE=1` environment variable)
