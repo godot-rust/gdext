@@ -177,6 +177,31 @@ fn signal_future_cancelled_at_engine_exit() {
     );
 }
 
+// Second regression test for https://github.com/godot-rust/gdext/issues/1624: same outcome, but with the real shutdown ordering where the
+// object is freed *before* the engine-exiting flag is set, so the future is already `Dead` when polled (the drop-time guard never fires).
+#[itest]
+fn signal_future_cancelled_at_engine_exit_ordering() {
+    let obj = Object::new_alloc();
+    let signal = Signal::from_object_signal(&obj, "script_changed");
+
+    let mut future = pin!(signal.to_future::<()>());
+    let mut cx = Context::from_waker(Waker::noop());
+
+    assert_eq!(future.as_mut().poll(&mut cx), Poll::Pending);
+
+    // Object freed while flag NOT yet set -> resolver marks future Dead and wakes it.
+    obj.free();
+
+    // Engine begins shutdown only now (deferred poll runs after teardown started).
+    let _exiting_guard = task::simulate_engine_exiting();
+
+    assert_eq!(
+        future.as_mut().poll(&mut cx),
+        Poll::Pending,
+        "SignalFuture must park silently (not panic) when polled during engine teardown"
+    );
+}
+
 #[cfg(feature = "experimental-threads")]
 #[itest(async)]
 fn signal_future_non_send_arg_panic() -> TaskHandle {
