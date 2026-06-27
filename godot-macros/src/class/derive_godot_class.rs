@@ -250,7 +250,12 @@ fn make_with_base_impl(base_field: &Option<Field>, class_name: &Ident) -> TokenS
 fn make_singleton_impl(class_name: &Ident) -> (TokenStream, TokenStream) {
     (
         quote! {
-            impl ::godot::obj::UserSingleton for #class_name {}
+            impl ::godot::obj::UserSingleton for #class_name {
+                fn __singleton_cache() -> Option<&'static ::godot::private::SingletonCache> {
+                    static CACHE: ::godot::private::SingletonCache = ::godot::private::SingletonCache::new();
+                    Some(&CACHE)
+                }
+            }
         },
         quote! {
             const INIT_LEVEL: ::godot::init::InitLevel = ::godot::init::InitLevel::Scene;

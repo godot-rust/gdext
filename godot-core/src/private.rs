@@ -22,6 +22,7 @@ use crate::{classes, sys};
 
 mod reexport_pub {
     pub use crate::arg_into_owned;
+    pub use crate::classes::SingletonCache;
     #[cfg(all(since_api = "4.3", feature = "register-docs"))]
     pub use crate::docs::{DocsItem, DocsShard, InherentImplDocs, StructDocs};
     pub use crate::r#gen::classes::class_macros;

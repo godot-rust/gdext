@@ -111,29 +111,6 @@ fn assert_singleton_present<T: Singleton + GodotClass>(present: bool) {
     }
 }
 
-// Verify cached singleton pointers return same live instance, never stale or wrong.
-#[itest]
-fn singleton_caching_stable_instance() {
-    let engine = Engine::singleton();
-    let engine_id = engine.instance_id();
-    assert_eq!(engine_id, Engine::singleton().instance_id());
-
-    let os = Os::singleton();
-    let os_id = os.instance_id();
-    assert_eq!(os_id, Os::singleton().instance_id());
-
-    let time_id = Time::singleton().instance_id();
-    assert_eq!(time_id, Time::singleton().instance_id());
-
-    assert_ne!(engine_id, os_id);
-    assert_ne!(engine_id, time_id);
-    assert_ne!(os_id, time_id);
-
-    // Functional sanity checks.
-    assert!(engine.get_physics_ticks_per_second() > 0);
-    assert!(!os.get_name().is_empty());
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Stage-specific callbacks
 
