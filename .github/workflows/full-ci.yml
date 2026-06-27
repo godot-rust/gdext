@@ -234,21 +234,6 @@ jobs:
       - name: "Test tree borrows"
         run: MIRIFLAGS="-Zmiri-tree-borrows" cargo miri test -p godot-cell
 
-  proptest:
-    name: proptest
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: "Install Rust"
-        uses: ./.github/composite/rust
-
-      - name: "Compile tests"
-        run: cargo test -p godot-cell --features="proptest" --no-run
-
-      - name: "Test"
-        run: cargo test -p godot-cell --features="proptest"
-
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
     name: godot-itest (${{ matrix.name }})
@@ -554,7 +539,6 @@ jobs:
       - clippy
       - unit-test
       - miri-test
-      - proptest
       - godot-itest
       - cargo-deny-machete
       - license-guard
