@@ -360,8 +360,7 @@ impl AnyDictionary {
 
     /// # Safety
     /// Must not be used for any "input" operations, moving elements into the dictionary -- this would break covariance.
-    #[doc(hidden)]
-    pub unsafe fn as_inner_mut(&self) -> inner::InnerDictionary<'_> {
+    pub(crate) unsafe fn as_inner_mut(&self) -> inner::InnerDictionary<'_> {
         inner::InnerDictionary::from_outer(&self.dict)
     }
 

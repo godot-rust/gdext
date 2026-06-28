@@ -112,7 +112,7 @@ struct AggregatedDocs {
 /// it is undesirable to merge them at compile time. Instead, they are being kept as a
 /// strings of not-yet-parented XML tags (or empty string if no method has been documented).
 #[doc(hidden)]
-pub fn gather_xml_docs() -> impl Iterator<Item = String> {
+pub fn __gather_xml_docs() -> impl Iterator<Item = String> {
     let mut map = HashMap::<ClassId, AggregatedDocs>::new();
 
     crate::private::iterate_docs_shards(|shard| {
@@ -194,7 +194,7 @@ fn wrap_in_xml_block(tag: &str, mut blocks: Vec<&'static str>) -> String {
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 pub unsafe fn register() {
-    for xml in gather_xml_docs() {
+    for xml in __gather_xml_docs() {
         // SAFETY: `xml` being String means it's valid UTF-8. It's not null-terminated, but we provide its length.
         unsafe {
             crate::sys::interface_fn!(editor_help_load_xml_from_utf8_chars_and_len)(

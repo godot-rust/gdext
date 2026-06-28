@@ -59,7 +59,7 @@ pub(crate) fn singleton_cache_generation() -> u64 {
 /// Test-only: bump the singleton-cache generation, forcing every singleton cache to miss on its next access (re-fetch via the slow path).
 ///
 /// Mirrors what a full Core deinit does, letting itests exercise the uncached path on demand without a real deinit/reinit cycle.
-#[cfg(feature = "trace")]
+#[cfg(feature = "itest")]
 #[doc(hidden)]
 pub fn __invalidate_singleton_caches() {
     SINGLETON_CACHE_GENERATION.fetch_add(1, Ordering::Release);

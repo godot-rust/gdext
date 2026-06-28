@@ -98,7 +98,7 @@ impl<R: IntoDynamicSend> Clone for SignalFutureResolver<R> {
 }
 
 /// For itest to construct and test a resolver.
-#[cfg(feature = "trace")]
+#[cfg(feature = "itest")]
 pub fn create_test_signal_future_resolver<R: IntoDynamicSend>() -> SignalFutureResolver<R> {
     SignalFutureResolver {
         data: Arc::new(Mutex::new(SignalFutureData::default())),

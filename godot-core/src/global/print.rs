@@ -193,7 +193,7 @@ pub struct PrintRecord<'a> {
 #[track_caller]
 pub fn print_custom(record: PrintRecord<'_>) {
     // Engine not yet loaded -- fall back to stderr.
-    if !sys::is_initialized() {
+    if !sys::is_godot_initialized() {
         let level = record
             .level
             .godot_title()

@@ -404,7 +404,7 @@ fn test_register_docs() {
 
 fn find_class_docs(class_name: &str) -> String {
     let mut count = 0;
-    for xml in godot::docs::gather_xml_docs() {
+    for xml in godot::docs::__gather_xml_docs() {
         count += 1;
         if xml.contains(class_name) {
             return xml;

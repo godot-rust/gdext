@@ -240,7 +240,7 @@ where
     ///
     /// On Godot versions before 4.3 placeholder substitution does not exist; non-tool classes are instead filtered out at registration when the
     /// `tool_only_in_editor` config option is enabled (the default). This method then always returns `false`.
-    #[cfg(all(feature = "trace", feature = "upcoming-editor-placeholders"))]
+    #[cfg(all(feature = "itest", feature = "upcoming-editor-placeholders"))]
     pub fn is_editor_placeholder(&self) -> bool {
         self.raw.storage().is_none()
     }
@@ -419,7 +419,7 @@ impl<T: GodotClass> Gd<T> {
         std::mem::forget(self);
     }
 
-    #[cfg(feature = "trace")] // itest only.
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     pub fn test_refcount(&self) -> Option<usize> {
         self.maybe_refcount()
@@ -452,7 +452,7 @@ impl<T: GodotClass> Gd<T> {
     /// Equivalent to [`upcast::<Object>()`][Self::upcast], but without bounds.
     // Not yet public because it might need _mut/_ref overloads, and 6 upcast methods are a bit much...
     #[doc(hidden)] // no public API, but used by #[signal].
-    pub fn upcast_object(self) -> Gd<classes::Object> {
+    pub fn __upcast_object(self) -> Gd<classes::Object> {
         self.owned_cast()
             .expect("Upcast to Object failed. This is a bug; please report it.")
     }
@@ -791,7 +791,7 @@ impl<T: GodotClass> Gd<T> {
         unsafe { Self::from_obj_sys_weak_or_none(ptr).unwrap() }
     }
 
-    #[cfg(feature = "trace")] // itest only.
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     pub unsafe fn __from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
         unsafe { Self::from_obj_sys_weak(ptr) }

@@ -104,7 +104,7 @@ where
         let arg_count = arg_count as usize;
         CallError::check_arg_count(call_ctx, arg_count, default_values.len(), Params::LEN)?;
 
-        #[cfg(feature = "trace")]
+        #[cfg(feature = "itest")]
         trace::push(true, false, call_ctx);
 
         // SAFETY: TODO.
@@ -133,7 +133,7 @@ where
     ) -> CallResult<()> {
         // $crate::out!("in_ptrcall: {call_ctx}");
 
-        #[cfg(feature = "trace")]
+        #[cfg(feature = "itest")]
         trace::push(true, true, call_ctx);
 
         // SAFETY: TODO.
@@ -700,7 +700,7 @@ impl fmt::Display for CallContext<'_> {
     }
 }
 
-#[cfg(feature = "trace")]
+#[cfg(feature = "itest")]
 pub mod trace {
     use std::cell::Cell;
 

@@ -463,7 +463,7 @@ fn make_oneditor_panic_inits(class_name: &Ident, all_fields: &[Field]) -> TokenS
             let field_name_str = field.to_string();
 
             quote! {
-                if this.#field.is_invalid() {
+                if this.#field.__is_invalid() {
                     uninitialized_fields.push(#field_name_str);
                 }
             }

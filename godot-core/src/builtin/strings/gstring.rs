@@ -250,8 +250,7 @@ impl GString {
         unsafe { self.move_return_ptr(dst, sys::PtrcallType::Standard) };
     }
 
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerString<'_> {
+    pub(crate) fn as_inner(&self) -> inner::InnerString<'_> {
         inner::InnerString::from_outer(self)
     }
 }

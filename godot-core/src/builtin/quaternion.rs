@@ -259,8 +259,7 @@ impl Quaternion {
         )
     }
 
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerQuaternion<'_> {
+    pub(crate) fn as_inner(&self) -> inner::InnerQuaternion<'_> {
         inner::InnerQuaternion::from_outer(self)
     }
 

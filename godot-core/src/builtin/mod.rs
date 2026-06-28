@@ -51,7 +51,7 @@ pub mod __prelude_reexport {
 
     pub use super::math::XformInv;
     pub use super::{EulerOrder, VariantOperator, VariantType};
-    #[cfg(feature = "trace")] // Test only.
+    #[cfg(feature = "itest")]
     pub use crate::static_sname;
     pub use crate::{array, dict, iarray, idict, real, reals, varray, vdict, vslice};
 }

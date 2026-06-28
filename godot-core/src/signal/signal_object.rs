@@ -54,7 +54,7 @@ impl<'c, C: WithUserSignals> SignalObject<'c> for UserSignalObject<'c, C> {
     fn to_owned_object(&self) -> Gd<Object> {
         match self {
             // SignalObject::Internal { obj_mut } => crate::private::rebuild_gd(*obj_mut),
-            Self::Internal { self_mut } => <C as WithBaseField>::to_gd(self_mut).upcast_object(),
+            Self::Internal { self_mut } => <C as WithBaseField>::to_gd(self_mut).__upcast_object(),
             Self::External { gd } => gd.clone(),
         }
     }
@@ -71,7 +71,7 @@ impl<C: WithSignals> SignalObject<'_> for Gd<C> {
 
     #[inline]
     fn to_owned_object(&self) -> Gd<Object> {
-        self.clone().upcast_object()
+        self.clone().__upcast_object()
     }
 }
 

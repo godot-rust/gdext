@@ -338,7 +338,7 @@ impl SignalCollection {
             // visibility that exceeds the class visibility). So, we can as well declare the visibility here.
             #vis_marker fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
-                    __typed: ::godot::signal::TypedSignal::<'c, C, _>::extract(&mut self.__internal_obj, #godot_name_str)
+                    __typed: ::godot::signal::TypedSignal::<'c, C, _>::__extract(&mut self.__internal_obj, #godot_name_str)
                 }
             }
         });
@@ -562,7 +562,7 @@ fn make_with_signals_impl(class_name: &Ident, collection_struct_name: &Ident) ->
             fn __signals_from_external(external: & ::godot::obj::Gd<Self>) -> Self::SignalCollection<'_, Self> {
                 Self::SignalCollection {
                     __internal_obj: Some(::godot::private::UserSignalObject::External {
-                        gd: external.clone().upcast_object()
+                        gd: external.clone().__upcast_object()
                     })
                 }
             }

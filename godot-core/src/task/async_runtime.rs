@@ -292,7 +292,7 @@ pub(crate) fn is_engine_exiting() -> bool {
     false
 }
 
-#[cfg(feature = "trace")]
+#[cfg(feature = "itest")]
 mod itest_only {
     use super::*;
 
@@ -319,7 +319,7 @@ mod itest_only {
         }
     }
 }
-#[cfg(feature = "trace")]
+#[cfg(feature = "itest")]
 pub use itest_only::*;
 
 /// The current state of a future inside the async runtime.
@@ -406,7 +406,7 @@ impl<T> FutureSlot<T> {
 struct AsyncRuntime {
     tasks: Vec<FutureSlot<Pin<Box<dyn Future<Output = ()>>>>>,
     next_task_id: u64,
-    #[cfg(feature = "trace")]
+    #[cfg(feature = "itest")]
     panicked_tasks: std::collections::HashSet<u64>,
 }
 
@@ -416,7 +416,7 @@ impl AsyncRuntime {
             // We only create a new async runtime inside a thread_local, which has lazy initialization on first use.
             tasks: Vec::with_capacity(16),
             next_task_id: 0,
-            #[cfg(feature = "trace")]
+            #[cfg(feature = "itest")]
             panicked_tasks: std::collections::HashSet::default(),
         }
     }
@@ -491,7 +491,7 @@ impl AsyncRuntime {
     /// Track that a future caused a panic.
     ///
     /// This is only available for itest.
-    #[cfg(feature = "trace")]
+    #[cfg(feature = "itest")]
     fn track_panic(&mut self, task_id: u64) {
         self.panicked_tasks.insert(task_id);
     }
@@ -576,7 +576,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     let Ok((poll_result, future)) = panic_result else {
         // Polling the future caused a panic. The task state has to be cleaned up and we want track the panic if the trace feature is enabled.
         ASYNC_RUNTIME.with_runtime_mut(|rt| {
-            #[cfg(feature = "trace")]
+            #[cfg(feature = "itest")]
             rt.track_panic(godot_waker.task_id);
             rt.clear_task(godot_waker.runtime_index);
         });
