@@ -334,7 +334,8 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             # Important to keep both experimental-threads and codegen-full. Some itests (native_st_audio) require both.
-            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,itest/upcoming-editor-placeholders,godot/api-custom,godot/serde,itest/register-docs
+            # Also the only entry exercising the variant FFI-marshal fallback at runtime; the Rust-marshal default is covered everywhere else.
+            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,itest/upcoming-editor-placeholders,godot/api-custom,godot/serde,itest/register-docs,godot/__variant-ffi-marshal
 
           # Compiles godot-rust with `api-custom-json` feature against the JSON file generated via `--dump-extension-api`.
           # Uses latest 4.x headers, while `extension_api.json` comes from the latest Godot binary.
