@@ -26,7 +26,7 @@ experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = ["godot-ffi/experimental-threads", "godot-codegen/experimental-threads"]
 experimental-wasm-nothreads = ["godot-ffi/experimental-wasm-nothreads"]
 debug-log = ["godot-ffi/debug-log"]
-trace = []
+itest = []
 
 api-custom = ["godot-ffi/api-custom", "godot-codegen/api-custom"]
 api-custom-json = ["godot-codegen/api-custom-json"]

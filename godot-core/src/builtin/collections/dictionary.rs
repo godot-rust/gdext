@@ -496,8 +496,7 @@ impl<K: Element, V: Element> Dictionary<K, V> {
         );
     }
 
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerDictionary<'_> {
+    pub(crate) fn as_inner(&self) -> inner::InnerDictionary<'_> {
         inner::InnerDictionary::from_outer_typed(self)
     }
 

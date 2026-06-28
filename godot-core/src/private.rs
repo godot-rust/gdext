@@ -28,7 +28,7 @@ mod reexport_pub {
     pub use crate::r#gen::classes::class_macros;
     pub use crate::r#gen::virtuals; // virtual fn names, hashes, signatures
     pub use crate::meta::private_reexport::*;
-    #[cfg(feature = "trace")]
+    #[cfg(feature = "itest")]
     pub use crate::meta::{CowArg, FfiArg, trace};
     pub use crate::obj::rpc::priv_re_export::*;
     pub use crate::obj::rtti::ObjectRtti;

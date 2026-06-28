@@ -405,8 +405,7 @@ impl AnyArray {
 
     /// # Safety
     /// Must not be used for any "input" operations, moving elements into the array -- this would break covariance.
-    #[doc(hidden)]
-    pub unsafe fn as_inner_mut(&self) -> inner::InnerArray<'_> {
+    pub(crate) unsafe fn as_inner_mut(&self) -> inner::InnerArray<'_> {
         inner::InnerArray::from_outer_typed(&self.array)
     }
 

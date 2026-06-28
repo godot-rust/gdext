@@ -336,7 +336,7 @@ where
     // Slow path. Missing FFI binding makes a call UB -> turn that into a clean panic (covers global ctor/dtor). A `None` level with binding up
     // is the legit early-Core registration window: fall back to an uncached fetch, just don't cache.
     assert!(
-        sys::is_initialized(),
+        sys::is_godot_initialized(),
         "{}::singleton() called while the Godot FFI binding is unavailable (global init/deinit). \
         See is_singleton_available().",
         std::any::type_name::<T>(),

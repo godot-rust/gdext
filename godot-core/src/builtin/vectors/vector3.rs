@@ -11,9 +11,11 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
+#[cfg(feature = "itest")]
+use crate::builtin::inner;
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector3Axis;
-use crate::builtin::{Basis, RVec3, Vector2, Vector3i, inner, real};
+use crate::builtin::{Basis, RVec3, Vector2, Vector3i, real};
 
 /// Vector used for 3D math using floating point coordinates.
 ///
@@ -93,6 +95,7 @@ impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
 
 /// # Specialized `Vector3` functions
 impl Vector3 {
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     #[inline]
     pub fn as_inner(&self) -> inner::InnerVector3<'_> {

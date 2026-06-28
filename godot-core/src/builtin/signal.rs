@@ -183,8 +183,7 @@ impl Signal {
         self.as_inner().is_null()
     }
 
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerSignal<'_> {
+    pub(crate) fn as_inner(&self) -> inner::InnerSignal<'_> {
         inner::InnerSignal::from_outer(self)
     }
 }

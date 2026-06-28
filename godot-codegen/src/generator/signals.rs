@@ -161,7 +161,7 @@ fn make_signal_collection(
             #[doc = #provider_docs]
             pub fn #signal_name(&mut self) -> #individual_struct_name<'c, C> {
                 #individual_struct_name {
-                    typed: TypedSignal::extract(&mut self.__internal_obj, #signal_name_str)
+                    typed: TypedSignal::__extract(&mut self.__internal_obj, #signal_name_str)
                 }
             }
         }

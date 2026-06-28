@@ -179,8 +179,7 @@ impl NodePath {
             .slice(begin, exclusive_end.unwrap_or(i32::MAX as i64))
     }
 
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerNodePath<'_> {
+    pub(crate) fn as_inner(&self) -> inner::InnerNodePath<'_> {
         inner::InnerNodePath::from_outer(self)
     }
 }

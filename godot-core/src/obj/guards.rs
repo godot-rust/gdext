@@ -109,8 +109,7 @@ impl<'a, D> DynGdRef<'a, D>
 where
     D: ?Sized + 'static,
 {
-    #[doc(hidden)]
-    pub fn from_guard<T: AsDyn<D>>(guard: GdRef<'a, T>) -> Self {
+    pub(crate) fn from_guard<T: AsDyn<D>>(guard: GdRef<'a, T>) -> Self {
         let obj = &*guard;
         let dyn_obj = obj.dyn_upcast();
 
@@ -155,8 +154,7 @@ impl<'a, D> DynGdMut<'a, D>
 where
     D: ?Sized + 'static,
 {
-    #[doc(hidden)]
-    pub fn from_guard<T: AsDyn<D>>(mut guard: GdMut<'a, T>) -> Self {
+    pub(crate) fn from_guard<T: AsDyn<D>>(mut guard: GdMut<'a, T>) -> Self {
         let obj = &mut *guard;
         let dyn_obj = obj.dyn_upcast_mut();
 

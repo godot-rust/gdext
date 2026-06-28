@@ -203,7 +203,7 @@ impl Callable {
         )
     }
 
-    #[cfg(feature = "trace")] // Test only.
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     pub fn __once_fn<F, S>(name: S, rust_function: F) -> Self
     where
@@ -516,8 +516,7 @@ impl Callable {
         alleged_count.max(0) as usize
     }
 
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerCallable<'_> {
+    pub(crate) fn as_inner(&self) -> inner::InnerCallable<'_> {
         inner::InnerCallable::from_outer(self)
     }
 }

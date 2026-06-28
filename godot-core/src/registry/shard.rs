@@ -601,7 +601,7 @@ impl DynTraitImpl {
             return Err(object);
         }
 
-        let object = object.upcast_object();
+        let object = object.__upcast_object();
 
         // SAFETY: `DynTraitImpl::new` ensures that this function is safe to call when `object` is castable to `self.class_name`.
         // Since the dynamic class of `object` is `self.class_name`, it must be castable to `self.class_name`.

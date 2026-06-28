@@ -280,7 +280,7 @@ impl<T: Var + FromGodot + PartialEq> OnEditor<T> {
     }
 
     #[doc(hidden)]
-    pub fn is_invalid(&self) -> bool {
+    pub fn __is_invalid(&self) -> bool {
         match self.state {
             OnEditorState::UninitNull | OnEditorState::UninitSentinel(_) => true,
             OnEditorState::Initialized(_) => false,

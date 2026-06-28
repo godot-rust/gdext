@@ -11,8 +11,10 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
+#[cfg(feature = "itest")]
+use crate::builtin::inner;
 use crate::builtin::math::{GlamConv, GlamType};
-use crate::builtin::{RVec2, Vector2, Vector2Axis, inner, real};
+use crate::builtin::{RVec2, Vector2, Vector2Axis, real};
 
 /// Vector used for 2D math using integer coordinates.
 ///
@@ -76,6 +78,7 @@ impl Vector2i {
         RVec2::new(self.x as real, self.y as real)
     }
 
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     #[inline]
     pub fn as_inner(&self) -> inner::InnerVector2i<'_> {

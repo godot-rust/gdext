@@ -366,7 +366,7 @@ pub unsafe fn config() -> &'static GdextConfig {
 /// The bindings are initialized when the library is loaded and deinitialized when it is unloaded (which may happen e.g. during a hot reload).
 /// Do not use this as a general check whether certain Godot APIs can be used -- this is more complex and may depend on class/singleton.
 #[inline]
-pub fn is_initialized() -> bool {
+pub fn is_godot_initialized() -> bool {
     BindingStorage::is_initialized()
 }
 

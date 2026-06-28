@@ -175,8 +175,9 @@ pub(crate) fn register_class<
         ..default_creation_info()
     };
 
-    assert!(
-        !T::class_id().is_none(),
+    assert_ne!(
+        T::class_id(),
+        ClassId::none(),
         "cannot register () or unnamed class"
     );
 

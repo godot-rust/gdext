@@ -11,9 +11,11 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
+#[cfg(feature = "itest")]
+use crate::builtin::inner;
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
-use crate::builtin::{RAffine2, RVec2, Vector2i, inner, real};
+use crate::builtin::{RAffine2, RVec2, Vector2i, real};
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -158,6 +160,7 @@ impl Vector2 {
         self.rotated(angle * weight) * (result_length / start_length)
     }
 
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     #[inline]
     pub fn as_inner(&self) -> inner::InnerVector2<'_> {

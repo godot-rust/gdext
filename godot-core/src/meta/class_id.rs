@@ -121,13 +121,13 @@ impl ClassId {
     }
 
     // Test-only APIs.
-    #[cfg(feature = "trace")] // itest only.
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     pub fn __cached<T: 'static>(init_fn: impl FnOnce() -> String) -> Self {
         Self::new_cached_inner::<T>(init_fn)
     }
 
-    #[cfg(feature = "trace")] // itest only.
+    #[cfg(feature = "itest")]
     #[doc(hidden)]
     pub fn __dynamic(class_name: &str) -> Self {
         Self::new_dynamic(class_name.to_string())
@@ -155,11 +155,6 @@ impl ClassId {
         let source = Cow::Borrowed(class_name_str);
         let mut cache = CLASS_ID_CACHE.lock();
         cache.insert_class_id(source, None, true)
-    }
-
-    #[doc(hidden)]
-    pub fn is_none(&self) -> bool {
-        self.global_index == 0
     }
 
     /// Returns the class name as a `GString`.
@@ -281,9 +276,9 @@ impl ClassIdCache {
         if expect_first {
             // From Rust edition 2024+, doctests are merged. Even with ```no_run, the link step (registration of class ID)
             // still happens on test startup, so classes in other codeblocks with the same name cause panics in tests. To address this, we
-            // rely on the fact that Godot is not run during unit-tests, and thus is_initialized() is false. We then return the existing ID,
+            // rely on the fact that Godot is not run during unit-tests, and thus is_godot_initialized() is false. We then return the existing ID,
             // which is wrong but doesn't matter as there's no runtime logic being performed. We do not support unit-tests without ```no_run.
-            if !sys::is_initialized()
+            if !sys::is_godot_initialized()
                 && let Some(&existing_index) = self.string_to_index.get(source.as_ref())
             {
                 return ClassId {

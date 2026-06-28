@@ -24,7 +24,7 @@ test-gdextension-dependency = ["dep:itest-dependency"]
 # Instead, compile itest with `--features godot/my-feature`.
 
 [dependencies]
-godot = { path = "../../godot", default-features = false, features = ["__trace"] }
+godot = { path = "../../godot", default-features = false, features = ["__itest"] }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 pin-project-lite = { workspace = true }

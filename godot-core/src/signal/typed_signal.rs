@@ -134,7 +134,7 @@ pub struct TypedSignal<'c, C: WithSignals, Ps> {
 
 impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     #[doc(hidden)]
-    pub fn extract(
+    pub fn __extract(
         obj: &mut Option<C::__SignalObj<'c>>,
         signal_name: &'static str,
     ) -> TypedSignal<'c, C, Ps> {
