@@ -5,11 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cell::Cell;
 use std::ops::DerefMut;
+use std::rc::Rc;
 
 use godot::obj::WithBaseField;
 use godot::prelude::*;
-use godot::task::{SignalFuture, TaskHandle};
+use godot::task::{self, SignalFuture, TaskHandle};
 
 use crate::framework::itest;
 
@@ -141,6 +143,34 @@ fn run_deferred_gd_user_class(ctx: &crate::framework::TestContext) -> TaskHandle
 
     let mut guard = test_node.bind_mut();
     guard.create_assertion_task()
+}
+
+// Regression test for https://github.com/godot-rust/gdext/issues/1624: A `run_deferred[_gd]` closure must not run after `SceneTree` teardown,
+// matching Godot's `call_deferred()` which drops such queued calls.
+#[itest(async)]
+fn run_deferred_skipped_when_exiting(ctx: &crate::framework::TestContext) -> TaskHandle {
+    let mut test_node = DeferredTestNode::new_alloc();
+    ctx.scene_tree.clone().add_child(&test_node);
+
+    // The guard clears the exiting flag when dropped. The deferred call is flushed only a frame later, so we must keep the guard alive until
+    // after that flush -- otherwise the flag would be cleared too early and the closure would run. Hence it is moved into the async task below.
+    let guard = task::simulate_engine_exiting();
+
+    let ran = Rc::new(Cell::new(false));
+    let ran_setter = ran.clone();
+    test_node.run_deferred_gd(move |_| ran_setter.set(true));
+
+    // `test_completed` fires from `process()`, by which point the deferred queue has already been flushed (see other tests above).
+    let mut guard_node = test_node.bind_mut();
+    let run_test: SignalFuture<(StringName,)> = guard_node.signals().test_completed().to_future();
+    drop(guard_node);
+
+    task::spawn(async move {
+        let _ = run_test.await;
+        let was_run = ran.get();
+        drop(guard); // Keep the flag set until after the deferred flush.
+        assert!(!was_run, "run_deferred_gd() must not run during shutdown");
+    })
 }
 
 #[itest(async)]

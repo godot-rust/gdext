@@ -878,6 +878,12 @@ impl<T: GodotClass> Gd<T> {
         );
 
         let callable = Callable::from_once_fn("run_deferred", move |_| {
+            // Skip if the engine is exiting: the deferred call would otherwise run after `SceneTree` teardown, where accessing freed objects
+            // (e.g. autoloads) panics. This matches Godot's own `call_deferred()`, which drops queued calls to freed objects at shutdown.
+            // See `async_runtime::is_engine_exiting()`.
+            if crate::task::is_engine_exiting() {
+                return;
+            }
             gd_function(obj);
         });
         callable.call_deferred(&[]);
