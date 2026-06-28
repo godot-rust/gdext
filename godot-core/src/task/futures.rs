@@ -62,6 +62,12 @@ impl<R: InParamTuple + IntoDynamicSend> Future for SignalFuture<R> {
         match poll_result {
             Poll::Pending => Poll::Pending,
             Poll::Ready(Ok(value)) => Poll::Ready(value),
+            // A freed signal object normally means a logic error -> panic. But on engine exit, the object may be freed before the
+            // engine-exiting flag is set; `SignalFutureResolver::drop` then marks the future `Dead` instead of leaving it pending. So we
+            // also check the flag here: if the engine is exiting, park silently (the runtime drops the future in `cleanup()`).
+            Poll::Ready(Err(FallibleSignalFutureError)) if crate::task::is_engine_exiting() => {
+                Poll::Pending
+            }
             Poll::Ready(Err(FallibleSignalFutureError)) => panic!(
                 "the signal object of a SignalFuture was freed, while the future was still waiting for the signal to be emitted"
             ),
