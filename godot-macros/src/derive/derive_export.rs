@@ -15,9 +15,18 @@ use crate::derive::data_models::GodotConvert;
 ///
 /// This currently just reuses the property hint from the `Var` implementation.
 pub fn derive_export(item: venial::Item) -> ParseResult<TokenStream> {
-    let GodotConvert { ty_name: name, .. } = GodotConvert::parse_declaration(item)?;
+    let GodotConvert {
+        ty_name: name,
+        where_clause,
+        generic_params,
+        ..
+    } = GodotConvert::parse_declaration(item)?;
+
+    let generic_args = generic_params
+        .as_ref()
+        .map(|params| params.as_inline_args());
 
     Ok(quote! {
-        impl ::godot::register::property::Export for #name {}
+        impl #generic_params ::godot::register::property::Export for #name #generic_args #where_clause {}
     })
 }

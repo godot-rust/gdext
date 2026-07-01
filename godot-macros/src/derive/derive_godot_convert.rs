@@ -7,8 +7,9 @@
 
 use std::collections::HashMap;
 
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::{Ident, Punct, Spacing, TokenStream, TokenTree};
 use quote::quote;
+use venial::GenericBound;
 
 use crate::ParseResult;
 use crate::derive::data_models::{ConvertType, GodotConvert, ViaType};
@@ -20,7 +21,42 @@ use crate::derive::{make_fromgodot, make_togodot};
 pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
     let convert = GodotConvert::parse_declaration(item)?;
 
-    let name = &convert.ty_name;
+    let GodotConvert {
+        ty_name: name,
+        generic_params,
+        where_clause,
+        ..
+    } = &convert;
+
+    let generic_args = generic_params
+        .as_ref()
+        .map(|params| params.as_inline_args());
+    let element_generic_params = {
+        let mut maybe_params = generic_params.clone();
+
+        if let Some(params) = &mut maybe_params {
+            for (param, _) in params.params.iter_mut() {
+                if param.is_ty() || param.is_lifetime() {
+                    if let Some(bound) = &mut param.bound {
+                        // We have at least 1 bound, and rust doesn't error if the bound is already 'static, i.e. `T: 'static + 'static` works.
+                        // If it were to error, we would have to inspect the bounds to make sure the tokens `+ 'static` are valid. It feels a
+                        // little hacky, but there's not really a reason to inspect all of the bound's tokens if rust doesn't really care what
+                        // they are.
+                        bound
+                            .tokens
+                            .append(&mut quote! {+ 'static}.into_iter().collect());
+                    } else {
+                        param.bound = Some(GenericBound {
+                            tk_colon: Punct::new(':', Spacing::Alone),
+                            tokens: quote! {'static}.into_iter().collect(),
+                        });
+                    }
+                }
+            }
+        }
+        maybe_params
+    };
+
     let via_type = convert.convert_type.via_type();
     let mut cache = EnumeratorExprCache::default();
 
@@ -30,7 +66,7 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
     let shape_override = make_shape_override(&convert.convert_type, &mut cache);
 
     Ok(quote! {
-        impl ::godot::meta::GodotConvert for #name  {
+        impl #generic_params ::godot::meta::GodotConvert for #name #generic_args #where_clause {
             type Via = #via_type;
             #shape_override
         }
@@ -39,7 +75,7 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
         #from_godot_impl
 
         // Marker impl: defaults derive element metadata from shape().
-        impl ::godot::meta::Element for #name {}
+        impl #element_generic_params ::godot::meta::Element for #name #generic_args #where_clause {}
     })
 }
 
