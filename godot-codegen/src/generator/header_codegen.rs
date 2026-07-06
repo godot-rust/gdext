@@ -427,9 +427,10 @@ fn map_c_type(c_type: &str) -> TokenStream {
         (false, c_type)
     };
 
-    // Handle pointer types
-    if c_type.ends_with('*') {
-        let base_type = c_type.trim_end_matches('*').trim();
+    // Handle pointer types. Strip one '*' at a time and recurse, so that `int **` becomes `*mut *mut c_int` rather than collapsing
+    // all levels into a single pointer.
+    if let Some(base_type) = c_type.strip_suffix('*') {
+        let base_type = base_type.trim();
         let inner = map_c_type_as_pointee(base_type);
 
         return if is_const {
@@ -546,5 +547,24 @@ mod tests {
         assert!(struct_impl.contains("transmute"));
         // Should use unwrap_or_else/panic, not raw transmute of Option.
         assert!(struct_impl.contains("unwrap_or_else"));
+    }
+
+    #[test]
+    fn map_c_type_multi_level_pointer() {
+        // A multi-level pointer must map to nested Rust pointers, not collapse all '*' into a single one.
+        assert_eq!(
+            map_c_type("int **").to_string(),
+            quote::quote! { *mut *mut std::ffi::c_int }.to_string()
+        );
+        // Leading `const` applies only to the outermost pointer; inner levels stay `*mut`.
+        assert_eq!(
+            map_c_type("const int **").to_string(),
+            quote::quote! { *const *mut std::ffi::c_int }.to_string()
+        );
+        // `void*` maps the pointee to `c_void` rather than `()`.
+        assert_eq!(
+            map_c_type("void *").to_string(),
+            quote::quote! { *mut std::ffi::c_void }.to_string()
+        );
     }
 }
