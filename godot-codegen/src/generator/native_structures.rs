@@ -254,7 +254,13 @@ pub(crate) fn parse_native_structures_format(input: &str) -> Option<Vec<NativeSt
             // Not part of type because fixed-size arrays are not a concept in the JSON outside native structures.
             let mut array_size = None;
             if let Some(index) = field_name.find('[') {
-                array_size = Some(field_name[index + 1..field_name.len() - 1].parse().ok()?);
+                // Require a matching closing bracket after the opening one; a malformed entry like `foo[` is a parse failure
+                // rather than a slice panic.
+                let close = field_name.rfind(']')?;
+                if close <= index {
+                    return None;
+                }
+                array_size = Some(field_name[index + 1..close].parse().ok()?);
                 field_name.truncate(index);
             }
 
@@ -265,4 +271,24 @@ pub(crate) fn parse_native_structures_format(input: &str) -> Option<Vec<NativeSt
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_rejects_unterminated_array() {
+        // A field with an opening but no closing bracket must fail with None rather than panic on an out-of-bounds slice.
+        assert!(parse_native_structures_format("int foo[").is_none());
+        // Empty size between brackets is not a valid integer -> None.
+        assert!(parse_native_structures_format("int foo[]").is_none());
+
+        // Sanity: a well-formed fixed-size array still parses, with type, name and size separated correctly.
+        let parsed = parse_native_structures_format("int foo[4]").expect("valid array field");
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].field_name, "foo");
+        assert_eq!(parsed[0].field_type, "int");
+        assert_eq!(parsed[0].array_size, Some(4));
+    }
 }
