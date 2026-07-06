@@ -49,7 +49,7 @@ use crate::builtin::{RAffine2, RMat2, Rect2, Vector2, real};
 /// # Godot docs
 ///
 /// [`Transform2D` (stable)](https://docs.godotengine.org/en/stable/classes/class_transform2d.html)
-#[derive(Default, Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Transform2D {
@@ -324,6 +324,14 @@ impl Transform2D {
     /// _Godot equivalent: `Transform2D.basis_xform_inv()`_
     pub fn basis_xform_inv(&self, v: Vector2) -> Vector2 {
         self.basis().inverse() * v
+    }
+}
+
+impl Default for Transform2D {
+    /// Returns the identity transform, matching `Transform3D`, `Basis` and `Projection`.
+    #[inline]
+    fn default() -> Self {
+        Self::IDENTITY
     }
 }
 
@@ -821,7 +829,7 @@ mod test {
     #[test]
     fn serde_roundtrip() {
         let transform = Transform2D::default();
-        let expected_json = "{\"a\":{\"x\":0.0,\"y\":0.0},\"b\":{\"x\":0.0,\"y\":0.0},\"origin\":{\"x\":0.0,\"y\":0.0}}";
+        let expected_json = "{\"a\":{\"x\":1.0,\"y\":0.0},\"b\":{\"x\":0.0,\"y\":1.0},\"origin\":{\"x\":0.0,\"y\":0.0}}";
 
         crate::builtin::test_utils::roundtrip(&transform, expected_json);
     }
