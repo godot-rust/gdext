@@ -277,8 +277,12 @@ impl CallError {
                 Self::new(call_ctx, "method not found", None)
             }
             sys::GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT => {
-                // Index calculation relies on patterns like call("...", varargs), might not always work...
-                let from = arg_types[vararg_offset + argument as usize];
+                // Index calculation relies on patterns like call("...", varargs) and might not always work; fall back to NIL
+                // rather than panicking inside error reporting.
+                let from = arg_types
+                    .get(vararg_offset + argument as usize)
+                    .copied()
+                    .unwrap_or(VariantType::NIL);
                 let to = VariantType::from_sys(expected as sys::GDExtensionVariantType);
                 let i = argument + 1;
 
