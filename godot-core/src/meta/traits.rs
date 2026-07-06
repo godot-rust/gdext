@@ -89,6 +89,10 @@ pub trait GodotType: GodotConvert<Via = Self> + Clone + sealed::Sealed + Sized +
     /// Returning false only means that this is not a special case, not that it cannot be `None`. Regular checks are expected to run afterward.
     ///
     /// This exists only for var-calls and serves a similar purpose as `GodotNullableType::ffi_is_null()` (although that handles general cases).
+    ///
+    /// The motivating case: when clearing an `#[export]`ed `Option<Gd<T>>` property in the Godot inspector, Godot 4.2 does not always send a nil
+    /// variant. See the `Gd<T>` override of this method, which recognizes the empty-`NodePath` case sent by the inspector's clear button.
+    // TODO(v0.7): if Godot 4.2 is no longer supported by then, check if this entire mechanism can be removed.
     #[doc(hidden)]
     fn qualifies_as_special_none(_from_variant: &Variant) -> bool {
         false
