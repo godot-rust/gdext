@@ -99,17 +99,17 @@ impl FieldVar {
         let span = parser.span();
 
         let hint_string = {
+            // Trim the surrounding quotes of the string literal once at the source, so both branches below use the clean name.
             let name = if let Some(lit) = parser.handle_literal("name", "String")? {
-                lit.to_string()
+                lit.to_string().trim_matches('\"').to_string()
             } else {
                 field_name.to_string().replace("_", " ")
             };
 
             if let Some(icon) = parser.handle_literal("icon", "String")? {
-                let unquoted_name = name.trim_matches('\"');
                 let unquoted_icon = icon.to_string();
                 let unquoted_icon = unquoted_icon.trim_matches('\"');
-                format!("{unquoted_name},{unquoted_icon}")
+                format!("{name},{unquoted_icon}")
             } else {
                 name
             }
