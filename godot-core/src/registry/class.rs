@@ -634,6 +634,9 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
         godot_error!(
             "Failed to register class `{class_name}`; check preceding Godot stderr messages."
         );
+
+        // Registering symbols against non-existent class causes follow-up errors, thus exit here.
+        return;
     }
 
     // ...then custom symbols
