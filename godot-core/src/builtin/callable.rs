@@ -415,12 +415,17 @@ impl Callable {
     ///
     /// _Godot equivalent: `get_object`_
     pub fn object(&self) -> Option<Gd<classes::Object>> {
-        // Increment refcount because we're getting a reference, and `InnerCallable::get_object` doesn't
-        // increment the refcount.
-        self.as_inner().get_object().map(|mut object| {
-            <classes::Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
-            object
-        })
+        let mut object = self.as_inner().get_object()?;
+
+        // get_object() may return pointer to already-freed object -> return None for dead objects instead of accessing one in
+        // maybe_inc_ref(). Best-effort: the object can still be freed between this check and the inc-ref, like in Signal::object().
+        if !object.is_instance_valid() {
+            return None;
+        }
+
+        // `InnerCallable::get_object` doesn't increment the refcount, so do it here in case the object is ref-counted.
+        <classes::Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
+        Some(object)
     }
 
     /// Returns the ID of this callable's object, see also [`Gd::instance_id`].
