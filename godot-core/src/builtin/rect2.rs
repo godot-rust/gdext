@@ -127,6 +127,9 @@ impl Rect2 {
     /// to get a positive sized equivalent rectangle for merging.
     #[inline]
     pub fn merge(self, b: Self) -> Self {
+        self.assert_nonnegative();
+        b.assert_nonnegative();
+
         let position = self.position.coord_min(b.position);
         let end = self.end().coord_max(b.end());
 
@@ -194,6 +197,8 @@ impl Rect2 {
     #[inline]
     #[doc(alias = "has_point")]
     pub fn contains_point(self, point: Vector2) -> bool {
+        self.assert_nonnegative();
+
         let point = point - self.position;
 
         point.abs() == point && point.x < self.size.x && point.y < self.size.y
@@ -202,6 +207,7 @@ impl Rect2 {
     /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, an empty Rect2 is returned.
     #[inline]
     pub fn intersect(self, b: Self) -> Option<Self> {
+        // Non-negative size of both rects is asserted in intersects().
         if !self.intersects(b) {
             return None;
         }
@@ -224,6 +230,9 @@ impl Rect2 {
     /// _Godot equivalent: `Rect2.intersects(Rect2 b, bool include_borders = true)`_
     #[inline]
     pub fn intersects(self, b: Self) -> bool {
+        self.assert_nonnegative();
+        b.assert_nonnegative();
+
         let end = self.end();
         let end_b = b.end();
 
@@ -318,6 +327,40 @@ impl std::fmt::Display for Rect2 {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
+    fn negative() -> Rect2 {
+        Rect2::from_components(0.0, 0.0, -5.0, 5.0)
+    }
+
+    fn positive() -> Rect2 {
+        Rect2::from_components(0.0, 0.0, 5.0, 5.0)
+    }
+
+    #[test]
+    #[should_panic(expected = "negative")]
+    fn merge_self_negative_panics() {
+        negative().merge(positive());
+    }
+
+    #[test]
+    #[should_panic(expected = "negative")]
+    fn intersect_self_negative_panics() {
+        negative().intersect(positive());
+    }
+
+    #[test]
+    #[should_panic(expected = "negative")]
+    fn intersects_other_negative_panics() {
+        positive().intersects(negative());
+    }
+
+    #[test]
+    #[should_panic(expected = "negative")]
+    fn contains_point_negative_panics() {
+        negative().contains_point(Vector2::ZERO);
+    }
+
     #[cfg(feature = "serde")]
     #[test]
     fn serde_roundtrip() {
