@@ -845,7 +845,7 @@ pub fn is_builtin_type_deleted(class_name: &TyName) -> bool {
 
 /// True if `int`, `float`, `bool`, ...
 pub fn is_builtin_type_scalar(name: &str) -> bool {
-    name.chars().next().unwrap().is_ascii_lowercase()
+    name.chars().next().is_some_and(|c| c.is_ascii_lowercase())
 }
 
 #[rustfmt::skip]
