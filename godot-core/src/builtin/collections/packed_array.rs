@@ -803,12 +803,11 @@ macro_rules! declare_encode_decode {
         pub fn $encode_fn(&mut self, byte_offset: usize, value: $Ty) -> Result<(), ()> {
             // sys::static_assert!(std::mem::size_of::<$Ty>() == $bytes); -- used for testing, can't keep enabled due to half-floats.
 
-            if byte_offset + $bytes > self.len() {
+            let Some(byte_offset) = self.checked_offset(byte_offset, $bytes) else {
                 return Err(());
-            }
+            };
 
-            self.as_inner()
-                .$encode_fn(byte_offset as i64, value as $Via);
+            self.as_inner().$encode_fn(byte_offset, value as $Via);
             Ok(())
         }
 
@@ -821,11 +820,11 @@ macro_rules! declare_encode_decode {
         /// [`as_slice()`][Self::as_slice] and the various Rust standard APIs such as
         #[doc = concat!("[`", stringify!($Ty), "::from_be_bytes()`].")]
         pub fn $decode_fn(&self, byte_offset: usize) -> Result<$Ty, ()> {
-            if byte_offset + $bytes > self.len() {
+            let Some(byte_offset) = self.checked_offset(byte_offset, $bytes) else {
                 return Err(());
-            }
+            };
 
-            let decoded: $Via = self.as_inner().$decode_fn(byte_offset as i64);
+            let decoded: $Via = self.as_inner().$decode_fn(byte_offset);
             Ok(decoded as $Ty)
         }
     };
@@ -906,6 +905,12 @@ impl PackedByteArray {
     declare_encode_decode!(f32, 4, encode_float, decode_float, f64);
     declare_encode_decode!(f64, 8, encode_double, decode_double, f64);
 
+    /// Checks that `pos + offset` is at most the array length. If yes, returns `pos` as lossless `i64`.
+    fn checked_offset(&self, pos: usize, offset: usize) -> Option<i64> {
+        let end = pos.checked_add(offset)?;
+        (end <= self.len()).then_some(pos as i64)
+    }
+
     /// Encodes a `Variant` as bytes. Returns number of bytes written, or `Err` on encoding failure.
     ///
     /// Sufficient space must be allocated, depending on the encoded variant's size. If `allow_objects` is false, [`VariantType::OBJECT`] values
@@ -918,9 +923,13 @@ impl PackedByteArray {
     ) -> Result<usize, ()> {
         meta::arg_into_ref!(value);
 
-        let bytes_written: i64 =
-            self.as_inner()
-                .encode_var(byte_offset as i64, value, allow_objects);
+        let Some(byte_offset) = self.checked_offset(byte_offset, 0) else {
+            return Err(());
+        };
+
+        let bytes_written: i64 = self
+            .as_inner()
+            .encode_var(byte_offset, value, allow_objects);
 
         if bytes_written == -1 {
             Err(())
@@ -961,9 +970,11 @@ impl PackedByteArray {
         byte_offset: usize,
         allow_objects: bool,
     ) -> Result<(Variant, usize), ()> {
-        let variant = self
-            .as_inner()
-            .decode_var(byte_offset as i64, allow_objects);
+        let Some(byte_offset) = self.checked_offset(byte_offset, 0) else {
+            return Err(());
+        };
+
+        let variant = self.as_inner().decode_var(byte_offset, allow_objects);
 
         if variant.is_nil() {
             return Err(());
@@ -974,9 +985,7 @@ impl PackedByteArray {
         // no variant written at that place, it just interprets "nil", treats it as valid, and happily returns 4 bytes.
         //
         // So we combine the two calls for the sake of convenience and to avoid accidental usage.
-        let size: i64 = self
-            .as_inner()
-            .decode_var_size(byte_offset as i64, allow_objects);
+        let size: i64 = self.as_inner().decode_var_size(byte_offset, allow_objects);
         sys::strict_assert_ne!(size, -1); // must not happen if we just decoded variant.
 
         Ok((variant, size as usize))
@@ -1007,7 +1016,9 @@ impl PackedByteArray {
         byte_offset: usize,
         allow_objects: bool,
     ) -> (Variant, usize) {
-        let byte_offset = byte_offset as i64;
+        let Some(byte_offset) = self.checked_offset(byte_offset, 0) else {
+            return (Variant::nil(), 0);
+        };
 
         let variant = self.as_inner().decode_var(byte_offset, allow_objects);
         let decoded_size = self.as_inner().decode_var_size(byte_offset, allow_objects);
