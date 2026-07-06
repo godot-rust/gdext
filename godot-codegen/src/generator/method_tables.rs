@@ -616,12 +616,15 @@ fn populate_builtin_methods(
         }
     }
 
-    table.method_init_groups.push(MethodInitGroup::new(
-        &builtin_class.name().godot_ty,
-        None, // load_builtin_method() doesn't need a StringName for the class, as it accepts the VariantType enum.
-        method_inits,
-    ));
-    table.class_count += 1;
+    // No methods available -> no group needed. Mirror the class path: pushing an empty group makes last().unwrap() panic later.
+    if !method_inits.is_empty() {
+        table.method_init_groups.push(MethodInitGroup::new(
+            &builtin_class.name().godot_ty,
+            None, // load_builtin_method() doesn't need a StringName for the class, as it accepts the VariantType enum.
+            method_inits,
+        ));
+        table.class_count += 1;
+    }
 }
 
 fn make_class_method_init(
