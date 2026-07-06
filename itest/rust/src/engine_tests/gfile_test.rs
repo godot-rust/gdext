@@ -137,6 +137,14 @@ fn seek_trait_works() {
     let val = file.read_u8().unwrap();
 
     assert_eq!(integers[integers.len() - 10 - 10], val);
+
+    // Seeking past the end is valid; only positions before the beginning are rejected.
+    file.seek(SeekFrom::End(5)).expect("seek past end");
+    file.seek(SeekFrom::End(-(integers.len() as i64) - 1))
+        .expect_err("seek before beginning");
+    file.seek(SeekFrom::Current(i64::MIN))
+        .expect_err("overflowing seek");
+
     drop(file);
     remove_test_file();
 }
