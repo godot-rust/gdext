@@ -7,6 +7,8 @@
 
 #![cfg(not(feature = "codegen-rustfmt"))]
 
+use std::borrow::Cow;
+
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 
 /// Perform a best-effort single-pass formatting pass over a stream of tokens
@@ -60,25 +62,18 @@ pub(crate) fn format_tokens(tokens: TokenStream) -> String {
     out
 }
 
-fn indent(n: usize) -> &'static str {
-    // This looks strange, but it means we don't need to actually allocate anything.
-    // The downside is there's a limit to how deep we can nest.
-    // The code that's generated doesn't seem like it's any deeper than this.
+fn indent(n: usize) -> Cow<'static, str> {
+    // Slicing a fixed literal avoids an allocation for the common (shallow) case. Deeply nested generated code can exceed the literal's
+    // length, so fall back to an owned string instead of panicking on the out-of-bounds slice.
 
     //           |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
     let idents = "                                                        ";
 
     let end = n * 4;
-    &idents[0..end]
-
-    // If at some point this approach doesn't work anymore, a `Cow<'static, str>`
-    // could be returned.
-
-    // if let Some(s) = idents.get(0..end) {
-    //     Cow::Borrowed(s)
-    // } else {
-    //     Cow::Owned("    ".repeat(n))
-    // }
+    match idents.get(0..end) {
+        Some(s) => Cow::Borrowed(s),
+        None => Cow::Owned("    ".repeat(n)),
+    }
 }
 
 //
@@ -155,7 +150,7 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
                         // do nothing
                     } else {
                         s.push('\n');
-                        s.push_str(indent(level));
+                        s.push_str(&indent(level));
                     }
                 }
                 FormatState::PrevHash => {
@@ -168,7 +163,7 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
             match (c, *state) {
                 (';', _) => {
                     s.push('\n');
-                    s.push_str(indent(level));
+                    s.push_str(&indent(level));
                     *state = FormatState::Start;
                 }
                 ('#', _) => {
@@ -215,7 +210,7 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
                     // technically ; is already covered, but it's explicit.
 
                     s.push('\n');
-                    s.push_str(indent(level));
+                    s.push_str(&indent(level));
 
                     *state = FormatState::Start;
                 }
@@ -236,7 +231,7 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
                 }
                 FormatState::PrevClosingBrace => {
                     s.push('\n');
-                    s.push_str(indent(level));
+                    s.push_str(&indent(level));
                 }
                 FormatState::PrevDoubleColon => {}
                 FormatState::PrevIdentifier => {
@@ -274,7 +269,7 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
                 }
                 FormatState::PrevClosingBrace => {
                     s.push('\n');
-                    s.push_str(indent(level));
+                    s.push_str(&indent(level));
                 }
                 FormatState::PrevHash => {
                     // shouldn't really happen, no space
@@ -305,7 +300,7 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
                 }
                 FormatState::PrevClosingBrace => {
                     s.push('\n');
-                    s.push_str(indent(level));
+                    s.push_str(&indent(level));
                 }
                 FormatState::PrevHash => {
                     // might be an attribute, no space
@@ -315,12 +310,12 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
             match group.delimiter() {
                 Delimiter::Brace => {
                     s.push_str("{\n");
-                    s.push_str(indent(level + 1));
+                    s.push_str(&indent(level + 1));
 
                     format(FormatState::Start, level + 1, group.stream().into_iter(), s);
 
                     s.push('\n');
-                    s.push_str(indent(level));
+                    s.push_str(&indent(level));
                     s.push('}');
 
                     *state = FormatState::PrevClosingBrace;
@@ -331,7 +326,7 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
                     s.push(']');
                     if *state == FormatState::PrevHash {
                         s.push('\n');
-                        s.push_str(indent(level));
+                        s.push_str(&indent(level));
                         *state = FormatState::Start;
                     } else {
                         *state = FormatState::NothingSpecial;
@@ -349,5 +344,28 @@ fn format_one(state: &mut FormatState, level: usize, tt: TokenTree, s: &mut Stri
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deeply_nested_does_not_panic() {
+        // The fixed-width indent literal only covers a handful of levels; deeper nesting must fall back to an owned string rather
+        // than panicking on an out-of-bounds slice. Build 30 nested blocks (well beyond the literal's depth) and format them.
+        let mut src = String::new();
+        for _ in 0..30 {
+            src.push_str("fn f() {");
+        }
+        src.push_str("let x = 1;");
+        for _ in 0..30 {
+            src.push('}');
+        }
+
+        let tokens: TokenStream = src.parse().expect("source should parse as tokens");
+        let out = format_tokens(tokens); // Must not panic.
+        assert!(out.contains("let x"));
     }
 }
