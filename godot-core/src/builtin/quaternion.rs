@@ -159,6 +159,12 @@ impl Quaternion {
         Basis::from_quaternion(self).get_euler_with(order)
     }
 
+    /// Returns the inverse of the quaternion.
+    ///
+    /// Like Godot, returns the bare conjugate `(-x, -y, -z, w)`; it does _not_ divide by the squared length. This is the true inverse only
+    /// for normalized quaternions -- for non-unit ones, divide by [`length_squared()`][Self::length_squared] yourself.
+    ///
+    /// _Godot equivalent: `Quaternion.inverse()`_
     pub fn inverse(self) -> Self {
         Self::new(-self.x, -self.y, -self.z, self.w)
     }

@@ -161,7 +161,7 @@ impl fmt::Display for LoaderError {
             #[cfg(feature = "experimental-threads")]
             LoaderErrorKind::Precondition(condition) => write!(
                 f,
-                "can't load resource due to missing precondition: {condition}, class: '{path}', path: '{path}"
+                "can't load resource due to missing precondition: {condition}, class: '{class}', path: '{path}'"
             ),
         }
     }

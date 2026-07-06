@@ -471,11 +471,9 @@ crate::meta::impl_godot_as_self!(Transform2D: ByValue);
 
 /// A 2x2 matrix, typically used as an orthogonal basis for [`Transform2D`].
 ///
-/// Indexing into a `Basis2D` is done in a column-major order, meaning that
-/// `basis[0]` is the first basis-vector.
+/// Indexing into a `Basis2D` is done in a column-major order, meaning that `basis[0]` is the first basis-vector.
 ///
-/// This has no direct equivalent in Godot, but is the same as the `x` and `y`
-/// vectors from a `Transform2D`.
+/// This has no direct equivalent in Godot, but is the same as the `x` and `y` vectors from a `Transform2D`.
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(C)]
 pub(crate) struct Basis2D {
@@ -598,7 +596,7 @@ impl Default for Basis2D {
 impl Display for Basis2D {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let [a, b] = self.cols;
-        write!(f, "[a: {a}, b: {b})]")
+        write!(f, "[a: {a}, b: {b}]")
     }
 }
 
@@ -676,6 +674,15 @@ mod test {
         assert_eq_approx!(trans.scale(), Vector2::new(3.6, 8.0));
         assert_eq_approx!(trans.skew(), real!(20.0).to_radians());
         assert_eq_approx!(trans.origin, Vector2::new(2.4, 6.8));
+    }
+
+    #[test]
+    fn basis2d_display() {
+        let basis = Basis2D::IDENTITY;
+        let display = format!("{basis}");
+
+        let [a, b] = basis.cols;
+        assert_eq!(display, format!("[a: {a}, b: {b}]"));
     }
 
     // Tests translated from Godot.
