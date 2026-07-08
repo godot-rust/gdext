@@ -21,24 +21,22 @@ pub use instance_storage::*;
 fn bind_failed<T>(err: Box<dyn std::error::Error>, tracker: &DebugBorrowTracker) -> ! {
     let ty = type_name::<T>();
 
-    eprint!("{tracker}");
-
     panic!(
         "Gd<T>::bind() failed, already bound; T = {ty}.\n  \
         Make sure to use `self.base_mut()` or `self.base()` instead of `self.to_gd()` when possible.\n  \
-        Details: {err}."
+        Details: {err}.\n\
+        {tracker}"
     )
 }
 
 fn bind_mut_failed<T>(err: Box<dyn std::error::Error>, tracker: &DebugBorrowTracker) -> ! {
     let ty = type_name::<T>();
 
-    eprint!("{tracker}");
-
     panic!(
         "Gd<T>::bind_mut() failed, already bound; T = {ty}.\n  \
         Make sure to use `self.base_mut()` instead of `self.to_gd()` when possible.\n  \
-        Details: {err}."
+        Details: {err}.\n\
+        {tracker}"
     )
 }
 
@@ -134,9 +132,12 @@ use crate::obj::{Base, GodotClass};
 mod borrow_info {
     use std::backtrace::Backtrace;
     use std::fmt;
+    use std::panic::Location;
     use std::sync::Mutex;
 
     struct TrackedBorrow {
+        // Always available (cheap to capture), unlike `backtrace` which requires RUST_BACKTRACE=1 to be useful.
+        location: &'static Location<'static>,
         backtrace: Backtrace,
         is_mut: bool,
     }
@@ -156,13 +157,14 @@ mod borrow_info {
             }
         }
 
-        // Currently considers RUST_BACKTRACE due to performance reasons; force_capture() can be quite slow.
-        // User is expected to set the env var during debug sessions.
+        // Backtrace considers RUST_BACKTRACE due to performance reasons; force_capture() can be quite slow. `Location` is always captured,
+        // since #[track_caller] is essentially free and gives a useful file:line even without RUST_BACKTRACE set.
 
         #[track_caller]
         pub fn track_ref_borrow(&self) {
             let mut guard = self.last_borrow.lock().unwrap();
             *guard = Some(TrackedBorrow {
+                location: Location::caller(),
                 backtrace: Backtrace::capture(),
                 is_mut: false,
             });
@@ -172,6 +174,7 @@ mod borrow_info {
         pub fn track_mut_borrow(&self) {
             let mut guard = self.last_borrow.lock().unwrap();
             *guard = Some(TrackedBorrow {
+                location: Location::caller(),
                 backtrace: Backtrace::capture(),
                 is_mut: true,
             });
@@ -184,12 +187,18 @@ mod borrow_info {
             if let Some(borrow) = &*guard {
                 let mutability = if borrow.is_mut { "bind_mut" } else { "bind" };
 
+                writeln!(
+                    f,
+                    "  Previous `{mutability}` borrow at {location}.",
+                    location = borrow.location
+                )?;
+
                 let prefix = format!("backtrace of previous `{mutability}` borrow");
                 let backtrace = crate::format_backtrace!(prefix, &borrow.backtrace);
 
                 writeln!(f, "{backtrace}")
             } else {
-                writeln!(f, "no previous borrows tracked.")
+                writeln!(f, "  No previous borrows tracked.")
             }
         }
     }
