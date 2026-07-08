@@ -16,12 +16,13 @@ pub use super::global::{
 pub use super::init::{ExtensionLibrary, InitLevel, InitStage, gdextension};
 pub use super::meta::error::{ConvertError, func_bail, strat};
 pub use super::meta::{FromGodot, GodotConvert, ToGodot};
+// Re-export macros.
+pub use super::obj::self_call;
 pub use super::obj::{
     AsDyn, Base, DynGd, DynGdMut, DynGdRef, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId,
     OnEditor, OnReady, UserSingleton,
 };
 pub use super::register::property::{Export, PhantomVar, Var};
-// Re-export macros.
 pub use super::register::{GodotClass, godot_api, godot_dyn};
 pub use super::tools::{GFile, load, save, try_load, try_save};
 

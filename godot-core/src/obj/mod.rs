@@ -21,6 +21,7 @@ mod instance_id;
 mod on_editor;
 mod on_ready;
 mod raw_gd;
+mod self_call_macro;
 mod traits;
 
 mod base_init;
@@ -54,6 +55,9 @@ pub use on_editor::*;
 pub use on_ready::*;
 pub use raw_gd::*;
 pub use traits::*;
+
+// Re-export macro.
+pub use crate::self_call;
 
 pub mod bounds;
 pub mod script;
