@@ -530,6 +530,42 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         BaseMut::new(borrowed_gd, guard)
     }
 
+    /// Runs `f` with `self` temporarily released, so that Godot can re-enter this object during the call.
+    ///
+    /// This is a scoped variant of [`base_mut()`][Self::base_mut]: instead of returning a guard that you have to keep alive for the right
+    /// duration, the release is scoped to the closure. Use this whenever you make an engine call that might call back into your object --
+    /// either directly (the base object itself invokes a virtual method or emits a connected signal) or indirectly (you pass the object to
+    /// something else, e.g. a `Tween` or `Callable`, that may invoke it before this function returns).
+    ///
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct MyClass {
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode for MyClass {
+    ///     fn process(&mut self, _delta: f32) {
+    ///         self.reentrant(|base| {
+    ///             base.add_child(&Node::new_alloc());
+    ///         });
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// If you don't need re-entrancy, prefer calling engine methods directly through [`base()`][Self::base] /
+    /// [`base_mut()`][Self::base_mut] (const engine methods can't re-enter you in the first place, so `base()` is enough there); reserve
+    /// `reentrant()` for engine calls that may call back into this object.
+    fn reentrant<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut Gd<Self::Base>) -> R,
+    {
+        let mut guard = self.base_mut();
+        f(&mut guard)
+    }
+
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
     ///
     /// This is a type-safe alternative to [`Object::call_deferred()`][crate::classes::Object::call_deferred]. The closure receives

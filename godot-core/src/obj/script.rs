@@ -571,6 +571,18 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
 
         ScriptBaseMut::new(borrowed_gd, guard)
     }
+
+    /// Runs `f` with `self` temporarily released, so that Godot can re-enter this object during the call.
+    ///
+    /// Scoped variant of [`base_mut()`][Self::base_mut]; see there for details, and [`WithBaseField::reentrant()`](crate::obj::WithBaseField::reentrant)
+    /// for the equivalent on user classes.
+    pub fn reentrant<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut Gd<T::Base>) -> R,
+    {
+        let mut guard = self.base_mut();
+        f(&mut guard)
+    }
 }
 
 impl<T: ScriptInstance> Deref for SiMut<'_, T> {
