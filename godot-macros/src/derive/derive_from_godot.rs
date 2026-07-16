@@ -47,21 +47,22 @@ fn make_fromgodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStru
         where_clause,
         ..
     } = convert;
+
     let generic_args = generic_params
         .as_ref()
         .map(|params| params.as_inline_args());
-    let field_name = field.field_name();
-    let via_type = &field.ty;
 
-    let field_zst_names = field.zst_field_names();
-    let field_zst_tys = &field.zst_tys;
+    let field_name = &field.sized.ident;
+    let via_type = &field.sized.ty;
+
+    let field_zst_names = field.zsts.iter().map(|field| &field.ident);
+    let field_zst_tys = field.zsts.iter().map(|field| &field.ty);
 
     // This is basically copy-paste of the unstable feature for creating arbitrary ZSTs.
     // https://github.com/rust-lang/rust/issues/95383
     let create_zst = quote! {
         const {
             #(assert!(size_of::<#field_zst_tys>() == 0, "Type is not a ZST");)*
-
             // SAFETY: because the caller must guarantee that it's inhabited and zero-sized,
             // there's nothing in the representation that needs to be set.
             // `assume_init` calls `assert_inhabited`, so we don't need to here.

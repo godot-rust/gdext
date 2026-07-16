@@ -116,7 +116,7 @@ impl ConvertType {
     /// Returns the type for use in `type Via = <type>;` in `GodotConvert` implementations.
     pub fn via_type(&self) -> TokenStream {
         match self {
-            ConvertType::NewType { field } => field.ty.to_token_stream(),
+            ConvertType::NewType { field } => field.sized.ty.to_token_stream(),
             ConvertType::Enum { via, .. } => via.to_token_stream(),
         }
     }
