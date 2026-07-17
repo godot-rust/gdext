@@ -466,13 +466,7 @@ impl<T: Element> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`][AnyArray::shrink] instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
-        self.balanced_ensure_mutable();
-
-        let original_size = self.len();
-
-        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
-        // array are of type `T` still.
-        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        let original_size = self.resize_inner(new_size);
 
         meta::arg_into_ref!(value: T);
 
@@ -489,6 +483,30 @@ impl<T: Element> Array<T> {
             // ptr_mut() lookup could be optimized if we know the internal layout.
             unsafe { variant.move_into_var_ptr(ptr_mut) };
         }
+    }
+
+    /// Resizes the array, limited to certain element types and values.
+    ///
+    /// Limited to default-constructible `Copy` types, to allow efficient batch initialization. Use [`resize()`][Self::resize] if you need
+    /// more flexibility.
+    pub fn resize_default(&mut self, new_size: usize)
+    where
+        // Do not remove these bounds. Allowing e.g. Gd<RefCounted> would create null elements.
+        // Limiting to Copy only would be possible, but inconsistent for types like Plane that don't support default-initialization in Rust.
+        T: Default + Copy,
+    {
+        self.resize_inner(new_size);
+    }
+
+    fn resize_inner(&mut self, new_size: usize) -> usize {
+        self.balanced_ensure_mutable();
+
+        let original_size = self.len();
+
+        // SAFETY: Godot's `resize()` fills new slots with type-appropriate defaults for typed arrays (e.g. 0 for int, nil for Variant).
+        // Callers that need non-default values (like `resize()`) must overwrite the new slots afterward.
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        original_size
     }
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
@@ -828,8 +846,11 @@ impl<T: Element> Array<T> {
     /// Returns a mutable pointer to the element at the given index.
     ///
     /// # Panics
-    ///
     /// If `index` is out of bounds.
+    ///
+    /// # Note on mut slices
+    /// Do not form a multi-slot `&mut [Variant]` from this pointer unless the array is uniquely owned (refcount == 1): `Array` is ref-counted,
+    /// so another handle may alias the backing storage, violating Rust's rules. Otherwise write elements via `ptr::write`. See `Variant::borrow_slice_mut`.
     fn ptr_mut(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
         let ptr = self.ptr_mut_or_null(index);
         assert!(
@@ -1081,6 +1102,14 @@ impl<T: Element> Array<T> {
 }
 
 impl VarArray {
+    /// Resizes the array, filling new slots with `Variant::nil()`.
+    ///
+    /// `VarArray` can't use [`resize_default()`][Array::resize_default], whose `Copy` bound excludes `Variant`. Relaxing that bound to
+    /// `Default` (non-breaking) would absorb this method; deferred pending fill-safety review of the other non-`Copy` types.
+    pub fn resize_nil(&mut self, new_size: usize) {
+        self.resize_inner(new_size);
+    }
+
     /// # Safety
     /// - Variant must have type `VariantType::ARRAY`.
     /// - Subsequent operations on this array must not rely on the type of the array.
@@ -1373,9 +1402,8 @@ impl<T: Element + ToGodot> From<&[T]> for Array<T> {
         // the nulls with values of type `T`.
         unsafe { array.as_inner_mut() }.resize(to_i64(len));
 
-        // SAFETY: `array` has `len` elements since we just resized it, and they are all valid `Variant`s. Additionally, since
-        // the array was created in this function, and we do not access the array while this slice exists, the slice has unique
-        // access to the elements.
+        // SAFETY: `array` has `len` elements since we just resized it, all valid Variants. The array was just created here and is not yet
+        // shared (refcount == 1), so no other handle aliases the backing buffer; forming &mut [Variant] is sound in this unique-ownership context.
         let elements = unsafe { Variant::borrow_slice_mut(array.ptr_mut(0), len) };
         for (element, array_slot) in slice.iter().zip(elements.iter_mut()) {
             *array_slot = element.to_variant();
@@ -1397,13 +1425,48 @@ impl<T: Element + ToGodot> FromIterator<T> for Array<T> {
 /// Extends a `Array` with the contents of an iterator.
 impl<T: Element> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
-        // Otherwise, we could use it to pre-allocate based on `iter.size_hint()`.
-        //
-        // A faster implementation using `resize()` and direct pointer writes might still be possible.
-        // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
-        for item in iter.into_iter() {
-            // self.push(AsArg::into_arg(&item));
+        let mut iter = iter.into_iter();
+        let (lower, _upper) = iter.size_hint();
+
+        // Fast path: pre-allocate space for the lower bound and write variants directly, avoiding per-element resize calls.
+        // Note: if iter.next() or to_variant() panics mid-loop, elements after [i] keep resize_inner's default value.
+        if lower > 0 {
+            let current_len = self.len();
+            // `saturating_add`: a hostile/buggy `size_hint` must not wrap `new_len` below `current_len`, which would make
+            // `resize_inner` shrink the array and silently drop existing elements.
+            let new_len = current_len.saturating_add(lower);
+
+            self.resize_inner(new_len);
+
+            // One `array_operator_index` FFI call instead of one per element; `new_len > current_len` (since `lower > 0`), so slot
+            // `current_len` is valid. Only raw pointer arithmetic from here, no `&mut [Variant]` (unsound here, see below).
+            let base_ptr: *mut Variant = self.ptr_mut(current_len).cast::<Variant>();
+
+            let mut filled = current_len;
+            for i in current_len..new_len {
+                // `size_hint().0` is only a lower bound; a correct iterator may yield fewer than reported, so stop instead of panicking.
+                let Some(item) = iter.next() else { break };
+
+                // SAFETY:
+                // * slots `base_ptr .. base_ptr+(new_len-current_len)` are contiguous + in bounds after `resize_inner()`. (Can't reuse
+                //   `Variant::borrow_slice_mut` like `From<&[T]>` does -- that needs a unique refcount==1 array; `self` may be shared.)
+                // * Assignment via `=` (not `ptr::write`) drops the default that `resize_inner` placed there -> no leak.
+                // * Single-element place assignment avoids a multi-slot `&mut [Variant]`, unsound here since `Array` is refcounted.
+                unsafe {
+                    let elem_ptr = base_ptr.add(i - current_len);
+                    *elem_ptr = item.to_variant();
+                };
+                filled = i + 1;
+            }
+
+            // Iterator under-delivered relative to its hint; drop the default-filled trailing slots so they don't leak into the array.
+            if filled < new_len {
+                self.resize_inner(filled);
+            }
+        }
+
+        // Push any remaining elements (for inexact-size iterators, or when lower == 0).
+        for item in iter {
             self.push(meta::owned_into_arg(item));
         }
     }

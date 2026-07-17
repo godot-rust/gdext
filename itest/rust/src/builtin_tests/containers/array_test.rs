@@ -365,6 +365,36 @@ fn array_extend() {
     assert_eq!(array, array![1, 2, 3, 4]);
 }
 
+// `Array::extend()` uses `size_hint().0` only as a lower-bound pre-allocation hint, not an exact count. An iterator that over-reports its
+// lower bound (yielding fewer elements than promised) must append the actually-yielded elements without panicking or leaving trailing slots.
+#[itest]
+fn array_extend_overreported_size_hint() {
+    // Iterator whose `size_hint` lower bound (5) exceeds the number of elements it actually yields (3).
+    struct OverReporting(std::vec::IntoIter<i64>);
+    impl Iterator for OverReporting {
+        type Item = i64;
+        fn next(&mut self) -> Option<i64> {
+            self.0.next()
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (5, None)
+        }
+    }
+
+    let mut array = iarray![1, 2];
+    array.extend(OverReporting(vec![3, 4, 5].into_iter()));
+    assert_eq!(array, array![1, 2, 3, 4, 5]);
+}
+
+// Extend's fast path writes via `*elem_ptr = ...` (not `ptr::write`), which must drop the default-filled slot that `resize_inner` placed
+// there. `GString` has a destructor, so a plain overwrite without dropping the old value would leak -- exercise that path here.
+#[itest]
+fn array_extend_ref_counted_elements() {
+    let mut array: Array<GString> = Array::new();
+    array.extend(vec!["a".to_gstring(), "b".to_gstring(), "c".to_gstring()]);
+    assert_eq!(array, iarray!["a", "b", "c"]);
+}
+
 #[itest]
 fn array_reverse() {
     let mut array = iarray![1, 2];
@@ -684,6 +714,25 @@ fn array_shrink() {
     assert!(a.shrink(3));
     assert_eq!(a.len(), 3);
     assert_eq!(a, array![1, 5, 4]);
+}
+
+#[itest]
+fn array_resize_default() {
+    // Typed int array: Godot initializes new slots to 0 (type-appropriate default).
+    let mut a: Array<i64> = Array::new();
+    a.resize_default(3);
+    assert_eq!(a.len(), 3);
+    assert_eq!(a, array![0, 0, 0]);
+
+    // Shrink: works the same as resize().
+    a.resize_default(1);
+    assert_eq!(a, array![0]);
+
+    // Typed float array.
+    let mut b: Array<f64> = Array::new();
+    b.resize_default(2);
+    assert_eq!(b.len(), 2);
+    assert_eq!(b, array![0.0, 0.0]);
 }
 
 #[itest]
