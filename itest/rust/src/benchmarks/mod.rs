@@ -20,6 +20,7 @@ use crate::framework::{BenchResult, bench, bench_measure};
 mod array;
 mod callable;
 mod color;
+mod variant;
 
 #[bench]
 fn builtin_string_ctor() -> GString {
