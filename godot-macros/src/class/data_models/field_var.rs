@@ -565,10 +565,12 @@ impl GetterSetterImpl {
             Callable::from_fn(#callable_name, move |_args| {
                 match ::godot::obj::Gd::<Self>::try_from_instance_id(instance_id) {
                     Ok(mut obj) => (#tool_button_fn)(&mut *obj.bind_mut()),
-                    Err(_) => ::godot::global::godot_error!(
-                        "tool button `{}` invoked on freed instance {:?}",
-                        #callable_name, instance_id,
-                    ),
+                    Err(_) => {
+                        ::godot::global::godot_error!(
+                            "tool button `{}` invoked on freed instance {:?}",
+                            #callable_name, instance_id,
+                        );
+                    }
                 }
             })
         };

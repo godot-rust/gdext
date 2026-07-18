@@ -45,16 +45,24 @@ struct AudioEffectReceiverInstance {
     base: Base<AudioEffectInstance>,
 }
 
+// Changed in https://github.com/godotengine/godot/pull/120749.
+#[cfg(since_api = "4.8")]
+type SrcFrame = AudioFrame;
+#[cfg(before_api = "4.8")]
+type SrcFrame = std::ffi::c_void;
+
 #[godot_api]
 impl IAudioEffectInstance for AudioEffectReceiverInstance {
     unsafe fn process_rawptr(
         &mut self,
-        _src_buffer: RawPtr<*const std::ffi::c_void>,
+        _src_buffer: RawPtr<*const SrcFrame>,
         dst_buffer: RawPtr<*mut AudioFrame>,
         _frame_count: i32,
     ) {
-        (*dst_buffer.ptr()).left = 15.0;
-        (*dst_buffer.ptr()).right = -12.0;
+        let dst = unsafe { &mut *dst_buffer.ptr() };
+        dst.left = 15.0;
+        dst.right = -12.0;
+
         self.was_called = true;
     }
 }
@@ -83,14 +91,14 @@ struct AudioEffectAsserterInstance {
 impl IAudioEffectInstance for AudioEffectAsserterInstance {
     unsafe fn process_rawptr(
         &mut self,
-        src_buffer: RawPtr<*const std::ffi::c_void>,
+        src_buffer: RawPtr<*const SrcFrame>,
         _dst_buffer: RawPtr<*mut AudioFrame>,
         _frame_count: i32,
     ) {
-        let src = src_buffer.ptr() as *const AudioFrame;
+        let src = unsafe { &*src_buffer.ptr().cast::<AudioFrame>() };
 
-        assert_eq!((*src).left, 15.0);
-        assert_eq!((*src).right, -12.0);
+        assert_eq!(src.left, 15.0);
+        assert_eq!(src.right, -12.0);
 
         self.was_called = true;
     }

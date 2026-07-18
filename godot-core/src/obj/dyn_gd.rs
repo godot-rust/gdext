@@ -163,7 +163,9 @@ use crate::{meta, sys};
 /// # let some_node = Node::new_alloc();
 /// match some_node.try_dynify::<dyn Pushable>() {
 ///     Ok(dyn_gd) => (),
-///     Err(some_node) => godot_warn!("Failed to convert {some_node} into dyn Pushable!"),
+///     Err(some_node) => {
+///         godot_warn!("Failed to convert {some_node} into dyn Pushable!");
+///     }
 /// }
 /// ```
 ///
