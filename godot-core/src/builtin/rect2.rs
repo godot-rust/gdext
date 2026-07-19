@@ -23,7 +23,7 @@ use crate::builtin::{Rect2i, Side, Vector2, real};
 /// | 2D        | **`Rect2`**     | [`Rect2i`]   |
 /// | 3D        | [`Aabb`]        |              |
 ///
-/// <br>You can convert to `Rect2i` using [`cast_int()`][Self::cast_int].
+/// <br>You can convert to `Rect2i` using [`to_rect2i()`][Self::to_rect2i].
 ///
 /// [`Aabb`]: crate::builtin::Aabb
 ///
@@ -78,11 +78,17 @@ impl Rect2 {
     ///
     /// _Godot equivalent: `Rect2i(Rect2 from)`_
     #[inline]
-    pub const fn cast_int(self) -> Rect2i {
+    pub const fn to_rect2i(self) -> Rect2i {
         Rect2i {
-            position: self.position.cast_int(),
-            size: self.size.cast_int(),
+            position: self.position.to_vector2i(),
+            size: self.size.to_vector2i(),
         }
+    }
+
+    #[deprecated = "Renamed to `to_rect2i()`."]
+    #[inline]
+    pub const fn cast_int(self) -> Rect2i {
+        self.to_rect2i()
     }
 
     /// Returns a rectangle with the same geometry, with top-left corner as `position` and non-negative size.

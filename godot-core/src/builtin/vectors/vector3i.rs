@@ -44,7 +44,7 @@ use crate::builtin::{RVec3, Vector3, Vector3Axis, real};
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | **`Vector3i`**                         |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
-/// <br>You can convert to `Vector3` using [`cast_float()`][Self::cast_float].
+/// <br>You can convert to `Vector3` using [`to_vector3()`][Self::to_vector3].
 ///
 /// # Godot docs
 ///
@@ -74,7 +74,7 @@ impl_vector_fns!(Vector3i, glam::IVec3, i32, (x, y, z));
 
 /// # Specialized `Vector3i` functions
 impl Vector3i {
-    inline_impl_integer_vector_fns!(Vector3, x, y, z);
+    inline_impl_integer_vector_fns!(Vector3, to_vector3, x, y, z);
 
     /// Converts `self` to the corresponding [`real`] `glam` type.
     #[doc(hidden)]

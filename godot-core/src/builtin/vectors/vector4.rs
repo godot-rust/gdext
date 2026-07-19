@@ -82,7 +82,7 @@ impl Vector4 {
     }
 }
 
-impl_float_vector_fns!(Vector4, Vector4i, (x, y, z, w));
+impl_float_vector_fns!(Vector4, Vector4i, to_vector4i, (x, y, z, w));
 impl_vector4x_fns!(Vector4, real);
 impl_vector3_vector4_fns!(Vector4, (x, y, z, w));
 
