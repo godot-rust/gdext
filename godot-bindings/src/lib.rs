@@ -41,17 +41,17 @@ pub struct GodotVersion {
 #[cfg(any(feature = "api-custom", feature = "api-custom-json"))]
 impl GodotVersion {
     pub(crate) fn validate_or_panic(self) -> Self {
-        let (min_major, min_minor) = MIN_SUPPORTED_VERSION;
+        let (major, min_minor) = MIN_SUPPORTED_VERSION;
 
         assert_eq!(
-            self.major, min_major,
-            "Only Godot versions with major version 4 are supported; found version {}.",
+            self.major, major,
+            "Only Godot major version {major} is supported; found version {}.",
             self.full_string
         );
 
         assert!(
-            self.minor > min_minor,
-            "Godot 4.0 is no longer supported by godot-rust; found version {}.",
+            self.minor >= min_minor,
+            "Godot versions below {major}.{min_minor} are no longer supported by godot-rust; found version {}.",
             self.full_string
         );
 
