@@ -277,7 +277,7 @@ impl<K: Element, V: Element> Dictionary<K, V> {
 
     /// Reverse-search a key by its value.
     ///
-    /// Unlike Godot, this will return `None` if the key does not exist and `Some(key)` if found.
+    /// Returns `None` if the key does not exist; otherwise `Some(key)` for the first key that matches the value. Godot dictionaries are ordered.
     ///
     /// This operation is rarely needed and very inefficient. If you find yourself needing it a lot, consider
     /// using a `HashMap` or `Dictionary` with the inverse mapping (`V` -> `K`).
@@ -289,13 +289,19 @@ impl<K: Element, V: Element> Dictionary<K, V> {
         K: FromGodot,
     {
         meta::arg_into_ref!(value: V);
-        let key = self.as_inner().find_key(&value.to_variant());
+        let value = value.to_variant();
+        let key = self.as_inner().find_key(&value);
 
-        if !key.is_nil() || self.as_inner().has(&key) {
-            Some(K::from_variant(&key))
-        } else {
-            None
-        }
+        // Godot find_key() returns NIL both for "not found" and for a matching NIL key. A result was found if either:
+        // * find_key() != null
+        // * find_key() == null, K == Variant, dictionary has an entry for `key` that matches `value`.
+        //   This last check is necessary because vdict! { nil => 2 }.find_key_by_value(1) would otherwise return Some(nil).
+        let found = !key.is_nil()
+            || (meta::element_variant_type::<K>() == VariantType::NIL
+                && self.as_inner().has(&key)
+                && self.as_inner().get(&key, &value) == value);
+
+        found.then(|| K::from_variant(&key))
     }
 
     /// Removes all key-value pairs from the dictionary.
