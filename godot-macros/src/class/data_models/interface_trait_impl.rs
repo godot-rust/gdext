@@ -10,7 +10,7 @@ use quote::{ToTokens, quote};
 
 use crate::class::data_models::func::validate_receiver_extract_gdself;
 use crate::class::{BeforeKind, SignatureInfo, into_signature_info, make_virtual_callback};
-use crate::util::{KvParser, bail, ident};
+use crate::util::{KvParser, bail, ident, require_api_version};
 use crate::{ParseResult, util};
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`.
@@ -68,10 +68,11 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
                 iface.handle_to_string(cfg_attrs, is_gd_self);
             }
             "on_notification" => {
-                // POSTINIT notification can't be handled with the gd_self receiver
-                // since object will not be yet constructed.
-                validate_not_gd_self(is_gd_self, method)?;
-                iface.handle_on_notification(cfg_attrs);
+                // Before 4.7, POSTINITIALIZE is emitted during construction, where no `Gd<Self>` exists yet.
+                if is_gd_self {
+                    require_api_version!("4.7", &method.name, "#[func(gd_self)] on on_notification")?;
+                }
+                iface.handle_on_notification(cfg_attrs, is_gd_self);
             }
             "on_get" => iface.handle_get_property(cfg_attrs, is_gd_self),
             "on_set" => iface.handle_set_property(cfg_attrs, is_gd_self),
@@ -293,21 +294,31 @@ impl<'a> InterfaceBuilder<'a> {
         self.decls.add_modifier(cfg_attrs, "with_string");
     }
 
-    fn handle_on_notification(&mut self, cfg_attrs: Vec<&'a venial::Attribute>) {
-        let class_name = self.class_name;
-        let trait_path = self.trait_path;
+    fn handle_on_notification(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
         let inactive_check = make_inactive_class_check(TokenStream::new());
+        let new_impl = self.make_virtual_impl(
+            &cfg_attrs,
+            is_gd_self,
+            true,
+            "GodotNotification",
+            |iface, recv| {
+                quote! {
+                    fn __godot_notification(
+                        mut this: ::godot::private::VirtualMethodReceiver<Self>,
+                        what: i32,
+                    ) {
+                        #inactive_check
+                        #iface::on_notification(#recv, what.into())
+                    }
+                }
+            },
+        );
+
+        // Accumulate, so multiple #[cfg]-gated on_notification() overrides each emit their own (cfg-gated) impl.
         let prev = &self.decls.on_notification_impl;
         self.decls.on_notification_impl = quote! {
             #prev
-
-            #(#cfg_attrs)*
-            impl ::godot::obj::cap::GodotNotification for #class_name {
-                fn __godot_notification(&mut self, what: i32) {
-                    #inactive_check
-                    <Self as #trait_path>::on_notification(self, what.into())
-                }
-            }
+            #new_impl
         };
 
         self.decls.add_modifier(cfg_attrs, "with_on_notification");

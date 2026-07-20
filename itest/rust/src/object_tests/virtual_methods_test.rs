@@ -206,6 +206,28 @@ impl INode for NotificationTest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+// `on_notification` with `#[func(gd_self)]` is only supported from Godot 4.7 onwards.
+#[cfg(since_api = "4.7")]
+#[derive(GodotClass)]
+#[class(base=Node, init)]
+struct NotificationGdSelfTest {
+    base: Base<Node>,
+
+    received: Vec<NodeNotification>,
+}
+
+#[cfg(since_api = "4.7")]
+#[godot_api]
+impl INode for NotificationGdSelfTest {
+    #[func(gd_self)]
+    fn on_notification(mut this: Gd<Self>, what: NodeNotification) {
+        // Exercise bind_mut() through the Gd<Self> receiver (rather than the auto-bound &mut self).
+        this.bind_mut().received.push(what);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(GodotClass)]
 #[class(init)]
 struct GetTest {
@@ -565,6 +587,25 @@ fn test_notifications() {
             ReceivedEvent::Ready,
             ReceivedEvent::Notification(NodeNotification::READY),
             ReceivedEvent::Notification(NodeNotification::WM_SIZE_CHANGED),
+        ]
+    );
+    obj.free();
+}
+
+#[cfg(since_api = "4.7")]
+#[itest]
+fn test_notifications_gd_self() {
+    let obj = NotificationGdSelfTest::new_alloc();
+    let mut node = obj.clone().upcast::<Node>();
+    node.notify(NodeNotification::UNPAUSED);
+    node.notify(NodeNotification::WM_SIZE_CHANGED);
+
+    assert_eq!(
+        obj.bind().received,
+        vec![
+            NodeNotification::POSTINITIALIZE,
+            NodeNotification::UNPAUSED,
+            NodeNotification::WM_SIZE_CHANGED,
         ]
     );
     obj.free();

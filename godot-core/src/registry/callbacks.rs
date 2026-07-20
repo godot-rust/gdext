@@ -309,9 +309,7 @@ pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
     // `get_mut()` can also panic on borrow conflicts, in addition to `__godot_notification` itself.
     let code = || {
         let storage = as_storage::<T>(instance);
-        let mut instance = storage.get_mut();
-
-        T::__godot_notification(&mut *instance, what);
+        T::__godot_notification(T::Recv::instance(storage), what);
     };
 
     let _ = handle_method_panic::<T, _>("on_notification", code);
