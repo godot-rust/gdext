@@ -1153,9 +1153,12 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Currently, `on_notification` can't be used with `[func(gd_self)]`, either:
+/// `on_notification` supports `#[func(gd_self)]` from Godot 4.7 onwards, since earlier versions emit `POSTINITIALIZE` during construction,
+/// where no `Gd<Self>` exists yet. Use `&mut self` there; `self.base.to_init_gd()` yields a `Gd` of the *base* class.
 ///
-/// ```compile_fail
+/// Example is `ignore`d, as it only compiles against Godot 4.7+.
+///
+/// ```ignore
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init, base=Node)]
@@ -1164,8 +1167,8 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// #[godot_api]
 /// impl INode for MyNode {
 ///     #[func(gd_self)]
-///     fn on_notification(this: Gd<Self>, what: ObjectNotification) {
-///         todo!()
+///     fn on_notification(this: Gd<Self>, what: NodeNotification) {
+///         godot_print!("{what:?} received by {}", this.instance_id());
 ///     }
 /// }
 /// ```

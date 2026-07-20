@@ -906,7 +906,10 @@ pub mod cap {
     #[doc(hidden)]
     pub trait GodotNotification: GodotClass {
         #[doc(hidden)]
-        fn __godot_on_notification(&mut self, what: i32);
+        type Recv: IntoVirtualMethodReceiver<Self>;
+
+        #[doc(hidden)]
+        fn __godot_on_notification(this: VirtualMethodReceiver<Self>, what: i32);
     }
 
     // TODO Evaluate whether we want this public or not
