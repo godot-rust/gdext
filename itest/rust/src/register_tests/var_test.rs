@@ -411,3 +411,44 @@ fn var_pub_access_on_editor_gd() {
     node.free();
     obj.free();
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// #[var(override)]
+
+// Shadows Node's `editor_description` property. Accessors are renamed, so they don't shadow Node's own `get/set_editor_description`.
+#[derive(GodotClass)]
+#[class(init, base = Node)]
+struct VarOverride {
+    #[var(rename = editor_description, override, get = get_desc, set = set_desc)]
+    desc: GString,
+}
+
+#[godot_api]
+impl VarOverride {
+    #[func]
+    fn get_desc(&self) -> GString {
+        self.desc.clone()
+    }
+
+    #[func]
+    fn set_desc(&mut self, value: GString) {
+        self.desc = value;
+    }
+}
+
+#[itest]
+fn var_override_base_property() {
+    let mut obj = VarOverride::new_alloc();
+
+    // The override takes precedence over Node's own property, both ways.
+    obj.upcast_mut::<Object>()
+        .set("editor_description", &"overridden".to_variant());
+
+    assert_eq!(
+        obj.upcast_ref::<Object>().get("editor_description"),
+        "overridden".to_variant()
+    );
+    assert_eq!(obj.bind().desc, "overridden");
+
+    obj.free();
+}

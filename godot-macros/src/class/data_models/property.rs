@@ -83,6 +83,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             hint,
             mut usage_flags,
             rust_public,
+            marked_override,
             ..
         } = var;
 
@@ -177,6 +178,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 #setter_func_constant,
                 #hint,
                 #usage_flags,
+                #marked_override,
             );
         });
     }

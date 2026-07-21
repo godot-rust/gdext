@@ -27,6 +27,7 @@ pub fn register_export<C: GodotClass, T: Export>(
     setter_name: &str,
     hint_override: Option<PropertyHintInfo>,
     usage_override: Option<PropertyUsageFlags>,
+    marked_override: bool,
 ) {
     // Note: if the user manually specifies `hint`, `hint_string` or `usage` keys, and thus is routed to `register_var()` instead,
     // they can bypass this validation.
@@ -48,7 +49,14 @@ pub fn register_export<C: GodotClass, T: Export>(
         property.usage = u;
     }
 
-    register_var_or_export_inner(property, C::class_id(), getter_name, setter_name);
+    register_var_or_export_inner(
+        property,
+        C::class_id(),
+        C::Base::class_id(),
+        getter_name,
+        setter_name,
+        marked_override,
+    );
 }
 
 /// Registers a `#[var]` property with Godot's ClassDB.
@@ -63,6 +71,7 @@ pub fn register_var<C: GodotClass, T: Var>(
     setter_name: &str,
     hint_override: Option<PropertyHintInfo>,
     usage_override: Option<PropertyUsageFlags>,
+    marked_override: bool,
 ) {
     let mut property = T::godot_shape().to_var_property(property_name);
     if let Some(i) = hint_override {
@@ -72,23 +81,34 @@ pub fn register_var<C: GodotClass, T: Var>(
         property.usage = u;
     }
 
-    register_var_or_export_inner(property, C::class_id(), getter_name, setter_name);
+    register_var_or_export_inner(
+        property,
+        C::class_id(),
+        C::Base::class_id(),
+        getter_name,
+        setter_name,
+        marked_override,
+    );
 }
 
 fn register_var_or_export_inner(
     info: PropertyInfo,
     class_name: ClassId,
+    base_class_name: ClassId,
     getter_name: &str,
     setter_name: &str,
+    marked_override: bool,
 ) {
     let getter_name = StringName::from(getter_name);
     let setter_name = StringName::from(setter_name);
 
     crate::registry::validate::validate_property(
         class_name,
+        base_class_name,
         &info.property_name,
         &getter_name,
         &setter_name,
+        marked_override,
     );
 
     let property_info_sys = info.property_sys();

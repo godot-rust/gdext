@@ -174,12 +174,16 @@ pub(crate) fn validate_constant(class_id: ClassId, constant_name: &StringName) {
 /// Checks the preconditions of `classdb_register_extension_class_property`.
 ///
 /// `getter_name`/`setter_name` may be empty, in which case they are not checked.
+///
+/// `marked_override` reflects whether the property was declared as `#[var(override)]`; it is cross-checked against the base class.
 #[cfg(safeguards_strict)]
 pub(crate) fn validate_property(
     class_id: ClassId,
+    base_class_id: ClassId,
     property_name: &StringName,
     getter_name: &StringName,
     setter_name: &StringName,
+    marked_override: bool,
 ) {
     if !is_available() {
         return;
@@ -226,6 +230,37 @@ pub(crate) fn validate_property(
             );
         }
     }
+
+    // Cross-check #[var(override)] against the base class. Unlike the duplicate check above, this query must walk the inheritance chain: the
+    // property being shadowed may sit anywhere above the direct base.
+    //
+    // No deferral needed: `#[class(base = ...)]` can only name an engine class, which ClassDB knows long before any user class registers. That
+    // also means a missing base property is always a genuine error, never a registration-order artifact.
+    let base_class_name = base_class_id.to_string_name();
+    let base_properties = class_db.class_get_property_list(&base_class_name);
+
+    let base_has_property = base_properties.iter_shared().any(|dict| {
+        dict.get("name")
+            .and_then(|name| name.try_to::<String>().ok())
+            .is_some_and(|name| name == property_str)
+    });
+
+    match (marked_override, base_has_property) {
+        (true, false) => {
+            godot_error!(
+                "Property `{class_id}::{property_name}` is declared #[var(override)], but neither `{base_class_id}` nor any of its base \
+                 classes has a property of that name.\n  \
+                 Remove `override`, or check the property name for typos."
+            );
+        }
+        (false, true) => {
+            godot_error!(
+                "Property `{class_id}::{property_name}` shadows a property of base class `{base_class_id}`.\n  \
+                 Add #[var(override)] to declare this intentional, or rename the property with #[var(rename = ...)]."
+            );
+        }
+        _ => {}
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -266,9 +301,11 @@ pub(crate) fn validate_constant(_class_id: ClassId, _constant_name: &StringName)
 #[cfg(not(safeguards_strict))]
 pub(crate) fn validate_property(
     _class_id: ClassId,
+    _base_class_id: ClassId,
     _property_name: &StringName,
     _getter_name: &StringName,
     _setter_name: &StringName,
+    _marked_override: bool,
 ) {
 }
 

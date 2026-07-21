@@ -27,6 +27,8 @@ pub struct FieldVar {
     pub usage_flags: UsageFlags,
     /// Whether generated getters/setters should be exposed in Rust public API (without deprecation warning).
     pub rust_public: bool,
+    /// Whether this property intentionally shadows one of a base class, declared as `#[var(override)]`.
+    pub marked_override: bool,
     pub span: Span,
 }
 
@@ -38,6 +40,7 @@ impl FieldVar {
     /// - `get`, `get = expr`, `no_get`
     /// - `set`, `set = expr`, `no_set`
     /// - `pub`
+    /// - `override`
     /// - `hint = ident`
     /// - `hint_string = expr`
     /// - `usage_flags = [...]`
@@ -47,6 +50,7 @@ impl FieldVar {
         let getter = GetterSetter::parse(parser, "get")?;
         let setter = GetterSetter::parse(parser, "set")?;
         let rust_public = parser.handle_alone("pub")?;
+        let marked_override = parser.handle_alone("override")?;
 
         // Validate: `pub` only makes sense if at least one accessor is generated.
         if rust_public && getter != GetterSetter::Generated && setter != GetterSetter::Generated {
@@ -88,6 +92,7 @@ impl FieldVar {
             hint,
             usage_flags,
             rust_public,
+            marked_override,
             span,
         })
     }
@@ -131,6 +136,7 @@ impl FieldVar {
             hint,
             usage_flags: UsageFlags::Custom(vec![ident("EDITOR")]),
             rust_public: true,
+            marked_override: false,
             span,
         })
     }
@@ -145,6 +151,7 @@ impl Default for FieldVar {
             hint: Default::default(),
             usage_flags: Default::default(),
             rust_public: false,
+            marked_override: false,
             span: Span::call_site(),
         }
     }
