@@ -218,15 +218,26 @@ pub unsafe extern "C" fn free<T: GodotClass>(
     _class_user_data: *mut std::ffi::c_void,
     instance: sys::GDExtensionClassInstancePtr,
 ) {
-    // SAFETY: Pointer valid for callback duration (Godot contract).
-    unsafe {
-        {
-            let storage = as_storage::<T>(instance);
-            storage.mark_destroyed_by_godot();
-        } // Ref no longer valid once next statement is executed.
+    // A user `Drop` impl runs inside destroy_storage() and may panic. Unlike other callbacks, there is no return value to degrade -- the
+    // object is destroyed either way. Without this guard the panic unwinds into Godot's C++ destructor and aborts the whole process, which
+    // makes a small mistake in Drop indistinguishable from a hard crash.
+    //
+    // Catching is sound: if the user's drop() panics, Rust still drops the remaining fields and frees the Box while unwinding, so the
+    // storage is gone by the time we get here -- there is nothing left to clean up and nothing to leak.
+    let code = || {
+        // SAFETY: Pointer valid for callback duration (Godot contract).
+        unsafe {
+            {
+                let storage = as_storage::<T>(instance);
+                storage.mark_destroyed_by_godot();
+            } // Ref no longer valid once next statement is executed.
 
-        crate::storage::destroy_storage::<T>(instance);
-    }
+            crate::storage::destroy_storage::<T>(instance);
+        }
+    };
+
+    // Panic is already printed by the handler; the object cannot be resurrected, so the error is dropped here.
+    let _ = handle_method_panic::<T, _>("drop", std::panic::AssertUnwindSafe(code));
 }
 
 #[cfg(since_api = "4.4")]
