@@ -13,8 +13,7 @@ use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
 use crate::builtin::{AnyArray, CowStr, StringName, Variant, inner};
 use crate::meta::{GodotType, ToGodot};
-use crate::obj::bounds::DynMemory;
-use crate::obj::{Bounds, Gd, GodotClass, InstanceId, Singleton};
+use crate::obj::{Gd, GodotClass, InstanceId, Singleton};
 use crate::{classes, meta};
 
 #[cfg(before_api = "4.3")]
@@ -415,17 +414,8 @@ impl Callable {
     ///
     /// _Godot equivalent: `get_object`_
     pub fn object(&self) -> Option<Gd<classes::Object>> {
-        let mut object = self.as_inner().get_object()?;
-
-        // get_object() may return pointer to already-freed object -> return None for dead objects instead of accessing one in
-        // maybe_inc_ref(). Best-effort: the object can still be freed between this check and the inc-ref, like in Signal::object().
-        if !object.is_instance_valid() {
-            return None;
-        }
-
-        // `InnerCallable::get_object` doesn't increment the refcount, so do it here in case the object is ref-counted.
-        <classes::Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
-        Some(object)
+        // `get_object()` doesn't inc-ref, and may point to an already-freed object; both handled by `validate_and_inc_ref()`.
+        self.as_inner().get_object()?.validate_and_inc_ref()
     }
 
     /// Returns the ID of this callable's object, see also [`Gd::instance_id`].

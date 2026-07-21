@@ -1026,6 +1026,21 @@ impl Gd<classes::Object> {
     pub fn is_ref_counted(&self) -> bool {
         self.instance_id_unchecked().is_ref_counted()
     }
+
+    /// Validates liveness and increments the refcount, or returns `None` if the object is dead.
+    ///
+    /// Inc-ref on a freed instance panics (fatal during `Drop`), so liveness must be checked first. Best-effort: the object can
+    /// still be freed in between.
+    pub(crate) fn validate_and_inc_ref(mut self) -> Option<Self> {
+        use crate::obj::bounds::DynMemory as _;
+
+        if !self.is_instance_valid() {
+            return None;
+        }
+
+        <classes::Object as Bounds>::DynMemory::maybe_inc_ref(&mut self.raw);
+        Some(self)
+    }
 }
 
 impl<T> Gd<T>

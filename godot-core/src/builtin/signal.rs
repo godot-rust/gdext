@@ -16,8 +16,7 @@ use crate::classes::object::ConnectFlags;
 use crate::global::Error;
 use crate::meta;
 use crate::meta::{FromGodot, GodotType, ToGodot};
-use crate::obj::bounds::DynMemory;
-use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId};
+use crate::obj::{EngineBitfield, Gd, GodotClass, InstanceId};
 use crate::signal::store_custom_callable_connection;
 
 /// Untyped Godot signal.
@@ -140,17 +139,8 @@ impl Signal {
     ///
     /// _Godot equivalent: `get_object`_
     pub fn object(&self) -> Option<Gd<Object>> {
-        let mut object = self.as_inner().get_object()?;
-
-        // `get_object()` may hand out a pointer to an already-freed object (e.g. when the object was destroyed on another thread).
-        // Validate liveness before touching the instance, honoring this method's contract to return `None` for dead objects. Without this,
-        // `maybe_inc_ref()` below would access the freed instance and panic -- fatal if it happens during `Drop`, see `FallibleSignalFuture`.
-        if !object.is_instance_valid() {
-            return None;
-        }
-
-        <Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
-        Some(object)
+        // `get_object()` doesn't inc-ref, and may point to a freed object (see `FallibleSignalFuture`); both handled below.
+        self.as_inner().get_object()?.validate_and_inc_ref()
     }
 
     /// Returns the ID of this signal's object, see also [`Gd::instance_id`].
