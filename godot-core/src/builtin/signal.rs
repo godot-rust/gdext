@@ -139,17 +139,8 @@ impl Signal {
     ///
     /// _Godot equivalent: `get_object`_
     pub fn object(&self) -> Option<Gd<Object>> {
-        let mut object = self.as_inner().get_object()?;
-
-        // `get_object()` may hand out a pointer to an already-freed object (e.g. when the object was destroyed on another thread).
-        // Validate liveness before touching the instance, honoring this method's contract to return `None` for dead objects. Without this,
-        // `refc_inc()` below would access the freed instance and panic -- fatal if it happens during `Drop`, see `FallibleSignalFuture`.
-        if !object.is_instance_valid() {
-            return None;
-        }
-
-        object.raw.refc_inc();
-        Some(object)
+        // `get_object()` doesn't inc-ref, and may point to a freed object; both handled by `validate_and_inc_ref()`.
+        self.as_inner().get_object()?.validate_and_inc_ref()
     }
 
     /// Returns the ID of this signal's object, see also [`Gd::instance_id`].
