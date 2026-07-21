@@ -27,7 +27,7 @@ use crate::storage::{InstanceStorage, Storage, StorageRefCounted, as_storage};
 
 /// Invokes `code` -- a callback that calls into user code -- and catches any panic, so it does not unwind across the FFI boundary.
 ///
-/// `method` names the callback in the error context, e.g. `"to_string"` is reported as `MyClass::to_string()`.
+/// `method` is the user-facing `I*` virtual name, not the Godot slot name -- `"on_get"` is reported as `MyClass::on_get()`.
 /// The caller decides how to degrade on `Err`, since each Godot callback has its own failure representation.
 fn handle_method_panic<T: GodotClass, R>(
     method: &str,
@@ -301,24 +301,24 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
 }
 
 #[expect(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
-pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
+pub unsafe extern "C" fn notification<T: cap::GodotNotification>(
     instance: sys::GDExtensionClassInstancePtr,
     what: i32,
     _reversed: sys::GDExtensionBool,
 ) {
-    // `get_mut()` can also panic on borrow conflicts, in addition to `__godot_notification` itself.
+    // `get_mut()` can also panic on borrow conflicts, in addition to `__godot_on_notification` itself.
     let code = || {
         let storage = as_storage::<T>(instance);
         let mut instance = storage.get_mut();
 
-        T::__godot_notification(&mut *instance, what);
+        T::__godot_on_notification(&mut *instance, what);
     };
 
     let _ = handle_method_panic::<T, _>("on_notification", code);
 }
 
 #[expect(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
-pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
+pub unsafe extern "C" fn get<T: cap::GodotGet>(
     instance: sys::GDExtensionClassInstancePtr,
     name: sys::GDExtensionConstStringNamePtr,
     ret: sys::GDExtensionVariantPtr,
@@ -328,7 +328,7 @@ pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
         let instance = T::Recv::instance(storage);
         let property = StringName::new_from_string_sys(name);
 
-        match T::__godot_get_property(instance, property) {
+        match T::__godot_on_get(instance, property) {
             Some(value) => {
                 value.move_into_var_ptr(ret);
                 true
@@ -337,11 +337,11 @@ pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
         }
     };
 
-    handle_method_panic_bool::<T>("get_property", code)
+    handle_method_panic_bool::<T>("on_get", code)
 }
 
 #[expect(unsafe_op_in_unsafe_fn)] // Pointer validity asserted by Godot.
-pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
+pub unsafe extern "C" fn set<T: cap::GodotSet>(
     instance: sys::GDExtensionClassInstancePtr,
     name: sys::GDExtensionConstStringNamePtr,
     value: sys::GDExtensionConstVariantPtr,
@@ -353,10 +353,10 @@ pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
         let property = StringName::new_from_string_sys(name);
         let value = Variant::new_from_var_sys(value);
 
-        T::__godot_set_property(instance, property, value)
+        T::__godot_on_set(instance, property, value)
     };
 
-    handle_method_panic_bool::<T>("set_property", code)
+    handle_method_panic_bool::<T>("on_set", code)
 }
 
 pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
@@ -381,7 +381,7 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
         let storage = as_storage::<T>(instance);
         let instance = T::Recv::instance(storage);
 
-        let property_list = T::__godot_get_property_list(instance);
+        let property_list = T::__godot_on_get_property_list(instance);
         let property_list_sys: Box<[sys::GDExtensionPropertyInfo]> = property_list
             .into_iter()
             .map(|prop| prop.into_owned_property_sys())
@@ -397,7 +397,7 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
         Box::leak(property_list_sys).as_mut_ptr().cast_const()
     };
 
-    handle_method_panic::<T, _>("get_property_list", code).unwrap_or_else(|_| {
+    handle_method_panic::<T, _>("on_get_property_list", code).unwrap_or_else(|_| {
         // On panic, report an empty list -- `count` comes uninitialized, so it must be set in any case.
         *count = 0;
 
@@ -453,7 +453,7 @@ unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
     let instance = T::Recv::instance(storage);
 
     let property = StringName::borrow_string_sys(property_name);
-    T::__godot_property_get_revert(instance, property.clone())
+    T::__godot_on_property_get_revert(instance, property.clone())
 }
 
 /// # Safety
@@ -466,7 +466,7 @@ pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
 ) -> sys::GDExtensionBool {
     let code = || raw_property_get_revert::<T>(instance, property_name).is_some();
 
-    handle_method_panic_bool::<T>("property_can_revert", code)
+    handle_method_panic_bool::<T>("on_property_get_revert", code)
 }
 
 /// # Safety
@@ -487,7 +487,7 @@ pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
         true
     };
 
-    handle_method_panic_bool::<T>("property_get_revert", code)
+    handle_method_panic_bool::<T>("on_property_get_revert", code)
 }
 
 /// Callback for `validate_property`.
@@ -509,14 +509,14 @@ pub unsafe extern "C" fn validate_property<T: cap::GodotValidateProperty>(
         let instance = T::Recv::instance(storage);
 
         let mut property_info = PropertyInfo::new_from_sys(property_info_ptr);
-        T::__godot_validate_property(instance, &mut property_info);
+        T::__godot_on_validate_property(instance, &mut property_info);
 
         // `property_info_ptr` remains valid and unchanged by the user callback.
         property_info.move_into_property_info_ptr(property_info_ptr);
         true
     };
 
-    handle_method_panic_bool::<T>("validate_property", code)
+    handle_method_panic_bool::<T>("on_validate_property", code)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

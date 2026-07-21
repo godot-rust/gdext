@@ -6,7 +6,7 @@
  */
 
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
-use quote::{ToTokens, quote};
+use quote::{ToTokens, format_ident, quote};
 
 use crate::class::data_models::func::validate_receiver_extract_gdself;
 use crate::class::{BeforeKind, SignatureInfo, into_signature_info, make_virtual_callback};
@@ -14,6 +14,9 @@ use crate::util::{KvParser, bail, ident};
 use crate::{ParseResult, util};
 
 /// Codegen for `#[godot_api] impl ISomething for MyType`.
+///
+/// The `handle_*` methods and `Decls` fields are named after the user-facing `I*` virtual; see `godot_core::registry` for the naming rule
+/// across all layers.
 pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<TokenStream> {
     let (class_name, trait_path, trait_base_class) =
         util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
@@ -73,11 +76,11 @@ pub fn transform_trait_impl(mut original_impl: venial::Impl) -> ParseResult<Toke
                 validate_not_gd_self(is_gd_self, method)?;
                 iface.handle_on_notification(cfg_attrs);
             }
-            "on_get" => iface.handle_get_property(cfg_attrs, is_gd_self),
-            "on_set" => iface.handle_set_property(cfg_attrs, is_gd_self),
-            "on_validate_property" => iface.handle_validate_property(cfg_attrs, is_gd_self),
-            "on_get_property_list" => iface.handle_get_property_list(cfg_attrs, is_gd_self),
-            "on_property_get_revert" => iface.handle_property_get_revert(cfg_attrs, is_gd_self),
+            "on_get" => iface.handle_on_get(cfg_attrs, is_gd_self),
+            "on_set" => iface.handle_on_set(cfg_attrs, is_gd_self),
+            "on_validate_property" => iface.handle_on_validate_property(cfg_attrs, is_gd_self),
+            "on_get_property_list" => iface.handle_on_get_property_list(cfg_attrs, is_gd_self),
+            "on_property_get_revert" => iface.handle_on_property_get_revert(cfg_attrs, is_gd_self),
             regular_virtual_fn => {
                 // All the non-special engine ones: ready(), process(), etc.
                 // Can modify original_impl, concretely the fn body for f64->f32 conversions.
@@ -249,7 +252,7 @@ impl<'a> InterfaceBuilder<'a> {
             }
         };
 
-        self.decls.add_modifier(cfg_attrs, "with_register");
+        self.decls.add_modifier(cfg_attrs, "register");
     }
 
     fn handle_init(&mut self, cfg_attrs: Vec<&'a venial::Attribute>) {
@@ -258,8 +261,8 @@ impl<'a> InterfaceBuilder<'a> {
         let trait_path = self.trait_path;
         let deny_manual_init_macro = util::format_class_deny_manual_init_macro(class_name);
 
-        let prev = &self.decls.godot_init_impl;
-        self.decls.godot_init_impl = quote! {
+        let prev = &self.decls.init_impl;
+        self.decls.init_impl = quote! {
             #prev
             #deny_manual_init_macro!();
 
@@ -271,7 +274,7 @@ impl<'a> InterfaceBuilder<'a> {
             }
         };
 
-        self.decls.add_modifier(cfg_attrs, "with_create");
+        self.decls.add_modifier(cfg_attrs, "create");
     }
 
     fn handle_to_string(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
@@ -290,7 +293,7 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
-        self.decls.add_modifier(cfg_attrs, "with_string");
+        self.decls.add_modifier(cfg_attrs, "to_string");
     }
 
     fn handle_on_notification(&mut self, cfg_attrs: Vec<&'a venial::Attribute>) {
@@ -303,22 +306,22 @@ impl<'a> InterfaceBuilder<'a> {
 
             #(#cfg_attrs)*
             impl ::godot::obj::cap::GodotNotification for #class_name {
-                fn __godot_notification(&mut self, what: i32) {
+                fn __godot_on_notification(&mut self, what: i32) {
                     #inactive_check
                     <Self as #trait_path>::on_notification(self, what.into())
                 }
             }
         };
 
-        self.decls.add_modifier(cfg_attrs, "with_on_notification");
+        self.decls.add_modifier(cfg_attrs, "on_notification");
     }
 
-    fn handle_get_property(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
+    fn handle_on_get(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
         let inactive_check = make_inactive_class_check(quote! { None });
-        self.decls.get_property_impl =
+        self.decls.on_get_impl =
             self.make_virtual_impl(&cfg_attrs, is_gd_self, false, "GodotGet", |iface, recv| {
                 quote! {
-                    fn __godot_get_property(
+                    fn __godot_on_get(
                         mut this: ::godot::private::VirtualMethodReceiver<Self>,
                         property: ::godot::builtin::StringName,
                     ) -> Option<::godot::builtin::Variant> {
@@ -327,15 +330,15 @@ impl<'a> InterfaceBuilder<'a> {
                     }
                 }
             });
-        self.decls.add_modifier(cfg_attrs, "with_get_property");
+        self.decls.add_modifier(cfg_attrs, "on_get");
     }
 
-    fn handle_set_property(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
+    fn handle_on_set(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
         let inactive_check = make_inactive_class_check(quote! { false });
-        self.decls.set_property_impl =
+        self.decls.on_set_impl =
             self.make_virtual_impl(&cfg_attrs, is_gd_self, true, "GodotSet", |iface, recv| {
                 quote! {
-                    fn __godot_set_property(
+                    fn __godot_on_set(
                         mut this: ::godot::private::VirtualMethodReceiver<Self>,
                         property: ::godot::builtin::StringName,
                         value: ::godot::builtin::Variant,
@@ -345,23 +348,23 @@ impl<'a> InterfaceBuilder<'a> {
                     }
                 }
             });
-        self.decls.add_modifier(cfg_attrs, "with_set_property");
+        self.decls.add_modifier(cfg_attrs, "on_set");
     }
 
-    fn handle_validate_property(
+    fn handle_on_validate_property(
         &mut self,
         cfg_attrs: Vec<&'a venial::Attribute>,
         is_gd_self: bool,
     ) {
         let inactive_check = make_inactive_class_check(TokenStream::new());
-        self.decls.validate_property_impl = self.make_virtual_impl(
+        self.decls.on_validate_property_impl = self.make_virtual_impl(
             &cfg_attrs,
             is_gd_self,
             false,
             "GodotValidateProperty",
             |iface, recv| {
                 quote! {
-                    fn __godot_validate_property(
+                    fn __godot_on_validate_property(
                         mut this: ::godot::private::VirtualMethodReceiver<Self>,
                         property: &mut ::godot::register::info::PropertyInfo,
                     ) {
@@ -371,35 +374,35 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
-        self.decls.add_modifier(cfg_attrs, "with_validate_property");
+        self.decls.add_modifier(cfg_attrs, "on_validate_property");
     }
 
     #[cfg(before_api = "4.3")]
-    fn handle_get_property_list(
+    fn handle_on_get_property_list(
         &mut self,
         cfg_attrs: Vec<&'a venial::Attribute>,
         _is_gd_self: bool,
     ) {
-        self.decls.get_property_list_impl = quote! {
+        self.decls.on_get_property_list_impl = quote! {
             #(#cfg_attrs)*
             compile_error!("`on_get_property_list` is only supported for Godot versions of at least 4.3");
         };
     }
 
     #[cfg(since_api = "4.3")]
-    fn handle_get_property_list(
+    fn handle_on_get_property_list(
         &mut self,
         cfg_attrs: Vec<&'a venial::Attribute>,
         is_gd_self: bool,
     ) {
-        self.decls.get_property_list_impl = self.make_virtual_impl(
+        self.decls.on_get_property_list_impl = self.make_virtual_impl(
             &cfg_attrs,
             is_gd_self,
             true,
             "GodotGetPropertyList",
             |iface, recv| {
                 quote! {
-                    fn __godot_get_property_list(
+                    fn __godot_on_get_property_list(
                         mut this: ::godot::private::VirtualMethodReceiver<Self>,
                     ) -> Vec<::godot::register::info::PropertyInfo> {
                         #iface::on_get_property_list(#recv)
@@ -407,23 +410,23 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
-        self.decls.add_modifier(cfg_attrs, "with_get_property_list");
+        self.decls.add_modifier(cfg_attrs, "on_get_property_list");
     }
 
-    fn handle_property_get_revert(
+    fn handle_on_property_get_revert(
         &mut self,
         cfg_attrs: Vec<&'a venial::Attribute>,
         is_gd_self: bool,
     ) {
         let inactive_check = make_inactive_class_check(quote! { None });
-        self.decls.property_get_revert_impl = self.make_virtual_impl(
+        self.decls.on_property_get_revert_impl = self.make_virtual_impl(
             &cfg_attrs,
             is_gd_self,
             false,
             "GodotPropertyGetRevert",
             |iface, recv| {
                 quote! {
-                    fn __godot_property_get_revert(
+                    fn __godot_on_property_get_revert(
                         this: ::godot::private::VirtualMethodReceiver<Self>,
                         property: StringName,
                     ) -> Option<::godot::builtin::Variant> {
@@ -433,8 +436,7 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
-        self.decls
-            .add_modifier(cfg_attrs, "with_property_get_revert");
+        self.decls.add_modifier(cfg_attrs, "on_property_get_revert");
     }
 
     fn handle_regular_virtual_fn(
@@ -681,15 +683,15 @@ impl OverriddenVirtualFn<'_> {
 /// Accumulates various symbols defined inside a `#[godot_api]` macro.
 #[derive(Default)]
 struct IDecls<'a> {
-    godot_init_impl: TokenStream,
+    init_impl: TokenStream,
     to_string_impl: TokenStream,
     register_class_impl: TokenStream,
     on_notification_impl: TokenStream,
-    get_property_impl: TokenStream,
-    set_property_impl: TokenStream,
-    get_property_list_impl: TokenStream,
-    property_get_revert_impl: TokenStream,
-    validate_property_impl: TokenStream,
+    on_get_impl: TokenStream,
+    on_set_impl: TokenStream,
+    on_get_property_list_impl: TokenStream,
+    on_property_get_revert_impl: TokenStream,
+    on_validate_property_impl: TokenStream,
 
     modifiers: Vec<(Vec<&'a venial::Attribute>, Ident)>,
     overridden_virtuals: Vec<OverriddenVirtualFn<'a>>,
@@ -725,20 +727,21 @@ fn maybe_rename_deprecated_virtual(method: &mut venial::Function) -> TokenStream
 
 impl<'a> IDecls<'a> {
     fn add_modifier(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, modifier: &str) {
-        self.modifiers.push((cfg_attrs, ident(modifier)));
+        self.modifiers
+            .push((cfg_attrs, format_ident!("with_{modifier}")));
     }
 }
 
 impl ToTokens for IDecls<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.godot_init_impl.to_tokens(tokens);
+        self.init_impl.to_tokens(tokens);
         self.to_string_impl.to_tokens(tokens);
         self.on_notification_impl.to_tokens(tokens);
         self.register_class_impl.to_tokens(tokens);
-        self.get_property_impl.to_tokens(tokens);
-        self.set_property_impl.to_tokens(tokens);
-        self.get_property_list_impl.to_tokens(tokens);
-        self.property_get_revert_impl.to_tokens(tokens);
-        self.validate_property_impl.to_tokens(tokens);
+        self.on_get_impl.to_tokens(tokens);
+        self.on_set_impl.to_tokens(tokens);
+        self.on_get_property_list_impl.to_tokens(tokens);
+        self.on_property_get_revert_impl.to_tokens(tokens);
+        self.on_validate_property_impl.to_tokens(tokens);
     }
 }
