@@ -470,7 +470,7 @@ impl GetterSetterImpl {
                 rpc_info: None,
                 is_generated_accessor: true,
             },
-            None,
+            crate::class::ImplContext::Inherent,
         );
 
         let export_token = export_token.expect("accessor registration should not fail");

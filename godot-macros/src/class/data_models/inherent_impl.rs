@@ -11,9 +11,9 @@ use quote::{ToTokens, format_ident, quote};
 
 use crate::class::data_models::func;
 use crate::class::{
-    ConstDefinition, FuncDefinition, RpcAttr, RpcMode, SignalDefinition, SignatureInfo,
-    TransferMode, into_signature_info, make_constant_registration, make_method_registration,
-    make_signal_registrations,
+    ConstDefinition, FuncDefinition, ImplContext, RpcAttr, RpcMode, SignalDefinition,
+    SignatureInfo, TransferMode, into_signature_info, make_constant_registration,
+    make_method_registration, make_signal_registrations,
 };
 use crate::util::{
     KvParser, bail, c_str, format_funcs_collection_struct, ident, make_funcs_collection_constants,
@@ -94,6 +94,37 @@ struct SignalAttr {
     pub internal: bool,
 }
 
+/// Which kind of `impl` block is being scanned for `#[func]` and friends.
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum ImplKind {
+    /// Primary `#[godot_api] impl MyClass`.
+    Primary,
+
+    /// Secondary `#[godot_api(secondary)] impl MyClass`.
+    Secondary,
+
+    /// `#[godot_dyn] impl MyTrait for MyClass`.
+    DynTrait,
+}
+
+impl ImplKind {
+    /// Trait impls cannot host generated helper functions, and lack the "primary block" infrastructure for signals/RPCs.
+    fn is_trait_impl(self) -> bool {
+        matches!(self, ImplKind::DynTrait)
+    }
+}
+
+/// Result of scanning an `impl` block for gdext item attributes.
+pub(crate) struct ProcessedFns {
+    pub func_definitions: Vec<FuncDefinition>,
+    pub signal_definitions: Vec<SignalDefinition>,
+
+    /// Early-bound default implementations generated for `#[func(virtual)]`/`#[func(virtual_pub)]`.
+    ///
+    /// These are not part of any trait, so they must be added to an *inherent* impl block of the class.
+    pub extra_inherent_fns: Vec<venial::Function>,
+}
+
 pub(crate) struct InherentImplAttr {
     /// For implementation reasons, there can be a single 'primary' impl block and 0 or more 'secondary' impl blocks.
     /// For now, this is controlled by a key in the 'godot_api' attribute.
@@ -118,8 +149,25 @@ pub fn transform_inherent_impl(
     let class_name_obj = util::class_name_obj(&class_name);
     let prv = quote! { ::godot::private };
 
-    // Can add extra functions to the end of the impl block.
-    let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block, meta.secondary)?;
+    let impl_kind = if meta.secondary {
+        ImplKind::Secondary
+    } else {
+        ImplKind::Primary
+    };
+
+    let ProcessedFns {
+        func_definitions: funcs,
+        signal_definitions: signals,
+        extra_inherent_fns,
+    } = process_godot_fns(&class_name, &mut impl_block, impl_kind)?;
+
+    // Add generated functions (e.g. early-bound virtual defaults) to the end of the same impl block.
+    for function in extra_inherent_fns {
+        impl_block
+            .body_items
+            .push(venial::ImplMember::AssocFunction(function));
+    }
+
     let consts = process_godot_constants(&mut impl_block)?;
 
     let inherent_impl_docs =
@@ -168,7 +216,7 @@ pub fn transform_inherent_impl(
 
     let method_registrations: Vec<TokenStream> = funcs
         .into_iter()
-        .map(|func_def| make_method_registration(&class_name, func_def, None))
+        .map(|func_def| make_method_registration(&class_name, func_def, ImplContext::Inherent))
         .collect::<ParseResult<Vec<TokenStream>>>()?;
 
     let constant_registration = make_constant_registration(consts, &class_name, &class_name_obj)?;
@@ -278,11 +326,14 @@ fn extract_hint_attribute(impl_block: &mut venial:: Impl) -> ParseResult<GodotAp
 }
 */
 
-fn process_godot_fns(
+pub(crate) fn process_godot_fns(
     class_name: &Ident,
     impl_block: &mut venial::Impl,
-    is_secondary_impl: bool,
-) -> ParseResult<(Vec<FuncDefinition>, Vec<SignalDefinition>)> {
+    impl_kind: ImplKind,
+) -> ParseResult<ProcessedFns> {
+    let is_secondary_impl = impl_kind == ImplKind::Secondary;
+    let is_trait_impl = impl_kind.is_trait_impl();
+
     let mut func_definitions = vec![];
     let mut signal_definitions = vec![];
     let mut virtual_functions = vec![];
@@ -300,7 +351,9 @@ fn process_godot_fns(
         // `async` is allowed on `#[func(virtual)]` only (to await a GDScript coroutine override); all other qualifiers are rejected.
         // `#[func(virtual_pub)]` does not support `async` yet: `virtual` redirects the engine-facing callback to the synchronous early-bound
         // default, but for `virtual_pub` the engine calls the bound dispatcher itself, which would be the async one.
-        let async_allowed = matches!(&attr.ty, ItemAttrType::Func(func, _) if func.virtual_mode == VirtualMode::Script);
+        // In trait impls, `async` is not supported at all: the dispatcher would have to be an `async fn` inside the trait.
+        let async_allowed = !is_trait_impl
+            && matches!(&attr.ty, ItemAttrType::Func(func, _) if func.virtual_mode == VirtualMode::Script);
         if function.qualifiers.tk_default.is_some()
             || function.qualifiers.tk_const.is_some()
             || (function.qualifiers.tk_async.is_some() && !async_allowed)
@@ -329,6 +382,13 @@ fn process_godot_fns(
                     return bail!(
                         &function,
                         "#[rpc] is currently not supported in secondary impl blocks",
+                    )?;
+                }
+
+                if rpc_info.is_some() && is_trait_impl {
+                    return bail!(
+                        &function,
+                        "#[rpc] is currently not supported in #[godot_dyn] impl blocks",
                     )?;
                 }
 
@@ -402,6 +462,12 @@ fn process_godot_fns(
             }
 
             ItemAttrType::Signal(ref signal, ref _attr_val) => {
+                if is_trait_impl {
+                    return bail!(
+                        function,
+                        "#[signal] is not supported in #[godot_dyn] impl blocks; declare it in the #[godot_api] impl block",
+                    );
+                }
                 if is_secondary_impl {
                     return bail!(
                         function,
@@ -451,16 +517,16 @@ fn process_godot_fns(
         impl_block.body_items.remove(index);
     }
 
-    // Add script-virtual extra functions at the end of same impl block (subject to same attributes).
-    for f in virtual_functions.into_iter() {
-        let member = venial::ImplMember::AssocFunction(f);
-        impl_block.body_items.push(member);
-    }
-
-    Ok((func_definitions, signal_definitions))
+    Ok(ProcessedFns {
+        func_definitions,
+        signal_definitions,
+        extra_inherent_fns: virtual_functions,
+    })
 }
 
-fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefinition>> {
+pub(crate) fn process_godot_constants(
+    decl: &mut venial::Impl,
+) -> ParseResult<Vec<ConstDefinition>> {
     let mut constant_signatures = vec![];
 
     for item in decl.body_items.iter_mut() {

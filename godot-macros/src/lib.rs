@@ -1425,6 +1425,46 @@ pub fn godot_api(meta: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// # Registering trait methods with Godot
+/// Methods inside the `impl` block can be annotated with `#[func]`, which registers them on the *concrete class* -- exactly as if they were
+/// declared in the `#[godot_api] impl MyClass` block. Rust code dispatches polymorphically through `DynGd<T, dyn MyTrait>`, while GDScript
+/// can call the very same methods by name.
+///
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyClass {
+///     ticks: i64,
+/// }
+///
+/// // The class needs a primary `#[godot_api]` block, even if it is empty.
+/// #[godot_api]
+/// impl MyClass {}
+///
+/// trait Rollbackable {
+///     fn rollback_tick(&mut self, tick: i64);
+/// }
+///
+/// #[godot_dyn]
+/// impl Rollbackable for MyClass {
+///     #[func]
+///     fn rollback_tick(&mut self, tick: i64) {
+///         self.ticks += tick;
+///     }
+/// }
+/// ```
+/// GDScript can now call `obj.rollback_tick(1)`, and `DynGd<Object, dyn Rollbackable>` can call it polymorphically from Rust.
+///
+/// The usual `#[func]` keys work here as well, in particular:
+/// - `#[func(rename = other_name)]` to expose a different Godot name.
+/// - `#[func(virtual)]` and `#[func(virtual_pub)]`, which additionally dispatch to a GDScript override of the method, if present. This makes
+///   the method polymorphic across Rust classes (via the trait) *and* their GDScript subclasses.
+///
+/// Not supported inside `#[godot_dyn]` (declare these in the `#[godot_api]` block instead): `#[signal]`, `#[constant]`, `#[rpc]`,
+/// and `async` functions.
+///
 /// # Orphan rule limitations
 /// Since `AsDyn` is always a foreign trait, the `#[godot_dyn]` attribute must be used in the same crate as the Godot class's definition.
 /// (Currently, Godot classes cannot be shared from libraries, but this may [change in the future](https://github.com/godot-rust/gdext/issues/951).)

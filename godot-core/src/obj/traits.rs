@@ -975,6 +975,10 @@ pub mod cap {
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
+    #[diagnostic::on_unimplemented(
+        message = "class `{Self}` has no `#[godot_api] impl {Self}` block",
+        note = "methods registered elsewhere (e.g. `#[func]` in a `#[godot_dyn]` trait impl) need the primary `#[godot_api] impl {Self}` block, even if it is empty"
+    )]
     pub trait ImplementsGodotApi: GodotClass {
         #[doc(hidden)]
         fn __register_methods();

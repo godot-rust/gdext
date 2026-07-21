@@ -55,6 +55,40 @@ impl FuncDefinition {
     }
 }
 
+/// The kind of `impl` block a `#[func]` is declared in.
+///
+/// Determines how the generated FFI glue calls into user code, and whether the engine declares a signature to validate against.
+#[derive(Copy, Clone)]
+pub enum ImplContext<'a> {
+    /// Inherent `impl MyClass` block; the method is called directly on the instance.
+    Inherent,
+
+    /// `#[godot_api] impl IMyClass for MyClass`; engine-declared virtual method.
+    ///
+    /// Called with fully-qualified syntax, and validated against the engine's signature.
+    EngineTrait(&'a venial::TypeExpr),
+
+    /// `#[godot_dyn] impl MyTrait for MyClass`; user-declared trait method.
+    ///
+    /// Called with fully-qualified syntax (to disambiguate from same-named inherent methods); no engine signature exists.
+    UserTrait(&'a venial::TypeExpr),
+}
+
+impl<'a> ImplContext<'a> {
+    /// Trait used for fully-qualified calls `<Class as Trait>::method(...)`, if any.
+    fn qualifying_trait(self) -> Option<&'a venial::TypeExpr> {
+        match self {
+            ImplContext::Inherent => None,
+            ImplContext::EngineTrait(trait_ty) | ImplContext::UserTrait(trait_ty) => Some(trait_ty),
+        }
+    }
+
+    /// Whether the engine declares a signature for this method, against which the parameter tuple is statically validated.
+    fn has_engine_signature(self) -> bool {
+        matches!(self, ImplContext::EngineTrait(_))
+    }
+}
+
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
 // Virtual methods are non-static by their nature; so there's no support for static ones.
@@ -66,13 +100,17 @@ pub fn make_virtual_callback(
     interface_trait: Option<&venial::TypeExpr>,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
+    let context = match interface_trait {
+        Some(trait_ty) => ImplContext::EngineTrait(trait_ty),
+        None => ImplContext::Inherent,
+    };
 
     let wrapped_method = make_forwarding_closure(
         class_name,
         trait_base_class,
         signature_info,
         before_kind,
-        interface_trait,
+        context,
     );
     let sig_params = signature_info.params_type();
     let sig_ret = &signature_info.return_type;
@@ -109,7 +147,7 @@ pub fn make_virtual_callback(
 pub fn make_method_registration(
     class_name: &Ident,
     func_definition: FuncDefinition,
-    interface_trait: Option<&venial::TypeExpr>,
+    context: ImplContext<'_>,
 ) -> ParseResult<TokenStream> {
     // Fresh ident, discarding span -- prevents IDE syntax highlighter from mapping generated unsafe code to user's class declaration.
     let class_name = ident(&class_name.to_string());
@@ -126,7 +164,7 @@ pub fn make_method_registration(
         &class_name, // Not used in this case.
         signature_info,
         BeforeKind::Without,
-        interface_trait,
+        context,
     );
 
     let default_parameters = make_default_argument_vec(
@@ -332,7 +370,7 @@ fn make_forwarding_closure(
     trait_base_class: &Ident,
     signature_info: &SignatureInfo,
     before_kind: BeforeKind,
-    interface_trait: Option<&venial::TypeExpr>,
+    context: ImplContext<'_>,
 ) -> TokenStream {
     let method_name = &signature_info.method_name;
     let params = &signature_info.param_idents;
@@ -372,9 +410,8 @@ fn make_forwarding_closure(
             if matches!(before_kind, BeforeKind::OnlyBefore) {
                 sig_tuple_annotation = TokenStream::new();
                 method_call = TokenStream::new()
-            } else if let Some(interface_trait) = interface_trait {
-                // impl ITrait for Class {...}
-                // Virtual methods.
+            } else if let Some(qualifying_trait) = context.qualifying_trait() {
+                // impl ITrait for Class {...} (engine virtual methods) or #[godot_dyn] impl Trait for Class {...} (user trait methods).
 
                 let instance_ref = match signature_info.receiver_type {
                     ReceiverType::Ref => quote! { &__gdext_self },
@@ -382,12 +419,17 @@ fn make_forwarding_closure(
                     _ => unreachable!("unexpected receiver type"), // checked above.
                 };
 
-                sig_tuple_annotation = make_sig_tuple_annotation(trait_base_class, method_name);
+                // Only engine traits have a signature declared by Godot, against which the parameter tuple can be validated.
+                sig_tuple_annotation = if context.has_engine_signature() {
+                    make_sig_tuple_annotation(trait_base_class, method_name)
+                } else {
+                    TokenStream::new()
+                };
 
-                // Use fresh spans for generated code (class_name, interface_trait), but keep method_name's original span for proper
+                // Use fresh spans for generated code (class_name, qualifying_trait), but keep method_name's original span for proper
                 // IDE navigation to user's function.
                 method_call = quote! {
-                    <#class_name as #interface_trait>::#method_name( #instance_ref, #(#params),* )
+                    <#class_name as #qualifying_trait>::#method_name( #instance_ref, #(#params),* )
                 };
             } else {
                 // impl Class {...}
@@ -418,11 +460,13 @@ fn make_forwarding_closure(
             // Method call is always present, since GdSelf implies that the user declares the method.
             // (Absent method is only used in the case of a generated default virtual method, e.g. for ready()).
 
-            let sig_tuple_annotation = if interface_trait.is_some() {
+            let sig_tuple_annotation = if context.has_engine_signature() {
                 make_sig_tuple_annotation(trait_base_class, method_name)
             } else {
                 TokenStream::new()
             };
+
+            let callee = make_callee(class_name, context);
 
             quote! {
                 // Identifiers need to share the span to avoid proc macro hygiene issues
@@ -435,11 +479,13 @@ fn make_forwarding_closure(
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
 
                     #before_method_call
-                    #class_name::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*)
+                    #callee::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*)
                 }
             }
         }
         ReceiverType::Static => {
+            let callee = make_callee(class_name, context);
+
             // No before-call needed, since static methods are not virtual.
             //
             // Identifiers need to share the span to avoid proc macro hygiene issues
@@ -447,10 +493,21 @@ fn make_forwarding_closure(
             quote! {
                 |_, #param_ident| {
                     let #params_tuple = #param_ident;
-                    #class_name::#method_name(#(#params),*)
+                    #callee::#method_name(#(#params),*)
                 }
             }
         }
+    }
+}
+
+/// Path prefix for calls without `self` receiver (`gd_self` and static): the class itself, or `<Class as Trait>` for user trait impls.
+///
+/// Engine virtual methods are excluded on purpose: `#[func(gd_self)]` methods declared in an `impl ITrait for Class` block are moved to an
+/// inherent impl by the macro, so they must be called unqualified.
+fn make_callee(class_name: &Ident, context: ImplContext<'_>) -> TokenStream {
+    match context {
+        ImplContext::UserTrait(trait_ty) => quote! { <#class_name as #trait_ty> },
+        ImplContext::Inherent | ImplContext::EngineTrait(_) => quote! { #class_name },
     }
 }
 

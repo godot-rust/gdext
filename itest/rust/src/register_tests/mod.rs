@@ -8,6 +8,7 @@
 mod constant_test;
 mod conversion_test;
 mod derive_godotconvert_test;
+mod dyn_func_test;
 mod func_result_test;
 mod func_test;
 mod gdscript_ffi_test;
