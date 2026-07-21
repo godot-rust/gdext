@@ -19,10 +19,11 @@ pub fn make_fromgodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -
     let GodotConvert {
         ty_name: name,
         convert_type: data,
+        ..
     } = convert;
 
     match data {
-        ConvertType::NewType { field } => make_fromgodot_for_newtype_struct(name, field),
+        ConvertType::NewType { field } => make_fromgodot_for_newtype_struct(convert, field),
 
         ConvertType::Enum {
             variants,
@@ -37,16 +38,35 @@ pub fn make_fromgodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -
 }
 
 /// Derives `FromGodot` for newtype structs.
-fn make_fromgodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> TokenStream {
+fn make_fromgodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStruct) -> TokenStream {
     // For tuple structs this ends up using the alternate tuple-struct constructor syntax of
     // TupleStruct { 0: value }
-    let field_name = field.field_name();
-    let via_type = &field.ty;
+    let GodotConvert {
+        ty_name: name,
+        generic_params,
+        where_clause,
+        ..
+    } = convert;
+
+    let generic_args = generic_params
+        .as_ref()
+        .map(|params| params.as_inline_args());
+
+    let field_name = &field.sized.ident;
+    let via_type = &field.sized.ty;
+
+    let field_zst_names = field.zsts.iter().map(|field| &field.ident);
+    let field_zst_tys = field.zsts.iter().map(|field| &field.ty);
 
     quote! {
-        impl ::godot::meta::FromGodot for #name {
+        impl #generic_params ::godot::meta::FromGodot for #name #generic_args #where_clause {
             fn try_from_godot(via: #via_type) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
-                Ok(Self { #field_name: via })
+                #(assert_eq!(::std::mem::size_of::<#field_zst_tys>(), 0);)*
+
+                Ok(Self {
+                    #field_name: via,
+                    #(#field_zst_names: ::std::default::Default::default()),*
+                })
             }
         }
     }

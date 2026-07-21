@@ -16,12 +16,19 @@ use crate::derive::data_models::GodotConvert;
 /// This uses `ToGodot` and `FromGodot` for the `var_get` and `var_set` implementations.
 /// Property hints are derived from `GodotConvert::shape()`.
 pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
-    let convert = GodotConvert::parse_declaration(item)?;
+    let GodotConvert {
+        ty_name: name,
+        where_clause,
+        generic_params,
+        ..
+    } = GodotConvert::parse_declaration(item)?;
 
-    let name = convert.ty_name;
+    let generic_args = generic_params
+        .as_ref()
+        .map(|params| params.as_inline_args());
 
     Ok(quote! {
-        impl ::godot::register::property::Var for #name {
+        impl #generic_params ::godot::register::property::Var for #name #generic_args #where_clause {
             type PubType = Self;
 
             fn var_get(field: &Self) -> <Self as ::godot::meta::GodotConvert>::Via {

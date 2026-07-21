@@ -18,10 +18,11 @@ pub fn make_togodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -> 
     let GodotConvert {
         ty_name: name,
         convert_type: data,
+        ..
     } = convert;
 
     match data {
-        ConvertType::NewType { field } => make_togodot_for_newtype_struct(name, field),
+        ConvertType::NewType { field } => make_togodot_for_newtype_struct(convert, field),
 
         ConvertType::Enum {
             variants,
@@ -36,12 +37,23 @@ pub fn make_togodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -> 
 }
 
 /// Derives `ToGodot` for newtype structs.
-fn make_togodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> TokenStream {
-    let field_name = field.field_name();
-    let via_type = &field.ty;
+fn make_togodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStruct) -> TokenStream {
+    let GodotConvert {
+        ty_name: name,
+        generic_params,
+        where_clause,
+        ..
+    } = convert;
+
+    let generic_args = generic_params
+        .as_ref()
+        .map(|params| params.as_inline_args());
+
+    let field_name = &field.sized.ident;
+    let via_type = &field.sized.ty;
 
     quote! {
-        impl ::godot::meta::ToGodot for #name {
+        impl #generic_params ::godot::meta::ToGodot for #name #generic_args #where_clause {
             type Pass = <#via_type as ::godot::meta::ToGodot>::Pass;
 
             fn to_godot(&self) -> ::godot::meta::ToArg<'_, Self::Via, Self::Pass> {

@@ -7,6 +7,7 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
+use venial::{GenericParamList, WhereClause};
 
 use super::c_style_enum::CStyleEnum;
 use super::godot_attribute::{GodotAttribute, ViaType};
@@ -18,23 +19,41 @@ use crate::util::bail;
 pub struct GodotConvert {
     /// The name of the type we're deriving for.
     pub ty_name: Ident,
+    pub where_clause: Option<WhereClause>,
+    pub generic_params: Option<GenericParamList>,
     /// The data from the type and `godot` attribute.
     pub convert_type: ConvertType,
 }
 
 impl GodotConvert {
     pub fn parse_declaration(item: venial::Item) -> ParseResult<Self> {
-        let (name, where_clause, generic_params) = match &item {
-            venial::Item::Struct(struct_) => (
-                struct_.name.clone(),
-                &struct_.where_clause,
-                &struct_.generic_params,
-            ),
-            venial::Item::Enum(enum_) => (
-                enum_.name.clone(),
-                &enum_.where_clause,
-                &enum_.generic_params,
-            ),
+        let data = ConvertType::parse_declaration(&item)?;
+
+        let (name, where_clause, generic_params) = match item {
+            venial::Item::Struct(struct_) => {
+                (struct_.name, struct_.where_clause, struct_.generic_params)
+            }
+            venial::Item::Enum(enum_) => {
+                // We only have C-style enums, so Rust would already complain that generics are unused.
+                // This provides clearer error messages though.
+                if let Some(generic_params) = &enum_.generic_params {
+                    return bail!(
+                        generic_params,
+                        "#[derive(GodotConvert)] does not support lifetimes or generic parameters on enums"
+                    );
+                }
+
+                // Is this check even necessary? What's the use case of where clauses without generics?
+                // For traits, one can imagine `Self: SomeBound`, but for structs/enums?
+                if let Some(where_clause) = &enum_.where_clause {
+                    return bail!(
+                        where_clause,
+                        "#[derive(GodotConvert)] does not support where clauses"
+                    );
+                }
+
+                (enum_.name, enum_.where_clause, enum_.generic_params)
+            }
             other => {
                 return bail!(
                     other,
@@ -43,26 +62,10 @@ impl GodotConvert {
             }
         };
 
-        if let Some(generic_params) = generic_params {
-            return bail!(
-                generic_params,
-                "#[derive(GodotConvert)] does not support lifetimes or generic parameters"
-            );
-        }
-
-        // Is this check even necessary? What's the use case of where clauses without generics?
-        // For traits, one can imagine `Self: SomeBound`, but for structs/enums?
-        if let Some(where_clause) = where_clause {
-            return bail!(
-                where_clause,
-                "#[derive(GodotConvert)] does not support where clauses"
-            );
-        }
-
-        let data = ConvertType::parse_declaration(item)?;
-
         Ok(Self {
             ty_name: name,
+            where_clause,
+            generic_params,
             convert_type: data,
         })
     }
@@ -77,10 +80,10 @@ pub enum ConvertType {
 }
 
 impl ConvertType {
-    pub fn parse_declaration(item: venial::Item) -> ParseResult<Self> {
-        let attribute = GodotAttribute::parse_attribute(&item)?;
+    pub fn parse_declaration(item: &venial::Item) -> ParseResult<Self> {
+        let attribute = GodotAttribute::parse_attribute(item)?;
 
-        match &item {
+        match item {
             venial::Item::Struct(struct_) => {
                 let GodotAttribute::Transparent { .. } = attribute else {
                     return bail!(
@@ -113,7 +116,7 @@ impl ConvertType {
     /// Returns the type for use in `type Via = <type>;` in `GodotConvert` implementations.
     pub fn via_type(&self) -> TokenStream {
         match self {
-            ConvertType::NewType { field } => field.ty.to_token_stream(),
+            ConvertType::NewType { field } => field.sized.ty.to_token_stream(),
             ConvertType::Enum { via, .. } => via.to_token_stream(),
         }
     }
