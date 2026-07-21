@@ -195,6 +195,57 @@ pub unsafe fn has_virtual_script_method(
     }
 }
 
+#[cfg(since_api = "4.3")]
+thread_local! {
+    /// `(object pointer, Godot method name)` pairs whose script override is currently executing on this thread.
+    static SCRIPT_VIRTUAL_DISPATCH: std::cell::RefCell<Vec<(usize, &'static str)>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Unmarks the script override on drop. See [`enter_script_virtual_dispatch()`].
+#[cfg(since_api = "4.3")]
+pub struct ScriptVirtualDispatchGuard {
+    key: (usize, &'static str),
+}
+
+#[cfg(since_api = "4.3")]
+impl Drop for ScriptVirtualDispatchGuard {
+    fn drop(&mut self) {
+        SCRIPT_VIRTUAL_DISPATCH.with_borrow_mut(|stack| {
+            if let Some(index) = stack.iter().rposition(|entry| *entry == self.key) {
+                stack.remove(index);
+            }
+        });
+    }
+}
+
+/// Panics if a `#[func(virtual_pub)]` dispatch is re-entered, which happens when the script override calls `super`.
+///
+/// Without this, `super` would route back into the same override and recurse until the stack overflows.
+#[cfg(since_api = "4.3")]
+pub fn enter_script_virtual_dispatch(
+    object_ptr: sys::GDExtensionObjectPtr,
+    class_name: &str,
+    method_name: &'static str,
+) -> ScriptVirtualDispatchGuard {
+    let key = (object_ptr as usize, method_name);
+
+    SCRIPT_VIRTUAL_DISPATCH.with_borrow_mut(|stack| {
+        assert!(
+            !stack.contains(&key),
+            "`{class_name}::{method_name}()` was re-entered while its script override was running, most likely through \
+             `super.{method_name}()` in that override.\n\
+             #[func(virtual_pub)] registers the dispatching method under the plain name, so a `super` call routes back into the same script \
+             override and would recurse until the stack overflows. The Rust default implementation cannot be reached this way -- expose it as \
+             a separate #[func] if scripts need to call it."
+        );
+
+        stack.push(key);
+    });
+
+    ScriptVirtualDispatchGuard { key }
+}
+
 /// Ensure `T` is an editor plugin.
 pub const fn is_editor_plugin<T: crate::obj::Inherits<classes::EditorPlugin>>() {}
 

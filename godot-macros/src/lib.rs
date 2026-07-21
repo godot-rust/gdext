@@ -1068,19 +1068,21 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// `@warning_ignore("native_method_override")`, as in the GDScript example above. Note that projects configured to treat GDScript warnings as
 /// errors will fail to compile such a script without the annotation.
 ///
-/// #### Warning: `super` calls recurse infinitely
+/// #### Warning: `super` calls are rejected
 ///
-/// An overriding script must **not** call the base implementation via `super`:
+/// An overriding script must not call the base implementation via `super`:
 ///
 /// ```gdscript
 /// @warning_ignore("native_method_override")
 /// func language():
-///    return super.language()  # DANGER: infinite recursion, crashes with a stack overflow.
+///    return super.language()  # Panics: re-enters the dispatcher.
 /// ```
 ///
-/// `super.language()` invokes the registered native method, which is the dispatcher. The dispatcher sees that the script overrides
-/// `language` and calls the override again, which calls `super` again, and so on. There is currently no way to reach the Rust default from an
-/// overriding script; only Rust callers get the fallback. If a script needs the base behavior, expose it as a separate `#[func]`.
+/// `super.language()` invokes the registered method, which is the dispatcher. It would find the same script override and call it again,
+/// recursing until the stack overflows. gdext detects this re-entry and panics with an explanatory message instead.
+///
+/// The Rust default therefore cannot be reached from an overriding script; only Rust callers get the fallback. Expose the base behavior as a
+/// separate `#[func]` if scripts need to call it.
 ///
 /// #### Limitations
 ///

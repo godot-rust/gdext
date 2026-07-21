@@ -376,7 +376,7 @@ fn process_godot_fns(
                         &func.rename,
                         gd_self_parameter,
                         is_async,
-                        func.virtual_mode.is_script_virtual(),
+                        func.virtual_mode,
                     );
 
                     // For async virtuals, the engine-facing default impl must be synchronous, so the registered callback targets the
@@ -498,10 +498,8 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
 ///
 /// Appends the virtual function to `virtual_functions`.
 ///
-/// `underscore_prefix` controls the default Godot name: `_<name>` for `#[func(virtual)]`, plain `<name>` for `#[func(virtual_pub)]`.
-///
-/// Returns `(godot_name, early_bound_name)`: the Godot-registered name of the virtual function (default `_<name>` or `<name>`, overridable
-/// with `#[func(rename = ...)]`) and the identifier of the synchronous early-bound default method.
+/// Returns `(godot_name, early_bound_name)`: the Godot-registered name of the virtual function (default `_<name>` for `virtual` and `<name>`
+/// for `virtual_pub`, overridable with `#[func(rename = ...)]`) and the identifier of the synchronous early-bound default method.
 #[allow(clippy::too_many_arguments)] // Internal helper; parameters are all distinct, small values -- a struct would add indirection.
 fn add_virtual_script_call(
     virtual_functions: &mut Vec<venial::Function>,
@@ -511,7 +509,7 @@ fn add_virtual_script_call(
     rename: &Option<String>,
     gd_self_parameter: Option<Ident>,
     is_async: bool,
-    underscore_prefix: bool,
+    virtual_mode: VirtualMode,
 ) -> (String, Ident) {
     #[allow(clippy::assertions_on_constants)]
     {
@@ -539,7 +537,7 @@ fn add_virtual_script_call(
 
     let method_name_str = match rename {
         Some(rename) => rename.clone(),
-        None if underscore_prefix => format!("_{}", function.name),
+        None if virtual_mode.is_script_virtual() => format!("_{}", function.name),
         None => function.name.to_string(),
     };
     let method_name_cstr = c_str(&method_name_str);
@@ -564,6 +562,16 @@ fn add_virtual_script_call(
         (quote! { out_script_virtual_call }, quote! {})
     };
 
+    // `virtual_pub` registers this dispatcher as the class's method, so `super.name()` in the override re-enters it and would recurse
+    // forever. `virtual` registers no default implementation, so `super` cannot reach it and no guard is needed.
+    let reentrancy_guard = if matches!(virtual_mode, VirtualMode::Public) {
+        quote! {
+            let _guard = ::godot::private::enter_script_virtual_dispatch(object_ptr, #class_name_str, #method_name_str);
+        }
+    } else {
+        TokenStream::new()
+    };
+
     let code = quote! {
         let object_ptr = #object_ptr;
         let method_sname = ::godot::builtin::StringName::__cstr(#method_name_cstr);
@@ -571,6 +579,8 @@ fn add_virtual_script_call(
         let has_virtual_override = unsafe { ::godot::private::has_virtual_script_method(object_ptr, method_sname_ptr) };
 
         if has_virtual_override {
+            #reentrancy_guard
+
             // Dynamic dispatch.
             type CallParams = #call_params;
             type CallRet = #call_ret;

@@ -13,7 +13,7 @@ use godot::global::godot_str;
 use godot::prelude::*;
 use godot::task::{self, TaskHandle};
 
-use crate::framework::{TestContext, create_gdscript, itest};
+use crate::framework::{TestContext, create_gdscript, itest, suppress_godot_print};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Synchronous virtual functions
@@ -136,6 +136,26 @@ fn func_virtual_pub() {
         "GDScript#72".to_variant()
     );
     assert_eq!(object.bind().speak(72), GString::from("GDScript#72"));
+}
+
+// A `super` call in the override re-enters the dispatcher; without detection this recurses until the stack overflows.
+#[itest]
+fn func_virtual_pub_super_call_panics() {
+    let mut object = VirtualScriptCalls::new_gd();
+    object.set_script(&create_gdscript(
+        r#"
+extends VirtualScriptCalls
+
+@warning_ignore("native_method_override")
+func speak(i: int) -> String:
+    return super.speak(i)
+"#,
+    ));
+
+    // The guard panics across the FFI boundary, which gdext turns into a Godot error -- instead of recursing until the stack overflows.
+    // The failed `super` call yields nil, which GDScript coerces to "" for the declared `-> String` return type.
+    let result = suppress_godot_print(|| object.call("speak", vslice![72]));
+    assert_eq!(result, "".to_variant());
 }
 
 #[itest]
