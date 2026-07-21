@@ -165,7 +165,7 @@ pub(crate) fn register_class<
 
     let godot_params = GodotCreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
-        notification_func: Some(callbacks::on_notification::<T>),
+        notification_func: Some(callbacks::notification::<T>),
         reference_func: Some(callbacks::reference::<T>),
         unreference_func: Some(callbacks::unreference::<T>),
         create_instance_func: Some(callbacks::create::<T>),
@@ -520,7 +520,7 @@ fn fill_class_info(item: ShardItem, c: &mut ClassRegistrationInfo) {
             user_create_fn,
             user_recreate_fn,
             user_to_string_fn,
-            user_on_notification_fn,
+            user_notification_fn,
             user_set_fn,
             user_get_fn,
             get_virtual_fn,
@@ -542,7 +542,7 @@ fn fill_class_info(item: ShardItem, c: &mut ClassRegistrationInfo) {
                 .expect("duplicate: recreate_instance_func (i)");
 
             c.godot_params.to_string_func = user_to_string_fn;
-            c.godot_params.notification_func = user_on_notification_fn;
+            c.godot_params.notification_func = user_notification_fn;
             c.godot_params.set_func = user_set_fn;
             c.godot_params.get_func = user_get_fn;
             c.godot_params.get_property_list_func = user_get_property_list_fn;

@@ -830,6 +830,8 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Capability traits, providing dedicated functionalities for Godot classes
+///
+/// The `__godot_*` methods are named after the user-facing `I*` virtual; see [`crate::registry`] for the naming rule across all layers.
 pub mod cap {
     use std::any::Any;
 
@@ -904,7 +906,7 @@ pub mod cap {
     #[doc(hidden)]
     pub trait GodotNotification: GodotClass {
         #[doc(hidden)]
-        fn __godot_notification(&mut self, what: i32);
+        fn __godot_on_notification(&mut self, what: i32);
     }
 
     // TODO Evaluate whether we want this public or not
@@ -920,7 +922,7 @@ pub mod cap {
         type Recv: IntoVirtualMethodReceiver<Self>;
 
         #[doc(hidden)]
-        fn __godot_get_property(
+        fn __godot_on_get(
             this: VirtualMethodReceiver<Self>,
             property: StringName,
         ) -> Option<Variant>;
@@ -932,7 +934,7 @@ pub mod cap {
         type Recv: IntoVirtualMethodReceiver<Self>;
 
         #[doc(hidden)]
-        fn __godot_set_property(
+        fn __godot_on_set(
             this: VirtualMethodReceiver<Self>,
             property: StringName,
             value: Variant,
@@ -945,7 +947,7 @@ pub mod cap {
         type Recv: IntoVirtualMethodReceiver<Self>;
 
         #[doc(hidden)]
-        fn __godot_get_property_list(
+        fn __godot_on_get_property_list(
             this: VirtualMethodReceiver<Self>,
         ) -> Vec<crate::registry::info::PropertyInfo>;
     }
@@ -956,7 +958,7 @@ pub mod cap {
         type Recv: IntoVirtualMethodReceiver<Self>;
 
         #[doc(hidden)]
-        fn __godot_property_get_revert(
+        fn __godot_on_property_get_revert(
             this: VirtualMethodReceiver<Self>,
             property: StringName,
         ) -> Option<Variant>;
@@ -968,7 +970,7 @@ pub mod cap {
         type Recv: IntoVirtualMethodReceiver<Self>;
 
         #[doc(hidden)]
-        fn __godot_validate_property(
+        fn __godot_on_validate_property(
             this: VirtualMethodReceiver<Self>,
             property: &mut PropertyInfo,
         );

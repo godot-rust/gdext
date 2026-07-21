@@ -362,7 +362,7 @@ pub struct ITraitImpl {
     >,
 
     /// User-defined `on_notification` function.
-    pub(crate) user_on_notification_fn: Option<
+    pub(crate) user_notification_fn: Option<
         unsafe extern "C" fn(
             p_instance: sys::GDExtensionClassInstancePtr,
             p_what: i32,
@@ -474,30 +474,27 @@ impl ITraitImpl {
         self
     }
 
-    pub fn with_string<T: GodotClass + cap::GodotToString>(mut self) -> Self {
+    pub fn with_to_string<T: GodotClass + cap::GodotToString>(mut self) -> Self {
         set(&mut self.user_to_string_fn, callbacks::to_string::<T>);
         self
     }
 
     pub fn with_on_notification<T: GodotClass + cap::GodotNotification>(mut self) -> Self {
-        set(
-            &mut self.user_on_notification_fn,
-            callbacks::on_notification::<T>,
-        );
+        set(&mut self.user_notification_fn, callbacks::notification::<T>);
         self
     }
 
-    pub fn with_get_property<T: GodotClass + cap::GodotGet>(mut self) -> Self {
-        set(&mut self.user_get_fn, callbacks::get_property::<T>);
+    pub fn with_on_get<T: GodotClass + cap::GodotGet>(mut self) -> Self {
+        set(&mut self.user_get_fn, callbacks::get::<T>);
         self
     }
 
-    pub fn with_set_property<T: GodotClass + cap::GodotSet>(mut self) -> Self {
-        set(&mut self.user_set_fn, callbacks::set_property::<T>);
+    pub fn with_on_set<T: GodotClass + cap::GodotSet>(mut self) -> Self {
+        set(&mut self.user_set_fn, callbacks::set::<T>);
         self
     }
 
-    pub fn with_get_property_list<T: GodotClass + cap::GodotGetPropertyList>(mut self) -> Self {
+    pub fn with_on_get_property_list<T: GodotClass + cap::GodotGetPropertyList>(mut self) -> Self {
         set(
             &mut self.user_get_property_list_fn,
             callbacks::get_property_list::<T>,
@@ -511,7 +508,9 @@ impl ITraitImpl {
         self
     }
 
-    pub fn with_property_get_revert<T: GodotClass + cap::GodotPropertyGetRevert>(mut self) -> Self {
+    pub fn with_on_property_get_revert<T: GodotClass + cap::GodotPropertyGetRevert>(
+        mut self,
+    ) -> Self {
         set(
             &mut self.user_property_get_revert_fn,
             callbacks::property_get_revert::<T>,
@@ -523,7 +522,7 @@ impl ITraitImpl {
         self
     }
 
-    pub fn with_validate_property<T: GodotClass + cap::GodotValidateProperty>(mut self) -> Self {
+    pub fn with_on_validate_property<T: GodotClass + cap::GodotValidateProperty>(mut self) -> Self {
         set(
             &mut self.validate_property_fn,
             callbacks::validate_property::<T>,
