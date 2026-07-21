@@ -78,6 +78,7 @@ mod extras;
 mod global;
 mod godot_ffi;
 mod interface_init;
+mod multi_extension;
 #[cfg(target_os = "linux")]
 pub mod linux_reload_workaround;
 mod opaque;
@@ -104,6 +105,7 @@ pub use string_cache::StringCache;
 pub use toolbox::*;
 
 pub use crate::godot_ffi::{ExtVariantType, GodotFfi, PrimitiveConversionError, PtrcallType};
+pub use multi_extension::MULTI_EXTENSION_HINT;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
@@ -213,6 +215,10 @@ pub unsafe fn initialize(
 ) {
     out!("Initialize godot-rust...");
 
+    // Before touching any global state: diagnose the case where another godot-rust extension already occupies these globals (Wasm side
+    // modules). Otherwise the failure surfaces much later as a cryptic panic in an unrelated cache.
+    multi_extension::on_library_init();
+
     out!(
         "Godot version against which godot-rust was compiled: {}",
         GdextBuild::godot_static_version_string()
@@ -315,6 +321,8 @@ pub unsafe fn initialize(
 pub unsafe fn deinitialize() {
     // SAFETY: unique caller, from main thread.
     unsafe { deinitialize_binding() };
+
+    multi_extension::on_library_deinit();
 
     // MACOS-PARTIAL-RELOAD: Clear the main thread ID to allow re-initialization during hot reload.
     #[cfg(not(wasm_nothreads))]
