@@ -140,14 +140,6 @@ where
         let value = T::try_from_variant(variant)?;
         Ok(Some(value))
     }
-
-    fn from_variant(variant: &Variant) -> Self {
-        if variant.is_nil() {
-            return None;
-        }
-
-        Some(T::from_variant(variant))
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

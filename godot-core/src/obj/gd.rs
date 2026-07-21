@@ -1195,12 +1195,15 @@ impl<T: GodotClass> GodotType for Gd<T> {
         }
     }
 
+    /// Recognizes the Godot inspector's "clear" action on an `#[export]`ed `Option<Gd<T>>` property.
+    ///
+    /// When unsetting such a property in the editor, Godot 4.2 behaves inconsistently:
+    /// - 🔁 reset button: passes null object pointer inside the variant (as expected, handled by the regular nil check).
+    /// - 🧹 clear button: sends a `NodePath` with an empty string, rather than a nil variant.
+    ///
+    /// We detect the latter case and return `Gd::null()` instead of failing to convert the `NodePath` (i.e. panic in `from_variant()` or
+    /// error in `try_from_variant()`).
     fn qualifies_as_special_none(from_variant: &Variant) -> bool {
-        // Behavior in Godot 4.2 when unsetting an #[export]'ed property:
-        // 🔁 reset button: passes null object pointer inside Variant (as expected).
-        // 🧹 clear button: sends a NodePath with an empty string (!?).
-
-        // We recognize the latter case and return a Gd::null() instead of failing to convert the NodePath.
         if let Ok(node_path) = from_variant.try_to::<NodePath>()
             && node_path.is_empty()
         {

@@ -261,7 +261,7 @@ impl<'a, T> InaccessibleGuard<'a, T> {
     #[doc(hidden)]
     pub fn can_drop(&self) -> bool {
         let state = unsafe { self.state.get().as_mut() }.unwrap();
-        state.borrow_state.may_unset_inaccessible() || state.stack_depth == self.stack_depth
+        state.borrow_state.may_unset_inaccessible() && state.stack_depth == self.stack_depth
     }
 
     /// Drop self if possible, otherwise returns self again.

@@ -138,6 +138,8 @@ impl<'a, T> InaccessibleGuardBlocking<'a, T> {
     ///
     /// See [`panicking::InaccessibleGuard::try_drop`](crate::panicking::InaccessibleGuard::try_drop) for more details.
     pub fn try_drop(self) -> Result<(), Self> {
+        // Intentional: `lock()` is not unwrapped, and the check is not atomic with the drop. Worst case is a poisoned cell,
+        // which is acceptable here (see doc above); do not harden.
         let can_drop = {
             let _tracker_guard = self.state.lock();
             self.inner.can_drop()

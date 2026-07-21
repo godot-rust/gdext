@@ -211,10 +211,9 @@ impl Aabb {
     #[inline]
     #[doc(alias = "get_endpoint")]
     pub fn get_corner(self, idx: usize) -> Vector3 {
-        *self
-            .corners()
-            .get(idx)
-            .expect("Tried to retrieve vertex no. {idx} from Aabb which has only 8 vertices")
+        *self.corners().get(idx).unwrap_or_else(|| {
+            panic!("Tried to retrieve vertex [{idx}] from Aabb which has only 8 vertices")
+        })
     }
 
     /// Set size based on desired end-point.
@@ -310,6 +309,7 @@ impl Aabb {
             && self.position.y <= end_b.y
             && end.y >= b.position.y
             && self.position.z <= end_b.z
+            && end.z >= b.position.z
     }
 
     /// Checks whether two AABBs have at least one _inner_ point in common (not on the borders).
@@ -584,6 +584,12 @@ mod test {
             size: Vector3::new(1.0, 1.0, 1.0),
         };
 
+        // Overlaps aabb1 on X and Y, but is separated above it on the Z axis only.
+        let aabb5 = Aabb {
+            position: Vector3::new(0.0, 0.0, 10.0),
+            size: Vector3::new(4.0, 4.0, 4.0),
+        };
+
         // Check for intersection including border.
         assert!(aabb1.intersects(aabb2));
         assert!(aabb2.intersects(aabb1));
@@ -591,6 +597,10 @@ mod test {
         // Check for non-intersection including border.
         assert!(!aabb1.intersects(aabb3));
         assert!(!aabb3.intersects(aabb1));
+
+        // Check for non-intersection when separated on the Z axis alone (X/Y overlap).
+        assert!(!aabb1.intersects(aabb5));
+        assert!(!aabb5.intersects(aabb1));
 
         // Check for intersection excluding border.
         assert!(aabb1.intersects_exclude_borders(aabb2));

@@ -404,6 +404,7 @@ impl<T> FutureSlot<T> {
 /// The storage for the pending tasks of the async runtime.
 #[derive(Default)]
 struct AsyncRuntime {
+    /// Type-erased futures: boxed to allow `dyn`, pinned so they can be polled in place, and yielding `()` as tasks are detached.
     tasks: Vec<FutureSlot<Pin<Box<dyn Future<Output = ()>>>>>,
     next_task_id: u64,
     #[cfg(feature = "itest")]
@@ -433,8 +434,8 @@ impl AsyncRuntime {
     /// First, a linear search is performed to locate an already existing but currently unoccupied slot in the task buffer. If there is no
     /// free slot, a new slot is added which may grow the underlying [`Vec`].
     ///
-    /// The future storage always starts out with a capacity of 10 tasks.
-    fn add_task<F: Future<Output = ()> + 'static>(&mut self, future: F) -> TaskHandle {
+    /// The future storage always starts out with a capacity of 10 tasks. The future itself is type-erased; see `tasks` field.
+    fn add_task(&mut self, future: Pin<Box<dyn Future<Output = ()>>>) -> TaskHandle {
         let id = self.next_id();
         let index_slot = self
             .tasks
@@ -443,15 +444,13 @@ impl AsyncRuntime {
             .enumerate()
             .find(|(_, slot)| slot.is_empty());
 
-        let boxed = Box::pin(future);
-
         let index = match index_slot {
             Some((index, slot)) => {
-                *slot = FutureSlot::pending(id, boxed);
+                *slot = FutureSlot::pending(id, future);
                 index
             }
             None => {
-                self.tasks.push(FutureSlot::pending(id, boxed));
+                self.tasks.push(FutureSlot::pending(id, future));
                 self.tasks.len() - 1
             }
         };

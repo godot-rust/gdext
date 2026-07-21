@@ -385,4 +385,32 @@ mod test {
         drop(guard1);
         drop(guard2);
     }
+
+    #[test]
+    fn prevent_inaccessible_out_of_order_drop() {
+        // `try_drop()` below must fail while a more recently created inaccessible guard is still live. Dropping the outer guard
+        // first would corrupt the pointer stack, so `can_drop()` requires BOTH that the borrow state permits unsetting AND that
+        // this guard is on top of the stack.
+        let cell = GdCell::new(42);
+
+        let mut guard1 = cell.borrow_mut().unwrap();
+        let mut1 = &mut *guard1;
+        let inacc1 = cell.make_inaccessible(mut1).unwrap();
+
+        let mut guard2 = cell.borrow_mut().unwrap();
+        let mut2 = &mut *guard2;
+        let inacc2 = cell.make_inaccessible(mut2).unwrap();
+
+        // The borrow state would permit unsetting (no accessible references remain), but `inacc1` is below `inacc2` on the stack,
+        // so dropping it first must be rejected.
+        let inacc1 = inacc1
+            .try_drop()
+            .expect_err("out-of-order inaccessible drop must be rejected");
+
+        // Unwind in correct (reverse) order: each inaccessible guard restores its accessible guard, which is then released.
+        drop(inacc2);
+        drop(guard2);
+        drop(inacc1);
+        drop(guard1);
+    }
 }

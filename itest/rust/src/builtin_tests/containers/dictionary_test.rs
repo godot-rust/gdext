@@ -413,13 +413,24 @@ fn dictionary_clear() {
 
 #[itest]
 fn dictionary_find_key() {
-    let dictionary = vdict! {
-        "foo" => 0,
-        "bar" => true,
+    let mut dict = vdict! {
+        "zero" => 0,
+        "yes" => true,
     };
 
-    assert_eq!(dictionary.find_key_by_value(0), Some("foo".to_variant()));
-    assert_eq!(dictionary.find_key_by_value(true), Some("bar".to_variant()));
+    assert_eq!(dict.find_key_by_value(0), Some("zero".to_variant()));
+    assert_eq!(dict.find_key_by_value(1), None);
+    assert_eq!(dict.find_key_by_value(true), Some("yes".to_variant()));
+
+    dict.set(&Variant::nil(), "nil");
+    assert_eq!(dict.find_key_by_value("nil"), Some(Variant::nil()));
+
+    // Multiple candidates -> first one returned.
+    dict.set(0, "nil");
+    assert_eq!(dict.find_key_by_value("nil"), Some(Variant::nil()));
+
+    // NIL key exists, but searched value is absent -> must not return Some(nil).
+    assert_eq!(dict.find_key_by_value(2), None);
 }
 
 #[itest]

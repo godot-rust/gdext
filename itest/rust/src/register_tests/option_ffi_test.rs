@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot::builtin::NodePath;
 use godot::classes::{Node, Object, RefCounted, Resource};
-use godot::meta::GodotType;
+use godot::meta::{FromGodot, GodotType, ToGodot};
 use godot::obj::{Gd, NewAlloc, NewGd, RawGd};
 use godot::register::{GodotClass, godot_api};
 use godot::sys::GodotFfi;
@@ -37,6 +38,19 @@ fn option_none_sys_conversion() {
     let v2_raw = unsafe { RawGd::<Object>::new_from_sys(ptr) };
     let v2 = Option::<Gd<Object>>::from_ffi(v2_raw);
     assert_eq!(v2, v);
+}
+
+// Godot 4.2's inspector "clear" button on an #[export]ed Option<Gd<T>> property sends an empty NodePath instead of nil; both conversion
+// paths must yield None. See Gd::qualifies_as_special_none().
+#[itest]
+fn option_special_none_from_empty_node_path() {
+    let empty = NodePath::default().to_variant();
+    assert_eq!(Option::<Gd<Node>>::try_from_variant(&empty).unwrap(), None);
+    assert_eq!(Option::<Gd<Node>>::from_variant(&empty), None);
+
+    // Non-empty NodePath is not special-cased and must not yield None.
+    let non_empty = NodePath::from("Some/Path").to_variant();
+    assert!(Option::<Gd<Node>>::try_from_variant(&non_empty).is_err());
 }
 
 #[derive(GodotClass, Debug)]

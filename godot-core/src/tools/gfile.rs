@@ -770,7 +770,12 @@ impl Seek for GFile {
                 Ok(position)
             }
             SeekFrom::End(offset) => {
-                if (self.check_file_length() as i64) < offset {
+                // The resulting position is `length + offset`; offset is typically negative. Positive offsets (seeking past the end)
+                // are valid, so only reject targets that would fall before the file beginning.
+                if (self.check_file_length() as i64)
+                    .checked_add(offset)
+                    .is_none_or(|pos| pos < 0)
+                {
                     return Err(std::io::Error::new(
                         ErrorKind::InvalidInput,
                         "Position can't be set before the file beginning",
@@ -781,13 +786,15 @@ impl Seek for GFile {
                 Ok(self.fa.get_position())
             }
             SeekFrom::Current(offset) => {
-                let new_pos = self.fa.get_position() as i64 + offset;
-                if new_pos < 0 {
+                let Some(new_pos) = (self.fa.get_position() as i64)
+                    .checked_add(offset)
+                    .filter(|pos| *pos >= 0)
+                else {
                     return Err(std::io::Error::new(
                         ErrorKind::InvalidInput,
                         "Position can't be set before the file beginning",
                     ));
-                }
+                };
                 let new_pos = new_pos as u64;
                 self.fa.seek(new_pos);
                 self.check_error()?;

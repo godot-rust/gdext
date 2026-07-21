@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::Callable;
+use godot::builtin::{Callable, GString};
 use godot::classes::RefCounted;
 use godot::obj::Base;
 use godot::register::property::PhantomVar;
@@ -89,6 +89,9 @@ mod export_tool_button_test {
         #[export_tool_button(fn = Self::my_fn)]
         other_tool_button: PhantomVar<Callable>,
 
+        #[export_tool_button(fn = Self::my_fn, name = "Run Tool", icon = "MyIcon")]
+        named_tool_button: PhantomVar<Callable>,
+
         val: i32,
         base: Base<RefCounted>,
     }
@@ -118,5 +121,20 @@ mod export_tool_button_test {
         let callable = default.to::<Callable>();
         // Calling on freed instance should not panic; emits godot_error and is a no-op.
         suppress_godot_print(|| callable.call(&[]));
+    }
+
+    #[itest]
+    fn test_tool_button_hint_string() {
+        let property = ToolButtonExporter::new_gd()
+            .get_property_list()
+            .iter_shared()
+            .find(|dict| dict.at("name").to::<GString>() == "named_tool_button")
+            .expect("tool button property should be present in property list");
+
+        // Godot expects `name,icon` without quotes; the string literals' quotes must not end up in the hint string.
+        assert_eq!(
+            property.at("hint_string").to::<GString>(),
+            "Run Tool,MyIcon"
+        );
     }
 }

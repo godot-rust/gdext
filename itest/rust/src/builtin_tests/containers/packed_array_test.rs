@@ -322,6 +322,30 @@ fn packed_array_resize() {
 }
 
 #[itest]
+fn packed_byte_array_encode_decode_bounds() {
+    let mut array = PackedByteArray::from(&[0u8; 8]);
+
+    // In-bounds round trip works.
+    array.encode_u32(0, 0xDEAD_BEEF).expect("encode in bounds");
+    assert_eq!(array.decode_u32(0), Ok(0xDEAD_BEEF));
+
+    // Out-of-bounds and overflowing offsets must return Err, not panic or wrap past the bounds check.
+    assert_eq!(array.encode_u32(5, 1), Err(())); // 5 + 4 > 8.
+    assert_eq!(array.decode_u32(5), Err(()));
+    assert_eq!(array.encode_u32(usize::MAX, 1), Err(()));
+    assert_eq!(array.decode_u32(usize::MAX), Err(()));
+
+    // Same for the variant codecs, which would otherwise wrap to a negative i64 when passed to Godot.
+    assert_eq!(
+        array.encode_var(usize::MAX, &1_i64.to_variant(), false),
+        Err(())
+    );
+    let (variant, size) = array.decode_var_allow_nil(usize::MAX, false);
+    assert!(variant.is_nil());
+    assert_eq!(size, 0);
+}
+
+#[itest]
 fn packed_array_resize_fill() {
     // TODO: PackedArray::resize() should be split into growing/shrinking API, see Array.
 
