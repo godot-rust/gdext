@@ -298,8 +298,8 @@ fn process_godot_fns(
         };
 
         // `async` is allowed on `#[func(virtual)]` only (to await a GDScript coroutine override); all other qualifiers are rejected.
-        // Note: `#[func(virtual_pub)]` does not support `async` yet -- the engine-facing callback is the bound method itself, so the
-        // async-default redirection used by `virtual` does not apply. See open questions in the plan.
+        // `#[func(virtual_pub)]` does not support `async` yet: `virtual` redirects the engine-facing callback to the synchronous early-bound
+        // default, but for `virtual_pub` the engine calls the bound dispatcher itself, which would be the async one.
         let async_allowed = matches!(&attr.ty, ItemAttrType::Func(func, _) if func.virtual_mode == VirtualMode::Script);
         if function.qualifiers.tk_default.is_some()
             || function.qualifiers.tk_const.is_some()

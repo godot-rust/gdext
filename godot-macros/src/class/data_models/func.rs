@@ -9,7 +9,7 @@ use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{format_ident, quote, quote_spanned};
 
 use crate::class::RpcAttr;
-use crate::util::{bail, bail_fn, ident, safe_ident, to_spanned_tuple};
+use crate::util::{bail, ident, safe_ident, to_spanned_tuple};
 use crate::{ParseResult, util};
 
 /// Information used for registering a Rust function with Godot.
@@ -119,10 +119,7 @@ pub fn make_method_registration(
     let sig_ret = &signature_info.return_type;
 
     let is_script_virtual = func_definition.is_script_virtual;
-    let method_flags = match make_method_flags(signature_info.receiver_type, is_script_virtual) {
-        Ok(mf) => mf,
-        Err(msg) => return bail_fn(msg, &signature_info.method_name),
-    };
+    let method_flags = make_method_flags(signature_info.receiver_type, is_script_virtual);
 
     let forwarding_closure = make_forwarding_closure(
         &class_name,
@@ -598,10 +595,9 @@ pub(crate) fn maybe_rename_parameter(param_ident: Ident, next_unnamed_index: &mu
     }
 }
 
-fn make_method_flags(
-    method_type: ReceiverType,
-    is_script_virtual: bool,
-) -> Result<TokenStream, String> {
+// Static receivers are already rejected for virtual functions during attribute processing, so `is_script_virtual` never combines with
+// `ReceiverType::Static` here.
+fn make_method_flags(method_type: ReceiverType, is_script_virtual: bool) -> TokenStream {
     let flags = quote! { ::godot::register::info::MethodFlags };
 
     let base_flags = match method_type {
@@ -613,22 +609,15 @@ fn make_method_flags(
             quote! { #flags::NORMAL }
         }
         ReceiverType::Static => {
-            if is_script_virtual {
-                return Err(
-                    "#[func(virtual)] is not allowed for associated (static) functions".to_string(),
-                );
-            }
             quote! { #flags::NORMAL | #flags::STATIC }
         }
     };
 
-    let flags = if is_script_virtual {
+    if is_script_virtual {
         quote! { #base_flags | #flags::VIRTUAL }
     } else {
         base_flags
-    };
-
-    Ok(flags)
+    }
 }
 
 /// Generate code for a C FFI function that performs a varcall.
