@@ -14,6 +14,7 @@ pub mod constant;
 pub mod info;
 pub mod method;
 pub mod property;
+pub mod reg_validation;
 pub mod shard;
 
 // RpcConfig uses MultiplayerPeer::TransferMode and MultiplayerApi::RpcMode, which are only enabled in `codegen-full` feature.

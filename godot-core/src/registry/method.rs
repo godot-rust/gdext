@@ -153,6 +153,9 @@ impl ClassMethodInfo {
     }
 
     fn register_nonvirtual_class_method(&self, method_info_sys: sys::GDExtensionClassMethodInfo) {
+        // Only for non-virtual methods: Godot keeps virtual methods in a separate map, which ClassDB does not expose.
+        crate::registry::reg_validation::validate_method(self.class_id, &self.method_name);
+
         // SAFETY: The lifetime of the data we use here is at least as long as this function's scope. So we can
         // safely call this function without issue.
         //
