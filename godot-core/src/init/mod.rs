@@ -302,6 +302,9 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
 
     match level {
         InitLevel::Core => {
+            // SAFETY: main thread, interface/binding initialized above.
+            unsafe { crate::builtin::check_layout_matches_godot() };
+
             #[cfg(since_api = "4.5")]
             unsafe {
                 sys::interface_fn!(register_main_loop_callbacks)(
