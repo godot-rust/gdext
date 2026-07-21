@@ -206,6 +206,26 @@ impl INode for NotificationTest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+// Regression test: virtual declared repeatedly under exclusive #[cfg]s needs one trait impl per declaration, not just the last.
+#[derive(GodotClass)]
+#[class(base=RefCounted, init)]
+struct CfgGatedVirtualTest;
+
+#[godot_api]
+impl IRefCounted for CfgGatedVirtualTest {
+    #[cfg(since_api = "4.3")]
+    fn to_string(&self) -> GString {
+        godot_str!("since-4.3")
+    }
+
+    #[cfg(before_api = "4.3")]
+    fn to_string(&self) -> GString {
+        godot_str!("before-4.3")
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(GodotClass)]
 #[class(init)]
 struct GetTest {
@@ -568,6 +588,17 @@ fn test_notifications() {
         ]
     );
     obj.free();
+}
+
+#[itest]
+fn test_cfg_gated_virtual() {
+    let obj = CfgGatedVirtualTest::new_gd();
+
+    #[cfg(since_api = "4.3")]
+    assert_eq!(obj.to_string(), "since-4.3");
+
+    #[cfg(before_api = "4.3")]
+    assert_eq!(obj.to_string(), "before-4.3");
 }
 
 #[itest]

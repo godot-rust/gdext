@@ -230,27 +230,17 @@ struct InterfaceBuilder<'a> {
 
 impl<'a> InterfaceBuilder<'a> {
     fn handle_register_class(&mut self, cfg_attrs: Vec<&'a venial::Attribute>) {
-        // Implements the trait once for each implementation of this method, forwarding the cfg attrs of each
-        // implementation to the generated trait impl. If the cfg attrs allow for multiple implementations of
-        // this method to exist, then Rust will generate an error, so we don't have to worry about the multiple
-        // trait implementations actually generating an error, since that can only happen if multiple
-        // implementations of the same method are kept by #[cfg] (due to user error).
-        // Thus, by implementing the trait once for each possible implementation of this method (depending on
-        // what #[cfg] allows), forwarding the cfg attrs, we ensure this trait impl will remain in the code if
-        // at least one of the method impls are kept.
         let class_name = self.class_name;
         let trait_path = self.trait_path;
-        let prev = &self.decls.register_class_impl;
-        self.decls.register_class_impl = quote! {
-            #prev
 
+        self.decls.register_class_impl.extend(quote! {
             #(#cfg_attrs)*
             impl ::godot::obj::cap::GodotRegisterClass for #class_name {
                 fn __godot_register_class(builder: &mut ::godot::builder::GodotBuilder<Self>) {
                     <Self as #trait_path>::register_class(builder)
                 }
             }
-        };
+        });
 
         self.decls.add_modifier(cfg_attrs, "register");
     }
@@ -261,9 +251,7 @@ impl<'a> InterfaceBuilder<'a> {
         let trait_path = self.trait_path;
         let deny_manual_init_macro = util::format_class_deny_manual_init_macro(class_name);
 
-        let prev = &self.decls.init_impl;
-        self.decls.init_impl = quote! {
-            #prev
+        self.decls.init_impl.extend(quote! {
             #deny_manual_init_macro!();
 
             #(#cfg_attrs)*
@@ -272,13 +260,13 @@ impl<'a> InterfaceBuilder<'a> {
                     <Self as #trait_path>::init(base)
                 }
             }
-        };
+        });
 
         self.decls.add_modifier(cfg_attrs, "create");
     }
 
     fn handle_to_string(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
-        self.decls.to_string_impl = self.make_virtual_impl(
+        let new_impl = self.make_virtual_impl(
             &cfg_attrs,
             is_gd_self,
             false,
@@ -293,6 +281,8 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
+
+        self.decls.to_string_impl.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "to_string");
     }
 
@@ -300,10 +290,7 @@ impl<'a> InterfaceBuilder<'a> {
         let class_name = self.class_name;
         let trait_path = self.trait_path;
         let inactive_check = make_inactive_class_check(TokenStream::new());
-        let prev = &self.decls.on_notification_impl;
-        self.decls.on_notification_impl = quote! {
-            #prev
-
+        self.decls.on_notification_impl.extend(quote! {
             #(#cfg_attrs)*
             impl ::godot::obj::cap::GodotNotification for #class_name {
                 fn __godot_on_notification(&mut self, what: i32) {
@@ -311,14 +298,14 @@ impl<'a> InterfaceBuilder<'a> {
                     <Self as #trait_path>::on_notification(self, what.into())
                 }
             }
-        };
+        });
 
         self.decls.add_modifier(cfg_attrs, "on_notification");
     }
 
     fn handle_on_get(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
         let inactive_check = make_inactive_class_check(quote! { None });
-        self.decls.on_get_impl =
+        let new_impl =
             self.make_virtual_impl(&cfg_attrs, is_gd_self, false, "GodotGet", |iface, recv| {
                 quote! {
                     fn __godot_on_get(
@@ -330,12 +317,14 @@ impl<'a> InterfaceBuilder<'a> {
                     }
                 }
             });
+
+        self.decls.on_get_impl.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_get");
     }
 
     fn handle_on_set(&mut self, cfg_attrs: Vec<&'a venial::Attribute>, is_gd_self: bool) {
         let inactive_check = make_inactive_class_check(quote! { false });
-        self.decls.on_set_impl =
+        let new_impl =
             self.make_virtual_impl(&cfg_attrs, is_gd_self, true, "GodotSet", |iface, recv| {
                 quote! {
                     fn __godot_on_set(
@@ -348,6 +337,8 @@ impl<'a> InterfaceBuilder<'a> {
                     }
                 }
             });
+
+        self.decls.on_set_impl.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_set");
     }
 
@@ -357,7 +348,7 @@ impl<'a> InterfaceBuilder<'a> {
         is_gd_self: bool,
     ) {
         let inactive_check = make_inactive_class_check(TokenStream::new());
-        self.decls.on_validate_property_impl = self.make_virtual_impl(
+        let new_impl = self.make_virtual_impl(
             &cfg_attrs,
             is_gd_self,
             false,
@@ -374,6 +365,8 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
+
+        self.decls.on_validate_property_impl.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_validate_property");
     }
 
@@ -383,10 +376,10 @@ impl<'a> InterfaceBuilder<'a> {
         cfg_attrs: Vec<&'a venial::Attribute>,
         _is_gd_self: bool,
     ) {
-        self.decls.on_get_property_list_impl = quote! {
+        self.decls.on_get_property_list_impl.extend(quote! {
             #(#cfg_attrs)*
             compile_error!("`on_get_property_list` is only supported for Godot versions of at least 4.3");
-        };
+        });
     }
 
     #[cfg(since_api = "4.3")]
@@ -395,7 +388,7 @@ impl<'a> InterfaceBuilder<'a> {
         cfg_attrs: Vec<&'a venial::Attribute>,
         is_gd_self: bool,
     ) {
-        self.decls.on_get_property_list_impl = self.make_virtual_impl(
+        let new_impl = self.make_virtual_impl(
             &cfg_attrs,
             is_gd_self,
             true,
@@ -410,6 +403,8 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
+
+        self.decls.on_get_property_list_impl.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_get_property_list");
     }
 
@@ -419,7 +414,7 @@ impl<'a> InterfaceBuilder<'a> {
         is_gd_self: bool,
     ) {
         let inactive_check = make_inactive_class_check(quote! { None });
-        self.decls.on_property_get_revert_impl = self.make_virtual_impl(
+        let new_impl = self.make_virtual_impl(
             &cfg_attrs,
             is_gd_self,
             false,
@@ -436,6 +431,8 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             },
         );
+
+        self.decls.on_property_get_revert_impl.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_property_get_revert");
     }
 
@@ -681,6 +678,9 @@ impl OverriddenVirtualFn<'_> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Accumulates various symbols defined inside a `#[godot_api]` macro.
+///
+/// Each `*_impl` field collects all impls: a method can be declared repeatedly under exclusive `#[cfg]`s, and keeping only the last one
+/// would drop the impl if an earlier branch is active.
 #[derive(Default)]
 struct IDecls<'a> {
     init_impl: TokenStream,
