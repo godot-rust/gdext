@@ -535,6 +535,8 @@ macro_rules! inline_impl_integer_vector_fns {
     (
         // Name of the float-equivalent vector type.
         $VectorFloat:ty,
+        // Name of the conversion method to the float-equivalent vector type.
+        $to_float_fn:ident,
         // Names of the components, for example `x, y`.
         $($comp:ident),*
     ) => {
@@ -617,8 +619,14 @@ macro_rules! inline_impl_integer_vector_fns {
 
         /// Converts to a vector with floating-point [`real`](type.real.html) components, using `as` casts.
         #[inline]
-        pub const fn cast_float(self) -> $VectorFloat {
+        pub const fn $to_float_fn(self) -> $VectorFloat {
             <$VectorFloat>::new( $(self.$comp as real),* )
+        }
+
+        #[deprecated = concat!("Renamed to `", stringify!($to_float_fn), "()`.")]
+        #[inline]
+        pub const fn cast_float(self) -> $VectorFloat {
+            self.$to_float_fn()
         }
     };
 }
@@ -629,6 +637,8 @@ macro_rules! impl_float_vector_fns {
         $Vector:ty,
         // Name of the integer-equivalent vector type.
         $VectorInt:ty,
+        // Name of the conversion method to the integer-equivalent vector type.
+        $to_int_fn:ident,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($comp:ident),*)
     ) => {
@@ -637,8 +647,13 @@ macro_rules! impl_float_vector_fns {
         /// The following methods are only available on floating-point vectors.
         impl $Vector {
             /// Converts to a vector with integer components, using `as` casts.
-            pub const fn cast_int(self) -> $VectorInt {
+            pub const fn $to_int_fn(self) -> $VectorInt {
                 <$VectorInt>::new( $(self.$comp as i32),* )
+            }
+
+            #[deprecated = concat!("Renamed to `", stringify!($to_int_fn), "()`.")]
+            pub const fn cast_int(self) -> $VectorInt {
+                self.$to_int_fn()
             }
 
             /// Returns a new vector with all components rounded down (towards negative infinity).

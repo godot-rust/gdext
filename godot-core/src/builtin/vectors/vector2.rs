@@ -46,7 +46,7 @@ use crate::builtin::{RAffine2, RVec2, Vector2i, real};
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
-/// <br>You can convert to `Vector2i` using [`cast_int()`][Self::cast_int].
+/// <br>You can convert to `Vector2i` using [`to_vector2i()`][Self::to_vector2i].
 ///
 /// # Godot docs
 ///
@@ -168,7 +168,7 @@ impl Vector2 {
     }
 }
 
-impl_float_vector_fns!(Vector2, Vector2i, (x, y));
+impl_float_vector_fns!(Vector2, Vector2i, to_vector2i, (x, y));
 impl_vector2x_fns!(Vector2, Vector3, real);
 impl_vector2_vector3_fns!(Vector2, (x, y));
 

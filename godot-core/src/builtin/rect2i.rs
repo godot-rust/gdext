@@ -24,7 +24,7 @@ use crate::builtin::{Rect2, Side, Vector2i};
 /// | 2D        | [`Rect2`]       | **`Rect2i`** |
 /// | 3D        | [`Aabb`]        |              |
 ///
-/// <br>You can convert to `Rect2` using [`cast_float()`][Self::cast_float].
+/// <br>You can convert to `Rect2` using [`to_rect2()`][Self::to_rect2].
 ///
 /// [`Aabb`]: crate::builtin::Aabb
 ///
@@ -84,11 +84,17 @@ impl Rect2i {
     ///
     /// _Godot equivalent: `Rect2(Rect2i from)`_
     #[inline]
-    pub const fn cast_float(self) -> Rect2 {
+    pub const fn to_rect2(self) -> Rect2 {
         Rect2 {
-            position: self.position.cast_float(),
-            size: self.size.cast_float(),
+            position: self.position.to_vector2(),
+            size: self.size.to_vector2(),
         }
+    }
+
+    #[deprecated = "Renamed to `to_rect2()`."]
+    #[inline]
+    pub const fn cast_float(self) -> Rect2 {
+        self.to_rect2()
     }
 
     /// The end of the `Rect2i` calculated as `position + size`.
@@ -315,7 +321,7 @@ mod test {
         let zero = Rect2i::default();
         let new = Rect2i::new(Vector2i::new(0, 100), Vector2i::new(1280, 720));
         let from_components = Rect2i::from_components(0, 100, 1280, 720);
-        let from_rect2 = Rect2::from_components(0.1, 100.3, 1280.1, 720.42).cast_int();
+        let from_rect2 = Rect2::from_components(0.1, 100.3, 1280.1, 720.42).to_rect2i();
         let from_position_end =
             Rect2i::from_position_end(Vector2i::new(0, 100), Vector2i::new(1280, 820));
 

@@ -73,7 +73,7 @@ impl_vector_fns!(Vector4i, glam::IVec4, i32, (x, y, z, w));
 
 /// # Specialized `Vector4i` functions
 impl Vector4i {
-    inline_impl_integer_vector_fns!(Vector4, x, y, z, w);
+    inline_impl_integer_vector_fns!(Vector4, to_vector4, x, y, z, w);
 
     /// Converts `self` to the corresponding [`real`] `glam` type.
     #[doc(hidden)]
