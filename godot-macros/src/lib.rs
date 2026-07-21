@@ -1007,6 +1007,76 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///
 /// Make sure you understand the limitations in the [tutorial](https://godot-rust.github.io/book/register/virtual-functions.html).
 ///
+/// ### Polymorphic, Godot-callable virtual functions
+///
+/// `#[func(virtual)]` registers the function as a Godot _virtual_ method, which binds no default implementation. Godot can thus only call it
+/// when a script actually overrides it -- with no script attached, `obj.call("_language")` does not reach your Rust body. The Rust default is
+/// reachable only from Rust.
+///
+/// `#[func(virtual_pub)]` keeps the same dispatch semantics, but registers the function under its **plain name** as a **normal** method, with
+/// the dispatcher bound as its callback. Godot can therefore always call it:
+///
+/// ```no_run
+/// # #[cfg(since_api = "4.3")]
+/// # mod conditional {
+/// # use godot::prelude::*;
+/// # #[derive(GodotClass)]
+/// # #[class(init)]
+/// # struct MyStruct { base: Base<RefCounted> }
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func(virtual_pub)]
+///     fn language(&self) -> GString {
+///         GString::from("Rust")
+///     }
+/// }
+/// # }
+/// ```
+///
+/// In GDScript, the function is both overridden and called by its plain name -- no leading underscore:
+/// ```gdscript
+/// extends MyStruct
+///
+/// @warning_ignore("native_method_override")
+/// func language():
+///    return "GDScript"
+/// ```
+///
+/// The call then dispatches polymorphically from both sides: a script override wins, otherwise the Rust default runs. This holds for
+/// `obj.language()` in Rust, `obj.language()` in GDScript, and reflection such as `obj.call("language")`.
+///
+/// Comparison:
+///
+/// | | `#[func]` | `#[func(virtual)]` | `#[func(virtual_pub)]` |
+/// |---|---|---|---|
+/// | Godot-facing name | `language` | `_language` | `language` |
+/// | Godot call, no script | Rust body | *does not reach Rust* | Rust default |
+/// | Godot call, script override | script | script | script |
+/// | `self.language()` in Rust | always Rust body | script override, else Rust default | script override, else Rust default |
+///
+/// #### Warning: `NATIVE_METHOD_OVERRIDE` in overriding scripts
+///
+/// Since the function is registered as a *normal* (non-virtual) method, Godot's parser flags a script that overrides it:
+///
+/// ```text
+/// The method "language()" overrides a method from native class "MyStruct".
+/// This won't be called by the engine and may not work as expected.
+/// ```
+///
+/// The warning is inaccurate for this case: gdext dispatches to the override explicitly, so it *is* invoked, as the table above shows. The
+/// warning only concerns calls that the *engine itself* initiates through its virtual-method table. Silence it in the overriding script with
+/// `@warning_ignore("native_method_override")`, as in the GDScript example above. Note that projects configured to treat GDScript warnings as
+/// errors will fail to compile such a script without the annotation.
+///
+/// #### Limitations
+///
+/// - Requires Godot API 4.3 or later, like `#[func(virtual)]`.
+/// - `virtual` and `virtual_pub` are mutually exclusive.
+/// - Not allowed on associated (static) functions -- dispatch requires a receiver.
+/// - `async fn` is currently supported only by `#[func(virtual)]`, not by `virtual_pub`.
+/// - Combines with `#[func(rename = ...)]` (which then also replaces the plain name) and with `#[func(gd_self)]`.
+/// - The method is registered among the class's normal methods, not its virtual ones, so Godot does not present it as an overridable virtual.
+///
 /// ### Async virtual functions
 ///
 /// A `#[func(virtual)]` may be declared `async fn`, to allow GDScript overrides that use `await`. The Rust caller then awaits the override's
