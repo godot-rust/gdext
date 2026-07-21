@@ -57,8 +57,35 @@ impl AttrParseResult {
 #[derive(Default)]
 struct FuncAttr {
     pub rename: Option<String>,
-    pub is_virtual: bool,
+    pub virtual_mode: VirtualMode,
     pub has_gd_self: bool,
+}
+
+/// Whether and how a `#[func]` participates in virtual (script-override) dispatch.
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
+enum VirtualMode {
+    /// Regular `#[func]`: no dispatcher, statically bound.
+    #[default]
+    None,
+
+    /// `#[func(virtual)]`: registered under `_name` with `MethodFlags::VIRTUAL`. Callable from Godot only if a script override is present.
+    Script,
+
+    /// `#[func(virtual_pub)]`: registered under the plain `name` as a normal method, with the dispatcher bound as its default. Always callable
+    /// from Godot (script override wins, else Rust default) -- polymorphic from both Godot and Rust.
+    Public,
+}
+
+impl VirtualMode {
+    /// Whether a virtual-dispatch body should be generated (true for both `virtual` and `virtual_pub`).
+    fn generates_dispatcher(self) -> bool {
+        !matches!(self, VirtualMode::None)
+    }
+
+    /// Whether the method is registered as a Godot virtual method (`MethodFlags::VIRTUAL`, `_name` prefix). Only `#[func(virtual)]`.
+    fn is_script_virtual(self) -> bool {
+        matches!(self, VirtualMode::Script)
+    }
 }
 
 #[derive(Default)]
@@ -270,8 +297,10 @@ fn process_godot_fns(
             continue;
         };
 
-        // `async` is allowed for `#[func(virtual)]` (to await a GDScript coroutine override); all other qualifiers are rejected.
-        let async_allowed = matches!(&attr.ty, ItemAttrType::Func(func, _) if func.is_virtual);
+        // `async` is allowed on `#[func(virtual)]` only (to await a GDScript coroutine override); all other qualifiers are rejected.
+        // Note: `#[func(virtual_pub)]` does not support `async` yet -- the engine-facing callback is the bound method itself, so the
+        // async-default redirection used by `virtual` does not apply. See open questions in the plan.
+        let async_allowed = matches!(&attr.ty, ItemAttrType::Func(func, _) if func.virtual_mode == VirtualMode::Script);
         if function.qualifiers.tk_default.is_some()
             || function.qualifiers.tk_const.is_some()
             || (function.qualifiers.tk_async.is_some() && !async_allowed)
@@ -327,9 +356,18 @@ fn process_godot_fns(
                 // Validity already enforced by the qualifier check above (only `#[func(virtual)]` may be async).
                 let is_async = function.qualifiers.tk_async.is_some();
 
-                // For virtual methods, rename/mangle existing user method and create a new method with the original name,
-                // which performs a dynamic dispatch.
-                let registered_name = if func.is_virtual {
+                // For virtual methods (`virtual` and `virtual_pub`), rename/mangle existing user method and create a new method with the
+                // original name, which performs a dynamic dispatch. `virtual_pub` registers under the plain name as a normal method (see
+                // `is_script_virtual` below), so Godot can always call it and it dispatches polymorphically.
+                let registered_name = if func.virtual_mode.generates_dispatcher() {
+                    // Dispatch requires a receiver; static/associated functions cannot be virtual.
+                    if matches!(signature_info.receiver_type, func::ReceiverType::Static) {
+                        return bail!(
+                            &function.qualifiers,
+                            "#[func(virtual)] / #[func(virtual_pub)] is not allowed for associated (static) functions"
+                        );
+                    }
+
                     let (registered_name, early_bound_name) = add_virtual_script_call(
                         &mut virtual_functions,
                         function,
@@ -338,6 +376,7 @@ fn process_godot_fns(
                         &func.rename,
                         gd_self_parameter,
                         is_async,
+                        func.virtual_mode.is_script_virtual(),
                     );
 
                     // For async virtuals, the engine-facing default impl must be synchronous, so the registered callback targets the
@@ -355,7 +394,8 @@ fn process_godot_fns(
                     signature_info,
                     external_attributes,
                     registered_name,
-                    is_script_virtual: func.is_virtual,
+                    // Only `#[func(virtual)]` registers as a Godot virtual method; `virtual_pub` registers as a normal (bound) method.
+                    is_script_virtual: func.virtual_mode.is_script_virtual(),
                     rpc_info,
                     is_generated_accessor: false,
                 });
@@ -458,8 +498,11 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<ConstDefi
 ///
 /// Appends the virtual function to `virtual_functions`.
 ///
-/// Returns `(godot_name, early_bound_name)`: the Godot-registered name of the virtual function (usually `_<name>`, but overridable with
-/// `#[func(rename = ...)]`) and the identifier of the synchronous early-bound default method.
+/// `underscore_prefix` controls the default Godot name: `_<name>` for `#[func(virtual)]`, plain `<name>` for `#[func(virtual_pub)]`.
+///
+/// Returns `(godot_name, early_bound_name)`: the Godot-registered name of the virtual function (default `_<name>` or `<name>`, overridable
+/// with `#[func(rename = ...)]`) and the identifier of the synchronous early-bound default method.
+#[allow(clippy::too_many_arguments)] // Internal helper; parameters are all distinct, small values -- a struct would add indirection.
 fn add_virtual_script_call(
     virtual_functions: &mut Vec<venial::Function>,
     function: &mut venial::Function,
@@ -468,6 +511,7 @@ fn add_virtual_script_call(
     rename: &Option<String>,
     gd_self_parameter: Option<Ident>,
     is_async: bool,
+    underscore_prefix: bool,
 ) -> (String, Ident) {
     #[allow(clippy::assertions_on_constants)]
     {
@@ -495,7 +539,8 @@ fn add_virtual_script_call(
 
     let method_name_str = match rename {
         Some(rename) => rename.clone(),
-        None => format!("_{}", function.name),
+        None if underscore_prefix => format!("_{}", function.name),
+        None => function.name.to_string(),
     };
     let method_name_cstr = c_str(&method_name_str);
 
@@ -673,12 +718,25 @@ fn parse_func_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseRes
     // #[func(rename = MyClass)]
     let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
 
-    // #[func(virtual)]
-    let is_virtual = if let Some(span) = parser.handle_alone_with_span("virtual")? {
-        require_api_version!("4.3", span, "#[func(virtual)]")?;
-        true
-    } else {
-        false
+    // #[func(virtual)] and #[func(virtual_pub)] -- mutually exclusive.
+    let virtual_span = parser.handle_alone_with_span("virtual")?;
+    let virtual_pub_span = parser.handle_alone_with_span("virtual_pub")?;
+    let virtual_mode = match (virtual_span, virtual_pub_span) {
+        (Some(span), None) => {
+            require_api_version!("4.3", span, "#[func(virtual)]")?;
+            VirtualMode::Script
+        }
+        (None, Some(span)) => {
+            require_api_version!("4.3", span, "#[func(virtual_pub)]")?;
+            VirtualMode::Public
+        }
+        (None, None) => VirtualMode::None,
+        (Some(_), Some(span)) => {
+            return bail!(
+                span,
+                "#[func]: `virtual` and `virtual_pub` are mutually exclusive"
+            );
+        }
     };
 
     // #[func(gd_self)]
@@ -688,7 +746,7 @@ fn parse_func_attr(attributes: &[venial::Attribute]) -> ParseResult<AttrParseRes
 
     Ok(AttrParseResult::Func(FuncAttr {
         rename,
-        is_virtual,
+        virtual_mode,
         has_gd_self,
     }))
 }

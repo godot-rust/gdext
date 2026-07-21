@@ -41,6 +41,13 @@ impl VirtualScriptCalls {
         godot_str!("{s} Rust")
     }
 
+    // Unlike `virtual`, registered under the plain name `speak` as a normal method, so Godot can always call it (Rust default when no
+    // script, override otherwise).
+    #[func(virtual_pub)]
+    fn speak(&self, i: i32) -> GString {
+        godot_str!("Rust#{i}")
+    }
+
     #[func(virtual)]
     fn set_thing(&mut self, _input: Variant) {
         panic!("set_thing() must be overridden")
@@ -113,6 +120,25 @@ fn func_virtual_gd_self() {
 }
 
 #[itest]
+fn func_virtual_pub() {
+    let mut object = VirtualScriptCalls::new_gd();
+
+    // Key difference vs #[func(virtual)]: callable from Godot by plain name even without a script -> Rust default.
+    assert_eq!(object.call("speak", vslice![72]), "Rust#72".to_variant());
+
+    // Rust-side dispatch also hits the default.
+    assert_eq!(object.bind().speak(72), GString::from("Rust#72"));
+
+    // With script override: both Godot and Rust dispatch to GDScript.
+    object.set_script(&make_script());
+    assert_eq!(
+        object.call("speak", vslice![72]),
+        "GDScript#72".to_variant()
+    );
+    assert_eq!(object.bind().speak(72), GString::from("GDScript#72"));
+}
+
+#[itest]
 fn func_virtual_stateful() {
     let mut object = VirtualScriptCalls::new_gd();
     object.set_script(&make_script());
@@ -139,6 +165,12 @@ func greet_lang2(s: String) -> String:
 func _greet_lang3(s: String) -> String:
     return str(s, " GDScript")
 
+# `virtual_pub` registers `speak` as a normal method, so overriding it warns NATIVE_METHOD_OVERRIDE (fatal here, warnings-as-errors). The
+# override is still dispatched via gdext, so the warning is benign -- silence it.
+@warning_ignore("native_method_override")
+func speak(i: int) -> String:
+    return str("GDScript#", i)
+
 func _set_thing(anything):
     thing = anything
 
@@ -162,6 +194,7 @@ func _get_thing():
             "_greet_lang",
             "greet_lang2",
             "_greet_lang3",
+            "speak",
             "_set_thing",
             "_get_thing"
         ]
