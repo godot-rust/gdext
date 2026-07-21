@@ -20,12 +20,14 @@ use godot::global::godot_str;
 use godot::meta::{ClassId, FromGodot, GodotType, ToGodot};
 use godot::obj::{
     Base, Gd, GodotClass as _, Inherits, InstanceId, NewAlloc, NewGd, RawGd, Singleton,
+    WithBaseField,
 };
 use godot::register::{GodotClass, godot_api};
 use godot::sys::{self, GodotFfi, interface_fn};
 
 use crate::framework::{
     TestContext, assert_debug_eq, create_gdscript, expect_panic, expect_panic_or_ub, itest,
+    suppress_godot_print,
 };
 
 // TODO:
@@ -1305,4 +1307,37 @@ func get_native_class():
 
     assert_debug_eq(&native_class, "Gd", &fields);
     assert_debug_eq(&variant, "VariantGd", &fields);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Base access during Drop
+
+#[derive(GodotClass)]
+#[class(init, base = RefCounted)]
+struct AccessGdOnDrop {
+    base: Base<RefCounted>,
+}
+
+impl Drop for AccessGdOnDrop {
+    fn drop(&mut self) {
+        // Reaching the base at this point requires incrementing the refcount of an object that is already being destroyed.
+        self.to_gd();
+    }
+}
+
+// `to_gd()` during destruction panics, since the downcast to `RefCounted` no longer works -- see `RawGd::try_with_ref_counted()`. That panic
+// originates in a C callback, so it must be caught in `callbacks::free()`; otherwise it unwinds into Godot and aborts the process.
+//
+// The panic is reported and swallowed, so this test passes by returning at all: reaching the assertion means the process survived.
+#[itest]
+fn object_to_gd_during_drop() {
+    let obj = AccessGdOnDrop::new_gd();
+    let id = obj.instance_id();
+
+    suppress_godot_print(|| drop(obj));
+
+    assert!(
+        !id.lookup_validity(),
+        "object destroyed despite panic in Drop"
+    );
 }
