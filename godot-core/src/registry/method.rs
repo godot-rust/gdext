@@ -104,6 +104,8 @@ impl ClassMethodInfo {
     pub fn register_extension_class_method(&self) {
         use crate::obj::EngineBitfield as _;
 
+        crate::registry::validate::validate_method(self.class_id, &self.method_name);
+
         let (return_value_info, return_value_metadata) = match &self.return_value {
             Some(info) => (Some(&info.info), info.metadata),
             None => (None, 0),

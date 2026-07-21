@@ -31,6 +31,8 @@ impl IntegerConstant {
     }
 
     fn register(&self, class_name: ClassId, enum_name: &StringName, is_bitfield: bool) {
+        crate::registry::validate::validate_constant(class_name, &self.name);
+
         unsafe {
             interface_fn!(classdb_register_extension_class_integer_constant)(
                 sys::get_library(),

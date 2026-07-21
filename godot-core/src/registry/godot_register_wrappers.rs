@@ -84,6 +84,13 @@ fn register_var_or_export_inner(
     let getter_name = StringName::from(getter_name);
     let setter_name = StringName::from(setter_name);
 
+    crate::registry::validate::validate_property(
+        class_name,
+        &info.property_name,
+        &getter_name,
+        &setter_name,
+    );
+
     let property_info_sys = info.property_sys();
 
     unsafe {

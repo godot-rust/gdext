@@ -661,8 +661,13 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     }
 }
 
-fn validate_class_constraints(_class: &ClassRegistrationInfo) {
+fn validate_class_constraints(class: &ClassRegistrationInfo) {
     // TODO: if we add builder API, the proc-macro checks in parse_struct_attributes() etc. should be duplicated here.
+
+    // Pre-check against ClassDB; Godot's registration functions report errors only to stderr. See registry::validate module docs.
+    if let Some(parent_class_name) = class.parent_class_name {
+        crate::registry::validate::validate_class(class.class_name, parent_class_name);
+    }
 }
 
 fn unregister_class_raw(class: LoadedClass) {

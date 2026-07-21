@@ -37,6 +37,7 @@ mod reexport_pub {
         ClassShard, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
         ShardItem, Struct,
     };
+    pub use crate::registry::validate::validate_signal;
     pub use crate::signal::priv_re_export::*;
     pub use crate::storage::{
         IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage, VirtualMethodReceiver,
