@@ -1384,6 +1384,27 @@ pub fn is_enum_bitfield(class_name: Option<&TyName>, enum_name: &str) -> Option<
     }
 }
 
+/// For types where a [`Default`](Default) is helpful, but the default value should
+/// be something other than what would be returned by a `#[derive(Default)]` implementation.
+/// 
+/// An example of this is `DuplicateFlags`, where the default flags to `duplicate` are non-zero,
+/// so if one wants to use "all flags except one" in `duplicate_ex`, the most natural way to do
+/// so would be to pass `DuplicateFlags::default() & !DuplicateFlags::USE_INSTATANTIATION` to `flags`.
+/// 
+/// * `Some(TokenStream)` -> function body which will be psted into the `Default::default` implementation.
+/// * `None` -> no special default, i.e. if a Default is generated it will be with an automatic derive.
+#[rustfmt::skip]
+pub fn does_enum_have_special_default(class_name: Option<&TyName>, enum_name: &str) -> Option<TokenStream> {
+    let class_name = class_name.map(|c| c.godot_ty.as_str());
+    match (class_name, enum_name) {
+        (Some("Node"), "DuplicateFlags") => Some(quote! {
+            Self::SIGNALS | Self::GROUPS | Self::SCRIPTS | Self::USE_INSTANTIATION
+        }),
+
+        _ => None
+    }
+}
+
 /// Whether an enum can be combined with another enum (return value) for bitmasking purposes.
 ///
 /// If multiple masks are ever necessary, this can be extended to return a slice instead of Option.
