@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::marker::PhantomData;
-
 use crate as sys;
 use crate::VariantType;
 
@@ -172,7 +170,8 @@ macro_rules! ffi_methods_one {
         $( #[$attr] )? $vis
         unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self {
             // TODO: Directly use copy constructors here?
-            let opaque = std::ptr::read(ptr.cast());
+            // SAFETY: `ptr` points to a valid, initialized opaque value.
+            let opaque = unsafe { std::ptr::read(ptr.cast()) };
             let new = Self::from_opaque(opaque);
             std::mem::forget(new.clone());
             new
@@ -184,7 +183,8 @@ macro_rules! ffi_methods_one {
             let mut raw = std::mem::MaybeUninit::uninit();
             init(raw.as_mut_ptr() as *mut _);
 
-            Self::from_opaque(raw.assume_init())
+            // SAFETY: `init` fully initializes `raw`.
+            Self::from_opaque(unsafe { raw.assume_init() })
         }
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
@@ -210,13 +210,15 @@ macro_rules! ffi_methods_one {
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
         unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
-            Self::new_from_sys(ptr.cast())
+            // SAFETY: forwarded from this fn's own contract.
+            unsafe { Self::new_from_sys($crate::SysPtr::as_const(ptr)) }
         }
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
         unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
-            std::ptr::swap(dst.cast(), std::ptr::addr_of_mut!(self.opaque))
+            // SAFETY: `dst` is valid for a write of `Self`.
+            unsafe { std::ptr::swap(dst.cast(), std::ptr::addr_of_mut!(self.opaque)) }
         }
     };
 
@@ -259,9 +261,10 @@ macro_rules! ffi_methods_one {
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self { unsafe {
-            Self::new_from_sys(ptr.cast())
-        }}
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
+            // SAFETY: forwarded from this fn's own contract.
+            unsafe { Self::new_from_sys($crate::SysPtr::as_const(ptr)) }
+        }
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
@@ -343,101 +346,12 @@ macro_rules! ffi_methods {
     };
 }
 
-/// An error representing a failure to convert some value of type `From` into the type `Into`.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct PrimitiveConversionError<From, Into> {
-    from: From,
-    into_ty: PhantomData<Into>,
-}
-
-impl<From, Into> PrimitiveConversionError<From, Into> {
-    pub fn new(from: From) -> Self {
-        Self {
-            from,
-            into_ty: PhantomData,
-        }
-    }
-}
-
-impl<From, Into> std::fmt::Display for PrimitiveConversionError<From, Into>
-where
-    From: std::fmt::Display,
-    Into: std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "could not convert {} to type {}",
-            self.from,
-            std::any::type_name::<Into>()
-        )
-    }
-}
-
-impl<From, Into> std::error::Error for PrimitiveConversionError<From, Into>
-where
-    From: std::fmt::Display + std::fmt::Debug,
-    Into: std::fmt::Display + std::fmt::Debug,
-{
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
     use super::{ExtVariantType, GodotFfi};
     use crate as sys;
 
-    /*
-    macro_rules! impl_godot_marshalling {
-        ($T:ty) => {
-            // SAFETY:
-            // This type is represented as `Self` in Godot, so `*mut Self` is sound.
-            unsafe impl GodotFfi for $T {
-                ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-            }
-        };
-
-        ($T:ty as $Via:ty) => {
-            // implicit bounds:
-            //    T: TryFrom<Via>, Copy
-            //    Via: TryFrom<T>, GodotFfi
-            impl GodotFuncMarshal for $T {
-                type Via = $Via;
-                type FromViaError = PrimitiveConversionError<$Via, Self>;
-                type IntoViaError = PrimitiveConversionError<Self, $Via>;
-
-                fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
-                    Self::try_from(via).map_err(|_| PrimitiveConversionError::new(via))
-                }
-
-                fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
-                    <$Via>::try_from(self).map_err(|_| PrimitiveConversionError::new(self))
-                }
-            }
-        };
-
-        ($T:ty as $Via:ty; lossy) => {
-            // implicit bounds:
-            //    T: TryFrom<Via>, Copy
-            //    Via: TryFrom<T>, GodotFfi
-            impl GodotFuncMarshal for $T {
-                type Via = $Via;
-                type FromViaError = Infallible;
-                type IntoViaError = Infallible;
-
-                #[inline]
-                fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
-                    Ok(via as Self)
-                }
-
-                #[inline]
-                fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
-                    Ok(self as $Via)
-                }
-            }
-        };
-    }
-    */
     unsafe impl GodotFfi for bool {
         const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::BOOL);
 
