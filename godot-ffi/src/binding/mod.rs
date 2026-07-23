@@ -20,14 +20,61 @@ mod single_threaded;
 
 #[cfg(feature = "experimental-threads")]
 use multi_threaded::BindingStorage;
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Public re-exports
-#[cfg(feature = "experimental-threads")]
-pub use multi_threaded::GdextConfig;
 #[cfg(not(feature = "experimental-threads"))]
 use single_threaded::BindingStorage;
-#[cfg(not(feature = "experimental-threads"))]
-pub use single_threaded::GdextConfig;
+
+pub struct GdextConfig {
+    /// True if only `#[class(tool)]` classes are active in editor; false if all classes are.
+    pub tool_only_in_editor: bool,
+}
+
+impl GdextConfig {
+    pub fn new(tool_only_in_editor: bool) -> Self {
+        Self {
+            tool_only_in_editor,
+        }
+    }
+}
+
+/// Panics if the binding is not currently live. Shared by both binding storages for a consistent live check.
+#[cfg(safeguards_balanced)]
+#[inline(always)]
+pub(super) fn assert_binding_live(initialized: &std::sync::atomic::AtomicBool) {
+    if !initialized.load(std::sync::atomic::Ordering::Acquire) {
+        not_live_panic();
+    }
+}
+
+/// Cold failure path, so the hot check stays a predicted-not-taken branch.
+#[cfg(safeguards_balanced)]
+#[cold]
+#[inline(never)]
+fn not_live_panic() -> ! {
+    panic!(
+        "Godot binding accessed before initialization or after deinitialization. \
+        This typically means a `#[ctor]`/`#[dtor]` constructor, a library destructor, or a leftover user thread touched the Godot API \
+        outside the engine's load/unload window."
+    )
+}
+
+#[cfg(all(test, safeguards_balanced))]
+mod tests {
+    use std::sync::atomic::AtomicBool;
+
+    use super::assert_binding_live;
+
+    #[test]
+    fn live_check_passes_when_initialized() {
+        // Must not panic.
+        assert_binding_live(&AtomicBool::new(true));
+    }
+
+    #[test]
+    #[should_panic(expected = "accessed before initialization or after deinitialization")]
+    fn live_check_panics_when_not_initialized() {
+        assert_binding_live(&AtomicBool::new(false));
+    }
+}
 
 // Note, this is `Sync` and `Send` when "experimental-threads" is enabled because all its fields are. We have avoided implementing `Sync`
 // and `Send` for `GodotBinding` as that could hide issues if any of the field types are changed to no longer be sync/send, but the manual
@@ -38,7 +85,7 @@ pub(crate) struct GodotBinding {
     library: ClassLibraryPtr,
     global_method_table: BuiltinLifecycleTable,
     class_core_method_table: ManualInitCell<ClassCoreMethodTable>,
-    class_server_method_table: ManualInitCell<ClassServersMethodTable>,
+    class_servers_method_table: ManualInitCell<ClassServersMethodTable>,
     class_scene_method_table: ManualInitCell<ClassSceneMethodTable>,
     class_editor_method_table: ManualInitCell<ClassEditorMethodTable>,
     builtin_method_table: ManualInitCell<BuiltinMethodTable>,
@@ -105,7 +152,7 @@ impl GodotBinding {
             global_method_table,
             thread_safe_lifecycle,
             class_core_method_table: ManualInitCell::new(),
-            class_server_method_table: ManualInitCell::new(),
+            class_servers_method_table: ManualInitCell::new(),
             class_scene_method_table: ManualInitCell::new(),
             class_editor_method_table: ManualInitCell::new(),
             builtin_method_table: ManualInitCell::new(),
@@ -259,7 +306,7 @@ pub unsafe fn thread_safe_lifecycle() -> &'static ThreadSafeLifecycle {
 #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
 pub unsafe fn class_servers_api() -> &'static ClassServersMethodTable {
     get_table(
-        &get_binding().class_server_method_table,
+        &get_binding().class_servers_method_table,
         "cannot fetch classes; init level 'Servers' not yet loaded",
     )
 }
@@ -444,9 +491,9 @@ pub(crate) unsafe fn initialize_class_core_method_table(table: ClassCoreMethodTa
 ///
 /// If "experimental-threads" is not enabled, then this must be called from the same thread that the bindings were initialized from.
 #[allow(unsafe_op_in_unsafe_fn)] // Safety preconditions forwarded 1:1.
-pub(crate) unsafe fn initialize_class_server_method_table(table: ClassServersMethodTable) {
+pub(crate) unsafe fn initialize_class_servers_method_table(table: ClassServersMethodTable) {
     initialize_table(
-        &get_binding().class_server_method_table,
+        &get_binding().class_servers_method_table,
         table,
         "classes (Server level)",
     )

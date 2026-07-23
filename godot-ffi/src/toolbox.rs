@@ -37,37 +37,8 @@ macro_rules! out {
     }}
 }
 
-/// Extract a function pointer from its `Option` and convert it to the (dereferenced) target type.
-///
-/// ```ignore
-///  let get_godot_version = get_proc_address(sys::c_str(b"get_godot_version\0"));
-///  let get_godot_version = sys::unsafe_cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
-/// ```
-///
-/// # Safety
-///
-/// `$ToType` must be an option of an `unsafe extern "C"` function pointer.
-#[allow(unused)]
-#[macro_export]
-macro_rules! unsafe_cast_fn_ptr {
-    ($option:ident as $ToType:ty) => {{
-        // SAFETY: `$ToType` is an `unsafe extern "C"` function pointer and is thus compatible with `unsafe extern "C" fn()`.
-        // And `Option<T>` is compatible with `Option<U>` when both `T` and `U` are compatible function pointers.
-        #[allow(unused_unsafe)]
-        let ptr: Option<_> = unsafe { std::mem::transmute::<Option<unsafe extern "C" fn()>, $ToType>($option) };
-        ptr.expect("null function pointer")
-    }};
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
-
-/// Extract value from box before `into_inner()` is stable
-#[allow(clippy::boxed_local)] // false positive
-pub fn unbox<T>(value: Box<T>) -> T {
-    // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
-    *value
-}
 
 /// Explicitly cast away `const` from a pointer, similar to C++ `const_cast`.
 ///
@@ -184,13 +155,6 @@ pub fn found_to_option(index: i64) -> Option<usize> {
     }
 }
 
-/*
-pub fn unqualified_type_name<T>() -> &'static str {
-    let type_name = std::any::type_name::<T>();
-    type_name.split("::").last().unwrap()
-}
-*/
-
 /// Like [`std::any::type_name`], but returns a short type name without module paths.
 pub fn short_type_name<T: ?Sized>() -> String {
     let full_name = std::any::type_name::<T>();
@@ -256,7 +220,6 @@ fn strip_module_paths(full_name: &str) -> String {
 // Private helpers
 
 /// Metafunction to extract inner function pointer types from all the bindgen `Option<F>` type names.
-/// Needed for `unsafe_cast_fn_ptr` macro.
 pub trait Inner: Sized {
     type FnPtr: Sized;
 }

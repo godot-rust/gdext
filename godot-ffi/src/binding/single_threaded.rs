@@ -107,7 +107,7 @@ impl BindingStorage {
         // Live check: passes in ~100% of real calls. Compiled out under the disengaged safety profile, recovering unchecked speed for users who
         // promise the invariant. The actual check lives in a standalone function so it can be unit-tested without a real binding.
         #[cfg(safeguards_balanced)]
-        assert_binding_live(&storage.initialized);
+        super::assert_binding_live(&storage.initialized);
 
         // SAFETY: Per the safety contract the binding is initialized, so the cell holds a value.
         unsafe { storage.binding.get_unchecked() }
@@ -150,57 +150,3 @@ impl BindingStorage {
 unsafe impl Sync for BindingStorage {}
 // SAFETY: We ensure that `binding` is only ever accessed from the same thread that initialized it.
 unsafe impl Send for BindingStorage {}
-
-/// Panics if the binding is not currently live, turning before-init / after-deinit access into a clean error instead of UB.
-///
-/// Standalone (not a method) so it can be unit-tested against a hand-made `AtomicBool` without a real binding behind it.
-#[cfg(safeguards_balanced)]
-#[inline(always)]
-fn assert_binding_live(initialized: &AtomicBool) {
-    if !initialized.load(Ordering::Acquire) {
-        not_live_panic();
-    }
-}
-
-/// Failure path for the live check; separated out and marked cold so the hot path stays a predicted-not-taken branch.
-#[cfg(safeguards_balanced)]
-#[cold]
-#[inline(never)]
-fn not_live_panic() -> ! {
-    panic!(
-        "Godot binding accessed before initialization or after deinitialization. \
-        This typically means a `#[ctor]`/`#[dtor]` constructor, a library destructor, or a leftover user thread touched the Godot API \
-        outside the engine's load/unload window."
-    )
-}
-
-#[cfg(all(test, safeguards_balanced))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn live_check_passes_when_initialized() {
-        // Must not panic.
-        assert_binding_live(&AtomicBool::new(true));
-    }
-
-    #[test]
-    #[should_panic(expected = "accessed before initialization or after deinitialization")]
-    fn live_check_panics_when_not_initialized() {
-        assert_binding_live(&AtomicBool::new(false));
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-pub struct GdextConfig {
-    pub tool_only_in_editor: bool,
-}
-
-impl GdextConfig {
-    pub fn new(tool_only_in_editor: bool) -> Self {
-        Self {
-            tool_only_in_editor,
-        }
-    }
-}

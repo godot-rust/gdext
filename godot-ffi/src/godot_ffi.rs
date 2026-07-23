@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::marker::PhantomData;
-
 use crate as sys;
 use crate::VariantType;
 
@@ -170,22 +168,24 @@ macro_rules! ffi_methods_one {
     // type $Ptr = *mut Opaque
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_from_sys:ident = new_from_sys) => {
         $( #[$attr] )? $vis
-        unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self {
+        unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self { unsafe {
             // TODO: Directly use copy constructors here?
+            // SAFETY: `ptr` points to a valid, initialized opaque value.
             let opaque = std::ptr::read(ptr.cast());
             let new = Self::from_opaque(opaque);
             std::mem::forget(new.clone());
             new
-        }
+        }}
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_uninit:ident = new_with_uninit) => {
         $( #[$attr] )? $vis
-        unsafe fn $new_with_uninit(init: impl FnOnce(<$Ptr as $crate::SysPtr>::Uninit)) -> Self {
+        unsafe fn $new_with_uninit(init: impl FnOnce(<$Ptr as $crate::SysPtr>::Uninit)) -> Self { unsafe {
             let mut raw = std::mem::MaybeUninit::uninit();
             init(raw.as_mut_ptr() as *mut _);
 
+            // SAFETY: `init` fully initializes `raw`.
             Self::from_opaque(raw.assume_init())
-        }
+        }}
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
@@ -209,15 +209,16 @@ macro_rules! ffi_methods_one {
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self { unsafe {
             Self::new_from_sys(ptr.cast())
-        }
+        }}
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
+        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) { unsafe {
+            // SAFETY: `dst` is valid for a write of `Self`.
             std::ptr::swap(dst.cast(), std::ptr::addr_of_mut!(self.opaque))
-        }
+        }}
     };
 
     // type $Ptr = *mut Self
@@ -343,101 +344,12 @@ macro_rules! ffi_methods {
     };
 }
 
-/// An error representing a failure to convert some value of type `From` into the type `Into`.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct PrimitiveConversionError<From, Into> {
-    from: From,
-    into_ty: PhantomData<Into>,
-}
-
-impl<From, Into> PrimitiveConversionError<From, Into> {
-    pub fn new(from: From) -> Self {
-        Self {
-            from,
-            into_ty: PhantomData,
-        }
-    }
-}
-
-impl<From, Into> std::fmt::Display for PrimitiveConversionError<From, Into>
-where
-    From: std::fmt::Display,
-    Into: std::fmt::Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "could not convert {} to type {}",
-            self.from,
-            std::any::type_name::<Into>()
-        )
-    }
-}
-
-impl<From, Into> std::error::Error for PrimitiveConversionError<From, Into>
-where
-    From: std::fmt::Display + std::fmt::Debug,
-    Into: std::fmt::Display + std::fmt::Debug,
-{
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
     use super::{ExtVariantType, GodotFfi};
     use crate as sys;
 
-    /*
-    macro_rules! impl_godot_marshalling {
-        ($T:ty) => {
-            // SAFETY:
-            // This type is represented as `Self` in Godot, so `*mut Self` is sound.
-            unsafe impl GodotFfi for $T {
-                ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-            }
-        };
-
-        ($T:ty as $Via:ty) => {
-            // implicit bounds:
-            //    T: TryFrom<Via>, Copy
-            //    Via: TryFrom<T>, GodotFfi
-            impl GodotFuncMarshal for $T {
-                type Via = $Via;
-                type FromViaError = PrimitiveConversionError<$Via, Self>;
-                type IntoViaError = PrimitiveConversionError<Self, $Via>;
-
-                fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
-                    Self::try_from(via).map_err(|_| PrimitiveConversionError::new(via))
-                }
-
-                fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
-                    <$Via>::try_from(self).map_err(|_| PrimitiveConversionError::new(self))
-                }
-            }
-        };
-
-        ($T:ty as $Via:ty; lossy) => {
-            // implicit bounds:
-            //    T: TryFrom<Via>, Copy
-            //    Via: TryFrom<T>, GodotFfi
-            impl GodotFuncMarshal for $T {
-                type Via = $Via;
-                type FromViaError = Infallible;
-                type IntoViaError = Infallible;
-
-                #[inline]
-                fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
-                    Ok(via as Self)
-                }
-
-                #[inline]
-                fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
-                    Ok(self as $Via)
-                }
-            }
-        };
-    }
-    */
     unsafe impl GodotFfi for bool {
         const VARIANT_TYPE: ExtVariantType = ExtVariantType::Concrete(sys::VariantType::BOOL);
 
