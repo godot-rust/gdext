@@ -103,7 +103,7 @@ pub use init_level::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;
 
-pub use crate::godot_ffi::{ExtVariantType, GodotFfi, PrimitiveConversionError, PtrcallType};
+pub use crate::godot_ffi::{ExtVariantType, GodotFfi, PtrcallType};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
@@ -115,7 +115,7 @@ pub use binding::*;
 use binding::{
     initialize_binding, initialize_builtin_method_table, initialize_class_core_method_table,
     initialize_class_editor_method_table, initialize_class_scene_method_table,
-    initialize_class_server_method_table, runtime_metadata,
+    initialize_class_servers_method_table, runtime_metadata,
 };
 
 #[cfg(not(wasm_nothreads))]
@@ -192,11 +192,6 @@ impl GdextRuntimeMetadata {
         self.supports_deprecated_apis
     }
 }
-
-// SAFETY: The `string` pointer in `godot_version` is only ever read from while the struct exists, so we cannot have any race conditions.
-unsafe impl Sync for GdextRuntimeMetadata {}
-// SAFETY: See `Sync` impl safety doc.
-unsafe impl Send for GdextRuntimeMetadata {}
 
 /// Initializes the library.
 ///
@@ -324,6 +319,8 @@ pub unsafe fn deinitialize() {
             unsafe { MAIN_THREAD_ID.clear() };
         }
     }
+
+    // TODO(v0.7): reset process-lifetime startup statics on hot-reload (see TODO.md).
 }
 
 fn safeguards_level_string() -> &'static str {
@@ -458,6 +455,7 @@ fn print_preamble(version: GDExtensionGodotVersion) {
 #[inline]
 pub unsafe fn load_class_method_table(api_level: InitLevel) {
     out!("Load class method table for level '{:?}'...", api_level);
+
     let begin = std::time::Instant::now();
 
     #[cfg(not(feature = "codegen-lazy-fptrs"))]
@@ -488,9 +486,9 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
             unsafe {
                 #[cfg(feature = "codegen-lazy-fptrs")]
-                initialize_class_server_method_table(ClassServersMethodTable::load());
+                initialize_class_servers_method_table(ClassServersMethodTable::load());
                 #[cfg(not(feature = "codegen-lazy-fptrs"))]
-                initialize_class_server_method_table(ClassServersMethodTable::load(
+                initialize_class_servers_method_table(ClassServersMethodTable::load(
                     interface,
                     &mut string_names,
                 ));
@@ -701,6 +699,11 @@ pub fn set_editor_binary(is_editor_binary: bool) {
     IS_EDITOR_BINARY.store(TriBool::from_bool(is_editor_binary));
 }
 
+/// Returns the cached editor-binary state, or `None` if not yet populated (`InitLevel::Core` on 4.4+, `InitLevel::Scene` on <4.4).
+pub fn is_editor_binary_or_unknown() -> Option<bool> {
+    IS_EDITOR_BINARY.load().to_option()
+}
+
 /// Returns whether the running binary is an editor build (as opposed to an exported game), mirroring `OS::has_feature("editor")`.
 ///
 /// Unlike [`is_editor`], this stays `true` during play-mode launched from the editor; it is only `false` for export templates.
@@ -708,9 +711,7 @@ pub fn set_editor_binary(is_editor_binary: bool) {
 /// # Panics
 /// If called before the state is populated (`InitLevel::Core` on Godot 4.4+, `InitLevel::Scene` on Godot < 4.4).
 pub fn is_editor_binary() -> bool {
-    IS_EDITOR_BINARY
-        .load()
-        .to_option()
+    is_editor_binary_or_unknown()
         .expect("editor-binary state not yet known; called before InitLevel::Core (4.4+) or InitLevel::Scene (<4.4)")
 }
 

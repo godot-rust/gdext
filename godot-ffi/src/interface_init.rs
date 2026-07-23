@@ -157,7 +157,7 @@ unsafe fn fetch_version<V>(
 pub(crate) unsafe fn runtime_version(
     get_proc_address: GetProcAddress,
 ) -> (sys::GDExtensionGodotVersion, bool) {
-    // Try get_godot_version first (available in all versions, unless Godot built with deprecated features).
+    // Try get_godot_version first (absent only if Godot was built with `deprecated=no`).
 
     // SAFETY: `get_proc_address` is valid, function has signature fn(*mut GDExtensionGodotVersion).
     let version1: Option<sys::GDExtensionGodotVersion> =

@@ -126,11 +126,16 @@ pub fn panic_call_error(
     let reason = match error {
         GDEXTENSION_CALL_ERROR_INVALID_METHOD => "method not found".to_string(),
         GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT => {
-            let from = vararg_types[argument as usize];
-            let to = VariantType::from_sys(expected as GDExtensionVariantType);
             let i = argument + 1;
+            let idx = argument as usize;
 
-            format!("cannot convert argument #{i} from {from:?} to {to:?}")
+            if idx < vararg_types.len() {
+                let from = vararg_types[idx];
+                let to = VariantType::from_sys(expected as GDExtensionVariantType);
+                format!("cannot convert argument #{i} from {from:?} to {to:?}")
+            } else {
+                format!("invalid argument #{i} (type unknown)")
+            }
         }
         GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS => {
             format!("too many arguments; expected {argument}, but called with {argc}")
