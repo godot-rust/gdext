@@ -708,6 +708,22 @@ fn array_resize() {
     assert_eq!(a, Array::new());
 }
 
+#[itest]
+fn array_resize_refcounted() {
+    let fill = RefCounted::new_gd();
+    let mut a: Array<Gd<RefCounted>> = Array::new();
+    assert_eq!(fill.get_reference_count(), 1);
+
+    // Each added element must hold its own reference, even though they are all filled from one converted Variant.
+    a.resize(3, &fill);
+    assert_eq!(a.len(), 3);
+    assert_eq!(fill.get_reference_count(), 4);
+    assert_eq!(a, array![&fill, &fill, &fill]);
+
+    a.resize(1, &fill);
+    assert_eq!(fill.get_reference_count(), 2);
+}
+
 fn __array_type_inference() {
     let a = Node::new_alloc();
     let b = Node2D::new_alloc(); // will be implicitly upcast.

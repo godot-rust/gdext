@@ -476,18 +476,20 @@ impl<T: Element> Array<T> {
 
         meta::arg_into_ref!(value: T);
 
-        // If new_size < original_size then this is an empty iterator and does nothing.
-        for i in original_size..new_size {
+        // Nothing to fill when shrinking; the resize() above already truncated.
+        if original_size < new_size {
             // Exception safety: if to_variant() panics, the array will become inconsistent (filled with non-T nils).
             // At the moment (Nov 2024), this can only happen for u64, which isn't a valid Array element type.
-            // This could be changed to use clone() (if that doesn't panic) or store a variant without moving.
-            let variant = value.to_variant();
+            // move_into_var_ptr() consumes its Variant, so each element receives a clone of the template.
+            let template = value.to_variant();
 
-            let ptr_mut = self.ptr_mut(i);
+            for i in original_size..new_size {
+                let ptr_mut = self.ptr_mut(i);
 
-            // SAFETY: we iterate pointer within bounds; ptr_mut() additionally checks them.
-            // ptr_mut() lookup could be optimized if we know the internal layout.
-            unsafe { variant.move_into_var_ptr(ptr_mut) };
+                // SAFETY: we iterate pointer within bounds; ptr_mut() additionally checks them.
+                // ptr_mut() lookup could be optimized if we know the internal layout.
+                unsafe { template.clone().move_into_var_ptr(ptr_mut) };
+            }
         }
     }
 
