@@ -119,8 +119,6 @@ struct SignalDetails<'a> {
     individual_struct_name: Ident,
     /// Visibility, e.g. `pub(crate)`
     vis_marker: Option<venial::VisMarker>,
-    // /// Detected visibility as strongly typed enum.
-    // vis_classified: SignalVisibility,
 }
 
 impl<'a> SignalDetails<'a> {
@@ -193,7 +191,6 @@ impl<'a> SignalDetails<'a> {
             signal_doc_attrs,
             individual_struct_name,
             vis_marker: vis_marker.clone(),
-            // vis_classified,
         })
     }
 }
@@ -210,7 +207,6 @@ pub fn make_signal_registrations(
     let mut signal_registrations = Vec::new();
 
     let mut collection_api = SignalCollection::default();
-    // let mut max_visibility = SignalVisibility::Priv;
 
     for signal in signals {
         let SignalDefinition {
@@ -226,7 +222,6 @@ pub fn make_signal_registrations(
         // Type-safe signal builder API, if available.
         if *has_builder {
             collection_api.extend_with(&details);
-            // max_visibility = max_visibility.max(details.vis_classified);
         }
 
         let mut registration = make_signal_registration(&details, class_name_obj);
@@ -452,11 +447,7 @@ fn make_signal_individual_struct(details: &SignalDetails) -> TokenStream {
 ///   * can be absent if the class declares no own #[signal]s.
 /// * individual signal types
 /// * trait impls
-fn make_signal_symbols(
-    class_name: &Ident,
-    collection_api: SignalCollection,
-    // max_visibility: SignalVisibility,
-) -> TokenStream {
+fn make_signal_symbols(class_name: &Ident, collection_api: SignalCollection) -> TokenStream {
     // Earlier implementation generated a simplified code when no #[signal] was declared: only WithSignals/WithUserSignals impl, but no own
     // collection, instead the associated type pointing to the base class. This has however some problems:
     // * Part of the reason for user-defined collection is to store UserSignalObject instead of Gd, which can store &mut self.

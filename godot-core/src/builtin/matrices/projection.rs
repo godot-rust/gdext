@@ -433,14 +433,8 @@ impl Projection {
     ///
     /// _Godot equivalent: `Projection.is_orthogonal()`_
     pub fn is_orthogonal(&self) -> bool {
+        // Only the bottom-right element is checked, matching Godot's implementation.
         self.cols[3].w == 1.0
-
-        // TODO: Test the entire last row?
-        // The argument is that W should not mixed with any other dimensions.
-        // But if the only operation is projection and affine, it suffice
-        // to check if input W is nullified (v33 is zero).
-        // (Currently leave it as-is, matching Godot's implementation).
-        // (self.cols[0].w == 0.0) && (self.cols[1].w == 0.0) && (self.cols[2] == 0.0) && (self.cols[3].w == 1.0)
     }
 
     /// Returns a Projection with the X and Y values from the given [`Vector2`]
