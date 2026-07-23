@@ -825,6 +825,14 @@ impl BufRead for GFile {
     }
 
     fn consume(&mut self, amt: usize) {
+        // `BufRead::consume` contract: `amt` must not exceed the number of bytes returned by the last `fill_buf()` call.
+        // Guard explicitly instead of letting the subtraction below underflow into a bogus seek target.
+        assert!(
+            amt <= self.last_buffer_size,
+            "consume({amt}) exceeds last filled buffer size ({})",
+            self.last_buffer_size
+        );
+
         // Cursor is being moved by `FileAccess::get_buffer()` call, so we need to adjust it.
         let offset = (self.last_buffer_size - amt) as i64;
         let pos = SeekFrom::Current(-offset);

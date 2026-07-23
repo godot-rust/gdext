@@ -43,7 +43,16 @@ impl BorrowState {
 
     /// Returns `true` if there are any accessible mutable references.
     pub fn has_accessible(&self) -> bool {
-        let count = self.mut_count - self.inaccessible_count;
+        // `checked_sub` guards the invariant `inaccessible_count <= mut_count`; the assert below checks the separate "at most 1 accessible" bound.
+        let count = self
+            .mut_count
+            .checked_sub(self.inaccessible_count)
+            .unwrap_or_else(|| {
+                panic!(
+                    "invariant violated: inaccessible_count ({}) exceeds mut_count ({})",
+                    self.inaccessible_count, self.mut_count
+                )
+            });
 
         assert!(
             count <= 1,

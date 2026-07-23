@@ -42,14 +42,16 @@ where
 fn lower_bound(bound: Bound<i64>) -> Option<i64> {
     match bound {
         Bound::Included(n) => Some(n),
-        Bound::Excluded(n) => Some(n + 1),
+        // Saturate instead of overflowing: at i64::MAX there's no larger value to represent anyway.
+        Bound::Excluded(n) => Some(n.saturating_add(1)),
         Bound::Unbounded => None,
     }
 }
 
 fn upper_bound(bound: Bound<i64>) -> Option<i64> {
     match bound {
-        Bound::Included(n) => Some(n + 1),
+        // Saturate instead of overflowing: at i64::MAX there's no larger value to represent anyway.
+        Bound::Included(n) => Some(n.saturating_add(1)),
         Bound::Excluded(n) => Some(n),
         Bound::Unbounded => None,
     }
