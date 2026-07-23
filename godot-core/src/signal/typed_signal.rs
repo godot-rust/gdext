@@ -158,7 +158,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
         }
     }
 
-    pub(crate) fn receiver_object(&self) -> Gd<C> {
+    pub(crate) fn emitter_object(&self) -> Gd<C> {
         let object = self.object.to_owned_object();
 
         // Potential optimization: downcast could use a new private Gd::unchecked_cast().
@@ -193,7 +193,7 @@ impl<'c, C: WithSignals, Ps: meta::ParamTuple> TypedSignal<'c, C, Ps> {
     ///
     /// This can be passed to GDScript, for instance if you want your function to be awaitable by GDScript code.
     pub fn to_untyped(&self) -> crate::builtin::Signal {
-        crate::builtin::Signal::from_object_signal(&self.receiver_object(), &*self.name)
+        crate::builtin::Signal::from_object_signal(&self.emitter_object(), &*self.name)
     }
 
     /// Directly connect a Rust callable `godot_fn`, with a name based on `F` bound to given object.
@@ -259,7 +259,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
                 .call((), args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn, &self.receiver_object())
+        self.inner_connect_godot_fn::<F>(godot_fn, &self.emitter_object())
     }
 
     /// Connect a method (member function) with `&mut self` as the first parameter.
@@ -277,7 +277,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
     {
         // Weak capture (instance ID, not strong Gd) to avoid a reference cycle: object -> connection -> callable -> closure -> Gd -> object.
         // Look up the object on each emission, matching Godot method-callable semantics.
-        let instance_id = self.receiver_object().instance_id();
+        let instance_id = self.emitter_object().instance_id();
         let godot_fn = make_godot_fn(move |args| {
             // Lookup is infallible during normal and deferred emission (object alive by construction; dead deferred callables are skipped by
             // Godot before reaching here). Only fails for a stale Callable clone invoked manually after the object died -> no-op, like Godot.
@@ -295,7 +295,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
                 .call(target_mut, args);
         });
 
-        self.inner_connect_godot_fn::<F>(godot_fn, &self.receiver_object())
+        self.inner_connect_godot_fn::<F>(godot_fn, &self.emitter_object())
     }
 
     /// Connect a method (member function) with any `&mut OtherC` as the first parameter, where

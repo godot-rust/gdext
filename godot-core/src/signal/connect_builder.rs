@@ -166,7 +166,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call((), args);
         });
 
-        let bound = self.parent_sig.receiver_object();
+        let bound = self.parent_sig.emitter_object();
         self.inner_connect_godot_fn::<F>(godot_fn, &bound)
     }
 
@@ -185,7 +185,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, &'c_rcv mut C, Ps, F>: From<&'c_rcv mut F>,
     {
         // Weak capture via instance ID, to avoid a reference cycle keeping RefCounted objects alive. See TypedSignal::connect_self().
-        let instance_id = self.parent_sig.receiver_object().instance_id();
+        let instance_id = self.parent_sig.emitter_object().instance_id();
 
         let godot_fn = make_godot_fn(move |args| {
             let Ok(mut gd) = Gd::<C>::try_from_instance_id(instance_id) else {
@@ -198,7 +198,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(&mut *guard, args);
         });
 
-        let bound = self.parent_sig.receiver_object();
+        let bound = self.parent_sig.emitter_object();
         self.inner_connect_godot_fn::<F>(godot_fn, &bound)
     }
 
@@ -216,7 +216,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
         for<'c_rcv> IndirectSignalReceiver<'c_rcv, Gd<C>, Ps, F>: From<&'c_rcv mut F>,
     {
         // Weak capture via instance ID, to avoid a reference cycle keeping RefCounted objects alive. See TypedSignal::connect_self().
-        let instance_id = self.parent_sig.receiver_object().instance_id();
+        let instance_id = self.parent_sig.emitter_object().instance_id();
 
         let godot_fn = make_godot_fn(move |args| {
             let Ok(gd) = Gd::<C>::try_from_instance_id(instance_id) else {
@@ -228,7 +228,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> ConnectBuilder<'_, '_, C, Ps> {
                 .call(gd, args);
         });
 
-        let bound = self.parent_sig.receiver_object();
+        let bound = self.parent_sig.emitter_object();
         self.inner_connect_godot_fn::<F>(godot_fn, &bound)
     }
 
