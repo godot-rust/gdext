@@ -37,14 +37,22 @@ pub fn make_gdext_build_struct(header: &GodotApiVersion) -> TokenStream {
             }
 
             /// Version of the Godot engine which loaded godot-rust via GDExtension binding.
+            ///
+            /// # Panics
+            /// If called before the GDExtension binding has been initialized (balanced+ safeguards; UB otherwise).
             pub fn godot_runtime_version_string() -> String {
+                // SAFETY: binding must be initialized before this is called; see # Panics.
                 let rt = unsafe { crate::runtime_metadata() };
                 rt.version_string().to_string()
             }
 
             /// Version of the Godot engine which loaded godot-rust via GDExtension binding, as
             /// `(major, minor, patch)` triple.
+            ///
+            /// # Panics
+            /// If called before the GDExtension binding has been initialized (balanced+ safeguards; UB otherwise).
             pub fn godot_runtime_version_triple() -> (u8, u8, u8) {
+                // SAFETY: see godot_runtime_version_string().
                 let rt = unsafe { crate::runtime_metadata() };
                 rt.version_triple()
             }

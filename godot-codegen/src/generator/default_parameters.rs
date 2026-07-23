@@ -68,8 +68,7 @@ pub fn make_function_definition_with_defaults(
     let return_decl = &sig.return_value().decl;
     let (maybe_deprecated, maybe_expect_deprecated) = fns::make_deprecation_attribute(sig);
 
-    // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
-    // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'ex self.
+    // The _ex() function and builder always get an explicit lifetime (see make_extender()); adjust &self -> &'ex self.
     let receiver_self = &code.receiver.self_prefix;
     let simple_receiver_param = &code.receiver.param;
     let extended_receiver_param = &code.receiver.param_lifetime_ex;
@@ -139,7 +138,7 @@ pub fn make_function_definition_with_defaults(
         }
 
         // _ex() function:
-        // Lifetime is set if any parameter is a reference OR if the method is not static/global (and thus can refer to self).
+        // Always has an explicit lifetime (see make_extender()).
         #maybe_deprecated
         #maybe_specific_docs
         #maybe_godot_doc
@@ -280,8 +279,9 @@ fn make_extender(
         .chain(required_params.iter().cloned())
         .chain(default_params.iter().cloned());
 
-    // If builder is a method with a receiver OR any *required* parameter is by-ref, use lifetime.
-    // Default parameters cannot be by-ref, since they need to store a default value. Potential optimization later.
+    // Always use a lifetime, unconditionally, for simplicity -- even if the builder has no receiver and no
+    // by-ref required parameter. Default parameters cannot be by-ref, since they need to store a default
+    // value. Potential optimization later: only add the lifetime when actually needed.
     let param_decl = FnParamDecl::FnPublicLifetime;
     let ctor_decl = FnKind::ExBuilderConstructorLifetimed;
     let default_len = default_params.len();

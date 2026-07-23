@@ -639,40 +639,18 @@ impl FnParam {
 /// Builder for constructing `FnParam` instances with configurable enum replacements and default value handling.
 pub(crate) struct FnParamBuilder {
     replacements: EnumReplacements,
-    no_defaults: bool,
 }
 
 impl FnParamBuilder {
     /// Creates a new parameter builder with default settings (no replacements, defaults enabled).
     pub fn new() -> Self {
-        Self {
-            replacements: &[],
-            no_defaults: false,
-        }
+        Self { replacements: &[] }
     }
 
     /// Configures the builder to use specific enum replacements.
     pub fn enum_replacements(mut self, replacements: EnumReplacements) -> Self {
         self.replacements = replacements;
         self
-    }
-
-    /// Configures the builder to exclude default values from generated parameters.
-    #[expect(dead_code)] // May be useful in future.
-    pub fn no_defaults(mut self) -> Self {
-        self.no_defaults = true;
-        self
-    }
-
-    /// Builds a single function parameter from the provided JSON method argument.
-    #[expect(dead_code)] // May be useful in future.
-    pub fn build_single(
-        self,
-        method_arg: &JsonMethodArg,
-        flow: FlowDirection,
-        ctx: &mut Context,
-    ) -> FnParam {
-        self.build_single_impl(method_arg, flow, ctx)
     }
 
     /// Builds a vector of function parameters from the provided JSON method arguments.
@@ -719,14 +697,10 @@ impl FnParamBuilder {
             type_
         };
 
-        let default_value = if self.no_defaults {
-            None
-        } else {
-            method_arg
-                .default_value
-                .as_ref()
-                .map(|v| conv::to_rust_expr(v, &type_))
-        };
+        let default_value = method_arg
+            .default_value
+            .as_ref()
+            .map(|v| conv::to_rust_expr(v, &type_));
 
         FnParam {
             name,
