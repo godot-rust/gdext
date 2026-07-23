@@ -427,29 +427,26 @@ fn map_c_type(c_type: &str) -> TokenStream {
         (false, c_type)
     };
 
-    // Handle pointer types
-    if c_type.ends_with('*') {
-        let base_type = c_type.trim_end_matches('*').trim();
-        let inner = map_c_type_as_pointee(base_type);
-
-        return if is_const {
-            quote! { *const #inner }
-        } else {
-            quote! { *mut #inner }
-        };
+    let pointer_levels = c_type.chars().rev().filter(|c| *c == '*').count();
+    if pointer_levels == 0 {
+        return map_c_base_type(c_type);
     }
 
-    // Base types
-    map_c_base_type(c_type)
-}
+    let base_type = c_type.trim_end_matches(['*', ' ']);
 
-/// Map a C type that appears as the pointee of a pointer.
-/// `void` maps to `std::ffi::c_void` (not `()`) so that `void*` becomes `*mut c_void`.
-fn map_c_type_as_pointee(c_type: &str) -> TokenStream {
-    if c_type == "void" {
+    let pointee = if base_type == "void" {
         quote! { std::ffi::c_void }
     } else {
-        map_c_type(c_type)
+        map_c_base_type(base_type)
+    };
+
+    // Right now, at most 2 levels of indirection occur in the JSON (e.g. "void**"); hardcode the cases instead of fancy algorithm.
+    match (pointer_levels, is_const) {
+        (1, false) => quote! { *mut #pointee },
+        (1, true) => quote! { *const #pointee },
+        (2, false) => quote! { *mut *mut #pointee },
+        (2, true) => quote! { *mut *const #pointee },
+        (n, _) => panic!("unsupported pointer type with {n} levels of indirection: {c_type:?}"),
     }
 }
 
@@ -459,21 +456,18 @@ fn map_c_base_type(c_type: &str) -> TokenStream {
         "void" => quote! { () },
         "char" => quote! { std::ffi::c_char },
         "int" => quote! { std::ffi::c_int }, // Only appears once in current JSON (worker_thread_pool_add_native_group_task).
-        "int8_t" => quote! { i8 },
-        "int16_t" => quote! { i16 },
-        "int32_t" => quote! { i32 },
-        "int64_t" => quote! { i64 },
-        "uint8_t" => quote! { u8 },
-        "uint16_t" => quote! { u16 },
-        "uint32_t" => quote! { u32 },
-        "uint64_t" => quote! { u64 },
         "size_t" => quote! { usize },
         "float" => quote! { f32 },
         "double" => quote! { f64 },
         _ => {
-            // Fallback: use the type as-is (should be a GDExtension type)
-            let type_ident = ident(c_type);
-            quote! { #type_ident }
+            if let Some(rust_ty) = crate::conv::fixed_width_c_int_ident(c_type) {
+                let type_ident = ident(rust_ty);
+                quote! { #type_ident }
+            } else {
+                // Fallback: use the type as-is (should be a GDExtension type).
+                let type_ident = ident(c_type);
+                quote! { #type_ident }
+            }
         }
     }
 }
@@ -501,6 +495,33 @@ mod tests {
         let mut watch = godot_bindings::StopWatch::start();
         let json_str = godot_bindings::load_gdextension_interface_json(&mut watch);
         DeJson::deserialize_json(json_str.as_ref()).expect("failed to deserialize JSON")
+    }
+
+    #[test]
+    fn test_map_c_type() {
+        #[rustfmt::skip]
+        let cases = [
+            ("void",                  "()"),
+            ("uint32_t",              "u32"),
+            ("size_t",                "usize"),
+            ("GDExtensionVariantPtr", "GDExtensionVariantPtr"),
+            ("void*",                 "* mut std :: ffi :: c_void"),
+            ("const void*",           "* const std :: ffi :: c_void"),
+            ("const uint8_t *",       "* const u8"),
+            ("void **",               "* mut * mut std :: ffi :: c_void"),
+            ("const void **",         "* mut * const std :: ffi :: c_void"),
+        ];
+
+        for (c_type, expected_rust_type) in cases {
+            let rust_type = map_c_type(c_type).to_string();
+            assert_eq!(rust_type, expected_rust_type, "C type {c_type:?}");
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "unsupported pointer type with 3 levels of indirection")]
+    fn test_map_c_type_triple_pointer_unsupported() {
+        map_c_type("const char ***");
     }
 
     #[test]
