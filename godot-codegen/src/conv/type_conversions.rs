@@ -78,10 +78,7 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<Ident> {
         }
 
         // Fixed-width types needed for native structures mapping; shared with header_codegen.rs map_c_base_type().
-        (ty, None) => match conv::fixed_width_c_int_ident(ty) {
-            Some(rust) => rust,
-            None => return None,
-        },
+        (ty, None) => conv::fixed_width_c_int_ident(ty)?,
 
         _ => return None,
     };
