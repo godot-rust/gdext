@@ -585,13 +585,13 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) -> Result<(), ()> {
 fn register_class_raw(mut info: ClassRegistrationInfo) {
     // Some metadata like dynify fns are already emptied at this point. Only consider registrations for Godot.
 
-    // First register class...
-    validate_class_constraints(&info);
-
     let class_name = info.class_name;
     let parent_class_name = info
         .parent_class_name
         .expect("class defined (parent_class_name)");
+
+    // First register class...
+    validate_class_constraints(&info, parent_class_name);
 
     // Register virtual functions -- if the user provided some via #[godot_api], take those; otherwise, use the
     // ones generated alongside #[derive(GodotClass)]. The latter can also be null, if no OnReady is provided.
@@ -661,8 +661,12 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     }
 }
 
-fn validate_class_constraints(_class: &ClassRegistrationInfo) {
+fn validate_class_constraints(class: &ClassRegistrationInfo, parent_class_name: ClassId) {
     // TODO: if we add builder API, the proc-macro checks in parse_struct_attributes() etc. should be duplicated here.
+
+    // Pre-check against ClassDB; Godot's registration functions report errors only to stderr. See reg_validation module docs. Overlaps with
+    // the classdb_get_class_tag() check below, which detects failure but not its cause -- so a genuine clash yields two errors.
+    crate::registry::reg_validation::validate_class(class.class_name, parent_class_name);
 }
 
 fn unregister_class_raw(class: LoadedClass) {

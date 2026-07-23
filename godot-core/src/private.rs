@@ -33,6 +33,7 @@ mod reexport_pub {
     pub use crate::obj::rpc::priv_re_export::*;
     pub use crate::obj::rtti::ObjectRtti;
     pub use crate::registry::callbacks;
+    pub use crate::registry::reg_validation::validate_signal;
     pub use crate::registry::shard::{
         ClassShard, DynTraitImpl, ErasedDynGd, ErasedRegisterFn, ITraitImpl, InherentImpl,
         ShardItem, Struct,

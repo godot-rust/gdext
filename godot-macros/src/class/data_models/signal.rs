@@ -290,6 +290,9 @@ fn make_signal_registration(details: &SignalDetails, class_name_obj: &TokenStrea
 
             let signal_name = ::godot::builtin::StringName::from(#godot_name_str);
 
+            // Godot's registration below reports errors to stderr only; pre-check so they are visible. No-op outside safeguards_strict.
+            ::godot::private::validate_signal(#class_name_obj, &signal_name);
+
             sys::interface_fn!(classdb_register_extension_class_signal)(
                 sys::get_library(),
                 #class_name_obj.string_sys(),

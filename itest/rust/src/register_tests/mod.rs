@@ -16,6 +16,8 @@ mod multiple_impl_blocks_test;
 mod naming_tests;
 mod option_ffi_test;
 mod register_docs_test;
+// Not a test -- deliberately broken registrations. Enable to manually re-check the diagnostics, see module docs.
+// mod validate_registration_demo;
 #[cfg(feature = "codegen-full")]
 mod rpc_test;
 mod var_test;
