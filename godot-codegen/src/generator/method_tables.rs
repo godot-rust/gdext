@@ -44,11 +44,8 @@ pub fn make_builtin_lifecycle_table(api: &ExtensionApi) -> TokenStream {
         },
         method_decls: Vec::with_capacity(len),
         method_inits: Vec::with_capacity(len),
-        class_count: len,
-        method_count: 0,
     };
 
-    // Note: NIL is not part of this iteration, it will be added manually.
     for variant in builtins.iter() {
         let (decls, inits) = lifecycle_builtins::make_variant_fns(api, variant);
 
@@ -71,7 +68,9 @@ pub fn make_class_method_table(
             interface: &crate::GDExtensionInterface,
             string_names: &mut crate::StringCache,
         },
-        pre_init_code: TokenStream::new(), // late-init, depends on class string names
+        pre_init_code: quote! {
+            let fetch_fptr = interface.classdb_get_method_bind;
+        },
         fptr_type: quote! { crate::ClassMethodBind },
         fetch_fptr_type: quote! { crate::GDExtensionInterfaceClassdbGetMethodBind },
         method_init_groups: vec![],
@@ -96,10 +95,6 @@ pub fn make_class_method_table(
         .iter()
         .filter(|c| c.api_level == api_level)
         .for_each(|c| populate_class_methods(&mut table, c, ctx));
-
-    table.pre_init_code = quote! {
-        let fetch_fptr = interface.classdb_get_method_bind;
-    };
 
     make_method_table(table)
 }
@@ -155,8 +150,6 @@ pub fn make_utility_function_table(api: &ExtensionApi) -> TokenStream {
         },
         method_decls: vec![],
         method_inits: vec![],
-        class_count: 0,
-        method_count: 0,
     };
 
     for function in api.utility_functions.iter() {
@@ -171,8 +164,6 @@ pub fn make_utility_function_table(api: &ExtensionApi) -> TokenStream {
         table.method_inits.push(quote! {
             #field: crate::load_utility_function(get_utility_fn, string_names, #fn_name_str, #hash),
         });
-
-        table.method_count += 1;
     }
 
     make_named_method_table(table)
@@ -188,8 +179,6 @@ struct NamedMethodTable {
     pre_init_code: TokenStream,
     method_decls: Vec<TokenStream>,
     method_inits: Vec<TokenStream>,
-    class_count: usize,
-    method_count: usize,
 }
 
 #[allow(dead_code)] // Individual fields would need to be cfg'ed with: feature = "codegen-lazy-fptrs".
@@ -269,8 +258,6 @@ fn make_named_method_table(info: NamedMethodTable) -> TokenStream {
         pre_init_code,
         method_decls,
         method_inits,
-        class_count,
-        method_count,
     } = info;
 
     // Assumes that both decls and inits already have a trailing comma.
@@ -285,9 +272,6 @@ fn make_named_method_table(info: NamedMethodTable) -> TokenStream {
         }
 
         impl #table_name {
-            pub const CLASS_COUNT: usize = #class_count;
-            pub const METHOD_COUNT: usize = #method_count;
-
             #safety_doc
             pub unsafe fn load(
                 #ctor_parameters
@@ -590,7 +574,7 @@ fn populate_builtin_methods(
     for method in builtin_class.methods.iter() {
         let index = ctx.get_table_index(&MethodTableKey::from_builtin(builtin_class, method));
 
-        let method_init = make_builtin_method_init(builtin, method, index);
+        let method_init = make_builtin_method_init(builtin, method);
         method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
 
@@ -616,12 +600,15 @@ fn populate_builtin_methods(
         }
     }
 
-    table.method_init_groups.push(MethodInitGroup::new(
-        &builtin_class.name().godot_ty,
-        None, // load_builtin_method() doesn't need a StringName for the class, as it accepts the VariantType enum.
-        method_inits,
-    ));
-    table.class_count += 1;
+    // No methods available (e.g. all excluded) -> no group needed.
+    if !method_inits.is_empty() {
+        table.method_init_groups.push(MethodInitGroup::new(
+            &builtin_class.name().godot_ty,
+            None, // load_builtin_method() doesn't need a StringName for the class, as it accepts the VariantType enum.
+            method_inits,
+        ));
+        table.class_count += 1;
+    }
 }
 
 fn make_class_method_init(
@@ -646,11 +633,7 @@ fn make_class_method_init(
     }
 }
 
-fn make_builtin_method_init(
-    builtin: &BuiltinVariant,
-    method: &BuiltinMethod,
-    index: usize,
-) -> TokenStream {
+fn make_builtin_method_init(builtin: &BuiltinVariant, method: &BuiltinMethod) -> TokenStream {
     let method_name_str = method.name();
 
     let variant_type = builtin.sys_variant_type();
@@ -660,17 +643,14 @@ fn make_builtin_method_init(
 
     // Could reuse lazy key, but less code like this -> faster parsing.
     quote! {
-        {
-            let _ = #index;
-            crate::load_builtin_method(
-                fetch_fptr,
-                string_names,
-                crate::#variant_type,
-                #variant_type_str,
-                #method_name_str,
-                #hash
-            )
-        },
+        crate::load_builtin_method(
+            fetch_fptr,
+            string_names,
+            crate::#variant_type,
+            #variant_type_str,
+            #method_name_str,
+            #hash
+        ),
     }
 }
 

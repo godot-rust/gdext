@@ -29,8 +29,7 @@
 
 use std::borrow::Cow;
 
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use proc_macro2::Ident;
 
 use crate::Context;
 use crate::conv::to_enum_type_uncached;
@@ -845,7 +844,7 @@ pub fn is_builtin_type_deleted(class_name: &TyName) -> bool {
 
 /// True if `int`, `float`, `bool`, ...
 pub fn is_builtin_type_scalar(name: &str) -> bool {
-    name.chars().next().unwrap().is_ascii_lowercase()
+    name.starts_with(|c: char| c.is_ascii_lowercase())
 }
 
 #[rustfmt::skip]
@@ -1327,15 +1326,6 @@ pub fn get_global_enum_module_path(enum_name: &str) -> &'static str {
         // Godot's JSON spells `VariantType` as `Variant.Type`; accept both since callers may pass either form.
         "Corner" | "EulerOrder" | "Side" | "VariantType" | "Variant.Type" => "crate::builtin",
         _ => "crate::global",
-    }
-}
-
-/// Returns the Rust module path of a global Godot enum (instead of `crate::global::EnumName`).
-pub fn get_global_enum_rust_path(enum_name: &str) -> TokenStream {
-    match get_global_enum_module_path(enum_name) {
-        "crate::registry::info" => quote! { crate::registry::info },
-        "crate::builtin" => quote! { crate::builtin },
-        _ => quote! { crate::global },
     }
 }
 

@@ -61,24 +61,9 @@ pub(crate) fn format_tokens(tokens: TokenStream) -> String {
 }
 
 fn indent(n: usize) -> &'static str {
-    // This looks strange, but it means we don't need to actually allocate anything.
-    // The downside is there's a limit to how deep we can nest.
-    // The code that's generated doesn't seem like it's any deeper than this.
-
     //           |   |   |   |   |   |   |   |   |   |   |   |   |   |   |
     let idents = "                                                        ";
-
-    let end = n * 4;
-    &idents[0..end]
-
-    // If at some point this approach doesn't work anymore, a `Cow<'static, str>`
-    // could be returned.
-
-    // if let Some(s) = idents.get(0..end) {
-    //     Cow::Borrowed(s)
-    // } else {
-    //     Cow::Owned("    ".repeat(n))
-    // }
+    &idents[..(n * 4).min(idents.len())]
 }
 
 //

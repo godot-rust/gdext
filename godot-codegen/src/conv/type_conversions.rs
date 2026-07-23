@@ -15,7 +15,7 @@ use quote::{ToTokens, quote};
 use crate::context::Context;
 use crate::conv;
 use crate::models::domain::{ArgPassing, FlowDirection, GodotTy, ModName, RustTy, TyName};
-use crate::special_cases::{get_global_enum_rust_path, is_builtin_type_scalar};
+use crate::special_cases::{get_global_enum_module_path, is_builtin_type_scalar};
 use crate::util::ident;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -67,15 +67,8 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<Ident> {
             None => "_unused__Dictionary_must_not_appear_in_idents",
         },
 
-        // Types needed for native structures mapping; duplicated in header_codegen.rs map_c_type().
-        ("uint8_t", None) => "u8",
-        ("uint16_t", None) => "u16",
-        ("uint32_t", None) => "u32",
-        ("uint64_t", None) => "u64",
-        ("int8_t", None) => "i8",
-        ("int16_t", None) => "i16",
-        ("int32_t", None) => "i32",
-        ("int64_t", None) => "i64",
+        // Fixed-width types needed for native structures mapping; shared with header_codegen.rs map_c_base_type().
+        (ty, None) if let Some(rust) = conv::fixed_width_c_int_ident(ty) => rust,
         ("real_t", None) => "real",
         ("void", None) => "c_void",
 
@@ -89,6 +82,23 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<Ident> {
     };
 
     Some(ident(result))
+}
+
+/// Maps a fixed-width C integer type name (e.g. `"uint32_t"`) to its Rust equivalent (e.g. `"u32"`).
+/// Returns `None` for anything else, including `void`/`char`/`int`/`float`/`double`/`size_t`, which
+/// each caller handles according to its own context. Shared between this module and `header_codegen::map_c_base_type()`.
+pub(crate) fn fixed_width_c_int_ident(c_type: &str) -> Option<&'static str> {
+    match c_type {
+        "int8_t" => Some("i8"),
+        "int16_t" => Some("i16"),
+        "int32_t" => Some("i32"),
+        "int64_t" => Some("i64"),
+        "uint8_t" => Some("u8"),
+        "uint16_t" => Some("u16"),
+        "uint32_t" => Some("u32"),
+        "uint64_t" => Some("u64"),
+        _ => None,
+    }
 }
 
 fn to_hardcoded_rust_enum(ty: &str) -> Option<Ident> {
@@ -348,7 +358,9 @@ pub(crate) fn to_enum_type_uncached(enum_or_bitfield: &str, is_bitfield: bool) -
         to_class_enum_uncached("Resource", enum_or_bitfield, is_bitfield)
     } else {
         // Global enum or bitfield.
-        let path = get_global_enum_rust_path(enum_or_bitfield);
+        let path: TokenStream = get_global_enum_module_path(enum_or_bitfield)
+            .parse()
+            .expect("valid module path");
         let enum_or_bitfield_name = conv::make_enum_name(enum_or_bitfield);
 
         RustTy::EngineEnum {

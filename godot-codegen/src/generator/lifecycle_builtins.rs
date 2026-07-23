@@ -162,8 +162,10 @@ fn make_extra_constructors(
     builtin: &BuiltinVariant,
     constructors: &[Constructor],
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
-    let mut extra_decls = Vec::with_capacity(constructors.len() - 2);
-    let mut extra_inits = Vec::with_capacity(constructors.len() - 2);
+    // Capacity hint only; the loop below skips the first 2 constructors regardless of len().
+    let extra_capacity = constructors.len().saturating_sub(2);
+    let mut extra_decls = Vec::with_capacity(extra_capacity);
+    let mut extra_inits = Vec::with_capacity(extra_capacity);
     let variant_type = builtin.sys_variant_type();
 
     for (i, ctor) in constructors.iter().enumerate().skip(2) {

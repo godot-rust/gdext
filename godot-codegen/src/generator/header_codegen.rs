@@ -427,10 +427,9 @@ fn map_c_type(c_type: &str) -> TokenStream {
         (false, c_type)
     };
 
-    // Handle pointer types
-    if c_type.ends_with('*') {
-        let base_type = c_type.trim_end_matches('*').trim();
-        let inner = map_c_type_as_pointee(base_type);
+    // Strip one level of '*' at a time and recurse, to preserve multi-level pointers (e.g. "void **").
+    if let Some(base_type) = c_type.strip_suffix('*') {
+        let inner = map_c_type_as_pointee(base_type.trim());
 
         return if is_const {
             quote! { *const #inner }
@@ -459,21 +458,18 @@ fn map_c_base_type(c_type: &str) -> TokenStream {
         "void" => quote! { () },
         "char" => quote! { std::ffi::c_char },
         "int" => quote! { std::ffi::c_int }, // Only appears once in current JSON (worker_thread_pool_add_native_group_task).
-        "int8_t" => quote! { i8 },
-        "int16_t" => quote! { i16 },
-        "int32_t" => quote! { i32 },
-        "int64_t" => quote! { i64 },
-        "uint8_t" => quote! { u8 },
-        "uint16_t" => quote! { u16 },
-        "uint32_t" => quote! { u32 },
-        "uint64_t" => quote! { u64 },
         "size_t" => quote! { usize },
         "float" => quote! { f32 },
         "double" => quote! { f64 },
         _ => {
-            // Fallback: use the type as-is (should be a GDExtension type)
-            let type_ident = ident(c_type);
-            quote! { #type_ident }
+            if let Some(rust_ty) = crate::conv::fixed_width_c_int_ident(c_type) {
+                let type_ident = ident(rust_ty);
+                quote! { #type_ident }
+            } else {
+                // Fallback: use the type as-is (should be a GDExtension type)
+                let type_ident = ident(c_type);
+                quote! { #type_ident }
+            }
         }
     }
 }

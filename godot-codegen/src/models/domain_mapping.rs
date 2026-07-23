@@ -301,7 +301,11 @@ impl BuiltinVariant {
             godot_original_name = json_builtin.name.clone();
             builtin_class = BuiltinClass::from_json(json_builtin, ctx);
         } else {
-            assert_eq!(json_variant_enumerator_name, "OBJECT");
+            assert_eq!(
+                json_variant_enumerator_name, "OBJECT",
+                "variant type {json_variant_enumerator_name:?} has no builtin class entry in the JSON; \
+                 only OBJECT is expected to lack one -- Godot's Variant.Type enum may have gained a new class-less type"
+            );
 
             builtin_class = None;
             godot_original_name = "Object".to_string();
@@ -566,8 +570,8 @@ impl ClassMethod {
 
         // Since Godot 4.4, GDExtension advertises whether virtual methods have a default implementation or are required to be overridden.
         #[cfg(before_api = "4.4")]
-        let is_virtual_required =
-            special_cases::is_virtual_method_required(&class_name, &method.name);
+        let is_virtual_required = method.is_virtual
+            && special_cases::is_virtual_method_required(&class_name, &method.name);
 
         #[cfg(since_api = "4.4")]
         #[allow(clippy::let_and_return)]
@@ -659,7 +663,7 @@ impl ClassMethod {
             return rust_name;
         }
 
-        // In general, just rlemove leading underscore from virtual method names.
+        // In general, just remove leading underscore from virtual method names.
         godot_method_name
             .strip_prefix('_')
             .unwrap_or(godot_method_name)
