@@ -57,7 +57,11 @@ impl BindingStorage {
         // in which case we can tell that the storage has been initialized, and we don't access `binding`.
         let storage = unsafe { Self::storage() };
 
-        assert!(!storage.initialized(), "already initialized");
+        assert!(
+            !storage.initialized(),
+            "godot-rust binding is already initialized; initialize() must only be called at startup or after deinitialize().{hint}",
+            hint = crate::MULTI_EXTENSION_HINT
+        );
 
         // SAFETY: We are the first thread to set this binding (possibly after deinitialize), as otherwise the above assert would fail. We also
         // know initialize() is not called concurrently with anything else that can call another method on the binding, since this method is

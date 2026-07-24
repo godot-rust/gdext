@@ -38,7 +38,8 @@ impl BindingStorage {
 
         assert!(
             !storage.binding.is_initialized(),
-            "initialize must only be called at startup or after deinitialize"
+            "godot-rust binding is already initialized; initialize() must only be called at startup or after deinitialize().{hint}",
+            hint = crate::MULTI_EXTENSION_HINT
         );
 
         // SAFETY: per declared invariants.
