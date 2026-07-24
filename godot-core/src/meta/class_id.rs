@@ -289,8 +289,8 @@ impl ClassIdCache {
             // Debug verification that we're indeed the first to register this string.
             sys::balanced_assert!(
                 !self.string_to_index.contains_key(source.as_ref()),
-                "insert_class_name() called for already-existing string: {}",
-                source
+                "insert_class_name() called for already-existing string: {source}{hint}",
+                hint = sys::MULTI_EXTENSION_HINT
             );
         } else {
             // Check string cache first (dynamic path may reuse existing entries).

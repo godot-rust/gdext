@@ -80,6 +80,7 @@ mod godot_ffi;
 mod interface_init;
 #[cfg(target_os = "linux")]
 pub mod linux_reload_workaround;
+mod multi_extension;
 mod opaque;
 mod shard_registry;
 mod string_cache;
@@ -100,6 +101,7 @@ pub use r#gen::table_servers_classes::*;
 pub use r#gen::table_utilities::*;
 pub use global::*;
 pub use init_level::*;
+pub use multi_extension::MULTI_EXTENSION_HINT;
 pub use string_cache::StringCache;
 pub use toolbox::*;
 
