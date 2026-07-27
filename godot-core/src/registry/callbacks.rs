@@ -306,6 +306,34 @@ pub unsafe extern "C" fn notification<T: cap::GodotNotification>(
     what: i32,
     _reversed: sys::GDExtensionBool,
 ) {
+    const NOTIFICATION_PREDELETE: i32 = 1;
+
+    // Godot's internal cleanup notification, sent after the C++ destructor chain has torn down the derived class. Godot deliberately keeps it
+    // unbound (`object.h`, next to `NOTIFICATION_PREDELETE`), so it appears in neither ClassDB nor the extension API JSON -- hence the literal.
+    // Acting on it is unsupported: the object is half-destroyed, and `Gd<Self>` can no longer be reconstructed from it.
+    const NOTIFICATION_PREDELETE_CLEANUP: i32 = 3;
+
+    if what == NOTIFICATION_PREDELETE_CLEANUP {
+        return;
+    }
+
+    // TODO(v0.6): deliver PREDELETE to `Gd<Self>` receivers, e.g. through a borrowed receiver that needs no reference count.
+    // A ref-counted object has already reached refcount 0 here, so constructing an owned `Gd<Self>` fails (and corrupts the count).
+    if T::Recv::IS_GD_SELF
+        && what == NOTIFICATION_PREDELETE
+        && <<T as Bounds>::Memory as bounds::Memory>::IS_REF_COUNTED
+    {
+        sys::defer_startup_warn!(
+            once;
+            id: "NotificationGdSelfPredelete",
+            "Class `{}` declares `on_notification()` with `#[func(gd_self)]` and is ref-counted;\n\
+            the PREDELETE notification is not delivered, since `Gd<Self>` cannot be constructed at that point.\n\
+            Declare the method with `&mut self` to receive it.",
+            T::class_id()
+        );
+        return;
+    }
+
     // Receiver acquisition can also panic on borrow conflicts, in addition to `__godot_on_notification` itself.
     let code = || {
         let storage = as_storage::<T>(instance);

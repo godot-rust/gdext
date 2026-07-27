@@ -1173,6 +1173,9 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// For ref-counted classes, the `PREDELETE` notification is not delivered to a `Gd<Self>` receiver: the reference count has already reached
+/// zero at that point, so no `Gd` can be constructed. Declare the method with `&mut self` if you need `PREDELETE`.
+///
 /// # Signals
 /// The `#[signal]` attribute declares a Godot signal, which can accept parameters, but not return any value.
 /// The procedural macro generates a type-safe API that allows you to connect and emit the signal from Rust.

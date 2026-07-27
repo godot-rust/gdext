@@ -119,6 +119,9 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> Vec<OrderedVi
                 /// This method is named `_notification` in Godot, but `on_notification` in Rust. To _send_ notifications, use the
                 /// [`Object::notify`][crate::classes::Object::notify] method.
                 ///
+                /// Godot's internal cleanup notification, sent after `PREDELETE` once the object is partly destroyed, is not forwarded to
+                /// this method. It is unbound in Godot and thus not part of the public API.
+                ///
                 /// See also in Godot docs:
                 /// * [`Object::_notification`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-notification).
                 /// * [Notifications tutorial](https://docs.godotengine.org/en/stable/tutorials/best_practices/godot_notifications.html).
