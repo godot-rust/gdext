@@ -195,6 +195,10 @@ pub enum RecvGdSelf {}
 
 #[doc(hidden)]
 pub trait IntoVirtualMethodReceiver<T: GodotClass> {
+    /// Whether the receiver is an owned `Gd<Self>`, which cannot be constructed while the object is being destroyed.
+    #[doc(hidden)]
+    const IS_GD_SELF: bool = false;
+
     #[doc(hidden)]
     fn instance<'a, 'b: 'a>(storage: &'b InstanceStorage<T>) -> VirtualMethodReceiver<'a, T>;
 }
@@ -219,6 +223,8 @@ impl<T> IntoVirtualMethodReceiver<T> for RecvGdSelf
 where
     T: Inherits<<T as GodotClass>::Base>,
 {
+    const IS_GD_SELF: bool = true;
+
     fn instance<'a, 'b: 'a>(storage: &'b InstanceStorage<T>) -> VirtualMethodReceiver<'a, T> {
         VirtualMethodReceiver {
             inner: VirtualMethodReceiverInner::GdSelf(storage.get_gd()),

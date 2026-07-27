@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use godot::builtin::{
     AnyArray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
     PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv, StringName, Variant,
@@ -13,6 +16,8 @@ use godot::builtin::{
 #[cfg(feature = "codegen-full")]
 use godot::classes::Material;
 use godot::classes::notify::NodeNotification;
+#[cfg(since_api = "4.7")]
+use godot::classes::notify::ObjectNotification;
 use godot::classes::{
     IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, InputEvent, InputEventAction, Node,
     Node2D, Object, PrimitiveMesh, RefCounted, Window,
@@ -206,6 +211,9 @@ impl INode for NotificationTest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Notification log shared with the test, so it survives the object it belongs to.
+type NotificationLog<T> = Rc<RefCell<Vec<T>>>;
+
 // `on_notification` with `#[func(gd_self)]` is only supported from Godot 4.7 onwards.
 #[cfg(since_api = "4.7")]
 #[derive(GodotClass)]
@@ -213,16 +221,55 @@ impl INode for NotificationTest {
 struct NotificationGdSelfTest {
     base: Base<Node>,
 
-    received: Vec<NodeNotification>,
+    received: NotificationLog<NodeNotification>,
 }
 
 #[cfg(since_api = "4.7")]
 #[godot_api]
 impl INode for NotificationGdSelfTest {
     #[func(gd_self)]
-    fn on_notification(mut this: Gd<Self>, what: NodeNotification) {
-        // Exercise bind_mut() through the Gd<Self> receiver (rather than the auto-bound &mut self).
-        this.bind_mut().received.push(what);
+    fn on_notification(this: Gd<Self>, what: NodeNotification) {
+        // Exercise bind() through the Gd<Self> receiver (rather than the auto-bound &mut self).
+        this.bind().received.borrow_mut().push(what);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Ref-counted class with a `Gd<Self>` receiver: PREDELETE is not delivered, as the reference count has already reached zero.
+#[cfg(since_api = "4.7")]
+#[derive(GodotClass)]
+#[class(base=RefCounted, init)]
+struct NotificationRefCountedGdSelfTest {
+    base: Base<RefCounted>,
+
+    received: NotificationLog<ObjectNotification>,
+}
+
+#[cfg(since_api = "4.7")]
+#[godot_api]
+impl IRefCounted for NotificationRefCountedGdSelfTest {
+    #[func(gd_self)]
+    fn on_notification(this: Gd<Self>, what: ObjectNotification) {
+        this.bind().received.borrow_mut().push(what);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// `&mut self` counterpart of the above, to verify that the internal cleanup notification is filtered out for all receivers.
+#[derive(GodotClass)]
+#[class(base=Node, init)]
+struct NotificationCleanupTest {
+    base: Base<Node>,
+
+    received: NotificationLog<NodeNotification>,
+}
+
+#[godot_api]
+impl INode for NotificationCleanupTest {
+    fn on_notification(&mut self, what: NodeNotification) {
+        self.received.borrow_mut().push(what);
     }
 }
 
@@ -616,19 +663,47 @@ fn test_notifications() {
 #[itest]
 fn test_notifications_gd_self() {
     let obj = NotificationGdSelfTest::new_alloc();
+    let received = obj.bind().received.clone();
+
     let mut node = obj.clone().upcast::<Node>();
     node.notify(NodeNotification::UNPAUSED);
     node.notify(NodeNotification::WM_SIZE_CHANGED);
+    obj.free();
 
+    // PREDELETE is still delivered; the internal cleanup notification following it is not.
     assert_eq!(
-        obj.bind().received,
+        *received.borrow(),
         vec![
             NodeNotification::POSTINITIALIZE,
             NodeNotification::UNPAUSED,
             NodeNotification::WM_SIZE_CHANGED,
+            NodeNotification::PREDELETE,
         ]
     );
+}
+
+// Ref-counted classes cannot receive PREDELETE through a `Gd<Self>` receiver; the library warns and skips it.
+#[cfg(since_api = "4.7")]
+#[itest]
+fn test_notifications_gd_self_ref_counted() {
+    let obj = NotificationRefCountedGdSelfTest::new_gd();
+    let received = obj.bind().received.clone();
+
+    drop(obj);
+
+    assert_eq!(*received.borrow(), vec![ObjectNotification::POSTINITIALIZE]);
+}
+
+// The internal cleanup notification after PREDELETE is not part of the public API and must not reach user code.
+#[itest]
+fn test_notifications_no_cleanup() {
+    let obj = NotificationCleanupTest::new_alloc();
+    let received = obj.bind().received.clone();
+
     obj.free();
+
+    let received = received.borrow();
+    assert_eq!(received.last(), Some(&NodeNotification::PREDELETE));
 }
 
 #[itest]
