@@ -1007,12 +1007,9 @@ where
     /// }
     /// ```
     pub fn try_to_unique(self) -> Result<Self, (Self, usize)> {
-        use crate::obj::bounds::DynMemory as _;
-
-        match <T as Bounds>::DynMemory::get_ref_count(&self.raw) {
-            Some(1) => Ok(self),
-            Some(ref_count) => Err((self, ref_count)),
-            None => unreachable!(),
+        match self.raw.ref_count() {
+            1 => Ok(self),
+            ref_count => Err((self, ref_count)),
         }
     }
 }

@@ -16,8 +16,7 @@ use crate::classes::object::ConnectFlags;
 use crate::global::Error;
 use crate::meta;
 use crate::meta::{FromGodot, GodotType, ToGodot};
-use crate::obj::bounds::DynMemory;
-use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId};
+use crate::obj::{EngineBitfield, Gd, GodotClass, InstanceId};
 use crate::signal::store_custom_callable_connection;
 
 /// Untyped Godot signal.
@@ -144,12 +143,12 @@ impl Signal {
 
         // `get_object()` may hand out a pointer to an already-freed object (e.g. when the object was destroyed on another thread).
         // Validate liveness before touching the instance, honoring this method's contract to return `None` for dead objects. Without this,
-        // `maybe_inc_ref()` below would access the freed instance and panic -- fatal if it happens during `Drop`, see `FallibleSignalFuture`.
+        // `refc_inc()` below would access the freed instance and panic -- fatal if it happens during `Drop`, see `FallibleSignalFuture`.
         if !object.is_instance_valid() {
             return None;
         }
 
-        <Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
+        object.raw.refc_inc();
         Some(object)
     }
 
