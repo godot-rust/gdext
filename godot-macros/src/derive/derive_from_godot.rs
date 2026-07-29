@@ -48,26 +48,17 @@ fn make_fromgodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStru
         ..
     } = convert;
 
-    let generic_args = generic_params
-        .as_ref()
-        .map(|params| params.as_inline_args());
-
+    let generic_args = convert.generic_args();
     let field_name = &field.sized.ident;
     let via_type = &field.sized.ty;
-
-    let field_zst_names = field.zsts.iter().map(|field| &field.ident);
-    let field_zst_tys = field.zsts.iter().map(|field| &field.ty);
+    let zst_field_inits = field.make_zst_field_inits();
 
     quote! {
         impl #generic_params ::godot::meta::FromGodot for #name #generic_args #where_clause {
             fn try_from_godot(via: #via_type) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
-
                 Ok(Self {
                     #field_name: via,
-                    #(#field_zst_names: {
-                        assert_eq!(::std::mem::size_of::<#field_zst_tys>(), 0);
-                        ::std::default::Default::default()
-                    }),*
+                    #zst_field_inits
                 })
             }
         }

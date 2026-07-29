@@ -69,6 +69,32 @@ impl GodotConvert {
             convert_type: data,
         })
     }
+
+    /// Generic parameters as arguments: `impl Type<GenericArgs>`.
+    pub fn generic_args(&self) -> Option<venial::InlineGenericArgs<'_>> {
+        self.generic_params
+            .as_ref()
+            .map(|params| params.as_inline_args())
+    }
+
+    /// Errors if the type is generic, for derives that don't support it yet.
+    pub fn ensure_no_generics(&self, derive_name: &str) -> ParseResult<()> {
+        if let Some(generic_params) = &self.generic_params {
+            return bail!(
+                generic_params,
+                "#[derive({derive_name})] does not support lifetimes or generic parameters"
+            );
+        }
+
+        if let Some(where_clause) = &self.where_clause {
+            return bail!(
+                where_clause,
+                "#[derive({derive_name})] does not support where clauses"
+            );
+        }
+
+        Ok(())
+    }
 }
 
 /// Stores what kind of `GodotConvert` derive we're doing.

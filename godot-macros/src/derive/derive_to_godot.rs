@@ -45,10 +45,7 @@ fn make_togodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStruct
         ..
     } = convert;
 
-    let generic_args = generic_params
-        .as_ref()
-        .map(|params| params.as_inline_args());
-
+    let generic_args = convert.generic_args();
     let field_name = &field.sized.ident;
     let via_type = &field.sized.ty;
 

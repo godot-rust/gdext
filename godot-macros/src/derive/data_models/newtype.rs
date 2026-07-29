@@ -5,22 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::{Literal, TokenStream};
 use quote::{ToTokens, quote};
 
 use crate::util::bail;
 use crate::{KvParser, ParseResult};
 
+/// Field name of a named struct, or numeric index of a tuple struct.
 pub struct FieldIdent(TokenStream);
-
-impl FieldIdent {
-    fn named(id: Ident) -> Self {
-        Self(quote! { #id })
-    }
-    fn tuple(i: usize) -> Self {
-        Self(Literal::usize_unsuffixed(i).into_token_stream())
-    }
-}
 
 impl ToTokens for FieldIdent {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -31,6 +23,23 @@ impl ToTokens for FieldIdent {
 pub struct NewtypeField {
     pub ident: FieldIdent,
     pub ty: venial::TypeExpr,
+}
+
+impl NewtypeField {
+    fn named(field: &venial::NamedField) -> Self {
+        let name = &field.name;
+        Self {
+            ident: FieldIdent(quote! { #name }),
+            ty: field.ty.clone(),
+        }
+    }
+
+    fn tuple(index: usize, field: &venial::TupleField) -> Self {
+        Self {
+            ident: FieldIdent(Literal::usize_unsuffixed(index).into_token_stream()),
+            ty: field.ty.clone(),
+        }
+    }
 }
 
 /// Stores info from the field of a newtype struct for use in deriving `GodotConvert` and other related traits.
@@ -44,77 +53,51 @@ pub struct NewtypeStruct {
 impl NewtypeStruct {
     /// Parses a struct into a newtype struct.
     ///
-    /// This will fail if the struct doesn't have exactly one field.
+    /// This will fail if the struct doesn't have exactly one non-skipped field.
     pub fn parse_struct(struct_: &venial::Struct) -> ParseResult<NewtypeStruct> {
-        match &struct_.fields {
-            venial::Fields::Unit => bail!(
-                &struct_.fields,
-                "GodotConvert expects a struct with a single sized field, unit structs are currently not supported"
-            ),
-            venial::Fields::Tuple(fields) => {
-                let (sized, zsts) = Self::partition_fields(
-                    fields
-                        .fields
-                        .iter()
-                        .map(|(field, _)| field.attributes.as_slice()),
-                    fields,
-                )?;
+        let all_fields = &struct_.fields;
 
-                let mk = |i: usize| NewtypeField {
-                    ident: FieldIdent::tuple(i),
-                    ty: fields.fields[i].0.ty.clone(),
-                };
-
-                Ok(NewtypeStruct {
-                    sized: mk(sized),
-                    zsts: zsts.into_iter().map(mk).collect(),
-                })
+        // Tuple and named fields have no common accessor, so unify them here.
+        let fields: Vec<(NewtypeField, &[venial::Attribute])> = match all_fields {
+            venial::Fields::Unit => {
+                return bail!(
+                    all_fields,
+                    "GodotConvert expects a struct with a single sized field, unit structs are currently not supported"
+                );
             }
-            venial::Fields::Named(fields) => {
-                let (sized, zsts) = Self::partition_fields(
-                    fields
-                        .fields
-                        .iter()
-                        .map(|(field, _)| field.attributes.as_slice()),
-                    fields,
-                )?;
 
-                let mk = |i: usize| NewtypeField {
-                    ident: FieldIdent::named(fields.fields[i].0.name.clone()),
-                    ty: fields.fields[i].0.ty.clone(),
-                };
+            venial::Fields::Tuple(fields) => fields
+                .fields
+                .iter()
+                .enumerate()
+                .map(|(index, (f, _))| (NewtypeField::tuple(index, f), f.attributes.as_slice()))
+                .collect(),
 
-                Ok(NewtypeStruct {
-                    sized: mk(sized),
-                    zsts: zsts.into_iter().map(mk).collect(),
-                })
-            }
-        }
-    }
+            venial::Fields::Named(fields) => fields
+                .fields
+                .iter()
+                .map(|(f, _)| (NewtypeField::named(f), f.attributes.as_slice()))
+                .collect(),
+        };
 
-    /// Partitions fields into 1 sized field and an arbitrary amount of ZST fields
-    ///
-    /// Returns the indices to these fields
-    fn partition_fields<'a>(
-        attrs: impl Iterator<Item = &'a [venial::Attribute]>,
-        context: impl ToTokens,
-    ) -> ParseResult<(usize, Vec<usize>)> {
         let mut sized = None;
         let mut zsts = vec![];
 
-        for (i, attr) in attrs.enumerate() {
-            match KvParser::parse(attr, "godot")? {
+        for (field, attributes) in fields {
+            match KvParser::parse(attributes, "godot")? {
                 Some(mut parser) => {
-                    if parser.handle_alone("skip")? {
-                        zsts.push(i)
+                    // `skip` is the only key allowed on fields; reject `#[godot]` without it.
+                    if !parser.handle_alone("skip")? {
+                        return bail!(all_fields, "expected `#[godot(skip)]` on skipped fields");
                     }
                     parser.finish()?;
+                    zsts.push(field);
                 }
-                None if sized.is_none() => sized = Some(i),
+                None if sized.is_none() => sized = Some(field),
                 None => {
                     return bail!(
-                        &context,
-                        "GodotConvert expects a struct with a single sized field, found multple"
+                        all_fields,
+                        "GodotConvert expects a struct with a single sized field, found multiple"
                     );
                 }
             }
@@ -122,11 +105,27 @@ impl NewtypeStruct {
 
         let Some(sized) = sized else {
             return bail!(
-                &context,
+                all_fields,
                 "GodotConvert expects a struct with a single sized field, found none"
             );
         };
 
-        Ok((sized, zsts))
+        Ok(NewtypeStruct { sized, zsts })
+    }
+
+    /// Struct initializers `field: Default::default()` for skipped fields, each with a compile-time size check.
+    pub fn make_zst_field_inits(&self) -> TokenStream {
+        let idents = self.zsts.iter().map(|field| &field.ident);
+        let tys = self.zsts.iter().map(|field| &field.ty);
+
+        // const{} block rather than static_assert!, whose const *item* cannot name the enclosing generic parameters #tys.
+        quote! {
+            #(
+                #idents: {
+                    const { ::std::assert!(::std::mem::size_of::<#tys>() == 0, "#[godot(skip)] field must be zero-sized") };
+                    ::std::default::Default::default()
+                },
+            )*
+        }
     }
 }
