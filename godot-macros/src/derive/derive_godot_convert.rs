@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 
 use proc_macro2::{Ident, TokenStream, TokenTree};
-use quote::quote;
+use quote::{ToTokens, quote};
 
 use crate::ParseResult;
 use crate::derive::data_models::{ConvertType, GodotConvert, ViaType};
@@ -20,7 +20,17 @@ use crate::derive::{make_fromgodot, make_togodot};
 pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
     let convert = GodotConvert::parse_declaration(item)?;
 
-    let name = &convert.ty_name;
+    let GodotConvert {
+        ty_name: name,
+        generic_params,
+        where_clause,
+        ..
+    } = &convert;
+
+    let generic_args = generic_params
+        .as_ref()
+        .map(|params| params.as_inline_args());
+
     let via_type = convert.convert_type.via_type();
     let mut cache = EnumeratorExprCache::default();
 
@@ -29,8 +39,18 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
 
     let shape_override = make_shape_override(&convert.convert_type, &mut cache);
 
+    let element_where = match where_clause {
+        Some(w) => w
+            .clone()
+            .with_predicate(venial::WhereClausePredicate::parse(
+                quote! { Self: 'static },
+            ))
+            .to_token_stream(),
+        None => quote! { where Self: 'static },
+    };
+
     Ok(quote! {
-        impl ::godot::meta::GodotConvert for #name  {
+        impl #generic_params ::godot::meta::GodotConvert for #name #generic_args #where_clause {
             type Via = #via_type;
             #shape_override
         }
@@ -39,7 +59,7 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
         #from_godot_impl
 
         // Marker impl: defaults derive element metadata from shape().
-        impl ::godot::meta::Element for #name {}
+        impl #generic_params ::godot::meta::Element for #name #generic_args #element_where {}
     })
 }
 
