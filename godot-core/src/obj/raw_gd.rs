@@ -86,10 +86,10 @@ impl<T: GodotClass> RawGd<T> {
 
     /// Returns `self` but with initialized ref-count.
     fn with_inc_refcount(mut self) -> Self {
-        // Note: use init_ref and not inc_ref, since this might be the first reference increment.
+        // Note: use refc_init() and not refc_inc(), since this might be the first reference increment.
         // Godot expects RefCounted::init_ref to be called instead of RefCounted::reference in that case.
         // init_ref also doesn't hurt (except 1 possibly unnecessary check).
-        T::DynMemory::maybe_init_ref(&mut self);
+        self.refc_init();
         self
     }
 
@@ -240,7 +240,7 @@ impl<T: GodotClass> RawGd<T> {
     /// Unlike [`try_with_ref_counted`](Self::try_with_ref_counted), this does **not** check the type at runtime.
     ///
     /// # Safety
-    /// Caller must guarantee that `T` (statically) inherits from `RefCounted`.
+    /// Caller must guarantee that `T` inherits from `RefCounted`.
     pub(crate) unsafe fn with_ref_counted_unchecked<R>(
         &self,
         apply: impl FnOnce(&mut classes::RefCounted) -> R,
@@ -259,6 +259,65 @@ impl<T: GodotClass> RawGd<T> {
 
         let mut borrow = std::mem::ManuallyDrop::new(raw);
         apply(borrow.as_target_mut())
+    }
+
+    /// Whether this object is non-null and ref-counted, i.e. the `refc_*` operations below have an effect.
+    ///
+    /// For `T=Object` this is a runtime query; for all other classes it's known statically and the branch compiles away.
+    fn is_ref_counted(&self) -> bool {
+        !self.is_null() && T::DynMemory::is_ref_counted(self) == Some(true)
+    }
+
+    /// Sets the reference count to 1, when this `RawGd` becomes the object's first ref; see Godot's `RefCounted::init_ref()`.
+    ///
+    /// Use [`refc_inc()`][Self::refc_inc] instead if the object is already referenced.
+    ///
+    /// No-op if `T` is not ref-counted. Panics if the object is already being destroyed (Godot's `bool` return is asserted).
+    fn refc_init(&mut self) {
+        if !self.is_ref_counted() {
+            return;
+        }
+
+        out!("  RawGd::refc_init: {self:?}");
+
+        // SAFETY: object is ref-counted, as checked above.
+        let success = unsafe { self.with_ref_counted_unchecked(|refc| refc.init_ref()) };
+        assert!(success, "init_ref() failed");
+    }
+
+    /// Increments the reference count, for objects which are already referenced.
+    ///
+    /// No-op if `T` is not ref-counted.
+    pub(crate) fn refc_inc(&mut self) {
+        if !self.is_ref_counted() {
+            return;
+        }
+
+        out!("  RawGd::refc_inc:  {self:?}");
+
+        // SAFETY: object is ref-counted, as checked above.
+        let success = unsafe { self.with_ref_counted_unchecked(|refc| refc.reference()) };
+        assert!(success, "reference() failed");
+    }
+
+    /// Decrements the reference count. Returns `true` if the count hit 0 and the object can be safely freed.
+    ///
+    /// No-op returning `false` if `T` is not ref-counted. A script can override `unreference()`, so `false` is also possible at count 0.
+    ///
+    /// # Safety
+    /// If the object is ref-counted, then the reference count must either be incremented before it hits 0, or some [`Gd`] referencing
+    /// this object must be forgotten.
+    unsafe fn refc_dec(&mut self) -> bool {
+        if !self.is_ref_counted() {
+            return false;
+        }
+
+        out!("  RawGd::refc_dec:  {self:?}");
+
+        // SAFETY: object is ref-counted, as checked above.
+        let is_last = unsafe { self.with_ref_counted_unchecked(|refc| refc.unreference()) };
+        out!("  +-- was last={is_last}");
+        is_last
     }
 
     /// Enables outer `Gd` APIs or bypasses additional null checks, in cases where `RawGd` is guaranteed non-null.
@@ -440,6 +499,28 @@ impl<T: GodotClass> RawGd<T> {
         T: super::Inherits<crate::classes::ScriptLanguage>,
     {
         self.obj.cast()
+    }
+}
+
+impl<T> RawGd<T>
+where
+    T: GodotClass + Bounds<Memory = bounds::MemRefCounted>,
+{
+    /// Returns the reference count.
+    ///
+    /// Needs no runtime check, unlike the other ref-count operations: `T` is statically ref-counted, and `Gd` upholds non-nullness.
+    pub(crate) fn ref_count(&self) -> usize {
+        sys::strict_assert!(
+            !self.is_null(),
+            "RawGd::ref_count() called on null pointer; this is UB"
+        );
+
+        // SAFETY: Memory=MemRefCounted statically guarantees T inherits RefCounted.
+        let ref_count =
+            unsafe { self.with_ref_counted_unchecked(|refc| refc.get_reference_count()) };
+
+        // TODO find a safer cast alternative, e.g. num-traits crate with ToPrimitive (Debug) + AsPrimitive (Release).
+        ref_count as usize
     }
 }
 
@@ -635,9 +716,9 @@ where
 
     fn adjust_refcount_on_ptrcall_return(&mut self) {
         // Static type not ref-counted -> is Object, Node etc -> possibly needs incrementing refcount.
-        // maybe_inc_ref() is a no-op for Node etc.
+        // refc_inc() is a no-op for Node etc.
         if !<T::Memory as Memory>::IS_REF_COUNTED {
-            T::DynMemory::maybe_inc_ref(self);
+            self.refc_inc();
         }
     }
 }
@@ -742,7 +823,7 @@ impl<T: GodotClass> Drop for RawGd<T> {
 
         // SAFETY: This `Gd` won't be dropped again after this.
         // If destruction is triggered by Godot, Storage already knows about it, no need to notify it
-        let is_last = unsafe { T::DynMemory::maybe_dec_ref(self) }; // may drop
+        let is_last = unsafe { self.refc_dec() }; // may drop
         if is_last {
             unsafe {
                 interface_fn!(object_destroy)(self.obj_sys());

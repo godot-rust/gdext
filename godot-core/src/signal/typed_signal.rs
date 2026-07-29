@@ -283,7 +283,7 @@ impl<C: WithSignals, Ps: InParamTuple + 'static> TypedSignal<'_, C, Ps> {
             // Godot before reaching here). Only fails for a stale Callable clone invoked manually after the object died -> no-op, like Godot.
             //
             // Edge case: emission during object destruction (e.g. PREDELETE) -- ObjectDB lookup succeeds, but re-creating a Gd for a RefCounted
-            // at refcount 0 panics in maybe_init_ref(). Pre-existing limitation shared with Gd::from_instance_id().
+            // at refcount 0 panics in RawGd::refc_init(). Pre-existing limitation shared with Gd::from_instance_id().
             let Ok(mut gd) = Gd::<C>::try_from_instance_id(instance_id) else {
                 return;
             };
