@@ -125,6 +125,9 @@ unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
 
     // Now that editor UI is ready, display all warnings/error collected so far.
     sys::print_deferred_startup_messages();
+
+    // Terminal init point: abort if a fatal startup error was collected.
+    abort_if_startup_fatal();
 }
 
 #[cfg(since_api = "4.5")]
@@ -343,6 +346,51 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
 
     crate::registry::class::auto_register_classes(level);
     CURRENT_INIT_LEVEL.store(Some(level));
+}
+
+/// Aborts the process if a fatal startup error was collected -- unless in an interactive editor, which stays alive so the developer can read the
+/// errors and hot-reload a fix. A headless editor (CI, `--export-release`, `--import`) has no one to read them and aborts like a game run.
+///
+/// `SceneTree::quit()` only requests a shutdown, so a few frames may still run with the broken class set, possibly causing follow-up errors.
+/// Without a `SceneTree`, `process::exit()` ends the process right away.
+#[cfg(since_api = "4.5")]
+fn abort_if_startup_fatal() {
+    if !sys::take_startup_fatal() {
+        return;
+    }
+
+    // Interactive editor: keep running, the developer can read the errors and hot-reload a fix.
+    if is_editor_hint() && !is_headless() {
+        return;
+    }
+
+    // Exit code within Godot's recommended 0..=125 range for `SceneTree::quit()`.
+    let exit_code = 111;
+    if let Some(main_loop) = classes::Engine::singleton().get_main_loop()
+        && let Ok(mut scene_tree) = main_loop.try_cast::<classes::SceneTree>()
+    {
+        // Request graceful shutdown, running normal teardown. Main loop exists from `MainLoop` init on.
+        scene_tree.quit_ex().exit_code(exit_code).done();
+    } else {
+        // No SceneTree (e.g. a custom MainLoop set via the `application/run/main_loop_type` project setting).
+        std::process::exit(exit_code);
+    }
+}
+
+/// Whether Godot runs without a visual display -- `--headless`, `--display-driver headless`, or an export/import run, which force it.
+///
+/// Queried dynamically because `DisplayServer` is not part of the minimal codegen. A missing singleton counts as headless.
+#[cfg(since_api = "4.5")]
+fn is_headless() -> bool {
+    // Absent singleton or a failing call -> headless. Dynamic call for minimal codegen.
+    if let Some(mut display_server) = classes::Engine::singleton().get_singleton("DisplayServer")
+        && let Ok(name) = display_server.try_call("get_name", &[])
+        && let Ok(name) = name.try_to::<GString>()
+    {
+        name == "headless"
+    } else {
+        true
+    }
 }
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
