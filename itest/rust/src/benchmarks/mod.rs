@@ -76,7 +76,7 @@ fn class_engine_refc_clone_drop() -> BenchResult {
     bench_measure(100, || obj.clone())
 }
 
-/// Same as [`class_refc_engine_clone_drop()`], for a user class -- `RawGd` additionally carries the storage-pointer cache.
+/// Same as [`class_engine_refc_clone_drop()`], for a user class -- `RawGd` additionally carries the storage-pointer cache.
 #[bench(manual)]
 fn class_user_refc_clone_drop() -> BenchResult {
     let obj = MyBenchType::new_gd();

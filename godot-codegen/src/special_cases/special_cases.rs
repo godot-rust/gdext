@@ -450,6 +450,7 @@ pub fn is_class_method_unvalidated(class_ty: &TyName, godot_method_name: &str) -
         | ("RefCounted", "init_ref")
         | ("RefCounted", "reference")
         | ("RefCounted", "unreference")
+        | ("RefCounted", "get_reference_count")
 
         => true, _ => false
     }

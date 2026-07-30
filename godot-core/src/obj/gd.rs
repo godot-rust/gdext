@@ -382,24 +382,8 @@ impl<T: GodotClass> Gd<T> {
     }
 
     /// Returns the reference count, if the dynamic object inherits `RefCounted`; and `None` otherwise.
-    ///
-    /// Returns `Err(())` if obtaining reference count failed, due to being called during init/drop.
-    pub(crate) fn maybe_refcount(&self) -> Option<Result<usize, ()>> {
-        // May become infallible if implemented via call() on Object, if ref-count bit of instance ID is set.
-        // This would likely be more efficient, too.
-
-        // Fast check if ref-counted without downcast.
-        if !self.instance_id().is_ref_counted() {
-            return None;
-        }
-
-        // Optimization: call `get_reference_count()` directly. Might also increase reliability and obviate the need for Result.
-
-        let rc = self
-            .raw
-            .try_with_ref_counted(|refc| refc.get_reference_count());
-
-        Some(rc.map(|i| i as usize))
+    pub(crate) fn maybe_refcount(&self) -> Option<usize> {
+        self.raw.maybe_refcount()
     }
 
     /// Create a non-owning pointer from this.
@@ -423,8 +407,6 @@ impl<T: GodotClass> Gd<T> {
     #[doc(hidden)]
     pub fn test_refcount(&self) -> Option<usize> {
         self.maybe_refcount()
-            .transpose()
-            .expect("failed to obtain refcount")
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
