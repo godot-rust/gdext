@@ -6,9 +6,10 @@
  */
 
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
-use godot::builtin::{GString, Vector2, array, dict};
-use godot::meta::{GodotConvert, ToGodot};
+use godot::builtin::{Array, GString, Vector2, array, dict};
+use godot::meta::{Element, GodotConvert, ToGodot};
 
 use crate::common::roundtrip;
 use crate::framework::itest;
@@ -20,10 +21,39 @@ use crate::framework::itest;
 #[godot(transparent)]
 struct TupleNewtype(GString);
 
+// Generic types are supported; params that aren't part of the via type live in zero-sized `#[godot(skip)]` fields.
+#[derive(GodotConvert, PartialEq, Debug)]
+#[godot(transparent)]
+struct TuplePhantomNewtype<T: Debug + Element, U>(Array<T>, #[godot(skip)] PhantomData<U>);
+
 #[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
 struct NamedNewtype {
     field1: Vector2,
+}
+
+// The skipped type is not required to syntactically be `PhantomData`; only its size matters.
+type ZstType<T> = PhantomData<T>;
+
+#[derive(GodotConvert, PartialEq, Debug)]
+#[godot(transparent)]
+struct NamedPhantomNewtype<T>
+where
+    T: Clone,
+{
+    field1: Vector2,
+    #[godot(skip)]
+    _marker: ZstType<T>,
+    #[godot(skip)]
+    _zilch: (),
+}
+
+#[derive(GodotConvert, PartialEq, Debug)]
+#[godot(transparent)]
+struct GenericFormsNewtype<'a, const N: usize, T> {
+    field1: i64,
+    #[godot(skip)]
+    _marker: PhantomData<(&'a T, [(); N])>,
 }
 
 #[derive(GodotConvert, Clone, PartialEq, Debug)]
@@ -58,12 +88,22 @@ enum EnumIntyWithExprs {
 #[itest]
 fn newtype_tuple_struct() {
     roundtrip(TupleNewtype(GString::from("hello!")));
+    roundtrip(TuplePhantomNewtype::<u32, String>(array![], PhantomData));
 }
 
 #[itest]
 fn newtype_named_struct() {
     roundtrip(NamedNewtype {
         field1: Vector2::new(10.0, 25.0),
+    });
+    roundtrip(NamedPhantomNewtype::<usize> {
+        field1: Vector2::new(10.0, 25.0),
+        _marker: PhantomData,
+        _zilch: (),
+    });
+    roundtrip(GenericFormsNewtype::<3, u8> {
+        field1: 7,
+        _marker: PhantomData,
     });
 }
 

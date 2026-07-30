@@ -1349,7 +1349,7 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_dyn)
 }
 
-/// Derive macro for [`GodotConvert`](../meta/trait.GodotConvert.html) on structs.
+/// Derive macro for [`GodotConvert`](../meta/trait.GodotConvert.html) on structs and enums.
 ///
 /// This derive macro also derives [`ToGodot`](../meta/trait.ToGodot.html) and [`FromGodot`](../meta/trait.FromGodot.html).
 ///
@@ -1393,7 +1393,36 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// assert_eq!(obj.to_godot(), &GString::from("hello!"));
 /// ```
 ///
-/// However, it will not work for structs with more than one field, even if that field is zero sized:
+/// Additional fields are allowed if they are zero-sized types (ZSTs) and annotated with `#[godot(skip)]`. Such fields must implement `Default`,
+/// which is used to rebuild them in `FromGodot`. This makes generic types usable from Godot, for example a type-safe `Key<T>`:
+/// ```no_run
+/// use godot::prelude::*;
+/// use std::marker::PhantomData;
+///
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// struct Key<T> {
+///     id: u32,
+///     #[godot(skip)]
+///     _marker: PhantomData<T>,
+/// }
+/// ```
+///
+/// [`Var`] and [`Export`] cannot be derived for generic types:
+/// ```compile_fail
+/// use godot::prelude::*;
+/// use std::marker::PhantomData;
+///
+/// #[derive(GodotConvert, Var)]
+/// #[godot(transparent)]
+/// struct Key<T> {
+///     id: u32,
+///     #[godot(skip)]
+///     _marker: PhantomData<T>,
+/// }
+/// ```
+///
+/// You cannot use `#[godot(skip)]` on sized fields, or have more than one sized field.
 /// ```compile_fail
 /// use godot::prelude::*;
 ///
@@ -1401,7 +1430,21 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// #[godot(transparent)]
 /// struct SomeNewtype {
 ///     int: i64,
-///     zst: (),
+///     #[godot(skip)]
+///     other_int: i64,
+/// }
+/// ```
+/// ```compile_fail
+/// use godot::prelude::*;
+/// use std::marker::PhantomData;
+///
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// struct SomeNewtype<T> {
+///     int: i64,
+///     other_int: i64,
+///     #[godot(skip)]
+///     _marker: PhantomData<T>,
 /// }
 /// ```
 ///
@@ -1481,7 +1524,7 @@ pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_godot_convert)
 }
 
-/// Derive macro for [`Var`](../register/property/trait.Var.html) on enums.
+/// Derive macro for [`Var`](../register/property/trait.Var.html) on enums and `#[godot(transparent)]` structs.
 ///
 /// This expects a derived [`GodotConvert`](../meta/trait.GodotConvert.html) implementation, using a manual
 /// implementation of `GodotConvert` may lead to incorrect values being displayed in Godot.
@@ -1490,7 +1533,7 @@ pub fn derive_var(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_var)
 }
 
-/// Derive macro for [`Export`](../register/property/trait.Export.html) on enums.
+/// Derive macro for [`Export`](../register/property/trait.Export.html) on enums and `#[godot(transparent)]` structs.
 ///
 /// See also [`Var`].
 #[proc_macro_derive(Export, attributes(godot))]

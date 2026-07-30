@@ -15,7 +15,10 @@ use crate::derive::data_models::GodotConvert;
 ///
 /// This currently just reuses the property hint from the `Var` implementation.
 pub fn derive_export(item: venial::Item) -> ParseResult<TokenStream> {
-    let GodotConvert { ty_name: name, .. } = GodotConvert::parse_declaration(item)?;
+    let convert = GodotConvert::parse_declaration(item)?;
+    convert.ensure_no_generics("Export")?;
+
+    let name = convert.ty_name;
 
     Ok(quote! {
         impl ::godot::register::property::Export for #name {}

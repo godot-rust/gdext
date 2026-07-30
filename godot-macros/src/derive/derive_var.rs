@@ -17,6 +17,7 @@ use crate::derive::data_models::GodotConvert;
 /// Property hints are derived from `GodotConvert::shape()`.
 pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
     let convert = GodotConvert::parse_declaration(item)?;
+    convert.ensure_no_generics("Var")?;
 
     let name = convert.ty_name;
 
