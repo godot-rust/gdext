@@ -303,6 +303,42 @@ fn object_dynamic_free() {
         .expect_err("dynamic free() call must destroy object");
 }
 
+// `gd_self` holds no instance guard, so free() succeeds and destroys the object mid-call. The storage must outlive the call frame, which
+// still uses it after the method returns. `&mut self` receivers cannot reach this: free() panics on an active bind.
+#[itest]
+fn object_free_during_own_gd_self_call() {
+    #[derive(GodotClass)]
+    #[class(base = Object, init)]
+    struct SelfFreer {
+        base: Base<Object>,
+
+        /// Dropped with the storage, to detect a deferred storage that is never freed.
+        drop_probe: Option<Rc<()>>,
+    }
+
+    #[godot_api]
+    impl SelfFreer {
+        #[func(gd_self)]
+        fn free_self(this: Gd<Self>) -> i32 {
+            this.free();
+            1
+        }
+    }
+
+    let probe = Rc::new(());
+    let mut object = SelfFreer::new_alloc();
+    let id = object.instance_id();
+    object.bind_mut().drop_probe = Some(probe.clone());
+
+    assert_eq!(object.call("free_self", &[]), 1.to_variant());
+    assert!(!id.lookup_validity());
+    assert_eq!(
+        Rc::strong_count(&probe),
+        1,
+        "deferred storage must be freed, not leaked"
+    );
+}
+
 #[itest]
 fn object_user_bind_after_free() {
     let obj = Gd::from_object(ObjPayload {});

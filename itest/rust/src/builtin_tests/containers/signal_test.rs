@@ -12,7 +12,7 @@ use godot::builtin::{GString, Signal, StringName, vslice};
 use godot::classes::object::ConnectFlags;
 use godot::classes::{Node, Node3D, Object, RefCounted};
 use godot::meta::{FromGodot, GodotConvert, ToGodot};
-use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd};
+use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithBaseField, WithUserSignals};
 use godot::prelude::ConvertError;
 use godot::register::{GodotClass, godot_api};
 use godot::sys::Global;
@@ -631,11 +631,101 @@ fn signal_self_weak_connection_invoked() {
     assert_eq!(f.bind().hits, 222);
 }
 
+// The last reference to an object may be dropped while one of its own methods runs -- e.g. a signal handler clearing the variable that
+// holds the emitter. The object must survive until the method returns, otherwise the active instance guard would dangle.
+// Regression test for https://github.com/godot-rust/gdext/issues/1666.
+#[itest]
+fn signal_emitter_destroyed_during_own_call() {
+    let (instance_id, probe) = call_self_destroyer("emit_and_die");
+
+    assert!(
+        !instance_id.lookup_validity(),
+        "object must be destroyed once the method returned"
+    );
+    assert_eq!(
+        Rc::strong_count(&probe),
+        1,
+        "deferred storage must be freed, not leaked"
+    );
+}
+
+// Same, but the destruction happens one call frame deeper, so the storage is shared by two calls and only the outermost may free.
+#[itest]
+fn signal_emitter_destroyed_during_nested_call() {
+    let (instance_id, probe) = call_self_destroyer("nested_emit_and_die");
+
+    assert!(!instance_id.lookup_validity());
+    assert_eq!(Rc::strong_count(&probe), 1);
+}
+
+/// Invokes `method` on a fresh [`SelfDestroyer`], whose signal handler drops the last reference to it mid-call.
+///
+/// Returns the instance ID and the drop probe, whose strong count falls back to 1 once the storage is freed.
+fn call_self_destroyer(method: &str) -> (InstanceId, Rc<()>) {
+    let mut object = SelfDestroyer::new_gd();
+    let instance_id = object.instance_id();
+
+    let probe = Rc::new(());
+    object.bind_mut().drop_probe = Some(probe.clone());
+
+    // Callable holds no strong reference, so the only one remains inside `last_ref`.
+    let callable = object.callable(method);
+    let last_ref = Rc::new(RefCell::new(None));
+
+    let cell = last_ref.clone();
+    object.signals().about_to_die().connect(move || {
+        *cell.borrow_mut() = None; // Drops the last reference to the emitter, mid-call.
+    });
+
+    *last_ref.borrow_mut() = Some(object);
+
+    // Goes through the Godot -> Rust method trampoline, which must keep the receiver alive for the duration of the call.
+    callable.call(&[]);
+    assert!(last_ref.borrow().is_none(), "handler must have run");
+
+    (instance_id, probe)
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helper types
 
 /// Global sets the value of the received argument and whether it was a static function.
 static LAST_STATIC_FUNCTION_ARG: Global<i64> = Global::default();
+
+/// Emits a signal whose handler drops the last reference to this very object.
+#[derive(GodotClass)]
+#[class(base = RefCounted, init)]
+struct SelfDestroyer {
+    base: Base<RefCounted>,
+
+    /// Dropped with the storage, to detect a deferred storage that is never freed.
+    drop_probe: Option<Rc<()>>,
+}
+
+#[godot_api]
+impl SelfDestroyer {
+    #[signal]
+    fn about_to_die();
+
+    #[func]
+    fn emit_and_die(&mut self) {
+        self.signals().about_to_die().emit();
+    }
+
+    /// Re-enters through Godot, so two call frames are in flight. Uses `&self` receivers, since a nested `&mut self` bind would conflict.
+    #[func]
+    fn nested_emit_and_die(&self) {
+        // Callable holds no strong reference, so the object can die inside the inner frame.
+        let callable = self.to_gd().callable("emit_shared");
+        callable.call(&[]);
+    }
+
+    #[func]
+    fn emit_shared(&self) {
+        // Engine-side emit, which needs no bind of the user instance.
+        self.to_gd().emit_signal("about_to_die", &[]);
+    }
+}
 
 // Separate module to test signal visibility.
 use emitter::Emitter;

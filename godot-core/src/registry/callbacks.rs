@@ -23,7 +23,9 @@ use crate::obj::{AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass, bound
 use crate::private::{IntoVirtualMethodReceiver, PanicPayload, handle_panic};
 use crate::registry::info::PropertyInfo;
 use crate::registry::shard::ErasedDynGd;
-use crate::storage::{InstanceStorage, Storage, StorageRefCounted, as_storage};
+use crate::storage::{
+    InstanceStorage, Storage, StorageRefCounted, as_retained_storage, as_storage,
+};
 
 /// Invokes `code` -- a callback that calls into user code -- and catches any panic, so it does not unwind across the FFI boundary.
 ///
@@ -290,8 +292,8 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     out_string: sys::GDExtensionStringPtr,
 ) {
     let code = || {
-        let storage = as_storage::<T>(instance);
-        let string = T::__godot_to_string(T::Recv::instance(storage));
+        let storage = as_retained_storage::<T>(instance);
+        let string = T::__godot_to_string(T::Recv::instance(&storage));
         string.move_into_string_ptr(out_string);
         true
     };
@@ -308,7 +310,7 @@ pub unsafe extern "C" fn notification<T: cap::GodotNotification>(
 ) {
     // `get_mut()` can also panic on borrow conflicts, in addition to `__godot_on_notification` itself.
     let code = || {
-        let storage = as_storage::<T>(instance);
+        let storage = as_retained_storage::<T>(instance);
         let mut instance = storage.get_mut();
 
         T::__godot_on_notification(&mut *instance, what);
@@ -324,8 +326,8 @@ pub unsafe extern "C" fn get<T: cap::GodotGet>(
     ret: sys::GDExtensionVariantPtr,
 ) -> sys::GDExtensionBool {
     let code = || {
-        let storage = as_storage::<T>(instance);
-        let instance = T::Recv::instance(storage);
+        let storage = as_retained_storage::<T>(instance);
+        let instance = T::Recv::instance(&storage);
         let property = StringName::new_from_string_sys(name);
 
         match T::__godot_on_get(instance, property) {
@@ -347,8 +349,8 @@ pub unsafe extern "C" fn set<T: cap::GodotSet>(
     value: sys::GDExtensionConstVariantPtr,
 ) -> sys::GDExtensionBool {
     let code = || {
-        let storage = as_storage::<T>(instance);
-        let instance = T::Recv::instance(storage);
+        let storage = as_retained_storage::<T>(instance);
+        let instance = T::Recv::instance(&storage);
 
         let property = StringName::new_from_string_sys(name);
         let value = Variant::new_from_var_sys(value);
@@ -378,8 +380,8 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
     count: *mut u32,
 ) -> *const sys::GDExtensionPropertyInfo {
     let code = || -> *const sys::GDExtensionPropertyInfo {
-        let storage = as_storage::<T>(instance);
-        let instance = T::Recv::instance(storage);
+        let storage = as_retained_storage::<T>(instance);
+        let instance = T::Recv::instance(&storage);
 
         let property_list = T::__godot_on_get_property_list(instance);
         let property_list_sys: Box<[sys::GDExtensionPropertyInfo]> = property_list
@@ -449,8 +451,8 @@ unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
     instance: sys::GDExtensionClassInstancePtr,
     property_name: sys::GDExtensionConstStringNamePtr,
 ) -> Option<Variant> {
-    let storage = as_storage::<T>(instance);
-    let instance = T::Recv::instance(storage);
+    let storage = as_retained_storage::<T>(instance);
+    let instance = T::Recv::instance(&storage);
 
     let property = StringName::borrow_string_sys(property_name);
     T::__godot_on_property_get_revert(instance, property.clone())
@@ -505,8 +507,8 @@ pub unsafe extern "C" fn validate_property<T: cap::GodotValidateProperty>(
     property_info_ptr: *mut sys::GDExtensionPropertyInfo,
 ) -> sys::GDExtensionBool {
     let code = || {
-        let storage = as_storage::<T>(instance);
-        let instance = T::Recv::instance(storage);
+        let storage = as_retained_storage::<T>(instance);
+        let instance = T::Recv::instance(&storage);
 
         let mut property_info = PropertyInfo::new_from_sys(property_info_ptr);
         T::__godot_on_validate_property(instance, &mut property_info);

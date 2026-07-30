@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use godot::builtin::{
     AnyArray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
     PackedInt32Array, PackedVector2Array, PackedVector3Array, RealConv, StringName, Variant,
@@ -12,7 +15,7 @@ use godot::builtin::{
 };
 #[cfg(feature = "codegen-full")]
 use godot::classes::Material;
-use godot::classes::notify::NodeNotification;
+use godot::classes::notify::{NodeNotification, ObjectNotification};
 use godot::classes::{
     IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, InputEvent, InputEventAction, Node,
     Node2D, Object, PrimitiveMesh, RefCounted, Window,
@@ -568,6 +571,56 @@ fn test_notifications() {
         ]
     );
     obj.free();
+}
+
+// Like `signal_emitter_destroyed_during_own_call`, but through the notification callback: user code drops the last reference while the
+// instance guard held by the callback is still active.
+#[itest]
+fn test_notification_destroys_own_object() {
+    let holder = Rc::new(RefCell::new(None));
+    let probe = Rc::new(());
+    let mut object = NotificationSelfDestroyer::new_gd();
+    let instance_id = object.instance_id();
+
+    {
+        let mut guard = object.bind_mut();
+        guard.holder = Some(holder.clone());
+        guard.drop_probe = Some(probe.clone());
+    }
+
+    // Callable holds no strong reference, so the only one remains inside `holder`.
+    let callable = object.callable("notification");
+    *holder.borrow_mut() = Some(object);
+
+    // Arbitrary user notification ID; the handler ignores it.
+    callable.call(&[9999.to_variant()]);
+
+    assert!(holder.borrow().is_none());
+    assert!(!instance_id.lookup_validity());
+    assert_eq!(
+        Rc::strong_count(&probe),
+        1,
+        "deferred storage must be freed, not leaked"
+    );
+}
+
+#[derive(GodotClass)]
+#[class(base = RefCounted, init)]
+struct NotificationSelfDestroyer {
+    holder: Option<Rc<RefCell<Option<Gd<NotificationSelfDestroyer>>>>>,
+
+    /// Dropped with the storage, to detect a deferred storage that is never freed.
+    drop_probe: Option<Rc<()>>,
+}
+
+#[godot_api]
+impl IRefCounted for NotificationSelfDestroyer {
+    fn on_notification(&mut self, _what: ObjectNotification) {
+        // Drops the last reference to this object, mid-call. Not yet set during POSTINITIALIZE.
+        if let Some(holder) = self.holder.as_ref() {
+            *holder.borrow_mut() = None;
+        }
+    }
 }
 
 #[itest]

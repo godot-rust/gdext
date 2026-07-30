@@ -84,6 +84,15 @@ impl<T: GodotClass> RawGd<T> {
         unsafe { Self::from_obj_sys_weak(obj).with_inc_refcount() }
     }
 
+    /// Copy of `self` that leaves the reference count untouched, by adopting the cached fields (no FFI calls).
+    pub(super) fn clone_weak(&self) -> Self {
+        Self {
+            obj: self.obj,
+            cached_rtti: self.cached_rtti.clone(),
+            cached_storage_ptr: self.cached_storage_ptr.clone(),
+        }
+    }
+
     /// Returns `self` but with initialized ref-count.
     fn with_inc_refcount(mut self) -> Self {
         // Note: use refc_init() and not refc_inc(), since this might be the first reference increment.
@@ -792,14 +801,7 @@ impl<T: GodotClass> Clone for RawGd<T> {
             Self::null()
         } else {
             self.check_rtti("clone");
-
-            // Create new object, adopt cached fields.
-            let copy = Self {
-                obj: self.obj,
-                cached_rtti: self.cached_rtti.clone(),
-                cached_storage_ptr: self.cached_storage_ptr.clone(),
-            };
-            copy.with_inc_refcount()
+            self.clone_weak().with_inc_refcount()
         };
 
         out!("                  {self:?}  (after clone)");

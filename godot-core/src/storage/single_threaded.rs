@@ -22,6 +22,9 @@ pub struct InstanceStorage<T: GodotClass> {
     // Declared after `user_instance`, is dropped last.
     pub(super) lifecycle: cell::Cell<Lifecycle>,
 
+    // Shares of this storage's lifetime: Godot's, plus one per Godot -> Rust call on the stack. See `RetainedStorage`.
+    shares: cell::Cell<u32>,
+
     // No-op in Release mode.
     borrow_tracker: DebugBorrowTracker,
 }
@@ -47,6 +50,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             user_instance: GdCell::new(user_instance),
             base,
             lifecycle: cell::Cell::new(Lifecycle::Alive),
+            shares: cell::Cell::new(1),
             borrow_tracker: DebugBorrowTracker::new(),
         }
     }
@@ -94,6 +98,16 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
     fn set_lifecycle(&self, lifecycle: Lifecycle) {
         self.lifecycle.set(lifecycle)
+    }
+
+    fn retain(&self) {
+        self.shares.set(self.shares.get() + 1);
+    }
+
+    fn release(&self) -> bool {
+        let prev = self.shares.get();
+        self.shares.set(prev - 1);
+        prev == 1
     }
 }
 

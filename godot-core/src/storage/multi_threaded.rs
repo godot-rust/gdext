@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 #[cfg(feature = "experimental-threads")]
 use godot_cell::blocking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 #[cfg(not(feature = "experimental-threads"))]
@@ -19,6 +21,9 @@ pub struct InstanceStorage<T: GodotClass> {
 
     // Declared after `user_instance`, is dropped last
     pub(super) lifecycle: AtomicLifecycle,
+
+    // Shares of this storage's lifetime: Godot's, plus one per Godot -> Rust call on the stack. See `RetainedStorage`.
+    shares: AtomicU32,
 
     // No-op in Release mode.
     borrow_tracker: DebugBorrowTracker,
@@ -45,6 +50,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             user_instance: GdCell::new(user_instance),
             base,
             lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
+            shares: AtomicU32::new(1),
             borrow_tracker: DebugBorrowTracker::new(),
         }
     }
@@ -95,6 +101,17 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
     fn set_lifecycle(&self, lifecycle: Lifecycle) {
         self.lifecycle.store(lifecycle)
+    }
+
+    fn retain(&self) {
+        let prev = self.shares.load(Ordering::Relaxed);
+        self.shares.store(prev + 1, Ordering::Relaxed);
+    }
+
+    fn release(&self) -> bool {
+        let prev = self.shares.load(Ordering::Relaxed);
+        self.shares.store(prev - 1, Ordering::Relaxed);
+        prev == 1
     }
 }
 
