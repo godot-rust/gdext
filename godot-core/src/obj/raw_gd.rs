@@ -261,6 +261,26 @@ impl<T: GodotClass> RawGd<T> {
         apply(borrow.as_target_mut())
     }
 
+    /// Reinterprets this object as `RefCounted`, for the `refc_*` operations below.
+    ///
+    /// Unlike [`as_upcast_ref()`][Self::as_upcast_ref], this runs no liveness check, and a method invoked on the result need not
+    /// run one either (see `special_cases::is_class_method_unvalidated()` in godot-codegen). Skipping liveness is sound, since
+    /// `refc_*` only runs on a `RawGd` that already holds a strong-ref.
+    ///
+    /// # Safety
+    /// Caller must guarantee that `T` inherits from `RefCounted`, and that `self` is non-null and a strong reference.
+    unsafe fn as_ref_counted(&self) -> &classes::RefCounted {
+        // SAFETY: layout reasoning as in as_upcast_ref(); RefCounted is an engine class.
+        unsafe { std::mem::transmute::<&Self, &classes::RefCounted>(self) }
+    }
+
+    /// # Safety
+    /// See [`as_ref_counted()`][Self::as_ref_counted].
+    unsafe fn as_ref_counted_mut(&mut self) -> &mut classes::RefCounted {
+        // SAFETY: layout reasoning as in as_upcast_mut(); RefCounted is an engine class.
+        unsafe { std::mem::transmute::<&mut Self, &mut classes::RefCounted>(self) }
+    }
+
     /// Whether this object is non-null and ref-counted, i.e. the `refc_*` operations below have an effect.
     ///
     /// For `T=Object` this is a runtime query; for all other classes it's known statically and the branch compiles away.
@@ -281,8 +301,8 @@ impl<T: GodotClass> RawGd<T> {
         out!("  RawGd::refc_init: {self:?}");
 
         // SAFETY: object is ref-counted, as checked above.
-        let success = unsafe { self.with_ref_counted_unchecked(|refc| refc.init_ref()) };
-        assert!(success, "init_ref() failed");
+        let success = unsafe { self.as_ref_counted_mut().init_ref() };
+        assert!(success, "RefCounted::init_ref() failed");
     }
 
     /// Increments the reference count, for objects which are already referenced.
@@ -296,8 +316,8 @@ impl<T: GodotClass> RawGd<T> {
         out!("  RawGd::refc_inc:  {self:?}");
 
         // SAFETY: object is ref-counted, as checked above.
-        let success = unsafe { self.with_ref_counted_unchecked(|refc| refc.reference()) };
-        assert!(success, "reference() failed");
+        let success = unsafe { self.as_ref_counted_mut().reference() };
+        assert!(success, "RefCounted::reference() failed");
     }
 
     /// Decrements the reference count. Returns `true` if the count hit 0 and the object can be safely freed.
@@ -315,7 +335,7 @@ impl<T: GodotClass> RawGd<T> {
         out!("  RawGd::refc_dec:  {self:?}");
 
         // SAFETY: object is ref-counted, as checked above.
-        let is_last = unsafe { self.with_ref_counted_unchecked(|refc| refc.unreference()) };
+        let is_last = unsafe { self.as_ref_counted_mut().unreference() };
         out!("  +-- was last={is_last}");
         is_last
     }
@@ -516,8 +536,7 @@ where
         );
 
         // SAFETY: Memory=MemRefCounted statically guarantees T inherits RefCounted.
-        let ref_count =
-            unsafe { self.with_ref_counted_unchecked(|refc| refc.get_reference_count()) };
+        let ref_count = unsafe { self.as_ref_counted().get_reference_count() };
 
         // TODO find a safer cast alternative, e.g. num-traits crate with ToPrimitive (Debug) + AsPrimitive (Release).
         ref_count as usize
@@ -888,6 +907,16 @@ impl ValidatedObject {
         Self {
             object_ptr: raw_gd.obj_sys(),
         }
+    }
+
+    /// Skips validation, for the ref-count methods of `RefCounted`.
+    ///
+    /// A liveness check is pointless there: `refc_inc()`/`refc_dec()` are only reachable through a `RawGd` that holds a share of the
+    /// reference count, so the object cannot be dead unless the count was already corrupted outside the safe API.
+    #[doc(hidden)]
+    #[inline]
+    pub fn unvalidated(object_ptr: sys::GDExtensionObjectPtr) -> Self {
+        Self { object_ptr }
     }
 
     /// Extracts the object pointer from an `Option<ValidatedObject>`.

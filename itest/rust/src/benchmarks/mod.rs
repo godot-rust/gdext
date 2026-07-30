@@ -15,7 +15,7 @@ use godot::classes::{Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
 use godot::register::GodotClass;
 
-use crate::framework::bench;
+use crate::framework::{BenchResult, bench, bench_measure};
 
 mod callable;
 mod color;
@@ -59,13 +59,29 @@ fn class_node_life() -> InstanceId {
 }
 
 #[bench(repeat = 25)]
-fn class_refcounted_life() -> Gd<RefCounted> {
+fn class_engine_refc_life() -> Gd<RefCounted> {
     RefCounted::new_gd()
 }
 
 #[bench(repeat = 25)]
 fn class_user_refc_life() -> Gd<MyBenchType> {
     Gd::default()
+}
+
+/// Just measure `refc_inc` + `refc_dec` on already-existing object, without construction or destruction.
+#[bench(manual)]
+fn class_engine_refc_clone_drop() -> BenchResult {
+    let obj = RefCounted::new_gd();
+
+    bench_measure(100, || obj.clone())
+}
+
+/// Same as [`class_refc_engine_clone_drop()`], for a user class -- `RawGd` additionally carries the storage-pointer cache.
+#[bench(manual)]
+fn class_user_refc_clone_drop() -> BenchResult {
+    let obj = MyBenchType::new_gd();
+
+    bench_measure(100, || obj.clone())
 }
 
 #[bench]
