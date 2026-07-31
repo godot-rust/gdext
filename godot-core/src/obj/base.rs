@@ -9,6 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
 use crate::obj::base_init::{InitState, InitTracker};
+use crate::obj::bounds::Memory;
 use crate::obj::{BorrowedGd, Gd, GodotClass};
 use crate::{classes, sys};
 
@@ -196,6 +197,7 @@ impl<T: GodotClass> Base<T> {
     /// Unlike [`Self::__constructed_gd()`], this does not increment the reference count for ref-counted `T`s.
     pub(crate) fn constructed_borrowed(&self) -> BorrowedGd<'_, T> {
         self.init_state.assert_constructed();
+        self.assert_alive();
 
         BorrowedGd::from_gd(&self.obj)
     }
@@ -207,8 +209,26 @@ impl<T: GodotClass> Base<T> {
     /// with its lifetime tied to the instance guard.
     pub(crate) fn constructed_obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.init_state.assert_constructed();
+        self.assert_alive();
 
         self.obj.obj_sys()
+    }
+
+    /// Panics if a ref-counted base object has already been destroyed, which can happen during a Godot -> Rust call.
+    ///
+    /// Only ref-counted bases are checked: manually managed ones keep the liveness check inside the engine call itself, so a second one
+    /// here would be pure overhead.
+    fn assert_alive(&self) {
+        if !<T::Memory as Memory>::IS_REF_COUNTED {
+            return;
+        }
+
+        sys::balanced_assert!(
+            Base::is_valid(self),
+            "base object of class {class} was destroyed during this call -- a callback released the last reference.\n\
+             Keep it alive for the method's duration with `let _keepalive = self.to_gd();`.",
+            class = T::class_id()
+        );
     }
 }
 

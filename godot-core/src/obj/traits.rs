@@ -417,6 +417,29 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// ```
     ///
     /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
+    ///
+    /// # Ref-counted bases can die mid-method
+    /// If a ref-counted object calls into user code (e.g. emits a signal), a callback can release the last reference to it. The Rust
+    /// instance stays alive until the method returns, but its base object is destroyed at that point. Accessing the base afterwards panics:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// # #[derive(GodotClass)]
+    /// # #[class(init)]
+    /// # struct MyClass {
+    /// #     base: Base<RefCounted>,
+    /// # }
+    /// # impl MyClass {
+    /// fn method(&mut self) {
+    ///     self.base_mut().emit_signal("done", &[]); // listener drops the last reference
+    ///     let class = self.base().get_class();      // panics: base object is gone
+    /// }
+    /// # }
+    /// ```
+    /// To keep the object alive for the whole method, hold a strong reference: `let _keepalive = self.to_gd();`.
+    ///
+    /// At the `release-disengaged` safeguard level this is not checked, and base access in that window is undefined behavior.
+    ///
+    /// The same applies to a user `Drop` implementation: base access there is not guaranteed to work.
     fn base(&self) -> BaseRef<'_, Self> {
         BaseRef::new(self.base_field().constructed_borrowed())
     }
@@ -497,6 +520,10 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// }
     /// # }
     /// ```
+    ///
+    /// # Ref-counted bases can die mid-method
+    /// Same as for [`base()`][Self::base]: a callback can release the last reference to a ref-counted object, after which base access
+    /// panics for the rest of the method.
     #[allow(clippy::let_unit_value)]
     fn base_mut(&mut self) -> BaseMut<'_, Self> {
         // We need to acquire this first, as the mut-borrow below will block all other access. A raw pointer (not a BorrowedGd tied to
