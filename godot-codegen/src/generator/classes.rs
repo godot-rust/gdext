@@ -21,7 +21,7 @@ use crate::models::domain::{
     ModName, TyName,
 };
 use crate::util::{ident, make_string_name};
-use crate::{SubmitFn, special_cases, util};
+use crate::{SubmitFn, util};
 
 pub fn generate_class_files(
     api: &ExtensionApi,
@@ -596,8 +596,6 @@ fn make_class_method_definition(
 
     let validated_obj = if method.qualifier() == FnQualifier::Static {
         quote! { None }
-    } else if special_cases::is_class_method_unvalidated(class.name(), godot_method_name) {
-        quote! { Some(crate::obj::ValidatedObject::unvalidated(self.object_ptr)) }
     } else {
         quote! { Some(self.__validated_obj()) }
     };

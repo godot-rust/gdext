@@ -442,20 +442,6 @@ pub fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
     }
 }
 
-/// Methods whose object pointer is passed to the engine without the usual liveness check.
-// TODO(v0.6): extend to all RefCounted (and derived) methods.
-#[rustfmt::skip]
-pub fn is_class_method_unvalidated(class_ty: &TyName, godot_method_name: &str) -> bool {
-    match (class_ty.godot_ty.as_str(), godot_method_name) {
-        | ("RefCounted", "init_ref")
-        | ("RefCounted", "reference")
-        | ("RefCounted", "unreference")
-        | ("RefCounted", "get_reference_count")
-
-        => true, _ => false
-    }
-}
-
 /// Lists methods that are replaced with manual, more type-safe equivalents. See `type_safe_replacements.rs`.
 ///
 /// See also [`get_class_method_enum_param_replacement()`] for a more automated approach specifically for enum parameters.

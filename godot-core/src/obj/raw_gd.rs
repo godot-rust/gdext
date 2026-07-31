@@ -205,9 +205,9 @@ impl<T: GodotClass> RawGd<T> {
 
     /// Reinterprets this object as `RefCounted`, for the ref-count operations in this file.
     ///
-    /// Unlike [`as_upcast_ref()`][Self::as_upcast_ref], this runs no liveness or type check, and a method invoked on the result need
-    /// not run one either (see `special_cases::is_class_method_unvalidated()` in godot-codegen). Skipping those is sound, since the
-    /// callers only run on a `RawGd` that already holds a strong-ref. Also covers `T=Object` with a dynamically ref-counted object.
+    /// Unlike [`as_upcast_ref()`][Self::as_upcast_ref], this runs no liveness or type check, and a method invoked on the result runs
+    /// none either ([`ValidatedObject::validate()`] skips them for ref-counted receivers). Skipping those is sound, since the callers
+    /// only run on a `RawGd` that already holds a strong-ref. Also covers `T=Object` with a dynamically ref-counted object.
     ///
     /// # Safety
     /// Caller must guarantee that the dynamic object is ref-counted, and that `self` is non-null and a strong reference.
@@ -827,6 +827,8 @@ impl<T: GodotClass> fmt::Debug for RawGd<T> {
 /// - `disengaged`: no validation.
 /// - `balanced`: liveness check only.
 /// - `strict`: liveness + type inheritance check.
+///
+/// Ref-counted `T` is exempt from all of them, see [`validate()`][Self::validate].
 #[doc(hidden)]
 pub struct ValidatedObject {
     object_ptr: sys::GDExtensionObjectPtr,
@@ -835,23 +837,22 @@ pub struct ValidatedObject {
 impl ValidatedObject {
     /// Validates a `RawGd<T>` according to the type's invariants (depending on safeguard level).
     ///
+    /// Statically ref-counted `T` needs no check at all: a `RawGd<T>` holds a share of the object, so it is alive, and it can be a
+    /// reinterpreted `RefCounted` whose recorded type would fail the strict check. The only weak receiver is `Base<T>`, which is checked
+    /// when its guard is created.
+    ///
     /// # Panics
     /// If validation fails.
     #[doc(hidden)]
     #[inline]
     pub fn validate<T: GodotClass>(raw_gd: &RawGd<T>) -> Self {
-        raw_gd.check_rtti("validated_object");
+        if !<T::Memory as Memory>::IS_REF_COUNTED {
+            raw_gd.check_rtti("validated_object");
+        }
 
         Self {
             object_ptr: raw_gd.obj_sys(),
         }
-    }
-
-    /// For ref-counted objects, liveness check is not needed; strong ref (RawGd) keeps Godot instance alive.
-    #[doc(hidden)]
-    #[inline]
-    pub fn unvalidated(object_ptr: sys::GDExtensionObjectPtr) -> Self {
-        Self { object_ptr }
     }
 
     /// Extracts the object pointer from an `Option<ValidatedObject>`.

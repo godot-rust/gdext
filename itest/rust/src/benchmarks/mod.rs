@@ -11,7 +11,7 @@ use std::hint::black_box;
 
 use godot::builtin::inner::InnerRect2i;
 use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i, varray};
-use godot::classes::{Node3D, Os, RefCounted};
+use godot::classes::{Node3D, Os, RefCounted, Resource};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
 use godot::register::{GodotClass, godot_api};
 
@@ -107,6 +107,27 @@ fn class_user_refc_call_mut() -> BenchResult {
 #[bench]
 fn class_singleton_access() -> Gd<Os> {
     Os::singleton()
+}
+
+/// Trivial engine call on a ref-counted receiver, which needs no liveness check -- the strong `Gd` keeps the object alive.
+///
+/// The method must be declared by a ref-counted class; one inherited from `Object` is validated like any other.
+#[bench(manual)]
+fn class_engine_refc_ffi_call() -> BenchResult {
+    let obj = Resource::new_gd();
+
+    bench_measure(100, || obj.is_local_to_scene())
+}
+
+/// Control for [`class_engine_refc_ffi_call()`]: equally trivial getter on a manually managed receiver, which is checked per call.
+#[bench(manual)]
+fn class_engine_node_ffi_call() -> BenchResult {
+    let obj = Node3D::new_alloc();
+
+    let result = bench_measure(100, || obj.is_processing());
+    obj.free();
+
+    result
 }
 
 #[bench]
