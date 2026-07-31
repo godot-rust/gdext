@@ -6,8 +6,9 @@
  */
 
 use godot::prelude::*;
+use godot::sys::Global;
 
-use crate::framework::{expect_panic_or_ub, itest};
+use crate::framework::{expect_panic_or_ub, itest, suppress_godot_print, suppress_panic_log};
 
 #[itest(skip)]
 fn base_test_is_weak() {
@@ -200,6 +201,72 @@ fn base_can_be_used_in_init() {
     assert!(obj.is_instance_valid());
 }
 
+// A callback can drop the last reference to a ref-counted object while one of its methods runs. The Rust instance survives until the method
+// returns, but the base object does not -- touching it afterwards must panic with a message naming the cause.
+#[itest]
+#[cfg(safeguards_balanced)]
+fn base_access_after_own_destruction() {
+    *BASE_KILLER_STATE.lock() = 0;
+    *BASE_KILLER_REACHED_END.lock() = false;
+
+    let instance_id = call_base_killer();
+
+    assert_eq!(
+        *BASE_KILLER_STATE.lock(),
+        1,
+        "user instance stays usable after the last reference is gone"
+    );
+    assert!(
+        !*BASE_KILLER_REACHED_END.lock(),
+        "base access after destruction must panic"
+    );
+    assert!(!instance_id.lookup_validity());
+}
+
+// Pins the two destruction paths of a user `Drop`: normal destruction runs inside Godot's `~Object()`, where the base is still registered;
+// deferred destruction runs after that destructor returned, where it is not. See also issue #1245 on base access in `drop()`.
+#[itest]
+fn base_access_in_drop_normal_destruction() {
+    *BASE_KILLER_DROP_BASE_OK.lock() = None;
+
+    drop(BaseKiller::new_gd());
+
+    assert_eq!(*BASE_KILLER_DROP_BASE_OK.lock(), Some(true));
+}
+
+#[itest]
+#[cfg(safeguards_balanced)]
+fn base_access_in_drop_after_own_destruction() {
+    *BASE_KILLER_DROP_BASE_OK.lock() = None;
+
+    call_base_killer();
+
+    assert_eq!(*BASE_KILLER_DROP_BASE_OK.lock(), Some(false));
+}
+
+/// Invokes `emit_and_touch_base()` on a fresh [`BaseKiller`], whose signal handler drops the last reference to it mid-call.
+#[cfg(safeguards_balanced)]
+fn call_base_killer() -> InstanceId {
+    let object = BaseKiller::new_gd();
+    let instance_id = object.instance_id();
+
+    // Callable holds no strong reference, so the only one remains inside `last_ref`.
+    let callable = object.callable("emit_and_touch_base");
+    let last_ref = std::rc::Rc::new(std::cell::RefCell::new(None));
+
+    let cell = last_ref.clone();
+    object.signals().about_to_die().connect(move || {
+        *cell.borrow_mut() = None; // Drops the last reference to the emitter, mid-call.
+    });
+
+    *last_ref.borrow_mut() = Some(object);
+
+    // The method panics on base access; that panic is caught in the Godot -> Rust trampoline, which reports it as a Godot error.
+    suppress_panic_log(|| suppress_godot_print(|| callable.call(&[])));
+
+    instance_id
+}
+
 fn create_object_with_extracted_base() -> (Gd<Baseless>, Base<Node2D>) {
     let mut extracted_base = None;
     let obj = Baseless::smuggle_out(&mut extracted_base);
@@ -209,6 +276,49 @@ fn create_object_with_extracted_base() -> (Gd<Baseless>, Base<Node2D>) {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Whether `BaseKiller::drop()` could access its base; `None` if no instance was dropped since the last reset.
+static BASE_KILLER_DROP_BASE_OK: Global<Option<bool>> = Global::default();
+
+/// Written by `emit_and_touch_base()` after its emit, to show the user instance is still usable.
+static BASE_KILLER_STATE: Global<i32> = Global::default();
+
+/// Set at the very end of `emit_and_touch_base()`, which must not be reached.
+static BASE_KILLER_REACHED_END: Global<bool> = Global::default();
+
+/// Emits a signal whose handler drops the last reference to this very object, then keeps using `self`.
+#[derive(GodotClass)]
+#[class(base = RefCounted, init)]
+struct BaseKiller {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl BaseKiller {
+    #[signal]
+    fn about_to_die();
+
+    #[func]
+    fn emit_and_touch_base(&mut self) {
+        self.signals().about_to_die().emit();
+
+        *BASE_KILLER_STATE.lock() = 1;
+        self.base().get_class(); // Panics: base object is gone, storage is not.
+
+        *BASE_KILLER_REACHED_END.lock() = true;
+    }
+}
+
+impl Drop for BaseKiller {
+    fn drop(&mut self) {
+        let base_ok = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.base().get_class();
+        }))
+        .is_ok();
+
+        *BASE_KILLER_DROP_BASE_OK.lock() = Some(base_ok);
+    }
+}
 
 #[derive(GodotClass)]
 pub struct RefBase {
