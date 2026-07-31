@@ -126,7 +126,7 @@ unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
     // Now that editor UI is ready, display all warnings/error collected so far.
     sys::print_deferred_startup_messages();
 
-    // Terminal init point: abort if a fatal startup error was collected.
+    // If any of the errors were fatal, exit here.
     abort_if_startup_fatal();
 }
 
@@ -348,11 +348,13 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
     CURRENT_INIT_LEVEL.store(Some(level));
 }
 
-/// Aborts the process if a fatal startup error was collected -- unless in an interactive editor, which stays alive so the developer can read the
-/// errors and hot-reload a fix. A headless editor (CI, `--export-release`, `--import`) has no one to read them and aborts like a game run.
+/// Aborts the process if a fatal startup error was collected (depending on runtime target).
 ///
-/// `SceneTree::quit()` only requests a shutdown, so a few frames may still run with the broken class set, possibly causing follow-up errors.
-/// Without a `SceneTree`, `process::exit()` ends the process right away.
+/// Behavior:
+/// - An _interactive_ editor is not aborted, so the developer can read the errors and hot-reload a fix.
+/// - A _headless_ editor (CI, `--export-release`, `--import`) has no one to read them and aborts like a game run.
+/// - A _game_ runs `SceneTree::quit()` (frames may still run with the broken class set, possibly causing follow-up errors)
+/// - A game without a `SceneTree` (e.g. a custom `MainLoop`) calls `process::exit()`.
 #[cfg(since_api = "4.5")]
 fn abort_if_startup_fatal() {
     if !sys::take_startup_fatal() {
@@ -369,17 +371,13 @@ fn abort_if_startup_fatal() {
     if let Some(main_loop) = classes::Engine::singleton().get_main_loop()
         && let Ok(mut scene_tree) = main_loop.try_cast::<classes::SceneTree>()
     {
-        // Request graceful shutdown, running normal teardown. Main loop exists from `MainLoop` init on.
         scene_tree.quit_ex().exit_code(exit_code).done();
     } else {
-        // No SceneTree (e.g. a custom MainLoop set via the `application/run/main_loop_type` project setting).
         std::process::exit(exit_code);
     }
 }
 
 /// Whether Godot runs without a visual display -- `--headless`, `--display-driver headless`, or an export/import run, which force it.
-///
-/// Queried dynamically because `DisplayServer` is not part of the minimal codegen. A missing singleton counts as headless.
 #[cfg(since_api = "4.5")]
 fn is_headless() -> bool {
     // Absent singleton or a failing call -> headless. Dynamic call for minimal codegen.
