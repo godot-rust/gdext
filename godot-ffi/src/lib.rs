@@ -124,18 +124,25 @@ static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::n
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Deferred editor messages
 
-/// Warnings/errors collected during startup, and deferred until editor UI is ready.
-static STARTUP_MESSAGES: Global<Vec<StartupMessage>> = Global::default();
+/// Startup diagnostics, deferred until the editor UI is ready. Lives for the whole process, thus not reset by [`deinitialize`].
+static STARTUP_MESSAGES: Global<StartupMessages> = Global::default();
 
-/// Set to `true` after [`print_deferred_startup_messages`] has flushed once. From then on, new messages are printed directly instead
-/// of queued, so warnings/errors emitted later are not silently dropped.
-static STARTUP_MESSAGES_FLUSHED: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+/// State behind [`STARTUP_MESSAGES`], all fields under the same lock.
+#[derive(Default)]
+struct StartupMessages {
+    /// Messages collected so far. Drained by [`print_deferred_startup_messages`].
+    deferred: Vec<StartupMessage>,
 
-/// Tracks message keys already emitted via the `once` flag of `defer_startup_warn!`/`defer_startup_error!`.
-/// Ensures each message is only shown once even if the code path fires multiple times. Keys are prefixed
-/// per source (`w:` warn, `e:` error explicit id, `e@` error implicit call site) to avoid collisions.
-static ONCE_EMITTED_MESSAGES: Global<std::collections::HashSet<&'static str>> = Global::default();
+    /// Set after the first flush. From then on, new messages are printed directly instead of queued, so late ones are not silently dropped.
+    flushed: bool,
+
+    /// Set once a fatal message is collected (see `defer_startup_fatal!`); consumed by [`take_startup_fatal`] at the terminal init point.
+    has_fatal: bool,
+
+    /// Message keys already emitted via the `once` flag, so each is shown only once. Keys are namespaced per level (`w`/`e`/`f`), with `:`
+    /// for an explicit ID and `@` for an implicit call site, to avoid collisions.
+    once_emitted: std::collections::HashSet<&'static str>,
+}
 
 /// A message to be displayed in the Godot editor once UI is ready.
 struct StartupMessage {
@@ -146,12 +153,14 @@ struct StartupMessage {
     level: StartupMessageLevel,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum StartupMessageLevel {
-    /// Warning with an ID that can be suppressed via `GDRUST_SUPPRESSED_WARNINGS`.
-    Warn { id: &'static str },
+    /// Warning, suppressible via `GDRUST_SUPPRESSED_WARNINGS` if it carries an ID.
+    Warn,
     /// Error that cannot be suppressed.
     Error,
+    /// Like `Error`, but also marks the process for termination at the terminal init point (unless in the editor).
+    Fatal,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -344,10 +353,11 @@ pub fn collect_startup_message(
     file: &str,
     line: u32,
     module_path: &str,
+    id: Option<&'static str>,
     once_id: Option<&'static str>,
 ) {
     // Check if this warning should be suppressed (only warnings can be suppressed, not errors).
-    if let StartupMessageLevel::Warn { id } = &level {
+    if let (StartupMessageLevel::Warn, Some(id)) = (level, id) {
         if is_message_suppressed(id) {
             return;
         } else {
@@ -355,13 +365,6 @@ pub fn collect_startup_message(
                 "{message}\n(Suppress this warning with env-var `GDRUST_SUPPRESSED_WARNINGS={id},...`)",
             );
         }
-    }
-
-    // Once-check (after suppression check).
-    if let Some(id) = once_id
-        && !ONCE_EMITTED_MESSAGES.lock().insert(id)
-    {
-        return;
     }
 
     let msg = StartupMessage {
@@ -372,22 +375,33 @@ pub fn collect_startup_message(
         level,
     };
 
-    // Check the flushed-flag while holding the lock: otherwise, a concurrent flush could drain and set the flag between our load and push,
-    // leaving the message in the queue with no further flush to deliver it. Holding the lock serializes us against the flusher.
-    let mut messages = STARTUP_MESSAGES.lock();
-    if STARTUP_MESSAGES_FLUSHED.load(std::sync::atomic::Ordering::Acquire) {
-        drop(messages);
+    // Flushed-check and push must not be interleaved with a flush; the message would stay queued with nothing left to deliver it.
+    let mut state = STARTUP_MESSAGES.lock();
+
+    if msg.level == StartupMessageLevel::Fatal {
+        state.has_fatal = true;
+    }
+
+    // After the suppression check above, so a suppressed warning does not consume the once-slot.
+    if let Some(id) = once_id
+        && !state.once_emitted.insert(id)
+    {
+        return;
+    }
+
+    if state.flushed {
+        drop(state);
         print_message(&msg);
     } else {
-        messages.push(msg);
+        state.deferred.push(msg);
     }
 }
 
 /// Print a single message to the editor UI via the FFI interface.
 fn print_message(msg: &StartupMessage) {
     let print_fn = match msg.level {
-        StartupMessageLevel::Warn { .. } => interface_fn!(print_warning),
-        StartupMessageLevel::Error => interface_fn!(print_error),
+        StartupMessageLevel::Warn => interface_fn!(print_warning),
+        StartupMessageLevel::Error | StartupMessageLevel::Fatal => interface_fn!(print_error),
     };
 
     // SAFETY: The binding has been initialized, so we can use interface functions.
@@ -413,21 +427,27 @@ fn is_message_suppressed(id: &str) -> bool {
     }
 }
 
+/// Whether a fatal startup message has been collected (see `defer_startup_fatal!`), clearing the flag.
+///
+/// Clearing keeps a hot reload from re-evaluating fatals of a previous load (if library is not fully unloaded).
+pub fn take_startup_fatal() -> bool {
+    std::mem::take(&mut STARTUP_MESSAGES.lock().has_fatal)
+}
+
 /// Flush all deferred messages to the Godot editor. Called during `MainLoop` initialization, when editor UI is ready.
 ///
 /// After this returns, [`collect_startup_message`] switches to direct printing so late-firing sites
 /// (property accessors, `_ready` callbacks, etc.) are not silently dropped.
 pub fn print_deferred_startup_messages() {
-    let mut messages = STARTUP_MESSAGES.lock();
+    let mut state = STARTUP_MESSAGES.lock();
 
-    for msg in messages.iter() {
+    for msg in state.deferred.iter() {
         print_message(msg);
     }
-    messages.clear();
+    state.deferred.clear();
 
-    // Flip flag while holding the lock, so any collector racing with us either pushes before us
-    // (and gets flushed above) or sees the flag set (and prints directly). Either path delivers.
-    STARTUP_MESSAGES_FLUSHED.store(true, std::sync::atomic::Ordering::Release);
+    // Only after draining: a collector racing with us then either got flushed above, or prints directly.
+    state.flushed = true;
 }
 
 fn print_preamble(version: GDExtensionGodotVersion) {
@@ -779,7 +799,7 @@ macro_rules! builtin_fn {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! builtin_call {
-        ($name:ident ( $($args:expr_2021),* $(,)? )) => {
+        ($name:ident ( $($args:expr),* $(,)? )) => {
             ($crate::builtin_lifecycle_api().$name)( $($args),* )
         };
     }
@@ -795,6 +815,39 @@ macro_rules! interface_fn {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Deferred editor message macros
+
+/// Shared body of the `defer_startup_*` macros: parses the optional `once;` and `id:` prefixes.
+///
+/// `$level` is the [`StartupMessageLevel`] variant, `$ns` a per-level namespace for once-keys, to avoid collisions between levels.
+/// `file!()`/`line!()` resolve to the outermost call site, so nesting does not affect the reported location.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __defer_startup_message {
+    ($level:ident, $ns:literal, once; id: $id:literal, $($fmt:tt)+) => {
+        $crate::__defer_startup_message!(@emit $level, Some($id), Some(concat!($ns, ":", $id)), $($fmt)+)
+    };
+    ($level:ident, $ns:literal, once; $($fmt:tt)+) => {
+        $crate::__defer_startup_message!(@emit $level, None, Some(concat!($ns, "@", file!(), ":", line!())), $($fmt)+)
+    };
+    ($level:ident, $ns:literal, id: $id:literal, $($fmt:tt)+) => {
+        $crate::__defer_startup_message!(@emit $level, Some($id), None, $($fmt)+)
+    };
+    ($level:ident, $ns:literal, $($fmt:tt)+) => {
+        $crate::__defer_startup_message!(@emit $level, None, None, $($fmt)+)
+    };
+
+    (@emit $level:ident, $id:expr, $once_id:expr, $fmt:literal $(, $args:expr)* $(,)?) => {
+        $crate::collect_startup_message(
+            format!($fmt $(, $args)*),
+            $crate::StartupMessageLevel::$level,
+            file!(),
+            line!(),
+            module_path!(),
+            $id,
+            $once_id,
+        )
+    };
+}
 
 /// Store a warning for display in Godot editor UI.
 ///
@@ -813,28 +866,13 @@ macro_rules! interface_fn {
 /// ```
 #[macro_export]
 macro_rules! defer_startup_warn {
-    (once; id: $id:literal, $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
-        let message = format!($fmt $(, $args)*);
-        $crate::collect_startup_message(
-            message,
-            $crate::StartupMessageLevel::Warn { id: $id },
-            file!(),
-            line!(),
-            module_path!(),
-            Some(concat!("w:", $id)),
-        );
-    }};
-    (id: $id:literal, $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
-        let message = format!($fmt $(, $args)*);
-        $crate::collect_startup_message(
-            message,
-            $crate::StartupMessageLevel::Warn { id: $id },
-            file!(),
-            line!(),
-            module_path!(),
-            None,
-        );
-    }};
+    // Only the `id:` forms; warnings need an ID for suppression.
+    (once; id: $($tt:tt)+) => {
+        $crate::__defer_startup_message!(Warn, "w", once; id: $($tt)+)
+    };
+    (id: $($tt:tt)+) => {
+        $crate::__defer_startup_message!(Warn, "w", id: $($tt)+)
+    };
 }
 
 /// Store an error for display in Godot editor UI.
@@ -856,37 +894,17 @@ macro_rules! defer_startup_warn {
 /// ```
 #[macro_export]
 macro_rules! defer_startup_error {
-    (once; id: $id:literal, $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
-        let message = format!($fmt $(, $args)*);
-        $crate::collect_startup_message(
-            message,
-            $crate::StartupMessageLevel::Error,
-            file!(),
-            line!(),
-            module_path!(),
-            Some(concat!("e:", $id)),
-        );
-    }};
-    (once; $fmt:literal $(, $args:expr_2021)* $(,)?) => {{
-        let message = format!($fmt $(, $args)*);
-        $crate::collect_startup_message(
-            message,
-            $crate::StartupMessageLevel::Error,
-            file!(),
-            line!(),
-            module_path!(),
-            Some(concat!("e@", file!(), ":", line!())),
-        );
-    }};
-    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {{
-        let message = format!($fmt $(, $args)*);
-        $crate::collect_startup_message(
-            message,
-            $crate::StartupMessageLevel::Error,
-            file!(),
-            line!(),
-            module_path!(),
-            None,
-        );
-    }};
+    ($($tt:tt)+) => {
+        $crate::__defer_startup_message!(Error, "e", $($tt)+)
+    };
+}
+
+/// Store a fatal error for display in the Godot editor UI, and mark the process for termination.
+///
+/// Like [`defer_startup_error!`], but once all errors are collected (in MainLoop init), godot-rust aborts the process (except in editor).
+#[macro_export]
+macro_rules! defer_startup_fatal {
+    ($($tt:tt)+) => {
+        $crate::__defer_startup_message!(Fatal, "f", $($tt)+)
+    };
 }

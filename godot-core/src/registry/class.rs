@@ -16,8 +16,8 @@ use crate::meta::ClassId;
 use crate::meta::error::FromGodotError;
 use crate::obj::{DynGd, Gd, GodotClass, Singleton, cap};
 use crate::private::{ClassShard, ShardItem};
-use crate::registry::callbacks;
 use crate::registry::shard::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
+use crate::registry::{callbacks, reg_validation};
 use crate::{godot_error, godot_warn, sys};
 
 /// Returns a lock to a global map of loaded classes, by initialization level.
@@ -585,13 +585,13 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) -> Result<(), ()> {
 fn register_class_raw(mut info: ClassRegistrationInfo) {
     // Some metadata like dynify fns are already emptied at this point. Only consider registrations for Godot.
 
-    // First register class...
-    validate_class_constraints(&info);
-
     let class_name = info.class_name;
     let parent_class_name = info
         .parent_class_name
         .expect("class defined (parent_class_name)");
+
+    // First register class...
+    precheck_class_registration(&info, parent_class_name);
 
     // Register virtual functions -- if the user provided some via #[godot_api], take those; otherwise, use the
     // ones generated alongside #[derive(GodotClass)]. The latter can also be null, if no OnReady is provided.
@@ -622,14 +622,14 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
             ptr::addr_of!(info.godot_params),
         );
 
-        // ...then see if it worked.
-        // This is necessary because the above registration does not report errors (apart from console output).
+        // ...then see if it worked. The registration above does not report errors (apart from console output), and precheck may miss something.
         let tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
         tag.is_null()
     };
 
     // Do not panic here; otherwise lock is poisoned and the whole extension becomes unusable.
     // This can happen during hot reload if a class changes base type in an incompatible way (e.g. RefCounted -> Node).
+    // Also, the pre-validation only runs under strict safeguards, there may be registrations that Godot rejects but godot-rust doesn't catch.
     if registration_failed {
         godot_error!(
             "Failed to register class `{class_name}`; check preceding Godot stderr messages."
@@ -661,8 +661,11 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     }
 }
 
-fn validate_class_constraints(_class: &ClassRegistrationInfo) {
-    // TODO: if we add builder API, the proc-macro checks in parse_struct_attributes() etc. should be duplicated here.
+/// Validates a class registration before it is handed to Godot, which reports errors only to stderr.
+fn precheck_class_registration(class_info: &ClassRegistrationInfo, parent_class_id: ClassId) {
+    // TODO(v0.7): if we add builder API, the proc-macro checks in parse_struct_attributes() etc. should be duplicated here.
+
+    reg_validation::validate_class(class_info.class_name, parent_class_id);
 }
 
 fn unregister_class_raw(class: LoadedClass) {
