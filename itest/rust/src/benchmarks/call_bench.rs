@@ -6,10 +6,10 @@
  */
 
 use godot::builtin::GodotStringExt;
-use godot::classes::RefCounted;
 use godot::classes::notify::ObjectNotification;
+use godot::classes::{Node3D, RefCounted, Resource};
 use godot::meta::ToGodot;
-use godot::obj::NewGd;
+use godot::obj::{NewAlloc, NewGd};
 
 use super::{BenchObj, SignalBenchObj, VirtualBenchObj};
 use crate::framework::{BenchResult, bench, bench_measure, create_gdscript};
@@ -160,4 +160,25 @@ fn class_user_signal_emit() -> BenchResult {
         obj.signals().bench_signal().emit();
         true
     })
+}
+
+/// Trivial engine call on a ref-counted receiver, which needs no liveness check -- the strong `Gd` keeps the object alive.
+///
+/// The method must be declared by a ref-counted class; one inherited from `Object` is validated like any other.
+#[bench(manual)]
+fn class_engine_refc_ffi_call() -> BenchResult {
+    let obj = Resource::new_gd();
+
+    bench_measure(|| obj.is_local_to_scene())
+}
+
+/// Control for [`class_engine_refc_ffi_call()`]: equally trivial getter on a manually managed receiver, which is checked per call.
+#[bench(manual)]
+fn class_engine_node_ffi_call() -> BenchResult {
+    let obj = Node3D::new_alloc();
+
+    let result = bench_measure(|| obj.is_processing());
+    obj.free();
+
+    result
 }
