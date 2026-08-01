@@ -104,14 +104,14 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     }
 
     fn retain(&self) {
-        let prev = self.shares.load(Ordering::Relaxed);
-        self.shares.store(prev + 1, Ordering::Relaxed);
+        // Relaxed suffices: a destroying thread that misses this increment would equally have run before the call started, which the user
+        // must already prevent. Ordering only matters for shares that have been released, see release().
+        self.shares.fetch_add(1, Ordering::Relaxed);
     }
 
     fn release(&self) -> bool {
-        let prev = self.shares.load(Ordering::Relaxed);
-        self.shares.store(prev - 1, Ordering::Relaxed);
-        prev == 1
+        // AcqRel: the freeing thread must observe every storage access of the shares released before it, like a reference count.
+        self.shares.fetch_sub(1, Ordering::AcqRel) == 1
     }
 }
 
