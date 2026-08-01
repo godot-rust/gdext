@@ -600,6 +600,14 @@ fn object_engine_convert_variant_nil() {
 }
 
 #[itest]
+fn object_dynamic_refcount() {
+    let obj = RefCounted::new_gd().upcast::<Object>();
+
+    assert_eq!(obj.test_refcount(), Some(1));
+    assert!(format!("{obj:?}").contains("refc: 1"), "{obj:?}");
+}
+
+#[itest]
 fn object_engine_convert_variant_error() {
     let refc = RefCounted::new_gd();
     let variant = refc.to_variant();

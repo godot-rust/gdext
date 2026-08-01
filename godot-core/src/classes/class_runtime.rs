@@ -73,7 +73,7 @@ pub(crate) fn debug_string_variant(
                 .try_to_relaxed::<i32>()
                 .expect("get_reference_count() must return integer");
 
-            Ok(count as usize)
+            count as usize
         });
 
         debug_string_parts(f, ty, id, class, refcount, None)
@@ -97,11 +97,7 @@ pub(crate) fn debug_string_variant(
             let class = obj.dynamic_class_string();
 
             // Refcount is off-by-one due to now-created Gd<T> from conversion; correct by -1.
-            let refcount = match obj.maybe_refcount() {
-                Some(Ok(rc)) => Some(Ok(rc.saturating_sub(1))),
-                Some(Err(e)) => Some(Err(e)),
-                None => None,
-            };
+            let refcount = obj.maybe_refcount().map(|rc| rc.saturating_sub(1));
 
             debug_string_parts(f, ty, id, class, refcount, None)
         }
@@ -147,7 +143,7 @@ fn debug_string_parts(
     ty: &str,
     id: InstanceId,
     class: StringName,
-    refcount: Option<Result<usize, ()>>,
+    refcount: Option<usize>,
     trait_name: Option<&str>,
 ) -> std::fmt::Result {
     let mut builder = f.debug_struct(ty);
@@ -159,14 +155,8 @@ fn debug_string_parts(
         builder.field("trait", &format_args!("{trait_name}"));
     }
 
-    match refcount {
-        Some(Ok(refcount)) => {
-            builder.field("refc", &refcount);
-        }
-        Some(Err(_)) => {
-            builder.field("refc", &"(N/A during init or drop)");
-        }
-        None => {}
+    if let Some(refcount) = refcount {
+        builder.field("refc", &refcount);
     }
 
     builder.finish()

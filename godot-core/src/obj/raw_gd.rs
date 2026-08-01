@@ -179,86 +179,39 @@ impl<T: GodotClass> RawGd<T> {
         }
     }
 
-    /// Executes a function, assuming that `self` inherits `RefCounted`.
+    /// Returns the reference count, if the dynamic object inherits `RefCounted`; and `None` otherwise.
     ///
-    /// This function is unreliable when invoked _during_ destruction (e.g. C++ `~RefCounted()` destructor). This can occur when debug-logging
-    /// instances during cleanups. `Object::object_cast_to()` is a virtual function, but virtual dispatch during destructor doesn't work in C++.
-    ///
-    /// # Panics
-    /// If `self` does not inherit `RefCounted` or is null.
-    pub fn with_ref_counted<R>(&self, apply: impl FnOnce(&mut classes::RefCounted) -> R) -> R {
-        // Note: this previously called Declarer::scoped_mut() - however, no need to go through bind() for changes in base RefCounted.
-        // Any accesses to user objects (e.g. destruction if refc=0) would bind anyway.
-
-        match self.try_with_ref_counted(apply) {
-            Ok(result) => result,
-            Err(()) if self.is_null() => {
-                panic!(
-                    "RawGd::with_ref_counted(): expected to inherit RefCounted, encountered null pointer"
-                );
-            }
-            Err(()) => {
-                // SAFETY: this branch implies non-null.
-                let gd_ref = unsafe { self.as_non_null() };
-                let class = gd_ref.dynamic_class_string();
-
-                panic!(
-                    "Operation not permitted for object of class {class}:\n\
-                    class is either not RefCounted, or currently in construction/destruction phase"
-                );
-            }
-        }
-    }
-
-    /// Fallible version of [`with_ref_counted()`](Self::with_ref_counted), for situations during init/drop when downcast no longer works.
-    ///
-    /// Returns `Err(())` if `self` is null or does not inherit `RefCounted`.
-    #[expect(clippy::result_unit_err)]
-    pub fn try_with_ref_counted<R>(
-        &self,
-        apply: impl FnOnce(&mut classes::RefCounted) -> R,
-    ) -> Result<R, ()> {
-        // `InstanceId` carries a bit indicating ref-countedness — no FFI roundtrip needed.
-        let is_ref_counted = self
-            .cached_rtti
-            .as_ref()
-            .is_some_and(|rtti| rtti.instance_id().is_ref_counted());
-
-        if !is_ref_counted {
-            return Err(());
+    /// Infallible (no problematic virtual dispatch during C++ construction/destruction). Debug-printing an object being destroyed still works.
+    pub(crate) fn maybe_refcount(&self) -> Option<usize> {
+        let instance_id = self.instance_id_unchecked()?;
+        if !instance_id.is_ref_counted() || self.obj.is_null() {
+            return None;
         }
 
-        // Liveness check before invoking the user function; also validates type in Debug mode.
-        self.check_rtti("try_with_ref_counted");
+        // SAFETY: object is non-null and dynamically ref-counted, as checked above.
+        let ref_count = unsafe { self.as_ref_counted().get_reference_count() };
 
-        // SAFETY: instance ID confirms RefCounted base.
-        Ok(unsafe { self.with_ref_counted_unchecked(apply) })
+        Some(ref_count as usize)
     }
 
-    /// Executes a function directly on this object, assuming it is `RefCounted`.
+    /// Reinterprets this object as `RefCounted`, for the ref-count operations in this file.
     ///
-    /// Unlike [`try_with_ref_counted`](Self::try_with_ref_counted), this does **not** check the type at runtime.
+    /// Unlike [`as_upcast_ref()`][Self::as_upcast_ref], this runs no liveness or type check, and a method invoked on the result need
+    /// not run one either (see `special_cases::is_class_method_unvalidated()` in godot-codegen). Skipping those is sound, since the
+    /// callers only run on a `RawGd` that already holds a strong-ref. Also covers `T=Object` with a dynamically ref-counted object.
     ///
     /// # Safety
-    /// Caller must guarantee that `T` inherits from `RefCounted`.
-    pub(crate) unsafe fn with_ref_counted_unchecked<R>(
-        &self,
-        apply: impl FnOnce(&mut classes::RefCounted) -> R,
-    ) -> R {
-        let cached_rtti = self
-            .cached_rtti
-            .as_ref()
-            .map(|rtti| ObjectRtti::of::<classes::RefCounted>(rtti.instance_id()));
+    /// Caller must guarantee that the dynamic object is ref-counted, and that `self` is non-null and a strong reference.
+    unsafe fn as_ref_counted(&self) -> &classes::RefCounted {
+        // SAFETY: layout reasoning as in as_upcast_ref(); RefCounted is an engine class.
+        unsafe { std::mem::transmute::<&Self, &classes::RefCounted>(self) }
+    }
 
-        // Note: caller guarantees T: Inherits<RefCounted>. `ManuallyDrop` keeps the refcount balanced when `borrow` goes out of scope.
-        let raw = RawGd::<classes::RefCounted> {
-            obj: self.obj.cast(),
-            cached_rtti,
-            cached_storage_ptr: InstanceCache::null(),
-        };
-
-        let mut borrow = std::mem::ManuallyDrop::new(raw);
-        apply(borrow.as_target_mut())
+    /// # Safety
+    /// See [`as_ref_counted()`][Self::as_ref_counted].
+    unsafe fn as_ref_counted_mut(&mut self) -> &mut classes::RefCounted {
+        // SAFETY: layout reasoning as in as_upcast_mut(); RefCounted is an engine class.
+        unsafe { std::mem::transmute::<&mut Self, &mut classes::RefCounted>(self) }
     }
 
     /// Whether this object is non-null and ref-counted, i.e. the `refc_*` operations below have an effect.
@@ -281,8 +234,8 @@ impl<T: GodotClass> RawGd<T> {
         out!("  RawGd::refc_init: {self:?}");
 
         // SAFETY: object is ref-counted, as checked above.
-        let success = unsafe { self.with_ref_counted_unchecked(|refc| refc.init_ref()) };
-        assert!(success, "init_ref() failed");
+        let success = unsafe { self.as_ref_counted_mut().init_ref() };
+        assert!(success, "RefCounted::init_ref() failed");
     }
 
     /// Increments the reference count, for objects which are already referenced.
@@ -296,8 +249,8 @@ impl<T: GodotClass> RawGd<T> {
         out!("  RawGd::refc_inc:  {self:?}");
 
         // SAFETY: object is ref-counted, as checked above.
-        let success = unsafe { self.with_ref_counted_unchecked(|refc| refc.reference()) };
-        assert!(success, "reference() failed");
+        let success = unsafe { self.as_ref_counted_mut().reference() };
+        assert!(success, "RefCounted::reference() failed");
     }
 
     /// Decrements the reference count. Returns `true` if the count hit 0 and the object can be safely freed.
@@ -315,7 +268,7 @@ impl<T: GodotClass> RawGd<T> {
         out!("  RawGd::refc_dec:  {self:?}");
 
         // SAFETY: object is ref-counted, as checked above.
-        let is_last = unsafe { self.with_ref_counted_unchecked(|refc| refc.unreference()) };
+        let is_last = unsafe { self.as_ref_counted_mut().unreference() };
         out!("  +-- was last={is_last}");
         is_last
     }
@@ -516,8 +469,7 @@ where
         );
 
         // SAFETY: Memory=MemRefCounted statically guarantees T inherits RefCounted.
-        let ref_count =
-            unsafe { self.with_ref_counted_unchecked(|refc| refc.get_reference_count()) };
+        let ref_count = unsafe { self.as_ref_counted().get_reference_count() };
 
         // TODO find a safer cast alternative, e.g. num-traits crate with ToPrimitive (Debug) + AsPrimitive (Release).
         ref_count as usize
@@ -888,6 +840,13 @@ impl ValidatedObject {
         Self {
             object_ptr: raw_gd.obj_sys(),
         }
+    }
+
+    /// For ref-counted objects, liveness check is not needed; strong ref (RawGd) keeps Godot instance alive.
+    #[doc(hidden)]
+    #[inline]
+    pub fn unvalidated(object_ptr: sys::GDExtensionObjectPtr) -> Self {
+        Self { object_ptr }
     }
 
     /// Extracts the object pointer from an `Option<ValidatedObject>`.
