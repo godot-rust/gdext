@@ -807,7 +807,14 @@ impl Seek for GFile {
 impl BufRead for GFile {
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
         // We need to determine number of remaining bytes - otherwise the `FileAccess::get_buffer return in an error`.
-        let remaining_bytes = self.check_file_length() - self.fa.get_position();
+        let file_length = self.check_file_length();
+        let position = self.fa.get_position();
+        if position >= file_length {
+            self.last_buffer_size = 0;
+            return Ok(&[]);
+        }
+
+        let remaining_bytes = file_length - position;
         let buffer_read_size = cmp::min(remaining_bytes as usize, Self::BUFFER_SIZE);
 
         // We need to keep the amount of last read side to be able to adjust cursor position in `consume`.

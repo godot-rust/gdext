@@ -140,6 +140,14 @@ fn seek_trait_works() {
 
     // Seeking past the end is valid; only positions before the beginning are rejected.
     file.seek(SeekFrom::End(5)).expect("seek past end");
+    let fill_buf_after_end = file.fill_buf().expect("fill buffer past end");
+    assert!(fill_buf_after_end.is_empty());
+
+    let mut after_end = String::new();
+    let read_line_after_end = file.read_line(&mut after_end).expect("read line past end");
+    assert_eq!(read_line_after_end, 0);
+    assert!(after_end.is_empty());
+
     file.seek(SeekFrom::End(-(integers.len() as i64) - 1))
         .expect_err("seek before beginning");
     file.seek(SeekFrom::Current(i64::MIN))
