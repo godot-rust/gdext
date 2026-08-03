@@ -116,6 +116,11 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
         prev == 1
     }
+
+    fn is_claimed_by_call(&self) -> bool {
+        // Relaxed: purely informational. Under `experimental-threads`, a claim taken on another thread may not be observed yet.
+        self.claims.load(Ordering::Relaxed) > 1
+    }
 }
 
 impl<T: GodotClass> StorageRefCounted for InstanceStorage<T> {

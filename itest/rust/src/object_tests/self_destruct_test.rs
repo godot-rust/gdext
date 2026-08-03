@@ -19,7 +19,7 @@ use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithBaseField, WithUserSignals};
 use godot::register::{GodotClass, godot_api};
 
-use crate::framework::itest;
+use crate::framework::{itest, suppress_godot_print};
 
 // A signal handler may drop the last reference to the emitter, mid-call. The object must survive until the method returns, otherwise the
 // active instance guard would dangle. Regression test for https://github.com/godot-rust/gdext/issues/1666.
@@ -42,6 +42,7 @@ fn signal_emitter_destroyed_during_nested_call() {
 
 // `gd_self` holds no instance guard, so free() succeeds and destroys the object mid-call. The storage must outlive the call, whose trampoline
 // still uses it after the method returns. `&mut self` receivers cannot reach this: free() panics on an active bind.
+// Manually managed classes are excluded from the destruction report, so no error is expected here.
 #[itest]
 fn object_free_during_own_gd_self_call() {
     #[derive(GodotClass)]
@@ -134,7 +135,8 @@ fn call_self_destroyer(method: &str) -> InstanceId {
     *last_ref.borrow_mut() = Some(object);
 
     // Goes through the Godot -> Rust method trampoline, which must keep the receiver alive for the duration of the call.
-    callable.call(&[]);
+    // The destruction is reported as an error, which is expected here.
+    suppress_godot_print(|| callable.call(&[]));
     assert!(last_ref.borrow().is_none(), "handler must have run");
 
     instance_id

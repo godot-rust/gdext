@@ -19,6 +19,7 @@ use sys::interface_fn;
 use crate::builder::ClassBuilder;
 use crate::builtin::{StringName, Variant};
 use crate::classes::Object;
+use crate::obj::bounds::Memory;
 use crate::obj::{AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass, bounds, cap};
 use crate::private::{IntoVirtualMethodReceiver, PanicPayload, handle_panic};
 use crate::registry::info::PropertyInfo;
@@ -223,6 +224,12 @@ pub unsafe extern "C" fn free<T: GodotClass>(
         {
             let storage = as_weak_storage::<T>(instance);
             storage.mark_destroyed_by_godot();
+
+            // Manually managed classes are excluded: `free()` during a call on the object is an established pattern, and the engine has not
+            // been observed to touch `this` afterwards on that path.
+            if <T::Memory as Memory>::IS_REF_COUNTED && storage.is_claimed_by_call() {
+                crate::storage::report_destruction_during_call(storage);
+            }
         } // Ref no longer valid once next statement is executed.
 
         crate::storage::release_storage::<T>(instance);

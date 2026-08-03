@@ -96,6 +96,10 @@ pub unsafe trait Storage {
     #[doc(hidden)]
     fn dec_claims(&self) -> bool;
 
+    /// Whether an ongoing Godot -> Rust call claims this storage, on top of Godot's own claim.
+    #[doc(hidden)]
+    fn is_claimed_by_call(&self) -> bool;
+
     /// Get a `Gd` referencing the Godot object.
     fn get_gd(&self) -> Gd<Self::Instance>
     where
@@ -364,6 +368,20 @@ pub unsafe fn release_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
 
     // SAFETY: Godot's claim exists since construction, and the caller guarantees to release it only once.
     drop(unsafe { StorageClaim::assume_owned(storage) });
+}
+
+/// Reports that the Godot object died during a Godot -> Rust call on it, which leaves the engine with a dangling `this`.
+///
+/// Only the storage outlives the call, by claim; the object itself cannot be kept alive, since neither `free()` nor the last reference drop
+/// is vetoable. Godot dereferences `this` after the callback returns in at least `Object::_notification_forward()`.
+pub(crate) fn report_destruction_during_call<T: GodotClass>(storage: &InstanceStorage<T>) {
+    godot_error!(
+        "Destroyed the Godot object during a Godot -> Rust call on it.\n  \
+        The engine may access the object after the call returns, which is undefined behavior. Do not drop the last\n  \
+        reference to an object inside a call on that same object; defer it past the call instead.\n  \
+        object: {:?}",
+        storage.base()
+    );
 }
 
 /// Reports that the storage is destroyed while the Rust object is still borrowed. May crash the process, depending on safeguard level.

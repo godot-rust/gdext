@@ -112,6 +112,10 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
         self.claims.set(prev - 1);
         prev == 1
     }
+
+    fn is_claimed_by_call(&self) -> bool {
+        self.claims.get() > 1
+    }
 }
 
 impl<T: GodotClass> StorageRefCounted for InstanceStorage<T> {
