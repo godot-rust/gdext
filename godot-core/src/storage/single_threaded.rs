@@ -14,6 +14,7 @@ use godot_cell::panicking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 
 use crate::obj::{Base, GodotClass};
 use crate::storage::{DebugBorrowTracker, Lifecycle, Storage, StorageRefCounted};
+use crate::sys;
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: GdCell<T>,
@@ -21,6 +22,9 @@ pub struct InstanceStorage<T: GodotClass> {
 
     // Declared after `user_instance`, is dropped last.
     pub(super) lifecycle: cell::Cell<Lifecycle>,
+
+    // Claims on this storage's lifetime: Godot's, plus one per ongoing Godot -> Rust call. See `StorageClaim`.
+    claims: cell::Cell<u32>,
 
     // No-op in Release mode.
     borrow_tracker: DebugBorrowTracker,
@@ -47,6 +51,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             user_instance: GdCell::new(user_instance),
             base,
             lifecycle: cell::Cell::new(Lifecycle::Alive),
+            claims: cell::Cell::new(1),
             borrow_tracker: DebugBorrowTracker::new(),
         }
     }
@@ -94,6 +99,18 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
     fn set_lifecycle(&self, lifecycle: Lifecycle) {
         self.lifecycle.set(lifecycle)
+    }
+
+    fn inc_claims(&self) {
+        self.claims.set(self.claims.get() + 1);
+    }
+
+    fn dec_claims(&self) -> bool {
+        let prev = self.claims.get();
+        sys::strict_assert_ne!(prev, 0, "claim released more often than taken");
+
+        self.claims.set(prev - 1);
+        prev == 1
     }
 }
 

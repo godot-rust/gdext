@@ -10,10 +10,10 @@
 use std::hint::black_box;
 
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i};
+use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i, varray};
 use godot::classes::{Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
-use godot::register::GodotClass;
+use godot::register::{GodotClass, godot_api};
 
 use crate::framework::{BenchResult, bench, bench_measure};
 
@@ -84,6 +84,26 @@ fn class_user_refc_clone_drop() -> BenchResult {
     bench_measure(100, || obj.clone())
 }
 
+/// Godot -> Rust call into a `#[func]` method, through the trampoline that keeps the storage alive for the call's duration.
+#[bench(manual)]
+fn class_user_refc_call_ref() -> BenchResult {
+    let obj = MyBenchType::new_gd();
+    let callable = obj.callable("noop_ref");
+    let args = varray![];
+
+    bench_measure(100, || callable.callv(&args))
+}
+
+/// Same as [`class_user_refc_call_ref()`], but the receiver additionally requires an exclusive bind.
+#[bench(manual)]
+fn class_user_refc_call_mut() -> BenchResult {
+    let obj = MyBenchType::new_gd();
+    let callable = obj.callable("noop_mut");
+    let args = varray![];
+
+    bench_measure(100, || callable.callv(&args))
+}
+
 #[bench]
 fn class_singleton_access() -> Gd<Os> {
     Os::singleton()
@@ -132,3 +152,16 @@ fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
 #[derive(GodotClass)]
 #[class(init)]
 struct MyBenchType {}
+
+#[godot_api]
+impl MyBenchType {
+    #[func]
+    fn noop_ref(&self) -> i64 {
+        42
+    }
+
+    #[func]
+    fn noop_mut(&mut self) -> i64 {
+        42
+    }
+}

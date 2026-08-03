@@ -41,7 +41,7 @@ mod reexport_pub {
     pub use crate::signal::priv_re_export::*;
     pub use crate::storage::{
         IntoVirtualMethodReceiver, RecvGdSelf, RecvMut, RecvRef, Storage, VirtualMethodReceiver,
-        as_storage,
+        as_storage, as_weak_storage,
     };
     pub use crate::sys::out;
 }

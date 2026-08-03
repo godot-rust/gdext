@@ -400,7 +400,7 @@ fn object_user_dynamic_free_during_bind() {
     let mut copy = obj.clone(); // TODO clone allowed while bound?
 
     // This technically triggers UB, but in practice no one accesses the references.
-    // There is no alternative to test this, see destroy_storage() comments.
+    // There is no alternative to test this, see report_destruction_while_bound() comments.
     copy.call("free", &[]);
 
     drop(guard);

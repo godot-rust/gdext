@@ -344,10 +344,10 @@ fn make_forwarding_closure(
 
     let instance_decl = match &signature_info.receiver_type {
         ReceiverType::Ref => quote! {
-            let __gdext_self = ::godot::private::Storage::get(storage);
+            let __gdext_self = ::godot::private::Storage::get(&*storage);
         },
         ReceiverType::Mut => quote! {
-            let mut __gdext_self = ::godot::private::Storage::get_mut(storage);
+            let mut __gdext_self = ::godot::private::Storage::get_mut(&*storage);
         },
         _ => quote! {},
     };
@@ -357,7 +357,7 @@ fn make_forwarding_closure(
             let before_method = format_ident!("__before_{method_name}", span = method_name.span());
             if let ReceiverType::GdSelf = signature_info.receiver_type {
                 // In case of GdSelf receiver use instance only to call the before_method.
-                quote! { ::godot::private::Storage::get_mut(storage).#before_method(); }
+                quote! { ::godot::private::Storage::get_mut(&*storage).#before_method(); }
             } else {
                 quote! { __gdext_self.#before_method(); }
             }
@@ -438,7 +438,7 @@ fn make_forwarding_closure(
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
 
                     #before_method_call
-                    #class_name::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*)
+                    #class_name::#method_name(::godot::private::Storage::get_gd(&*storage), #(#params),*)
                 }
             }
         }

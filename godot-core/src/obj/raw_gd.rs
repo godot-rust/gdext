@@ -528,13 +528,14 @@ where
     /// Returns `None` if self is null.
     ///
     /// # Safety
-    ///
     /// This method provides a reference to the storage with an arbitrarily long lifetime `'b`. The reference
     /// must actually be live for the duration of this lifetime.
     ///
     /// The only time when a `&mut` reference can be taken to a `InstanceStorage` is when it is constructed
     /// or destroyed. So it is sufficient to ensure that the storage is not created or destroyed during the
     /// lifetime `'b`.
+    // Prefer `storage()`, whose lifetime is tied to `&self`. This method exists for `WithBaseField::base_mut()`, whose guard must outlive the
+    // local `Gd` it is created from.
     pub(crate) unsafe fn storage_unbounded<'b>(&self) -> Option<&'b InstanceStorage<T>> {
         // SAFETY: instance pointer belongs to this instance. We only get a shared reference, no exclusive access, so even
         // calling this from multiple Gd pointers is safe.
@@ -545,7 +546,9 @@ where
         // Potential issue is a concurrent free() in multi-threaded access; but that would need to be guarded against inside free().
         unsafe {
             let binding = self.resolve_instance_ptr();
-            sys::ptr_then(binding, |binding| crate::private::as_storage::<T>(binding))
+            sys::ptr_then(binding, |binding| {
+                crate::private::as_weak_storage::<T>(binding)
+            })
         }
     }
 
