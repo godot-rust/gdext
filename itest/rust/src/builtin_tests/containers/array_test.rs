@@ -687,6 +687,42 @@ fn array_shrink() {
 }
 
 #[itest]
+fn array_resize_default() {
+    // Typed int array: Godot initializes new slots to 0 (type-appropriate default).
+    let mut a: Array<i64> = Array::new();
+    a.resize_default(3);
+    assert_eq!(a.len(), 3);
+    assert_eq!(a, array![0, 0, 0]);
+
+    // Shrink: works the same as resize().
+    a.resize_default(1);
+    assert_eq!(a, array![0]);
+
+    // Typed float array.
+    let mut b: Array<f64> = Array::new();
+    b.resize_default(2);
+    assert_eq!(b.len(), 2);
+    assert_eq!(b, array![0.0, 0.0]);
+}
+
+#[itest]
+fn array_resize_nil() {
+    let mut a = varray![1, "two"];
+    a.resize_nil(4);
+    assert_eq!(a.len(), 4);
+    assert_eq!(a.at(2), Variant::nil());
+    assert_eq!(a.at(3), Variant::nil());
+
+    // Existing elements are preserved.
+    assert_eq!(a.at(0), 1.to_variant());
+    assert_eq!(a.at(1), "two".to_variant());
+
+    // Shrink drops the trailing elements.
+    a.resize_nil(1);
+    assert_eq!(a, varray![1]);
+}
+
+#[itest]
 fn array_resize() {
     let mut a = iarray!["hello", "bar", "mixed", "baz", "meow"];
 

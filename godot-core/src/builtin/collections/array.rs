@@ -466,13 +466,7 @@ impl<T: Element> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`][AnyArray::shrink] instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
-        self.balanced_ensure_mutable();
-
-        let original_size = self.len();
-
-        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
-        // array are of type `T` still.
-        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        let original_size = self.resize_inner(new_size);
 
         meta::arg_into_ref!(value: T);
 
@@ -489,6 +483,30 @@ impl<T: Element> Array<T> {
             // ptr_mut() lookup could be optimized if we know the internal layout.
             unsafe { variant.move_into_var_ptr(ptr_mut) };
         }
+    }
+
+    /// Resizes the array, limited to certain element types and values.
+    ///
+    /// Limited to default-constructible `Copy` types, to allow efficient batch initialization. Use [`resize()`][Self::resize] if you need
+    /// more flexibility.
+    pub fn resize_default(&mut self, new_size: usize)
+    where
+        // Do not remove these bounds. Allowing e.g. Gd<RefCounted> would create null elements.
+        // Limiting to Copy only would be possible, but inconsistent for types like Plane that don't support default-initialization in Rust.
+        T: Default + Copy,
+    {
+        self.resize_inner(new_size);
+    }
+
+    fn resize_inner(&mut self, new_size: usize) -> usize {
+        self.balanced_ensure_mutable();
+
+        let original_size = self.len();
+
+        // SAFETY: Godot's `resize()` fills new slots with type-appropriate defaults for typed arrays (e.g. 0 for int, nil for Variant).
+        // Callers that need non-default values (like `resize()`) must overwrite the new slots afterward.
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        original_size
     }
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
@@ -1081,6 +1099,14 @@ impl<T: Element> Array<T> {
 }
 
 impl VarArray {
+    /// Resizes the array, filling new slots with `Variant::nil()`.
+    ///
+    /// `VarArray` can't use [`resize_default()`][Array::resize_default], whose `Copy` bound excludes `Variant`. Relaxing that bound to
+    /// `Default` (non-breaking) would absorb this method; deferred pending fill-safety review of the other non-`Copy` types.
+    pub fn resize_nil(&mut self, new_size: usize) {
+        self.resize_inner(new_size);
+    }
+
     /// # Safety
     /// - Variant must have type `VariantType::ARRAY`.
     /// - Subsequent operations on this array must not rely on the type of the array.
