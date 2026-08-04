@@ -146,7 +146,7 @@ impl<T: Inherits<Node>> OnReady<Gd<T>> {
     pub fn from_node(path: impl AsArg<NodePath>) -> Self {
         arg_into_owned!(path);
 
-        Self::from_base_fn(move |base| base.get_node_as(&path))
+        Self::from_base_fn(move |base| base.node_as(&path))
     }
 }
 

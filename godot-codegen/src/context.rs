@@ -404,7 +404,7 @@ impl NotificationEnum {
     }
 
     /// Returns the name of the enum if it is declared by the current class, or `None` if it is inherited.
-    pub fn try_to_own_name(&self) -> Option<Ident> {
+    pub fn to_own_name(&self) -> Option<Ident> {
         if self.declared_by_own_class {
             Some(self.name.clone())
         } else {

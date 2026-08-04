@@ -24,13 +24,13 @@ impl Node {
     ///
     /// # Panics
     /// If the node is not found, or if it does not have type `T` or inherited.
-    pub fn get_node_as<T>(&self, path: impl AsArg<NodePath>) -> Gd<T>
+    pub fn node_as<T>(&self, path: impl AsArg<NodePath>) -> Gd<T>
     where
         T: Inherits<Node>,
     {
         arg_into_ref!(path);
 
-        self.try_get_node_as(path).unwrap_or_else(|| {
+        self.get_node_as(path).unwrap_or_else(|| {
             panic!(
                 "There is no node of type {ty} at path `{path}`",
                 ty = T::class_id()
@@ -42,7 +42,7 @@ impl Node {
     ///
     /// If the node is not found, or if it does not have type `T` or inherited,
     /// `None` will be returned.
-    pub fn try_get_node_as<T>(&self, path: impl AsArg<NodePath>) -> Option<Gd<T>>
+    pub fn get_node_as<T>(&self, path: impl AsArg<NodePath>) -> Option<Gd<T>>
     where
         T: Inherits<Node>,
     {
@@ -66,14 +66,14 @@ impl PackedScene {
     where
         T: Inherits<Node>,
     {
-        self.try_instantiate_as::<T>()
+        self.checked_instantiate_as::<T>()
             .unwrap_or_else(|| panic!("Failed to instantiate {to}", to = T::class_id()))
     }
 
-    /// Instantiates the scene as type `T` (fallible).
+    /// Instantiates the scene as type `T`.
     ///
-    /// If the scene is not type `T` or inherited.
-    pub fn try_instantiate_as<T>(&self) -> Option<Gd<T>>
+    /// Returns `None` if the instantiated scene is not of type `T` or inherited.
+    pub fn checked_instantiate_as<T>(&self) -> Option<Gd<T>>
     where
         T: Inherits<Node>,
     {

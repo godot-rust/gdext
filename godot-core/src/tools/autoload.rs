@@ -115,7 +115,7 @@ where
     let root = scene_tree.get_root();
 
     let autoload_node = root
-        .try_get_node_as::<Node>(&autoload_path)
+        .get_node_as::<Node>(&autoload_path)
         .ok_or_else(|| ConvertError::new(format!("autoload `{autoload_name}` not found")))?;
 
     // Store in cache as Gd<Node>.

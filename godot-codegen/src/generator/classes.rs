@@ -45,7 +45,7 @@ pub fn generate_class_files(
         modules.push(GeneratedClassModule {
             class_name: class.name().clone(),
             module_name: class.mod_name().clone(),
-            own_notification_enum_name: generated_class.notification_enum.try_to_own_name(),
+            own_notification_enum_name: generated_class.notification_enum.to_own_name(),
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub_sidecar: generated_class.has_sidecar_module,
             has_interface_trait: generated_class.has_interface_trait,
