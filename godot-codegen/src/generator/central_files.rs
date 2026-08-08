@@ -19,6 +19,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let variant_type_enum = make_variant_type_enum(api, true);
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
     let godot_type_name_method = make_godot_type_name_method(api);
+    let inplace_variant_method = make_is_inplace_variant_method(api);
 
     quote! {
         #[cfg(target_pointer_width = "32")]
@@ -49,6 +50,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             }
 
             #godot_type_name_method
+            #inplace_variant_method
         }
     }
 }
@@ -226,6 +228,64 @@ fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> TokenStrea
     let define_traits = !is_definition;
 
     enums::make_enum_definition_with(variant_type_enum, define_enum, define_traits)
+}
+
+/// Generates the `VariantType::is_inplace_variant()` method from the builtins list.
+///
+/// Returns `false` if a variant of this type requires `variant_destroy` on drop, for two reasons:
+/// 1. Non-trivial destructor in `extension_api.json` (refcounted: `String`, `Array`, `Dictionary`, `Object`, ...).
+/// 2. Stored heap-allocated inside `Variant` because it exceeds the inline data segment (`Transform2D`, `Transform3D`, `Basis`, `Aabb`,
+///    `Projection`). Godot reports `has_destructor=false` for these (trivially destructible in C++), but `Variant` still owns the allocation.
+fn make_is_inplace_variant_method(api: &ExtensionApi) -> TokenStream {
+    use crate::models::domain::BuildConfiguration;
+
+    // Detecting case 2 needs the type's byte size. Godot's inline buffer is `max(sizeof(ObjData), 4 * sizeof(real_t))` -> 16 bytes in single,
+    // 32 bytes in double precision. Pointer width doesn't affect it (`ObjData` is 2 pointers, thus <= 16), so the 32-bit configuration's sizes
+    // decide it for both pointer widths. Only configurations of the current precision are present in `builtin_sizes`, see `is_applicable()`.
+    let (size_config, inplace_bytes_threshold) = if cfg!(feature = "double-precision") {
+        (BuildConfiguration::Double32, 32)
+    } else {
+        (BuildConfiguration::Float32, 16)
+    };
+
+    let sizes: std::collections::HashMap<&str, usize> = api
+        .builtin_sizes
+        .iter()
+        .filter(|s| s.config == size_config)
+        .map(|s| (s.builtin_original_name.as_str(), s.size))
+        .collect();
+
+    // `Nil` is not part of `api.builtins`, but the empty variant is stored in-place and trivially destructible. Include it explicitly, so the
+    // lifecycle fast paths (Clone/Drop) and `set_value` treat a nil variant as overwritable/copyable without FFI.
+    let mut inplace_ords = vec![0_i32];
+
+    for builtin in api.builtins.iter() {
+        let size = sizes
+            .get(builtin.godot_original_name())
+            .copied()
+            .unwrap_or_else(|| {
+                panic!(
+                    "no size found for builtin `{}`",
+                    builtin.godot_original_name()
+                )
+            });
+
+        if size <= inplace_bytes_threshold && !builtin.has_destructor {
+            inplace_ords.push(builtin.variant_type_ord);
+        }
+    }
+
+    quote! {
+        /// Returns `true` if _variants_ of this type can store the value in-place (SBO) and thus don't require FFI copies and destruction.
+        ///
+        /// `false` for types that either:
+        /// - always need Godot-side destruction (refcounted like `GString`, `Array` etc.).
+        /// - are too big to be stored in-place in `Variant`, thus needing heap storage (`Aabb`, `Basis`, `Transform2D`, `Transform3D`, `Projection`).
+        #[doc(hidden)]
+        pub const fn is_inplace_variant(&self) -> bool {
+            matches!(self.ord, #( #inplace_ords )|*)
+        }
+    }
 }
 
 /// Generates the `VariantType::godot_type_name()` method from the builtins list.

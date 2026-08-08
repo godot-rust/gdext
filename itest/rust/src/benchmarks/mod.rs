@@ -19,6 +19,7 @@ use crate::framework::{BenchResult, bench, bench_measure};
 
 mod callable;
 mod color;
+mod variant;
 
 #[bench]
 fn builtin_string_ctor() -> GString {
