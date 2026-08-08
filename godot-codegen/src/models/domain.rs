@@ -186,6 +186,7 @@ pub struct BuiltinVariant {
     pub builtin_class: Option<BuiltinClass>,
 
     pub variant_type_ord: i32,
+    pub has_destructor: bool,
 }
 
 impl BuiltinVariant {
