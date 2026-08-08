@@ -258,6 +258,26 @@ fn array_from_iter_i64() -> BenchResult {
 }
 
 #[bench(manual)]
+fn array_resize_i64() -> BenchResult {
+    bench_measure(|| {
+        let mut arr = Array::<i64>::new();
+        arr.resize(10_000, black_box(123i64));
+        black_box(arr)
+    })
+}
+
+#[bench(manual)]
+fn array_resize_gstring() -> BenchResult {
+    let value = "str".to_gstring();
+
+    bench_measure(move || {
+        let mut arr = Array::<GString>::new();
+        arr.resize(10_000, black_box(&value));
+        black_box(arr)
+    })
+}
+
+#[bench(manual)]
 fn array_extend_gstring() -> BenchResult {
     bench_measure(|| {
         let mut arr = Array::new();
