@@ -509,6 +509,36 @@ impl<T: Element> Array<T> {
         original_size
     }
 
+    /// Creates an array of `len` elements, written directly into the slots. Shrinks if `iter` yields fewer than `len`.
+    ///
+    /// Only sound because the array is created here: refcount == 1 guarantees no other handle aliases the backing buffer, even if `iter` runs
+    /// user code that could otherwise resize it. `extend()` cannot do this, see the comment there.
+    fn new_filled(len: usize, iter: impl Iterator<Item = Variant>) -> Self {
+        let mut array = Self::new();
+        if len == 0 {
+            return array;
+        }
+
+        // Godot fills the new slots with type-appropriate defaults; all of them are overwritten or removed below.
+        array.resize_inner(len);
+
+        // SAFETY: `array` has `len` valid Variants after the resize, and is uniquely owned (see above).
+        let slots = unsafe { Variant::borrow_slice_mut(array.ptr_mut(0), len) };
+
+        let mut filled = 0;
+        for (slot, variant) in slots.iter_mut().zip(iter) {
+            *slot = variant;
+            filled += 1;
+        }
+
+        // Iterator under-delivered relative to `len`; drop the default-filled trailing slots.
+        if filled < len {
+            array.resize_inner(filled);
+        }
+
+        array
+    }
+
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
     pub fn extend_array(&mut self, other: &Array<T>) {
         self.balanced_ensure_mutable();
@@ -1392,32 +1422,29 @@ impl<T: Element + ToGodot, const N: usize> From<&[T; N]> for Array<T> {
 /// Creates a `Array` from the given slice.
 impl<T: Element + ToGodot> From<&[T]> for Array<T> {
     fn from(slice: &[T]) -> Self {
-        let mut array = Self::new();
-        let len = slice.len();
-        if len == 0 {
-            return array;
-        }
-
-        // SAFETY: We fill the array with `Variant::nil()`, however since we're resizing to the size of the slice we'll end up rewriting all
-        // the nulls with values of type `T`.
-        unsafe { array.as_inner_mut() }.resize(to_i64(len));
-
-        // SAFETY: `array` has `len` elements since we just resized it, all valid Variants. The array was just created here and is not yet
-        // shared (refcount == 1), so no other handle aliases the backing buffer; forming &mut [Variant] is sound in this unique-ownership context.
-        let elements = unsafe { Variant::borrow_slice_mut(array.ptr_mut(0), len) };
-        for (element, array_slot) in slice.iter().zip(elements.iter_mut()) {
-            *array_slot = element.to_variant();
-        }
-
-        array
+        Self::new_filled(
+            slice.len(),
+            slice.iter().map(|element| element.to_variant()),
+        )
     }
 }
 
 /// Creates a `Array` from an iterator.
 impl<T: Element + ToGodot> FromIterator<T> for Array<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut array = Self::new();
-        array.extend(iter);
+        let mut iter = iter.into_iter();
+
+        // Unlike `extend()`, the array is created here and thus uniquely owned, so elements can be written straight into the slots.
+        let mut array = Self::new_filled(
+            iter.size_hint().0,
+            iter.by_ref().map(|item| item.to_variant()),
+        );
+
+        // Push any remaining elements (for inexact-size iterators).
+        for item in iter {
+            array.push(meta::owned_into_arg(item));
+        }
+
         array
     }
 }
@@ -1430,8 +1457,9 @@ impl<T: Element> Extend<T> for Array<T> {
 
         // Fast path: bulk-resize once, then write the slots directly instead of one resize per element.
         if lower > 0 {
-            // Convert up-front: `next()` and `to_variant()` are user code that may resize this (shared) array, invalidating slot pointers.
-            // `size_hint().0` is only a lower bound, so the iterator may yield fewer.
+            // Stage as `Variant` up-front, so that no user code runs while a slot pointer is held: `next()` and `to_variant()` can resize this
+            // array through another handle, reallocating the buffer. Avoidable by proving `self` unique, which needs either a GDExtension
+            // refcount getter (then `new_filled()` applies) or Rust-side exclusive-access tracking. `size_hint().0` is only a lower bound.
             let mut variants: Vec<Variant> = Vec::with_capacity(lower);
             for _ in 0..lower {
                 let Some(item) = iter.next() else { break };

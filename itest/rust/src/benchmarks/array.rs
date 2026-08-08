@@ -21,6 +21,13 @@ fn array_extend_i64() -> BenchResult {
 }
 
 #[bench(manual)]
+fn array_from_iter_i64() -> BenchResult {
+    bench_measure(1, || {
+        black_box((10_000i64..20_000).map(black_box).collect::<Array<i64>>())
+    })
+}
+
+#[bench(manual)]
 fn array_extend_gstring() -> BenchResult {
     bench_measure(1, || {
         let mut arr = Array::new();
