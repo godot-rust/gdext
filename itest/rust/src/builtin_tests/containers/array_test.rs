@@ -70,6 +70,31 @@ fn array_from_iterator() {
     assert_eq!(array.at(1), 2);
 }
 
+// `Array::from_iter()` treats `size_hint().0` as a lower bound only: over-reporting must not leave trailing default slots, under-reporting
+// must still append the surplus.
+#[itest]
+fn array_from_iterator_inexact_size_hint() {
+    struct Lying(std::vec::IntoIter<i64>, usize);
+    impl Iterator for Lying {
+        type Item = i64;
+        fn next(&mut self) -> Option<i64> {
+            self.0.next()
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (self.1, None)
+        }
+    }
+
+    let over = Array::from_iter(Lying(vec![1, 2, 3].into_iter(), 5));
+    assert_eq!(over, array![1, 2, 3]);
+
+    let under = Array::from_iter(Lying(vec![1, 2, 3].into_iter(), 1));
+    assert_eq!(under, array![1, 2, 3]);
+
+    let zero = Array::from_iter(Lying(vec![1, 2, 3].into_iter(), 0));
+    assert_eq!(zero, array![1, 2, 3]);
+}
+
 #[itest]
 fn array_from_slice() {
     let array = Array::from(&[1, 2]);
