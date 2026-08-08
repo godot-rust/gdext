@@ -1529,20 +1529,19 @@ impl<T: Element + FromGodot> Iterator for ArrayIter<'_, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_idx < self.array.len() {
-            let idx = self.next_idx;
-            self.next_idx += 1;
-
-            let element_ptr = self.array.ptr_or_null(idx);
-
-            // SAFETY: We just checked that the index is not out of bounds, so the pointer won't be null.
-            // We immediately convert this to the right element, so barring `experimental-threads` the pointer won't be invalidated in time.
-            let variant = unsafe { Variant::borrow_var_sys(element_ptr) };
-            let element = T::from_variant(variant);
-            Some(element)
-        } else {
-            None
+        // The index lookup already reports out-of-bounds by returning null, so a separate `len()` call would only double the FFI cost per
+        // element. It also observes the array's current size, rather than one sampled a moment earlier.
+        let element_ptr = self.array.ptr_or_null(self.next_idx);
+        if element_ptr.is_null() {
+            return None;
         }
+
+        self.next_idx += 1;
+
+        // SAFETY: The pointer is non-null, so the index was in bounds. The conversion happens immediately, so barring `experimental-threads`
+        // the pointer won't be invalidated in time.
+        let variant = unsafe { Variant::borrow_var_sys(element_ptr) };
+        Some(T::from_variant(variant))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {

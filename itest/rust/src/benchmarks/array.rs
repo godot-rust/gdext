@@ -28,6 +28,14 @@ fn array_from_iter_i64() -> BenchResult {
 }
 
 #[bench(manual)]
+fn array_iter_i64() -> BenchResult {
+    let arr: Array<i64> = (0i64..10_000).collect();
+    bench_measure(1, move || {
+        black_box(arr.iter_shared().map(black_box).sum::<i64>())
+    })
+}
+
+#[bench(manual)]
 fn array_resize_i64() -> BenchResult {
     bench_measure(1, || {
         let mut arr = Array::<i64>::new();
