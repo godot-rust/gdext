@@ -846,8 +846,11 @@ impl<T: Element> Array<T> {
     /// Returns a mutable pointer to the element at the given index.
     ///
     /// # Panics
-    ///
     /// If `index` is out of bounds.
+    ///
+    /// # Note on mut slices
+    /// Do not form a multi-slot `&mut [Variant]` from this pointer unless the array is uniquely owned (refcount == 1): `Array` is ref-counted,
+    /// so another handle may alias the backing storage, violating Rust's rules. Otherwise write elements via `ptr::write`. See `Variant::borrow_slice_mut`.
     fn ptr_mut(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
         let ptr = self.ptr_mut_or_null(index);
         assert!(
@@ -1399,9 +1402,8 @@ impl<T: Element + ToGodot> From<&[T]> for Array<T> {
         // the nulls with values of type `T`.
         unsafe { array.as_inner_mut() }.resize(to_i64(len));
 
-        // SAFETY: `array` has `len` elements since we just resized it, and they are all valid `Variant`s. Additionally, since
-        // the array was created in this function, and we do not access the array while this slice exists, the slice has unique
-        // access to the elements.
+        // SAFETY: `array` has `len` elements since we just resized it, all valid Variants. The array was just created here and is not yet
+        // shared (refcount == 1), so no other handle aliases the backing buffer; forming &mut [Variant] is sound in this unique-ownership context.
         let elements = unsafe { Variant::borrow_slice_mut(array.ptr_mut(0), len) };
         for (element, array_slot) in slice.iter().zip(elements.iter_mut()) {
             *array_slot = element.to_variant();
@@ -1423,13 +1425,41 @@ impl<T: Element + ToGodot> FromIterator<T> for Array<T> {
 /// Extends a `Array` with the contents of an iterator.
 impl<T: Element> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
-        // Otherwise, we could use it to pre-allocate based on `iter.size_hint()`.
-        //
-        // A faster implementation using `resize()` and direct pointer writes might still be possible.
-        // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
-        for item in iter.into_iter() {
-            // self.push(AsArg::into_arg(&item));
+        let mut iter = iter.into_iter();
+        let lower = iter.size_hint().0;
+
+        // Fast path: bulk-resize once, then write the slots directly instead of one resize per element.
+        if lower > 0 {
+            // Convert up-front: `next()` and `to_variant()` are user code that may resize this (shared) array, invalidating slot pointers.
+            // `size_hint().0` is only a lower bound, so the iterator may yield fewer.
+            let mut variants: Vec<Variant> = Vec::with_capacity(lower);
+            for _ in 0..lower {
+                let Some(item) = iter.next() else { break };
+                variants.push(item.to_variant());
+            }
+
+            let current_len = self.len();
+            // `saturating_add`: a hostile `size_hint` must not wrap below `current_len`, which would shrink the array.
+            let new_len = current_len.saturating_add(variants.len());
+
+            if new_len > current_len {
+                self.resize_inner(new_len);
+
+                // One `array_operator_index` call instead of one per element; sound because no user code runs below.
+                let base_ptr: *mut Variant = self.ptr_mut(current_len).cast::<Variant>();
+
+                for (offset, variant) in variants.into_iter().enumerate() {
+                    // SAFETY:
+                    // * Slots `base_ptr .. base_ptr+variants.len()` are in bounds after `resize_inner()`. (Can't reuse
+                    //   `Variant::borrow_slice_mut` like `From<&[T]>` does -- that needs a unique refcount==1 array; `self` may be shared.)
+                    // * Assignment via `=` drops the default that `resize_inner` placed there -> no leak.
+                    unsafe { *base_ptr.add(offset) = variant };
+                }
+            }
+        }
+
+        // Push any remaining elements (for inexact-size iterators, or when lower == 0).
+        for item in iter {
             self.push(meta::owned_into_arg(item));
         }
     }
