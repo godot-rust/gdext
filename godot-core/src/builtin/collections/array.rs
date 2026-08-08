@@ -466,22 +466,26 @@ impl<T: Element> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`][AnyArray::shrink] instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
-        let original_size = self.resize_inner(new_size);
-
         meta::arg_into_ref!(value: T);
 
-        // If new_size < original_size then this is an empty iterator and does nothing.
-        for i in original_size..new_size {
-            // Exception safety: if to_variant() panics, the trailing slots keep the defaults that resize_inner() placed there -- valid values
-            // of type T, but not the requested ones. At the moment (Nov 2024), this can only happen for u64, not a valid Array element type.
-            // Converting once up-front and cloning per slot would avoid that, but measures slower for both POD and refcounted elements.
-            let variant = value.to_variant();
+        // Convert before the array is touched: `to_variant()` is user code and may resize this (possibly shared) array. Doing it here also
+        // means a panic leaves the array untouched instead of half-filled.
+        let variant = value.to_variant();
 
-            let ptr_mut = self.ptr_mut(i);
+        let original_size = self.resize_inner(new_size);
+        if new_size <= original_size {
+            return; // Shrunk or unchanged; nothing to fill.
+        }
 
-            // SAFETY: we iterate pointer within bounds; ptr_mut() additionally checks them.
-            // ptr_mut() lookup could be optimized if we know the internal layout.
-            unsafe { variant.move_into_var_ptr(ptr_mut) };
+        // One `array_operator_index` call instead of one per element; sound because no user code runs below. `Variant::clone()` only copies or
+        // bumps a refcount, and the slots being overwritten hold Godot's defaults, whose destructors cannot call back into Rust.
+        let base_ptr: *mut Variant = self.ptr_mut(original_size).cast::<Variant>();
+
+        for offset in 0..new_size - original_size {
+            // SAFETY:
+            // * Slots `base_ptr .. base_ptr+(new_size-original_size)` are in bounds after `resize_inner()`.
+            // * Assignment via `=` drops the default that `resize_inner` placed there -> no leak.
+            unsafe { *base_ptr.add(offset) = variant.clone() };
         }
     }
 
