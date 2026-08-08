@@ -20,9 +20,16 @@ pub use sys::{ExtVariantType, GodotFfi};
 pub use crate::builtin::meta_reexport::PackedElement;
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
+///
+/// Implementations may use rust-side marshalling for types where `RustMarshal` is implemented, bypassing FFI.
+///
+/// This trait overlaps strongly with `GodotType`, but currently has an `impl ObjectArg<'gd>` on top. Vice versa, following types implement
+/// `GodotType` but not `GodotFfiVariant`: `u8, u16, u32, i8, i16, i32, f32, u64`.
 #[doc(hidden)]
 pub trait GodotFfiVariant: Sized + GodotFfi {
+    // TODO(v0.5.x): rename -> rust_{to,from}_variant
     fn ffi_to_variant(&self) -> Variant;
+
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError>;
 }
 

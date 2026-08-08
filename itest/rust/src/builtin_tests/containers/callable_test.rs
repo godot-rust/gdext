@@ -143,7 +143,7 @@ fn callable_variant_method() {
     assert_eq!(dict_get.call(vslice!["one"]), 1.to_variant());
 
     // GString
-    let string = GString::from("some string").to_variant();
+    let string = "some string".to_variant();
     let string_md5 = Callable::from_variant_method(&string, "md5_text");
     assert_eq!(
         string_md5.call(vslice![]), // use vslice![] as alternative &[] syntax.
