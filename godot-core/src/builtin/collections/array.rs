@@ -472,9 +472,9 @@ impl<T: Element> Array<T> {
 
         // If new_size < original_size then this is an empty iterator and does nothing.
         for i in original_size..new_size {
-            // Exception safety: if to_variant() panics, the array will become inconsistent (filled with non-T nils).
-            // At the moment (Nov 2024), this can only happen for u64, which isn't a valid Array element type.
-            // This could be changed to use clone() (if that doesn't panic) or store a variant without moving.
+            // Exception safety: if to_variant() panics, the trailing slots keep the defaults that resize_inner() placed there -- valid values
+            // of type T, but not the requested ones. At the moment (Nov 2024), this can only happen for u64, not a valid Array element type.
+            // Converting once up-front and cloning per slot would avoid that, but measures slower for both POD and refcounted elements.
             let variant = value.to_variant();
 
             let ptr_mut = self.ptr_mut(i);
