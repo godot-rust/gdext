@@ -899,6 +899,29 @@ fn array_resize() {
     assert_eq!(a, Array::new());
 }
 
+#[itest]
+fn array_resize_refcounted() {
+    let fill = RefCounted::new_gd();
+    let mut a: Array<Gd<RefCounted>> = Array::new();
+
+    // Every slot is cloned from one converted Variant, so each must hold its own reference.
+    a.resize(3, &fill);
+    assert_eq!(fill.get_reference_count(), 4);
+
+    a.resize(1, &fill);
+    assert_eq!(fill.get_reference_count(), 2);
+}
+
+// resize() fills the new slots through a single base pointer, so verify a second handle to the same buffer observes the result.
+#[itest]
+fn array_resize_shared() {
+    let mut array = iarray![1, 2];
+    let alias = array.clone();
+
+    array.resize(5, 7);
+    assert_eq!(alias, array![1, 2, 7, 7, 7]);
+}
+
 fn __array_type_inference() {
     let a = Node::new_alloc();
     let b = Node2D::new_alloc(); // will be implicitly upcast.
