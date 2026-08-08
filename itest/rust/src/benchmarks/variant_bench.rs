@@ -239,3 +239,24 @@ fn dict_to_vec_i64() -> BenchResult {
 
     bench_measure(|| dict.iter_shared().collect::<Vec<(i64, i64)>>())
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Bulk element writes: extend() marshals every element into an already-sized array.
+
+#[bench(manual)]
+fn array_extend_i64() -> BenchResult {
+    bench_measure(|| {
+        let mut arr = Array::new();
+        arr.extend((10_000i64..20_000).map(black_box));
+        black_box(arr)
+    })
+}
+
+#[bench(manual)]
+fn array_extend_gstring() -> BenchResult {
+    bench_measure(|| {
+        let mut arr = Array::new();
+        arr.extend((10_000..20_000).map(|i| black_box(format!("str_{i}").to_gstring())));
+        black_box(arr)
+    })
+}

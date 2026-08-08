@@ -365,6 +365,136 @@ fn array_extend() {
     assert_eq!(array, array![1, 2, 3, 4]);
 }
 
+// `Array::extend()` uses `size_hint().0` only as a lower-bound pre-allocation hint, not an exact count. An iterator that over-reports its
+// lower bound (yielding fewer elements than promised) must append the actually-yielded elements without panicking or leaving trailing slots.
+#[itest]
+fn array_extend_overreported_size_hint() {
+    // Iterator whose `size_hint` lower bound (5) exceeds the number of elements it actually yields (3).
+    struct OverReporting(std::vec::IntoIter<i64>);
+    impl Iterator for OverReporting {
+        type Item = i64;
+        fn next(&mut self) -> Option<i64> {
+            self.0.next()
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (5, None)
+        }
+    }
+
+    let mut array = iarray![1, 2];
+    array.extend(OverReporting(vec![3, 4, 5].into_iter()));
+    assert_eq!(array, array![1, 2, 3, 4, 5]);
+}
+
+// `Array::extend()` picks a path based on `size_hint().0`: a positive lower bound pre-allocates and writes slots directly, zero falls
+// through to per-element `push()`. Both must produce the same result and append to existing elements.
+#[itest]
+fn array_extend_both_paths() {
+    // Iterator with `size_hint() == (0, None)`, forcing the push-only path.
+    struct NoSizeHint(std::vec::IntoIter<i64>);
+    impl Iterator for NoSizeHint {
+        type Item = i64;
+        fn next(&mut self) -> Option<i64> {
+            self.0.next()
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (0, None)
+        }
+    }
+
+    // Fast path: `vec::IntoIter` reports an exact lower bound.
+    let mut fast = iarray![1, 2];
+    fast.extend(vec![3_i64, 4, 5]);
+    assert_eq!(fast, array![1, 2, 3, 4, 5]);
+
+    // Slow path: same elements, no usable hint.
+    let mut slow = iarray![1, 2];
+    slow.extend(NoSizeHint(vec![3_i64, 4, 5].into_iter()));
+    assert_eq!(slow, array![1, 2, 3, 4, 5]);
+
+    // Empty iterators must not resize or append on either path.
+    let mut empty_fast = iarray![1, 2];
+    empty_fast.extend(Vec::<i64>::new());
+    assert_eq!(empty_fast, array![1, 2]);
+
+    let mut empty_slow = iarray![1, 2];
+    empty_slow.extend(NoSizeHint(Vec::<i64>::new().into_iter()));
+    assert_eq!(empty_slow, array![1, 2]);
+}
+
+// Extend's fast path writes via `*elem_ptr = ...` (not `ptr::write`), which must drop the default-filled slot that `resize_inner` placed
+// there. `GString` has a destructor, so a plain overwrite without dropping the old value would leak -- exercise that path here.
+#[itest]
+fn array_extend_ref_counted_elements() {
+    let mut array: Array<GString> = Array::new();
+    array.extend(vec!["a".to_gstring(), "b".to_gstring(), "c".to_gstring()]);
+    assert_eq!(array, iarray!["a", "b", "c"]);
+}
+
+// Extend converts all elements before resizing, so a panic in user code must leave the array untouched -- in particular without nil slots,
+// which would violate the `Array<Gd<T>>` element invariant.
+#[itest]
+fn array_extend_panicking_iterator() {
+    struct Panicking(usize);
+    impl Iterator for Panicking {
+        type Item = Gd<RefCounted>;
+        fn next(&mut self) -> Option<Gd<RefCounted>> {
+            self.0 += 1;
+            assert!(self.0 < 3, "iterator panics on 3rd element");
+            Some(RefCounted::new_gd())
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (5, None)
+        }
+    }
+
+    let mut array: Array<Gd<RefCounted>> = Array::new();
+    array.push(&RefCounted::new_gd());
+
+    expect_panic("iterator panics on 3rd element", || {
+        array.extend(Panicking(0));
+    });
+
+    assert_eq!(array.len(), 1);
+    assert!(array.at(0).is_instance_valid());
+}
+
+// User code inside the iterator can resize the array through a shared handle, reallocating its buffer. Extend must not write through a
+// pointer acquired before that.
+#[itest]
+fn array_extend_reentrant_resize() {
+    struct Reentrant {
+        shared: Array<i64>,
+        count: i64,
+    }
+    impl Iterator for Reentrant {
+        type Item = i64;
+        fn next(&mut self) -> Option<i64> {
+            if self.count == 3 {
+                return None;
+            }
+            self.count += 1;
+
+            // Grow and shrink to force a reallocation of the shared backing buffer.
+            self.shared.resize(64, 0);
+            self.shared.resize(2, 0);
+            Some(self.count * 10)
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            (3, None)
+        }
+    }
+
+    let mut array = iarray![1, 2];
+    let iter = Reentrant {
+        shared: array.clone(),
+        count: 0,
+    };
+
+    array.extend(iter);
+    assert_eq!(array, array![1, 2, 10, 20, 30]);
+}
+
 #[itest]
 fn array_reverse() {
     let mut array = iarray![1, 2];
