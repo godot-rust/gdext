@@ -23,7 +23,7 @@ pub struct Field {
     pub is_onready: bool,
     pub is_oneditor: bool,
     pub is_phantomvar: bool,
-    #[cfg(feature = "register-docs")]
+    #[cfg(feature = "register-docs")] #[cfg_attr(published_docs, doc(cfg(feature = "register-docs")))]
     pub attributes: Vec<venial::Attribute>,
     pub span: Span,
 }
@@ -41,7 +41,7 @@ impl Field {
             is_onready: false,
             is_oneditor: false,
             is_phantomvar: false,
-            #[cfg(feature = "register-docs")]
+            #[cfg(feature = "register-docs")] #[cfg_attr(published_docs, doc(cfg(feature = "register-docs")))]
             attributes: field.attributes.clone(),
             span: field.span(),
         }

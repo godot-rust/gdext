@@ -377,7 +377,7 @@ impl<'a> InterfaceBuilder<'a> {
         self.decls.add_modifier(cfg_attrs, "on_validate_property");
     }
 
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     fn handle_on_get_property_list(
         &mut self,
         cfg_attrs: Vec<&'a venial::Attribute>,
@@ -389,7 +389,7 @@ impl<'a> InterfaceBuilder<'a> {
         };
     }
 
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     fn handle_on_get_property_list(
         &mut self,
         cfg_attrs: Vec<&'a venial::Attribute>,
@@ -605,7 +605,7 @@ pub(crate) fn is_possibly_node_class(trait_base_class: &Ident) -> bool {
     )
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 fn make_inactive_class_check(return_value: TokenStream) -> TokenStream {
     quote! {
         use ::godot::obj::UserClass as _;
@@ -615,7 +615,7 @@ fn make_inactive_class_check(return_value: TokenStream) -> TokenStream {
     }
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 fn make_inactive_class_check(_return_value: TokenStream) -> TokenStream {
     TokenStream::new()
 }

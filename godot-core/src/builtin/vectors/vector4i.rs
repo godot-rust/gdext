@@ -11,7 +11,7 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 use crate::builtin::inner;
 use crate::builtin::math::{GlamConv, GlamType};
 use crate::builtin::{RVec4, Vector4, Vector4Axis, real};
@@ -87,7 +87,7 @@ impl Vector4i {
         )
     }
 
-    #[cfg(feature = "itest")]
+    #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
     #[doc(hidden)]
     #[inline]
     pub fn as_inner(&self) -> inner::InnerVector4i<'_> {
@@ -131,7 +131,7 @@ impl GlamConv for Vector4i {
     type Glam = glam::IVec4;
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 
@@ -143,7 +143,7 @@ mod test {
         assert_eq!(a.coord_max(b), Vector4i::new(1, 5, 5, 1));
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let vector = Vector4i::default();

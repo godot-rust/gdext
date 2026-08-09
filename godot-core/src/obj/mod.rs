@@ -24,9 +24,9 @@ mod raw_gd;
 mod traits;
 
 mod base_init;
-#[cfg(since_api = "4.7")]
+#[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
 mod base_strong_initialization;
-#[cfg(before_api = "4.7")]
+#[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
 mod base_weak_initialization;
 pub mod rpc;
 pub(crate) mod rtti;

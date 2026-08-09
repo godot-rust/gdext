@@ -288,11 +288,11 @@ pub(crate) fn is_engine_exiting() -> bool {
         }
     }
 
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     false
 }
 
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 mod itest_only {
     use super::*;
 
@@ -319,7 +319,7 @@ mod itest_only {
         }
     }
 }
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 pub use itest_only::*;
 
 /// The current state of a future inside the async runtime.
@@ -407,7 +407,7 @@ struct AsyncRuntime {
     /// Type-erased futures: boxed to allow `dyn`, pinned so they can be polled in place, and yielding `()` as tasks are detached.
     tasks: Vec<FutureSlot<Pin<Box<dyn Future<Output = ()>>>>>,
     next_task_id: u64,
-    #[cfg(feature = "itest")]
+    #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
     panicked_tasks: std::collections::HashSet<u64>,
 }
 
@@ -417,7 +417,7 @@ impl AsyncRuntime {
             // We only create a new async runtime inside a thread_local, which has lazy initialization on first use.
             tasks: Vec::with_capacity(16),
             next_task_id: 0,
-            #[cfg(feature = "itest")]
+            #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
             panicked_tasks: std::collections::HashSet::default(),
         }
     }
@@ -490,7 +490,7 @@ impl AsyncRuntime {
     /// Track that a future caused a panic.
     ///
     /// This is only available for itest.
-    #[cfg(feature = "itest")]
+    #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
     fn track_panic(&mut self, task_id: u64) {
         self.panicked_tasks.insert(task_id);
     }
@@ -565,7 +565,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
 
     // Snapshot the bind-guard count before polling. Any guards held by the caller of spawn() (not
     // the future itself) are already counted here and must not be treated as a violation.
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     let bind_guard_baseline = await_point_read();
 
     let panic_result = handle_panic(error_context, move || {
@@ -575,7 +575,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     let Ok((poll_result, future)) = panic_result else {
         // Polling the future caused a panic. The task state has to be cleaned up and we want track the panic if the trace feature is enabled.
         ASYNC_RUNTIME.with_runtime_mut(|rt| {
-            #[cfg(feature = "itest")]
+            #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
             rt.track_panic(godot_waker.task_id);
             rt.clear_task(godot_waker.runtime_index);
         });
@@ -590,7 +590,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
             // A bind guard that outlives the suspension point will prevent any re-entrant access to
             // the object (e.g. from process()), causing a panic or double-panic abort. Warn once so
             // the developer sees it at the suspension site rather than at the conflicting access.
-            #[cfg(safeguards_strict)]
+            #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
             if await_point_read() > bind_guard_baseline {
                 crate::sys::defer_startup_warn!(
                     once;
@@ -639,10 +639,10 @@ impl Wake for GodotWaker {
             f
         }
 
-        #[cfg(not(feature = "experimental-threads"))]
+        #[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
         let create_callable = Callable::from_fn;
 
-        #[cfg(feature = "experimental-threads")]
+        #[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
         let create_callable = Callable::from_sync_fn;
 
         let callable = create_callable(
@@ -661,7 +661,7 @@ impl Wake for GodotWaker {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Bind guard tracking for cross-await detection. No-op for safeguard level < strict.
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 thread_local! {
     /// Counts live `GdRef`/`GdMut` bind guards on the current thread.
     static AWAIT_POINT_GUARD_COUNT: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
@@ -669,20 +669,20 @@ thread_local! {
 
 /// Increment the live bind-guard counter. Called from `GdRef`/`GdMut` constructors.
 pub(crate) fn await_point_inc() {
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     AWAIT_POINT_GUARD_COUNT.set(AWAIT_POINT_GUARD_COUNT.get() + 1);
 }
 
 /// Decrement the live bind-guard counter. Called from `GdRef`/`GdMut` `Drop` impls.
 pub(crate) fn await_point_dec() {
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     AWAIT_POINT_GUARD_COUNT.with(|c| {
         debug_assert!(c.get() > 0, "bind guard count underflow");
         c.set(c.get().saturating_sub(1));
     });
 }
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 fn await_point_read() -> u32 {
     AWAIT_POINT_GUARD_COUNT.get()
 }

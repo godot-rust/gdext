@@ -21,11 +21,11 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let godot_type_name_method = make_godot_type_name_method(api);
 
     quote! {
-        #[cfg(target_pointer_width = "32")]
+        #[cfg(target_pointer_width = "32")] #[cfg_attr(published_docs, doc(cfg(target_pointer_width = "32")))]
         pub mod types {
             #(#opaque_32bit)*
         }
-        #[cfg(target_pointer_width = "64")]
+        #[cfg(target_pointer_width = "64")] #[cfg_attr(published_docs, doc(cfg(target_pointer_width = "64")))]
         pub mod types {
             #(#opaque_64bit)*
         }

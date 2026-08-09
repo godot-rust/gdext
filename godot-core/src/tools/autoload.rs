@@ -107,11 +107,11 @@ where
     let autoload_path = NodePath::from(&format!("/root/{autoload_name}"));
 
     // get_root() return type changed from Option<Gd<Window>> to Gd<Window> in Godot 4.7.
-    #[cfg(before_api = "4.7")]
+    #[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
     let root = scene_tree
         .get_root()
         .ok_or_else(|| ConvertError::new("scene tree root not available"))?;
-    #[cfg(since_api = "4.7")]
+    #[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
     let root = scene_tree.get_root();
 
     let autoload_node = root

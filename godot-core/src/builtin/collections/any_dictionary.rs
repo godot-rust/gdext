@@ -287,7 +287,7 @@ impl AnyDictionary {
             )
         }
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         Self::polyfill_element_type(self.to_variant(), &self.dict.cached_key_type, "key")
     }
 
@@ -310,7 +310,7 @@ impl AnyDictionary {
             )
         }
 
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         Self::polyfill_element_type(self.to_variant(), &self.dict.cached_value_type, "value")
     }
 
@@ -318,7 +318,7 @@ impl AnyDictionary {
     ///
     /// Uses a runtime check: if running on 4.4+, queries the engine via dynamic `Variant::call()`.
     /// Otherwise returns `Untyped`, since the engine does not support typed dictionaries.
-    #[cfg(before_api = "4.4")]
+    #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
     fn polyfill_element_type(
         dict_var: Variant,
         cache: &std::cell::OnceCell<ElementType>,

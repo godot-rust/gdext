@@ -22,9 +22,9 @@ pub use as_arg::{
     ArgPassing, AsArg, AsDirectElement, ByObject, ByOption, ByRef, ByValue, ByVariant, ToArg,
     owned_into_arg, ref_to_arg,
 };
-#[cfg(not(feature = "itest"))]
+#[cfg(not(feature = "itest"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "itest"))))]
 pub(crate) use cow_arg::{CowArg, FfiArg};
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 #[doc(hidden)]
 pub use cow_arg::{CowArg, FfiArg};
 pub use object_arg::ObjectArg;

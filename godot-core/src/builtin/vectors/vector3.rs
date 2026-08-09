@@ -11,7 +11,7 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 use crate::builtin::inner;
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector3Axis;
@@ -95,7 +95,7 @@ impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
 
 /// # Specialized `Vector3` functions
 impl Vector3 {
-    #[cfg(feature = "itest")]
+    #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
     #[doc(hidden)]
     #[inline]
     pub fn as_inner(&self) -> inner::InnerVector3<'_> {
@@ -274,7 +274,7 @@ impl GlamType for RVec3 {
     }
 }
 
-#[cfg(not(feature = "double-precision"))]
+#[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
 impl GlamType for glam::Vec3A {
     type Mapped = Vector3;
 
@@ -291,7 +291,7 @@ impl GlamConv for Vector3 {
     type Glam = RVec3;
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
     use crate::builtin::math::assert_eq_approx;
@@ -407,7 +407,7 @@ mod test {
         assert_eq_approx!(sum_refs, Vector3::new(12.0, 15.0, 18.0));
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let vector = Vector3::default();

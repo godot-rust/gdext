@@ -104,7 +104,7 @@ fn disable_hot_reload() {
     _ = HOT_RELOADING_ENABLED.set(false)
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::*;
 

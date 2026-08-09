@@ -15,7 +15,7 @@ use crate::obj::{GodotClass, Singleton};
 use crate::{classes, out};
 
 mod reexport_pub {
-    #[cfg(not(wasm_nothreads))]
+    #[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
     pub use super::sys::main_thread_id;
     pub use super::sys::{GdextBuild, InitStage, is_main_thread};
 }
@@ -59,7 +59,7 @@ pub(crate) fn singleton_cache_generation() -> u64 {
 /// Test-only: bump the singleton-cache generation, forcing every singleton cache to miss on its next access (re-fetch via the slow path).
 ///
 /// Mirrors what a full Core deinit does, letting itests exercise the uncached path on demand without a real deinit/reinit cycle.
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 #[doc(hidden)]
 pub fn __invalidate_singleton_caches() {
     SINGLETON_CACHE_GENERATION.fetch_add(1, Ordering::Release);
@@ -111,11 +111,11 @@ static SINGLETON_CACHE_GENERATION: AtomicU64 = AtomicU64::new(0);
 #[repr(C)]
 struct InitUserData {
     library: sys::GDExtensionClassLibraryPtr,
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     main_loop_callbacks: sys::GDExtensionMainLoopCallbacks,
 }
 
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
     let ctx = || "ExtensionLibrary::on_stage_init(MainLoop)".to_string();
 
@@ -130,7 +130,7 @@ unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
     abort_if_startup_fatal();
 }
 
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
     let ctx = || "ExtensionLibrary::on_main_loop_frame()".to_string();
 
@@ -139,7 +139,7 @@ unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
     });
 }
 
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
     // The main loop (SceneTree) is being torn down. Mark the async runtime as exiting, so a signal future whose object is freed during teardown
     // is left suspended (and dropped in cleanup()) instead of being woken into a spurious panic. See `async_runtime::is_engine_exiting()`.
@@ -162,7 +162,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         // Make sure the first thing we do is check whether hot reloading should be enabled or not. This is to ensure that if we do anything to
         // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise, this could cause the default
         // behavior to kick in and disable hot reloading.
-        #[cfg(target_os = "linux")]
+        #[cfg(target_os = "linux")] #[cfg_attr(published_docs, doc(cfg(target_os = "linux")))]
         sys::linux_reload_workaround::default_set_hot_reload();
 
         let tool_only_in_editor = match E::editor_run_behavior() {
@@ -185,7 +185,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         // Leak the userdata. It will be dropped in core level deinitialization.
         let userdata = Box::into_raw(Box::new(InitUserData {
             library,
-            #[cfg(since_api = "4.5")]
+            #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
             main_loop_callbacks: sys::GDExtensionMainLoopCallbacks {
                 startup_func: Some(startup_func::<E>),
                 frame_func: Some(frame_func::<E>),
@@ -305,7 +305,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
 
     match level {
         InitLevel::Core => {
-            #[cfg(since_api = "4.5")]
+            #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
             unsafe {
                 sys::interface_fn!(register_main_loop_callbacks)(
                     _userdata.library,
@@ -332,7 +332,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
             // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
             unsafe { ensure_godot_features_compatible() };
 
-            #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+            #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
             warn_docs_in_exported_build();
         }
         InitLevel::Editor => {
@@ -355,7 +355,7 @@ unsafe fn gdext_on_level_init(level: InitLevel, _userdata: &InitUserData) {
 /// - A _headless_ editor (CI, `--export-release`, `--import`) has no one to read them and aborts like a game run.
 /// - A _game_ runs `SceneTree::quit()` (frames may still run with the broken class set, possibly causing follow-up errors)
 /// - A game without a `SceneTree` (e.g. a custom `MainLoop`) calls `process::exit()`.
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 fn abort_if_startup_fatal() {
     if !sys::take_startup_fatal() {
         return;
@@ -378,7 +378,7 @@ fn abort_if_startup_fatal() {
 }
 
 /// Whether Godot runs without a visual display -- `--headless`, `--display-driver headless`, or an export/import run, which force it.
-#[cfg(since_api = "4.5")]
+#[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
 fn is_headless() -> bool {
     // Absent singleton or a failing call -> headless. Dynamic call for minimal codegen.
     if let Some(mut display_server) = classes::Engine::singleton().get_singleton("DisplayServer")
@@ -629,7 +629,7 @@ pub unsafe trait ExtensionLibrary {
     ///
     /// # Panics
     /// If the overridden method panics, an error will be printed, but execution continues.
-    #[cfg(since_api = "4.5")]
+    #[cfg(since_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.5")))]
     fn on_main_loop_frame() {}
 }
 
@@ -724,7 +724,7 @@ unsafe fn ensure_godot_features_compatible() {
 }
 
 /// Warn once if the `register-docs` feature is compiled into an exported build (export template, not editor).
-#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+#[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
 fn warn_docs_in_exported_build() {
     // `is_editor_binary()` is populated by the Core level, so it is safe to read here. Unlike `is_editor()`, it stays true
     // during play-mode from the editor, so the warning fires only for actual export templates.

@@ -15,9 +15,9 @@
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 use godot_cell::blocking::{GdCell, MutGuard, RefGuard};
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
@@ -193,7 +193,7 @@ pub trait ScriptInstance: Sized {
     /// and `Callable::get_argument_count`.
     ///
     /// If `None` is returned the public methods will return `0`.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     fn get_method_argument_count(&self, _method: StringName) -> Option<u32>;
 
     /// This function will be called for every incoming [lifecycle notification](https://docs.godotengine.org/en/stable/tutorials/best_practices/godot_notifications.html#doc-godot-notifications).
@@ -222,17 +222,17 @@ pub trait ScriptInstance: Sized {
     }
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo3;
 
 struct ScriptInstanceData<T: ScriptInstance> {
     inner: GdCell<T>,
     script_instance_ptr: *mut ScriptInstanceInfo,
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     property_lists: BoundedPtrList<sys::GDExtensionPropertyInfo>,
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     method_lists: BoundedPtrList<sys::GDExtensionMethodInfo>,
     base: Base<T::Base>,
 }
@@ -311,9 +311,9 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         set_func: Some(script_instance_info::set_property_func::<T>),
         get_func: Some(script_instance_info::get_property_func::<T>),
         get_property_list_func: Some(script_instance_info::get_property_list_func::<T>),
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         free_property_list_func: Some(script_instance_info::free_property_list_func::<T>),
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         free_property_list_func: Some(script_instance_info::free_property_list_func),
 
         get_class_category_func: Some(script_instance_info::get_class_category_func::<T>),
@@ -325,9 +325,9 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         get_property_state_func: Some(script_instance_info::get_property_state_func::<T>),
 
         get_method_list_func: Some(script_instance_info::get_method_list_func::<T>),
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         free_method_list_func: Some(script_instance_info::free_method_list_func::<T>),
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         free_method_list_func: Some(script_instance_info::free_method_list_func),
         get_property_type_func: Some(script_instance_info::get_property_type_func::<T>),
         validate_property_func: Some(script_instance_info::validate_property_func::<T>),
@@ -353,7 +353,7 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
 
         free_func: Some(script_instance_info::free_func::<T>),
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         get_method_argument_count_func: Some(
             script_instance_info::get_method_argument_count_func::<T>,
         ),
@@ -364,9 +364,9 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
     let data = ScriptInstanceData {
         inner: GdCell::new(rust_instance),
         script_instance_ptr: instance_ptr,
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         property_lists: BoundedPtrList::new(),
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         method_lists: BoundedPtrList::new(),
         // SAFETY: The script instance is always freed before the base object is destroyed. The weak reference should therefore never be
         // accessed after it has been freed.
@@ -380,10 +380,10 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
     //
     // It is expected that the engine upholds the safety invariants stated on each of the GDExtensionScriptInstanceInfo functions.
     let instance_extension: sys::GDExtensionScriptInstancePtr = unsafe {
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         let create_fn = sys::interface_fn!(script_instance_create2);
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         let create_fn = sys::interface_fn!(script_instance_create3);
 
         create_fn(
@@ -588,7 +588,7 @@ impl<T: ScriptInstance> DerefMut for SiMut<'_, T> {
 }
 
 // Encapsulate BoundedPtrList to help ensure safety.
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 mod bounded_ptr_list {
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -655,7 +655,7 @@ mod bounded_ptr_list {
     }
 }
 
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 use self::bounded_ptr_list::BoundedPtrList;
 
 mod script_instance_info {
@@ -663,7 +663,7 @@ mod script_instance_info {
     use std::ffi::c_void;
 
     use sys::conv::{SYS_FALSE, SYS_TRUE, bool_from_sys, bool_to_sys};
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     use sys::conv::{ptr_list_from_sys, ptr_list_into_sys};
 
     use super::{ScriptInstance, ScriptInstanceData, SiMut};
@@ -741,10 +741,10 @@ mod script_instance_info {
         })
         .unwrap_or_default();
 
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         let (list_ptr, list_length) = instance.property_lists.list_into_sys(property_list);
 
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         let (list_ptr, list_length) = ptr_list_into_sys(property_list);
 
         // SAFETY: It is safe to assign a `u32` to `r_count`.
@@ -772,9 +772,9 @@ mod script_instance_info {
         })
         .unwrap_or_default();
 
-        #[cfg(before_api = "4.3")]
+        #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
         let (return_pointer, list_length) = instance.method_lists.list_into_sys(method_list);
-        #[cfg(since_api = "4.3")]
+        #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
         let (return_pointer, list_length) = ptr_list_into_sys(method_list);
 
         unsafe {
@@ -788,7 +788,7 @@ mod script_instance_info {
     ///
     /// # Safety
     /// See latest version below.
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     pub(super) unsafe extern "C" fn free_property_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_prop_info: *const sys::GDExtensionPropertyInfo,
@@ -811,7 +811,7 @@ mod script_instance_info {
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_prop_info` must have been returned from a call to [`get_property_list_func`] called with the same `p_instance` pointer.
     /// - `p_prop_info` must not have been mutated since the call to `get_property_list_func`.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub(super) unsafe extern "C" fn free_property_list_func(
         _p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_prop_info: *const sys::GDExtensionPropertyInfo,
@@ -930,7 +930,7 @@ mod script_instance_info {
     ///
     /// # Safety
     /// See latest version below.
-    #[cfg(before_api = "4.3")]
+    #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
     pub(super) unsafe extern "C" fn free_method_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method_info: *const sys::GDExtensionMethodInfo,
@@ -953,7 +953,7 @@ mod script_instance_info {
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_method_info` must have been returned from a call to [`get_method_list_func`] called with the same `p_instance` pointer.
     /// - `p_method_info` must not have been mutated since the call to `get_method_list_func`.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub(super) unsafe extern "C" fn free_method_list_func(
         _p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method_info: *const sys::GDExtensionMethodInfo,
@@ -1250,7 +1250,7 @@ mod script_instance_info {
     /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `p_method` has to point to a valid [`StringName`].
     /// - `r_is_valid` must be a valid [`sys::GDExtensionBool`] pointer.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub(super) unsafe extern "C" fn get_method_argument_count_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method: sys::GDExtensionConstStringNamePtr,

@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -38,7 +39,7 @@ pub struct GodotVersion {
     pub custom_rev: Option<String>,
 }
 
-#[cfg(any(feature = "api-custom", feature = "api-custom-json"))]
+#[cfg(any(feature = "api-custom", feature = "api-custom-json"))] #[cfg_attr(published_docs, doc(cfg(any(feature = "api-custom", feature = "api-custom-json"))))]
 impl GodotVersion {
     pub(crate) fn validate_or_panic(self) -> Self {
         let (major, min_minor) = MIN_SUPPORTED_VERSION;
@@ -59,7 +60,7 @@ impl GodotVersion {
     }
 
     /// `True` if given godot version is newer than one included in the shipped prebuilt.
-    #[cfg(feature = "api-custom-json")]
+    #[cfg(feature = "api-custom-json")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom-json")))]
     pub(crate) fn is_newer_than_latest(&self) -> bool {
         let (_latest_major, latest_minor, _latest_patch): (u8, u8, u8) = LATEST_API_VERSION;
 
@@ -70,10 +71,10 @@ impl GodotVersion {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Custom mode: Regenerate all files
 
-#[cfg(all(test, feature = "api-custom"))]
+#[cfg(all(test, feature = "api-custom"))] #[cfg_attr(published_docs, doc(cfg(all(test, feature = "api-custom"))))]
 mod godot_version;
 
-#[cfg(feature = "api-custom")]
+#[cfg(feature = "api-custom")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom")))]
 #[path = ""]
 mod depend_on_custom {
     use std::borrow::Cow;
@@ -96,13 +97,13 @@ mod depend_on_custom {
     }
 }
 
-#[cfg(feature = "api-custom")]
+#[cfg(feature = "api-custom")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom")))]
 pub use depend_on_custom::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Custom mode: Generate all files based on user provided JSON.
 
-#[cfg(feature = "api-custom-json")]
+#[cfg(feature = "api-custom-json")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom-json")))]
 #[path = ""]
 mod depend_on_custom_json {
     use std::borrow::Cow;
@@ -126,13 +127,13 @@ mod depend_on_custom_json {
     }
 }
 
-#[cfg(feature = "api-custom-json")]
+#[cfg(feature = "api-custom-json")] #[cfg_attr(published_docs, doc(cfg(feature = "api-custom-json")))]
 pub use depend_on_custom_json::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Prebuilt mode: Reuse existing files
 
-#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
+#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))] #[cfg_attr(published_docs, doc(cfg(not(any(feature = "api-custom", feature = "api-custom-json")))))]
 #[path = ""]
 mod depend_on_prebuilt {
     use super::*;
@@ -167,7 +168,7 @@ mod depend_on_prebuilt {
     }
 }
 
-#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
+#[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))] #[cfg_attr(published_docs, doc(cfg(not(any(feature = "api-custom", feature = "api-custom-json")))))]
 pub use depend_on_prebuilt::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -231,7 +232,7 @@ pub fn emit_wasm_nothreads_cfg() {
 
     // The environment variable for target family has a list of applicable families separated by commas.
     // For Emscripten in particular, this can be "unix,wasm". Therefore, to check for the Wasm target, we must check each item in the list.
-    #[cfg(feature = "experimental-wasm-nothreads")]
+    #[cfg(feature = "experimental-wasm-nothreads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-wasm-nothreads")))]
     if std::env::var("CARGO_CFG_TARGET_FAMILY")
         .expect("target family environment variable")
         .split(',')
@@ -291,11 +292,11 @@ pub fn emit_safeguard_levels() {
     let mut safeguards_level = if cfg!(debug_assertions) { 2 } else { 1 };
 
     // Override default level with Cargo feature, in dev/release profiles.
-    #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)] #[cfg_attr(published_docs, doc(cfg(debug_assertions)))]
     if cfg!(feature = "safeguards-dev-balanced") {
         safeguards_level = 1;
     }
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(debug_assertions))] #[cfg_attr(published_docs, doc(cfg(not(debug_assertions))))]
     if cfg!(feature = "safeguards-release-disengaged") {
         safeguards_level = 0;
     }
@@ -315,7 +316,7 @@ pub fn emit_safeguard_levels() {
 /// Try `new_name` env var first, fall back to `old_name` with a deprecation warning (only from `godot-codegen` build).
 /// The `once` static ensures the warning is emitted at most once per build.
 // TODO(v0.6): remove old names.
-#[cfg(any(feature = "api-custom", feature = "api-custom-json"))]
+#[cfg(any(feature = "api-custom", feature = "api-custom-json"))] #[cfg_attr(published_docs, doc(cfg(any(feature = "api-custom", feature = "api-custom-json"))))]
 pub(crate) fn env_var_or_deprecated(
     once: &'static std::sync::Once,
     new_name: &str,

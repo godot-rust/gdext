@@ -18,7 +18,7 @@ pub use xform::XformInv;
 
 pub use crate::{assert_eq_approx, assert_ne_approx};
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
 
