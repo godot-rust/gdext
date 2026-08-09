@@ -17,6 +17,45 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
 
 
+## [v0.5.5](https://docs.rs/godot/0.5.5)
+
+_9 August 2026_
+
+### 🌻 Features
+
+- `EngineBitfield`: add `with()` and `without()` methods ([#1627](https://github.com/godot-rust/gdext/pull/1627))
+- `#[func(virtual)]` now supports `async fn` for GDScript coroutines ([#1645](https://github.com/godot-rust/gdext/pull/1645))
+- Add `PhantomData<T>` support for `GodotConvert` derive macro ([#1619](https://github.com/godot-rust/gdext/pull/1619))
+
+### 📈 Performance
+
+- Singletons are now cached ([#1636](https://github.com/godot-rust/gdext/pull/1636))
+- Cache user singleton pointers ([#1644](https://github.com/godot-rust/gdext/pull/1644))
+- Cheaper refcount operations ([#1669](https://github.com/godot-rust/gdext/pull/1669))
+
+### 🧹 Quality of life
+
+- Always use godot_error in panic hook ([#1647](https://github.com/godot-rust/gdext/pull/1647))
+- Rename `cast_int/cast_float` to `to_vector*/to_rect*` ([#1661](https://github.com/godot-rust/gdext/pull/1661))
+- Validate class registrations against `ClassDB` ([#1664](https://github.com/godot-rust/gdext/pull/1664))
+
+### 🛠️ Bugfixes
+
+- Fix `#[var(pub)]` panic during `OnEditor<Gd<T>>` reload ([#1639](https://github.com/godot-rust/gdext/pull/1639))
+- Fix async `SignalFuture` panic when object is freed before exit flag ([#1648](https://github.com/godot-rust/gdext/pull/1648))
+- Fix `api-custom` build when prebuilt lags detected Godot version ([#1649](https://github.com/godot-rust/gdext/pull/1649))
+- Harden various parts of codebase ([#1660](https://github.com/godot-rust/gdext/pull/1660))
+- Fix `GFile` `BufRead` past EOF ([#1670](https://github.com/godot-rust/gdext/pull/1670))
+
+### 🏗️ Maintenance
+
+- Replace `godot-cell` borrow-state proptests with exhaustive model check ([#1650](https://github.com/godot-rust/gdext/pull/1650))
+- Make accidental access of `#[doc(hidden)]` symbols more explicit ([#1651](https://github.com/godot-rust/gdext/pull/1651))
+- Follow-up to rustc / Godot changes ([#1659](https://github.com/godot-rust/gdext/pull/1659))
+- Name virtual-callback layers after user-facing `I*` virtuals ([#1662](https://github.com/godot-rust/gdext/pull/1662))
+- Move ref-counting operations from `DynMemory` to `RawGd` ([#1667](https://github.com/godot-rust/gdext/pull/1667))
+
+
 ## [v0.5.4](https://docs.rs/godot/0.5.4)
 
 _23 June 2026_
