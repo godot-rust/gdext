@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 #[cfg(feature = "experimental-threads")]
 use godot_cell::blocking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 #[cfg(not(feature = "experimental-threads"))]
@@ -12,6 +14,7 @@ use godot_cell::panicking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 
 use crate::obj::{Base, GodotClass};
 use crate::storage::{AtomicLifecycle, DebugBorrowTracker, Lifecycle, Storage, StorageRefCounted};
+use crate::sys;
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: GdCell<T>,
@@ -19,6 +22,9 @@ pub struct InstanceStorage<T: GodotClass> {
 
     // Declared after `user_instance`, is dropped last
     pub(super) lifecycle: AtomicLifecycle,
+
+    // Claims on this storage's lifetime: 1 from Godot, one from each ongoing Godot->Rust call. See `StorageClaim`.
+    claims: AtomicU32,
 
     // No-op in Release mode.
     borrow_tracker: DebugBorrowTracker,
@@ -45,6 +51,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             user_instance: GdCell::new(user_instance),
             base,
             lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
+            claims: AtomicU32::new(1),
             borrow_tracker: DebugBorrowTracker::new(),
         }
     }
@@ -95,6 +102,24 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
     fn set_lifecycle(&self, lifecycle: Lifecycle) {
         self.lifecycle.store(lifecycle)
+    }
+}
+
+impl<T: GodotClass> InstanceStorage<T> {
+    /// Adds a claim; see [`StorageClaim`][crate::storage::StorageClaim].
+    pub(super) fn inc_claims(&self) {
+        // Relaxed suffices: like `Arc::clone()`, the caller already holds a claim, so the storage cannot be freed concurrently.
+        self.claims.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Removes a claim; returns `true` if it was the last one.
+    pub(super) fn dec_claims(&self) -> bool {
+        // AcqRel: the freeing thread must observe every storage access of the claims removed before it. Acquire on each decrement, not just
+        // the last one as `Arc` does -- one ordering instead of a release/fence split, on a counter that is nowhere near hot.
+        let prev = self.claims.fetch_sub(1, Ordering::AcqRel);
+        sys::strict_assert_ne!(prev, 0, "claim released more often than taken");
+
+        prev == 1
     }
 }
 

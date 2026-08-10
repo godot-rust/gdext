@@ -27,6 +27,7 @@ mod phantom_var_test;
 mod property_template_test;
 mod property_test;
 mod reentrant_test;
+mod self_destruct_test;
 mod singleton_test;
 // `validate_property` is only supported in Godot 4.2+.
 mod base_init_test;

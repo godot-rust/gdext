@@ -536,7 +536,9 @@ where
         // Potential issue is a concurrent free() in multi-threaded access; but that would need to be guarded against inside free().
         unsafe {
             let binding = self.resolve_instance_ptr();
-            sys::ptr_then(binding, |binding| crate::private::as_storage::<T>(binding))
+            sys::ptr_then(binding, |binding| {
+                crate::private::as_weak_storage::<T>(binding)
+            })
         }
     }
 

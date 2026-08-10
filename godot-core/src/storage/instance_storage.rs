@@ -88,7 +88,7 @@ pub unsafe trait Storage {
     /// expected.
     fn set_lifecycle(&self, lifecycle: Lifecycle);
 
-    /// Get a `Gd` referencing this storage's instance.
+    /// Get a `Gd` referencing the Godot object.
     fn get_gd(&self) -> Gd<Self::Instance>
     where
         Self::Instance: Inherits<<Self::Instance as GodotClass>::Base>,
@@ -98,7 +98,7 @@ pub unsafe trait Storage {
 
     /// Puts self onto the heap and returns a pointer to this new heap-allocation.
     ///
-    /// This will leak memory and so the caller is responsible for manually managing the memory.
+    /// The allocation is freed once the last claim on it is released; see `StorageClaim`.
     #[must_use]
     fn into_raw(self) -> *mut Self
     where
@@ -226,27 +226,127 @@ where
     }
 }
 
-/// Interprets the opaque pointer as pointing to `InstanceStorage<T>`.
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Storage claims. The free functions sit at the FFI boundary: they turn Godot's opaque instance pointer into typed access.
+
+/// Keeps the Rust instance storage alive during a Godot -> Rust call.
 ///
-/// Note: returns reference with unbounded lifetime; intended for local usage
+/// User code can drop the last reference to the receiver mid-call (e.g. a signal handler nulling the emitter), or `free()` it. The Godot object
+/// then dies while a `GdRef`/`GdMut` guard is still active.
+///
+/// The storage counts claims: Godot holds one from construction to destruction, each ongoing call holds one. Removing the last claim frees the
+/// storage. Guards borrow the claim, so they drop first. A counter rather than a flag, to handle nested calls; atomic under
+/// `experimental-threads`.
+///
+/// Only the storage survives, not the Godot object -- godot-rust cannot prevent its destruction: `Ref::unref()` decides to `memdelete` before
+/// the extension's `unreference` callback runs, and `free()` is immediate. Holding a strong reference for the call's duration, like GDScript
+/// does, would not help either: it drops before the trampoline returns, fails at refcount 0, and costs ~40% per call. So for the rest of the
+/// call, field access works but base operations panic and `Drop` sees a dead base. To survive the call, an object needs a reference that
+/// outlives it: `self.to_gd().run_deferred_gd(|_| {})`.
+///
+/// Entry points which run no user code (`free`, `reference`, `unreference`) use [`as_weak_storage()`] instead.
+#[must_use = "dropping the claim immediately releases it, which may free the storage"]
+pub struct StorageClaim<T: GodotClass> {
+    // Raw pointer rather than reference: the claim owns no borrow (other claims may exist), and freeing needs write access to the whole
+    // allocation for drop(&mut). Using a &InstanceStorage shared-ref would be unsound as it would eventually be promoted to &mut.
+    storage: *mut InstanceStorage<T>,
+}
+
+impl<T: GodotClass> Deref for StorageClaim<T> {
+    type Target = InstanceStorage<T>;
+
+    fn deref(&self) -> &Self::Target {
+        // SAFETY: the claim keeps the storage alive.
+        unsafe { &*self.storage }
+    }
+}
+
+impl<T: GodotClass> Drop for StorageClaim<T> {
+    fn drop(&mut self) {
+        if self.dec_claims() {
+            // SAFETY: this was the last claim, and the guards borrowing it are already dropped.
+            unsafe { deallocate_storage(self.storage) };
+        }
+    }
+}
+
+/// Deallocates the storage, once no claim is left.
+///
+/// # Safety
+/// The last claim on `storage` must have been released, and no reference into it may be live.
+unsafe fn deallocate_storage<T: GodotClass>(storage: *mut InstanceStorage<T>) {
+    // SAFETY: delegated to caller.
+    let storage_ref = unsafe { &*storage };
+
+    // A guard still points into the storage -> leak instead of freeing, so its references stay valid.
+    // Only reachable for guards that hold no "claim", i.e. `Gd::bind()` outside a Godot->Rust call.
+    // Guards within such calls borrow the claim and thus drop before it.
+    if storage_ref.is_bound() {
+        report_destruction_while_bound(storage_ref); // May crash process, depending on safeguard level.
+        return;
+    }
+
+    // SAFETY: no claim is left, so no call is ongoing and no other reference into the storage exists -- guards borrow the claim, and
+    // `is_bound()` ruled out stray ones. Dropping is thus allowed by the safety contract of `Storage`, which `InstanceStorage<T>`
+    // implements (see `_INSTANCE_STORAGE_IMPLEMENTS_STORAGE`). The allocation stems from `Storage::into_raw()`.
+    let _drop = unsafe { Box::from_raw(storage) };
+}
+
+/// Interprets the opaque pointer as pointing to `InstanceStorage<T>`. Sole place deriving storage pointers from Godot's instance pointer.
+fn as_storage_ptr<T: GodotClass>(
+    instance_ptr: sys::GDExtensionClassInstancePtr,
+) -> *mut InstanceStorage<T> {
+    instance_ptr as *mut InstanceStorage<T>
+}
+
+/// Interprets the opaque pointer as pointing to `InstanceStorage<T>`, keeping the storage alive until the returned claim drops.
 ///
 /// # Safety
 /// `instance_ptr` is assumed to point to a valid instance.
-/// The returned reference must be live for the duration of `'u`.
-// Note: unbounded ref AND &mut out of thin air is not very beautiful, but it's  -- consider using with_storage(ptr, closure) and drop_storage(ptr)
-pub unsafe fn as_storage<'u, T: GodotClass>(
+///
+/// The claim keeps the storage (Rust object) alive, not the Godot object -- the latter may die mid-call.
+pub unsafe fn as_storage<T: GodotClass>(
     instance_ptr: sys::GDExtensionClassInstancePtr,
-) -> &'u InstanceStorage<T> {
-    unsafe { &*(instance_ptr as *mut InstanceStorage<T>) }
+) -> StorageClaim<T> {
+    let storage = as_storage_ptr::<T>(instance_ptr);
+
+    // SAFETY: delegated to caller.
+    unsafe { (*storage).inc_claims() };
+
+    StorageClaim { storage }
 }
 
+/// Like [`as_storage()`], but *weak*: the returned reference does not keep the storage alive. Only for entry points that run no user code.
+///
+/// # Safety
+/// Same as [`as_storage()`]. Additionally, the storage must not be destroyed while the returned reference is live.
+pub unsafe fn as_weak_storage<'u, T: GodotClass>(
+    instance_ptr: sys::GDExtensionClassInstancePtr,
+) -> &'u InstanceStorage<T> {
+    // SAFETY: delegated to caller.
+    unsafe { &*as_storage_ptr::<T>(instance_ptr) }
+}
+
+/// Releases the claim Godot took when the storage was constructed; see [`StorageClaim`].
+///
+/// Deallocates the storage, unless a Godot -> Rust call still holds a claim -- then the last of those calls deallocates it.
+///
 /// # Safety
 /// `instance_ptr` is assumed to point to a valid instance. This function must only be invoked once for a pointer.
-pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
-    let raw = instance_ptr as *mut InstanceStorage<T>;
-    // SAFETY: valid pointer, only invoked by one caller at a time.
-    let storage = unsafe { &mut *raw };
+pub unsafe fn release_godot_claim<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
+    let storage = as_storage_ptr::<T>(instance_ptr);
 
+    // SAFETY: Godot's claim exists since construction, and the caller guarantees to release it only once.
+    let was_last_claim = unsafe { (*storage).dec_claims() };
+
+    if was_last_claim {
+        // SAFETY: no claim is left; each entry point running user code holds one for its duration.
+        unsafe { deallocate_storage(storage) };
+    }
+}
+
+/// Reports that the storage is destroyed while the Rust object is still borrowed. May crash the process, depending on safeguard level.
+fn report_destruction_while_bound<T: GodotClass>(storage: &InstanceStorage<T>) {
     // We cannot panic here, since this code is invoked from a C callback. Panicking would mean unwinding into C code, which is UB.
     // We have the following options:
     // 1. Print an error as a best-effort, knowing that UB is likely to occur whenever the user will access &T or &mut T. (Technically, the
@@ -263,35 +363,20 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
     //      but we still can't control direct access to the T.
     //
     // For now we choose option 2 in strict+balanced levels, and 4 in disengaged level.
-    let mut leak_rust_object = false;
-    if storage.is_bound() {
-        let error = format!(
-            "Destroyed an object from Godot side, while a bind() or bind_mut() call was active.\n  \
-            This is a bug in your code that may cause UB and logic errors. Make sure that objects are not\n  \
-            destroyed while you still hold a Rust reference to them, or use Gd::free() which is safe.\n  \
-            object: {:?}",
-            storage.base()
-        );
+    let error = format!(
+        "Destroyed Godot object during active bind() or bind_mut() guard; object: {:?}.\n  \
+        This is a bug in your code that may cause UB and logic errors. Make sure that objects are not\n  \
+        destroyed while you still hold a Rust reference to them, or use Gd::free() which is safe.",
+        storage.base()
+    );
 
-        // In strict+balanced level, crash which may trigger breakpoint.
-        // In disengaged level, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
-        if cfg!(safeguards_balanced) {
-            let error = crate::builtin::GString::from(&error);
-            crate::classes::Os::singleton().crash(&error);
-        } else {
-            leak_rust_object = true;
-            godot_error!("{}", error);
-        }
-    }
-
-    if !leak_rust_object {
-        // SAFETY:
-        // `leak_rust_object` is false, meaning that `is_bound()` returned `false`. Because if it were `true`
-        // then the process would either be aborted, or we set `leak_rust_object = true`.
-        //
-        // Therefore, we can safely drop this storage as per the safety contract of `Storage`. Which we know
-        // `InstanceStorage<T>` implements because of `_INSTANCE_STORAGE_IMPLEMENTS_STORAGE`.
-        let _drop = unsafe { Box::from_raw(storage) };
+    // In strict+balanced level, crash which may trigger breakpoint.
+    // In disengaged level, leak Rust object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
+    if cfg!(safeguards_balanced) {
+        let error = crate::builtin::GString::from(&error);
+        crate::classes::Os::singleton().crash(&error);
+    } else {
+        godot_error!("{}", error);
     }
 }
 
