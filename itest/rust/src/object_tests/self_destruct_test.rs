@@ -19,7 +19,7 @@ use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, InstanceId, NewAlloc, NewGd, WithBaseField, WithUserSignals};
 use godot::register::{GodotClass, godot_api};
 
-use crate::framework::itest;
+use crate::framework::{itest, suppress_godot_print};
 
 // A signal handler may drop the last reference to the emitter, mid-call. The object must survive until the method returns, otherwise the
 // active instance guard would dangle. Regression test for https://github.com/godot-rust/gdext/issues/1666.
@@ -40,8 +40,20 @@ fn signal_emitter_destroyed_during_nested_call() {
     assert_eq!(SELF_DESTROYER_DROPS.get(), 1);
 }
 
+// The workaround named in the destruction report: a deferred callable holds a reference past the call.
+#[itest]
+fn signal_emitter_kept_alive_by_deferred_call() {
+    let instance_id = call_self_destroyer("emit_and_survive");
+
+    assert!(
+        instance_id.lookup_validity(),
+        "object must survive the call"
+    );
+}
+
 // `gd_self` holds no instance guard, so free() succeeds and destroys the object mid-call. The storage must outlive the call, whose trampoline
 // still uses it after the method returns. `&mut self` receivers cannot reach this: free() panics on an active bind.
+// The destruction is reported as an error, which is expected here.
 #[itest]
 fn object_free_during_own_gd_self_call() {
     SELF_FREER_DROPS.set(0);
@@ -49,7 +61,8 @@ fn object_free_during_own_gd_self_call() {
     let mut object = SelfFreer::new_alloc();
     let id = object.instance_id();
 
-    assert_eq!(object.call("free_self", &[]), 1.to_variant());
+    let result = suppress_godot_print(|| object.call("free_self", &[]));
+    assert_eq!(result, 1.to_variant());
     assert!(!id.lookup_validity());
     assert_eq!(SELF_FREER_DROPS.get(), 1, "storage must not leak");
 }
@@ -113,7 +126,8 @@ fn call_self_destroyer(method: &str) -> InstanceId {
     *last_ref.borrow_mut() = Some(object);
 
     // Goes through the Godot -> Rust method trampoline, which must keep the receiver alive for the duration of the call.
-    callable.call(&[]);
+    // The destruction is reported as an error, which is expected here.
+    suppress_godot_print(|| callable.call(&[]));
     assert!(last_ref.borrow().is_none(), "handler must have run");
 
     instance_id
@@ -139,6 +153,12 @@ impl SelfDestroyer {
 
     #[func]
     fn emit_and_die(&mut self) {
+        self.signals().about_to_die().emit();
+    }
+
+    #[func]
+    fn emit_and_survive(&mut self) {
+        self.to_gd().run_deferred_gd(|_| {}); // Keeps a reference until idle time.
         self.signals().about_to_die().emit();
     }
 

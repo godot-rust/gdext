@@ -171,10 +171,11 @@ impl<T: GodotClass> Base<T> {
         self.obj.obj_sys()
     }
 
-    // Internal use only, do not make public.
-    #[cfg(feature = "debug-log")]
-    pub(crate) fn debug_instance_id(&self) -> crate::obj::InstanceId {
-        self.obj.instance_id()
+    /// Last known instance ID; the object may already be destroyed.
+    ///
+    /// Unchecked, since callers run while the object is being destroyed: logging in `Storage::drop`, or reporting a destruction.
+    pub(crate) fn instance_id_unchecked(&self) -> crate::obj::InstanceId {
+        self.obj.instance_id_unchecked()
     }
 
     /// Returns a borrowed reference to the base object, for use in script contexts only.

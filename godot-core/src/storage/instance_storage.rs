@@ -342,7 +342,28 @@ pub unsafe fn release_godot_claim<T: GodotClass>(instance_ptr: sys::GDExtensionC
     if was_last_claim {
         // SAFETY: no claim is left; each entry point running user code holds one for its duration.
         unsafe { deallocate_storage(storage) };
+        return;
     }
+
+    // Object died while a call still holds a claim, no matter if the last reference was dropped or `free()` was called. Both leave the engine
+    // with a dangling `this` for the rest of the call.
+    // SAFETY: the remaining claim keeps the storage alive.
+    unsafe { report_destruction_during_call(&*storage) };
+}
+
+/// Reports destruction during Godot->Rust call; see <https://github.com/godot-rust/gdext/pull/1671>.
+fn report_destruction_during_call<T: GodotClass>(storage: &InstanceStorage<T>) {
+    let class_id = T::class_id();
+    let instance_id = storage.base().instance_id_unchecked();
+
+    sys::defer_startup_error!(
+        once_per: class_id;
+        "Godot object destroyed during Godot->Rust call; Gd {{ id: {instance_id}, class: {class_id} }}.\n  \
+        Engine may access freed object afterwards, which is UB. Reported once per class.\n  \
+        Quick'n'dirty workarounds (prefer clean destruction order):\n  \
+        * Ref-counted objects: keep alive with self.to_gd().run_deferred_gd(|_| {{}})\n  \
+        * Manually managed objects: defer the free() to idle time, e.g. using queue_free()."
+    );
 }
 
 /// Reports that the storage is destroyed while the Rust object is still borrowed. May crash the process, depending on safeguard level.
@@ -364,7 +385,7 @@ fn report_destruction_while_bound<T: GodotClass>(storage: &InstanceStorage<T>) {
     //
     // For now we choose option 2 in strict+balanced levels, and 4 in disengaged level.
     let error = format!(
-        "Destroyed Godot object during active bind() or bind_mut() guard; object: {:?}.\n  \
+        "Godot object destroyed during active bind() or bind_mut() guard; {:?}.\n  \
         This is a bug in your code that may cause UB and logic errors. Make sure that objects are not\n  \
         destroyed while you still hold a Rust reference to them, or use Gd::free() which is safe.",
         storage.base()
