@@ -469,7 +469,9 @@ impl Clone for AnyDictionary {
 
 impl meta::sealed::Sealed for AnyDictionary {}
 
-impl Element for AnyDictionary {}
+impl Element for AnyDictionary {
+    const USE_GODOT_DEFAULT: bool = true;
+}
 
 impl GodotConvert for AnyDictionary {
     type Via = Self;

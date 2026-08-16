@@ -537,7 +537,9 @@ impl Variant {
     }
 }
 
-impl Element for Variant {}
+impl Element for Variant {
+    const USE_GODOT_DEFAULT: bool = true;
+}
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.

@@ -930,7 +930,9 @@ impl<K: Element, V: Element> meta::GodotType for Dictionary<K, V> {
 
 // Only implement for untyped dictionaries; typed dictionaries cannot be nested in typed containers.
 // Analogous to how only `VarArray` (not `Array<T>`) implements `Element`.
-impl Element for VarDictionary {}
+impl Element for VarDictionary {
+    const USE_GODOT_DEFAULT: bool = true;
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Var/Export implementations for Dictionary<K, V>

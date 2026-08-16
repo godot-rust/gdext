@@ -103,7 +103,9 @@ macro_rules! impl_ffi_variant {
             }
         }
 
-        impl Element for $T {}
+        impl Element for $T {
+            const USE_GODOT_DEFAULT: bool = true;
+        }
     };
 
     (@assoc_to_ffi by_ref) => {

@@ -466,13 +466,7 @@ impl<T: Element> Array<T> {
     ///
     /// If you know that the new size is smaller, then consider using [`shrink`][AnyArray::shrink] instead.
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
-        self.balanced_ensure_mutable();
-
-        let original_size = self.len();
-
-        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
-        // array are of type `T` still.
-        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        let original_size = self.resize_inner(new_size);
 
         meta::arg_into_ref!(value: T);
 
@@ -489,6 +483,37 @@ impl<T: Element> Array<T> {
             // ptr_mut() lookup could be optimized if we know the internal layout.
             unsafe { variant.move_into_var_ptr(ptr_mut) };
         }
+    }
+
+    /// Resizes the array, filling new elements with `T`'s default value.
+    ///
+    /// `resize_default(n)` behaves like `array.resize(n, T::default())`, but can bypass the `Default` trait for some `T` and directly use Godot's
+    /// [`Array.resize()`](https://docs.godotengine.org/en/stable/classes/class_array.html#class-array-method-resize). Unlike the latter, this
+    /// method maintains type safety for element types like `Gd<T>`, not allowing nils.
+    ///
+    /// Use [`resize()`][Self::resize] if you need more flexibility.
+    // noinspection RsConstantConditionIf -- Jetbrains IDE false positive.
+    pub fn resize_default(&mut self, new_size: usize)
+    where
+        T: Default,
+    {
+        // If type opts in to Godot's default-initialization, use that to avoid element-wise construction. Private API only for godot-rust types.
+        if T::USE_GODOT_DEFAULT {
+            self.resize_inner(new_size);
+        } else {
+            self.resize(new_size, meta::owned_into_arg(T::default()));
+        }
+    }
+
+    fn resize_inner(&mut self, new_size: usize) -> usize {
+        self.balanced_ensure_mutable();
+
+        let original_size = self.len();
+
+        // SAFETY: Godot's `resize()` fills new slots with type-appropriate defaults for typed arrays (e.g. 0 for int, nil for Variant).
+        // Callers that need non-default values (like `resize()`) must overwrite the new slots afterward.
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+        original_size
     }
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
@@ -1139,7 +1164,9 @@ unsafe impl<T: Element> GodotFfi for Array<T> {
 }
 
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
-impl Element for VarArray {}
+impl Element for VarArray {
+    const USE_GODOT_DEFAULT: bool = true;
+}
 
 impl<T: Element> GodotConvert for Array<T> {
     type Via = Self;
