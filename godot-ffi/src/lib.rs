@@ -139,9 +139,9 @@ struct StartupMessages {
     /// Set once a fatal message is collected (see `defer_startup_fatal!`); consumed by [`take_startup_fatal`] at the terminal init point.
     has_fatal: bool,
 
-    /// Message keys already emitted via the `once` flag, so each is shown only once. Keys are namespaced per level (`w`/`e`/`f`), with `:`
-    /// for an explicit ID and `@` for an implicit call site, to avoid collisions.
-    once_emitted: std::collections::HashSet<&'static str>,
+    /// Message keys already emitted via the `once`/`once_per` flags, so each is shown only once. Keys are namespaced per level (`w`/`e`/`f`),
+    /// with `:` for an explicit ID and `@` for an implicit call site, to avoid collisions. `once_per` appends `#` and the runtime key.
+    once_emitted: std::collections::HashSet<std::borrow::Cow<'static, str>>,
 }
 
 /// A message to be displayed in the Godot editor once UI is ready.
@@ -346,6 +346,8 @@ fn safeguards_level_string() -> &'static str {
 }
 
 /// Internal function to collect a message for deferred display in Godot editor UI. Called by macros.
+///
+/// Returns whether the message was accepted, i.e. neither suppressed nor already emitted under its `once` key.
 #[doc(hidden)]
 pub fn collect_startup_message(
     mut message: String,
@@ -354,12 +356,14 @@ pub fn collect_startup_message(
     line: u32,
     module_path: &str,
     id: Option<&'static str>,
-    once_id: Option<&'static str>,
-) {
+    // Dedup key: `site_id` identifies the message (explicit ID or call site), the optional `per_id` narrows it to one occurrence per runtime
+    // value, e.g. per class.
+    once: Option<(&'static str, Option<&dyn std::fmt::Display>)>,
+) -> bool {
     // Check if this warning should be suppressed (only warnings can be suppressed, not errors).
     if let (StartupMessageLevel::Warn, Some(id)) = (level, id) {
         if is_message_suppressed(id) {
-            return;
+            return false;
         } else {
             message = format!(
                 "{message}\n(Suppress this warning with env-var `GDRUST_SUPPRESSED_WARNINGS={id},...`)",
@@ -383,10 +387,15 @@ pub fn collect_startup_message(
     }
 
     // After the suppression check above, so a suppressed warning does not consume the once-slot.
-    if let Some(id) = once_id
-        && !state.once_emitted.insert(id)
-    {
-        return;
+    if let Some((site_id, per_id)) = once {
+        let key = match per_id {
+            Some(per_id) => std::borrow::Cow::Owned(format!("{site_id}#{per_id}")),
+            None => std::borrow::Cow::Borrowed(site_id),
+        };
+
+        if !state.once_emitted.insert(key) {
+            return false;
+        }
     }
 
     if state.flushed {
@@ -395,6 +404,8 @@ pub fn collect_startup_message(
     } else {
         state.deferred.push(msg);
     }
+
+    true
 }
 
 /// Print a single message to the editor UI via the FFI interface.
@@ -823,11 +834,19 @@ macro_rules! interface_fn {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __defer_startup_message {
+    ($level:ident, $ns:literal, once_per: $per_id:expr; id: $id:literal, $($fmt:tt)+) => {
+        $crate::__defer_startup_message!(@emit $level, Some($id),
+            Some((concat!($ns, ":", $id), Some(&$per_id as &dyn std::fmt::Display))), $($fmt)+)
+    };
+    ($level:ident, $ns:literal, once_per: $per_id:expr; $($fmt:tt)+) => {
+        $crate::__defer_startup_message!(@emit $level, None,
+            Some((concat!($ns, "@", file!(), ":", line!()), Some(&$per_id as &dyn std::fmt::Display))), $($fmt)+)
+    };
     ($level:ident, $ns:literal, once; id: $id:literal, $($fmt:tt)+) => {
-        $crate::__defer_startup_message!(@emit $level, Some($id), Some(concat!($ns, ":", $id)), $($fmt)+)
+        $crate::__defer_startup_message!(@emit $level, Some($id), Some((concat!($ns, ":", $id), None)), $($fmt)+)
     };
     ($level:ident, $ns:literal, once; $($fmt:tt)+) => {
-        $crate::__defer_startup_message!(@emit $level, None, Some(concat!($ns, "@", file!(), ":", line!())), $($fmt)+)
+        $crate::__defer_startup_message!(@emit $level, None, Some((concat!($ns, "@", file!(), ":", line!()), None)), $($fmt)+)
     };
     ($level:ident, $ns:literal, id: $id:literal, $($fmt:tt)+) => {
         $crate::__defer_startup_message!(@emit $level, Some($id), None, $($fmt)+)
@@ -836,7 +855,7 @@ macro_rules! __defer_startup_message {
         $crate::__defer_startup_message!(@emit $level, None, None, $($fmt)+)
     };
 
-    (@emit $level:ident, $id:expr, $once_id:expr, $fmt:literal $(, $args:expr)* $(,)?) => {
+    (@emit $level:ident, $id:expr, $once:expr, $fmt:literal $(, $args:expr)* $(,)?) => {
         $crate::collect_startup_message(
             format!($fmt $(, $args)*),
             $crate::StartupMessageLevel::$level,
@@ -844,7 +863,7 @@ macro_rules! __defer_startup_message {
             line!(),
             module_path!(),
             $id,
-            $once_id,
+            $once,
         )
     };
 }
@@ -862,11 +881,19 @@ macro_rules! __defer_startup_message {
 /// defer_startup_warn!(id: "FeatureDeprecated", "Feature X is deprecated");
 /// // One-time warning only:
 /// defer_startup_warn!(once; id: "BadCond", "A runtime condition is bad");
+/// // One-time warning per runtime key, e.g. per class:
+/// # let class_id = "MyClass";
+/// defer_startup_warn!(once_per: class_id; id: "BadCond", "Class {class_id} is bad");
 /// # }
 /// ```
+///
+/// Evaluates to `bool`: whether the warning was accepted, i.e. neither suppressed nor already emitted. Useful to gate extra diagnostics.
 #[macro_export]
 macro_rules! defer_startup_warn {
     // Only the `id:` forms; warnings need an ID for suppression.
+    (once_per: $per_id:expr; id: $($tt:tt)+) => {
+        $crate::__defer_startup_message!(Warn, "w", once_per: $per_id; id: $($tt)+)
+    };
     (once; id: $($tt:tt)+) => {
         $crate::__defer_startup_message!(Warn, "w", once; id: $($tt)+)
     };
@@ -890,8 +917,13 @@ macro_rules! defer_startup_warn {
 /// defer_startup_error!(once; "A runtime condition is bad");
 /// // One-time error, deduplicated by explicit ID (shared across call sites):
 /// defer_startup_error!(once; id: "InitFail", "Failed to initialize: {reason}");
+/// // One-time error per runtime key, e.g. per class; the key must implement `Display`:
+/// # let class_id = "MyClass";
+/// defer_startup_error!(once_per: class_id; "Class {class_id} failed: {reason}");
 /// # }
 /// ```
+///
+/// Evaluates to `bool`: whether the error was accepted, i.e. not already emitted under its `once` key.
 #[macro_export]
 macro_rules! defer_startup_error {
     ($($tt:tt)+) => {

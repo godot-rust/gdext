@@ -27,6 +27,10 @@ mod phantom_var_test;
 mod property_template_test;
 mod property_test;
 mod reentrant_test;
+// Before Godot 4.4, an object destroyed inside its own call is an engine-side use-after-free: `Object::callp()`'s debug lock keeps a raw
+// `this` and unrefs it after the call. Fixed by https://github.com/godotengine/godot/pull/96856.
+#[cfg(since_api = "4.4")]
+mod self_destruct_test;
 mod singleton_test;
 // `validate_property` is only supported in Godot 4.2+.
 mod base_init_test;

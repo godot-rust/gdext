@@ -615,21 +615,17 @@ impl<T: GodotClass> Gd<T> {
         if sys::is_editor_or_unknown().unwrap_or(false)
             && crate::registry::class::is_class_tool(class_id) == Some(false)
         {
-            use std::collections::HashSet;
+            // Dedup persists for the process lifetime, including across hot reloads -- one warning per class per process, not per reload.
+            let is_new = sys::defer_startup_warn!(
+                once_per: class_id;
+                id: "EditorPlaceholderV06",
+                "godot-rust v0.6 will change editor behavior for non-`#[class(tool)]` runtime classes.\n\
+                Class `{class_id}` creation in editor now returns real Rust instance; v0.6 will return a placeholder (details with RUST_BACKTRACE=1).\n\
+                Opt in early via the `upcoming-editor-placeholders` feature, or mark the class as `#[class(tool)]` if it runs in the editor.",
+            );
 
-            // Persists for the process lifetime, including across hot reloads -- one warning per class per process, not per reload.
-            static WARNED: sys::Global<HashSet<ClassId>> = sys::Global::default();
-
-            let is_new = WARNED.lock().insert(class_id);
+            // If RUST_BACKTRACE is set, print backtrace.
             if is_new {
-                sys::defer_startup_warn!(
-                    id: "EditorPlaceholderV06",
-                    "godot-rust v0.6 will change editor behavior for non-`#[class(tool)]` runtime classes.\n\
-                    Class `{class_id}` creation in editor now returns real Rust instance; v0.6 will return a placeholder (details with RUST_BACKTRACE=1).\n\
-                    Opt in early via the `upcoming-editor-placeholders` feature, or mark the class as `#[class(tool)]` if it runs in the editor.",
-                );
-
-                // If RUST_BACKTRACE is set, print backtrace.
                 let bt = std::backtrace::Backtrace::capture();
                 if bt.status() == std::backtrace::BacktraceStatus::Captured {
                     eprintln!(

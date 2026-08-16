@@ -93,7 +93,7 @@ mod log_active {
 
         out!(
             "    Storage::mark_destroyed_by_godot:  {base_id} (lcy={lifecycle:?})",
-            base_id = storage.base().debug_instance_id(),
+            base_id = storage.base().instance_id_unchecked(),
             lifecycle = storage.get_lifecycle(),
         );
     }
@@ -103,7 +103,7 @@ mod log_active {
 
         out!(
             "    Storage::drop:        {base_id}",
-            base_id = storage.base().debug_instance_id(),
+            base_id = storage.base().instance_id_unchecked(),
         );
     }
 }
