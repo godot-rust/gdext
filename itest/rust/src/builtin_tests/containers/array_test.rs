@@ -687,6 +687,76 @@ fn array_shrink() {
 }
 
 #[itest]
+fn array_resize_default() {
+    // Integers.
+    let mut a: Array<i64> = Array::new();
+    a.resize_default(4);
+    assert_eq!(a.len(), 4);
+    assert_eq!(a, array![0, 0, 0, 0]);
+
+    a.resize_default(1);
+    assert_eq!(a, array![0]);
+
+    // Non-i64 integers (test separately because their Element impl is defined in separate place).
+    let mut a: Array<u16> = Array::new();
+    a.resize_default(4);
+    assert_eq!(a.len(), 4);
+    assert_eq!(a, array![0, 0, 0, 0]);
+
+    // Floats.
+    let mut a: Array<f64> = Array::new();
+    a.resize_default(3);
+    assert_eq!(a.len(), 3);
+    assert_eq!(a, array![0.0, 0.0, 0.0]);
+
+    // Copy builtins.
+    let mut a: Array<Color> = Array::new();
+    a.resize_default(2);
+    assert_eq!(a.len(), 2);
+    assert_eq!(a, array![Color::default(), Color::default()]);
+
+    // Non-Copy builtins.
+    let mut a: Array<GString> = Array::new();
+    a.resize_default(3);
+    assert_eq!(a.len(), 3);
+    assert_eq!(a, array!["", "", ""]);
+
+    a.resize_default(1);
+    assert_eq!(a, array![""]);
+
+    // Objects
+    let mut a: Array<Gd<RefCounted>> = Array::new();
+    a.resize_default(2);
+    assert_eq!(a.len(), 2);
+    let a0 = a.at(0);
+    let a1 = a.at(1);
+    assert!(a0.is_instance_valid(), "null type-hole for [0]");
+    assert!(a1.is_instance_valid(), "null type-hole for [1]");
+    assert_eq!(a, array![&a0, &a1]);
+
+    a.resize_default(1);
+    assert_eq!(a, array![&a0]);
+
+    // Variants.
+    let mut a = varray![1, "two", Vector2i::new(2, 3)];
+    a.resize_default(5);
+    assert_eq!(a.len(), 5);
+    assert_eq!(
+        a,
+        varray![
+            1,
+            "two",
+            Vector2i::new(2, 3),
+            &Variant::nil(),
+            &Variant::nil(),
+        ]
+    );
+
+    a.resize_default(2);
+    assert_eq!(a, varray![1, "two"]);
+}
+
+#[itest]
 fn array_resize() {
     let mut a = iarray!["hello", "bar", "mixed", "baz", "meow"];
 

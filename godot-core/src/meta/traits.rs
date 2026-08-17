@@ -179,6 +179,11 @@ pub trait Element: ToGodot + FromGodot + 'static {
     // Note: several indirections in `Element` and the global `element_*` functions go through `GodotConvert::Via`,
     // to not require Self: `GodotType`. What matters is how array elements map to Godot on the FFI level (`GodotType` trait).
 
+    /// Whether this element type can bypass `T`'s `Default` impl and use Godot's default-initialization instead.
+    /// Optimizes APIs like [`Array::resize_default()`][crate::builtin::Array::resize_default].
+    #[doc(hidden)]
+    const USE_GODOT_DEFAULT: bool = false;
+
     #[doc(hidden)]
     fn debug_validate_elements(_array: &builtin::Array<Self>) -> Result<(), ConvertError> {
         // No-op for most element types.

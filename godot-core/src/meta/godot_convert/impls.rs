@@ -237,6 +237,8 @@ macro_rules! impl_godot_scalar {
 
         // For integer types, we can validate the conversion.
         impl Element for $T {
+            const USE_GODOT_DEFAULT: bool = true;
+
             fn debug_validate_elements(array: &Array<Self>) -> Result<(), ConvertError> {
                 array.debug_validate_int_elements()
             }
@@ -266,7 +268,9 @@ macro_rules! impl_godot_scalar {
         }
 
         // For f32, conversion from f64 is lossy but will always succeed. Thus no debug validation needed.
-        impl Element for $T {}
+        impl Element for $T {
+            const USE_GODOT_DEFAULT: bool = true;
+        }
 
         impl_godot_scalar!(@shared_traits; $T);
     };

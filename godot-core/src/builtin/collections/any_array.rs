@@ -516,7 +516,9 @@ impl Clone for AnyArray {
 // Only implement for untyped arrays; typed arrays cannot be nested in Godot.
 impl meta::sealed::Sealed for AnyArray {}
 
-impl Element for AnyArray {}
+impl Element for AnyArray {
+    const USE_GODOT_DEFAULT: bool = true;
+}
 
 impl GodotConvert for AnyArray {
     type Via = Self;
