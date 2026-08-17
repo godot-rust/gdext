@@ -10,6 +10,7 @@
 //! Re-exported to `crate::private`.
 #![allow(clippy::missing_safety_doc)]
 
+use core::fmt;
 use std::any::Any;
 
 use godot_ffi as sys;
@@ -19,11 +20,32 @@ use sys::interface_fn;
 use crate::builder::ClassBuilder;
 use crate::builtin::{StringName, Variant};
 use crate::classes::Object;
+use crate::meta::ClassId;
 use crate::obj::{AsDyn, Base, Bounds, Gd, GodotClass, Inherits, UserClass, bounds, cap};
 use crate::private::{IntoVirtualMethodReceiver, PanicPayload, handle_panic};
 use crate::registry::info::PropertyInfo;
 use crate::registry::shard::ErasedDynGd;
 use crate::storage::{InstanceStorage, Storage, StorageRefCounted, as_storage, as_weak_storage};
+
+struct MethodCallContext<'a> {
+    class_id: ClassId,
+    method_name: &'a str,
+}
+
+impl<'a> MethodCallContext<'a> {
+    fn new<T: GodotClass>(method_name: &'a str) -> Self {
+        Self {
+            class_id: T::class_id(),
+            method_name,
+        }
+    }
+}
+
+impl<'a> fmt::Display for MethodCallContext<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}::{}()", self.class_id, self.method_name)
+    }
+}
 
 /// Invokes `code` -- a callback that calls into user code -- and catches any panic, so it does not unwind across the FFI boundary.
 ///
@@ -33,8 +55,7 @@ fn handle_method_panic<T: GodotClass, R>(
     method: &str,
     code: impl FnOnce() -> R + std::panic::UnwindSafe,
 ) -> Result<R, PanicPayload> {
-    let context = || format!("{}::{method}()", T::class_id());
-    handle_panic(context, code)
+    handle_panic(&MethodCallContext::new::<T>(method), code)
 }
 
 /// Same as [`handle_method_panic()`], for the many callbacks that report success as a Godot bool. A panic counts as failure.
@@ -174,9 +195,9 @@ where
     let base = unsafe { Base::from_sys(base_ptr) };
 
     // User constructor init() can panic, which crashes the engine if unhandled.
-    let context = || format!("{class_id}::init()");
+    let context = MethodCallContext::new::<T>("init");
     let code = || make_user_instance(unsafe { Base::from_base(&base) });
-    let user_instance = handle_panic(context, std::panic::AssertUnwindSafe(code))?;
+    let user_instance = handle_panic(&context, std::panic::AssertUnwindSafe(code))?;
 
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
     // godot_error!("failed to create instance of {class_id}; Rust init() panicked");

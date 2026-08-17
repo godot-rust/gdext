@@ -6,6 +6,7 @@
  */
 
 use std::cell::RefCell;
+use std::fmt;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
@@ -557,7 +558,9 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         return;
     };
 
-    let error_context = || format!("async task #{}", godot_waker.task_id);
+    let error_context = AsyncTaskErrorContext {
+        task_id: godot_waker.task_id,
+    };
 
     // If Future::poll() panics, the future is immediately dropped and cannot be accessed again,
     // thus any state that may not have been unwind-safe cannot be observed later.
@@ -568,7 +571,7 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
     #[cfg(safeguards_strict)]
     let bind_guard_baseline = await_point_read();
 
-    let panic_result = handle_panic(error_context, move || {
+    let panic_result = handle_panic(&error_context, move || {
         (future.as_mut().poll(&mut ctx), future)
     });
 
@@ -606,6 +609,16 @@ fn poll_future(godot_waker: Arc<GodotWaker>) {
         // Future has resolved, so we remove it from the runtime.
         Poll::Ready(()) => rt.clear_task(godot_waker.runtime_index),
     });
+}
+
+struct AsyncTaskErrorContext {
+    task_id: u64,
+}
+
+impl fmt::Display for AsyncTaskErrorContext {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "async task #{}", self.task_id)
+    }
 }
 
 /// Implementation of a [`Waker`] to poll futures with the engine.

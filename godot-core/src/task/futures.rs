@@ -340,8 +340,8 @@ impl<R: InParamTuple + IntoDynamicSend> Drop for FallibleSignalFuture<R> {
             }
         };
 
-        let context = || "FallibleSignalFuture::drop: object freed concurrently".to_string();
-        let _ = crate::private::handle_panic(context, cleanup);
+        let context = "FallibleSignalFuture::drop: object freed concurrently";
+        let _ = crate::private::handle_panic(&context, cleanup);
     }
 }
 
