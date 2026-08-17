@@ -511,6 +511,14 @@ where
         Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
+    handle_call_error(call_error)
+}
+
+/// Helper for `handle_fallible_call` that does not depend on generic arguments.
+///
+/// This is a separate non-generic function to improve compilation time of `handle_fallible_call`, which may be monomorphized thousands of
+/// times while compiling the user's crate.
+fn handle_call_error(call_error: CallError) -> bool {
     // Print failed calls to Godot's console.
     //
     // OUT_CALL_DEPTH > 0 means this failure is observed during a Rust-initiated out-call (e.g. `try_call`); the caller already sees
