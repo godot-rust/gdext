@@ -16,8 +16,8 @@ use crate::builtin::Variant;
 use crate::meta::error::{CallError, CallResult, ConvertError, ErrorToGodot};
 use crate::meta::param_tuple::TupleFromGodot;
 use crate::meta::{
-    EngineFromGodot, EngineToGodot, FromGodot, GodotConvert, GodotType, InParamTuple,
-    MethodParamOrReturnInfo, OutParamTuple, ParamTuple, ToGodot,
+    EngineFromGodot, EngineToGodot, FromGodot, GodotType, InParamTuple, MethodParamOrReturnInfo,
+    OutParamTuple, ParamTuple, ToGodot,
 };
 use crate::obj::{GodotClass, ValidatedObject};
 
@@ -60,20 +60,24 @@ pub struct Signature<Params, Ret> {
     _r: PhantomData<Ret>,
 }
 
-impl<Params: ParamTuple, Ret: GodotConvert> Signature<Params, Ret> {
-    pub fn param_names(param_names: &[&str]) -> Vec<MethodParamOrReturnInfo> {
-        assert_eq!(
-            param_names.len(),
-            Params::LEN,
-            "`param_names` should contain one name for each parameter"
-        );
+/// Builds parameter info for `Params`.
+///
+/// Free function rather than a `Signature` method: the latter would also be generic over `Ret`, instantiating the iterator chain once per
+/// `(Params, Ret)` pair instead of once per `Params`.
+pub(crate) fn param_infos<Params: ParamTuple>(
+    param_names: &[&str],
+) -> Vec<MethodParamOrReturnInfo> {
+    assert_eq!(
+        param_names.len(),
+        Params::LEN,
+        "`param_names` should contain one name for each parameter"
+    );
 
-        param_names
-            .iter()
-            .enumerate()
-            .map(|(index, param_name)| Params::param_info(index, param_name).unwrap())
-            .collect()
-    }
+    param_names
+        .iter()
+        .enumerate()
+        .map(|(index, param_name)| Params::param_info(index, param_name).unwrap())
+        .collect()
 }
 
 /// In-calls (varcall):
