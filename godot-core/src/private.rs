@@ -346,7 +346,7 @@ pub(crate) fn has_error_print_level(level: ErrorPrintLevel) -> bool {
 
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
 /// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
-/// probably shouldn't be used directly; use ['get_gdext_panic_context()'](fetch_last_panic_context) instead.
+/// probably shouldn't be used directly; use [`fetch_last_panic_context()`] instead.
 #[cfg(safeguards_strict)]
 struct ScopedFunctionStack {
     functions: Vec<*const dyn Fn() -> String>,
