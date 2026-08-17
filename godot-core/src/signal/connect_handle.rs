@@ -17,20 +17,16 @@ use crate::sys;
 ///
 /// Connections managed by a handle can be disconnected using [`disconnect()`][Self::disconnect].
 pub struct ConnectHandle {
-    receiver_object: Gd<Object>,
+    emitter_object: Gd<Object>,
     signal_name: CowStr,
     callable: Callable,
 }
 
 impl ConnectHandle {
     // Should only be invoked by connect_* methods.
-    pub(super) fn new(
-        receiver_object: Gd<Object>,
-        signal_name: CowStr,
-        callable: Callable,
-    ) -> Self {
+    pub(super) fn new(emitter_object: Gd<Object>, signal_name: CowStr, callable: Callable) -> Self {
         Self {
-            receiver_object,
+            emitter_object,
             signal_name,
             callable,
         }
@@ -43,7 +39,7 @@ impl ConnectHandle {
     pub fn disconnect(mut self) {
         sys::balanced_assert!(self.is_connected());
 
-        self.receiver_object
+        self.emitter_object
             .disconnect(&*self.signal_name, &self.callable);
     }
 
@@ -53,11 +49,11 @@ impl ConnectHandle {
     /// - ... the signals and callables managed by this handle have been disconnected in any other way than by using
     ///   [`disconnect()`][Self::disconnect] -- e.g. through [`Signal::disconnect()`][crate::builtin::Signal::disconnect] or
     ///   [`Object::disconnect()`][crate::classes::Object::disconnect].
-    /// - ... the broadcasting object managed by this handle is not valid -- e.g. if the object has been freed.
+    /// - ... the emitter object managed by this handle is not valid -- e.g. if the object has been freed.
     pub fn is_connected(&self) -> bool {
-        self.receiver_object.is_instance_valid()
+        self.emitter_object.is_instance_valid()
             && self
-                .receiver_object
+                .emitter_object
                 .is_connected(&*self.signal_name, &self.callable)
     }
 }

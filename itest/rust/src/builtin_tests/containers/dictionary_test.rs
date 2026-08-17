@@ -431,6 +431,14 @@ fn dictionary_find_key() {
 
     // NIL key exists, but searched value is absent -> must not return Some(nil).
     assert_eq!(dict.find_key_by_value(2), None);
+
+    // Searched value is NIL -> only matches a key that actually maps to NIL.
+    assert_eq!(dict.find_key_by_value(&Variant::nil()), None);
+    dict.set(1, &Variant::nil());
+    assert_eq!(
+        dict.find_key_by_value(&Variant::nil()),
+        Some(1.to_variant())
+    );
 }
 
 #[itest]

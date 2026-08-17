@@ -119,8 +119,8 @@ where
     T: GodotClass,
     F: FnOnce(Base<T::Base>) -> T,
 {
-    let base_class_name = T::Base::class_id();
-    let base_ptr = unsafe { sys::classdb_construct_object(base_class_name.string_sys()) };
+    let base_class_id = T::Base::class_id();
+    let base_ptr = unsafe { sys::classdb_construct_object(base_class_id.string_sys()) };
 
     let postinit = |base_ptr| {
         #[cfg(since_api = "4.4")]
@@ -150,7 +150,7 @@ where
         }
     }
 
-    // std::mem::forget(base_class_name);
+    // std::mem::forget(base_class_id);
 }
 
 /// Add Rust-side state for a GDExtension base object.
@@ -168,18 +168,18 @@ where
     F: FnOnce(Base<T::Base>) -> T,
     P: Fn(sys::GDExtensionObjectPtr),
 {
-    let class_name = T::class_id();
-    //out!("create callback: {}", class_name.backing);
+    let class_id = T::class_id();
+    //out!("create callback: {}", class_id.backing);
 
     let base = unsafe { Base::from_sys(base_ptr) };
 
     // User constructor init() can panic, which crashes the engine if unhandled.
-    let context = || format!("{class_name}::init()");
+    let context = || format!("{class_id}::init()");
     let code = || make_user_instance(unsafe { Base::from_base(&base) });
     let user_instance = handle_panic(context, std::panic::AssertUnwindSafe(code))?;
 
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
-    // godot_error!("failed to create instance of {class_name}; Rust init() panicked");
+    // godot_error!("failed to create instance of {class_id}; Rust init() panicked");
 
     #[cfg(before_api = "4.7")]
     let mut base_copy = unsafe { Base::from_base(&base) };
@@ -195,7 +195,7 @@ where
 
     let binding_data_callbacks = crate::storage::nop_instance_callbacks();
     unsafe {
-        interface_fn!(object_set_instance)(base_ptr, class_name.string_sys(), instance_ptr);
+        interface_fn!(object_set_instance)(base_ptr, class_id.string_sys(), instance_ptr);
         interface_fn!(object_set_instance_binding)(
             base_ptr,
             sys::get_library() as *mut std::ffi::c_void,

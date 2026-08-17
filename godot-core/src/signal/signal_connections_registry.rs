@@ -10,7 +10,7 @@
 //! Interacting with custom callables (used by typed signals) after hot reload in any way is instant UB.
 //! We prevent unsoundness by disconnecting all the signals before the hot reload.
 //!
-//! To achieve this, we store all connections in a global registry as long as the library remains loaded and given receiver object is alive.
+//! To achieve this, we store all connections in a global registry as long as the library remains loaded and given emitter object is alive.
 //!
 //! For upstream issue, see: <https://github.com/godotengine/godot/issues/105802>.
 
@@ -26,8 +26,8 @@ thread_local! {
 }
 
 struct CachedSignalConnection {
-    // `Option`, so we can mark objects for removal by setting receiver to None.
-    receiver_object: Option<Gd<Object>>,
+    // `Option`, so we can mark objects for removal by setting the emitter to None.
+    emitter_object: Option<Gd<Object>>,
     signal_name: String,
     callable: Callable,
 }
@@ -40,7 +40,7 @@ struct CachedSignalConnection {
 fn prune_stale_connections(registry: &mut Vec<CachedSignalConnection>) {
     registry.retain_mut(|connection| {
         if let Some(obj) = connection
-            .receiver_object
+            .emitter_object
             .take_if(|obj| !obj.is_instance_valid())
         {
             obj.drop_weak();
@@ -53,7 +53,7 @@ fn prune_stale_connections(registry: &mut Vec<CachedSignalConnection>) {
 
 /// Stores a custom-callable connection so it can be disconnected before hot reload, and prunes connections to invalid objects.
 pub(crate) fn store_custom_callable_connection(
-    receiver_object: &Gd<Object>,
+    emitter_object: &Gd<Object>,
     signal_name: &StringName,
     callable: &Callable,
 ) {
@@ -85,9 +85,9 @@ pub(crate) fn store_custom_callable_connection(
 
         // SAFETY: Given weak pointer to the Object is accessed only once in `prune_stored_signal_connections` or `prune_stale_connections`,
         // inaccessible outside this module, validated before use and properly disposed of by using `drop_weak`.
-        let weak_object_ptr = unsafe { receiver_object.clone_weak() };
+        let weak_object_ptr = unsafe { emitter_object.clone_weak() };
         connection_registry.push(CachedSignalConnection {
-            receiver_object: Some(weak_object_ptr),
+            emitter_object: Some(weak_object_ptr),
             signal_name: signal_name.to_string(),
             callable: callable.clone(),
         });
@@ -113,7 +113,7 @@ pub(crate) fn prune_stored_signal_connections() {
 
         for connection in connection_registry.drain(..) {
             let CachedSignalConnection {
-                receiver_object: Some(mut receiver_object),
+                emitter_object: Some(mut emitter_object),
                 signal_name,
                 callable,
             } = connection
@@ -122,16 +122,16 @@ pub(crate) fn prune_stored_signal_connections() {
             };
 
             // Bail if object has been freed in a meanwhile -- Godot handled disconnecting by itself.
-            if !receiver_object.is_instance_valid() {
-                receiver_object.drop_weak();
+            if !emitter_object.is_instance_valid() {
+                emitter_object.drop_weak();
                 continue;
             }
 
-            if receiver_object.is_connected(&*signal_name, &callable) {
-                receiver_object.disconnect(&*signal_name, &callable);
+            if emitter_object.is_connected(&*signal_name, &callable) {
+                emitter_object.disconnect(&*signal_name, &callable);
             }
 
-            receiver_object.drop_weak();
+            emitter_object.drop_weak();
         }
     });
 }

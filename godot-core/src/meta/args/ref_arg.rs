@@ -186,7 +186,6 @@ where
     }
 
     unsafe fn move_return_ptr(self, _dst: sys::GDExtensionTypePtr, _call_type: PtrcallType) {
-        // This one is implemented, because it's used for return types implementing ToGodot.
         unreachable!(
             "Calling RefArg::move_return_ptr is a mistake, as RefArg is intended only for arguments. Use the underlying value type."
         );

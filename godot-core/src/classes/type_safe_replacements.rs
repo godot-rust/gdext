@@ -63,15 +63,15 @@ impl Object {
 /// Registers a custom-callable connection so it can be auto-disconnected before hot reload.
 ///
 /// Called by `Object::connect` / `Object::connect_flags` APIs, used both directly and through typed signal APIs. Ignores non-custom callables.
-fn track_callable_connection(receiver: &Object, signal_name: &StringName, callable: &Callable) {
+fn track_callable_connection(emitter: &Object, signal_name: &StringName, callable: &Callable) {
     // Only the editor needs the registry; skip the weak-`Gd` construction entirely outside it.
     if !crate::sys::is_editor() {
         return;
     }
 
-    // SAFETY: `receiver` is a live `Object` reference for the duration of this call. The weak `Gd` is passed to
+    // SAFETY: `emitter` is a live `Object` reference for the duration of this call. The weak `Gd` is passed to
     // `store_custom_callable_connection` (which clones its own handle) and disposed of here via `drop_weak`.
-    let weak_gd: Gd<Object> = unsafe { Gd::from_obj_sys_weak(receiver.__object_ptr()) };
+    let weak_gd: Gd<Object> = unsafe { Gd::from_obj_sys_weak(emitter.__object_ptr()) };
     store_custom_callable_connection(&weak_gd, signal_name, callable);
     weak_gd.drop_weak();
 }

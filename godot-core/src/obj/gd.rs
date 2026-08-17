@@ -1001,6 +1001,22 @@ impl Gd<classes::Object> {
     pub fn is_ref_counted(&self) -> bool {
         self.instance_id_unchecked().is_ref_counted()
     }
+
+    /// Increments the refcount, or returns `None` if the object is dead.
+    ///
+    /// Used for engine getters like `Callable::get_object()`, which neither inc-ref nor validate: they can hand out a pointer to an
+    /// already-freed object, e.g. when it was destroyed on another thread. Inc-ref would then access the freed instance and panic -- fatal
+    /// if that happens during `Drop`, see [`FallibleSignalFuture`][crate::task::FallibleSignalFuture]. Hence the liveness check first.
+    ///
+    /// Best-effort: the object can still be freed between check and inc-ref.
+    pub(crate) fn validate_and_inc_ref(mut self) -> Option<Self> {
+        if !self.is_instance_valid() {
+            return None;
+        }
+
+        self.raw.refc_inc();
+        Some(self)
+    }
 }
 
 impl<T> Gd<T>

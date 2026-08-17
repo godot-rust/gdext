@@ -77,7 +77,7 @@ pub fn register_var<C: GodotClass, T: Var>(
 
 fn register_var_or_export_inner(
     info: PropertyInfo,
-    class_name: ClassId,
+    class_id: ClassId,
     getter_name: &str,
     setter_name: &str,
 ) {
@@ -85,7 +85,7 @@ fn register_var_or_export_inner(
     let setter_name = StringName::from(setter_name);
 
     crate::registry::reg_validation::validate_property(
-        class_name,
+        class_id,
         &info.property_name,
         &getter_name,
         &setter_name,
@@ -96,7 +96,7 @@ fn register_var_or_export_inner(
     unsafe {
         sys::interface_fn!(classdb_register_extension_class_property)(
             sys::get_library(),
-            class_name.string_sys(),
+            class_id.string_sys(),
             std::ptr::addr_of!(property_info_sys),
             setter_name.string_sys(),
             getter_name.string_sys(),
@@ -107,12 +107,12 @@ fn register_var_or_export_inner(
 pub fn register_group<C: GodotClass>(group_name: &str, prefix: &str) {
     let group_name = GString::from(group_name);
     let prefix = GString::from(prefix);
-    let class_name = C::class_id();
+    let class_id = C::class_id();
 
     unsafe {
         sys::interface_fn!(classdb_register_extension_class_property_group)(
             sys::get_library(),
-            class_name.string_sys(),
+            class_id.string_sys(),
             group_name.string_sys(),
             prefix.string_sys(),
         );
@@ -122,12 +122,12 @@ pub fn register_group<C: GodotClass>(group_name: &str, prefix: &str) {
 pub fn register_subgroup<C: GodotClass>(subgroup_name: &str, prefix: &str) {
     let subgroup_name = GString::from(subgroup_name);
     let prefix = GString::from(prefix);
-    let class_name = C::class_id();
+    let class_id = C::class_id();
 
     unsafe {
         sys::interface_fn!(classdb_register_extension_class_property_subgroup)(
             sys::get_library(),
-            class_name.string_sys(),
+            class_id.string_sys(),
             subgroup_name.string_sys(),
             prefix.string_sys(),
         );

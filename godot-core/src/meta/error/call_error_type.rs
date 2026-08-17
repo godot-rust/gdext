@@ -47,9 +47,9 @@ impl CallErrorType {
         self as sys::GDExtensionCallErrorType
     }
 
-    /// Creates a `CallErrorType` from a `GDExtensionCallErrorType` value.
+    /// Converts a `GDExtensionCallErrorType` value to a result.
     ///
-    /// Returns `None` if the value doesn't correspond to a known error type.
+    /// Returns `Ok(())` for the "no error" value, `Err(Self)` otherwise.
     ///
     /// # Panics (Debug)
     /// If the input doesn't match any known error type.

@@ -76,7 +76,7 @@ pub trait FloatExt: private::Sealed + Copy {
     ///
     /// The resulting angle is not normalized.
     ///
-    /// Note: This function lerps through the shortest path between `from` and
+    /// Note: This function lerps through the shortest path between `self` and
     /// `to`. However, when these two angles are approximately `PI + k * TAU` apart
     /// for any integer `k`, it's not obvious which way they lerp due to
     /// floating-point precision errors. For example, with single-precision floats
