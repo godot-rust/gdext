@@ -33,7 +33,7 @@ pub struct ClassShard {
     ///
     /// This is used to group shards so that all class properties for a single class can be registered at the same time.
     /// Incorrectly setting this value should not cause any UB but will likely cause errors during registration time.
-    pub(crate) class_name: ClassId,
+    pub(crate) class_id: ClassId,
 
     /// Which [`InitLevel`] this shard should be registered at.
     ///
@@ -47,10 +47,10 @@ pub struct ClassShard {
 }
 
 impl ClassShard {
-    /// Creates a new `ClassShard`, automatically setting the `class_name` and `init_level` to the values defined in [`GodotClass`].
+    /// Creates a new `ClassShard`, automatically setting the `class_id` and `init_level` to the values defined in [`GodotClass`].
     pub fn new<T: GodotClass>(item: ShardItem) -> Self {
         Self {
-            class_name: T::class_id(),
+            class_id: T::class_id(),
             init_level: T::INIT_LEVEL,
             item,
         }
@@ -145,7 +145,7 @@ pub struct Struct {
     /// The name of the base class in Godot.
     ///
     /// This must match [`GodotClass::Base`]'s class name.
-    pub(crate) base_class_name: ClassId,
+    pub(crate) base_class_id: ClassId,
 
     /// Godot low-level `create` function, wired up to library-generated `init`.
     ///
@@ -211,7 +211,7 @@ impl Struct {
         let refcounted = <T::Memory as bounds::Memory>::IS_REF_COUNTED;
 
         Self {
-            base_class_name: T::Base::class_id(),
+            base_class_id: T::Base::class_id(),
             generated_create_fn: None,
             generated_recreate_fn: None,
             register_properties_fn: ErasedRegisterFn {
@@ -537,23 +537,23 @@ impl ITraitImpl {
 #[derive(Clone, Debug)]
 pub struct DynTraitImpl {
     /// The class that this `dyn Trait` implementation corresponds to.
-    class_name: ClassId,
+    class_id: ClassId,
 
     /// Base inherited class required for `DynGd<T, D>` exports (i.e. one specified in `#[class(base = ...)]`).
     ///
     /// Godot doesn't guarantee availability of all the GDExtension classes through the ClassDb while generating `PropertyHintInfo` for our exports.
     /// Therefore, we rely on the built-in inherited base class in such cases.
-    /// Only [`class_name`][DynTraitImpl::class_name] is available at the time of adding given `DynTraitImpl` to shard registry with `#[godot_dyn]`;
+    /// Only [`class_id`][DynTraitImpl::class_id] is available at the time of adding given `DynTraitImpl` to shard registry with `#[godot_dyn]`;
     /// It is important to fill this information before registration.
     ///
     /// See also [`get_dyn_implementor_class_ids`][crate::registry::class::get_dyn_implementor_class_ids].
-    pub(crate) parent_class_name: Option<ClassId>,
+    pub(crate) parent_class_id: Option<ClassId>,
 
     /// TypeId of the `dyn Trait` object.
     dyn_trait_typeid: any::TypeId,
 
     /// Function used to get a `DynGd<T,D>` from a `Gd<Object>`. This is used in the [`FromGodot`](crate::meta::FromGodot) implementation
-    /// of [`DynGd`]. This function is always implemented as [`callbacks::dynify_fn::<T, D>`] where `T` is the class represented by `class_name`
+    /// of [`DynGd`]. This function is always implemented as [`callbacks::dynify_fn::<T, D>`] where `T` is the class represented by `class_id`
     /// and `D` is the trait object corresponding to `dyn_trait_typeid`.
     ///
     /// Function that converts a `Gd<Object>` to a type-erased `DynGd<Object, dyn Trait>` (with the latter erased for common storage).
@@ -570,16 +570,16 @@ impl DynTraitImpl {
         D: ?Sized + 'static,
     {
         Self {
-            class_name: T::class_id(),
-            parent_class_name: None,
+            class_id: T::class_id(),
+            parent_class_id: None,
             dyn_trait_typeid: std::any::TypeId::of::<D>(),
             erased_dynify_fn: callbacks::dynify_fn::<T, D>,
         }
     }
 
     /// The class that this `dyn Trait` implementation corresponds to.
-    pub fn class_name(&self) -> &ClassId {
-        &self.class_name
+    pub fn class_id(&self) -> &ClassId {
+        &self.class_id
     }
 
     /// The type id of the trait object this was registered with.
@@ -596,14 +596,14 @@ impl DynTraitImpl {
     ) -> Result<DynGd<T, D>, Gd<T>> {
         let dynamic_class = object.dynamic_class_string();
 
-        if dynamic_class != self.class_name.to_string_name() {
+        if dynamic_class != self.class_id.to_string_name() {
             return Err(object);
         }
 
         let object = object.__upcast_object();
 
-        // SAFETY: `DynTraitImpl::new` ensures that this function is safe to call when `object` is castable to `self.class_name`.
-        // Since the dynamic class of `object` is `self.class_name`, it must be castable to `self.class_name`.
+        // SAFETY: `DynTraitImpl::new` ensures that this function is safe to call when `object` is castable to `self.class_id`.
+        // Since the dynamic class of `object` is `self.class_id`, it must be castable to `self.class_id`.
         let erased_dyn = unsafe { (self.erased_dynify_fn)(object) };
 
         let dyn_gd_object = erased_dyn.boxed.downcast::<DynGd<classes::Object, D>>();
@@ -611,8 +611,8 @@ impl DynTraitImpl {
         // SAFETY: `callbacks::dynify_fn` returns a `DynGd<Object, D>` which has been type erased. So this downcast will always succeed.
         let dyn_gd_object = unsafe { dyn_gd_object.unwrap_unchecked() };
 
-        // SAFETY: This is effectively upcasting a value which has class equal to `self.class_name` to a `DynGd<T, D>`. Since the class of
-        // `object` is `T` and its dynamic class is `self.class_name`, this means that `T` must be a superclass of `self.class_name`. Thus
+        // SAFETY: This is effectively upcasting a value which has class equal to `self.class_id` to a `DynGd<T, D>`. Since the class of
+        // `object` is `T` and its dynamic class is `self.class_id`, this means that `T` must be a superclass of `self.class_id`. Thus
         // this upcast is safe.
         let dyn_gd_t = unsafe { dyn_gd_object.cast_unchecked::<T>() };
 

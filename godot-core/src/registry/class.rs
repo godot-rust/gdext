@@ -35,14 +35,14 @@ fn global_loaded_classes_by_init_level()
     lock_or_panic(&LOADED_CLASSES_BY_INIT_LEVEL, "loaded classes")
 }
 
-/// Returns a lock to a global map of loaded classes, by class name.
+/// Returns a lock to a global map of loaded classes, by class ID.
 ///
 /// Complementary mechanism to the on-registration hooks like `__register_methods()`. This is used for runtime queries about a class, for
 /// information which isn't stored in Godot. Example: list related `dyn Trait` implementations.
-fn global_loaded_classes_by_name() -> GlobalGuard<'static, HashMap<ClassId, ClassMetadata>> {
-    static LOADED_CLASSES_BY_NAME: Global<HashMap<ClassId, ClassMetadata>> = Global::default();
+fn global_loaded_classes_by_id() -> GlobalGuard<'static, HashMap<ClassId, ClassMetadata>> {
+    static LOADED_CLASSES_BY_ID: Global<HashMap<ClassId, ClassMetadata>> = Global::default();
 
-    lock_or_panic(&LOADED_CLASSES_BY_NAME, "loaded classes (by name)")
+    lock_or_panic(&LOADED_CLASSES_BY_ID, "loaded classes (by ID)")
 }
 
 /// Represents a class which is currently loaded and retained in memory -- including metadata.
@@ -63,9 +63,9 @@ fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Ve
 
 /// Represents a class which is currently loaded and retained in memory.
 ///
-/// Besides the name, this type holds information relevant for the deregistration of the class.
+/// Besides the class ID, this type holds information relevant for the deregistration of the class.
 pub struct LoadedClass {
-    name: ClassId,
+    class_id: ClassId,
     is_editor_plugin: bool,
     unregister_singleton_fn: Option<fn()>,
 }
@@ -73,7 +73,7 @@ pub struct LoadedClass {
 /// Looks up whether a registered Rust class was declared with `#[class(tool)]`. Returns `None` for engine classes (not in our registry).
 #[cfg(not(feature = "upcoming-editor-placeholders"))]
 pub(crate) fn is_class_tool(class_id: ClassId) -> Option<bool> {
-    global_loaded_classes_by_name()
+    global_loaded_classes_by_id()
         .get(&class_id)
         .map(|m| m.is_tool)
 }
@@ -97,8 +97,8 @@ pub(crate) type GodotGetVirtual = <sys::GDExtensionClassGetVirtual2 as sys::Inne
 
 #[derive(Debug)]
 struct ClassRegistrationInfo {
-    class_name: ClassId,
-    parent_class_name: Option<ClassId>,
+    class_id: ClassId,
+    parent_class_id: Option<ClassId>,
     // Following functions are stored separately, since their order matters.
     register_methods_constants_fn: Option<ErasedRegisterFn>,
     register_properties_fn: Option<ErasedRegisterFn>,
@@ -141,7 +141,7 @@ impl ClassRegistrationInfo {
         if self.component_already_filled[index] {
             panic!(
                 "Godot class `{}` is defined multiple times in Rust; you can rename it with #[class(rename=NewName)]",
-                self.class_name,
+                self.class_id,
             )
         }
 
@@ -182,8 +182,8 @@ pub(crate) fn register_class<
     );
 
     register_class_raw(ClassRegistrationInfo {
-        class_name: T::class_id(),
-        parent_class_name: Some(T::Base::class_id()),
+        class_id: T::class_id(),
+        parent_class_id: Some(T::Base::class_id()),
         register_methods_constants_fn: None,
         register_properties_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
@@ -220,10 +220,10 @@ pub fn auto_register_classes(init_level: InitLevel) {
 
         //out!("* Shard: {elem:#?}");
 
-        let name = elem.class_name;
+        let class_id = elem.class_id;
         let class_info = map
-            .entry(name)
-            .or_insert_with(|| default_registration_info(name));
+            .entry(class_id)
+            .or_insert_with(|| default_registration_info(class_id));
 
         fill_class_info(elem.item.clone(), class_info);
     });
@@ -249,10 +249,10 @@ pub fn auto_register_classes(init_level: InitLevel) {
     // Actually register all the classes.
     for info in map.into_values() {
         #[cfg(feature = "debug-log")]
-        let class_name = info.class_name;
+        let class_id = info.class_id;
 
         if info.is_editor_plugin {
-            editor_plugins.push(info.class_name);
+            editor_plugins.push(info.class_id);
         }
 
         if let Some(register_singleton_fn) = info.register_singleton_fn {
@@ -261,15 +261,15 @@ pub fn auto_register_classes(init_level: InitLevel) {
 
         register_class_raw(info);
 
-        out!("Class {class_name} loaded.");
+        out!("Class {class_id} loaded.");
     }
 
     for register_singleton_fn in singletons {
         register_singleton_fn()
     }
 
-    for editor_plugin_class_name in editor_plugins {
-        unsafe { interface_fn!(editor_add_plugin)(editor_plugin_class_name.string_sys()) };
+    for editor_plugin_class_id in editor_plugins {
+        unsafe { interface_fn!(editor_add_plugin)(editor_plugin_class_id.string_sys()) };
     }
 
     out!("All classes for level `{init_level:?}` auto-registered.");
@@ -280,15 +280,15 @@ fn register_classes_and_dyn_traits(
     init_level: InitLevel,
 ) {
     let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
-    let mut loaded_classes_by_name = global_loaded_classes_by_name();
+    let mut loaded_classes_by_id = global_loaded_classes_by_id();
     let mut dyn_traits_by_typeid = global_dyn_traits_by_typeid();
 
     for info in map.values_mut() {
-        let class_name = info.class_name;
-        out!("Register class:   {class_name} at level `{init_level:?}`");
+        let class_id = info.class_id;
+        out!("Register class:   {class_id} at level `{init_level:?}`");
 
         let loaded_class = LoadedClass {
-            name: class_name,
+            class_id,
             is_editor_plugin: info.is_editor_plugin,
             unregister_singleton_fn: info.unregister_singleton_fn,
         };
@@ -299,7 +299,7 @@ fn register_classes_and_dyn_traits(
         // Transpose Class->Trait relations to Trait->Class relations.
         for (trait_type_id, mut dyn_trait_impl) in info.dynify_fns_by_trait.drain() {
             // Note: Must be done after filling out the class info since shards are being iterated in unspecified order.
-            dyn_trait_impl.parent_class_name = info.parent_class_name;
+            dyn_trait_impl.parent_class_id = info.parent_class_id;
 
             dyn_traits_by_typeid
                 .entry(trait_type_id)
@@ -312,13 +312,13 @@ fn register_classes_and_dyn_traits(
             .or_default()
             .push(loaded_class);
 
-        loaded_classes_by_name.insert(class_name, metadata);
+        loaded_classes_by_id.insert(class_id, metadata);
     }
 }
 
 pub fn unregister_classes(init_level: InitLevel) {
     let mut loaded_classes_by_level = global_loaded_classes_by_init_level();
-    let mut loaded_classes_by_name = global_loaded_classes_by_name();
+    let mut loaded_classes_by_id = global_loaded_classes_by_id();
     // TODO clean up dyn traits
 
     let mut loaded_classes_current_level = loaded_classes_by_level
@@ -336,7 +336,7 @@ pub fn unregister_classes(init_level: InitLevel) {
     out!("Unregister classes of level {init_level:?}...");
     for class in loaded_classes_current_level.into_iter().rev() {
         // Remove from other map.
-        loaded_classes_by_name.remove(&class.name);
+        loaded_classes_by_id.remove(&class.class_id);
 
         // Unregister from Godot.
         unregister_class_raw(class);
@@ -427,13 +427,13 @@ where
         .iter()
         .filter_map(|implementor| {
             // TODO — check if caching it (using is_derived_base_cached) yields any benefits.
-            if implementor.parent_class_name? == T::class_id()
+            if implementor.parent_class_id? == T::class_id()
                 || ClassDb::singleton().is_parent_class(
-                    &implementor.parent_class_name?.to_string_name(),
+                    &implementor.parent_class_id?.to_string_name(),
                     &T::class_id().to_string_name(),
                 )
             {
-                Some(*implementor.class_name())
+                Some(*implementor.class_id())
             } else {
                 None
             }
@@ -449,7 +449,7 @@ fn fill_class_info(item: ShardItem, c: &mut ClassRegistrationInfo) {
     // out!("|   comp:            {component:?}");
     match item {
         ShardItem::Struct(Struct {
-            base_class_name,
+            base_class_id,
             generated_create_fn,
             generated_recreate_fn,
             register_properties_fn,
@@ -464,7 +464,7 @@ fn fill_class_info(item: ShardItem, c: &mut ClassRegistrationInfo) {
             reference_fn,
             unreference_fn,
         }) => {
-            c.parent_class_name = Some(base_class_name);
+            c.parent_class_id = Some(base_class_id);
             c.default_virtual_fn = default_get_virtual_fn;
             c.register_properties_fn = Some(register_properties_fn);
             c.is_editor_plugin = is_editor_plugin;
@@ -563,7 +563,7 @@ fn fill_class_info(item: ShardItem, c: &mut ClassRegistrationInfo) {
                 prev.is_none(),
                 "Duplicate registration of {:?} for class {}",
                 type_id,
-                c.class_name
+                c.class_id
             );
         }
     }
@@ -585,13 +585,13 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) -> Result<(), ()> {
 fn register_class_raw(mut info: ClassRegistrationInfo) {
     // Some metadata like dynify fns are already emptied at this point. Only consider registrations for Godot.
 
-    let class_name = info.class_name;
-    let parent_class_name = info
-        .parent_class_name
-        .expect("class defined (parent_class_name)");
+    let class_id = info.class_id;
+    let parent_class_id = info
+        .parent_class_id
+        .expect("class defined (parent_class_id)");
 
     // First register class...
-    precheck_class_registration(&info, parent_class_name);
+    precheck_class_registration(&info, parent_class_id);
 
     // Register virtual functions -- if the user provided some via #[godot_api], take those; otherwise, use the
     // ones generated alongside #[derive(GodotClass)]. The latter can also be null, if no OnReady is provided.
@@ -617,13 +617,13 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
 
         let _: () = register_fn(
             sys::get_library(),
-            class_name.string_sys(),
-            parent_class_name.string_sys(),
+            class_id.string_sys(),
+            parent_class_id.string_sys(),
             ptr::addr_of!(info.godot_params),
         );
 
         // ...then see if it worked. The registration above does not report errors (apart from console output), and precheck may miss something.
-        let tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
+        let tag = interface_fn!(classdb_get_class_tag)(class_id.string_sys());
         tag.is_null()
     };
 
@@ -632,7 +632,7 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     // Also, the pre-validation only runs under strict safeguards, there may be registrations that Godot rejects but godot-rust doesn't catch.
     if registration_failed {
         godot_error!(
-            "Failed to register class `{class_name}`; check preceding Godot stderr messages."
+            "Failed to register class `{class_id}`; check preceding Godot stderr messages."
         );
 
         // Registering symbols against non-existent class causes follow-up errors, thus exit here.
@@ -665,17 +665,17 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
 fn precheck_class_registration(class_info: &ClassRegistrationInfo, parent_class_id: ClassId) {
     // TODO(v0.7): if we add builder API, the proc-macro checks in parse_struct_attributes() etc. should be duplicated here.
 
-    reg_validation::validate_class(class_info.class_name, parent_class_id);
+    reg_validation::validate_class(class_info.class_id, parent_class_id);
 }
 
 fn unregister_class_raw(class: LoadedClass) {
-    let class_name = class.name;
-    out!("Unregister class: {class_name}");
+    let class_id = class.class_id;
+    out!("Unregister class: {class_id}");
 
     // If class is an editor plugin, unregister that first.
     if class.is_editor_plugin {
         unsafe {
-            interface_fn!(editor_remove_plugin)(class_name.string_sys());
+            interface_fn!(editor_remove_plugin)(class_id.string_sys());
         }
 
         out!("> Editor plugin removed");
@@ -689,13 +689,10 @@ fn unregister_class_raw(class: LoadedClass) {
 
     #[allow(clippy::let_unit_value)]
     let _: () = unsafe {
-        interface_fn!(classdb_unregister_extension_class)(
-            sys::get_library(),
-            class_name.string_sys(),
-        )
+        interface_fn!(classdb_unregister_extension_class)(sys::get_library(), class_id.string_sys())
     };
 
-    out!("Class {class_name} unloaded");
+    out!("Class {class_id} unloaded");
 }
 
 fn lock_or_panic<T>(global: &'static Global<T>, ctx: &str) -> GlobalGuard<'static, T> {
@@ -718,10 +715,10 @@ fn lock_or_panic<T>(global: &'static Global<T>, ctx: &str) -> GlobalGuard<'stati
 
 // Yes, bindgen can implement Default, but only for _all_ types (with single exceptions).
 // For FFI types, it's better to have explicit initialization in the general case though.
-fn default_registration_info(class_name: ClassId) -> ClassRegistrationInfo {
+fn default_registration_info(class_id: ClassId) -> ClassRegistrationInfo {
     ClassRegistrationInfo {
-        class_name,
-        parent_class_name: None,
+        class_id,
+        parent_class_id: None,
         register_methods_constants_fn: None,
         register_properties_fn: None,
         user_register_fn: None,

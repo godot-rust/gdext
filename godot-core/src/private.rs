@@ -139,12 +139,12 @@ pub(crate) fn iterate_docs_shards(mut visitor: impl FnMut(&DocsShard)) {
 }
 
 #[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
-pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassId) -> Option<InherentImpl> {
+pub(crate) fn find_inherent_impl(class_id: crate::meta::ClassId) -> Option<InherentImpl> {
     // We do this manually instead of using `iterate_shards()` because we want to break as soon as we find a match.
     let shards = __GODOT_SHARD_REGISTRY.lock().unwrap();
 
     shards.iter().find_map(|elem| {
-        if elem.class_name == class_name
+        if elem.class_id == class_id
             && let ShardItem::InherentImpl(inherent_impl) = &elem.item
         {
             return Some(inherent_impl.clone());

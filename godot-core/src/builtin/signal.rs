@@ -182,9 +182,9 @@ impl Signal {
 fn track_custom_callable(signal: &Signal, callable: &Callable) {
     // Only the editor needs the registry; skip the `object()` FFI call entirely outside it.
     if sys::is_editor()
-        && let Some(receiver) = signal.object()
+        && let Some(emitter) = signal.object()
     {
-        store_custom_callable_connection(&receiver, &signal.name(), callable);
+        store_custom_callable_connection(&emitter, &signal.name(), callable);
     }
 }
 
