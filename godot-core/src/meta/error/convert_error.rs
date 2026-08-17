@@ -274,15 +274,7 @@ pub(crate) struct ArrayMismatch {
 impl fmt::Display for ArrayMismatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ArrayMismatch { expected, actual } = self;
-
-        if expected.variant_type() != actual.variant_type() {
-            return write!(f, "expected array of type {expected:?}, got {actual:?}");
-        }
-
-        let exp_class = format!("{expected:?}");
-        let act_class = format!("{actual:?}");
-
-        write!(f, "expected array of type {exp_class}, got {act_class}")
+        write!(f, "expected array of type {expected:?}, got {actual:?}")
     }
 }
 

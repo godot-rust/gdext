@@ -9,8 +9,6 @@ use std::marker::PhantomData;
 
 use crate::obj::GodotClass;
 
-mod method;
-
 /// Class builder to store state for registering a class with Godot.
 ///
 /// In the future this will be used, but for now it's a dummy struct.
@@ -25,34 +23,4 @@ where
     pub(crate) fn new() -> Self {
         Self { _c: PhantomData }
     }
-
-    pub fn virtual_method<'cb, F>(
-        &'cb mut self,
-        name: &'cb str,
-        method: F,
-    ) -> MethodBuilder<'cb, C, F> {
-        MethodBuilder::new(self, name, method)
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-#[allow(dead_code)] // TODO rm
-#[must_use]
-pub struct MethodBuilder<'cb, C, F> {
-    class_builder: &'cb mut ClassBuilder<C>,
-    name: &'cb str,
-    method: F,
-}
-
-impl<'cb, C, F> MethodBuilder<'cb, C, F> {
-    pub(super) fn new(class_builder: &'cb mut ClassBuilder<C>, name: &'cb str, method: F) -> Self {
-        Self {
-            class_builder,
-            name,
-            method,
-        }
-    }
-
-    pub fn done(self) {}
 }

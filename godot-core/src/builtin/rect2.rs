@@ -199,7 +199,7 @@ impl Rect2 {
         point.abs() == point && point.x < self.size.x && point.y < self.size.y
     }
 
-    /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, an empty Rect2 is returned.
+    /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, `None` is returned.
     #[inline]
     pub fn intersect(self, b: Self) -> Option<Self> {
         if !self.intersects(b) {
