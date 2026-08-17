@@ -7,11 +7,13 @@
 
 // File can be split once this grows.
 
+use std::cell::RefCell;
 use std::hint::black_box;
 
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i};
-use godot::classes::{Node3D, Os, RefCounted};
+use godot::builtin::{GString, GodotStringExt, PackedInt32Array, Rect2i, StringName, Vector2i};
+use godot::classes::notify::ObjectNotification;
+use godot::classes::{IRefCounted, Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
 use godot::register::{GodotClass, godot_api};
 
@@ -102,6 +104,25 @@ fn class_user_refc_call_mut() -> BenchResult {
     bench_measure(100, || callable.call(&[]))
 }
 
+/// Godot -> Rust call into a virtual method, through the panic handler that builds the error context for diagnostics.
+#[bench(manual)]
+fn class_user_virtual_to_string() -> BenchResult {
+    let obj = MyVirtualBenchType::new_gd();
+
+    bench_measure(100, || obj.to_string())
+}
+
+/// Same as [`class_user_virtual_to_string()`], for a virtual method that returns nothing and thus does minimal work of its own.
+#[bench(manual)]
+fn class_user_virtual_notification() -> BenchResult {
+    let obj = RefCell::new(MyVirtualBenchType::new_gd());
+
+    bench_measure(100, || {
+        obj.borrow_mut().notify(ObjectNotification::POSTINITIALIZE);
+        true
+    })
+}
+
 #[bench]
 fn class_singleton_access() -> Gd<Os> {
     Os::singleton()
@@ -158,4 +179,18 @@ impl MyBenchType {
 
     #[func]
     fn noop_mut(&mut self) {}
+}
+
+/// Separate class, so that the virtual methods don't affect the benchmarks using [`MyBenchType`].
+#[derive(GodotClass)]
+#[class(init, base = RefCounted)]
+struct MyVirtualBenchType {}
+
+#[godot_api]
+impl IRefCounted for MyVirtualBenchType {
+    fn on_notification(&mut self, _what: ObjectNotification) {}
+
+    fn to_string(&self) -> GString {
+        "MyVirtualBenchType".to_gstring()
+    }
 }
