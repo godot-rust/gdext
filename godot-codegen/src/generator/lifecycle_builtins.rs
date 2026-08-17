@@ -162,6 +162,7 @@ fn make_extra_constructors(
     builtin: &BuiltinVariant,
     constructors: &[Constructor],
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
+    // First two constructors (default and copy) always present, thus >= 2 guaranteed.
     let mut extra_decls = Vec::with_capacity(constructors.len() - 2);
     let mut extra_inits = Vec::with_capacity(constructors.len() - 2);
     let variant_type = builtin.sys_variant_type();

@@ -239,7 +239,7 @@ impl Context {
     }
 
     // Private, because initialized in constructor. Ensures deterministic assignment.
-    fn register_table_index(&mut self, key: MethodTableKey) -> usize {
+    fn register_table_index(&mut self, key: MethodTableKey) {
         let key_category = key.category();
 
         let next_index = self
@@ -251,7 +251,6 @@ impl Context {
         assert!(prev.is_none(), "table index already registered");
 
         *next_index += 1;
-        *next_index
     }
 
     pub fn get_table_index(&self, key: &MethodTableKey) -> usize {
@@ -259,15 +258,6 @@ impl Context {
             .method_table_indices
             .get(key)
             .unwrap_or_else(|| panic!("did not register table index for key {key:?}"))
-    }
-
-    /// Yields cached sys pointer types – various pointer types declared in `gdextension_interface`
-    /// and used as parameters in exposed Godot APIs.
-    #[allow(dead_code)] // Currently unused, as RawPtr<P> covers all raw pointers.
-    pub fn cached_sys_pointer_types(&self) -> impl Iterator<Item = &RustTy> {
-        self.cached_rust_types
-            .values()
-            .filter(|rust_ty| rust_ty.is_sys_pointer())
     }
 
     /// Whether an interface trait is generated for a class.

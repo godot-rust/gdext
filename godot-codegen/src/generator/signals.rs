@@ -18,7 +18,7 @@ use quote::{format_ident, quote};
 use crate::context::Context;
 use crate::conv;
 use crate::models::domain::{Class, ClassLike, ClassSignal, FnParam, ModName, RustTy, TyName};
-use crate::util::{ident, safe_ident};
+use crate::util::ident;
 
 pub struct SignalCodegen {
     pub signal_code: TokenStream,
@@ -291,7 +291,7 @@ impl SignalParams {
         let mut first = true;
 
         for param in params.iter() {
-            let param_name = safe_ident(&param.name.to_string());
+            let param_name = &param.name;
             let param_ty = &param.type_;
             let param_ty_tokens = param_ty.tokens_non_null();
 

@@ -33,7 +33,8 @@ impl<'a> StringCache<'a> {
 
     /// Get a pointer to a `StringName`. Reuses cached instances, only deallocates on destruction of this cache.
     pub fn fetch(&mut self, key: &'static str) -> sys::GDExtensionStringNamePtr {
-        assert!(key.is_ascii(), "string is not ASCII: {key}");
+        // Codegen invariant: keys are always ASCII.
+        crate::strict_assert!(key.is_ascii(), "string is not ASCII: {key}");
 
         // Already cached.
         if let Some(opaque_box) = self.instances_by_str.get_mut(key) {
@@ -94,12 +95,12 @@ fn box_to_sname_ptr(
     opaque_ptr as sys::GDExtensionStringNamePtr
 }
 
-unsafe fn sname_uninit_ptr(
+fn sname_uninit_ptr(
     opaque_ptr: *mut sys::types::OpaqueStringName,
 ) -> sys::GDExtensionUninitializedStringNamePtr {
     opaque_ptr as sys::GDExtensionUninitializedStringNamePtr
 }
 
-unsafe fn sname_type_ptr(opaque_ptr: *mut sys::types::OpaqueStringName) -> sys::GDExtensionTypePtr {
+fn sname_type_ptr(opaque_ptr: *mut sys::types::OpaqueStringName) -> sys::GDExtensionTypePtr {
     opaque_ptr as sys::GDExtensionTypePtr
 }

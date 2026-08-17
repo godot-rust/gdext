@@ -170,7 +170,7 @@ fn make_native_structure_field_and_accessor(
         // Having node also avoids the lifetime issue with reference-counted objects (unclear if gdext should increment refcount or not).
         // If other fields use different classes in the future, we'll need to update this.
         accessor = Some(quote! {
-            /// Returns the object as a `Gd<Node>`, or `None` if it no longer exists.
+            /// Returns the object as a `Gd<Object>`, or `None` if it no longer exists.
             pub fn #getter_name(&self) -> Option<Gd<Object>> {
                 crate::obj::InstanceId::try_from_u64(self.#id_field_name.id)
                     .and_then(|id| Gd::try_from_instance_id(id).ok())
@@ -180,7 +180,7 @@ fn make_native_structure_field_and_accessor(
                 // unsafe { Gd::from_obj_sys(ptr) }
             }
 
-            /// Sets the object from a `Gd` pointer holding `Node` or a derived class.
+            /// Sets the object from a `Gd` pointer.
             ///
             /// # Safety
             /// You must ensure that the provided object remains alive while Godot accesses it.

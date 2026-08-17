@@ -694,6 +694,7 @@ pub(crate) fn make_params_exprs_virtual<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
     function_sig: &dyn Function,
 ) -> FnParamTokens {
+    // Virtual branch uses only `param_decls`; leave the rest empty.
     let mut ret = FnParamTokens::default();
 
     for param in method_args {
@@ -705,8 +706,6 @@ pub(crate) fn make_params_exprs_virtual<'a>(
 
         ret.param_decls
             .push(quote! { #param_name: #param_ty_tokens });
-        ret.arg_exprs.push(quote! { #param_name });
-        ret.callsig_param_types.push(quote! { #param_ty });
     }
 
     ret

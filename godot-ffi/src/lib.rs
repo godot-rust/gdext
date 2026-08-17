@@ -103,7 +103,7 @@ pub use init_level::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;
 
-pub use crate::godot_ffi::{ExtVariantType, GodotFfi, PrimitiveConversionError, PtrcallType};
+pub use crate::godot_ffi::{ExtVariantType, GodotFfi, PtrcallType};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
@@ -115,7 +115,7 @@ pub use binding::*;
 use binding::{
     initialize_binding, initialize_builtin_method_table, initialize_class_core_method_table,
     initialize_class_editor_method_table, initialize_class_scene_method_table,
-    initialize_class_server_method_table, runtime_metadata,
+    initialize_class_servers_method_table, runtime_metadata,
 };
 
 #[cfg(not(wasm_nothreads))]
@@ -201,11 +201,6 @@ impl GdextRuntimeMetadata {
         self.supports_deprecated_apis
     }
 }
-
-// SAFETY: The `string` pointer in `godot_version` is only ever read from while the struct exists, so we cannot have any race conditions.
-unsafe impl Sync for GdextRuntimeMetadata {}
-// SAFETY: See `Sync` impl safety doc.
-unsafe impl Send for GdextRuntimeMetadata {}
 
 /// Initializes the library.
 ///
@@ -333,6 +328,10 @@ pub unsafe fn deinitialize() {
             unsafe { MAIN_THREAD_ID.clear() };
         }
     }
+
+    // TODO: reset process-lifetime startup statics here. Hot-reload on Linux/macOS re-enters initialize() in the same process, but
+    // STARTUP_MESSAGES_FLUSHED, ONCE_EMITTED_MESSAGES, IS_EDITOR_HINT and IS_EDITOR_BINARY survive, so `once` messages never fire again
+    // and the editor-state getters report the previous session until re-populated.
 }
 
 fn safeguards_level_string() -> &'static str {
@@ -519,9 +518,9 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
             unsafe {
                 #[cfg(feature = "codegen-lazy-fptrs")]
-                initialize_class_server_method_table(ClassServersMethodTable::load());
+                initialize_class_servers_method_table(ClassServersMethodTable::load());
                 #[cfg(not(feature = "codegen-lazy-fptrs"))]
-                initialize_class_server_method_table(ClassServersMethodTable::load(
+                initialize_class_servers_method_table(ClassServersMethodTable::load(
                     interface,
                     &mut string_names,
                 ));
