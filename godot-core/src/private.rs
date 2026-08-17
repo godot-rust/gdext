@@ -8,6 +8,7 @@
 use std::cell::Cell;
 #[cfg(safeguards_strict)]
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::io::Write;
 use std::sync::atomic;
 
@@ -346,49 +347,69 @@ pub(crate) fn has_error_print_level(level: ErrorPrintLevel) -> bool {
 
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
 /// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
-/// probably shouldn't be used directly; use ['get_gdext_panic_context()'](fetch_last_panic_context) instead.
+/// probably shouldn't be used directly; use [`fetch_last_panic_context()`] instead.
 #[cfg(safeguards_strict)]
-struct ScopedFunctionStack {
-    functions: Vec<*const dyn Fn() -> String>,
+struct ScopedContextStack {
+    contexts: Vec<*const dyn Display>,
 }
 
 #[cfg(safeguards_strict)]
-impl ScopedFunctionStack {
+impl ScopedContextStack {
     /// # Safety
-    /// Function must be removed (using [`pop_function()`](Self::pop_function)) before lifetime is invalidated.
-    unsafe fn push_function<'a, 'b>(&'a mut self, function: &'b (dyn Fn() -> String + 'b)) {
-        // SAFETY: Function has its lifetime `'b` extended to `'static` to satisfy the signature
-        // of `functions` which has an implied `'static` bound.
-        // Given function must be removed before lifetime `'b` is invalidated.
-        let function = unsafe {
-            std::mem::transmute::<
-                *const (dyn Fn() -> String + 'b),
-                *const (dyn Fn() -> String + 'static),
-            >(function)
+    /// Context must be removed (using [`Self::pop_context()`]) before lifetime is invalidated.
+    unsafe fn push_context<'a, 'b>(&'a mut self, context: &'b dyn Display) {
+        // SAFETY: Context has its lifetime `'b` extended to `'static` to satisfy the signature
+        // of `self.contexts` which has an implied `'static` bound.
+        // Given context must be removed before lifetime `'b` is invalidated.
+        let context = unsafe {
+            std::mem::transmute::<*const (dyn Display + 'b), *const (dyn Display + 'static)>(
+                context,
+            )
         };
 
-        self.functions.push(function);
+        self.contexts.push(context);
     }
 
-    fn pop_function(&mut self) {
-        self.functions.pop().expect("function stack is empty!");
+    fn pop_context(&mut self) {
+        self.contexts.pop().expect("context stack is empty!");
     }
 
     fn get_last(&self) -> Option<String> {
-        self.functions.last().cloned().map(|pointer| {
+        self.contexts.last().cloned().map(|pointer| {
             // SAFETY:
-            // Invariants provided by push_function assert that any and all functions held by ScopedFunctionStack
-            // are removed before they are invalidated; functions must always be valid.
-            unsafe { (*pointer)() }
+            // Invariants provided by push_context assert that any and all contexts held by ScopedContextStack
+            // are removed before they are invalidated; contexts must always be valid.
+            unsafe { (*pointer).to_string() }
         })
     }
 }
 
 #[cfg(safeguards_strict)]
 thread_local! {
-    static ERROR_CONTEXT_STACK: RefCell<ScopedFunctionStack> = const {
-        RefCell::new(ScopedFunctionStack { functions: Vec::new() })
+    static ERROR_CONTEXT_STACK: RefCell<ScopedContextStack> = const {
+        RefCell::new(ScopedContextStack { contexts: Vec::new() })
     }
+}
+
+/// Pushes the given context to the current thread's error context stack.
+/// # Safety
+/// Context must be removed (using [`pop_panic_context()`]) before its lifetime is invalidated.
+unsafe fn push_panic_context(error_context: &dyn Display) {
+    #[cfg(not(safeguards_strict))]
+    let _ = error_context; // Unused in Release.
+
+    #[cfg(safeguards_strict)]
+    ERROR_CONTEXT_STACK.with(|cell| {
+        let mut stack = cell.borrow_mut();
+        // SAFETY: caller promises to pop error_context before its lifetime is invalidated.
+        unsafe { stack.push_context(error_context) }
+    });
+}
+
+/// Pops a context from the current thread's error context stack.
+fn pop_panic_context() {
+    #[cfg(safeguards_strict)]
+    ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_context());
 }
 
 // Value may return `None`, even from panic hook, if called from a non-Godot thread.
@@ -428,24 +449,17 @@ impl PanicPayload {
 ///
 /// In contrast to [`handle_fallible_varcall`] and [`handle_fallible_ptrcall`], this function is not intended for use in `try_` functions,
 /// where the error is propagated as a `CallError` in a global variable.
-pub fn handle_panic<E, F, R>(error_context: E, code: F) -> Result<R, PanicPayload>
+pub fn handle_panic<F, R>(error_context: &dyn Display, code: F) -> Result<R, PanicPayload>
 where
-    E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    #[cfg(not(safeguards_strict))]
-    let _ = error_context; // Unused in Release.
-
-    #[cfg(safeguards_strict)]
-    ERROR_CONTEXT_STACK.with(|cell| unsafe {
-        // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
-        cell.borrow_mut().push_function(&error_context)
-    });
+    // SAFETY: &error_context is valid for lifetime of function, and is popped again before end of function.
+    unsafe { push_panic_context(error_context) };
 
     let result = std::panic::catch_unwind(code).map_err(PanicPayload::new);
 
-    #[cfg(safeguards_strict)]
-    ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
+    pop_panic_context();
+
     result
 }
 
@@ -497,8 +511,7 @@ fn handle_fallible_call<F, R>(call_ctx: &CallContext, code: F) -> bool
 where
     F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
 {
-    let outcome: Result<CallResult<R>, PanicPayload> =
-        handle_panic(|| format!("{call_ctx}()"), code);
+    let outcome: Result<CallResult<R>, PanicPayload> = handle_panic(call_ctx, code);
 
     let call_error = match outcome {
         // All good.
@@ -511,6 +524,14 @@ where
         Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
+    handle_call_error(call_error)
+}
+
+/// Helper for `handle_fallible_call` that does not depend on generic arguments.
+///
+/// This is a separate non-generic function to improve compilation time of `handle_fallible_call`, which may be monomorphized thousands of
+/// times while compiling the user's crate.
+fn handle_call_error(call_error: CallError) -> bool {
     // Print failed calls to Godot's console.
     //
     // OUT_CALL_DEPTH > 0 means this failure is observed during a Rust-initiated out-call (e.g. `try_call`); the caller already sees

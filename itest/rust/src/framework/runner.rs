@@ -443,10 +443,11 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
 
     // This will appear in all panics, but those inside expect_panic() are suppressed.
     // So the "itest failed" message will only appear for unexpected panics, where tests indeed fail.
-    let err_context = || format!("itest `{}` failed", test.name);
+    let err_context = format!("itest `{}` failed", test.name);
 
     // Explicit type to prevent tests from returning a value.
-    let success: Result<(), _> = godot::private::handle_panic(err_context, || (test.function)(ctx));
+    let success: Result<(), _> =
+        godot::private::handle_panic(&err_context, || (test.function)(ctx));
 
     TestOutcome::from_bool(success.is_ok())
 }
@@ -461,9 +462,9 @@ fn run_async_rust_test(
     }
 
     // Explicit type to prevent tests from returning a value
-    let err_context = || format!("itest `{}` failed", test.name);
+    let err_context = format!("itest `{}` failed", test.name);
     let success: Result<godot::task::TaskHandle, _> =
-        godot::private::handle_panic(err_context, || (test.function)(ctx));
+        godot::private::handle_panic(&err_context, || (test.function)(ctx));
 
     let Ok(task_handle) = success else {
         return on_test_finished(TestOutcome::Failed);

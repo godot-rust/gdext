@@ -661,6 +661,7 @@ use self::bounded_ptr_list::BoundedPtrList;
 mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
+    use std::fmt;
 
     use sys::conv::{SYS_FALSE, SYS_TRUE, bool_from_sys, bool_to_sys};
     #[cfg(since_api = "4.3")]
@@ -1345,16 +1346,14 @@ mod script_instance_info {
         }
     }
 
-    fn error_ctx<T: ScriptInstance>(method: &'static str) -> impl Fn() -> String {
-        move || format!("{}::{method}(), script instance method", type_name::<T>())
-    }
-
     fn with_instance<T: ScriptInstance, R>(
         instance: &ScriptInstanceData<T>,
         method: &'static str,
         f: impl FnOnce(&T) -> R + std::panic::UnwindSafe,
     ) -> Result<R, PanicPayload> {
-        handle_panic(error_ctx::<T>(method), || f(&instance.borrow()))
+        handle_panic(&ScriptInstanceMethodContext::new::<T>(method), || {
+            f(&instance.borrow())
+        })
     }
 
     fn with_instance_mut<T: ScriptInstance, R>(
@@ -1362,10 +1361,34 @@ mod script_instance_info {
         method: &'static str,
         f: impl FnOnce(SiMut<T>) -> R + std::panic::UnwindSafe,
     ) -> Result<R, PanicPayload> {
-        handle_panic(error_ctx::<T>(method), || {
+        handle_panic(&ScriptInstanceMethodContext::new::<T>(method), || {
             let mut guard = instance.borrow_mut();
             let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
             f(instance_guard)
         })
+    }
+
+    struct ScriptInstanceMethodContext {
+        class_name: &'static str,
+        method_name: &'static str,
+    }
+
+    impl ScriptInstanceMethodContext {
+        fn new<T>(method_name: &'static str) -> Self {
+            Self {
+                class_name: type_name::<T>(),
+                method_name,
+            }
+        }
+    }
+
+    impl fmt::Display for ScriptInstanceMethodContext {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(
+                f,
+                "{}::{}(), script instance method",
+                self.class_name, self.method_name,
+            )
+        }
     }
 }

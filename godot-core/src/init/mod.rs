@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::Display;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use godot_ffi as sys;
@@ -117,9 +118,9 @@ struct InitUserData {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
-    let ctx = || "ExtensionLibrary::on_stage_init(MainLoop)".to_string();
+    let ctx = "ExtensionLibrary::on_stage_init(MainLoop)";
 
-    swallow_panics(ctx, || {
+    swallow_panics(&ctx, || {
         E::on_stage_init(InitStage::MainLoop);
     });
 
@@ -132,9 +133,9 @@ unsafe extern "C" fn startup_func<E: ExtensionLibrary>() {
 
 #[cfg(since_api = "4.5")]
 unsafe extern "C" fn frame_func<E: ExtensionLibrary>() {
-    let ctx = || "ExtensionLibrary::on_main_loop_frame()".to_string();
+    let ctx = "ExtensionLibrary::on_main_loop_frame()";
 
-    swallow_panics(ctx, || {
+    swallow_panics(&ctx, || {
         E::on_main_loop_frame();
     });
 }
@@ -145,9 +146,9 @@ unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
     // is left suspended (and dropped in cleanup()) instead of being woken into a spurious panic. See `async_runtime::is_engine_exiting()`.
     crate::task::mark_engine_exiting();
 
-    let ctx = || "ExtensionLibrary::on_stage_deinit(MainLoop)".to_string();
+    let ctx = "ExtensionLibrary::on_stage_deinit(MainLoop)";
 
-    swallow_panics(ctx, || {
+    swallow_panics(&ctx, || {
         E::on_stage_deinit(InitStage::MainLoop);
     });
 }
@@ -226,7 +227,7 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     unsafe {
         let userdata = userdata.cast::<InitUserData>().as_ref().unwrap();
         let level = InitLevel::from_sys(init_level);
-        let ctx = || format!("ExtensionLibrary::on_stage_init({level:?})");
+        let ctx = format!("ExtensionLibrary::on_stage_init({level:?})");
 
         fn try_load<E: ExtensionLibrary>(level: InitLevel, userdata: &InitUserData) {
             // Workaround for https://github.com/godot-rust/gdext/issues/629:
@@ -251,7 +252,7 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
         }
 
         // TODO consider crashing if gdext init fails.
-        swallow_panics(ctx, || {
+        swallow_panics(&ctx, || {
             try_load::<E>(level, userdata);
         });
     }
@@ -263,9 +264,9 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
 ) {
     unsafe {
         let level = InitLevel::from_sys(init_level);
-        let ctx = || format!("ExtensionLibrary::on_stage_deinit({level:?})");
+        let ctx = format!("ExtensionLibrary::on_stage_deinit({level:?})");
 
-        swallow_panics(ctx, || {
+        swallow_panics(&ctx, || {
             if level == InitLevel::Core {
                 // Once the CORE api is unloaded, reset the flag to initial state.
                 LEVEL_SERVERS_CORE_LOADED.store(false, Ordering::Relaxed);
@@ -434,9 +435,8 @@ const fn previous_init_level(level: InitLevel) -> Option<InitLevel> {
 }
 
 /// Catches panics without propagating them further. Prints error messages.
-fn swallow_panics<E, F>(error_context: E, code: F)
+fn swallow_panics<F>(error_context: &dyn Display, code: F)
 where
-    E: Fn() -> String,
     F: FnOnce() + std::panic::UnwindSafe,
 {
     let _ = crate::private::handle_panic(error_context, code);
