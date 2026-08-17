@@ -391,6 +391,27 @@ thread_local! {
     }
 }
 
+/// Pushes the given context function to the current thread's error context stack.
+/// # Safety
+/// Function must be removed (using [`pop_panic_context()`]) before its lifetime `'b` is invalidated.
+unsafe fn push_panic_context<'b>(error_context: &'b (dyn Fn() -> String + 'b)) {
+    #[cfg(not(safeguards_strict))]
+    let _ = error_context; // Unused in Release.
+
+    #[cfg(safeguards_strict)]
+    ERROR_CONTEXT_STACK.with(|cell| {
+        let mut stack = cell.borrow_mut();
+        // SAFETY: caller promises to pop error_context before its lifetime is invalidated.
+        unsafe { stack.push_function(error_context) }
+    });
+}
+
+/// Pops a function from the current thread's error context stack.
+fn pop_panic_context() {
+    #[cfg(safeguards_strict)]
+    ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
+}
+
 // Value may return `None`, even from panic hook, if called from a non-Godot thread.
 pub fn fetch_last_panic_context() -> Option<String> {
     #[cfg(safeguards_strict)]
@@ -433,19 +454,13 @@ where
     E: Fn() -> String,
     F: FnOnce() -> R + std::panic::UnwindSafe,
 {
-    #[cfg(not(safeguards_strict))]
-    let _ = error_context; // Unused in Release.
-
-    #[cfg(safeguards_strict)]
-    ERROR_CONTEXT_STACK.with(|cell| unsafe {
-        // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
-        cell.borrow_mut().push_function(&error_context)
-    });
+    // SAFETY: &error_context is valid for lifetime of function, and is removed from LAST_ERROR_CONTEXT before end of function.
+    unsafe { push_panic_context(&error_context) };
 
     let result = std::panic::catch_unwind(code).map_err(PanicPayload::new);
 
-    #[cfg(safeguards_strict)]
-    ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_function());
+    pop_panic_context();
+
     result
 }
 
