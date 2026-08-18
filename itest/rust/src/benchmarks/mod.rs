@@ -11,7 +11,9 @@ use std::cell::RefCell;
 use std::hint::black_box;
 
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{GString, GodotStringExt, PackedInt32Array, Rect2i, StringName, Vector2i};
+use godot::builtin::{
+    GString, GodotStringExt, PackedInt32Array, Rect2i, StringName, Variant, Vector2i,
+};
 use godot::classes::notify::ObjectNotification;
 use godot::classes::{IRefCounted, Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
@@ -120,6 +122,27 @@ fn class_user_virtual_notification() -> BenchResult {
     bench_measure(100, || {
         obj.borrow_mut().notify(ObjectNotification::POSTINITIALIZE);
         true
+    })
+}
+
+/// Rust -> Godot varcall into an engine method, through `Signature::out_class_varcall` (dynamic dispatch, `Variant` marshalling).
+#[bench(manual)]
+fn class_engine_out_varcall() -> BenchResult {
+    let obj = RefCell::new(RefCounted::new_gd());
+    let method = StringName::from("get_reference_count");
+
+    bench_measure(100, || obj.borrow_mut().call(&method, &[]))
+}
+
+/// Same as [`class_engine_out_varcall()`], but with one explicit argument, so the argument tuple is non-empty.
+#[bench(manual)]
+fn class_engine_out_varcall_arg() -> BenchResult {
+    let obj = RefCell::new(RefCounted::new_gd());
+    let method = StringName::from("has_meta");
+    let arg = Variant::from("some_meta");
+
+    bench_measure(100, || {
+        obj.borrow_mut().call(&method, std::slice::from_ref(&arg))
     })
 }
 
