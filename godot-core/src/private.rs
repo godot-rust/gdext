@@ -483,7 +483,7 @@ pub fn handle_fallible_varcall<F, R>(
 ) where
     F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
 {
-    if handle_fallible_call(call_ctx, code) {
+    if handle_fallible_call(call_ctx, &mut erase(code)) {
         // Use CALL_FAILED_STATUS so the GDScript VM recognizes the failure and aborts the calling function.
         // The Rust-side CallError has been stored in the thread-local, so that try_call() can retrieve it later.
         *out_err = sys::GDExtensionCallError {
@@ -499,7 +499,20 @@ pub fn handle_fallible_ptrcall<F>(call_ctx: &CallContext, code: F)
 where
     F: FnOnce() -> CallResult<()> + std::panic::UnwindSafe,
 {
-    handle_fallible_call(call_ctx, code);
+    handle_fallible_call(call_ctx, &mut erase(code));
+}
+
+/// Type-erases a fallible call, discarding its return value.
+///
+/// The result is passed as `&mut dyn FnMut` to [`handle_fallible_call`], so that the latter is compiled once instead of once per `#[func]`.
+/// `FnMut` (rather than `FnOnce`) to keep the erased closure callable through a reference; it is invoked exactly once.
+#[inline]
+fn erase<F, R>(code: F) -> impl FnMut() -> CallResult<()>
+where
+    F: FnOnce() -> CallResult<R>,
+{
+    let mut code = Some(code);
+    move || code.take().expect("erased call invoked twice")().map(|_| ())
 }
 
 /// Common error handling for fallible calls, handling detectable errors and user panics.
@@ -507,11 +520,9 @@ where
 /// Returns `true` if the call failed, `false` if it succeeded.
 ///
 /// On failure, the [`CallError`] is stored in thread-local storage for later retrieval via [`call_error_take`].
-fn handle_fallible_call<F, R>(call_ctx: &CallContext, code: F) -> bool
-where
-    F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
-{
-    let outcome: Result<CallResult<R>, PanicPayload> = handle_panic(call_ctx, code);
+fn handle_fallible_call(call_ctx: &CallContext, code: &mut dyn FnMut() -> CallResult<()>) -> bool {
+    // AssertUnwindSafe: the `UnwindSafe` bound is enforced at the entry points, before type erasure.
+    let outcome = handle_panic(call_ctx, std::panic::AssertUnwindSafe(code));
 
     let call_error = match outcome {
         // All good.
