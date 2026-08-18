@@ -173,31 +173,17 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
         let call_ctx = CallContext::outbound(class_name, method_name);
         //$crate::out!("out_class_varcall: {call_ctx}");
 
-        let class_fn = sys::interface_fn!(object_method_bind_call);
+        let target = OutVarcallTarget::ClassMethod {
+            method_bind,
+            object_ptr: ValidatedObject::object_ptr(validated_obj.as_ref()),
+        };
 
         // Silence inbound `#[func]` failure prints during this out-call; caller observes the error via the returned `CallError`.
         let _guard = crate::private::OutCallGuard::new();
 
-        let variant = args.with_variants(|explicit_args| {
-            let mut variant_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-            variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys));
-            variant_ptrs.extend(varargs.iter().map(Variant::var_sys));
-
-            unsafe {
-                Variant::new_with_var_uninit_result(|return_ptr| {
-                    let mut err = sys::default_call_error();
-                    class_fn(
-                        method_bind.0,
-                        ValidatedObject::object_ptr(validated_obj.as_ref()),
-                        variant_ptrs.as_ptr(),
-                        variant_ptrs.len() as i64,
-                        return_ptr,
-                        &raw mut err,
-                    );
-
-                    CallError::check_out_varcall(&call_ctx, err, explicit_args, varargs)
-                })
-            }
+        // SAFETY: caller guarantees that `method_bind` matches the object and expects these arguments.
+        let variant = args.with_variants(|explicit_args| unsafe {
+            out_varcall(&call_ctx, target, explicit_args, varargs)
         });
 
         variant.and_then(|v| {
@@ -581,6 +567,71 @@ unsafe fn ptrcall_return<R: EngineToGodot>(
     Ok(())
 }
 
+/// Engine entry point for [`out_varcall`].
+enum OutVarcallTarget {
+    /// `object_ptr` is null for static methods.
+    ClassMethod {
+        method_bind: sys::ClassMethodBind,
+        object_ptr: sys::GDExtensionObjectPtr,
+    },
+    /// Script-virtual override.
+    #[cfg(since_api = "4.3")]
+    ScriptMethod {
+        object_ptr: sys::GDExtensionObjectPtr,
+        method_sname_ptr: sys::GDExtensionConstStringNamePtr,
+    },
+}
+
+/// Performs an outbound varcall. Free of `Params`/`Ret`, thus compiled once instead of once per generic instantiation.
+///
+/// # Safety
+/// The pointers in `target` must be valid, and the arguments must match the called method's parameters.
+unsafe fn out_varcall(
+    call_ctx: &CallContext,
+    target: OutVarcallTarget,
+    explicit_args: &[Variant],
+    varargs: &[Variant],
+) -> CallResult<Variant> {
+    let mut variant_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
+    variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys));
+    variant_ptrs.extend(varargs.iter().map(Variant::var_sys));
+
+    // SAFETY: pointers are valid per the caller's guarantee; `return_ptr` is uninitialized result storage that the engine writes on success.
+    unsafe {
+        Variant::new_with_var_uninit_result(|return_ptr| {
+            let mut err = sys::default_call_error();
+            match target {
+                OutVarcallTarget::ClassMethod {
+                    method_bind,
+                    object_ptr,
+                } => sys::interface_fn!(object_method_bind_call)(
+                    method_bind.0,
+                    object_ptr,
+                    variant_ptrs.as_ptr(),
+                    variant_ptrs.len() as i64,
+                    return_ptr,
+                    &raw mut err,
+                ),
+
+                #[cfg(since_api = "4.3")]
+                OutVarcallTarget::ScriptMethod {
+                    object_ptr,
+                    method_sname_ptr,
+                } => sys::interface_fn!(object_call_script_method)(
+                    object_ptr,
+                    method_sname_ptr,
+                    variant_ptrs.as_ptr(),
+                    variant_ptrs.len() as i64,
+                    return_ptr,
+                    &raw mut err,
+                ),
+            }
+
+            CallError::check_out_varcall(call_ctx, err, explicit_args, varargs)
+        })
+    }
+}
+
 #[cold]
 #[inline(never)]
 fn return_error_dyn(call_ctx: &CallContext, return_ty: &'static str, err: ConvertError) -> ! {
@@ -599,29 +650,14 @@ unsafe fn out_script_virtual_call_inner<Params: OutParamTuple>(
     object_ptr: sys::GDExtensionObjectPtr,
     args: Params,
 ) -> Variant {
-    let object_call_script_method = sys::interface_fn!(object_call_script_method);
+    let target = OutVarcallTarget::ScriptMethod {
+        object_ptr,
+        method_sname_ptr,
+    };
 
-    let variant = args.with_variants(|call_args| {
-        let variant_ptrs: Vec<_> = call_args.iter().map(Variant::var_sys).collect();
-
-        // SAFETY: `object_ptr`/`method_sname_ptr` and the argument pointers are valid per the caller's guarantee; `return_ptr` is uninitialized
-        // result storage that the engine writes on success.
-        unsafe {
-            Variant::new_with_var_uninit_result(|return_ptr| {
-                let mut err = sys::default_call_error();
-                object_call_script_method(
-                    object_ptr,
-                    method_sname_ptr,
-                    variant_ptrs.as_ptr(),
-                    variant_ptrs.len() as i64,
-                    return_ptr,
-                    &raw mut err,
-                );
-
-                CallError::check_out_varcall(call_ctx, err, call_args, &[])
-            })
-        }
-    });
+    // SAFETY: `object_ptr`/`method_sname_ptr` and the arguments are valid per the caller's guarantee.
+    let variant =
+        args.with_variants(|call_args| unsafe { out_varcall(call_ctx, target, call_args, &[]) });
 
     variant.unwrap_or_else(|err| panic!("{err}"))
 }
