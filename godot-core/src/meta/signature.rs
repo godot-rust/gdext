@@ -618,7 +618,7 @@ unsafe fn out_script_virtual_call_inner<Params: OutParamTuple>(
                     &raw mut err,
                 );
 
-                CallError::check_out_varcall(call_ctx, err, call_args, &[] as &[Variant])
+                CallError::check_out_varcall(call_ctx, err, call_args, &[])
             })
         }
     });

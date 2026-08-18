@@ -630,8 +630,7 @@ mod tests {
             argument: 0,
             expected: 0,
         };
-        let result =
-            CallError::check_out_varcall(&call_ctx, ok_err, &[] as &[crate::builtin::Variant], &[]);
+        let result = CallError::check_out_varcall(&call_ctx, ok_err, &[], &[]);
         assert!(result.is_ok(), "successful call must return Ok");
 
         // TLS must now be empty.
@@ -658,12 +657,7 @@ mod tests {
             argument: 2,
             expected: 3,
         };
-        let result = CallError::check_out_varcall(
-            &call_ctx,
-            godot_err,
-            &[] as &[crate::builtin::Variant],
-            &[],
-        );
+        let result = CallError::check_out_varcall(&call_ctx, godot_err, &[], &[]);
         let err = result.expect_err("must fail");
 
         // Must be a direct Godot error, not a wrapped source error.

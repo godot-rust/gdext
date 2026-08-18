@@ -11,8 +11,8 @@ use std::fmt;
 use godot_ffi::join_debug;
 
 use crate::builtin::{Variant, VariantType};
+use crate::meta::CallContext;
 use crate::meta::error::{ConvertError, ErasedConvertError};
-use crate::meta::{CallContext, ToGodot};
 use crate::private::PanicPayload;
 use crate::sys;
 
@@ -139,10 +139,10 @@ impl CallError {
     }
 
     /// Checks the Godot side of a varcall (low-level `sys::GDExtensionCallError`).
-    pub(crate) fn check_out_varcall<T: ToGodot>(
+    pub(crate) fn check_out_varcall(
         call_ctx: &CallContext,
         err: sys::GDExtensionCallError,
-        explicit_args: &[T],
+        explicit_args: &[Variant],
         varargs: &[Variant],
     ) -> Result<(), Self> {
         // Always drain stale thread-local errors (even on success), so that entries left over from previous `#[func]` failures
@@ -153,7 +153,7 @@ impl CallError {
             return Ok(());
         }
 
-        let explicit_args_str = join_args(explicit_args.iter().map(|arg| arg.to_variant()));
+        let explicit_args_str = join_args(explicit_args.iter().cloned());
         let vararg_str = if varargs.is_empty() {
             String::new()
         } else {
@@ -171,7 +171,7 @@ impl CallError {
         }
 
         let mut arg_types = Vec::with_capacity(explicit_args.len() + varargs.len());
-        arg_types.extend(explicit_args.iter().map(|arg| arg.to_variant().get_type()));
+        arg_types.extend(explicit_args.iter().map(Variant::get_type));
         arg_types.extend(varargs.iter().map(Variant::get_type));
 
         Err(Self::failed_varcall_inner(
