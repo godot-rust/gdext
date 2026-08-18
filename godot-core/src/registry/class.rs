@@ -398,7 +398,7 @@ pub(crate) fn try_dynify_object<T: GodotClass, D: ?Sized + 'static>(
 /// with the set of valid implementor classes from the `#[godot_dyn]` registry.
 ///
 /// See also [Godot docs for PropertyHint](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enum-globalscope-propertyhint).
-pub(crate) fn get_dyn_implementor_class_ids<T, D>() -> Vec<ClassId>
+pub fn get_dyn_implementor_class_ids<T, D>() -> Vec<ClassId>
 where
     T: GodotClass,
     D: ?Sized + 'static,
