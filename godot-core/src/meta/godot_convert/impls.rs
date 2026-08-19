@@ -5,7 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{Array, Variant};
+use std::collections::{BTreeMap, HashMap};
+use std::hash::Hash;
+
+use crate::builtin::{Array, Dictionary, Variant};
 use crate::meta;
 use crate::meta::error::{
     CallError, CallOutcome, ConvertError, ErrorKind, ErrorToGodot, FromFfiError,
@@ -456,6 +459,50 @@ impl<T: Element> ToGodot for &[T] {
 
     fn to_godot(&self) -> Self::Via {
         Array::from(*self)
+    }
+}
+
+impl<K: Element, V: Element> GodotConvert for HashMap<K, V> {
+    type Via = Dictionary<K, V>;
+
+    fn godot_shape() -> GodotShape {
+        <Dictionary<K, V> as GodotConvert>::godot_shape()
+    }
+}
+
+impl<K: Element, V: Element> ToGodot for HashMap<K, V> {
+    type Pass = meta::ByValue;
+
+    fn to_godot(&self) -> Self::Via {
+        self.iter().collect()
+    }
+}
+
+impl<K: Element + Eq + Hash, V: Element> FromGodot for HashMap<K, V> {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via.iter_shared().collect())
+    }
+}
+
+impl<K: Element, V: Element> GodotConvert for BTreeMap<K, V> {
+    type Via = Dictionary<K, V>;
+
+    fn godot_shape() -> GodotShape {
+        <Dictionary<K, V> as GodotConvert>::godot_shape()
+    }
+}
+
+impl<K: Element, V: Element> ToGodot for BTreeMap<K, V> {
+    type Pass = meta::ByValue;
+
+    fn to_godot(&self) -> Self::Via {
+        self.iter().collect()
+    }
+}
+
+impl<K: Element + Ord, V: Element> FromGodot for BTreeMap<K, V> {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via.iter_shared().collect())
     }
 }
 
