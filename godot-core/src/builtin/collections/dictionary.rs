@@ -843,6 +843,22 @@ impl<K: Element, V: Element> FromIterator<(K, V)> for Dictionary<K, V> {
     }
 }
 
+impl<'k, 'v, K: Element, V: Element> Dictionary<K, V> {
+    /// Creates a `Dictionary` from an iterator over reference key-value pairs.
+    // TODO: Maybe implement `FromIterator<(&K, &V)>` instead in the future?
+    pub(crate) fn from_iter_ref<I: IntoIterator<Item = (&'k K, &'v V)>>(iter: I) -> Self {
+        let mut dict = Dictionary::new();
+        for (k, v) in iter.into_iter() {
+            // Inline set logic to avoid generic owned_into_arg() (which can't resolve T::Pass).
+            dict.balanced_ensure_mutable();
+
+            // SAFETY: K and V strongly typed.
+            unsafe { dict.set_variant(k.to_variant(), v.to_variant()) };
+        }
+        dict
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GodotConvert/ToGodot/FromGodot for Dictionary<K, V>
 
