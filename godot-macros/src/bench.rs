@@ -11,8 +11,6 @@ use quote::quote;
 use crate::ParseResult;
 use crate::util::{KvParser, bail, retain_attributes_except};
 
-const DEFAULT_REPETITIONS: usize = 100;
-
 pub fn attribute_bench(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let func = match input_decl {
         venial::Item::Function(f) => f,
@@ -26,18 +24,7 @@ pub fn attribute_bench(input_decl: venial::Item) -> ParseResult<TokenStream> {
 
     let mut attr = KvParser::parse_required(&func.attributes, "bench", &func.name)?;
     let manual = attr.handle_alone("manual")?;
-    let repetitions = attr.handle_usize("repeat")?;
     attr.finish()?;
-
-    // Validate attribute combinations.
-    if manual && repetitions.is_some() {
-        return bail!(
-            func,
-            "#[bench(manual)] cannot be combined with `repeat` -- pass repetitions to bench_measure() instead"
-        );
-    }
-
-    let repetitions = repetitions.unwrap_or(DEFAULT_REPETITIONS);
 
     // Validate parameter count.
     if !func.params.is_empty() {
@@ -83,7 +70,7 @@ pub fn attribute_bench(input_decl: venial::Item) -> ParseResult<TokenStream> {
         quote! {
             #(#other_attributes)*
             pub fn #bench_name() -> crate::framework::BenchResult {
-                crate::framework::bench_measure(#repetitions, || {
+                crate::framework::bench_measure(|| {
                     let __ret: #ret = #body;
                     __ret // passed onto bench_used() by caller.
                 })

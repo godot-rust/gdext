@@ -13,7 +13,7 @@ use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
 use super::BenchObj;
 use crate::framework::{BenchResult, bench, bench_measure, create_gdscript};
 
-#[bench(repeat = 25)]
+#[bench]
 fn class_node_life() -> InstanceId {
     let node = Node3D::new_alloc();
     let instance_id = node.instance_id();
@@ -22,12 +22,12 @@ fn class_node_life() -> InstanceId {
     instance_id // No longer valid, but enough for compiler to assume it's used.
 }
 
-#[bench(repeat = 25)]
+#[bench]
 fn class_engine_refc_life() -> Gd<RefCounted> {
     RefCounted::new_gd()
 }
 
-#[bench(repeat = 25)]
+#[bench]
 fn class_user_refc_life() -> Gd<BenchObj> {
     BenchObj::new_gd()
 }
@@ -37,7 +37,7 @@ fn class_user_refc_life() -> Gd<BenchObj> {
 fn class_engine_refc_clone_drop() -> BenchResult {
     let obj = RefCounted::new_gd();
 
-    bench_measure(100, || obj.clone())
+    bench_measure(|| obj.clone())
 }
 
 /// Same as [`class_engine_refc_clone_drop()`], for a user class -- `RawGd` additionally carries the storage-pointer cache.
@@ -45,14 +45,14 @@ fn class_engine_refc_clone_drop() -> BenchResult {
 fn class_user_refc_clone_drop() -> BenchResult {
     let obj = BenchObj::new_gd();
 
-    bench_measure(100, || obj.clone())
+    bench_measure(|| obj.clone())
 }
 
 #[bench(manual)]
 fn class_user_bind() -> BenchResult {
     let obj = BenchObj::new_gd();
 
-    bench_measure(100, || {
+    bench_measure(|| {
         let guard = obj.bind();
         std::hint::black_box(&guard);
         true
@@ -63,7 +63,7 @@ fn class_user_bind() -> BenchResult {
 fn class_user_bind_mut() -> BenchResult {
     let mut obj = BenchObj::new_gd();
 
-    bench_measure(100, || {
+    bench_measure(|| {
         let guard = obj.bind_mut();
         std::hint::black_box(&guard);
         true
@@ -75,7 +75,7 @@ fn class_user_from_instance_id() -> BenchResult {
     let obj = BenchObj::new_gd();
     let instance_id = obj.instance_id();
 
-    bench_measure(100, || Gd::<BenchObj>::from_instance_id(instance_id))
+    bench_measure(|| Gd::<BenchObj>::from_instance_id(instance_id))
 }
 
 /// Includes one `Gd` clone, since `try_cast()` consumes the object; see [`class_engine_refc_clone_drop()`].
@@ -83,7 +83,7 @@ fn class_user_from_instance_id() -> BenchResult {
 fn class_engine_try_cast() -> BenchResult {
     let obj = RefCounted::new_gd().upcast::<Object>();
 
-    bench_measure(100, || obj.clone().try_cast::<RefCounted>())
+    bench_measure(|| obj.clone().try_cast::<RefCounted>())
 }
 
 /// Godot -> Rust `#[var]` read, driven from GDScript; see [`super::call_bench::class_user_refc_ptrcall()`] for the loop shape.
@@ -98,7 +98,7 @@ fn class_user_property_get() -> BenchResult {
         "extends RefCounted\n\nfunc hammer(o: BenchObj) -> void:\n\tfor i in 100:\n\t\tvar _v = o.bench_int\n",
     ));
 
-    bench_measure(1, || caller.call(&hammer, std::slice::from_ref(&obj)))
+    bench_measure(|| caller.call(&hammer, std::slice::from_ref(&obj)))
 }
 
 /// Same as [`class_user_property_get()`], for the write direction.
@@ -112,7 +112,7 @@ fn class_user_property_set() -> BenchResult {
         "extends RefCounted\n\nfunc hammer(o: BenchObj) -> void:\n\tfor i in 100:\n\t\to.bench_int = i\n",
     ));
 
-    bench_measure(1, || caller.call(&hammer, std::slice::from_ref(&obj)))
+    bench_measure(|| caller.call(&hammer, std::slice::from_ref(&obj)))
 }
 
 #[bench]

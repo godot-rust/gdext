@@ -203,10 +203,7 @@ impl ScriptInstance for TestScriptInstance {
                 Ok(result)
             }
 
-            other => {
-                println!("CALL: {other} with args: {args:?}");
-                Err(CallErrorType::InvalidMethod)
-            }
+            _ => Err(CallErrorType::InvalidMethod),
         }
     }
 
