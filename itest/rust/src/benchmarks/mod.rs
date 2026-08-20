@@ -5,157 +5,79 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// File can be split once this grows.
+//! Benchmarks are grouped by what they measure: `builtin` (values), `call` (method calls in both directions), `object` (instance access
+//! and lifetime), `variant` (conversions). Each one tests a single thing, so a slowdown points to a specific place.
 
-use std::hint::black_box;
-
-use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{GString, PackedInt32Array, Rect2i, StringName, Vector2i};
-use godot::classes::{Node3D, Os, RefCounted};
-use godot::obj::{Gd, InstanceId, NewAlloc, NewGd, Singleton};
+use godot::builtin::{GString, GodotStringExt};
+use godot::classes::notify::ObjectNotification;
+use godot::classes::{IRefCounted, RefCounted};
+use godot::obj::Base;
 use godot::register::{GodotClass, godot_api};
 
-use crate::framework::{BenchResult, bench, bench_measure};
-
-mod callable;
-mod color;
-
-#[bench]
-fn builtin_string_ctor() -> GString {
-    GString::from("some test string")
-}
-
-#[bench]
-fn builtin_stringname_ctor() -> StringName {
-    StringName::from("some test string")
-}
-
-#[bench]
-fn builtin_rust_call() -> bool {
-    let point = black_box(Vector2i::new(50, 60));
-
-    let rect = Rect2i::from_components(0, 0, 100, 100);
-
-    rect.contains_point(point)
-}
-
-#[bench]
-fn builtin_ffi_call() -> bool {
-    let point = black_box(Vector2i::new(50, 60));
-
-    let rect = Rect2i::from_components(0, 0, 100, 100);
-    let rect = InnerRect2i::from_outer(&rect);
-
-    rect.has_point(point)
-}
-
-#[bench(repeat = 25)]
-fn class_node_life() -> InstanceId {
-    let node = Node3D::new_alloc();
-    let instance_id = node.instance_id();
-
-    node.free();
-    instance_id // No longer valid, but enough for compiler to assume it's used.
-}
-
-#[bench(repeat = 25)]
-fn class_engine_refc_life() -> Gd<RefCounted> {
-    RefCounted::new_gd()
-}
-
-#[bench(repeat = 25)]
-fn class_user_refc_life() -> Gd<MyBenchType> {
-    Gd::default()
-}
-
-/// Just measure `refc_inc` + `refc_dec` on already-existing object, without construction or destruction.
-#[bench(manual)]
-fn class_engine_refc_clone_drop() -> BenchResult {
-    let obj = RefCounted::new_gd();
-
-    bench_measure(100, || obj.clone())
-}
-
-/// Same as [`class_engine_refc_clone_drop()`], for a user class -- `RawGd` additionally carries the storage-pointer cache.
-#[bench(manual)]
-fn class_user_refc_clone_drop() -> BenchResult {
-    let obj = MyBenchType::new_gd();
-
-    bench_measure(100, || obj.clone())
-}
-
-/// Godot -> Rust call into a `#[func]` method, through the trampoline that keeps the storage alive for the call's duration.
-#[bench(manual)]
-fn class_user_refc_call_ref() -> BenchResult {
-    let obj = MyBenchType::new_gd();
-    let callable = obj.callable("noop_ref");
-
-    bench_measure(100, || callable.call(&[]))
-}
-
-/// Same as [`class_user_refc_call_ref()`], but the receiver additionally requires an exclusive bind.
-#[bench(manual)]
-fn class_user_refc_call_mut() -> BenchResult {
-    let obj = MyBenchType::new_gd();
-    let callable = obj.callable("noop_mut");
-
-    bench_measure(100, || callable.call(&[]))
-}
-
-#[bench]
-fn class_singleton_access() -> Gd<Os> {
-    Os::singleton()
-}
-
-#[bench]
-fn utilities_allocate_rid() -> i64 {
-    godot::global::rid_allocate_id()
-}
-
-#[bench]
-fn utilities_rust_call() -> f64 {
-    let base = black_box(5.678);
-    let exponent = black_box(3.456);
-
-    f64::powf(base, exponent)
-}
-
-#[bench]
-fn utilities_ffi_call() -> f64 {
-    let base = black_box(5.678);
-    let exponent = black_box(3.456);
-
-    godot::global::pow(base, exponent)
-}
-
-#[bench(repeat = 25)]
-fn packed_array_from_iter_known_size() -> PackedInt32Array {
-    // Create an iterator whose `size_hint()` returns `(len, Some(len))`.
-    PackedInt32Array::from_iter(0..100)
-}
-
-#[bench(repeat = 25)]
-fn packed_array_from_iter_unknown_size() -> PackedInt32Array {
-    // Create an iterator whose `size_hint()` returns `(0, None)`.
-    let mut item = 0;
-    PackedInt32Array::from_iter(std::iter::from_fn(|| {
-        item += 1;
-        if item <= 100 { Some(item) } else { None }
-    }))
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Helpers for benchmarks above
+mod builtin_bench;
+mod call_bench;
+mod callable_bench;
+mod color_bench;
+mod object_bench;
+mod variant_bench;
 
 #[derive(GodotClass)]
 #[class(init)]
-struct MyBenchType {}
+pub(super) struct BenchObj {
+    #[var]
+    bench_int: i64,
+}
 
 #[godot_api]
-impl MyBenchType {
+impl BenchObj {
     #[func]
     fn noop_ref(&self) {}
 
     #[func]
     fn noop_mut(&mut self) {}
+
+    #[func]
+    fn echo(&self, text: GString) -> GString {
+        text
+    }
+}
+
+/// Separate class, so that the base field and signal registration don't affect the benchmarks using [`BenchObj`].
+#[derive(GodotClass)]
+#[class(init, base = RefCounted)]
+pub(super) struct SignalBenchObj {
+    _base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl SignalBenchObj {
+    #[signal]
+    fn bench_signal();
+}
+
+/// Separate class, so that the virtual methods don't affect the benchmarks using [`BenchObj`].
+#[derive(GodotClass)]
+#[class(init, base = RefCounted)]
+pub(super) struct VirtualBenchObj {
+    _base: Base<RefCounted>,
+}
+
+/// `#[func(virtual)]` requires Godot 4.3.
+#[cfg(since_api = "4.3")]
+#[godot_api]
+impl VirtualBenchObj {
+    /// Forwarded to a GDScript override if one is attached; see [`call_bench::class_user_script_virtual()`].
+    #[func(virtual)]
+    fn bench_virtual(&self) -> i64 {
+        0
+    }
+}
+
+#[godot_api]
+impl IRefCounted for VirtualBenchObj {
+    fn on_notification(&mut self, _what: ObjectNotification) {}
+
+    fn to_string(&self) -> GString {
+        "VirtualBenchObj".to_gstring()
+    }
 }

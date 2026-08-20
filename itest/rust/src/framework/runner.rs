@@ -553,15 +553,16 @@ fn print_test_post(test_case: &str, outcome: TestOutcome) {
 }
 
 fn print_bench_pre(benchmark: &str, bench_file: &str, last_file: Option<&str>) {
+    let max_width: usize = 30;
     print_file_header(bench_file, last_file);
 
-    let benchmark = if benchmark.len() > 26 {
-        &benchmark[..26]
+    let benchmark = if benchmark.len() > max_width {
+        &benchmark[..max_width]
     } else {
         benchmark
     };
 
-    print!("   -- {benchmark:<26} ...");
+    print!("   -- {benchmark:<max_width$} ...");
 }
 
 fn print_bench_post(result: BenchResult) {
