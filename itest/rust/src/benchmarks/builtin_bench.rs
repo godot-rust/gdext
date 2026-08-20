@@ -26,7 +26,7 @@ fn builtin_stringname_ctor() -> StringName {
 fn builtin_gstring_to_rust() -> BenchResult {
     let string = "some test string".to_gstring();
 
-    bench_measure(100, || String::from(&string))
+    bench_measure(|| String::from(&string))
 }
 
 #[bench]
@@ -69,13 +69,13 @@ fn utilities_ffi_call() -> f64 {
     godot::global::pow(base, exponent)
 }
 
-#[bench(repeat = 25)]
+#[bench]
 fn packed_from_iter_sized() -> PackedInt32Array {
     // Create an iterator whose `size_hint()` returns `(len, Some(len))`.
     PackedInt32Array::from_iter(0..100)
 }
 
-#[bench(repeat = 25)]
+#[bench]
 fn packed_from_iter_unsized() -> PackedInt32Array {
     // Create an iterator whose `size_hint()` returns `(0, None)`.
     let mut item = 0;

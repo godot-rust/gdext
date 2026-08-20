@@ -20,7 +20,7 @@ fn class_user_refc_call_ref() -> BenchResult {
     let obj = BenchObj::new_gd();
     let callable = obj.callable("noop_ref");
 
-    bench_measure(100, || callable.call(&[]))
+    bench_measure(|| callable.call(&[]))
 }
 
 /// Same as [`class_user_refc_call_ref()`], but the receiver additionally requires an exclusive bind.
@@ -29,7 +29,7 @@ fn class_user_refc_call_mut() -> BenchResult {
     let obj = BenchObj::new_gd();
     let callable = obj.callable("noop_mut");
 
-    bench_measure(100, || callable.call(&[]))
+    bench_measure(|| callable.call(&[]))
 }
 
 /// Same as [`class_user_refc_call_ref()`], but marshalling one argument and one return value.
@@ -39,7 +39,7 @@ fn class_user_refc_call_args() -> BenchResult {
     let callable = obj.callable("echo");
     let args = ["some test string".to_variant()];
 
-    bench_measure(100, || callable.call(&args))
+    bench_measure(|| callable.call(&args))
 }
 
 /// Godot -> Rust call into a virtual method, through the panic-handling chain. `Object::to_string()` is not public, so this also
@@ -48,7 +48,7 @@ fn class_user_refc_call_args() -> BenchResult {
 fn class_user_virtual_to_string() -> BenchResult {
     let obj = VirtualBenchObj::new_gd();
 
-    bench_measure(100, || obj.to_string())
+    bench_measure(|| obj.to_string())
 }
 
 /// Same as [`class_user_virtual_to_string()`], but the virtual method itself does no work.
@@ -56,7 +56,7 @@ fn class_user_virtual_to_string() -> BenchResult {
 fn class_user_virtual_notify() -> BenchResult {
     let mut obj = VirtualBenchObj::new_gd();
 
-    bench_measure(100, || {
+    bench_measure(|| {
         obj.notify(ObjectNotification::Unknown(1_000_000)); // Neutral: no lifecycle meaning.
         true
     })
@@ -68,7 +68,7 @@ fn class_engine_out_varcall() -> BenchResult {
     let mut obj = RefCounted::new_gd();
     let method = "get_reference_count".to_string_name();
 
-    bench_measure(100, || obj.call(&method, &[]))
+    bench_measure(|| obj.call(&method, &[]))
 }
 
 /// Same as [`class_engine_out_varcall()`], but with one explicit argument, so the argument tuple is non-empty.
@@ -78,7 +78,7 @@ fn class_engine_out_varcall_arg() -> BenchResult {
     let method = "has_meta".to_string_name();
     let args = ["some_meta".to_variant()];
 
-    bench_measure(100, || obj.call(&method, &args))
+    bench_measure(|| obj.call(&method, &args))
 }
 
 /// Same engine method as [`class_engine_out_varcall()`], but statically typed, through `Signature::out_class_ptrcall`.
@@ -87,7 +87,7 @@ fn class_engine_out_varcall_arg() -> BenchResult {
 fn class_engine_out_ptrcall() -> BenchResult {
     let obj = RefCounted::new_gd();
 
-    bench_measure(100, || obj.get_reference_count())
+    bench_measure(|| obj.get_reference_count())
 }
 
 /// Same as [`class_engine_out_ptrcall()`], but with one argument, so `GodotFfi::to_arg_ptr()` runs per call.
@@ -96,7 +96,7 @@ fn class_engine_out_ptrcall_arg() -> BenchResult {
     let obj = RefCounted::new_gd();
     let meta = "some_meta".to_string_name();
 
-    bench_measure(100, || obj.has_meta(&meta))
+    bench_measure(|| obj.has_meta(&meta))
 }
 
 /// Godot -> Rust `#[func]` call through the ptrcall glue: GDScript emits ptrcall, not varcall, for a statically typed receiver.
@@ -113,7 +113,7 @@ fn class_user_refc_ptrcall() -> BenchResult {
         "extends RefCounted\n\nfunc hammer(o: BenchObj) -> void:\n\tfor i in 100:\n\t\to.noop_ref()\n",
     ));
 
-    bench_measure(1, || caller.call(&hammer, std::slice::from_ref(&obj)))
+    bench_measure(|| caller.call(&hammer, std::slice::from_ref(&obj)))
 }
 
 /// Same as [`class_user_refc_ptrcall()`], but marshalling one argument and one return value.
@@ -127,7 +127,7 @@ fn class_user_refc_ptrcall_args() -> BenchResult {
         "extends RefCounted\n\nfunc hammer(o: BenchObj) -> void:\n\tfor i in 100:\n\t\to.echo(\"some test string\")\n",
     ));
 
-    bench_measure(1, || caller.call(&hammer, std::slice::from_ref(&obj)))
+    bench_measure(|| caller.call(&hammer, std::slice::from_ref(&obj)))
 }
 
 /// Rust -> Godot call into a GDScript override of a Rust virtual, through `Signature::out_script_virtual_call`.
@@ -139,7 +139,7 @@ fn class_user_script_virtual() -> BenchResult {
         "extends VirtualBenchObj\n\nfunc _bench_virtual() -> int:\n\treturn 0\n",
     ));
 
-    bench_measure(100, || obj.bind().bench_virtual())
+    bench_measure(|| obj.bind().bench_virtual())
 }
 
 #[bench(manual)]
@@ -147,7 +147,7 @@ fn class_user_signal_emit() -> BenchResult {
     let obj = SignalBenchObj::new_gd();
     obj.signals().bench_signal().connect(|| {});
 
-    bench_measure(100, || {
+    bench_measure(|| {
         obj.signals().bench_signal().emit();
         true
     })

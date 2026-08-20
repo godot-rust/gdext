@@ -386,7 +386,7 @@ impl IntegrationTests {
 
         print!("\n{FMT_CYAN}{space}", space = " ".repeat(36));
         for metrics in bencher::metrics() {
-            print!("{metrics:>13}");
+            print!(" {:>11}   ", format!("{metrics} [ns]"));
         }
         print!("{FMT_END}");
 
@@ -565,11 +565,39 @@ fn print_bench_pre(benchmark: &str, bench_file: &str, last_file: Option<&str>) {
     print!("   -- {benchmark:<max_width$} ...");
 }
 
+/// Formats nanoseconds, grouping digits by thousands. Decimals only below 100ns, where they still carry information.
+fn format_time(nanos: f64) -> String {
+    let decimals = match nanos {
+        n if n < 10.0 => 2,
+        n if n < 100.0 => 1,
+        _ => 0,
+    };
+
+    let text = format!("{nanos:.decimals$}");
+    let (integer, fraction) = match text.split_once('.') {
+        Some((integer, fraction)) => (integer, format!(".{fraction}")),
+        None => (text.as_str(), String::new()),
+    };
+
+    let mut grouped = String::new();
+    for (i, digit) in integer.chars().enumerate() {
+        if i > 0 && (integer.len() - i) % 3 == 0 {
+            grouped.push('\'');
+        }
+        grouped.push(digit);
+    }
+
+    format!("{grouped:>11}{fraction:<3}")
+}
+
 fn print_bench_post(result: BenchResult) {
     match result {
         Ok(measured) => {
             for stat in measured.stats.iter() {
-                print!(" {:>10.3}μs", stat.as_nanos() as f64 / 1000.0);
+                print!(" {}", format_time(*stat));
+            }
+            if measured.noisy {
+                print!("  {FMT_YELLOW}~noisy{FMT_END}");
             }
         }
         Err(msg) => {

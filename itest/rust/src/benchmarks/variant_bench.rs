@@ -10,7 +10,6 @@
 //! One bench per code path, not per type: `i64` (smallest POD), `Vector4` (largest POD that still fits inline), `Aabb` (smallest type
 //! that overflows inline storage), plus `GString`/`Gd` as refcounted controls.
 
-use std::collections::VecDeque;
 use std::hint::black_box;
 
 use godot::builtin::{
@@ -21,24 +20,24 @@ use godot::classes::RefCounted;
 use godot::meta::{FromGodot, ToGodot};
 use godot::obj::{Gd, NewGd};
 
-use crate::framework::{BenchResult, TEST_RUNS, WARMUP_RUNS, bench, bench_measure};
+use crate::framework::{BenchResult, bench, bench_measure, bench_measure_batched};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Roundtrip: to_variant() + from_variant().
 
-#[bench(repeat = 1000)]
+#[bench]
 fn variant_roundtrip_i64() -> i64 {
     let v = black_box(12345_i64).to_variant();
     i64::from_variant(black_box(&v))
 }
 
-#[bench(repeat = 1000)]
+#[bench]
 fn variant_roundtrip_vector4() -> Vector4 {
     let v = black_box(Vector4::new(1.5, 2.5, 3.5, 4.5)).to_variant();
     Vector4::from_variant(black_box(&v))
 }
 
-#[bench(repeat = 1000)]
+#[bench]
 fn variant_roundtrip_aabb() -> Aabb {
     let v = black_box(Aabb::new(
         Vector3::new(1.0, 2.0, 3.0),
@@ -53,7 +52,7 @@ fn variant_roundtrip_aabb() -> Aabb {
 fn variant_roundtrip_gstring() -> BenchResult {
     let s = "hello world".to_gstring();
 
-    bench_measure(1000, || {
+    bench_measure(|| {
         let v = black_box(&s).to_variant();
         GString::from_variant(black_box(&v))
     })
@@ -64,7 +63,7 @@ fn variant_roundtrip_gstring() -> BenchResult {
 fn variant_roundtrip_object() -> BenchResult {
     let obj = RefCounted::new_gd();
 
-    bench_measure(1000, || {
+    bench_measure(|| {
         let v = black_box(&obj).to_variant();
         Gd::<RefCounted>::from_variant(black_box(&v))
     })
@@ -77,21 +76,21 @@ fn variant_roundtrip_object() -> BenchResult {
 fn variant_clone_i64() -> BenchResult {
     let v = 12345_i64.to_variant();
 
-    bench_measure(1000, || black_box(&v).clone())
+    bench_measure(|| black_box(&v).clone())
 }
 
 #[bench(manual)]
 fn variant_clone_vector4() -> BenchResult {
     let v = Vector4::new(1.0, 2.0, 3.0, 4.0).to_variant();
 
-    bench_measure(1000, || black_box(&v).clone())
+    bench_measure(|| black_box(&v).clone())
 }
 
 #[bench(manual)]
 fn variant_clone_aabb() -> BenchResult {
     let v = Aabb::new(Vector3::new(1.0, 2.0, 3.0), Vector3::new(4.0, 5.0, 6.0)).to_variant();
 
-    bench_measure(1000, || black_box(&v).clone())
+    bench_measure(|| black_box(&v).clone())
 }
 
 /// Control: refcounted payload, so copy + destroy go through refcount inc/dec.
@@ -99,23 +98,23 @@ fn variant_clone_aabb() -> BenchResult {
 fn variant_clone_object() -> BenchResult {
     let v = RefCounted::new_gd().to_variant();
 
-    bench_measure(1000, || black_box(&v).clone())
+    bench_measure(|| black_box(&v).clone())
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Construct + drop: isolates construction/destruction from the read-back step in the roundtrips above.
 
-#[bench(repeat = 1000)]
+#[bench]
 fn variant_ctor_drop_i64() -> Variant {
     black_box(12345_i64).to_variant()
 }
 
-#[bench(repeat = 1000)]
+#[bench]
 fn variant_ctor_drop_vector4() -> Variant {
     black_box(Vector4::new(1.5, 2.5, 3.5, 4.5)).to_variant()
 }
 
-#[bench(repeat = 1000)]
+#[bench]
 fn variant_ctor_drop_aabb() -> Variant {
     black_box(Aabb::new(
         Vector3::new(1.0, 2.0, 3.0),
@@ -125,39 +124,31 @@ fn variant_ctor_drop_aabb() -> Variant {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Drop (batched): a single Drop is below the noise floor, so these drop a pre-built batch. Reported time covers DROP_BATCH_SIZE drops.
+// Drop: consumes its input, so the variants are built outside the timed window.
 
-const DROP_BATCH_SIZE: usize = 100;
-const DROP_BATCH_COUNT: usize = 1024; // One batch is consumed per run.
-const _: () = assert!(DROP_BATCH_COUNT > WARMUP_RUNS + TEST_RUNS);
-
-fn drop_batch_pool(make_variant: impl Fn(usize) -> Variant) -> VecDeque<Vec<Variant>> {
-    (0..DROP_BATCH_COUNT)
-        .map(|_| (0..DROP_BATCH_SIZE).map(&make_variant).collect())
-        .collect()
+#[bench(manual)]
+fn variant_drop_i64() -> BenchResult {
+    bench_measure_batched(
+        |i| (i as i64).to_variant(),
+        |v| v, // Dropped inside the measured loop.
+    )
 }
 
 #[bench(manual)]
-fn variant_drop_batch_i64() -> BenchResult {
-    let mut pool = drop_batch_pool(|i| (i as i64).to_variant());
-
-    bench_measure(1, move || pool.pop_front().unwrap())
-}
-
-#[bench(manual)]
-fn variant_drop_batch_aabb() -> BenchResult {
-    let mut pool = drop_batch_pool(|i| {
-        let f = i as real;
-        Aabb::new(Vector3::new(f, f, f), Vector3::new(f, f, f)).to_variant()
-    });
-
-    bench_measure(1, move || pool.pop_front().unwrap())
+fn variant_drop_aabb() -> BenchResult {
+    bench_measure_batched(
+        |i| {
+            let f = i as real;
+            Aabb::new(Vector3::new(f, f, f), Vector3::new(f, f, f)).to_variant()
+        },
+        |v| v,
+    )
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Default: NIL variant construction.
 
-#[bench(repeat = 1000)]
+#[bench]
 fn variant_default() -> Variant {
     Variant::default()
 }
@@ -169,14 +160,14 @@ fn variant_default() -> Variant {
 fn variant_get_type_i64() -> BenchResult {
     let v = 12345_i64.to_variant();
 
-    bench_measure(1000, || black_box(&v).get_type())
+    bench_measure(|| black_box(&v).get_type())
 }
 
 #[bench(manual)]
 fn variant_get_type_object() -> BenchResult {
     let v = RefCounted::new_gd().to_variant();
 
-    bench_measure(1000, || black_box(&v).get_type())
+    bench_measure(|| black_box(&v).get_type())
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -187,13 +178,13 @@ fn variant_get_type_object() -> BenchResult {
 fn variant_try_from_mismatched() -> BenchResult {
     let v = "hello world".to_gstring().to_variant();
 
-    bench_measure(1000, || i64::try_from_variant(black_box(&v)).is_err())
+    bench_measure(|| i64::try_from_variant(black_box(&v)).is_err())
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Combined: array/packed-array conversions, which marshal every element through Variant.
 
-#[bench(repeat = 25)]
+#[bench]
 fn array_from_iter_i32() -> Array<i32> {
     Array::<i32>::from_iter(0..100)
 }
@@ -202,7 +193,7 @@ fn array_from_iter_i32() -> Array<i32> {
 fn array_to_vec_i32() -> BenchResult {
     let array = Array::<i32>::from_iter(0..100);
 
-    bench_measure(25, || array.iter_shared().collect::<Vec<i32>>())
+    bench_measure(|| array.iter_shared().collect::<Vec<i32>>())
 }
 
 /// Not natively supported by Godot, unlike `packed_to_var_array_i32()` below.
@@ -210,7 +201,7 @@ fn array_to_vec_i32() -> BenchResult {
 fn packed_to_array_i32() -> BenchResult {
     let packed = PackedInt32Array::from_iter(0..100);
 
-    bench_measure(25, || packed.to_typed_array())
+    bench_measure(|| packed.to_typed_array())
 }
 
 /// Control: native Godot conversion, no per-element marshalling.
@@ -218,7 +209,7 @@ fn packed_to_array_i32() -> BenchResult {
 fn packed_to_varray_i32() -> BenchResult {
     let packed = PackedInt32Array::from_iter(0..100);
 
-    bench_measure(25, || packed.to_var_array())
+    bench_measure(|| packed.to_var_array())
 }
 
 // ~1.5x slower than array_to_vec_i32() -> converting to typed isn't just
@@ -226,7 +217,7 @@ fn packed_to_varray_i32() -> BenchResult {
 fn varray_to_vec_i32() -> BenchResult {
     let var_array: VarArray = (0..100).map(|i: i32| i.to_variant()).collect();
 
-    bench_measure(25, || {
+    bench_measure(|| {
         var_array
             .iter_shared()
             .map(|v| i32::from_variant(&v))
@@ -237,7 +228,7 @@ fn varray_to_vec_i32() -> BenchResult {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Combined: typed Dictionary from_iter + readback.
 
-#[bench(repeat = 25)]
+#[bench]
 fn dict_from_iter_i64() -> Dictionary<i64, i64> {
     Dictionary::<i64, i64>::from_iter((0..100).map(|i| (i, i * 2)))
 }
@@ -246,5 +237,5 @@ fn dict_from_iter_i64() -> Dictionary<i64, i64> {
 fn dict_to_vec_i64() -> BenchResult {
     let dict = Dictionary::<i64, i64>::from_iter((0..100).map(|i| (i, i * 2)));
 
-    bench_measure(25, || dict.iter_shared().collect::<Vec<(i64, i64)>>())
+    bench_measure(|| dict.iter_shared().collect::<Vec<(i64, i64)>>())
 }
