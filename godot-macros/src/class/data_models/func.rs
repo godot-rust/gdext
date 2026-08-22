@@ -141,17 +141,6 @@ pub fn make_method_registration(
     let class_name_str = class_name.to_string();
     let method_name_str = func_definition.godot_name();
 
-    let call_ctx = make_call_context(&class_name_str, &method_name_str);
-
-    // Both varcall and ptrcall functions are always generated and registered, even when default parameters are present via #[opt].
-    // Key differences are:
-    // - varcall: handles default parameters, applying them when caller provides fewer arguments.
-    // - ptrcall: optimized path without default handling, can be used when caller provides all arguments.
-    //
-    // Godot decides at call-time which calling convention to use based on available type information.
-    let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure, &default_parameters);
-    let ptrcall_fn_decl = make_ptrcall_fn(&call_ctx, &forwarding_closure);
-
     // String literals II
     let param_ident_strs = signature_info
         .param_idents
@@ -180,7 +169,7 @@ pub fn make_method_registration(
         #(#cfg_attrs)*
         {
             use ::godot::obj::GodotClass;
-            use ::godot::register::private::method::ClassMethodInfo;
+            use ::godot::register::private::method::{ClassMethodInfo, MethodUserdata};
             use ::godot::builtin::{StringName, Variant};
             use ::godot::sys;
 
@@ -191,20 +180,26 @@ pub fn make_method_registration(
 
             let method_name = StringName::from(#method_name_str);
 
-            #varcall_fn_decl;
-            #ptrcall_fn_decl;
-
-            // SAFETY: varcall_fn + ptrcall_fn interpret their in/out parameters correctly.
+            // The varcall and ptrcall callbacks live in godot-core, shared by all #[func]s with this signature; everything method-specific
+            // is passed to Godot as method userdata. See `varcall_callback()` for how Godot picks between the two conventions.
+            //
+            // SAFETY: the forwarding closure interprets its instance pointer as an instance of #class_name, matching the class the method
+            // is registered for; #method_flags matches its receiver.
             let method_info = unsafe {
+                let method_data = MethodUserdata::<CallParams, CallRet>::new(
+                    #class_name_str,
+                    #method_name_str,
+                    #forwarding_closure,
+                    #default_parameters,
+                );
+
                 ClassMethodInfo::from_signature::<#class_name, CallParams, CallRet>(
                     method_name,
-                    Some(varcall_fn),
-                    Some(ptrcall_fn),
                     #method_flags,
                     &[
                         #( #param_ident_strs ),*
                     ],
-                    #default_parameters,
+                    method_data,
                 )
             };
 
@@ -222,7 +217,7 @@ pub fn make_method_registration(
     Ok(registration)
 }
 
-/// Generates code to create a `Vec<Variant>` containing default argument values for varcall. Allocates on every call.
+/// Generates code to create a `Vec<Variant>` containing default argument values for varcall, evaluated once at registration.
 fn make_default_argument_vec(
     optional_param_default_exprs: &[TokenStream],
     all_params: &[venial::TypeExpr],
@@ -247,16 +242,9 @@ fn make_default_argument_vec(
             }
         });
 
-    // Performance: This generates `vec![...]` in the varcall FFI function, which allocates on *every* call when default parameters
-    // are present. This is a performance cost we accept for now.
-    //
-    // If no #[opt] attributes are used, this generates `vec![]` which does *not* allocate, so most #[func] functions are unaffected.
-    //
-    // Potential future improvements:
-    // - Use `Global<Vec<Variant>>` (or LazyLock/thread_local) to allocate once per function instead of per call.
-    // - Store defaults in MethodInfo during registration and retrieve via method_data pointer.
-    //
-    // Note also that there may be a semantic difference on reusing the same object vs. recreating it, see Python's default-param issue.
+    // The vector is built once during registration and stored in the method's `MethodUserdata`, so calls with missing arguments reuse the
+    // same values rather than re-evaluating the expressions. Unlike Python's mutable default arguments, this is not observable: `#[opt]`
+    // accepts only `GodotImmutable` types, so no caller can change a default.
     Ok(quote! {
         vec![ #(#default_parameters),* ]
     })
@@ -631,54 +619,6 @@ fn make_method_flags(
     Ok(flags)
 }
 
-/// Generate code for a C FFI function that performs a varcall.
-fn make_varcall_fn(
-    call_ctx: &TokenStream,
-    wrapped_method: &TokenStream,
-    default_parameters: &TokenStream,
-) -> TokenStream {
-    let invocation = make_varcall_invocation(wrapped_method, default_parameters);
-
-    // TODO reduce amount of code generated, by delegating work to a library function. Could even be one that produces this function pointer.
-    quote! {
-        unsafe extern "C" fn varcall_fn(
-            _method_data: *mut std::ffi::c_void,
-            instance_ptr: sys::GDExtensionClassInstancePtr,
-            args_ptr: *const sys::GDExtensionConstVariantPtr,
-            arg_count: sys::GDExtensionInt,
-            ret: sys::GDExtensionVariantPtr,
-            err: *mut sys::GDExtensionCallError,
-        ) {
-            let call_ctx = #call_ctx;
-            ::godot::private::handle_fallible_varcall(
-                &call_ctx,
-                &mut *err,
-                || #invocation
-            );
-        }
-    }
-}
-
-/// Generate code for a C FFI function that performs a ptrcall.
-fn make_ptrcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> TokenStream {
-    let invocation = make_ptrcall_invocation(wrapped_method, false);
-
-    quote! {
-        unsafe extern "C" fn ptrcall_fn(
-            _method_data: *mut std::ffi::c_void,
-            instance_ptr: sys::GDExtensionClassInstancePtr,
-            args_ptr: *const sys::GDExtensionConstTypePtr,
-            ret: sys::GDExtensionTypePtr,
-        ) {
-            let call_ctx = #call_ctx;
-            ::godot::private::handle_fallible_ptrcall(
-                &call_ctx,
-                || #invocation
-            );
-        }
-    }
-}
-
 /// Generate code for a `ptrcall` call expression.
 fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> TokenStream {
     let ptrcall_type = if is_virtual {
@@ -696,28 +636,6 @@ fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> To
             #wrapped_method,
             #ptrcall_type,
         )
-    }
-}
-
-/// Generate code for a `varcall()` call expression.
-fn make_varcall_invocation(
-    wrapped_method: &TokenStream,
-    default_parameters: &TokenStream,
-) -> TokenStream {
-    quote! {
-        {
-            let defaults = #default_parameters;
-            ::godot::private::Signature::<CallParams, CallRet>::in_varcall(
-                instance_ptr,
-                &call_ctx,
-                args_ptr,
-                arg_count,
-                &defaults,
-                ret,
-                err,
-                #wrapped_method,
-            )
-        }
     }
 }
 

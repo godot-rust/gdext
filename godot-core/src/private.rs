@@ -477,9 +477,12 @@ where
 const CALL_FAILED_STATUS: sys::GDExtensionCallErrorType = 1337;
 
 /// Invokes a function with the _varcall_ calling convention, handling both expected errors and user panics.
-pub fn handle_fallible_varcall<F, R>(
+///
+/// # Safety
+/// `out_err` must point to a live `GDExtensionCallError`. Pointer instead of `&mut` ref, to avoid potential aliasing by `code` function.
+pub unsafe fn handle_fallible_varcall<F, R>(
     call_ctx: &CallContext,
-    out_err: &mut sys::GDExtensionCallError,
+    out_err: *mut sys::GDExtensionCallError,
     code: F,
 ) where
     F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
@@ -487,11 +490,15 @@ pub fn handle_fallible_varcall<F, R>(
     if handle_fallible_call(call_ctx, code) {
         // Use CALL_FAILED_STATUS so the GDScript VM recognizes the failure and aborts the calling function.
         // The Rust-side CallError has been stored in the thread-local, so that try_call() can retrieve it later.
-        *out_err = sys::GDExtensionCallError {
-            error: CALL_FAILED_STATUS,
-            argument: 0,
-            expected: 0,
-        };
+        //
+        // SAFETY: `out_err` is live per caller guarantee, and `code` has returned, so no other access to it is in flight.
+        unsafe {
+            *out_err = sys::GDExtensionCallError {
+                error: CALL_FAILED_STATUS,
+                argument: 0,
+                expected: 0,
+            };
+        }
     };
 }
 
@@ -548,6 +555,7 @@ unsafe fn handle_erased_call(
     code: unsafe fn(*mut ()) -> CallResult<()>,
     data: *mut (),
 ) -> bool {
+    // SAFETY: `data` is a valid argument for `code` (caller guarantee), and `handle_panic` invokes the closure exactly once.
     let outcome = handle_panic(call_ctx, || unsafe { code(data) });
 
     let call_error = match outcome {
