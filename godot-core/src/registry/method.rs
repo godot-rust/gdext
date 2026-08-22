@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use sys::interface_fn;
 
 use crate::builtin::{StringName, Variant};
-use crate::meta::{ClassId, GodotConvert, ParamTuple, Signature};
+use crate::meta::{ClassId, GodotConvert, ParamTuple, sig_params};
 use crate::obj::GodotClass;
 use crate::registry::info::{MethodFlags, PropertyInfo};
 
@@ -82,7 +82,7 @@ impl ClassMethodInfo {
         default_arguments: Vec<Variant>,
     ) -> Self {
         let return_value = MethodParamOrReturnInfo::for_return::<Ret>();
-        let arguments = Signature::<Params, Ret>::param_names(param_names);
+        let arguments = sig_params::<Params>(param_names);
 
         assert!(
             default_arguments.len() <= arguments.len(),

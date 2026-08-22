@@ -117,7 +117,7 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     object: sys::GDExtensionObjectPtr,
 ) -> sys::GDExtensionClassInstancePtr {
-    create_rust_part_for_existing_godot_part(T::__godot_user_init, object, |_| {})
+    create_rust_part_for_existing_godot_part(T::__godot_user_init, object, false)
         .unwrap_or(std::ptr::null_mut())
 }
 
@@ -143,24 +143,11 @@ where
     let base_class_id = T::Base::class_id();
     let base_ptr = unsafe { sys::classdb_construct_object(base_class_id.string_sys()) };
 
-    let postinit = |base_ptr| {
-        #[cfg(since_api = "4.4")]
-        if notify_postinitialize {
-            // Should notify it with a weak pointer, during `NOTIFICATION_POSTINITIALIZE`, ref-counted object is not yet fully-initialized.
-            #[cfg(before_api = "4.7")]
-            let mut obj = unsafe { Gd::<Object>::from_obj_sys_weak(base_ptr) };
-
-            // Since 4.7 base comes in fully initialized.
-            #[cfg(since_api = "4.7")]
-            let mut obj = unsafe { Gd::<Object>::from_obj_sys(base_ptr) };
-
-            obj.notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
-            #[cfg(before_api = "4.7")]
-            obj.drop_weak();
-        }
-    };
-
-    match create_rust_part_for_existing_godot_part(make_user_instance, base_ptr, postinit) {
+    match create_rust_part_for_existing_godot_part(
+        make_user_instance,
+        base_ptr,
+        notify_postinitialize,
+    ) {
         Ok(_extension_ptr) => Ok(base_ptr),
         Err(payload) => {
             // Creation of extension object failed; we must now also destroy the base object to avoid leak.
@@ -179,15 +166,16 @@ where
 /// With godot-rust, custom objects consist of two parts: the Godot object and the Rust object. This method takes the Godot part by pointer,
 /// creates the Rust part with the supplied state, and links them together. This is used for both brand-new object creation and hot reload.
 /// During hot reload, Rust objects are disposed of and then created again with updated code, so it's necessary to re-link them to Godot objects.
-fn create_rust_part_for_existing_godot_part<T, F, P>(
+///
+/// `notify_postinitialize` is a `bool` rather than a callback, so that this function is not instantiated twice per class.
+fn create_rust_part_for_existing_godot_part<T, F>(
     make_user_instance: F,
     base_ptr: sys::GDExtensionObjectPtr,
-    postinit: P,
+    notify_postinitialize: bool,
 ) -> Result<sys::GDExtensionClassInstancePtr, PanicPayload>
 where
     T: GodotClass,
     F: FnOnce(Base<T::Base>) -> T,
-    P: Fn(sys::GDExtensionObjectPtr),
 {
     let class_id = T::class_id();
     //out!("create callback: {}", class_id.backing);
@@ -225,7 +213,24 @@ where
         );
     }
 
-    postinit(base_ptr);
+    // Before Godot 4.4, the engine sends this notification itself.
+    #[cfg(before_api = "4.4")]
+    let _ = notify_postinitialize;
+
+    #[cfg(since_api = "4.4")]
+    if notify_postinitialize {
+        // Notify through a weak pointer: during `NOTIFICATION_POSTINITIALIZE`, a ref-counted object is not yet fully initialized.
+        #[cfg(before_api = "4.7")]
+        let mut obj = unsafe { Gd::<Object>::from_obj_sys_weak(base_ptr) };
+
+        // Since 4.7 base comes in fully initialized.
+        #[cfg(since_api = "4.7")]
+        let mut obj = unsafe { Gd::<Object>::from_obj_sys(base_ptr) };
+
+        obj.notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
+        #[cfg(before_api = "4.7")]
+        obj.drop_weak();
+    }
 
     // Mark initialization as complete, now that user constructor has finished.
     #[cfg(before_api = "4.7")]

@@ -10,6 +10,7 @@ use std::cell::Cell;
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::io::Write;
+use std::mem;
 use std::sync::atomic;
 
 use crate::global::godot_error;
@@ -502,16 +503,52 @@ where
     handle_fallible_call(call_ctx, code);
 }
 
+/// Type-erases `code` and forwards to [`handle_erased_call`], so that the panic chain is compiled once instead of once per `#[func]`.
+///
+/// Returns `true` if the call failed.
+#[inline]
+fn handle_fallible_call<F, R>(call_ctx: &CallContext, code: F) -> bool
+where
+    F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
+{
+    let mut code = mem::ManuallyDrop::new(code);
+    let code_ptr = (&raw mut code).cast::<()>();
+
+    // SAFETY: `code` outlives the call, and `invoke_erased` reads it exactly once.
+    unsafe { handle_erased_call(call_ctx, invoke_erased::<F, R>, code_ptr) }
+}
+
+/// Invokes the fallible call stored at `data`, discarding its return value.
+///
+/// Instantiated per `#[func]`, but only as a plain `fn` pointer -- unlike `&mut dyn FnMut`, this needs neither a vtable nor drop glue, which
+/// together made up most of the binary-size cost of erasing the call.
+///
+/// # Safety
+/// `data` must point to a live `ManuallyDrop<F>` that is read exactly once.
+unsafe fn invoke_erased<F, R>(data: *mut ()) -> CallResult<()>
+where
+    F: FnOnce() -> CallResult<R>,
+{
+    // SAFETY: `data` points to a live, not-yet-read `ManuallyDrop<F>`, which has the same layout as `F`.
+    let code = unsafe { data.cast::<F>().read() };
+
+    code().map(|_| ())
+}
+
 /// Common error handling for fallible calls, handling detectable errors and user panics.
 ///
 /// Returns `true` if the call failed, `false` if it succeeded.
 ///
 /// On failure, the [`CallError`] is stored in thread-local storage for later retrieval via [`call_error_take`].
-fn handle_fallible_call<F, R>(call_ctx: &CallContext, code: F) -> bool
-where
-    F: FnOnce() -> CallResult<R> + std::panic::UnwindSafe,
-{
-    let outcome: Result<CallResult<R>, PanicPayload> = handle_panic(call_ctx, code);
+///
+/// # Safety
+/// `data` must be a valid argument for `code`, which is invoked exactly once.
+unsafe fn handle_erased_call(
+    call_ctx: &CallContext,
+    code: unsafe fn(*mut ()) -> CallResult<()>,
+    data: *mut (),
+) -> bool {
+    let outcome = handle_panic(call_ctx, || unsafe { code(data) });
 
     let call_error = match outcome {
         // All good.
@@ -630,8 +667,7 @@ mod tests {
             argument: 0,
             expected: 0,
         };
-        let result =
-            CallError::check_out_varcall(&call_ctx, ok_err, &[] as &[crate::builtin::Variant], &[]);
+        let result = CallError::check_out_varcall(&call_ctx, ok_err, &[], &[]);
         assert!(result.is_ok(), "successful call must return Ok");
 
         // TLS must now be empty.
@@ -658,12 +694,7 @@ mod tests {
             argument: 2,
             expected: 3,
         };
-        let result = CallError::check_out_varcall(
-            &call_ctx,
-            godot_err,
-            &[] as &[crate::builtin::Variant],
-            &[],
-        );
+        let result = CallError::check_out_varcall(&call_ctx, godot_err, &[], &[]);
         let err = result.expect_err("must fail");
 
         // Must be a direct Godot error, not a wrapped source error.
