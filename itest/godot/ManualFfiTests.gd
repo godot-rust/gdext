@@ -73,25 +73,29 @@ func test_var_accessors():
 
 	obj.free()
 
+# Reading a #[var(no_get)] property panics in Rust -> test GDScript response.
 func test_var_no_get_panics_on_read():
-	mark_test_pending()
-
 	var obj = VarAccessors.new()
-	# Getter is registered (panicking), unlike old behavior where no getter existed.
-	assert_that(obj.has_method("__disabled_get_g_noget"), "panicking getter should be registered")
-
 	obj.g_noget = 7
+
+	# Read in a lambda: an abort unwinds only the innermost GDScript frame, so the test can still clean up.
+	var trace := []
+	var read := func():
+		trace.append(obj.g_noget)
+		trace.append("end")
+
 	Engine.print_error_messages = false
-	var val = obj.g_noget # Getter panics in Rust; returns default, execution continues.
+	read.call()
 	Engine.print_error_messages = true
 
-	# Panic was caught: returned default Variant (null) instead of actual field value (7).
-	assert_eq(val, null, "no_get getter should return default after panic")
-	# The field itself is intact.
-	assert_eq(obj.gdscript_get("g"), 7, "actual field value should be preserved")
+	# Godot 4.8 propagates the getter's call error to the property access, which aborts the GDScript function. New in 4.8; before it returned
+	# null -- see https://github.com/godotengine/godot/pull/122596. Also, release builds don't abort functions on call errors.
+	if Engine.get_version_info().minor < 8 || runs_release():
+		assert_eq(trace, [null, "end"], "property read should return null and continue")
+	else:
+		assert_eq(trace, [], "property read should abort the reading function")
 
 	obj.free()
-	mark_test_succeeded()
 
 func test_export():
 	var obj = HasProperty.new()

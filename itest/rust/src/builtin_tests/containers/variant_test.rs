@@ -844,23 +844,11 @@ where
         VariantOperator::GREATER_EQUAL,
     ));
 
-    let true_rels;
-    let false_rels;
-
-    match expected_order {
-        Ordering::Less => {
-            true_rels = [ne, lt, le];
-            false_rels = [eq, gt, ge];
-        }
-        Ordering::Equal => {
-            true_rels = [eq, le, ge];
-            false_rels = [ne, lt, gt];
-        }
-        Ordering::Greater => {
-            true_rels = [ne, gt, ge];
-            false_rels = [eq, lt, le];
-        }
-    }
+    let (true_rels, false_rels) = match expected_order {
+        Ordering::Less => ([ne, lt, le], [eq, gt, ge]),
+        Ordering::Equal => ([eq, le, ge], [ne, lt, gt]),
+        Ordering::Greater => ([ne, gt, ge], [eq, lt, le]),
+    };
 
     for rel in true_rels {
         assert!(

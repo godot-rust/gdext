@@ -85,7 +85,7 @@ impl CollisionObject2DTest {
     }
 
     #[func]
-    fn get_viewport(&self) -> Variant {
+    fn get_captured_viewport(&self) -> Variant {
         self.viewport
             .as_ref()
             .map(ToGodot::to_variant)

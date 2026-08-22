@@ -38,7 +38,7 @@ func test_collision_object_2d_input_event():
 	root.add_child(window)
 
 	assert_that(not collision_object.input_event_called(), "Input event should not be propagated")
-	assert_eq(collision_object.get_viewport(), null, "Collision viewport should be null")
+	assert_eq(collision_object.get_captured_viewport(), null, "Collision viewport should be null")
 
 	var event := InputEventMouseMotion.new()
 	event.global_position = Vector2.ZERO
@@ -53,7 +53,7 @@ func test_collision_object_2d_input_event():
 	await root.get_tree().physics_frame
 
 	assert_that(collision_object.input_event_called(), "Input event should be propagated")
-	assert_eq(collision_object.get_viewport(), window, "Collision viewport should be the (non-null) window")
+	assert_eq(collision_object.get_captured_viewport(), window, "Collision viewport should be the (non-null) window")
 
 	window.queue_free()
 
