@@ -317,7 +317,7 @@ pub fn __threadsafe_print(message: String, rich: bool) {
 #[macro_export]
 macro_rules! godot_warn {
     ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::inner_godot_msg!($crate::global::PrintLevel::Warn; $fmt $(, $args)*);
+        $crate::inner_godot_msg!($crate::global::PrintLevel::Warn; $fmt $(, $args)*)
     };
 }
 
@@ -333,7 +333,7 @@ macro_rules! godot_warn {
 #[macro_export]
 macro_rules! godot_error {
     ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::inner_godot_msg!($crate::global::PrintLevel::Error; $fmt $(, $args)*);
+        $crate::inner_godot_msg!($crate::global::PrintLevel::Error; $fmt $(, $args)*)
     };
 }
 
@@ -348,7 +348,7 @@ macro_rules! godot_error {
 #[macro_export]
 macro_rules! godot_script_error {
     ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::inner_godot_msg!($crate::global::PrintLevel::ScriptError; $fmt $(, $args)*);
+        $crate::inner_godot_msg!($crate::global::PrintLevel::ScriptError; $fmt $(, $args)*)
     };
 }
 
