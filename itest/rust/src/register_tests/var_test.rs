@@ -7,7 +7,7 @@
 use godot::global::godot_str;
 use godot::prelude::*;
 
-use crate::framework::{expect_panic, itest};
+use crate::framework::{expect_panic, itest, suppress_godot_print};
 
 #[derive(GodotClass)]
 #[class(init)]
@@ -192,6 +192,18 @@ fn var_orthogonal_getters_setters() {
     assert_eq!(obj.bind().my_custom_get(), 4 + 8 + 9); // d+h+j.
     assert!(obj.has_method("my_custom_get"));
     assert!(obj.has_method("my_custom_set"));
+
+    obj.free();
+}
+
+#[itest]
+fn var_no_get_panics_on_read() {
+    let mut obj = VarAccessors::new_alloc();
+    obj.set("g_noget", &7.to_variant());
+
+    // Getter is registered but panics, so the read yields nil. The field itself is intact.
+    assert_eq!(suppress_godot_print(|| obj.get("g_noget")), Variant::nil());
+    assert_eq!(obj.bind().g_noget, 7);
 
     obj.free();
 }
