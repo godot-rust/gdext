@@ -958,6 +958,8 @@ fn dictionary_values_shared_typed() {
 
 #[cfg(since_api = "4.4")]
 mod typed_dictionary_tests {
+    use std::collections::BTreeMap;
+
     use godot::builtin::{array, dict};
     use godot::global::godot_str;
     use godot::meta;
@@ -1114,6 +1116,21 @@ mod typed_dictionary_tests {
             let new_value = value_map(&value);
             dict.set(meta::ref_to_arg(key), meta::owned_into_arg(new_value));
         }
+    }
+
+    #[itest]
+    fn dictionary_conversion() {
+        let dict = idict! { "key1" => true, "key2" => false };
+
+        let map = HashMap::from_godot(dict.clone());
+        assert!(map[&GString::from("key1")]);
+        assert!(!map[&GString::from("key2")]);
+        assert_eq!(map.to_godot(), dict);
+
+        let map = BTreeMap::from_godot(dict.clone());
+        assert!(map[&GString::from("key1")]);
+        assert!(!map[&GString::from("key2")]);
+        assert_eq!(map.to_godot(), dict);
     }
 
     // ------------------------------------------------------------------------------------------------------------------------------------------
