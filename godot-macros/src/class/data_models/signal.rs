@@ -18,7 +18,7 @@ pub struct SignalDefinition {
     /// The signal's function signature (simplified, not original declaration).
     pub fn_signature: venial::Function,
 
-    /// The signal's non-gdext attributes (all except #[signal]).
+    /// The signal's non-godot-rust attributes (all except #[signal]).
     pub external_attributes: Vec<venial::Attribute>,
 
     /// Whether there is going to be a type-safe builder for this signal (true by default).

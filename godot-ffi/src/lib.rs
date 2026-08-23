@@ -9,31 +9,9 @@
 //!
 //! Do not depend on this crate directly, instead use the `godot` crate.
 //! No SemVer or other guarantees are provided.
-//!
-//! # Contributor docs
-//!
-//! Low level bindings to the provided C core API.
-//!
-//! ## Unsafe handling strategy (Rust 2024)
-//!
-//! The crate uses a thin unsafe boundary at the FFI layer, with safety delegated to the Godot C API contract.
-//! Generated FFI code in `mod r#gen` uses `#[allow(unsafe_op_in_unsafe_fn)]` since the safety of these thin wrappers
-//! is entirely tied to Godot's C API guarantees.
-//!
-//! Hand-written unsafe code follows these patterns:
-//! - **Thin delegation functions**: Use `#[allow(unsafe_op_in_unsafe_fn)]` with per-function SAFETY comments
-//!   (e.g., `binding/mod.rs` getter functions forward preconditions directly).
-//! - **Multi-op functions**: Group operations by their shared invariant with a single SAFETY comment.
-//!
-//! Common SAFETY comment families (for consistency):
-//! - `// SAFETY: Godot FFI pointer valid per C API contract.`
-//! - `// SAFETY: Layout-compatible types per #[repr(C)] guarantee.`
-//! - `// SAFETY: Pointer valid for callback duration (Godot contract).`
-//! - `// SAFETY: Binding initialized; caller upholds preconditions.`
-//! - `// SAFETY: Ref-count managed by Godot during ptrcall.`
-//! - `// SAFETY: One-time init on main thread; not yet initialized.`
-//!
-//! All FFI type definitions and interface function pointers are generated from `gdextension_interface.json`.
+
+// Safety handling in this crate: we sometimes use `#[allow(unsafe_op_in_unsafe_fn)]` to cut down on Rust 2024's
+// unsafe fn(..) { unsafe { ... } } boilerplate. Use with common sense.
 
 #![cfg_attr(test, allow(unused))]
 
@@ -256,7 +234,7 @@ pub unsafe fn initialize(
         MAIN_THREAD_ID.set(current_thread_id())
     };
 
-    // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
+    // Before anything else: if we run into a Godot binary that's compiled differently from godot-rust, proceeding would be UB -> panic.
     interface_init::ensure_static_runtime_compatibility(get_proc_address);
 
     let (version, supports_deprecated_apis) = {

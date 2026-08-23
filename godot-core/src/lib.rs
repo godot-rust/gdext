@@ -67,7 +67,7 @@ mod r#gen {
 #[path = "deprecated.rs"]
 pub mod __deprecated;
 
-/// All internal machinery that is accessed by various gdext tools (e.g. proc macros).
+/// All internal machinery that is accessed by various godot-rust tools (e.g. proc macros).
 #[doc(hidden)]
 pub mod private;
 

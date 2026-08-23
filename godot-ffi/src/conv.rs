@@ -14,11 +14,11 @@ use crate::static_assert;
 
 /// Infallibly convert `u32` into a `usize`.
 ///
-/// gdext (and Godot in general) currently only supports targets where `u32` can be infallibly converted into a `usize`.
+/// godot-rust (and Godot in general) currently only supports targets where `u32` can be infallibly converted into a `usize`.
 pub fn u32_to_usize(i: u32) -> usize {
     static_assert!(
         size_of::<u32>() <= size_of::<usize>(),
-        "gdext only supports targets where u32 <= usize"
+        "godot-rust only supports targets where u32 <= usize"
     );
 
     // SAFETY: The above static assert ensures that this can never fail.

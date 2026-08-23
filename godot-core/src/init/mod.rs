@@ -251,7 +251,7 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
             E::on_stage_init(level.to_stage());
         }
 
-        // TODO consider crashing if gdext init fails.
+        // TODO consider crashing if godot-rust init fails.
         swallow_panics(&ctx, || {
             try_load::<E>(level, userdata);
         });
@@ -395,7 +395,7 @@ fn is_headless() -> bool {
     }
 }
 
-/// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
+/// Internal tasks run by godot-rust upon unloading an initialization level. Called after user code.
 fn gdext_on_level_deinit(level: InitLevel) {
     if level == InitLevel::Editor {
         prune_stored_signal_connections();
@@ -643,7 +643,7 @@ pub unsafe trait ExtensionLibrary {
 /// marked as "tool".
 ///
 /// In many cases, users write extension code with the intention to run in games, not inside the editor.
-/// This is why the default behavior in gdext deviates from Godot: lifecycle callbacks are disabled inside the
+/// This is why the default behavior in godot-rust deviates from Godot: lifecycle callbacks are disabled inside the
 /// editor (see [`ToolClassesOnly`][Self::ToolClassesOnly]). It is possible to configure this.
 ///
 /// See also [`ExtensionLibrary::editor_run_behavior()`].
@@ -711,14 +711,14 @@ unsafe fn ensure_godot_features_compatible() {
     let s = |is_double: bool| -> &'static str { if is_double { "double" } else { "single" } };
 
     out!(
-        "Is double precision: Godot={}, gdext={}",
+        "Is double precision: Godot={}, godot-rust={}",
         s(godot_is_double),
         s(gdext_is_double)
     );
 
     if godot_is_double != gdext_is_double {
         panic!(
-            "Godot runs with {} precision, but gdext was compiled with {} precision.\n\
+            "Godot runs with {} precision, but godot-rust was compiled with {} precision.\n\
             Cargo feature `double-precision` must be used if and only if Godot is compiled with `precision=double`.\n",
             s(godot_is_double),
             s(gdext_is_double),

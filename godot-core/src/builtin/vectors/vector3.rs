@@ -22,9 +22,8 @@ use crate::builtin::{Basis, RVec3, Vector2, Vector3i, real};
 /// 3-element structure that can be used to represent continuous positions or directions in 3D space,
 /// as well as any other triple of numeric values.
 ///
-/// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
-/// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
-/// vectors instead; use the gdext library with the `double-precision` feature in that case.
+/// Vectors use floating-point coordinates of 32-bit precision, unlike the engine's `float` type which is always 64-bit. Godot can be compiled
+/// with the option `precision=double` to use 64-bit vectors; enable the Cargo feature `double-precision` if you need that.
 ///
 #[doc = shared_vector_docs!()]
 ///

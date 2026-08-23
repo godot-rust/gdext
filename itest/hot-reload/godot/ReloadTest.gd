@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Note: This file is not part of the example, but a script used for gdext integration tests.
+# Note: This file is not part of the example, but a script used for godot-rust integration tests.
 # You can safely ignore it.
 
 @tool

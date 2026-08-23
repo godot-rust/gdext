@@ -37,7 +37,7 @@ use crate::util::{KvParser, bail, ident};
 ///
 ///
 /// # Construction
-/// If you don't override `init()` manually (within a `#[godot_api]` block), gdext can generate a default constructor for you.
+/// If you don't override `init()` manually (within a `#[godot_api]` block), godot-rust can generate a default constructor for you.
 /// This constructor is made available to Godot and lets you call `MyStruct.new()` from GDScript. To enable it, annotate your
 /// struct with `#[class(init)]`:
 ///
@@ -131,7 +131,7 @@ use crate::util::{KvParser, bail, ident};
 /// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
 /// (fields with a `get` or `set` declaration) and
 /// [exports](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html)
-/// (fields annotated with `@export`). In the gdext API, these two concepts are represented with `#[var]` and `#[export]` attributes respectively,
+/// (fields annotated with `@export`). In the godot-rust API, these two concepts are represented with `#[var]` and `#[export]` attributes respectively,
 /// which in turn are backed by the [`Var`](../register/property/trait.Var.html) and [`Export`](../register/property/trait.Export.html) traits.
 ///
 /// ## Register properties -- `#[var]`
