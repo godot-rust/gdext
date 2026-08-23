@@ -154,7 +154,7 @@ unsafe extern "C" fn shutdown_func<E: ExtensionLibrary>() {
 }
 
 #[doc(hidden)]
-pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
+pub unsafe fn __godot_rust_load_library<E: ExtensionLibrary>(
     get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
     library: sys::GDExtensionClassLibraryPtr,
     init: *mut sys::GDExtensionInitialization,
@@ -245,7 +245,7 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
                 LEVEL_SERVERS_CORE_LOADED.store(true, Ordering::Relaxed);
             }
 
-            // SAFETY: Godot will call this from the main thread, after `__gdext_load_library` where the library is initialized,
+            // SAFETY: Godot will call this from the main thread, after `__godot_rust_load_library` where the library is initialized,
             // and only once per level.
             unsafe { gdext_on_level_init(level, userdata) };
             E::on_stage_init(level.to_stage());

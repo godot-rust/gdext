@@ -51,13 +51,32 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
 
     let entry_point = entry_symbol
         .or(entry_point)
-        .unwrap_or_else(|| ident("gdext_rust_init"));
+        .unwrap_or_else(|| ident("godot_rust_init"));
 
     let impl_ty = &impl_decl.self_ty;
+
+    // Backwards compatibility for older name.
+    let legacy_entry_point = (entry_point == "gdext_rust_init").then(|| {
+        quote! {
+            #[unsafe(no_mangle)]
+            unsafe extern "C" fn #entry_point(
+                get_proc_address: ::godot::sys::GDExtensionInterfaceGetProcAddress,
+                library: ::godot::sys::GDExtensionClassLibraryPtr,
+                init: *mut ::godot::sys::GDExtensionInitialization,
+            ) -> ::godot::sys::GDExtensionBool {
+                ::godot::init::__godot_rust_load_library::<#impl_ty>(
+                    get_proc_address,
+                    library,
+                    init
+                )
+            }
+        }
+    });
 
     Ok(quote! {
         #deprecation
         #impl_decl
+        #legacy_entry_point
 
         #[unsafe(no_mangle)]
         unsafe extern "C" fn #entry_point(
@@ -65,7 +84,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             library: ::godot::sys::GDExtensionClassLibraryPtr,
             init: *mut ::godot::sys::GDExtensionInitialization,
         ) -> ::godot::sys::GDExtensionBool {
-            ::godot::init::__gdext_load_library::<#impl_ty>(
+            ::godot::init::__godot_rust_load_library::<#impl_ty>(
                 get_proc_address,
                 library,
                 init
