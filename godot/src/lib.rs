@@ -7,7 +7,7 @@
 
 //! # Rust bindings for Godot 4
 //!
-//! The **gdext** library implements Rust bindings for the [Godot](https://godotengine.org) engine, more precisely its version 4.
+//! The **godot-rust** library implements Rust bindings for the [Godot](https://godotengine.org) engine, more precisely its version 4.
 //! It does so using the GDExtension API, a C interface to integrate third-party language bindings with the engine.
 //!
 //! This API doc is accompanied by the [book](https://godot-rust.github.io/book), which provides tutorials

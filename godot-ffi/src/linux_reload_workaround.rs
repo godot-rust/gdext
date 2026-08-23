@@ -89,7 +89,7 @@ pub fn is_hot_reload_enabled() -> bool {
     // that set hot reloading to be enabled or disabled.
     //
     // Do *not* eagerly initialize here. Our `__cxa_thread_atexit_impl` replaces the one from glibc, so any thread can call `thread_atexit`
-    // (and thus this function) before `__gdext_load_library` runs. If we stored `false` on that first read, the later `default_set_hot_reload()`
+    // (and thus this function) before `__godot_rust_load_library` runs. If we stored `false` on that first read, the later `default_set_hot_reload()`
     // would try to set the value a second time and panic. See https://github.com/godot-rust/gdext/issues/1209.
     HOT_RELOADING_ENABLED.get().copied().unwrap_or(false)
 }
@@ -126,11 +126,11 @@ mod tests {
     // See https://github.com/godot-rust/gdext/issues/1209.
     #[test]
     fn hot_reload_setting_lifecycle() {
-        // Simulates `thread_atexit` firing before `__gdext_load_library` runs.
+        // Simulates `thread_atexit` firing before `__godot_rust_load_library` runs.
         let early = is_hot_reload_enabled();
         assert!(!early, "default must be false before any enable/disable");
 
-        // Mimics what `__gdext_load_library` does next.
+        // Mimics what `__godot_rust_load_library` does next.
         default_set_hot_reload();
 
         // `default_set_hot_reload()` enables only under `debug_assertions`; release-mode test runs disable instead.

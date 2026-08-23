@@ -98,7 +98,7 @@ fn call_error_store(err: CallError) {
 
 /// Take the [`CallError`] previously stored by [`call_error_store`], if any.
 ///
-/// Returns `None` if no error was stored (i.e. the failure originated from Godot, not from gdext).
+/// Returns `None` if no error was stored (i.e. the failure originated from Godot, not from godot-rust).
 pub(crate) fn call_error_take() -> Option<CallError> {
     LAST_CALL_ERROR.take()
 }

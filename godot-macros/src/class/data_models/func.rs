@@ -17,7 +17,7 @@ pub struct FuncDefinition {
     /// Refined signature, with higher level info and renamed parameters.
     pub signature_info: SignatureInfo,
 
-    /// The function's non-gdext attributes (all except #[func]).
+    /// The function's non-godot-rust attributes (all except #[func]).
     pub external_attributes: Vec<venial::Attribute>,
 
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.

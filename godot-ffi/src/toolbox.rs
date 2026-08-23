@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Functions and macros that are not very specific to gdext, but come in handy.
+//! Functions and macros that are not very specific to godot-rust, but come in handy.
 
 use std::fmt::{Display, Write};
 
@@ -372,7 +372,7 @@ pub(crate) unsafe fn read_version_string(char_ptr: *const std::ffi::c_char) -> S
         .to_string()
 }
 
-const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/toolchain/compatibility.html";
+const INFO: &str = "\nMake sure godot-rust and Godot are compatible: https://godot-rust.github.io/book/toolchain/compatibility.html";
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Private abstractions

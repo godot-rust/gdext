@@ -126,7 +126,7 @@ runs:
           dirs=("itest")
         
           # Note that this is still hardcoded to 4.2, the lowest supported API level by godot-rust. This makes it easier for users
-          # to use godot-rust with older Godot versions. There is anyway a runtime check in gdext that checks compatibility again.
+          # to use godot-rust with older Godot versions. There is anyway a runtime check in the library that checks compatibility again.
           for dir in "${dirs[@]}"; do
               find "$dir" -type f -name "*.gdextension" -exec sed -i'.bak' "s/compatibility_minimum = 4\.2/compatibility_minimum = $apiVersion/" {} +
           done
@@ -158,7 +158,7 @@ runs:
           echo "No patch selected; use default godot4-prebuilt version."
       shell: bash
 
-    - name: "Build gdext (itest)"
+    - name: "Build godot-rust (itest)"
       env:
         RUSTFLAGS: ${{ inputs.rust-env-rustflags }}
         TARGET: ${{ inputs.rust-target }}

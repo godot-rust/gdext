@@ -372,7 +372,7 @@ fn report_destruction_while_bound<T: GodotClass>(storage: &InstanceStorage<T>) {
     // We have the following options:
     // 1. Print an error as a best-effort, knowing that UB is likely to occur whenever the user will access &T or &mut T. (Technically, the
     //    mere existence of these references is UB since the T is dead.)
-    // 2. Abort the process. This is the safest option, but a very drastic measure, and not what gdext does elsewhere.
+    // 2. Abort the process. This is the safest option, but a very drastic measure, and not what godot-rust does elsewhere.
     //    We can use Godot's OS.crash() API here.
     // 3. Change everything to "C-unwind" API. Would make the FFI unwinding safe, but still not clear if Godot would handle it appropriately.
     //    Even if yes, it's likely the same behavior as OS.crash().

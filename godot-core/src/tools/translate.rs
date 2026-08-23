@@ -15,7 +15,7 @@ pub use crate::{tr, tr_n};
 /// Takes a format string literal, with optional arguments. Optionally, `context` for potentially ambiguous words can be
 /// added before the format arguments, separated with a `;`.
 ///
-/// Using named or positional parameters instead of `{}` may make it easier to use dynamic formatting once gdext supports it:
+/// Using named or positional parameters instead of `{}` can make it easier to use dynamic formatting:
 /// ```no_run
 /// # #[macro_use] extern crate godot;
 /// # use godot::builtin::Vector2i;
@@ -61,7 +61,7 @@ macro_rules! tr {
 /// Allows for the use of format strings with arbitrary arguments. `n` is given prior to the format string, followed by `;`.
 /// Optionally, `context` for potentially ambiguous words can be added with `,` after `n` and before `;`.
 ///
-/// Using named or positional parameters instead of `{}` may make it easier to use dynamic formatting once gdext supports it:
+/// Using named or positional parameters instead of `{}` can make it easier to use dynamic formatting:
 /// ```no_run
 /// # #[macro_use] extern crate godot;
 /// # use godot::builtin::Vector2i;
