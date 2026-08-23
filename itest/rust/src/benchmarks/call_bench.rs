@@ -42,6 +42,15 @@ fn class_user_refc_call_args() -> BenchResult {
     bench_measure(|| callable.call(&args))
 }
 
+/// Same as [`class_user_refc_call_args()`], but the argument is omitted and filled in from its `#[opt(default = ...)]`.
+#[bench(manual)]
+fn class_user_refc_call_default_arg() -> BenchResult {
+    let obj = BenchObj::new_gd();
+    let callable = obj.callable("echo_default");
+
+    bench_measure(|| callable.call(&[]))
+}
+
 /// Godot -> Rust call into a virtual method, through the panic-handling chain. `Object::to_string()` is not public, so this also
 /// includes the `GString` -> `String` conversion measured by `builtin_string_to_rust`.
 #[bench(manual)]
