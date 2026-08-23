@@ -133,7 +133,6 @@ pub use depend_on_custom_json::*;
 // Prebuilt mode: Reuse existing files
 
 #[cfg(not(any(feature = "api-custom", feature = "api-custom-json")))]
-#[path = ""]
 mod depend_on_prebuilt {
     use super::*;
     use crate::import::prebuilt;
