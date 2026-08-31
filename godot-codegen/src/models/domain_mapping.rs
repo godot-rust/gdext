@@ -21,7 +21,7 @@ use crate::models::domain::{
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, ClassSignal, Constructor, Enum,
     EnumReplacements, Enumerator, EnumeratorValue, ExtensionApi, FlowDirection, FnDirection,
     FnParam, FnQualifier, FnReturn, FunctionCommon, GodotApiVersion, ModName, NativeStructure,
-    Operator, RustTy, Singleton, TyName, UtilityFunction,
+    Operator, RustTy, Safety, Singleton, TyName, UtilityFunction,
 };
 use crate::util::{get_api_level, ident};
 use crate::{conv, special_cases};
@@ -458,7 +458,7 @@ impl BuiltinMethod {
                 is_vararg,
                 is_private: false, // See 'exposed' below. Could be special_cases::is_method_private(builtin_name, &method.name),
                 is_virtual_required: false,
-                is_unsafe: false, // Builtin methods don't use raw pointers.
+                safety: Safety::Safe, // Builtin methods don't use raw pointers.
                 direction: FnDirection::Outbound {
                     hash: hash.expect("hash absent for builtin method"),
                 },
@@ -624,13 +624,18 @@ impl ClassMethod {
         let return_value =
             FnReturn::with_enum_replacements(&return_value, enum_replacements, return_flow, ctx);
 
-        let is_unsafe = Self::function_uses_pointers(&parameters, &return_value);
+        let safety = match special_cases::get_class_method_unsafe_docs(class_name, &name) {
+            Some(doc) => Safety::UnsafeManual { doc },
+            None if Self::function_uses_pointers(&parameters, &return_value) => {
+                Safety::UnsafeRawPointers
+            }
+            None => Safety::Safe,
+        };
 
         // Future note: if further changes are made to the virtual method name, make sure to make it reversible so that #[godot_api]
         // can match on the Godot name of the virtual method.
-        let rust_method_name = if is_unsafe && is_virtual {
-            // If the method is unsafe, we need to rename it to avoid conflicts with the safe version.
-            conv::make_unsafe_virtual_fn_name(&rust_method_name)
+        let rust_method_name = if is_virtual && matches!(safety, Safety::UnsafeRawPointers) {
+            conv::make_rawptr_virtual_fn_name(&rust_method_name)
         } else {
             rust_method_name
         };
@@ -644,7 +649,7 @@ impl ClassMethod {
                 is_vararg,
                 is_private,
                 is_virtual_required,
-                is_unsafe,
+                safety,
                 direction,
                 deprecation_msg,
                 description,
@@ -746,7 +751,7 @@ impl UtilityFunction {
                 is_vararg,
                 is_private,
                 is_virtual_required: false,
-                is_unsafe: false, // Utility functions don't use raw pointers.
+                safety: Safety::Safe, // Utility functions don't use raw pointers.
                 direction: FnDirection::Outbound { hash },
                 deprecation_msg: None, // Utility functions are not deprecated.
                 description,

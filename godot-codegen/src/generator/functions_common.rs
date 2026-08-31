@@ -10,7 +10,7 @@ use quote::{format_ident, quote};
 
 use crate::context::Context;
 use crate::generator::{default_parameters, import_docs};
-use crate::models::domain::{ApiView, ArgPassing, FnParam, FnQualifier, Function, RustTy};
+use crate::models::domain::{ApiView, ArgPassing, FnParam, FnQualifier, Function, RustTy, Safety};
 use crate::special_cases;
 use crate::util::lifetime;
 
@@ -132,19 +132,23 @@ pub fn make_function_definition(
     // to only use `unsafe` for pointers in parameters (for outbound calls), and in return values (for virtual calls). Or technically more
     // correct, make the entire trait unsafe as soon as one function can return pointers, but that's very unergonomic and non-local.
     // Thus, let's keep things simple and more conservative.
-    let (maybe_unsafe, maybe_safety_doc);
-    if sig.common().is_unsafe {
-        maybe_unsafe = quote! { unsafe };
-        maybe_safety_doc = quote! {
+    let maybe_safety_doc = match sig.common().safety {
+        Safety::Safe => None,
+
+        Safety::UnsafeRawPointers => Some(quote! {
             /// # Safety
             ///
             /// This method has automatically been marked `unsafe` because it accepts raw pointers as parameters.
             /// If Godot does not document any safety requirements, make sure you understand the underlying semantics.
-        };
-    } else {
-        maybe_unsafe = TokenStream::new();
-        maybe_safety_doc = TokenStream::new();
+        }),
+
+        Safety::UnsafeManual { doc } => {
+            let doc = format!("# Safety\n\n{doc}");
+            Some(quote! { #[doc = #doc] })
+        }
     };
+
+    let maybe_unsafe = maybe_safety_doc.is_some().then(|| quote! { unsafe });
 
     let FnParamTokens {
         param_decls: params,
@@ -192,7 +196,7 @@ pub fn make_function_definition(
     // docs), prefix the Godot doc with its own `# Godot docs` heading so the sections don't visually merge. Standalone, no heading.
     let mut maybe_godot_doc = TokenStream::new();
     if let Some(doc) = import_docs::import_function_docs(sig, ctx, view) {
-        let has_preceding_section = sig.common().is_unsafe || !meta.specific_docs.is_empty();
+        let has_preceding_section = maybe_safety_doc.is_some() || !meta.specific_docs.is_empty();
         let doc = if has_preceding_section {
             format!("\n# Godot docs\n{doc}")
         } else {

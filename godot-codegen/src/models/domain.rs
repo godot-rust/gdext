@@ -352,12 +352,22 @@ pub struct FunctionCommon {
     pub is_vararg: bool,
     pub is_private: bool,
     pub is_virtual_required: bool,
-    /// Whether raw pointers appear in signature. Affects safety, and in case of virtual methods, the name.
-    pub is_unsafe: bool,
+    pub safety: Safety,
     pub direction: FnDirection,
     /// Deprecation message, if the method is deprecated.
     pub deprecation_msg: Option<&'static str>,
     pub description: Option<String>,
+}
+
+/// Why a function is `unsafe`, if at all.
+pub enum Safety {
+    Safe,
+    /// Raw pointers in signature; virtual methods additionally get a `_rawptr` suffix.
+    UnsafeRawPointers,
+    /// Special-cased, with custom `# Safety` docs (Markdown).
+    UnsafeManual {
+        doc: &'static str,
+    },
 }
 
 pub trait Function: fmt::Display {

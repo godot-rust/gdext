@@ -455,6 +455,33 @@ pub fn is_class_method_unvalidated(class_ty: &TyName, godot_method_name: &str) -
     }
 }
 
+/// Marks specific class methods as `unsafe`, with custom `# Safety` docs (Markdown). Overrides the generic raw-pointer docs.
+#[rustfmt::skip]
+pub fn get_class_method_unsafe_docs(class_name: &TyName, godot_method_name: &str) -> Option<&'static str> {
+    match (class_name.godot_ty.as_str(), godot_method_name) {
+        // Synchronously loading/unloading/reloading an extension rug-pulls running library: any callables created from the extension become
+        // invalid. See https://github.com/godot-rust/gdext/issues/1249.
+        | ("GDExtensionManager", "load_extension")
+        | ("GDExtensionManager", "unload_extension")
+        | ("GDExtensionManager", "reload_extension")
+        => Some(
+            "Behavior is undefined if `path` resolves to any extension that's currently executing code, in particular this extension.\n\n\
+             Prefer the corresponding `*_deferred` variant on this type, which defers the operation to the end of the current frame and is \
+             thus safe. See [#1221](https://github.com/godot-rust/gdext/issues/1221) and [#1249](https://github.com/godot-rust/gdext/issues/1249)."
+        ),
+
+        // Same hazard, but no deferred variant, as `init_func` cannot travel through a Variant.
+        | ("GDExtensionManager", "load_extension_from_function")
+        => Some(
+            "Behavior is undefined if `path` resolves to any extension that's currently executing code, in particular this extension.\n\n\
+             `init_func` must be a valid initialization function for the library at `path`. See \
+             [#1221](https://github.com/godot-rust/gdext/issues/1221) and [#1249](https://github.com/godot-rust/gdext/issues/1249)."
+        ),
+
+        _ => None,
+    }
+}
+
 /// Lists methods that are replaced with manual, more type-safe equivalents. See `type_safe_replacements.rs`.
 ///
 /// See also [`get_class_method_enum_param_replacement()`] for a more automated approach specifically for enum parameters.

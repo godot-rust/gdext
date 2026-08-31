@@ -17,6 +17,8 @@ use crate::classes::{Node, PackedScene};
 use crate::global::Error;
 use crate::meta::{AsArg, arg_into_ref};
 use crate::obj::{Gd, Inherits};
+#[cfg(feature = "codegen-full")]
+use crate::{builtin::GString, classes::GDExtensionManager, meta::ToGodot};
 
 /// Manual extensions for the `Node` class.
 impl Node {
@@ -115,5 +117,32 @@ impl Error {
             Ok(()) => Error::OK,
             Err(e) => e,
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Manual extensions for the `GDExtensionManager` class.
+#[cfg(feature = "codegen-full")]
+impl GDExtensionManager {
+    /// Schedules a `load_extension()` call for the end of the current frame; its `LoadStatus` is not observable.
+    pub fn load_extension_deferred(&mut self, path: impl AsArg<GString>) {
+        self.defer_path_call("load_extension", path);
+    }
+
+    /// Schedules an `unload_extension()` call for the end of the current frame; its `LoadStatus` is not observable.
+    pub fn unload_extension_deferred(&mut self, path: impl AsArg<GString>) {
+        self.defer_path_call("unload_extension", path);
+    }
+
+    /// Schedules a `reload_extension()` call for the end of the current frame; its `LoadStatus` is not observable.
+    pub fn reload_extension_deferred(&mut self, path: impl AsArg<GString>) {
+        self.defer_path_call("reload_extension", path);
+    }
+
+    /// Defers a `path`-taking method by name; the queued call is engine-owned and thus survives unloading this extension.
+    fn defer_path_call(&mut self, godot_method: &str, path: impl AsArg<GString>) {
+        arg_into_ref!(path);
+        self.call_deferred(godot_method, &[path.to_variant()]);
     }
 }

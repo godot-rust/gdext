@@ -107,7 +107,7 @@ pub fn shout_to_pascal(shout_case: &str) -> String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Virtual functions
 
-pub fn make_unsafe_virtual_fn_name(rust_fn_name: &str) -> String {
+pub fn make_rawptr_virtual_fn_name(rust_fn_name: &str) -> String {
     format!("{rust_fn_name}_rawptr")
 }
 
