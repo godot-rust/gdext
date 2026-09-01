@@ -24,18 +24,24 @@ func _ready():
 	await get_tree().physics_frame
 
 	var allow_focus := true
+	var bench_only := false
 	var filters: Array = []
 	var unrecognized_args: Array = []
 	for arg in OS.get_cmdline_user_args():
 		match arg:
 			"--disallow-focus":
 				allow_focus = false
+			"--bench-only":
+				bench_only = true
 			_:
 				if not arg.begins_with("[") or not arg.ends_with("]"):
 					unrecognized_args.push_back(arg)
 
-				var args = arg.lstrip("[").rstrip("]").split(",")
-				filters.append_array(args)
+				# Empty entries are dropped, so that an unfiltered run has no filters at all: "[]" would otherwise split into one empty
+				# string, which matches everything but is not an empty filter list.
+				for filter in arg.lstrip("[").rstrip("]").split(","):
+					if not filter.is_empty():
+						filters.push_back(filter)
 
 	if unrecognized_args:
 		push_error("Unrecognized arguments: ", unrecognized_args)
@@ -43,6 +49,12 @@ func _ready():
 		return
 
 	var rust_runner = IntegrationTests.new()
+
+	# Benchmarks don't depend on the test run; skip it, so their output isn't buried under hundreds of test lines.
+	if bench_only:
+		var bench_success: bool = rust_runner.run_all_benchmarks(self, filters)
+		get_tree().quit(0 if bench_success else 1)
+		return
 
 	var gdscript_suites: Array = [] if editor_only_run else [
 		load("res://ManualFfiTests.gd").new(),
@@ -65,10 +77,11 @@ func _ready():
 	var property_tests = load("res://gen/GenPropertyTests.gd").new()
 
 	# Run benchmarks after all synchronous and asynchronous tests have completed.
-	# Skipped in editor-only mode -- benchmarks are not editor-specific.
+	# Skipped in editor-only mode (benchmarks are not editor-specific) and in filtered runs.
 	var run_benchmarks = func (success: bool):
-		if success and not editor_only_run:
-			rust_runner.run_all_benchmarks(self)
+		# A filtered run targets specific tests; the `bench` command is the way to run benchmarks.
+		if success and not editor_only_run and filters.is_empty():
+			success = rust_runner.run_all_benchmarks(self, filters)
 
 		var exit_code: int = 0 if success else 1
 		get_tree().quit(exit_code)

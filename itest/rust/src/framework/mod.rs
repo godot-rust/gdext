@@ -98,11 +98,15 @@ fn collect_async_rust_tests(
 }
 
 /// Finds all `#[bench]` benchmarks.
-fn collect_rust_benchmarks() -> (Vec<RustBenchmark>, usize) {
+fn collect_rust_benchmarks(filters: &[String]) -> (Vec<RustBenchmark>, usize) {
     let mut all_files = HashSet::new();
     let mut benchmarks: Vec<RustBenchmark> = vec![];
 
     sys::shard_foreach!(__GODOT_BENCH; |bench: &RustBenchmark| {
+        if !passes_filter(filters, bench.name) {
+            return;
+        }
+
         benchmarks.push(*bench);
         all_files.insert(bench.file);
     });

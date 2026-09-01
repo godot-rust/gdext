@@ -151,19 +151,21 @@ impl IntegrationTests {
         cfg!(feature = "codegen-full")
     }
 
+    /// Returns whether all benchmarks completed without error.
     #[allow(clippy::uninlined_format_args)]
     #[func]
-    fn run_all_benchmarks(&mut self, scene_tree: Gd<Node>) {
+    fn run_all_benchmarks(&mut self, scene_tree: Gd<Node>, filters: VarArray) -> bool {
         if self.focused_run {
             println!("  Benchmarks skipped (focused run).");
-            return;
+            return true;
         }
 
         println!("\n\n{}Run{} Godot benchmarks...", FMT_CYAN_BOLD, FMT_END);
 
         self.warn_if_debug();
 
-        let (benchmarks, rust_file_count) = super::collect_rust_benchmarks();
+        let filters: Vec<String> = filters.iter_shared().map(|v| v.to::<String>()).collect();
+        let (benchmarks, rust_file_count) = super::collect_rust_benchmarks(filters.as_slice());
         println!(
             "  Rust: found {} benchmarks in {} files.",
             benchmarks.len(),
@@ -171,9 +173,10 @@ impl IntegrationTests {
         );
 
         let clock = Instant::now();
-        self.run_rust_benchmarks(benchmarks, scene_tree);
+        let failed_count = self.run_rust_benchmarks(benchmarks, scene_tree);
         let total_time = clock.elapsed();
-        self.conclude_benchmarks(total_time);
+
+        self.conclude_benchmarks(failed_count, total_time)
     }
 
     fn warn_if_debug(&self) {
@@ -381,7 +384,12 @@ impl IntegrationTests {
         }
     }
 
-    fn run_rust_benchmarks(&mut self, benchmarks: Vec<RustBenchmark>, _scene_tree: Gd<Node>) {
+    /// Returns how many benchmarks failed.
+    fn run_rust_benchmarks(
+        &mut self,
+        benchmarks: Vec<RustBenchmark>,
+        _scene_tree: Gd<Node>,
+    ) -> usize {
         // let ctx = TestContext { scene_tree };
 
         print!("\n{FMT_CYAN}{space}", space = " ".repeat(36));
@@ -390,19 +398,30 @@ impl IntegrationTests {
         }
         print!("{FMT_END}");
 
+        let mut failed_count = 0;
         let mut last_file = None;
         for bench in benchmarks {
             print_bench_pre(bench.name, bench.file, last_file.as_deref());
             last_file = Some(bench.file.to_string());
 
-            let result = (bench.function)();
+            let result = run_rust_benchmark(&bench);
+            failed_count += usize::from(result.is_err());
             print_bench_post(result);
         }
+
+        failed_count
     }
 
-    fn conclude_benchmarks(&self, total_time: Duration) {
+    /// Returns whether all benchmarks succeeded.
+    fn conclude_benchmarks(&self, failed_count: usize, total_time: Duration) -> bool {
         let secs = total_time.as_secs_f32();
         println!("\nBenchmarks completed in {secs:.2}s.");
+
+        if failed_count > 0 {
+            println!("  {FMT_RED}{failed_count} benchmark(s) failed.{FMT_END}");
+        }
+
+        failed_count == 0
     }
 
     fn update_stats(
@@ -450,6 +469,16 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
         godot::private::handle_panic(&err_context, || (test.function)(ctx));
 
     TestOutcome::from_bool(success.is_ok())
+}
+
+/// A panicking benchmark is turned into an `Err`, so it fails the run instead of unwinding into Godot.
+fn run_rust_benchmark(bench: &RustBenchmark) -> BenchResult {
+    let err_context = format!("benchmark `{}` failed", bench.name);
+
+    match godot::private::handle_panic(&err_context, bench.function) {
+        Ok(result) => result,
+        Err(_) => Err("panicked".to_string()),
+    }
 }
 
 fn run_async_rust_test(
