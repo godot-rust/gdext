@@ -21,6 +21,14 @@
 // Instead, we focus on min (fastest run) and median -- even median may vary quite a bit between runs; but it gives an idea of the distribution.
 // See also https://easyperf.net/blog/2019/12/30/Comparing-performance-measurements#average-median-minimum.
 // We also measure noise as IQR/mean and flag benchmarks that exceed a threshold; see below.
+//
+// Comparing two commits is coarser than the sample statistics suggest. Repeated runs of one binary differ by a few percent, two builds by
+// more: `itest` instantiates godot-core's generics, so a changed function set moves inlining and code placement for untouched code.
+// `check.sh bench` limits this, but differences of a few percent stay unattributable; count instructions instead (`objdump`, `iai-callgrind`).
+//
+// Above ~10ns per operation, that spread stems from clock drift, code/data layout and allocator state, so it does not shrink with more
+// samples. Benchmarks are therefore measured in PASSES interleaved passes. Spreading a transient over all passes dampens it a little,
+// but the point is detection: passes that disagree get flagged, which a single long run cannot do. See anchor_bench.rs.
 
 use std::any::TypeId;
 use std::time::{Duration, Instant};
@@ -31,16 +39,21 @@ const MIN_SAMPLE_TIME: Duration = Duration::from_micros(5);
 /// Time spent warming up caches and estimating the cost of one operation.
 const WARMUP_TIME: Duration = Duration::from_millis(5);
 
-/// Time budget for one benchmark, including warmup. No hard cap: the sample count is derived from it up front, and `MIN_SAMPLES` are always run.
+/// Time budget for one benchmark across all passes, including warmup. No hard cap: the sample count is derived from it up front, and
+/// `MIN_SAMPLES` are always run.
 const TOTAL_BUDGET: Duration = Duration::from_millis(50);
 
-/// Lower bound on the sample count, even if that exceeds the budget. Uneven, so the median needs no interpolation.
-/// Only reached above ~1.5ms per operation; no benchmark is currently that slow.
+/// Lower bound on the sample count per pass, even if that exceeds the budget. Uneven, so the median needs no interpolation.
+/// Only reached above ~0.4ms per operation; no benchmark is currently that slow.
 const MIN_SAMPLES: usize = 31;
 
 /// Ceiling, to bound the suite runtime. More samples give the `min` metric more chances to catch an uninterrupted run, but cost time
 /// (e.g. raising 501 -> 2001 reduced the run-to-run spread by ~2.5x, for +0.7s runtime over the whole suite.)
 const MAX_SAMPLES: usize = 2001;
+
+/// Number of interleaved passes over the whole suite, spreading a benchmark's samples over the entire run.
+/// Costs one warmup per pass; the sample count is divided, so the timed work stays the same.
+pub const PASSES: usize = 3;
 
 /// Upper bound for repetitions per sample. Even a 0.05ns operation needs far fewer. Also limits the inputs held by bench_measure_batched().
 const MAX_REPETITIONS: usize = 100_000;
@@ -53,6 +66,15 @@ const MAX_REPETITIONS: usize = 100_000;
 /// percentages would invite comparing those values over time, which may not contain useful information. The flag means "look further into this".
 const NOISY_IQR_RATIO: f64 = 0.05;
 
+/// How far the `min` of the individual passes may disagree before the benchmark is considered noisy.
+///
+/// Higher than [`NOISY_IQR_RATIO`]: passes span the whole run and thus also pick up drift, which is a few percent even when nothing
+/// is wrong.
+const NOISY_PASS_SPREAD: f64 = 0.10;
+
+/// Upper bound on the samples of one pass, so that all passes together stay at [`MAX_SAMPLES`]. Uneven, like [`MIN_SAMPLES`].
+const MAX_SAMPLES_PER_PASS: usize = (MAX_SAMPLES / PASSES) | 1;
+
 const METRIC_COUNT: usize = 2;
 
 pub type BenchResult = Result<BenchMeasurement, String>;
@@ -63,6 +85,11 @@ pub struct BenchMeasurement {
 
     /// Whether the samples were too spread out to be trusted.
     pub noisy: bool,
+
+    /// How far the `min` of the individual passes moved, relative to the smallest one. Zero for a single pass.
+    ///
+    /// Covers only what varies within a run; code layout is fixed per binary, so this says nothing about how far two builds may differ.
+    pub pass_spread: f64,
 }
 
 pub fn metrics() -> [&'static str; METRIC_COUNT] {
@@ -190,9 +217,12 @@ fn sample_within_budget(
     inner: usize,
     mut take_sample: impl FnMut(&mut Vec<Duration>),
 ) -> BenchResult {
-    let remaining = TOTAL_BUDGET.saturating_sub(start.elapsed()).as_nanos() as f64;
+    // Each pass may spend its share of the budget; without the division, a benchmark slow enough for the budget to bind would take
+    // PASSES times as long.
+    let budget = TOTAL_BUDGET / PASSES as u32;
+    let remaining = budget.saturating_sub(start.elapsed()).as_nanos() as f64;
     let affordable = (remaining / sample_cost) as usize;
-    let samples = affordable.clamp(MIN_SAMPLES, MAX_SAMPLES) | 1;
+    let samples = affordable.clamp(MIN_SAMPLES, MAX_SAMPLES_PER_PASS) | 1;
 
     let mut times = Vec::with_capacity(samples);
     for _ in 0..samples {
@@ -217,6 +247,36 @@ fn calculate_stats(times: Vec<Duration>, inner: usize) -> BenchMeasurement {
     BenchMeasurement {
         stats: [min, median],
         noisy,
+        pass_spread: 0.0,
+    }
+}
+
+/// Combines the passes of one benchmark into a single measurement.
+///
+/// `min` is the smallest sample of all passes, `median` the median of the per-pass medians (close enough at this resolution). Noisy if the
+/// majority of passes were -- so a single transient doesn't flag it -- or if the passes' minima differ by more than [`NOISY_PASS_SPREAD`].
+pub fn merge_passes(passes: Vec<BenchMeasurement>) -> BenchMeasurement {
+    let noisy_count = passes.iter().filter(|pass| pass.noisy).count();
+
+    let mut medians: Vec<f64> = passes.iter().map(|pass| pass.stats[1]).collect();
+    medians.sort_by(f64::total_cmp);
+    let median = medians[medians.len() / 2];
+
+    let mins = passes.iter().map(|pass| pass.stats[0]);
+    let min = mins.clone().fold(f64::INFINITY, f64::min);
+    let max = mins.fold(0.0, f64::max);
+
+    // A zero minimum means the sample window stayed below clock granularity, so the passes cannot be said to agree on anything.
+    let pass_spread = if min > 0.0 {
+        (max - min) / min
+    } else {
+        f64::INFINITY
+    };
+
+    BenchMeasurement {
+        stats: [min, median],
+        noisy: noisy_count * 2 > passes.len() || pass_spread > NOISY_PASS_SPREAD,
+        pass_spread,
     }
 }
 
@@ -238,6 +298,62 @@ fn bench_used<T: Sized>(value: T) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn measurement(min: f64, median: f64, noisy: bool) -> BenchMeasurement {
+        BenchMeasurement {
+            stats: [min, median],
+            noisy,
+            pass_spread: 0.0,
+        }
+    }
+
+    #[test]
+    fn merged_passes_combine_stats() {
+        let merged = merge_passes(vec![
+            measurement(12.0, 22.0, false),
+            measurement(10.0, 20.0, false),
+            measurement(11.0, 21.0, false),
+        ]);
+
+        assert_eq!(merged.stats[0], 10.0); // Smallest sample of all passes, which is also the smallest overall.
+        assert_eq!(merged.stats[1], 21.0); // Median of the per-pass medians.
+        assert_eq!(merged.pass_spread, 0.2);
+        assert!(merged.noisy); // 20% apart, well above NOISY_PASS_SPREAD.
+    }
+
+    #[test]
+    fn merged_passes_need_a_majority_to_flag_noise() {
+        let agreeing = [10.0, 10.2, 10.4]; // Below NOISY_PASS_SPREAD, so only the per-pass flags decide.
+
+        let single = merge_passes(
+            agreeing
+                .iter()
+                .enumerate()
+                .map(|(i, min)| measurement(*min, 20.0, i == 0))
+                .collect(),
+        );
+        assert!(!single.noisy);
+
+        let majority = merge_passes(
+            agreeing
+                .iter()
+                .enumerate()
+                .map(|(i, min)| measurement(*min, 20.0, i < 2))
+                .collect(),
+        );
+        assert!(majority.noisy);
+    }
+
+    #[test]
+    fn merged_passes_below_clock_granularity_are_noisy() {
+        let merged = merge_passes(vec![
+            measurement(0.0, 0.0, false),
+            measurement(0.0, 1.0, false),
+        ]);
+
+        assert_eq!(merged.pass_spread, f64::INFINITY);
+        assert!(merged.noisy);
+    }
 
     #[test]
     fn repetitions_fill_sample_window() {

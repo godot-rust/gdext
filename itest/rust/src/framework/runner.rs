@@ -15,7 +15,7 @@ use godot::register::{GodotClass, godot_api};
 
 use super::AsyncRustTestCase;
 use crate::framework::{
-    BenchResult, RustBenchmark, RustTestCase, TestContext, bencher, passes_filter,
+    BenchResult, RustBenchmark, RustTestCase, TestContext, bencher, is_anchor, passes_filter,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -173,10 +173,11 @@ impl IntegrationTests {
         );
 
         let clock = Instant::now();
-        let failed_count = self.run_rust_benchmarks(benchmarks, scene_tree);
+        let results = self.run_rust_benchmarks(&benchmarks, scene_tree);
         let total_time = clock.elapsed();
 
-        self.conclude_benchmarks(failed_count, total_time)
+        self.print_rust_benchmarks(&benchmarks, &results);
+        self.conclude_benchmarks(&benchmarks, &results, total_time)
     }
 
     fn warn_if_debug(&self) {
@@ -384,39 +385,74 @@ impl IntegrationTests {
         }
     }
 
-    /// Returns how many benchmarks failed.
+    /// Returns the merged result of each benchmark, in the order they were passed in.
     fn run_rust_benchmarks(
         &mut self,
-        benchmarks: Vec<RustBenchmark>,
+        benchmarks: &[RustBenchmark],
         _scene_tree: Gd<Node>,
-    ) -> usize {
+    ) -> Vec<BenchResult> {
         // let ctx = TestContext { scene_tree };
 
+        // Passes are interleaved rather than run back-to-back per benchmark, so that a transient hits all benchmarks alike.
+        // Nothing is printed during measurement, as the output is grouped per benchmark, not per pass.
+        let mut passes: Vec<Vec<BenchResult>> = (0..benchmarks.len()).map(|_| vec![]).collect();
+        for _ in 0..bencher::PASSES {
+            for (bench, results) in benchmarks.iter().zip(passes.iter_mut()) {
+                results.push(run_rust_benchmark(bench));
+            }
+        }
+
+        passes.into_iter().map(merge_bench_passes).collect()
+    }
+
+    fn print_rust_benchmarks(&self, benchmarks: &[RustBenchmark], results: &[BenchResult]) {
         print!("\n{FMT_CYAN}{space}", space = " ".repeat(36));
         for metrics in bencher::metrics() {
             print!(" {:>11}   ", format!("{metrics} [ns]"));
         }
         print!("{FMT_END}");
 
-        let mut failed_count = 0;
         let mut last_file = None;
-        for bench in benchmarks {
+        for (bench, result) in benchmarks.iter().zip(results) {
             print_bench_pre(bench.name, bench.file, last_file.as_deref());
             last_file = Some(bench.file.to_string());
 
-            let result = run_rust_benchmark(&bench);
-            failed_count += usize::from(result.is_err());
             print_bench_post(result);
         }
-
-        failed_count
     }
 
     /// Returns whether all benchmarks succeeded.
-    fn conclude_benchmarks(&self, failed_count: usize, total_time: Duration) -> bool {
+    fn conclude_benchmarks(
+        &self,
+        benchmarks: &[RustBenchmark],
+        results: &[BenchResult],
+        total_time: Duration,
+    ) -> bool {
         let secs = total_time.as_secs_f32();
         println!("\nBenchmarks completed in {secs:.2}s.");
 
+        // Anchors measure plain Rust code, so their spread is what this machine adds to every other number in the table.
+        // Only within one run: code layout is fixed per binary, so a build-to-build comparison needs the anchors' absolute times.
+        let mut floor: Option<f64> = None;
+        for (bench, result) in benchmarks.iter().zip(results) {
+            let Ok(measured) = result else { continue };
+
+            if is_anchor(bench.name) && measured.pass_spread.is_finite() {
+                floor = Some(floor.unwrap_or(0.0).max(measured.pass_spread));
+            }
+        }
+
+        if let Some(floor) = floor {
+            let percent = floor * 100.0;
+            println!(
+                "  Run-to-run floor (anchors): {percent:.1}%; smaller differences within this run mean nothing."
+            );
+            println!(
+                "  Comparing two builds: diff the anchor rows between the runs, that floor is the higher one."
+            );
+        }
+
+        let failed_count = results.iter().filter(|result| result.is_err()).count();
         if failed_count > 0 {
             println!("  {FMT_RED}{failed_count} benchmark(s) failed.{FMT_END}");
         }
@@ -469,6 +505,14 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
         godot::private::handle_panic(&err_context, || (test.function)(ctx));
 
     TestOutcome::from_bool(success.is_ok())
+}
+
+/// Merges the passes of one benchmark, propagating the first error if any pass failed.
+fn merge_bench_passes(passes: Vec<BenchResult>) -> BenchResult {
+    passes
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .map(bencher::merge_passes)
 }
 
 /// A panicking benchmark is turned into an `Err`, so it fails the run instead of unwinding into Godot.
@@ -619,7 +663,7 @@ fn format_time(nanos: f64) -> String {
     format!("{grouped:>11}{fraction:<3}")
 }
 
-fn print_bench_post(result: BenchResult) {
+fn print_bench_post(result: &BenchResult) {
     match result {
         Ok(measured) => {
             for stat in measured.stats.iter() {
