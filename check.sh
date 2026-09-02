@@ -26,10 +26,11 @@ If no commands are specified, the following commands will be run:
 
 Commands:
     fmt           format code, fail if bad
-    test          run unit tests (no Godot needed)
     itest         run integration tests (from within Godot)
+    test          run unit tests (no Godot needed)
     test-web-t    run unit tests on web, threaded (requires node.js and emcc)
     test-web-nt   run unit tests on web, nothreads (requires node.js and emcc)
+    bench         run benchmarks (from within Godot)
     clippy        validate clippy lints
     klippy        validate + fix clippy
     doc           generate docs for 'godot' crate
@@ -38,8 +39,8 @@ Commands:
 Options:
     -h, --help               print this help text
     --double                 run check with double-precision (implies 'api-custom' feature)
-    -f, --filter <arg>       only run integration tests which contain any of the
-                             args (comma-separated). requires itest.
+    -f, --filter <arg>       only run integration tests or benchmarks which contain
+                             any of the args (comma-separated). requires itest or bench.
         --editor             run integration tests in editor mode (passes -e to Godot). requires itest.
     -a, --api-version <ver>  specify the Godot API version to use (e.g. 4.3, 4.3.1).
     --full                   run check with full codegen (all classes)
@@ -195,9 +196,19 @@ function cmd_test() {
 }
 
 function cmd_itest() {
+    # Prefix for the Godot invocation, empty here; see cmd_bench(). Visible to run_itest_in_godot() through dynamic scoping.
+    local godotLauncher=()
+
     findGodot && \
         run cargo build -p itest "${extraCargoArgs[@]}" || return 1
 
+    run_itest_in_godot
+}
+
+# Runs the already-built library in Godot, checking the log for errors that are not reflected in the exit code.
+# Arguments are passed to the Godot project, before the test filter.
+function run_itest_in_godot() {
+    local projectArgs=("$@")
     # Keep in sync with: .github/composite/godot-itest/action.yml (steps "Run Godot integration tests" and "Check for memory leaks").
 
     local logFile
@@ -209,7 +220,7 @@ function cmd_itest() {
     fi
 
     cd itest/godot || return 1
-    "$godotBin" "${editorArgs[@]}" --headless -- "[${extraArgs[@]}]" 2>&1 \
+    "${godotLauncher[@]}" "$godotBin" "${editorArgs[@]}" --headless -- "${projectArgs[@]}" "[${extraArgs[@]}]" 2>&1 \
     | tee "$logFile"
 
     # PIPESTATUS[0] is Godot's exit code; $? would only give tee's exit code (masking crashes).
@@ -270,6 +281,78 @@ function cmd_dok() {
 }
 
 ################################################################################
+# Benchmarks
+################################################################################
+
+# The only platform-specific part of `bench`. All optional, on outside Linux the reads will be empty and `setarch` is absent, so benchmarks
+# still run, just noisier. Both CPU knobs need root, hence warnings only. User could additionally pin cores (e.g. `taskset -c 0-7 check.sh bench`,
+# depending on CPU topology). Sets $godotLauncher for the caller.
+function prepare_bench_env() {
+    # Address space randomization moves heap and stack between runs, changing cache conflicts and thus timings.
+    command -v setarch > /dev/null && godotLauncher=(setarch --addr-no-randomize)
+
+    local governor boost noTurbo
+    read -r governor < /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null
+    read -r boost < /sys/devices/system/cpu/cpufreq/boost 2>/dev/null      # amd-pstate, acpi-cpufreq.
+    read -r noTurbo < /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
+
+    if [[ -n "$governor" && "$governor" != "performance" ]]; then
+        logf "${YELLOW}Warning: CPU governor is '$governor', not 'performance'; clock speed varies with load.${END}\n"
+    fi
+    if [[ "$boost" == "1" || "$noTurbo" == "0" ]]; then
+        logf "${YELLOW}Warning: CPU boost is enabled; clock speed drops as the CPU heats up over the run.${END}\n"
+    fi
+}
+
+# On top of the `itest-bench` profile (see Cargo.toml). Alignment pins code placement across builds -- without it, untouched benchmarks move
+# by several percent. It pads every function, spreading code over more cache lines, so numbers compare across builds but are not absolute.
+BENCH_RUSTFLAGS="-C llvm-args=-align-all-functions=6 -C llvm-args=-align-all-nofallthru-blocks=5"
+
+# Library copied to target/debug by cmd_bench(), as an absolute path since the traps can fire with cwd inside the Godot project.
+benchLib=
+
+function cmd_bench() {
+    # Prefix for the Godot invocation, filled in by prepare_bench_env(). Visible to run_itest_in_godot() through dynamic scoping.
+    local godotLauncher=()
+
+    findGodot || return 1
+    prepare_bench_env
+
+    log "Building with RUSTFLAGS=\"$BENCH_RUSTFLAGS\" (replaces RUSTFLAGS from the environment)."
+    RUSTFLAGS="$BENCH_RUSTFLAGS" run cargo build -p itest --profile itest-bench "${extraCargoArgs[@]}" || return 1
+
+    # Exactly one of these exists, depending on the platform.
+    local lib
+    for lib in target/itest-bench/libitest.{so,dylib} target/itest-bench/itest.dll; do
+        [[ -f "$lib" ]] && break
+        lib=
+    done
+
+    # Else Godot silently loads a stale debug lib.
+    if [[ -z "$lib" ]]; then
+        log "No itest library in target/itest-bench; 'bench' does not support a custom CARGO_TARGET_DIR or --target."
+        return 1
+    fi
+
+    mkdir -p target/debug || return 1
+    benchLib="$PWD/target/debug/${lib##*/}"
+
+    # If a copy is left over, later `itest` runs load the Release lib, because cargo re-creates its hardlink only if that path is absent.
+    # So: remove it on return (disarming the handlers there) and on interrupt (where they must exit) -- otherwise the shell resumes and
+    # evaluates the log of the aborted run.
+    trap 'trap - INT TERM; rm -f "$benchLib"' RETURN
+    trap 'rm -f "$benchLib"; exit 130' INT
+    trap 'rm -f "$benchLib"; exit 143' TERM
+
+    # itest.gdextension points to target/debug, so copy there (like CI). Cargo hardlinks its artifact to that path, so copying onto it
+    # would write through into the artifact itself; unlinking first gives the copy its own inode.
+    rm -f "$benchLib" && cp "$lib" "$benchLib" || return 1
+
+    # `--bench-only` skips the test suite, which the benchmarks don't depend on.
+    run_itest_in_godot --bench-only
+}
+
+################################################################################
 # Argument parsing
 ################################################################################
 
@@ -300,11 +383,11 @@ while [[ $# -gt 0 ]]; do
             extraCargoArgs+=("--features" "godot/__codegen-full,itest/codegen-full")
             docCargoArgs+=("--features" "godot/__codegen-full")
             ;;
-        fmt | test | itest | test-web-t | test-web-nt | clippy | klippy | doc | dok)
+        fmt | test | itest | bench | test-web-t | test-web-nt | clippy | klippy | doc | dok)
             cmds+=("$arg")
             ;;
         -f | --filter)
-            if [[ "${cmds[*]}" =~ itest ]]; then
+            if [[ "${cmds[*]}" =~ itest || "${cmds[*]}" =~ bench ]]; then
                 if [[ -z "$2" ]]; then
                     log "-f/--filter requires an argument."
                     exit 2
@@ -313,7 +396,7 @@ while [[ $# -gt 0 ]]; do
                 extraArgs+=("$2")
                 shift
             else
-                log "-f/--filter requires 'itest' to be specified as a command."
+                log "-f/--filter requires 'itest' or 'bench' to be specified as a command."
                 exit 2
             fi
             ;;

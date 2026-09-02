@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Benchmarks are grouped by what they measure: `builtin` (values), `call` (method calls in both directions), `object` (instance access
-//! and lifetime), `variant` (conversions). Each one tests a single thing, so a slowdown points to a specific place.
+//! Benchmarks are grouped by what they measure: `anchor` (plain Rust, as reference), `builtin` (values), `call` (method calls in both
+//! directions), `callable` (`Callable` invocation), `color` (color conversions), `object` (instance access and lifetime), `variant`
+//! (conversions). Each one tests a single thing, so a slowdown points to a specific place.
 
 use godot::builtin::{GString, GodotStringExt};
 use godot::classes::notify::ObjectNotification;
@@ -14,6 +15,7 @@ use godot::classes::{IRefCounted, RefCounted};
 use godot::obj::Base;
 use godot::register::{GodotClass, godot_api};
 
+mod anchor_bench;
 mod builtin_bench;
 mod call_bench;
 mod callable_bench;

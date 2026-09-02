@@ -97,12 +97,22 @@ fn collect_async_rust_tests(
     (tests, all_files, is_focused_run)
 }
 
+/// Whether a benchmark is an anchor, i.e. measures plain Rust code; see `benchmarks/anchor_bench.rs`.
+pub fn is_anchor(bench_name: &str) -> bool {
+    bench_name.starts_with("anchor_")
+}
+
 /// Finds all `#[bench]` benchmarks.
-fn collect_rust_benchmarks() -> (Vec<RustBenchmark>, usize) {
+fn collect_rust_benchmarks(filters: &[String]) -> (Vec<RustBenchmark>, usize) {
     let mut all_files = HashSet::new();
     let mut benchmarks: Vec<RustBenchmark> = vec![];
 
     sys::shard_foreach!(__GODOT_BENCH; |bench: &RustBenchmark| {
+        // Anchors always run, so that a filtered run still has a noise floor to interpret its numbers against.
+        if !is_anchor(bench.name) && !passes_filter(filters, bench.name) {
+            return;
+        }
+
         benchmarks.push(*bench);
         all_files.insert(bench.file);
     });

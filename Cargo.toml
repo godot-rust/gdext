@@ -2,6 +2,13 @@
 # Skips type/variable debug metadata while keeping file:line info for backtraces. Saves 1-4% build time on clean dev builds.
 debug = "line-tables-only"
 
+# Build for `check.sh bench`. A single codegen unit + fat LTO prevents unrelated code from being compiled differently in two builds,
+# which otherwise moves benchmarks by several percent. See the module docs of itest/rust/src/framework/bencher.rs.
+[profile.itest-bench]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+
 [workspace]
 resolver = "2"
 members = [
