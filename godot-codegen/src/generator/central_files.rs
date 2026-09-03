@@ -282,6 +282,7 @@ fn make_is_inplace_variant_method(api: &ExtensionApi) -> TokenStream {
         /// - always need Godot-side destruction (refcounted like `GString`, `Array` etc.).
         /// - are too big to be stored in-place in `Variant`, thus needing heap storage (`Aabb`, `Basis`, `Transform2D`, `Transform3D`, `Projection`).
         #[doc(hidden)]
+        #[inline] // Small match; runs on every Variant clone and drop.
         pub const fn is_inplace_variant(&self) -> bool {
             matches!(self.ord, #( #inplace_ords )|*)
         }
