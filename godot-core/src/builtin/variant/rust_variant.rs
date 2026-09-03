@@ -94,6 +94,7 @@ pub struct RustVariant {
 
 impl RustVariant {
     /// Create an immutable view from a Variant reference.
+    #[inline] // Transmute only; runs on every Variant clone and drop.
     pub fn view(variant: &Variant) -> &Self {
         // SAFETY: OpaqueVariant and RustVariant have the same size/alignment (verified at compile time).
         unsafe { std::mem::transmute::<&Variant, &RustVariant>(variant) }
@@ -130,6 +131,7 @@ impl RustVariant {
     ///
     /// "Unchecked" refers to the fact that, unlike [`Variant::get_type()`], this does not normalize the special case of null object
     /// pointers to `NIL` -- it returns the raw stored type tag. This is not unsafe; the distinction only matters for `OBJECT` variants.
+    #[inline] // One field read; feeds the Variant clone/drop fast paths.
     pub fn get_type_unchecked(&self) -> VariantType {
         VariantType::from_sys(self.type_tag())
     }
