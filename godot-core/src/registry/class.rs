@@ -16,6 +16,7 @@ use crate::meta::ClassId;
 use crate::meta::error::FromGodotError;
 use crate::obj::{DynGd, Gd, GodotClass, Singleton, cap};
 use crate::private::{ClassShard, ShardItem};
+use crate::registry::method::ErasedMethodUserdata;
 use crate::registry::shard::{DynTraitImpl, ErasedRegisterFn, ITraitImpl, InherentImpl, Struct};
 use crate::registry::{callbacks, reg_validation};
 use crate::{godot_error, godot_warn, sys};
@@ -50,6 +51,25 @@ pub struct ClassMetadata {
     // Only read on the legacy (feature-off) path via `is_class_tool`; under `upcoming-editor-placeholders` the field is set but unused.
     #[cfg_attr(feature = "upcoming-editor-placeholders", allow(dead_code))]
     pub is_tool: bool,
+}
+
+/// Returns a lock to a global map of per-method userdata, by class ID.
+///
+/// GDExtension has no free callback for method userdata, so godot-rust keeps ownership here and releases it when the class is unregistered.
+fn global_method_userdata_by_class()
+-> GlobalGuard<'static, HashMap<ClassId, Vec<ErasedMethodUserdata>>> {
+    static METHOD_USERDATA_BY_CLASS: Global<HashMap<ClassId, Vec<ErasedMethodUserdata>>> =
+        Global::default();
+
+    lock_or_panic(&METHOD_USERDATA_BY_CLASS, "method userdata")
+}
+
+/// Hands the userdata of one registered method to `class_id`, which frees it once the class is unregistered.
+pub(crate) fn store_method_userdata(class_id: ClassId, method_userdata: ErasedMethodUserdata) {
+    global_method_userdata_by_class()
+        .entry(class_id)
+        .or_default()
+        .push(method_userdata);
 }
 
 fn global_dyn_traits_by_typeid() -> GlobalGuard<'static, HashMap<any::TypeId, Vec<DynTraitImpl>>> {
@@ -691,6 +711,12 @@ fn unregister_class_raw(class: LoadedClass) {
     let _: () = unsafe {
         interface_fn!(classdb_unregister_extension_class)(sys::get_library(), class_id.string_sys())
     };
+
+    // Now that Godot has dropped its method binds, no further call reaches the method callbacks, so we can unregister our cache.
+    // Keep the two statements separate: the userdata must be dropped *after* the lock is released, since `lock_or_panic()` tolerates no
+    // re-entrancy from the Variant destructors.
+    let userdata = global_method_userdata_by_class().remove(&class_id);
+    drop(userdata);
 
     out!("Class {class_id} unloaded");
 }

@@ -42,6 +42,11 @@ impl BenchObj {
     fn echo(&self, text: GString) -> GString {
         text
     }
+
+    #[func]
+    fn echo_default(&self, #[opt(default = "some test string")] text: GString) -> GString {
+        text
+    }
 }
 
 /// Separate class, so that the base field and signal registration don't affect the benchmarks using [`BenchObj`].
