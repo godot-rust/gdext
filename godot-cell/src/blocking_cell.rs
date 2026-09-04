@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::collections::HashMap;
 use std::error::Error;
 use std::pin::Pin;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
@@ -184,40 +183,51 @@ pub(crate) struct ThreadTracker {
     /// the field to an acceptable value and avoid the overhead.
     mut_thread: thread::ThreadId,
 
-    /// Shared reference count per thread.
-    shared_counts: HashMap<thread::ThreadId, usize>,
+    /// Shared-reference count per thread.
+    ///
+    /// `Vec` instead of `HashMap`: #threads concurrently holding a shared borrow on a cell is almost always 0 or 1, so linear search is cheaper.
+    shared_counts: Vec<(thread::ThreadId, usize)>,
 }
 
 impl Default for ThreadTracker {
     fn default() -> Self {
         Self {
-            mut_thread: thread::current().id(),
-            shared_counts: HashMap::new(),
+            mut_thread: current_thread_id(),
+            shared_counts: Vec::new(),
         }
     }
 }
 
+/// Same as `godot_ffi::current_thread_id()`, duplicated to keep this crate dependency-free.
+fn current_thread_id() -> thread::ThreadId {
+    thread_local! {
+        static CURRENT_THREAD_ID: thread::ThreadId = thread::current().id();
+    }
+
+    CURRENT_THREAD_ID.with(|id| *id)
+}
+
 impl ThreadTracker {
     /// Number of shared references in the current thread.
-    pub fn current_thread_shared_count(&self) -> usize {
-        *self
-            .shared_counts
-            .get(&thread::current().id())
-            .unwrap_or(&0)
+    // Could be &self, but not needed and this allows to reuse find_shared_count().
+    pub fn current_thread_shared_count(&mut self) -> usize {
+        self.find_shared_count(current_thread_id())
+            .map_or(0, |count| *count)
     }
 
     /// Increments the shared reference count in the current thread.
     pub fn increment_current_thread_shared_count(&mut self) {
-        self.shared_counts
-            .entry(thread::current().id())
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
+        let thread_id = current_thread_id();
+        match self.find_shared_count(thread_id) {
+            Some(count) => *count += 1,
+            None => self.shared_counts.push((thread_id, 1)),
+        }
     }
 
     /// Decrements the shared reference count in the current thread.
     pub fn decrement_current_thread_shared_count(&mut self) {
-        let thread_id = thread::current().id();
-        let entry = self.shared_counts.get_mut(&thread_id);
+        let thread_id = current_thread_id();
+        let entry = self.find_shared_count(thread_id);
 
         debug_assert!(
             entry.is_some(),
@@ -233,11 +243,18 @@ impl ThreadTracker {
 
     /// Returns if the current thread can hold the mutable reference.
     pub fn current_thread_has_mut_ref(&self) -> bool {
-        self.mut_thread == thread::current().id()
+        self.mut_thread == current_thread_id()
+    }
+
+    fn find_shared_count(&mut self, thread_id: thread::ThreadId) -> Option<&mut usize> {
+        self.shared_counts
+            .iter_mut()
+            .find(|(id, _)| *id == thread_id)
+            .map(|(_, count)| count)
     }
 
     /// Claims the mutable reference for the current thread.
     fn claim_mut_ref(&mut self) {
-        self.mut_thread = thread::current().id();
+        self.mut_thread = current_thread_id();
     }
 }

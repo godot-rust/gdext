@@ -14,10 +14,11 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll, Wake, Waker};
-use std::thread::{self, LocalKey, ThreadId};
+use std::thread::{LocalKey, ThreadId};
 
 use crate::builtin::{Callable, Variant};
 use crate::private::handle_panic;
+use crate::sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public interface
@@ -164,7 +165,7 @@ pub fn spawn(future: impl Future<Output = ()> + 'static) -> TaskHandle {
         let godot_waker = Arc::new(GodotWaker::new(
             task_handle.index,
             task_handle.id,
-            thread::current().id(),
+            sys::current_thread_id(),
         ));
 
         (task_handle, godot_waker)
@@ -525,7 +526,7 @@ impl WithRuntime for LocalKey<RefCell<Option<AsyncRuntime>>> {
 /// # Panics
 /// - If called from a thread other than the main-thread.
 fn poll_future(godot_waker: Arc<GodotWaker>) {
-    let current_thread = thread::current().id();
+    let current_thread = sys::current_thread_id();
 
     assert_eq!(
         godot_waker.thread_id, current_thread,

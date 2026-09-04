@@ -57,6 +57,7 @@ EOF
 RED='\033[1;31m'
 CYAN='\033[1;36m'
 YELLOW='\033[1;33m'
+YELLOW_DIM='\033[33m' # Non-bold; for informational asides that shouldn't shout as loud as the bold warnings above.
 END='\033[0m'
 
 ################################################################################
@@ -286,21 +287,24 @@ function cmd_dok() {
 
 # The only platform-specific part of `bench`. All optional, on outside Linux the reads will be empty and `setarch` is absent, so benchmarks
 # still run, just noisier. Both CPU knobs need root, hence warnings only. User could additionally pin cores (e.g. `taskset -c 0-7 check.sh bench`,
-# depending on CPU topology). Sets $godotLauncher for the caller.
+# depending on CPU topology). Sets $godotLauncher and $benchWarnings for the caller.
 function prepare_bench_env() {
     # Address space randomization moves heap and stack between runs, changing cache conflicts and thus timings.
     command -v setarch > /dev/null && godotLauncher=(setarch --addr-no-randomize)
 
+    # 2>/dev/null must precede the input redirect, else a missing path's error prints before it's suppressed.
     local governor boost noTurbo
-    read -r governor < /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null
-    read -r boost < /sys/devices/system/cpu/cpufreq/boost 2>/dev/null      # amd-pstate, acpi-cpufreq.
-    read -r noTurbo < /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
+    read -r governor 2>/dev/null < /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+    read -r boost 2>/dev/null < /sys/devices/system/cpu/cpufreq/boost      # amd-pstate, acpi-cpufreq.
+    read -r noTurbo 2>/dev/null < /sys/devices/system/cpu/intel_pstate/no_turbo
 
+    # cmd_bench() prints these warnings after the run.
+    benchWarnings=""
     if [[ -n "$governor" && "$governor" != "performance" ]]; then
-        logf "${YELLOW}Warning: CPU governor is '$governor', not 'performance'; clock speed varies with load.${END}\n"
+        benchWarnings+="${YELLOW_DIM}Warning: CPU governor is '$governor', not 'performance'; clock speed varies with load.${END}\n"
     fi
     if [[ "$boost" == "1" || "$noTurbo" == "0" ]]; then
-        logf "${YELLOW}Warning: CPU boost is enabled; clock speed drops as the CPU heats up over the run.${END}\n"
+        benchWarnings+="${YELLOW_DIM}Warning: CPU boost is enabled; clock speed drops as the CPU heats up over the run.${END}\n"
     fi
 }
 
@@ -314,11 +318,14 @@ benchLib=
 function cmd_bench() {
     # Prefix for the Godot invocation, filled in by prepare_bench_env(). Visible to run_itest_in_godot() through dynamic scoping.
     local godotLauncher=()
+    # Warning text collected by prepare_bench_env(), printed below only after the run -- see the comment there.
+    local benchWarnings=""
 
     findGodot || return 1
     prepare_bench_env
 
-    log "Building with RUSTFLAGS=\"$BENCH_RUSTFLAGS\" (replaces RUSTFLAGS from the environment)."
+    log
+    log "> RUSTFLAGS=\"$BENCH_RUSTFLAGS\""
     RUSTFLAGS="$BENCH_RUSTFLAGS" run cargo build -p itest --profile itest-bench "${extraCargoArgs[@]}" || return 1
 
     # Exactly one of these exists, depending on the platform.
@@ -350,6 +357,12 @@ function cmd_bench() {
 
     # `--bench-only` skips the test suite, which the benchmarks don't depend on.
     run_itest_in_godot --bench-only
+    local exitCode=$?
+
+    # Printed straight after rust-emitted warnings (e.g. Godot debug build).
+    [[ -n "$benchWarnings" ]] && logf "$benchWarnings"
+
+    return $exitCode
 }
 
 ################################################################################

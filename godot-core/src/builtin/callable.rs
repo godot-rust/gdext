@@ -287,7 +287,7 @@ impl Callable {
         S: Into<CowStr>,
     {
         let thread_id = if cfg!(safeguards_balanced) {
-            Some(std::thread::current().id())
+            Some(sys::current_thread_id())
         } else {
             None // Thread not checked.
         };
@@ -751,7 +751,7 @@ mod custom_callable {
             // NOTE: this panic is currently not propagated to the caller, but results in an error message and Nil return.
             // See comments in itest callable_call() for details.
             sys::balanced_assert!(
-                w.meta.thread_id.is_none() || w.meta.thread_id == Some(std::thread::current().id()),
+                w.meta.thread_id.is_none() || w.meta.thread_id == Some(sys::current_thread_id()),
                 "Callable '{}' created with from_fn() must be called from the same thread it was created in.\n\
                 If you need to call it from any thread, use from_sync_fn() instead (requires `experimental-threads` feature).",
                 w.meta.name

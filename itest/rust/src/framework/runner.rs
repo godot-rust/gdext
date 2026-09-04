@@ -30,7 +30,6 @@ struct TestStats {
 #[class(init)]
 pub struct IntegrationTests {
     stats: TestStats,
-    focused_run: bool,
 }
 
 #[godot_api]
@@ -63,7 +62,6 @@ impl IntegrationTests {
 
         let rust_focused = rust_test_cases.focused_run;
         let focused = rust_focused || gdscript_focused;
-        self.focused_run = focused;
 
         // If the other side is focused (and this side is not), skip this side entirely.
         let run_rust = !gdscript_focused || rust_focused;
@@ -155,14 +153,7 @@ impl IntegrationTests {
     #[allow(clippy::uninlined_format_args)]
     #[func]
     fn run_all_benchmarks(&mut self, scene_tree: Gd<Node>, filters: VarArray) -> bool {
-        if self.focused_run {
-            println!("  Benchmarks skipped (focused run).");
-            return true;
-        }
-
-        println!("\n\n{}Run{} Godot benchmarks...", FMT_CYAN_BOLD, FMT_END);
-
-        self.warn_if_debug();
+        println!("\n{}Run{} Godot benchmarks...", FMT_CYAN_BOLD, FMT_END);
 
         let filters: Vec<String> = filters.iter_shared().map(|v| v.to::<String>()).collect();
         let (benchmarks, rust_file_count) = super::collect_rust_benchmarks(filters.as_slice());
@@ -192,7 +183,7 @@ impl IntegrationTests {
         };
 
         if let Some(what) = what {
-            println!("{FMT_YELLOW}  Warning: {what}, benchmarks may not be expressive.{FMT_END}");
+            println!("{FMT_YELLOW}Warning: {what}, benchmarks may not be expressive.{FMT_END}");
         }
     }
 
@@ -406,9 +397,12 @@ impl IntegrationTests {
     }
 
     fn print_rust_benchmarks(&self, benchmarks: &[RustBenchmark], results: &[BenchResult]) {
-        print!("\n{FMT_CYAN}{space}", space = " ".repeat(36));
+        // Padding must match print_bench_pre()'s prefix: "   -- " + name + " ...".
+        let prefix_width = 6 + COL_W_NAME + 4;
+        print!("\n{FMT_CYAN}{space}", space = " ".repeat(prefix_width));
         for metrics in bencher::metrics() {
-            print!(" {:>11}   ", format!("{metrics} [ns]"));
+            let header = format!("{metrics} [ns]");
+            print!(" {header:>width$}", width = COL_W_TIME + COL_W_DECIMAL);
         }
         print!("{FMT_END}");
 
@@ -448,14 +442,17 @@ impl IntegrationTests {
                 "  Run-to-run floor (anchors): {percent:.1}%; smaller differences within this run mean nothing."
             );
             println!(
-                "  Comparing two builds: diff the anchor rows between the runs, that floor is the higher one."
+                "  Comparing two builds: benchmark diff < anchor diff means noise, not a real change."
             );
+            println!();
         }
 
         let failed_count = results.iter().filter(|result| result.is_err()).count();
         if failed_count > 0 {
             println!("  {FMT_RED}{failed_count} benchmark(s) failed.{FMT_END}");
         }
+
+        self.warn_if_debug(); // Printed last, before check.sh warnings.
 
         failed_count == 0
     }
@@ -479,6 +476,11 @@ impl IntegrationTests {
     }
 }
 
+// Column widths for benchmark table.
+const COL_W_NAME: usize = 30;
+const COL_W_TIME: usize = 11;
+const COL_W_DECIMAL: usize = 3;
+
 // For more colors, see https://stackoverflow.com/a/54062826
 // To experiment with colors, add `rand` dependency and add following code above.
 //     use rand::seq::SliceRandom;
@@ -487,7 +489,8 @@ impl IntegrationTests {
 const FMT_CYAN_BOLD: &str = "\x1b[36;1;1m";
 const FMT_CYAN: &str = "\x1b[36m";
 const FMT_GREEN: &str = "\x1b[32m";
-const FMT_YELLOW: &str = "\x1b[33m";
+const FMT_YELLOW: &str = "\x1b[33m"; // sometimes orange.
+const FMT_YELLOW_BRIGHT: &str = "\x1b[93m";
 const FMT_RED: &str = "\x1b[31m";
 const FMT_END: &str = "\x1b[0m";
 
@@ -626,16 +629,15 @@ fn print_test_post(test_case: &str, outcome: TestOutcome) {
 }
 
 fn print_bench_pre(benchmark: &str, bench_file: &str, last_file: Option<&str>) {
-    let max_width: usize = 30;
     print_file_header(bench_file, last_file);
 
-    let benchmark = if benchmark.len() > max_width {
-        &benchmark[..max_width]
+    let benchmark = if benchmark.len() > COL_W_NAME {
+        &benchmark[..COL_W_NAME]
     } else {
         benchmark
     };
 
-    print!("   -- {benchmark:<max_width$} ...");
+    print!("   -- {benchmark:<COL_W_NAME$} ...");
 }
 
 /// Formats nanoseconds, grouping digits by thousands. Decimals only below 100ns, where they still carry information.
@@ -660,7 +662,7 @@ fn format_time(nanos: f64) -> String {
         grouped.push(digit);
     }
 
-    format!("{grouped:>11}{fraction:<3}")
+    format!("{grouped:>COL_W_TIME$}{fraction:<COL_W_DECIMAL$}")
 }
 
 fn print_bench_post(result: &BenchResult) {
@@ -670,7 +672,7 @@ fn print_bench_post(result: &BenchResult) {
                 print!(" {}", format_time(*stat));
             }
             if measured.noisy {
-                print!("  {FMT_YELLOW}~noisy{FMT_END}");
+                print!("    {FMT_YELLOW_BRIGHT}~noisy{FMT_END}");
             }
         }
         Err(msg) => {

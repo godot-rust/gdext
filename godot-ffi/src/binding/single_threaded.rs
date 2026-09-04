@@ -122,26 +122,31 @@ impl BindingStorage {
 
     /// Asserts that the caller is on the main thread. Used by the restricted accessor (`sys::on_main()`) for FFI functions that touch
     /// engine/scene state; thread-safe functions skip this.
+    ///
+    /// Only enabled with balanced+ safeguards and for threaded Wasm. In `wasm_nothreads` there's only one thread -> no check needed.
+    #[inline(always)] // Runs on every FFI call. Failure path now outlined -> remaining body = load + predicted branch.
     pub(super) fn ensure_main_thread() {
-        // Check that we're on the main thread. Only enabled with balanced+ safeguards and, for Wasm, in threaded builds.
-        // In wasm_nothreads, there's only one thread, so no check is needed.
         #[cfg(all(safeguards_balanced, not(wasm_nothreads)))]
         if !crate::is_main_thread() {
-            // If a binding is accessed the first time, this will panic and start unwinding. It can then happen that during unwinding,
-            // another FFI call happens (e.g. Godot destructor), which would cause immediate abort, swallowing the error message.
-            // Thus check if a panic is already in progress.
+            #[cold]
+            #[inline(never)] // Outlined error path.
+            fn report_wrong_thread() {
+                // If a binding is accessed for 1st time, this will panic and start unwinding. During unwinding, another FFI call may happen
+                // (e.g. Godot destructor), which aborts and swallows the message -- so if a panic is already in progress, only print.
+                if std::thread::panicking() {
+                    eprintln!(
+                        "ERROR: Attempted to access binding from different thread than main thread; this is UB.\n\
+                        Cannot panic because panic unwind is already in progress. Please check surrounding messages to fix the bug."
+                    );
+                } else {
+                    panic!(
+                        "attempted to access binding from different thread than main thread; \
+                        this is UB - use the \"experimental-threads\" feature."
+                    )
+                }
+            }
 
-            if std::thread::panicking() {
-                eprintln!(
-                    "ERROR: Attempted to access binding from different thread than main thread; this is UB.\n\
-                    Cannot panic because panic unwind is already in progress. Please check surrounding messages to fix the bug."
-                );
-            } else {
-                panic!(
-                    "attempted to access binding from different thread than main thread; \
-                    this is UB - use the \"experimental-threads\" feature."
-                )
-            };
+            report_wrong_thread();
         }
     }
 }

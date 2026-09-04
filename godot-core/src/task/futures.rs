@@ -437,7 +437,7 @@ impl<T> ThreadConfined<T> {
     pub(crate) fn new(value: T) -> Self {
         Self {
             value: Some(value),
-            thread_id: std::thread::current().id(),
+            thread_id: sys::current_thread_id(),
         }
     }
 
@@ -453,7 +453,7 @@ impl<T> ThreadConfined<T> {
     }
 
     fn is_original_thread(&self) -> bool {
-        self.thread_id == std::thread::current().id()
+        self.thread_id == sys::current_thread_id()
     }
 }
 
