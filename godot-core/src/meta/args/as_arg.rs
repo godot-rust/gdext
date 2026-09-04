@@ -8,7 +8,9 @@
 use crate::builtin::{Callable, GString, NodePath, Signal, StringName, Variant};
 use crate::meta::sealed::Sealed;
 use crate::meta::traits::{Element, GodotFfiVariant, GodotNullableType, PackedElement};
-use crate::meta::{CowArg, EngineToGodot, FfiArg, GodotType, ObjectArg, ToGodot};
+use crate::meta::{
+    CowArg, EngineToGodot, FfiArg, GodotType, ObjectArg, ThreadSafeArgContext, ToGodot,
+};
 use crate::obj::{DynGd, Gd, GodotClass, Inherits};
 
 /// Implicit conversions for arguments passed to Godot APIs.
@@ -81,7 +83,7 @@ use crate::obj::{DynGd, Gd, GodotClass, Inherits};
     note = "GString/StringName/NodePath aren't implicitly convertible for performance reasons; use `From` conversions.",
     note = "see also `AsArg` docs: https://godot-rust.github.io/docs/gdext/master/godot/meta/trait.AsArg.html"
 )]
-pub trait AsArg<T: ToGodot>
+pub trait AsArg<T: ToGodot>: ThreadSafeArgContext
 where
     Self: Sized,
 {
@@ -109,6 +111,7 @@ where
 impl<T> AsArg<T> for &T
 where
     T: ToGodot<Pass = ByRef>,
+    for<'a> &'a T: ThreadSafeArgContext,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, T>
     where
@@ -130,7 +133,7 @@ impl AsArg<Variant> for &Variant {
 
 impl<T> AsArg<T> for T
 where
-    T: ToGodot<Pass = ByValue> + Sized, // Sized may rule out some coherence issues.
+    T: ToGodot<Pass = ByValue> + Sized + ThreadSafeArgContext, // Sized may rule out some coherence issues.
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, T>
     where
@@ -427,7 +430,7 @@ where
 /// ```
 pub fn owned_into_arg<'arg, T>(owned_val: T) -> impl AsArg<T> + 'arg
 where
-    T: ToGodot + 'arg,
+    T: ToGodot + ThreadSafeArgContext + 'arg,
 {
     CowArg::Owned(owned_val)
 }
@@ -454,7 +457,7 @@ where
 /// ```
 pub fn ref_to_arg<'r, T>(ref_val: &'r T) -> impl AsArg<T> + 'r
 where
-    T: ToGodot + 'r,
+    T: ToGodot + ThreadSafeArgContext + 'r,
 {
     CowArg::Borrowed(ref_val)
 }
@@ -507,7 +510,7 @@ macro_rules! arg_into_owned {
 /// This is necessary for packed array dispatching to different "inner" backend signatures.
 impl<T> AsArg<T> for CowArg<'_, T>
 where
-    for<'r> T: ToGodot,
+    for<'r> T: ToGodot + ThreadSafeArgContext,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, T>
     where
@@ -792,7 +795,7 @@ struct PhantomAsArgDoctests;
 // Blanket: ByValue types -> Variant (i32, f64, bool, Vector2, Color, &str, String, user enums, etc.).
 impl<T> AsArg<Variant> for T
 where
-    T: ToGodot<Pass = ByValue>,
+    T: ToGodot<Pass = ByValue> + ThreadSafeArgContext,
 {
     fn into_arg<'arg>(self) -> CowArg<'arg, Variant>
     where
@@ -805,7 +808,10 @@ where
 // Macro for ByRef types -> Variant. Generic params go in `[]`, empty for non-generic types.
 macro_rules! impl_asarg_variant_for_ref {
     ([$($gen:tt)*] $T:ty) => {
-        impl<$($gen)*> AsArg<Variant> for &$T {
+        impl<$($gen)*> AsArg<Variant> for &$T
+        where
+            for <'a> &'a $T: $crate::meta::ThreadSafeArgContext
+        {
             fn into_arg<'arg>(self) -> CowArg<'arg, Variant>
             where
                 Self: 'arg,
@@ -841,10 +847,15 @@ pub trait AsDirectElement<T: Element>: AsArg<T> {}
 // ByValue: T directly passes as element (i32, bool, Vector2, ...).
 //
 // Explicitly supports other integer types than i64.
-impl<T> AsDirectElement<T> for T where T: Element + ToGodot<Pass = ByValue> {}
+impl<T> AsDirectElement<T> for T where T: Element + ToGodot<Pass = ByValue> + ThreadSafeArgContext {}
 
 // ByRef: &T passes as element (GString, Array, Dictionary, ...).
-impl<T> AsDirectElement<T> for &T where T: Element + ToGodot<Pass = ByRef> {}
+impl<T> AsDirectElement<T> for &T
+where
+    T: Element + ToGodot<Pass = ByRef>,
+    for<'a> &'a T: ThreadSafeArgContext,
+{
+}
 
 // Potentially allow this? However, it encourages manual case differentiation when working with objects,
 // which goes against the idea of implicit upcasts/option-casts/dyn-casts.

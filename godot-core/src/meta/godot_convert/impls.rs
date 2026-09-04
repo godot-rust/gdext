@@ -94,6 +94,8 @@ where
 {
     // Basically ByRef, but allows Option<T> -> Option<&T::Via> conversion.
     type Pass = meta::ByOption<T::Via>;
+    // Intentionally marked as unsafe so we can create our own pass-through impl.
+    type Threads = meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> Option<&T::Via> {
         self.as_ref().map(T::to_godot)
@@ -292,6 +294,7 @@ macro_rules! impl_godot_scalar {
 
         impl ToGodot for $T {
             type Pass = meta::ByValue;
+            type Threads = $crate::meta::ThreadSafeArg;
 
             fn to_godot(&self) -> Self::Via {
                *self
@@ -387,6 +390,7 @@ impl<T: Element> GodotConvert for Vec<T> {
 
 impl<T: Element> ToGodot for Vec<T> {
     type Pass = meta::ByValue;
+    type Threads = meta::ThreadSafeArg;
 
     fn to_godot(&self) -> Self::Via {
         Array::from(self.as_slice())
@@ -409,6 +413,7 @@ impl<T: Element, const LEN: usize> GodotConvert for [T; LEN] {
 
 impl<T: Element, const LEN: usize> ToGodot for [T; LEN] {
     type Pass = meta::ByValue;
+    type Threads = meta::ThreadSafeArg;
 
     fn to_godot(&self) -> Self::Via {
         Array::from(self)
@@ -453,6 +458,7 @@ impl<T: Element> GodotConvert for &[T] {
 
 impl<T: Element> ToGodot for &[T] {
     type Pass = meta::ByValue;
+    type Threads = <T as ToGodot>::Threads;
 
     fn to_godot(&self) -> Self::Via {
         Array::from(*self)

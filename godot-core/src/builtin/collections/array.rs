@@ -15,6 +15,8 @@ use sys::{GodotFfi, ffi_methods, interface_fn};
 use crate::builtin::iter::ArrayFunctionalOps;
 use crate::builtin::*;
 use crate::meta;
+#[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+use crate::meta::ThreadSafeArgContext;
 use crate::meta::error::{ArrayMismatch, ConvertError, FromGodotError, FromVariantError};
 use crate::meta::inspect::ElementType;
 use crate::meta::shape::{GodotElementShape, GodotShape};
@@ -285,6 +287,8 @@ impl<T: Element> Array<T> {
 
     /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
     pub fn contains(&self, value: impl AsArg<T>) -> bool {
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&value);
         meta::arg_into_ref!(value: T);
         self.as_inner().has(&value.to_variant())
     }
@@ -323,6 +327,8 @@ impl<T: Element> Array<T> {
 
         let ptr_mut = self.ptr_mut(index);
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&value);
         meta::arg_into_ref!(value: T);
         let variant = value.to_variant();
 
@@ -338,6 +344,8 @@ impl<T: Element> Array<T> {
     pub fn push(&mut self, value: impl AsArg<T>) {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&value);
         meta::arg_into_ref!(value: T);
 
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
@@ -358,6 +366,8 @@ impl<T: Element> Array<T> {
     pub fn push_front(&mut self, value: impl AsArg<T>) {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&value);
         meta::arg_into_ref!(value: T);
 
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
@@ -409,6 +419,8 @@ impl<T: Element> Array<T> {
             "Array insertion index {index} is out of bounds: length is {len}",
         );
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&value);
         meta::arg_into_ref!(value: T);
 
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
@@ -442,6 +454,8 @@ impl<T: Element> Array<T> {
     pub fn erase(&mut self, value: impl AsArg<T>) {
         self.balanced_ensure_mutable();
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&value);
         meta::arg_into_ref!(value: T);
 
         // SAFETY: We don't write anything to the array.
@@ -468,6 +482,8 @@ impl<T: Element> Array<T> {
     pub fn resize(&mut self, new_size: usize, value: impl AsArg<T>) {
         let original_size = self.resize_inner(new_size);
 
+        #[cfg(all(feature = "experimental-threads", safeguards_balanced))]
+        ThreadSafeArgContext::guarantee_thread_safe(&value);
         meta::arg_into_ref!(value: T);
 
         // If new_size < original_size then this is an empty iterator and does nothing.
@@ -1187,6 +1203,7 @@ impl<T: Element> GodotConvert for Array<T> {
 
 impl<T: Element> ToGodot for Array<T> {
     type Pass = meta::ByRef;
+    type Threads = meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> &Self::Via {
         self

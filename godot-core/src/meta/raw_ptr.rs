@@ -110,6 +110,7 @@ where
     P: FfiRawPointer + 'static,
 {
     type Pass = crate::meta::ByValue;
+    type Threads = super::NonThreadSafeArg;
 
     fn to_godot(&self) -> Self::Via {
         *self

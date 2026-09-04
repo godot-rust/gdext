@@ -84,6 +84,8 @@ where
     T: ToGodot,
 {
     type Pass = T::Pass;
+    // We intentionally mark CowArg as unsafe so we can implement our own pass-through version of `ThreadSafeArgContext`.
+    type Threads = crate::meta::NonThreadSafeArg;
 
     fn to_godot(&self) -> crate::meta::ToArg<'_, Self::Via, Self::Pass> {
         // Forward to the wrapped type's to_godot implementation

@@ -200,7 +200,7 @@ function cmd_itest() {
     local godotLauncher=()
 
     findGodot && \
-        run cargo build -p itest "${extraCargoArgs[@]}" || return 1
+        run cargo build -p itest --features itest/experimental-threads --features itest/codegen-full "${extraCargoArgs[@]}" || return 1
 
     run_itest_in_godot
 }

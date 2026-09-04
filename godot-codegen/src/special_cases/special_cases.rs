@@ -465,6 +465,9 @@ pub fn is_class_method_replaced_with_type_safe(class_ty: &TyName, godot_method_n
         | ("Object", "get_script")
         | ("Object", "set_script")
 
+        // thread_safe_unchecked
+        | ("Object", "emit_signal")
+
         // u32 -> ConnectFlags
         | ("Object", "connect")
 
@@ -901,6 +904,19 @@ pub fn is_utility_function_private(function: &JsonUtilityFunction) -> bool {
         // Removed from public interface in v0.3, but available as dedicated APIs.
         | "is_instance_valid"    // used in Variant::is_object_alive().
         | "is_instance_id_valid" // used in InstanceId::lookup_validity().
+
+        => true, _ => false
+    }
+}
+
+/// Whether a class or builtin methods return value is thread-safe.
+///
+/// This is a hand-picked list of methods which have been manually verified to return unique values. 
+#[rustfmt::skip]
+pub fn is_method_threadsafe_return(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
+    match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
+        | ("SurfaceTool", "commit")
+        | ("SurfaceTool", "commit_to_arrays")
 
         => true, _ => false
     }
