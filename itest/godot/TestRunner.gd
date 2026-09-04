@@ -10,7 +10,7 @@ class_name GDScriptTestRunner
 
 func _ready():
 	# Don't run tests when opened in the editor, unless it's headless mode (-e --headless).
-	# When editor tests are run, we skip GDScript suites and benchmarks -- they aren't editor-specific.
+	# When editor tests are run, we skip GDScript suites -- they aren't editor-specific.
 	var editor_only_run := false
 	if Engine.is_editor_hint():
 		if DisplayServer.get_name() == 'headless':
@@ -76,13 +76,8 @@ func _ready():
 
 	var property_tests = load("res://gen/GenPropertyTests.gd").new()
 
-	# Run benchmarks after all synchronous and asynchronous tests have completed.
-	# Skipped in editor-only mode (benchmarks are not editor-specific) and in filtered runs.
-	var run_benchmarks = func (success: bool):
-		# A filtered run targets specific tests; the `bench` command is the way to run benchmarks.
-		if success and not editor_only_run and filters.is_empty():
-			success = rust_runner.run_all_benchmarks(self, filters)
-
+	# Benchmarks are not part of itest, they can be run with `./check.sh bench` command (forwards `--bench-only` to Godot).
+	var on_tests_finished = func (success: bool):
 		var exit_code: int = 0 if success else 1
 		get_tree().quit(exit_code)
 
@@ -94,7 +89,7 @@ func _ready():
 		self,
 		filters,
 		property_tests,
-		run_benchmarks
+		on_tests_finished
 	)
 
 
