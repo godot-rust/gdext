@@ -777,7 +777,7 @@ pub mod trace {
 
     pub fn pop() -> CallReport {
         let lock = TRACE.take();
-        // let th = std::thread::current().id();
+        // let th = sys::current_thread_id();
         // println!("trace::pop [{th:?}]...");
 
         lock.expect("trace::pop() had no prior call stored.")
@@ -787,7 +787,7 @@ pub mod trace {
         if call_ctx.function_name.contains("notrace") {
             return;
         }
-        // let th = std::thread::current().id();
+        // let th = sys::current_thread_id();
         // println!("trace::push [{th:?}] - inbound: {inbound}, ptrcall: {ptrcall}, ctx: {call_ctx}");
 
         let report = CallReport {

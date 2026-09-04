@@ -191,32 +191,38 @@ pub(crate) struct ThreadTracker {
 impl Default for ThreadTracker {
     fn default() -> Self {
         Self {
-            mut_thread: thread::current().id(),
+            mut_thread: current_thread_id(),
             shared_counts: HashMap::new(),
         }
     }
 }
 
+/// Same as `godot_ffi::current_thread_id()`, duplicated to keep this crate dependency-free.
+fn current_thread_id() -> thread::ThreadId {
+    thread_local! {
+        static CURRENT_THREAD_ID: thread::ThreadId = thread::current().id();
+    }
+
+    CURRENT_THREAD_ID.with(|id| *id)
+}
+
 impl ThreadTracker {
     /// Number of shared references in the current thread.
     pub fn current_thread_shared_count(&self) -> usize {
-        *self
-            .shared_counts
-            .get(&thread::current().id())
-            .unwrap_or(&0)
+        *self.shared_counts.get(&current_thread_id()).unwrap_or(&0)
     }
 
     /// Increments the shared reference count in the current thread.
     pub fn increment_current_thread_shared_count(&mut self) {
         self.shared_counts
-            .entry(thread::current().id())
+            .entry(current_thread_id())
             .and_modify(|count| *count += 1)
             .or_insert(1);
     }
 
     /// Decrements the shared reference count in the current thread.
     pub fn decrement_current_thread_shared_count(&mut self) {
-        let thread_id = thread::current().id();
+        let thread_id = current_thread_id();
         let entry = self.shared_counts.get_mut(&thread_id);
 
         debug_assert!(
@@ -233,11 +239,11 @@ impl ThreadTracker {
 
     /// Returns if the current thread can hold the mutable reference.
     pub fn current_thread_has_mut_ref(&self) -> bool {
-        self.mut_thread == thread::current().id()
+        self.mut_thread == current_thread_id()
     }
 
     /// Claims the mutable reference for the current thread.
     fn claim_mut_ref(&mut self) {
-        self.mut_thread = thread::current().id();
+        self.mut_thread = current_thread_id();
     }
 }
