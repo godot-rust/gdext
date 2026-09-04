@@ -117,9 +117,35 @@ use binding::{
     initialize_class_editor_method_table, initialize_class_scene_method_table,
     initialize_class_servers_method_table, runtime_metadata,
 };
-
 #[cfg(not(wasm_nothreads))]
-static MAIN_THREAD_ID: ManualInitCell<std::thread::ThreadId> = ManualInitCell::new();
+use thread_ids::MAIN_THREAD_ID;
+pub use thread_ids::current_thread_id;
+
+mod thread_ids {
+    use std::thread::{self, ThreadId};
+
+    #[cfg(not(wasm_nothreads))]
+    use crate::ManualInitCell;
+
+    #[cfg(not(wasm_nothreads))]
+    pub(super) static MAIN_THREAD_ID: ManualInitCell<ThreadId> = ManualInitCell::new();
+
+    // Cache thread ID for perf reasons, comparison:
+    // * direct, Arc refcount      -- thread::current().id()                                               2.250 ns/call
+    // * lazy (this one)           -- thread_local! { static X: ThreadId = thread::current().id(); })      0.246 ns/call
+    // * const + access-site check -- thread_local! { static X: Cell<Option<ThreadId>> = const {None} })   0.185 ns/call
+    //
+    // The const one is only faster in executables (local-exec TLS). In a cdylib, both variants go through a `__tls_get_addr` call that dominates,
+    // so const-init would just add manual init code for no measurable gain. See also https://github.com/rust-lang/rust/issues/147194.
+    thread_local! {
+        static CURRENT_THREAD_ID: ThreadId = thread::current().id();
+    }
+
+    #[inline(always)] // Ensure no overhead -> only thread-local load.
+    pub fn current_thread_id() -> ThreadId {
+        CURRENT_THREAD_ID.with(|id| *id)
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Deferred editor messages
@@ -227,7 +253,7 @@ pub unsafe fn initialize(
     // SAFETY: We set the main thread ID exactly once here and never again.
     #[cfg(not(wasm_nothreads))]
     unsafe {
-        MAIN_THREAD_ID.set(std::thread::current().id())
+        MAIN_THREAD_ID.set(current_thread_id())
     };
 
     // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
@@ -630,6 +656,7 @@ pub unsafe fn godot_has_feature(
 /// # Panics
 /// - If it is called before the engine bindings have been initialized.
 #[cfg(not(wasm_nothreads))]
+#[inline(always)] // Called on every FFI call through is_main_thread(). The assert's panic path stays outlined.
 pub fn main_thread_id() -> std::thread::ThreadId {
     assert!(
         MAIN_THREAD_ID.is_initialized(),
@@ -646,10 +673,11 @@ pub fn main_thread_id() -> std::thread::ThreadId {
 ///
 /// # Panics
 /// - If it is called before the engine bindings have been initialized.
+#[inline(always)] // Trivial forwarder, cheap to inline at call-site.
 pub fn is_main_thread() -> bool {
     #[cfg(not(wasm_nothreads))]
     {
-        std::thread::current().id() == main_thread_id()
+        current_thread_id() == main_thread_id()
     }
 
     #[cfg(wasm_nothreads)]
@@ -760,7 +788,7 @@ pub unsafe fn discover_main_thread() {
             return;
         }
 
-        let thread_id = std::thread::current().id();
+        let thread_id = current_thread_id();
 
         // SAFETY: initialize must have already been called before this function is called. By clearing and setting the cell again we can reinitialize it.
         unsafe {
