@@ -398,7 +398,8 @@ impl ClassAttributes {
 
 fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let base_init = if let Some(Field { name, ty, .. }) = &fields.base_field {
-        quote_spanned! { ty.span()=> #name: base, }
+        // Do not name `base` to avoid tripping clippy::redundant_field_names when resulting user code is { base: base, ... }.
+        quote_spanned! { ty.span()=> #name: base_param, }
     } else {
         TokenStream::new()
     };
@@ -417,7 +418,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
 
     quote! {
         impl ::godot::obj::cap::GodotDefault for #class_name {
-            fn __godot_user_init(base: ::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base>) -> Self {
+            fn __godot_user_init(base_param: ::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base>) -> Self {
                 Self {
                     #( #rest_init )*
                     #base_init
