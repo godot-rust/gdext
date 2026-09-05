@@ -37,6 +37,7 @@ mod base_init_test;
 mod validate_property_test;
 mod virtual_methods_niche_test;
 mod virtual_methods_test;
+mod weakref_test;
 
 // Need to test this in the init level method.
 pub use init_stage_test::*;
