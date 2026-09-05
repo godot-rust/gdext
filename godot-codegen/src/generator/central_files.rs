@@ -257,7 +257,8 @@ fn make_is_inplace_variant_method(api: &ExtensionApi) -> TokenStream {
 
     // `Nil` is not part of `api.builtins`, but the empty variant is stored in-place and trivially destructible. Include it explicitly, so the
     // lifecycle fast paths (Clone/Drop) and `set_value` treat a nil variant as overwritable/copyable without FFI.
-    let mut inplace_ords = vec![0_i32];
+    let mut inplace_mask = 1_u64; // Bit 0 = NIL.
+    let mut max_ord = 0_i32;
 
     for builtin in api.builtins.iter() {
         let size = sizes
@@ -270,10 +271,18 @@ fn make_is_inplace_variant_method(api: &ExtensionApi) -> TokenStream {
                 )
             });
 
+        let ord = builtin.variant_type_ord;
+        max_ord = max_ord.max(ord);
+
         if size <= inplace_bytes_threshold && !builtin.has_destructor {
-            inplace_ords.push(builtin.variant_type_ord);
+            inplace_mask |= 1_u64 << ord;
         }
     }
+
+    assert!(
+        max_ord < 64,
+        "VariantType ord {max_ord} >= 64 no longer fits the `& 63` optimization"
+    );
 
     quote! {
         /// Returns `true` if _variants_ of this type can store the value in-place (SBO) and thus don't require FFI copies and destruction.
@@ -282,9 +291,14 @@ fn make_is_inplace_variant_method(api: &ExtensionApi) -> TokenStream {
         /// - always need Godot-side destruction (refcounted like `GString`, `Array` etc.).
         /// - are too big to be stored in-place in `Variant`, thus needing heap storage (`Aabb`, `Basis`, `Transform2D`, `Transform3D`, `Projection`).
         #[doc(hidden)]
-        #[inline] // Small match; runs on every Variant clone and drop.
+        #[inline] // Few instructions (shift, and, test) -- runs on every Variant clone/drop.
         pub const fn is_inplace_variant(&self) -> bool {
-            matches!(self.ord, #( #inplace_ords )|*)
+            // Bitmask instead of matches!(...): LLVM emits a range compare + branch for the latter.
+            // `& 63` avoids overflow check on shift (all ords < 64) and is free on x86 (64-bit shift already uses only the low 6 count bits).
+            const INPLACE_MASK: u64 = #inplace_mask;
+
+            let ord_u6 = self.ord as u32 & 63;
+            (INPLACE_MASK >> ord_u6) & 1 != 0
         }
     }
 }

@@ -141,7 +141,7 @@ impl RustVariant {
     /// This is a property of the *variant*, not the payload: large math types like `Transform2D` are `Copy` in Rust but heap-allocated inside
     /// `Variant`, so they return `false`. Delegates to [`VariantType::is_inplace_variant()`]; used by `Variant`'s lifecycle fast paths
     /// (Clone/Drop).
-    #[inline]
+    #[inline] // Few instructions (tag load, shift, and, test) -- runs on every Variant clone/drop.
     pub(crate) fn has_inplace_type(&self) -> bool {
         self.get_type_unchecked().is_inplace_variant()
     }
