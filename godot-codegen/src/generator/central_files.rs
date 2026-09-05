@@ -19,6 +19,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let variant_type_enum = make_variant_type_enum(api, true);
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
     let godot_type_name_method = make_godot_type_name_method(api);
+    let inplace_variant_method = make_is_inplace_variant_method(api);
 
     quote! {
         #[cfg(target_pointer_width = "32")]
@@ -49,6 +50,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             }
 
             #godot_type_name_method
+            #inplace_variant_method
         }
     }
 }
@@ -226,6 +228,79 @@ fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> TokenStrea
     let define_traits = !is_definition;
 
     enums::make_enum_definition_with(variant_type_enum, define_enum, define_traits)
+}
+
+/// Generates the `VariantType::is_inplace_variant()` method from the builtins list.
+///
+/// Returns `false` if a variant of this type requires `variant_destroy` on drop, for two reasons:
+/// 1. Non-trivial destructor in `extension_api.json` (refcounted: `String`, `Array`, `Dictionary`, `Object`, ...).
+/// 2. Stored heap-allocated inside `Variant` because it exceeds the inline data segment (`Transform2D`, `Transform3D`, `Basis`, `Aabb`,
+///    `Projection`). Godot reports `has_destructor=false` for these (trivially destructible in C++), but `Variant` still owns the allocation.
+fn make_is_inplace_variant_method(api: &ExtensionApi) -> TokenStream {
+    use crate::models::domain::BuildConfiguration;
+
+    // Detecting case 2 needs the type's byte size. Godot's inline buffer is `max(sizeof(ObjData), 4 * sizeof(real_t))` -> 16 bytes in single,
+    // 32 bytes in double precision. Pointer width doesn't affect it (`ObjData` is 2 pointers, thus <= 16), so the 32-bit configuration's sizes
+    // decide it for both pointer widths. Only configurations of the current precision are present in `builtin_sizes`, see `is_applicable()`.
+    let (size_config, inplace_bytes_threshold) = if cfg!(feature = "double-precision") {
+        (BuildConfiguration::Double32, 32)
+    } else {
+        (BuildConfiguration::Float32, 16)
+    };
+
+    let sizes: std::collections::HashMap<&str, usize> = api
+        .builtin_sizes
+        .iter()
+        .filter(|s| s.config == size_config)
+        .map(|s| (s.builtin_original_name.as_str(), s.size))
+        .collect();
+
+    // `Nil` is not part of `api.builtins`, but the empty variant is stored in-place and trivially destructible. Include it explicitly, so the
+    // lifecycle fast paths (Clone/Drop) and `set_value` treat a nil variant as overwritable/copyable without FFI.
+    let mut inplace_mask = 1_u64; // Bit 0 = NIL.
+    let mut max_ord = 0_i32;
+
+    for builtin in api.builtins.iter() {
+        let size = sizes
+            .get(builtin.godot_original_name())
+            .copied()
+            .unwrap_or_else(|| {
+                panic!(
+                    "no size found for builtin `{}`",
+                    builtin.godot_original_name()
+                )
+            });
+
+        let ord = builtin.variant_type_ord;
+        max_ord = max_ord.max(ord);
+
+        if size <= inplace_bytes_threshold && !builtin.has_destructor {
+            inplace_mask |= 1_u64 << ord;
+        }
+    }
+
+    assert!(
+        max_ord < 64,
+        "VariantType ord {max_ord} >= 64 no longer fits the `& 63` optimization"
+    );
+
+    quote! {
+        /// Returns `true` if _variants_ of this type can store the value in-place (SBO) and thus don't require FFI copies and destruction.
+        ///
+        /// `false` for types that either:
+        /// - always need Godot-side destruction (refcounted like `GString`, `Array` etc.).
+        /// - are too big to be stored in-place in `Variant`, thus needing heap storage (`Aabb`, `Basis`, `Transform2D`, `Transform3D`, `Projection`).
+        #[doc(hidden)]
+        #[inline] // Few instructions (shift, and, test) -- runs on every Variant clone/drop.
+        pub const fn is_inplace_variant(&self) -> bool {
+            // Bitmask instead of matches!(...): LLVM emits a range compare + branch for the latter.
+            // `& 63` avoids overflow check on shift (all ords < 64) and is free on x86 (64-bit shift already uses only the low 6 count bits).
+            const INPLACE_MASK: u64 = #inplace_mask;
+
+            let ord_u6 = self.ord as u32 & 63;
+            (INPLACE_MASK >> ord_u6) & 1 != 0
+        }
+    }
 }
 
 /// Generates the `VariantType::godot_type_name()` method from the builtins list.

@@ -32,6 +32,7 @@ mod containers {
     mod packed_array_test;
     mod rid_test;
     mod rpc_test;
+    mod rust_variant_test;
     mod signal_disconnect_test;
     mod signal_test;
     mod variant_test;
