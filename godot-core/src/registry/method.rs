@@ -13,7 +13,6 @@ use sys::interface_fn;
 use crate::builtin::{StringName, Variant};
 use crate::meta::private_reexport::{CallContext, Signature};
 use crate::meta::{ClassId, EngineToGodot, GodotConvert, InParamTuple, sig_params};
-use crate::obj::GodotClass;
 use crate::registry::info::{MethodFlags, PropertyInfo};
 
 /// Info relating to an argument or return type in a method.
@@ -64,16 +63,13 @@ pub struct ClassMethodInfo {
 }
 
 impl ClassMethodInfo {
-    /// Builds the method info from `method_data`, whose allocation is owned by `C`'s registry entry and passed to Godot as `method_userdata`.
+    /// Builds the method info from `method_data`, whose allocation is owned by the class's registry entry and passed to Godot as `method_userdata`.
     ///
     /// # Safety
-    /// `method_data`'s function must interpret its instance pointer as an instance of `C`, and `method_flags` must match the receiver
-    /// (e.g. [`MethodFlags::STATIC`] only for functions ignoring the instance pointer).
-    pub unsafe fn from_signature<
-        C: GodotClass,
-        Params: InParamTuple + 'static,
-        Ret: EngineToGodot + 'static,
-    >(
+    /// `method_data`'s function must interpret its instance pointer as an instance of `class_id`, and `method_flags` must match
+    /// the receiver (e.g. [`MethodFlags::STATIC`] only for functions ignoring the instance pointer).
+    pub unsafe fn from_signature<Params: InParamTuple + 'static, Ret: EngineToGodot + 'static>(
+        class_id: ClassId,
         method_name: StringName,
         method_flags: MethodFlags,
         param_names: &[&str],
@@ -88,8 +84,6 @@ impl ClassMethodInfo {
             method_data.default_arguments.len() <= arguments.len(),
             "cannot have more default arguments than arguments"
         );
-
-        let class_id = C::class_id();
 
         // Virtual methods are registered through `classdb_register_extension_class_virtual_method()`, which takes neither callbacks nor
         // userdata, nor default arguments -- so we don't allocate anything for those.

@@ -193,7 +193,8 @@ pub fn make_method_registration(
                     #default_parameters,
                 );
 
-                ClassMethodInfo::from_signature::<#class_name, CallParams, CallRet>(
+                ClassMethodInfo::from_signature::<CallParams, CallRet>(
+                    __godot_class_id,
                     method_name,
                     #method_flags,
                     &[

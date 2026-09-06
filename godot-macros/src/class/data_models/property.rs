@@ -212,6 +212,8 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
 
         impl ::godot::obj::cap::ImplementsGodotExports for #class_name {
             fn __register_exports() {
+                // Outside per-accessor registration; would otherwise emit this call once per property.
+                let __godot_class_id = <#class_name as ::godot::obj::GodotClass>::class_id();
                 #(
                     {
                         #export_tokens
