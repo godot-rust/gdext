@@ -165,35 +165,34 @@ pub fn make_method_registration(
         }
     };
 
-    let registration = quote! {
-        #(#cfg_attrs)*
-        {
-            use ::godot::obj::GodotClass;
-            use ::godot::register::private::method::{ClassMethodInfo, MethodUserdata};
-            use ::godot::builtin::{StringName, Variant};
-            use ::godot::sys;
-
-            type CallParams = #sig_params;
-            type CallRet = #sig_ret;
-
-            #type_and_bounds_check
-
-            let method_name = StringName::from(#method_name_str);
-
+    // Virtual methods are registered without callbacks or userdata, so none of the method data is built for them.
+    let method_info_expr = if is_script_virtual {
+        quote! {
+            method::ClassMethodInfo::from_virtual_signature::<CallParams, CallRet>(
+                __godot_class_id,
+                method_name,
+                #method_flags,
+                &[
+                    #( #param_ident_strs ),*
+                ],
+            )
+        }
+    } else {
+        quote! {
             // The varcall and ptrcall callbacks live in godot-core, shared by all #[func]s with this signature; everything method-specific
             // is passed to Godot as method userdata. See `varcall_callback()` for how Godot picks between the two conventions.
             //
             // SAFETY: the forwarding closure interprets its instance pointer as an instance of #class_name, matching the class the method
-            // is registered for; #method_flags matches its receiver.
-            let method_info = unsafe {
-                let method_data = MethodUserdata::<CallParams, CallRet>::new(
+            // is registered for -- #method_flags matches its receiver.
+            unsafe {
+                let method_data = method::MethodUserdata::<CallParams, CallRet>::new(
                     #class_name_str,
                     #method_name_str,
                     #forwarding_closure,
                     #default_parameters,
                 );
 
-                ClassMethodInfo::from_signature::<CallParams, CallRet>(
+                method::ClassMethodInfo::from_signature::<CallParams, CallRet>(
                     __godot_class_id,
                     method_name,
                     #method_flags,
@@ -202,7 +201,25 @@ pub fn make_method_registration(
                     ],
                     method_data,
                 )
-            };
+            }
+        }
+    };
+
+    let registration = quote! {
+        #(#cfg_attrs)*
+        {
+            use ::godot::obj::GodotClass;
+            use ::godot::builtin::{StringName, Variant};
+            use ::godot::register::private::method;
+            use ::godot::sys;
+
+            type CallParams = #sig_params;
+            type CallRet = #sig_ret;
+
+            #type_and_bounds_check
+
+            let method_name = StringName::from(#method_name_str);
+            let method_info = #method_info_expr;
 
             ::godot::private::out!(
                 "   Register fn:   {}::{}",

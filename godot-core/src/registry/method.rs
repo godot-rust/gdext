@@ -63,6 +63,26 @@ pub struct ClassMethodInfo {
 }
 
 impl ClassMethodInfo {
+    /// Builds the method info for a `#[func(virtual)]`, which Godot registers without callbacks, userdata or default arguments.
+    pub fn from_virtual_signature<Params: InParamTuple, Ret: EngineToGodot>(
+        class_id: ClassId,
+        method_name: StringName,
+        method_flags: MethodFlags,
+        param_names: &[&str],
+    ) -> Self {
+        Self {
+            class_id,
+            method_name,
+            call_func: None,
+            ptrcall_func: None,
+            method_userdata: std::ptr::null_mut(),
+            method_flags,
+            return_value: MethodParamOrReturnInfo::for_return::<Ret>(),
+            arguments: sig_params::<Params>(param_names),
+            default_arguments: Vec::new(),
+        }
+    }
+
     /// Builds the method info from `method_data`, whose allocation is owned by the class's registry entry and passed to Godot as `method_userdata`.
     ///
     /// # Safety
@@ -106,8 +126,6 @@ impl ClassMethodInfo {
         vtable: &'static MethodVTable,
         method_userdata: *mut c_void,
     ) -> Self {
-        use crate::obj::EngineBitfield as _;
-
         let return_value = (vtable.return_info_fn)();
         let arguments = (vtable.param_info_fn)(param_names);
 
@@ -120,37 +138,21 @@ impl ClassMethodInfo {
             "cannot have more default arguments than parameters"
         );
 
-        // Virtual methods are registered through `classdb_register_extension_class_virtual_method()`, which takes neither callbacks nor
-        // userdata, nor default arguments -- so we don't keep anything for those.
-        let mut call_func = None;
-        let mut ptrcall_func = None;
-        let mut userdata = std::ptr::null_mut();
-        let mut default_arguments = Vec::new();
+        // default_arguments points into the Vec owned by the userdata, which store_method_userdata() keeps alive.
+        let default_arguments = default_argument_ptrs(defaults);
 
-        if method_flags.is_set(MethodFlags::VIRTUAL) {
-            // SAFETY: guaranteed by the caller; the pointer is dropped exactly once, here.
-            unsafe { (vtable.drop_fn)(method_userdata) };
-        } else {
-            call_func = vtable.call_func;
-            ptrcall_func = vtable.ptrcall_func;
-            userdata = method_userdata;
-
-            // default_arguments points into the Vec owned by the userdata, which store_method_userdata() keeps alive.
-            default_arguments = default_argument_ptrs(defaults);
-
-            let erased = ErasedMethodUserdata {
-                ptr: method_userdata,
-                drop_fn: vtable.drop_fn,
-            };
-            crate::registry::class::store_method_userdata(class_id, erased);
-        }
+        let erased = ErasedMethodUserdata {
+            ptr: method_userdata,
+            drop_fn: vtable.drop_fn,
+        };
+        crate::registry::class::store_method_userdata(class_id, erased);
 
         Self {
             class_id,
             method_name,
-            call_func,
-            ptrcall_func,
-            method_userdata: userdata,
+            call_func: vtable.call_func,
+            ptrcall_func: vtable.ptrcall_func,
+            method_userdata,
             method_flags,
             return_value,
             arguments,
