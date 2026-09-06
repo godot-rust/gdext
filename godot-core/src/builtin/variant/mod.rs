@@ -635,6 +635,32 @@ fn try_from_variant_relaxed<T: EngineFromGodot>(variant: &Variant) -> Result<T, 
         ExtVariantType::Concrete(to_type) => to_type,
     };
 
+    let converter = find_relaxed_converter(variant, from_type, to_type)?;
+
+    // SAFETY: converter builds a value of to_type, which is the variant type of T::Via's FFI representation -- result_ptr is uninitialized
+    // storage of exactly that type, and variant is a valid source. Narrowing that representation to T (e.g. i64 -> i8) happens below.
+    let ffi_result = unsafe {
+        <<T::Via as GodotType>::Ffi as GodotFfi>::new_with_uninit(|result_ptr| {
+            converter(result_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+        })
+    };
+
+    // Try to convert the FFI types back to the user type. Can still fail, e.g. i64 -> i8.
+    let via = <T::Via as GodotType>::try_from_ffi(ffi_result)?;
+    let concrete = T::engine_try_from_godot(via)?;
+
+    Ok(concrete)
+}
+
+/// Non-generic part of [`try_from_variant_relaxed()`]: validates the conversion and looks up the engine's `from -> to` constructor.
+fn find_relaxed_converter(
+    variant: &Variant,
+    from_type: VariantType,
+    to_type: VariantType,
+) -> Result<
+    unsafe extern "C" fn(sys::GDExtensionUninitializedTypePtr, sys::GDExtensionVariantPtr), // GDExtensionTypeFromVariantConstructorFunc
+    ConvertError,
+> {
     // Non-NIL types can technically be converted to NIL according to `variant_can_convert_strict()`, however that makes no sense -- from
     // neither a type perspective (NIL is unit, not never type), nor a practical one. Disallow any such conversions.
     if to_type == VariantType::NIL || !can_convert_godot_strict(from_type, to_type) {
@@ -654,20 +680,7 @@ fn try_from_variant_relaxed<T: EngineFromGodot>(variant: &Variant) -> Result<T, 
     // Must be available, since we checked with `variant_can_convert_strict`.
     let converter =
         converter.unwrap_or_else(|| panic!("missing converter for {from_type:?} -> {to_type:?}"));
-
-    // Perform actual conversion on the FFI types. The GDExtension conversion constructor only works with types supported
-    // by Godot (i.e. GodotType), not GodotConvert (like i8).
-    let ffi_result = unsafe {
-        <<T::Via as GodotType>::Ffi as GodotFfi>::new_with_uninit(|result_ptr| {
-            converter(result_ptr, sys::SysPtr::force_mut(variant.var_sys()));
-        })
-    };
-
-    // Try to convert the FFI types back to the user type. Can still fail, e.g. i64 -> i8.
-    let via = <T::Via as GodotType>::try_from_ffi(ffi_result)?;
-    let concrete = T::engine_try_from_godot(via)?;
-
-    Ok(concrete)
+    Ok(converter)
 }
 
 fn can_convert_godot_strict(from_type: VariantType, to_type: VariantType) -> bool {
