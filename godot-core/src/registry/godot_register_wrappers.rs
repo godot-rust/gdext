@@ -9,8 +9,9 @@
 
 use crate::builtin::{GString, StringName};
 use crate::meta::ClassId;
+use crate::meta::shape::GodotShape;
 use crate::obj::GodotClass;
-use crate::registry::info::{PropertyHintInfo, PropertyInfo, PropertyUsageFlags};
+use crate::registry::info::{PropertyHintInfo, PropertyUsageFlags};
 use crate::registry::property::{Export, Var};
 use crate::{classes, sys};
 
@@ -21,7 +22,37 @@ use crate::{classes, sys};
 ///
 /// [`export_hint()`]: crate::meta::shape::GodotShape::export_hint
 /// [`DEFAULT`]: PropertyUsageFlags::DEFAULT
+// Optimization: we tried removing `C` here to reduce monomorphizations (passing `ClassId` instead) -- not much effect; #(C, T) aren't >> #T.
 pub fn register_export<C: GodotClass, T: Export>(
+    property_name: &str,
+    getter_name: &str,
+    setter_name: &str,
+    hint_override: Option<PropertyHintInfo>,
+    usage_override: Option<PropertyUsageFlags>,
+) {
+    // `Some` only if a node type is exported from a non-node class, i.e. the case rejected by `register_export_inner()`.
+    let disallowed_node_class = (!C::inherits::<classes::Node>())
+        .then(T::as_node_class)
+        .flatten();
+
+    register_export_inner(
+        C::class_id(),
+        disallowed_node_class,
+        T::godot_shape(),
+        property_name,
+        getter_name,
+        setter_name,
+        hint_override,
+        usage_override,
+    )
+}
+
+// Non-generic version to reduce #monomorphizations.
+#[expect(clippy::too_many_arguments)]
+fn register_export_inner(
+    class_id: ClassId,
+    disallowed_node_class: Option<ClassId>,
+    shape: GodotShape,
     property_name: &str,
     getter_name: &str,
     setter_name: &str,
@@ -30,25 +61,22 @@ pub fn register_export<C: GodotClass, T: Export>(
 ) {
     // Note: if the user manually specifies `hint`, `hint_string` or `usage` keys, and thus is routed to `register_var()` instead,
     // they can bypass this validation.
-    if !C::inherits::<classes::Node>()
-        && let Some(class) = T::as_node_class()
-    {
+    if let Some(t) = disallowed_node_class {
         panic!(
-            "#[export] for Gd<{t}>: nodes can only be exported in Node-derived classes, but the current class is {c}.",
-            t = class,
-            c = C::class_id()
+            "#[export] for Gd<{t}>: nodes can only be exported in Node-derived classes, but current class is {class_id}.",
         );
     }
 
-    let mut property = T::godot_shape().to_export_property(property_name);
-    if let Some(i) = hint_override {
-        property.hint_info = i;
-    }
-    if let Some(u) = usage_override {
-        property.usage = u;
-    }
-
-    register_var_or_export_inner(property, C::class_id(), getter_name, setter_name);
+    register_var_or_export_inner(
+        class_id,
+        shape,
+        true,
+        property_name,
+        getter_name,
+        setter_name,
+        hint_override,
+        usage_override,
+    );
 }
 
 /// Registers a `#[var]` property with Godot's ClassDB.
@@ -64,23 +92,43 @@ pub fn register_var<C: GodotClass, T: Var>(
     hint_override: Option<PropertyHintInfo>,
     usage_override: Option<PropertyUsageFlags>,
 ) {
-    let mut property = T::godot_shape().to_var_property(property_name);
-    if let Some(i) = hint_override {
-        property.hint_info = i;
-    }
-    if let Some(u) = usage_override {
-        property.usage = u;
-    }
-
-    register_var_or_export_inner(property, C::class_id(), getter_name, setter_name);
+    register_var_or_export_inner(
+        C::class_id(),
+        T::godot_shape(),
+        false,
+        property_name,
+        getter_name,
+        setter_name,
+        hint_override,
+        usage_override,
+    )
 }
 
+// Non-generic version to reduce #monomorphizations. Also builds the `PropertyInfo`, to keep it out of the generic callers.
+#[expect(clippy::too_many_arguments)]
 fn register_var_or_export_inner(
-    info: PropertyInfo,
     class_id: ClassId,
+    shape: GodotShape,
+    is_export: bool,
+    property_name: &str,
     getter_name: &str,
     setter_name: &str,
+    hint_override: Option<PropertyHintInfo>,
+    usage_override: Option<PropertyUsageFlags>,
 ) {
+    let mut info = if is_export {
+        shape.to_export_property(property_name)
+    } else {
+        shape.to_var_property(property_name)
+    };
+
+    if let Some(i) = hint_override {
+        info.hint_info = i;
+    }
+    if let Some(u) = usage_override {
+        info.usage = u;
+    }
+
     let getter_name = StringName::from(getter_name);
     let setter_name = StringName::from(setter_name);
 
