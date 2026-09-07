@@ -24,7 +24,9 @@ use godot::obj::{
 use godot::register::{GodotClass, godot_api};
 use godot::sys::{self, GodotFfi, interface_fn};
 
-use crate::framework::{TestContext, expect_panic, expect_panic_or_ub, itest};
+use crate::framework::{
+    TestContext, assert_debug_eq, create_gdscript, expect_panic, expect_panic_or_ub, itest,
+};
 
 // TODO:
 // * make sure that ptrcalls are used when possible (i.e. when type info available; maybe GDScript integration test)
@@ -1242,3 +1244,30 @@ struct MultipleStructsCfg {}
 #[derive(GodotClass)]
 #[class(init, base=Object)]
 struct MultipleStructsCfg {}
+
+#[itest]
+fn object_debug_native_class() {
+    let script = create_gdscript(
+        r#"
+extends RefCounted
+
+func get_native_class():
+    return Object
+"#,
+    );
+
+    let mut obj = RefCounted::new_gd();
+    obj.set_script(&script);
+
+    // Returns a GDScriptNativeClass object.
+    let variant = obj.call("get_native_class", &[]);
+    let native_class = variant.to::<Gd<RefCounted>>();
+
+    // Refcount includes engine-held references, so query it rather than hardcode.
+    let id = native_class.instance_id();
+    let refc = native_class.get_reference_count();
+    let fields = format!("id: {id}, class: GDScriptNativeClass, refc: {refc}");
+
+    assert_debug_eq(&native_class, "Gd", &fields);
+    assert_debug_eq(&variant, "VariantGd", &fields);
+}

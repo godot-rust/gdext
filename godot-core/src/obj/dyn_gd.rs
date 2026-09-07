@@ -530,7 +530,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let trt = sys::short_type_name::<D>();
-        crate::classes::debug_string_with_trait::<T>(self, f, "DynGd", &trt)
+        crate::classes::debug_string::<T>(self, f, "DynGd", Some(&trt))
     }
 }
 

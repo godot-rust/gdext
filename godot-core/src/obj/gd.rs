@@ -339,7 +339,8 @@ impl<T: GodotClass> Gd<T> {
     /// classes are involved (e.g. a `Gd<Node>` whose dynamic type is `Sprite2D`, or a GDScript class inheriting `T`).
     ///
     /// Unlike [`Object::get_class()`][crate::classes::Object::get_class], this needs no `Inherits<Object>` bound and returns a
-    /// comparable [`ClassId`] instead of `GString`.
+    /// comparable [`ClassId`] instead of `GString`. It also reports the nearest native class, e.g. `RefCounted` for a
+    /// `GDScriptNativeClass` object. `get_class()` reports the engine-internal class.
     ///
     /// To test whether the dynamic class _inherits_ a given class (not just equals it), use [`is_dynamic_class()`][Self::is_dynamic_class] or
     ///  [`is_dynamic_class_of()`][Self::is_dynamic_class_of].
@@ -1344,7 +1345,7 @@ impl<T: GodotClass> Display for Gd<T> {
 
 impl<T: GodotClass> Debug for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        classes::debug_string(self, f, "Gd")
+        classes::debug_string(self, f, "Gd", None)
     }
 }
 
