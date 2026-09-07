@@ -10,7 +10,9 @@
 use std::fmt::Write;
 use std::sync::atomic::{AtomicPtr, AtomicU64};
 
-use crate::builtin::{GString, StringName, Variant};
+use crate::builtin::{GString, GodotStringExt, StringName, Variant};
+#[cfg(since_api = "4.4")]
+use crate::obj::BorrowedGd;
 use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId, RawGd, bounds};
 use crate::{init, sys};
 
@@ -42,7 +44,9 @@ pub(crate) fn debug_string<T: GodotClass>(
     ty: &str,
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
-        let class: StringName = obj.dynamic_class_string();
+        // get_class() method bind instead of FFI object_get_class_name().
+        // The latter reports the nearest native base class, e.g. RefCounted instead of GDScriptNativeClass.
+        let class = obj.raw.as_object_ref().get_class().to_string_name();
         debug_string_parts(f, ty, id, class, obj.maybe_refcount(), None)
     } else {
         write!(f, "{ty} {{ freed obj }}")
@@ -61,26 +65,17 @@ pub(crate) fn debug_string_variant(
         .object_id_unchecked()
         .expect("Variant must be of type OBJECT");
 
-    if id.lookup_validity() {
-        // Object::get_class() currently returns String, but this is future-proof if the return type changes to StringName.
-        let class = obj
-            .call("get_class", &[])
-            .try_to_relaxed::<StringName>()
-            .expect("get_class() must be compatible with StringName");
-
-        let refcount = id.is_ref_counted().then(|| {
-            let count = obj
-                .call("get_reference_count", &[])
-                .try_to_relaxed::<i32>()
-                .expect("get_reference_count() must return integer");
-
-            count as usize
-        });
-
-        debug_string_parts(f, ty, id, class, refcount, None)
-    } else {
-        write!(f, "{ty} {{ freed obj }}")
+    // ObjectDB lookup; null if freed. No refcount change, unlike Variant -> Gd conversion.
+    let object_ptr = object_ptr_from_id(id);
+    if object_ptr.is_null() {
+        return write!(f, "{ty} {{ freed obj }}");
     }
+
+    // Weak: Variant::call() would fail for classes overriding callp(), e.g. GDScriptNativeClass (https://github.com/godot-rust/gdext/issues/1690).
+    // SAFETY: object_ptr is live (just looked up) and borrow does not outlive this function.
+    let obj = unsafe { BorrowedGd::<crate::classes::Object>::from_obj_sys(object_ptr) };
+
+    debug_string(&obj, f, ty)
 }
 
 // Polyfill for Godot < 4.4, where Variant::object_id_unchecked() is not available.
@@ -95,7 +90,7 @@ pub(crate) fn debug_string_variant(
     match obj.try_to::<Gd<crate::classes::Object>>() {
         Ok(obj) => {
             let id = obj.instance_id(); // Guaranteed valid, since conversion would have failed otherwise.
-            let class = obj.dynamic_class_string();
+            let class = obj.raw.as_object_ref().get_class().to_string_name();
 
             // Refcount is off-by-one due to now-created Gd<T> from conversion; correct by -1.
             let refcount = obj.maybe_refcount().map(|rc| rc.saturating_sub(1));
@@ -132,7 +127,8 @@ pub(crate) fn debug_string_with_trait<T: GodotClass>(
     trt: &str,
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
-        let class: StringName = obj.dynamic_class_string();
+        // See debug_string() for why get_class().
+        let class = obj.raw.as_object_ref().get_class().to_string_name();
         debug_string_parts(f, ty, id, class, obj.maybe_refcount(), Some(trt))
     } else {
         write!(f, "{ty} {{ freed obj }}")

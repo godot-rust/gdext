@@ -1242,3 +1242,32 @@ struct MultipleStructsCfg {}
 #[derive(GodotClass)]
 #[class(init, base=Object)]
 struct MultipleStructsCfg {}
+
+#[itest]
+fn object_debug_native_class_variant() {
+    let script = crate::framework::create_gdscript(
+        r#"
+extends RefCounted
+
+func foobar_func():
+    return Object
+"#,
+    );
+
+    let mut obj = RefCounted::new_gd();
+    obj.set_script(&script);
+
+    // Returns a GDScriptNativeClass object, whose callp() only supports `new` + static methods.
+    // Debug must thus not go through Variant::call(), and must report the true class, not the nearest extension-visible base.
+    let variant = obj.call("foobar_func", &[]);
+    let native_class = variant.to::<Gd<Object>>();
+
+    assert!(
+        format!("{variant:?}").contains("class: GDScriptNativeClass"),
+        "{variant:?}"
+    );
+    assert!(
+        format!("{native_class:?}").contains("class: GDScriptNativeClass"),
+        "{native_class:?}"
+    );
+}
