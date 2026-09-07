@@ -38,6 +38,9 @@ use strict::*;
 // Debug/Display support for classes and enums
 
 // TODO(v0.7): print class and instance ID for freed objects, too -- ID is cached in the RTTI, static class known via `T::class_id()`.
+
+// TODO: add `script` field for scripted objects: Script::get_global_name() (4.3+, only if script is not a ScriptExtension -- its virtual
+// _get_global_name would re-enter user code during Debug), else Resource::get_path(), else "GDScript#<script instance ID>".
 pub(crate) fn debug_string<T: GodotClass>(
     obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
