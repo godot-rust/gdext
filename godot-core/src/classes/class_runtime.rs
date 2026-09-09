@@ -115,6 +115,36 @@ pub(crate) fn debug_string_nullable<T: GodotClass>(
     }
 }
 
+/// Skips `ScriptExtension`, whose `_get_global_name()` is a virtual that would call into user code -- `Debug` often runs during panics.
+#[cfg(since_api = "4.3")]
+fn script_global_name(script: &Gd<classes::Script>) -> Option<StringName> {
+    if script.is_dynamic_class_of::<classes::ScriptExtension>() {
+        return None;
+    }
+
+    let name = script.get_global_name();
+    (!name.is_empty()).then_some(name)
+}
+
+#[cfg(before_api = "4.3")]
+fn script_global_name(_script: &Gd<classes::Script>) -> Option<StringName> {
+    None
+}
+
+/// Script for `Debug` output: `class_name`, else quoted resource path, else `GDScript#id`.
+fn script_debug_name(script: &Gd<classes::Script>) -> String {
+    if let Some(name) = script_global_name(script) {
+        return name.to_string();
+    }
+
+    let path = script.get_path();
+    if !path.is_empty() {
+        return format!("{path:?}");
+    }
+
+    format!("{}#{}", script.get_class(), script.instance_id())
+}
+
 /// `obj` must be valid.
 fn debug_string_parts<T: GodotClass>(
     f: &mut std::fmt::Formatter<'_>,
@@ -131,6 +161,10 @@ fn debug_string_parts<T: GodotClass>(
     builder
         .field("id", &obj.instance_id_unchecked().to_i64())
         .field("class", &format_args!("{class}"));
+
+    if let Some(script) = object.get_script() {
+        builder.field("script", &format_args!("{}", script_debug_name(&script)));
+    }
 
     if let Some(trait_name) = trait_name {
         builder.field("trait", &format_args!("{trait_name}"));

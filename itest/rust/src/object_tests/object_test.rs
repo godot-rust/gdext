@@ -1246,6 +1246,41 @@ struct MultipleStructsCfg {}
 struct MultipleStructsCfg {}
 
 #[itest]
+fn object_debug_script() {
+    let mut obj = RefCounted::new_gd();
+    let id = obj.instance_id();
+
+    // `script` field is only present if a script is attached.
+    let expect_script = |obj: &Gd<RefCounted>, script: &str| {
+        let expected = format!("id: {id}, class: RefCounted{script}, refc: 1");
+        assert_debug_eq(obj, "Gd", &expected);
+    };
+
+    expect_script(&obj, "");
+
+    #[cfg(since_api = "4.3")]
+    {
+        let script = create_gdscript("class_name ObjectDebugScript\nextends RefCounted");
+        obj.set_script(&script);
+        expect_script(&obj, ", script: ObjectDebugScript");
+    }
+
+    // No class_name -> resource path.
+    let mut script = create_gdscript("extends RefCounted");
+    script.take_over_path("res://object_debug_script.gd");
+    obj.set_script(&script);
+    expect_script(&obj, r#", script: "res://object_debug_script.gd""#);
+
+    // No class_name or path -> class and ID.
+    let script = create_gdscript("extends RefCounted");
+    obj.set_script(&script);
+    expect_script(
+        &obj,
+        &format!(", script: GDScript#{}", script.instance_id()),
+    );
+}
+
+#[itest]
 fn object_debug_native_class() {
     let script = create_gdscript(
         r#"
