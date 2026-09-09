@@ -132,7 +132,7 @@ fn script_global_name(_script: &Gd<classes::Script>) -> Option<StringName> {
 }
 
 /// Script for `Debug` output: `class_name`, else quoted resource path, else `GDScript#id`.
-fn script_debug_name(script: &Gd<classes::Script>) -> String {
+pub(crate) fn script_debug_name(script: &Gd<classes::Script>) -> String {
     if let Some(name) = script_global_name(script) {
         return name.to_string();
     }

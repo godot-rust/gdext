@@ -8,7 +8,7 @@
 use std::fmt;
 
 use crate::builtin::VariantType;
-use crate::classes::Script;
+use crate::classes::{Script, script_debug_name};
 use crate::meta::shape::GodotShape;
 use crate::meta::traits::element_variant_type;
 use crate::meta::{ClassId, Element, GodotConvert as _};
@@ -217,23 +217,8 @@ impl fmt::Debug for ElementType {
                 write!(f, "Class({})", class_name)
             }
             ElementType::ScriptClass(script) => match script.script() {
-                // Script::get_global_name() is only available in Godot 4.3+.
-                #[cfg(before_api = "4.3")]
-                Some(s) => {
-                    write!(f, "ScriptClass(? extends {})", s.get_instance_base_type())
-                }
-
-                #[cfg(since_api = "4.3")]
-                Some(s) => {
-                    let script_name = s.get_global_name().to_string();
-                    if script_name.is_empty() {
-                        write!(f, "ScriptClass(? extends {})", s.get_instance_base_type())
-                    } else {
-                        write!(f, "ScriptClass({})", script_name)
-                    }
-                }
-
-                None => write!(f, "ScriptClass(<Freed Object>)"),
+                Some(s) => write!(f, "ScriptClass({})", script_debug_name(&s)),
+                None => write!(f, "ScriptClass(freed)"),
             },
         }
     }
