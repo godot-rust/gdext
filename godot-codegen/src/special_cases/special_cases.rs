@@ -153,7 +153,7 @@ pub(super) fn is_godot_type_deleted(godot_ty: &str) -> bool {
     if godot_ty.starts_with("OpenXR") {
         let target_os = std::env::var("CARGO_CFG_TARGET_OS");
         match target_os.as_deref() {
-            Ok("ios") | Ok("emscripten") => return true,
+            Ok("ios") | Ok("visionos") | Ok("emscripten") => return true,
             _ => {}
         }
     }

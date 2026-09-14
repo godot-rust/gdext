@@ -96,7 +96,7 @@ The vast majority of Godot APIs have been mapped to Rust. The current developmen
 design patterns that come in handy for day-to-day game development. To counter bugs, we use an elaborate CI suite including clippy, unit tests,
 engine integration tests and memory sanitizers. Even hot-reload is tested!
 
-At the moment, there is experimental support for [Wasm], [Android] and [iOS], but documentation and tooling is still lacking.
+At the moment, there is experimental support for [Wasm], [Android], [iOS] and [visionOS], but documentation and tooling is still lacking.
 Contributions are very welcome!
 
 
@@ -137,6 +137,7 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 [ecosystem]: https://godot-rust.github.io/book/ecosystem
 [demo-projects]: https://github.com/godot-rust/demo-projects
 [iOS]: https://github.com/godot-rust/gdext/issues/498
+[visionOS]: https://github.com/godot-rust/gdext/issues/1695
 [mpl]: https://www.mozilla.org/en-US/MPL
 [philosophy]: https://godot-rust.github.io/book/contribute/philosophy.html
 [crates-io]: https://crates.io/crates/godot
