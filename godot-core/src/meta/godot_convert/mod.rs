@@ -135,9 +135,13 @@ pub trait FromGodot: Sized + GodotConvert {
     ///
     /// # Panics
     /// If the conversion fails.
+    #[track_caller]
     fn from_godot(via: Self::Via) -> Self {
-        Self::try_from_godot(via)
-            .unwrap_or_else(|err| panic!("FromGodot::from_godot() failed: {err}"))
+        // Manual match instead of unwrap_or_else; #[track_caller] unstable in closures: https://github.com/rust-lang/rust/issues/87417
+        match Self::try_from_godot(via) {
+            Ok(v) => v,
+            Err(err) => panic!("FromGodot::from_godot() failed: {err}"),
+        }
     }
 
     /// Performs the conversion from a [`Variant`], returning `Err` on failure.
@@ -152,10 +156,13 @@ pub trait FromGodot: Sized + GodotConvert {
     ///
     /// # Panics
     /// If the conversion fails.
+    #[track_caller]
     fn from_variant(variant: &Variant) -> Self {
-        Self::try_from_variant(variant).unwrap_or_else(|err| {
-            panic!("FromGodot::from_variant() failed -- {err}");
-        })
+        // Manual match instead of unwrap_or_else; #[track_caller] unstable in closures: https://github.com/rust-lang/rust/issues/87417
+        match Self::try_from_variant(variant) {
+            Ok(v) => v,
+            Err(err) => panic!("FromGodot::from_variant() failed: {err}"),
+        }
     }
 }
 

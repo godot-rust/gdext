@@ -63,6 +63,7 @@ impl Variant {
     ///
     /// # Panics
     /// When this variant holds a different type.
+    #[track_caller]
     pub fn to<T: FromGodot>(&self) -> T {
         T::from_variant(self)
     }
