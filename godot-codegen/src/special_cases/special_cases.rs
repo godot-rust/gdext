@@ -76,6 +76,11 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         // Removed in https://github.com/godotengine/godot/pull/98566
         | ("VisualShader", "set_graph_offset")
         | ("VisualShader", "get_graph_offset")
+
+        // Removed in https://github.com/godotengine/godot/pull/114533 (Godot 4.8).
+        | ("GDScriptTextDocument", "codeLens")
+        | ("GDScriptTextDocument", "colorPresentation")
+        | ("GDScriptTextDocument", "foldingRange")
         => true,
 
         // Thread APIs
