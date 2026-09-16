@@ -206,6 +206,15 @@ impl ElementType {
     }
 }
 
+/// Scripts are formatted like the `script` field of [`Gd`'s `Debug`][crate::obj::Gd#impl-Debug-for-Gd%3CT%3E].
+///
+/// ```text
+/// Untyped
+/// Builtin(INT)
+/// Class(Node)
+/// ScriptClass(PlayerController)
+/// ScriptClass(freed)
+/// ```
 impl fmt::Debug for ElementType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

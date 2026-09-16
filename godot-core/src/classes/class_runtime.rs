@@ -37,7 +37,7 @@ use strict::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Debug/Display support for classes and enums
 
-// TODO(v0.7): print class and instance ID for freed objects, too -- ID is cached in the RTTI, static class known via `T::class_id()`.
+// TODO(v0.7): print instance ID for freed objects as `{ freed, id: 24 }` -- ID is cached in the RTTI.
 pub(crate) fn debug_string<T: GodotClass>(
     obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
@@ -47,7 +47,7 @@ pub(crate) fn debug_string<T: GodotClass>(
     if obj.is_instance_valid() {
         debug_string_parts(f, ty, obj, obj.maybe_refcount(), trait_name)
     } else {
-        write!(f, "{ty} {{ freed obj }}")
+        write!(f, "{ty} {{ freed }}")
     }
 }
 
@@ -65,7 +65,7 @@ pub(crate) fn debug_string_variant(
 
     let object_ptr = object_ptr_from_id(id);
     if object_ptr.is_null() {
-        return write!(f, "{ty} {{ freed obj }}");
+        return write!(f, "{ty} {{ freed }}");
     }
 
     // Borrow instead of Variant->Gd conversion, to keep refcount unchanged. Variant::call() would fail for classes overriding
@@ -92,9 +92,7 @@ pub(crate) fn debug_string_variant(
 
             debug_string_parts(f, ty, &obj, refcount, None)
         }
-        Err(_) => {
-            write!(f, "{ty} {{ freed obj }}")
-        }
+        Err(_) => write!(f, "{ty} {{ freed }}"),
     }
 }
 

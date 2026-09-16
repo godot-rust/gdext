@@ -523,6 +523,7 @@ where
     }
 }
 
+/// Same format as [`Gd`'s `Debug`][Gd#impl-Debug-for-Gd%3CT%3E], plus the `trait` field.
 impl<T, D> fmt::Debug for DynGd<T, D>
 where
     T: GodotClass,

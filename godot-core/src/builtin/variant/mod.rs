@@ -598,6 +598,7 @@ impl fmt::Display for Variant {
     }
 }
 
+/// Objects are printed as `VariantGd { .. }`, in the same format as [`Gd`'s `Debug`][crate::obj::Gd#impl-Debug-for-Gd%3CT%3E].
 impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.get_type() {
