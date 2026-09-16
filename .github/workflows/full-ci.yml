@@ -312,12 +312,12 @@ jobs:
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
 
-          # Uses full+experimental codegen, so that compatibility breakage towards nightly is detected.
-          # If the experimental part causes problems, consider using only godot/__codegen-full.
+          # Full codegen, API latest stable (may differ from default), runtime nightly -> detect APIs removed/broken in upcoming Godot.
           - name: linux-full
             os: ubuntu-24.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: "4.7"
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
             rust-extra-env: GDRUST_MAIN_EXTENSION=IntegrationTests
             hot-reload: api-custom signal-test
