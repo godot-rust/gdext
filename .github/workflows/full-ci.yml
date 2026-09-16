@@ -265,8 +265,8 @@ jobs:
           # macOS -- for the unintuitive naming, see https://github.com/actions/runner-images?tab=readme-ov-file#available-images
 
           - name: macos-arm
-            os: macos-15
             artifact-name: macos-arm-nightly
+            os: macos-15
             godot-binary: godot.macos.editor.dev.arm64
             rust-extra-args: --features itest/upcoming-editor-placeholders
             hot-reload: stable signal-test
@@ -279,44 +279,56 @@ jobs:
           #            rust-extra-args: --features godot/api-custom,godot/double-precision
 
           # Lag one version behind latest release.
+          # [version-sync] [[
+          #  [include] previous
+          #  [line]           - name: macos-arm-$dotVersion\n            artifact-name: macos-arm-$dotVersion\n            godot-prebuilt-patch: "$dotVersion"
           - name: macos-arm-4.6
-            os: macos-15
             artifact-name: macos-arm-4.6
-            godot-binary: godot.macos.editor.dev.arm64
             godot-prebuilt-patch: "4.6"
+            # ]]
+            os: macos-15
+            godot-binary: godot.macos.editor.dev.arm64
 
           # Windows
 
           - name: windows
-            os: windows-2025
             artifact-name: windows-nightly
+            os: windows-2025
             godot-binary: godot.windows.editor.dev.x86_64.exe
             rust-extra-args: --features itest/upcoming-editor-placeholders
             hot-reload: stable signal-test
 
           - name: windows-double
-            os: windows-2025
             artifact-name: windows-double-nightly
+            os: windows-2025
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
             rust-extra-args: --features godot/api-custom,godot/double-precision
 
           # Lag one version behind latest release.
+          # [version-sync] [[
+          #  [include] previous
+          #  [line]           - name: windows-$dotVersion\n            artifact-name: windows-$dotVersion\n            godot-prebuilt-patch: "$dotVersion"
           - name: windows-4.6
-            os: windows-2025
             artifact-name: windows-4.6
-            godot-binary: godot.windows.editor.dev.x86_64.exe
             godot-prebuilt-patch: "4.6"
+            # ]]
+            os: windows-2025
+            godot-binary: godot.windows.editor.dev.x86_64.exe
 
           # Linux
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
 
-          # Uses full+experimental codegen, so that compatibility breakage towards nightly is detected.
-          # If the experimental part causes problems, consider using only godot/__codegen-full.
+          # Full codegen, API latest stable (may differ from default), runtime nightly -> detect APIs removed/broken in upcoming Godot.
           - name: linux-full
-            os: ubuntu-24.04
             artifact-name: linux-nightly
+            # [version-sync] [[
+            #  [include] current
+            #  [line]             godot-prebuilt-patch: "$dotVersion"
+            godot-prebuilt-patch: "4.7"
+            # ]]
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
             rust-extra-env: GDRUST_MAIN_EXTENSION=IntegrationTests
@@ -324,14 +336,14 @@ jobs:
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
           - name: linux-double-lazy
-            os: ubuntu-24.04
             artifact-name: linux-double-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
             rust-extra-args: --features godot/api-custom,godot/double-precision,itest/codegen-full,godot/lazy-function-tables
 
           - name: linux-features-experimental
-            os: ubuntu-24.04
             artifact-name: linux-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             # Important to keep both experimental-threads and codegen-full. Some itests (native_st_audio) require both.
             rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,itest/upcoming-editor-placeholders,godot/api-custom,godot/serde,itest/register-docs
@@ -339,15 +351,15 @@ jobs:
           # Compiles godot-rust with `api-custom-json` feature against the JSON file generated via `--dump-extension-api`.
           # Uses latest 4.x headers, while `extension_api.json` comes from the latest Godot binary.
           - name: linux-custom-api-json
-            os: ubuntu-24.04
             artifact-name: linux-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/api-custom-json
             godot-indirect-json: true
 
           - name: linux-release
-            os: ubuntu-24.04
             artifact-name: linux-release-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.template_release.x86_64
             # Use `codegen-full-experimental` to make sure that all function tables can be loaded in Godot release builds.
             # If the experimental part causes problems, downgrade to `codegen-full`.
@@ -360,48 +372,48 @@ jobs:
 
           # Latest stable release (above default API level), thus needs explicit api-4-7.
           - name: linux-4.7
-            os: ubuntu-24.04
             artifact-name: linux-4.7
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.7"
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             hot-reload: api-4-7 signal-test
 
           # Default API level (no api-* feature); runs against its matching stable binary.
           - name: linux-4.6
-            os: ubuntu-24.04
             artifact-name: linux-4.6
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.6'
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             hot-reload: stable signal-test
 
           - name: linux-4.5
-            os: ubuntu-24.04
             artifact-name: linux-4.5
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.5"
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             hot-reload: api-4-5 signal-test
 
           - name: linux-4.4
-            os: ubuntu-24.04
             artifact-name: linux-4.4
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.4"
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             hot-reload: api-4-4 signal-test
 
           - name: linux-4.3
-            os: ubuntu-24.04
             artifact-name: linux-4.3
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.3"
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/upcoming-editor-placeholders # enabled at 4.3 boundary
             hot-reload: api-4-3
 
           # Can be disabled in the future (already covered by memcheck). For now kept on to differentiate quicker.
           - name: linux-4.2
-            os: ubuntu-24.04
             artifact-name: linux-4.2
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: "4.2"
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/upcoming-editor-placeholders # enabled before 4.3 boundary
             hot-reload: api-4-2
 
@@ -413,8 +425,8 @@ jobs:
           #
           # There is also a gcc variant besides clang, which is currently not used.
           - name: memcheck-nightly
-            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
@@ -424,8 +436,8 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-release-disengaged
-            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
@@ -436,8 +448,8 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-dev-balanced
-            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
@@ -447,10 +459,10 @@ jobs:
             run-editor-itest: 'false' # editor has memory leaks; https://github.com/godot-rust/gdext/pull/1591.
 
           - name: memcheck-4.2
-            os: ubuntu-24.04
             artifact-name: linux-memcheck-4.2
-            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-prebuilt-patch: "4.2" # check compat of API 4.2 with newer binaries.
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
@@ -464,9 +476,9 @@ jobs:
         uses: ./.github/composite/godot-itest
         with:
           artifact-name: godot-${{ matrix.artifact-name }}
+          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
           godot-binary: ${{ matrix.godot-binary }}
           godot-args: ${{ matrix.godot-args }} # currently unused
-          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}

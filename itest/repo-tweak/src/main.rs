@@ -54,20 +54,15 @@ fn sync_versions_recursive(parent_dir: &Path, top_level: bool) {
         let path = dir.path();
 
         if path.is_dir() {
-            // Only recurse into `godot` and `godot-*` crates.
-            if !top_level
-                || path
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .starts_with("godot")
-            {
+            // Only recurse into `godot` and `godot-*` crates, and CI workflows.
+            let name = path.file_name().unwrap().to_str().unwrap();
+            if !top_level || name.starts_with("godot") || name == ".github" {
                 sync_versions_recursive(&path, false);
             }
         } else {
             // Is a file.
-            if !matches!(path.extension(), Some(ext) if ext == "rs" || ext == "toml") {
+            let ext = path.extension().and_then(|ext| ext.to_str());
+            if !matches!(ext, Some("rs" | "toml" | "yml")) {
                 continue;
             }
             // println!("Check: {}", path.display());
@@ -147,6 +142,7 @@ fn substitute_template(
         let filter: Box<dyn Fn(u8, u8) -> bool> = match part {
             "past" => Box::new(|m, _p| m < current_minor),
             "current" => Box::new(|m, _p| m == current_minor),
+            "previous" => Box::new(|m, _p| m + 1 == current_minor),
             "future" => Box::new(|m, _p| m > current_minor),
 
             // Relevant only if patch levels matter again.
