@@ -183,16 +183,16 @@ jobs:
           # macOS (use arm64 for minimal CI)
 
           - name: macos
-            os: macos-15
             artifact-name: macos-arm-nightly
+            os: macos-15
             godot-binary: godot.macos.editor.dev.arm64
             rust-extra-args: --features itest/upcoming-editor-placeholders
 
           # Windows
 
           - name: windows
-            os: windows-2025
             artifact-name: windows-nightly
+            os: windows-2025
             godot-binary: godot.windows.editor.dev.x86_64.exe
             rust-extra-args: --features itest/upcoming-editor-placeholders
 
@@ -200,18 +200,22 @@ jobs:
 
           # Full codegen, API latest stable (may differ from default), runtime nightly -> detect APIs removed/broken in upcoming Godot.
           - name: linux-full
-            os: ubuntu-24.04
             artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            # [version-sync] [[
+            #  [include] current
+            #  [line]             godot-prebuilt-patch: '$dotVersion'
             godot-prebuilt-patch: '4.7'
+            # ]]
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
             rust-extra-env: GDRUST_MAIN_EXTENSION=IntegrationTests
             hot-reload: stable signal-test
 
           # JSON-based codegen path is kept in minimal CI, as it has surfaced config errors several times in the past.
           - name: linux-custom-api-json
-            os: ubuntu-24.04
             artifact-name: linux-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/api-custom-json
             godot-indirect-json: true
@@ -220,31 +224,31 @@ jobs:
 
           # Latest stable release (above default API level), thus needs explicit api-4-7.
           - name: linux-4.7
-            os: ubuntu-24.04
             artifact-name: linux-4.7
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.7'
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
 
           # Default API level (no api-* feature); runs against its matching stable binary.
           - name: linux-4.6
-            os: ubuntu-24.04
             artifact-name: linux-4.6
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.6'
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
 
           # Minimum supported version.
           - name: linux-4.2
-            os: ubuntu-24.04
             artifact-name: linux-4.2
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.2'
+            os: ubuntu-24.04
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/upcoming-editor-placeholders # enabled before 4.3 boundary
 
           # Memory checker (always Linux). One representative sanitizer run; the safeguard-level variants run in full-ci.
 
           - name: memcheck
-            os: ubuntu-24.04
             artifact-name: linux-memcheck-nightly
+            os: ubuntu-24.04
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
@@ -260,9 +264,9 @@ jobs:
         uses: ./.github/composite/godot-itest
         with:
           artifact-name: godot-${{ matrix.artifact-name }}
+          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
           godot-binary: ${{ matrix.godot-binary }}
           godot-args: ${{ matrix.godot-args }} # currently unused
-          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
