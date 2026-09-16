@@ -41,7 +41,7 @@ use crate::signal::{ConnectHandle, TypedSignal, make_callable_name, make_godot_f
 /// | `self`        | [`connect_self_mut`][Self::connect_self_mut]   | [`connect_self_gd`][Self::connect_self_gd]   |
 /// | other object  | [`connect_other_mut`][Self::connect_other_mut] | [`connect_other_gd`][Self::connect_other_gd] |
 ///
-/// Methods taking `&C` can (e.g. using interior mutability) can be indirectly connected through a `*_gd` overload + a `Gd::bind()` call.
+/// Methods taking `&C` (e.g. using interior mutability) can be indirectly connected through a `*_gd` overload + a `Gd::bind()` call.
 /// If this turns out to be a common use case, we could consider `connect_*_ref()` in the future.
 ///
 /// <br>
