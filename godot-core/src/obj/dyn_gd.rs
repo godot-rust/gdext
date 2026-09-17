@@ -523,6 +523,7 @@ where
     }
 }
 
+/// Same format as [`Gd`'s `Debug`][Gd#impl-Debug-for-Gd%3CT%3E], plus the `trait` field.
 impl<T, D> fmt::Debug for DynGd<T, D>
 where
     T: GodotClass,
@@ -530,7 +531,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let trt = sys::short_type_name::<D>();
-        crate::classes::debug_string_with_trait::<T>(self, f, "DynGd", &trt)
+        crate::classes::debug_string::<T>(self, f, "DynGd", Some(&trt))
     }
 }
 
