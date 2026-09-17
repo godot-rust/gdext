@@ -8,11 +8,14 @@ The rest of the document goes into tools and infrastructure available for develo
 
 ## Pull request guidelines
 
-### 📜 Larger changes need design
+### 📜 Contribution scope
 
 If you plan to make bigger contributions, make sure to discuss them in a [GitHub issue] before opening a pull request (PR).
 Since the library is evolving quickly, this avoids that multiple people work on the same thing, or that features don't integrate well,
 causing a lot of rework. Also don't hesitate to talk to the developers in the `#contrib-gdext` channel on [Discord]!
+
+Don't submit trivial or low-effort changes, such as typo fixes or minor code style changes. Keep in mind that each PR creates review overhead,
+as well as noise in the git history (1 commit + 1 merge commit). You are welcome to bundle such changes with other feature/bugfix PRs however.
 
 
 ### 🧮 One commit per logical change
@@ -48,11 +51,11 @@ so that it doesn't stay in limbo. Maybe someone else can step up to finish it :)
 
 If you use AI assistants or agents, it is your responsibility to:
 - Carefully review and adjust the code **before** submitting a pull request.
-- Understand **100%** of the submitted code and be able to explain it in your own words. Do not generate the PR description with AI.
+- Understand **100%** of the submitted code and be able to explain it in your own words. This includes the purpose behind the change.
+- Not AI-generate the PR description. If you need translation, stay true to the original phrasing and not let LLMs do any rewording/cleanup.
 - Uphold any copyrights and licenses. For involved algorithms, do research to properly credit (or directly use) sources.
 
-The section _[Larger changes need design](#-larger-changes-need-design)_ is even more important here. Dropping big amounts of code without a clear approach
-can result in your PR being closed with zero reviews.
+The section _[Contribution scope](#-contribution-scope)_ is crucial here.
 
 
 ## Development tools
