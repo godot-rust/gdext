@@ -9,7 +9,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
 use crate::obj::base_init::{InitState, InitTracker};
-use crate::obj::{BorrowedGd, Gd, GodotClass};
+use crate::obj::{BorrowedGd, Gd, GodotClass, Inherits};
 use crate::{classes, sys};
 
 macro_rules! base_from_obj {
@@ -190,6 +190,33 @@ impl<T: GodotClass> Base<T> {
     pub fn __constructed_gd(&self) -> Gd<T> {
         self.init_state.assert_constructed();
         (*self.obj).clone()
+    }
+
+    /// Returns a [`Gd`] to the *derived* (user) object, assuming it is fully constructed.
+    ///
+    /// # Panics
+    /// If the Rust object is not yet linked to the Godot object, i.e. during `init()`.
+    #[doc(hidden)]
+    pub fn __derived_gd<Derived>(&self) -> Gd<Derived>
+    where
+        Derived: Inherits<T>,
+    {
+        self.init_state.assert_constructed();
+
+        // Check the dynamic class *before* cloning: during init(), the Godot object is not yet promoted to the derived class (Godot's
+        // object_set_instance() only runs after init() returns). Cloning + dropping a strong ref of a not-yet-initialized ref-counted
+        // object would be problematic, so the error path must not create one.
+        if !self.obj.raw.is_dynamic_class(Derived::class_id()) {
+            panic!(
+                "cannot obtain Gd<{derived}> from base object {obj:?}; the Rust object is not yet registered with Godot.\n\
+                 This typically happens when calling to_gd() or base_mut() inside init(); at that point, only the base object exists.\n\
+                 Use Base::to_init_gd() to access the base object during initialization, or move the logic to ready().",
+                derived = Derived::class_id(),
+                obj = *self.obj,
+            );
+        }
+
+        (*self.obj).clone().cast()
     }
 
     /// Returns a [`BorrowedGd`] referencing the base object, assuming the derived object is fully constructed.

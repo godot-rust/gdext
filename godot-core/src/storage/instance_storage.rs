@@ -93,7 +93,7 @@ pub unsafe trait Storage {
     where
         Self::Instance: Inherits<<Self::Instance as GodotClass>::Base>,
     {
-        self.base().__constructed_gd().cast()
+        self.base().__derived_gd::<Self::Instance>()
     }
 
     /// Puts self onto the heap and returns a pointer to this new heap-allocation.

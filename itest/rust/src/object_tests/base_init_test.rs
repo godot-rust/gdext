@@ -14,9 +14,7 @@ use godot::obj::{Base, Gd, NewGd, Singleton, WithBaseField};
 use godot::register::{GodotClass, godot_api};
 use godot::task::TaskHandle;
 
-#[cfg(safeguards_balanced)]
-use crate::framework::expect_panic;
-use crate::framework::{itest, next_frame};
+use crate::framework::{expect_panic, itest, next_frame, suppress_panic_log};
 use crate::object_tests::base_test::{Based, RefcBased};
 
 #[itest]
@@ -97,6 +95,49 @@ fn base_init_refcounted_simple() {
     });
 }
 
+// During init(), the Godot object is not yet promoted to the user class, so to_gd() cannot work. Independent of safeguard level.
+#[itest]
+fn base_init_to_gd() {
+    expect_panic("WithBaseField::to_gd() inside init() function", || {
+        let _obj = Gd::<Based>::from_init_fn(|base| {
+            let temp_obj = Based { base, i: 999 };
+
+            let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
+
+            temp_obj
+        });
+    });
+}
+
+// Same for ref-counted classes, where the failing to_gd() must not touch the reference count: incrementing and decrementing it around the
+// error path can destroy the not-yet-initialized object (its count is 0 before Godot 4.7).
+#[itest]
+fn base_init_to_gd_refcounted() {
+    let mut panicked = false;
+
+    let obj = Gd::from_init_fn(|base| {
+        let temp_obj = RefcBased { base };
+
+        let result = suppress_panic_log(|| {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
+            }))
+        });
+        panicked = result.is_err();
+
+        temp_obj
+    });
+
+    assert!(panicked, "to_gd() inside init() should panic");
+
+    // No to_init_gd() in this init function, so the reference count is exactly 1 -- unless the failed to_gd() perturbed it.
+    assert_eq!(obj.get_reference_count(), 1);
+
+    // Object survived the failed to_gd() and is still usable.
+    assert!(obj.is_instance_valid());
+    drop(obj.bind());
+}
+
 #[cfg(before_api = "4.7")]
 mod refcount_tests {
     use godot::obj::InstanceId;
@@ -165,21 +206,6 @@ mod refcount_tests {
         });
 
         obj.free();
-    }
-
-    #[cfg(safeguards_strict)]
-    #[itest]
-    fn base_init_to_gd() {
-        expect_panic("WithBaseField::to_gd() inside init() function", || {
-            let _obj = Gd::<Based>::from_init_fn(|base| {
-                let temp_obj = Based { base, i: 999 };
-
-                // Call to self.to_gd() during initialization should panic in strict safeguard mode.
-                let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
-
-                temp_obj
-            });
-        });
     }
 }
 
