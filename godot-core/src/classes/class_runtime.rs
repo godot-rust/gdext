@@ -11,13 +11,15 @@ use std::fmt::Write;
 use std::sync::atomic::{AtomicPtr, AtomicU64};
 
 use crate::builtin::{GString, StringName, Variant};
+#[cfg(since_api = "4.4")]
+use crate::obj::BorrowedGd;
 use crate::obj::{Bounds, EngineBitfield, Gd, GodotClass, InstanceId, RawGd, bounds};
-use crate::{init, sys};
+use crate::{classes, init, sys};
 
 #[cfg(safeguards_strict)]
 mod strict {
     pub use crate::builtin::VariantType;
-    pub use crate::classes::{ClassDb, Object};
+    pub use crate::classes::ClassDb;
     pub use crate::meta::ClassId;
     pub use crate::obj::Singleton;
 }
@@ -35,17 +37,17 @@ use strict::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Debug/Display support for classes and enums
 
-// TODO(v0.7): print class and instance ID for freed objects, too -- ID is cached in the RTTI, static class known via `T::class_id()`.
+// TODO(v0.7): print instance ID for freed objects as `{ freed, id: 24 }` -- ID is cached in the RTTI.
 pub(crate) fn debug_string<T: GodotClass>(
     obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
+    trait_name: Option<&str>,
 ) -> std::fmt::Result {
-    if let Some(id) = obj.instance_id_or_none() {
-        let class: StringName = obj.dynamic_class_string();
-        debug_string_parts(f, ty, id, class, obj.maybe_refcount(), None)
+    if obj.is_instance_valid() {
+        debug_string_parts(f, ty, obj, obj.maybe_refcount(), trait_name)
     } else {
-        write!(f, "{ty} {{ freed obj }}")
+        write!(f, "{ty} {{ freed }}")
     }
 }
 
@@ -61,26 +63,17 @@ pub(crate) fn debug_string_variant(
         .object_id_unchecked()
         .expect("Variant must be of type OBJECT");
 
-    if id.lookup_validity() {
-        // Object::get_class() currently returns String, but this is future-proof if the return type changes to StringName.
-        let class = obj
-            .call("get_class", &[])
-            .try_to_relaxed::<StringName>()
-            .expect("get_class() must be compatible with StringName");
-
-        let refcount = id.is_ref_counted().then(|| {
-            let count = obj
-                .call("get_reference_count", &[])
-                .try_to_relaxed::<i32>()
-                .expect("get_reference_count() must return integer");
-
-            count as usize
-        });
-
-        debug_string_parts(f, ty, id, class, refcount, None)
-    } else {
-        write!(f, "{ty} {{ freed obj }}")
+    let object_ptr = object_ptr_from_id(id);
+    if object_ptr.is_null() {
+        return write!(f, "{ty} {{ freed }}");
     }
+
+    // Borrow instead of Variant->Gd conversion, to keep refcount unchanged. Variant::call() would fail for classes overriding
+    // callp(), e.g. GDScriptNativeClass (https://github.com/godot-rust/gdext/issues/1690).
+    // SAFETY: object_ptr was just looked up, and borrow does not outlive this function.
+    let obj = unsafe { BorrowedGd::<classes::Object>::from_obj_sys(object_ptr) };
+
+    debug_string(&obj, f, ty, None)
 }
 
 // Polyfill for Godot < 4.4, where Variant::object_id_unchecked() is not available.
@@ -92,19 +85,14 @@ pub(crate) fn debug_string_variant(
 ) -> std::fmt::Result {
     sys::strict_assert_eq!(obj.get_type(), VariantType::OBJECT);
 
-    match obj.try_to::<Gd<crate::classes::Object>>() {
+    match obj.try_to::<Gd<classes::Object>>() {
         Ok(obj) => {
-            let id = obj.instance_id(); // Guaranteed valid, since conversion would have failed otherwise.
-            let class = obj.dynamic_class_string();
-
             // Refcount is off-by-one due to now-created Gd<T> from conversion; correct by -1.
             let refcount = obj.maybe_refcount().map(|rc| rc.saturating_sub(1));
 
-            debug_string_parts(f, ty, id, class, refcount, None)
+            debug_string_parts(f, ty, &obj, refcount, None)
         }
-        Err(_) => {
-            write!(f, "{ty} {{ freed obj }}")
-        }
+        Err(_) => write!(f, "{ty} {{ freed }}"),
     }
 }
 
@@ -121,36 +109,60 @@ pub(crate) fn debug_string_nullable<T: GodotClass>(
 
         // SAFETY: checked non-null.
         let obj = unsafe { obj.as_non_null() };
-        debug_string(obj, f, ty)
+        debug_string(obj, f, ty, None)
     }
 }
 
-pub(crate) fn debug_string_with_trait<T: GodotClass>(
+/// Skips `ScriptExtension`, whose `_get_global_name()` is a virtual that would call into user code -- `Debug` often runs during panics.
+#[cfg(since_api = "4.3")]
+fn script_global_name(script: &Gd<classes::Script>) -> Option<StringName> {
+    if script.is_dynamic_class_of::<classes::ScriptExtension>() {
+        return None;
+    }
+
+    let name = script.get_global_name();
+    (!name.is_empty()).then_some(name)
+}
+
+#[cfg(before_api = "4.3")]
+fn script_global_name(_script: &Gd<classes::Script>) -> Option<StringName> {
+    None
+}
+
+/// Script for `Debug` output: `class_name`, else quoted resource path, else `GDScript#id`.
+pub(crate) fn script_debug_name(script: &Gd<classes::Script>) -> String {
+    if let Some(name) = script_global_name(script) {
+        return name.to_string();
+    }
+
+    let path = script.get_path();
+    if !path.is_empty() {
+        return format!("{path:?}");
+    }
+
+    format!("{}#{}", script.get_class(), script.instance_id())
+}
+
+/// `obj` must be valid.
+fn debug_string_parts<T: GodotClass>(
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
     obj: &Gd<T>,
-    f: &mut std::fmt::Formatter<'_>,
-    ty: &str,
-    trt: &str,
-) -> std::fmt::Result {
-    if let Some(id) = obj.instance_id_or_none() {
-        let class: StringName = obj.dynamic_class_string();
-        debug_string_parts(f, ty, id, class, obj.maybe_refcount(), Some(trt))
-    } else {
-        write!(f, "{ty} {{ freed obj }}")
-    }
-}
-
-fn debug_string_parts(
-    f: &mut std::fmt::Formatter<'_>,
-    ty: &str,
-    id: InstanceId,
-    class: StringName,
     refcount: Option<usize>,
     trait_name: Option<&str>,
 ) -> std::fmt::Result {
+    // Not FFI object_get_class_name(), which reports e.g. RefCounted instead of GDScriptNativeClass.
+    let object = obj.raw.as_object_ref();
+    let class = object.get_class();
+
     let mut builder = f.debug_struct(ty);
     builder
-        .field("id", &id.to_i64())
+        .field("id", &obj.instance_id_unchecked().to_i64())
         .field("class", &format_args!("{class}"));
+
+    if let Some(script) = object.get_script() {
+        builder.field("script", &format_args!("{}", script_debug_name(&script)));
+    }
 
     if let Some(trait_name) = trait_name {
         builder.field("trait", &format_args!("{trait_name}"));
@@ -393,7 +405,7 @@ pub(crate) fn ensure_object_alive(
 #[cfg(safeguards_strict)]
 pub(crate) fn ensure_object_inherits(derived: ClassId, base: ClassId, instance_id: InstanceId) {
     if derived == base
-        || base == Object::class_id() // for Object base, anything inherits by definition
+        || base == classes::Object::class_id() // for Object base, anything inherits by definition
         || is_derived_base_cached(derived, base)
     {
         return;

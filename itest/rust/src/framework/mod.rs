@@ -376,6 +376,12 @@ pub fn create_gdscript(code: &str) -> Gd<GDScript> {
     script
 }
 
+/// Asserts that `value`'s `Debug` output is `<ty> { <fields> }`, the format used by objects and variants.
+#[track_caller]
+pub fn assert_debug_eq(value: impl std::fmt::Debug, ty: &str, fields: &str) {
+    assert_eq!(format!("{value:?}"), format!("{ty} {{ {fields} }}"));
+}
+
 /// Workaround for tests of the form `assert!(a == a)`.
 ///
 /// We can't always use `assert_eq!(a, a)` because of lacking `Debug` impl.

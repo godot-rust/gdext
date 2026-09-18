@@ -339,7 +339,8 @@ impl<T: GodotClass> Gd<T> {
     /// classes are involved (e.g. a `Gd<Node>` whose dynamic type is `Sprite2D`, or a GDScript class inheriting `T`).
     ///
     /// Unlike [`Object::get_class()`][crate::classes::Object::get_class], this needs no `Inherits<Object>` bound and returns a
-    /// comparable [`ClassId`] instead of `GString`.
+    /// comparable [`ClassId`] instead of `GString`. It also reports the nearest native class, e.g. `RefCounted` for a
+    /// `GDScriptNativeClass` object. `get_class()` reports the engine-internal class.
     ///
     /// To test whether the dynamic class _inherits_ a given class (not just equals it), use [`is_dynamic_class()`][Self::is_dynamic_class] or
     ///  [`is_dynamic_class_of()`][Self::is_dynamic_class_of].
@@ -1342,9 +1343,21 @@ impl<T: GodotClass> Display for Gd<T> {
     }
 }
 
+/// Prints instance ID, dynamic class, attached script, and refcount (for `RefCounted` classes).
+///
+/// ```text
+/// Gd { id: 24, class: Node }                              // No script.
+/// Gd { id: 24, class: RefCounted, refc: 1 }               // Reference-counted.
+/// Gd { id: 24, class: Node, script: PlayerController }    // Script with `class_name`.
+/// Gd { id: 24, class: Node, script: "res://player.gd" }   // Script without `class_name`.
+/// Gd { id: 24, class: Node, script: GDScript#31 }         // Script without `class_name` or path.
+/// Gd { freed }                                            // Object was freed.
+/// ```
+///
+/// `script` requires Godot 4.3 for `class_name`; before that, path or ID is shown.
 impl<T: GodotClass> Debug for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        classes::debug_string(self, f, "Gd")
+        classes::debug_string(self, f, "Gd", None)
     }
 }
 

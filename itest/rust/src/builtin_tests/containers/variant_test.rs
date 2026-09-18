@@ -21,7 +21,7 @@ use godot::obj::{Gd, InstanceId, NewAlloc, NewGd};
 use godot::sys::GodotFfi;
 
 use crate::common::roundtrip;
-use crate::framework::{expect_panic, expect_panic_or_ub, itest, runs_release};
+use crate::framework::{assert_debug_eq, expect_panic, expect_panic_or_ub, itest, runs_release};
 
 const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(1.0, 2.0, 3.0),
@@ -259,14 +259,14 @@ fn variant_dead_object_conversions() {
 
     // Verify Display + Debug impl.
     assert_eq!(format!("{variant}"), "<Freed Object>");
-    assert_eq!(format!("{variant:?}"), "VariantGd { freed obj }");
+    assert_debug_eq(&variant, "VariantGd", "freed");
 
     // Variant::try_to().
     let result = variant.try_to::<Gd<Node>>();
     let err = result.expect_err("Variant::try_to::<Gd>() with dead object should fail");
     assert_eq!(
         err.to_string(),
-        "variant holds object which is no longer alive: VariantGd { freed obj }"
+        "variant holds object which is no longer alive: VariantGd { freed }"
     );
 
     // Variant::to().
@@ -280,7 +280,7 @@ fn variant_dead_object_conversions() {
     let err = result.expect_err("Variant::try_to::<Option<Gd>>() with dead object should fail");
     assert_eq!(
         err.to_string(),
-        "variant holds object which is no longer alive: VariantGd { freed obj }"
+        "variant holds object which is no longer alive: VariantGd { freed }"
     );
 }
 

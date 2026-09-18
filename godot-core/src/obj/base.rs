@@ -215,7 +215,7 @@ impl<T: GodotClass> Base<T> {
 
 impl<T: GodotClass> Debug for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        classes::debug_string(&self.obj, f, "Base")
+        classes::debug_string(&self.obj, f, "Base", None)
     }
 }
 

@@ -842,7 +842,7 @@ func make_array() -> Array[CustomScriptForArrays]:
     let array = result.to::<Array<Gd<RefCounted>>>();
     let element_type = array.element_type();
 
-    let ElementType::ScriptClass(script) = element_type else {
+    let ElementType::ScriptClass(script) = &element_type else {
         panic!("expected CustomScript for array");
     };
 
@@ -852,7 +852,13 @@ func make_array() -> Array[CustomScriptForArrays]:
     assert_eq!(script.get_instance_base_type(), "RefCounted");
 
     #[cfg(since_api = "4.3")]
-    assert_eq!(script.get_global_name(), "CustomScriptForArrays");
+    {
+        assert_eq!(script.get_global_name(), "CustomScriptForArrays");
+        assert_eq!(
+            format!("{element_type:?}"),
+            "ScriptClass(CustomScriptForArrays)"
+        );
+    }
 }
 
 // Test that proper type has been set&cached while creating new Array.

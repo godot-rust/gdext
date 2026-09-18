@@ -24,7 +24,9 @@ use godot::obj::{
 use godot::register::{GodotClass, godot_api};
 use godot::sys::{self, GodotFfi, interface_fn};
 
-use crate::framework::{TestContext, expect_panic, expect_panic_or_ub, itest};
+use crate::framework::{
+    TestContext, assert_debug_eq, create_gdscript, expect_panic, expect_panic_or_ub, itest,
+};
 
 // TODO:
 // * make sure that ptrcalls are used when possible (i.e. when type info available; maybe GDScript integration test)
@@ -1242,3 +1244,65 @@ struct MultipleStructsCfg {}
 #[derive(GodotClass)]
 #[class(init, base=Object)]
 struct MultipleStructsCfg {}
+
+#[itest]
+fn object_debug_script() {
+    let mut obj = RefCounted::new_gd();
+    let id = obj.instance_id();
+
+    // `script` field is only present if a script is attached.
+    let expect_script = |obj: &Gd<RefCounted>, script: &str| {
+        let expected = format!("id: {id}, class: RefCounted{script}, refc: 1");
+        assert_debug_eq(obj, "Gd", &expected);
+    };
+
+    expect_script(&obj, "");
+
+    #[cfg(since_api = "4.3")]
+    {
+        let script = create_gdscript("class_name ObjectDebugScript\nextends RefCounted");
+        obj.set_script(&script);
+        expect_script(&obj, ", script: ObjectDebugScript");
+    }
+
+    // No class_name -> resource path.
+    let mut script = create_gdscript("extends RefCounted");
+    script.take_over_path("res://object_debug_script.gd");
+    obj.set_script(&script);
+    expect_script(&obj, r#", script: "res://object_debug_script.gd""#);
+
+    // No class_name or path -> class and ID.
+    let script = create_gdscript("extends RefCounted");
+    obj.set_script(&script);
+    expect_script(
+        &obj,
+        &format!(", script: GDScript#{}", script.instance_id()),
+    );
+}
+
+#[itest]
+fn object_debug_native_class() {
+    let script = create_gdscript(
+        r#"
+extends RefCounted
+
+func get_native_class():
+    return Object
+"#,
+    );
+
+    let mut obj = RefCounted::new_gd();
+    obj.set_script(&script);
+
+    // Returns a GDScriptNativeClass object.
+    let variant = obj.call("get_native_class", &[]);
+    let native_class = variant.to::<Gd<RefCounted>>();
+
+    // Refcount includes engine-held references, so query it rather than hardcode.
+    let id = native_class.instance_id();
+    let refc = native_class.get_reference_count();
+    let fields = format!("id: {id}, class: GDScriptNativeClass, refc: {refc}");
+
+    assert_debug_eq(&native_class, "Gd", &fields);
+    assert_debug_eq(&variant, "VariantGd", &fields);
+}
