@@ -234,7 +234,7 @@ fn make_with_base_impl(base_field: &Option<Field>, class_name: &Ident) -> TokenS
                 // field's type is wrong.
                 let base = <#class_name as ::godot::obj::WithBaseField>::base_field(self);
 
-                base.__constructed_gd().cast()
+                base.__derived_gd::<#class_name>()
             }
 
             fn base_field(&self) -> &::godot::obj::Base<<#class_name as ::godot::obj::GodotClass>::Base> {
