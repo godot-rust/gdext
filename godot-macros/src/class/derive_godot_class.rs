@@ -721,6 +721,13 @@ fn parse_fields(
             is_base = true;
         }
 
+        // Deprecated #[base]. When removing, don't forget to strip base from the GodotClass #[proc_macro_derive] attribute list.
+        if let Some(parser) = KvParser::parse(&named_field.attributes, "base")? {
+            let warning_fn = Ident::new("base_attribute", parser.span());
+            deprecations
+                .push(quote! { ::godot::__deprecated::emit_deprecated_warning!(#warning_fn); });
+        }
+
         // OnReady<T> type inference
         if path_ends_with_complex(&field.ty, "OnReady") {
             field.is_onready = true;

@@ -45,6 +45,12 @@ pub use crate::emit_deprecated_warning;
 #[deprecated = "\nUse `key => value` syntax in `vdict!` macro.\nOld syntax `key: value` will be removed."]
 pub const fn vdict_colon_syntax() {}
 
+// When removing this, don't forget to strip base from the GodotClass #[proc_macro_derive] attribute list.
+#[deprecated = "\n\
+    #[base] has no effect and will cause an error in godot-rust v0.6.\n\
+    `Base<T>` fields are detected automatically."]
+pub const fn base_attribute() {}
+
 // Virtual method renames (can be removed together with maybe_rename_deprecated_virtual() in godot-macros).
 #[deprecated = "\n\
     Virtual method `get_property` has been renamed to `on_get`.\n\
