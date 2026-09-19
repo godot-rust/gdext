@@ -67,11 +67,13 @@ pub struct Signature<Params, Ret> {
 pub(crate) fn sig_params<Params: ParamTuple>(param_names: &[&str]) -> Vec<MethodParamOrReturnInfo> {
     sys::strict_assert_eq!(param_names.len(), Params::LEN);
 
-    param_names
-        .iter()
-        .enumerate()
-        .map(|(index, param_name)| Params::param_info(index, param_name).unwrap())
-        .collect()
+    // Loop instead of iterator chain, to avoid separately instantiating Map, Iterator::fold and Vec::extend_trusted per Params.
+    // Enumerate seems free (no notable impact measured).
+    let mut params = Vec::with_capacity(param_names.len());
+    for (index, param_name) in param_names.iter().enumerate() {
+        params.push(Params::param_info(index, param_name).unwrap());
+    }
+    params
 }
 
 /// In-calls (varcall):

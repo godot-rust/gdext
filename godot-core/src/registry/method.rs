@@ -13,7 +13,6 @@ use sys::interface_fn;
 use crate::builtin::{StringName, Variant};
 use crate::meta::private_reexport::{CallContext, Signature};
 use crate::meta::{ClassId, EngineToGodot, GodotConvert, InParamTuple, sig_params};
-use crate::obj::GodotClass;
 use crate::registry::info::{MethodFlags, PropertyInfo};
 
 /// Info relating to an argument or return type in a method.
@@ -64,54 +63,95 @@ pub struct ClassMethodInfo {
 }
 
 impl ClassMethodInfo {
-    /// Builds the method info from `method_data`, whose allocation is owned by `C`'s registry entry and passed to Godot as `method_userdata`.
+    /// Builds the method info for a `#[func(virtual)]`, which Godot registers without callbacks, userdata or default arguments.
+    pub fn from_virtual_signature<Params: InParamTuple, Ret: EngineToGodot>(
+        class_id: ClassId,
+        method_name: StringName,
+        method_flags: MethodFlags,
+        param_names: &[&str],
+    ) -> Self {
+        Self {
+            class_id,
+            method_name,
+            call_func: None,
+            ptrcall_func: None,
+            method_userdata: std::ptr::null_mut(),
+            method_flags,
+            return_value: MethodParamOrReturnInfo::for_return::<Ret>(),
+            arguments: sig_params::<Params>(param_names),
+            default_arguments: Vec::new(),
+        }
+    }
+
+    /// Builds the method info from `method_data`, whose allocation is owned by the class's registry entry and passed to Godot as `method_userdata`.
     ///
     /// # Safety
-    /// `method_data`'s function must interpret its instance pointer as an instance of `C`, and `method_flags` must match the receiver
-    /// (e.g. [`MethodFlags::STATIC`] only for functions ignoring the instance pointer).
-    pub unsafe fn from_signature<
-        C: GodotClass,
-        Params: InParamTuple + 'static,
-        Ret: EngineToGodot + 'static,
-    >(
+    /// `method_data`'s function must interpret its instance pointer as an instance of `class_id`, and `method_flags` must match
+    /// the receiver (e.g. [`MethodFlags::STATIC`] only for functions ignoring the instance pointer).
+    pub unsafe fn from_signature<Params, Ret>(
+        class_id: ClassId,
         method_name: StringName,
         method_flags: MethodFlags,
         param_names: &[&str],
         method_data: MethodUserdata<Params, Ret>,
-    ) -> Self {
-        use crate::obj::EngineBitfield as _;
+    ) -> Self
+    where
+        Params: InParamTuple + 'static,
+        Ret: EngineToGodot + 'static,
+    {
+        let method_userdata = method_data.into_raw();
 
-        let return_value = MethodParamOrReturnInfo::for_return::<Ret>();
-        let arguments = sig_params::<Params>(param_names);
+        // SAFETY: method_userdata comes from MethodUserdata::<Params, Ret>::into_raw(), so it matches VTABLE and is not aliased.
+        unsafe {
+            Self::from_erased(
+                class_id,
+                method_name,
+                method_flags,
+                param_names,
+                MethodUserdata::<Params, Ret>::VTABLE,
+                method_userdata,
+            )
+        }
+    }
+
+    /// Non-generic part of [`Self::from_signature()`], reaching `Params`/`Ret` only through `vtable`.
+    ///
+    /// # Safety
+    /// `method_userdata` must come from [`MethodUserdata::into_raw()`] for the `Params`/`Ret` matching `vtable`, and must not be aliased.
+    unsafe fn from_erased(
+        class_id: ClassId,
+        method_name: StringName,
+        method_flags: MethodFlags,
+        param_names: &[&str],
+        vtable: &'static MethodVTable,
+        method_userdata: *mut c_void,
+    ) -> Self {
+        let return_value = (vtable.return_info_fn)();
+        let arguments = (vtable.param_info_fn)(param_names);
+
+        // SAFETY: guaranteed by the caller.
+        let header = unsafe { MethodHeader::from_userdata_ptr(method_userdata) };
+        let defaults = &header.default_arguments;
 
         assert!(
-            method_data.default_arguments.len() <= arguments.len(),
-            "cannot have more default arguments than arguments"
+            defaults.len() <= arguments.len(),
+            "cannot have more default arguments than parameters"
         );
 
-        let class_id = C::class_id();
+        // default_arguments points into the Vec owned by the userdata, which store_method_userdata() keeps alive.
+        let default_arguments = default_argument_ptrs(defaults);
 
-        // Virtual methods are registered through `classdb_register_extension_class_virtual_method()`, which takes neither callbacks nor
-        // userdata, nor default arguments -- so we don't allocate anything for those.
-        let mut call_func: sys::GDExtensionClassMethodCall = None;
-        let mut ptrcall_func: sys::GDExtensionClassMethodPtrCall = None;
-        let mut method_userdata = std::ptr::null_mut();
-        let mut default_arguments = Vec::new();
-
-        if !method_flags.is_set(MethodFlags::VIRTUAL) {
-            call_func = Some(varcall_callback::<Params, Ret>);
-            ptrcall_func = Some(ptrcall_callback::<Params, Ret>);
-
-            // default_arguments points into Vec, which is kept in-place by store_in_registry() below.
-            default_arguments = default_argument_ptrs(&method_data.default_arguments);
-            method_userdata = method_data.store_in_registry(class_id);
-        }
+        let erased = ErasedMethodUserdata {
+            ptr: method_userdata,
+            drop_fn: vtable.drop_fn,
+        };
+        crate::registry::class::store_method_userdata(class_id, erased);
 
         Self {
             class_id,
             method_name,
-            call_func,
-            ptrcall_func,
+            call_func: vtable.call_func,
+            ptrcall_func: vtable.ptrcall_func,
             method_userdata,
             method_flags,
             return_value,
@@ -237,15 +277,42 @@ impl ClassMethodInfo {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared #[func] callbacks
 
+/// Per-signature values needed by [`ClassMethodInfo::from_erased()`], so it stays non-generic.
+struct MethodVTable {
+    call_func: sys::GDExtensionClassMethodCall,
+    ptrcall_func: sys::GDExtensionClassMethodPtrCall,
+    drop_fn: unsafe fn(*mut c_void),
+    param_info_fn: fn(&[&str]) -> Vec<MethodParamOrReturnInfo>,
+    return_info_fn: fn() -> Option<MethodParamOrReturnInfo>,
+}
+
 /// Everything the FFI callbacks need to invoke one `#[func]`, passed to Godot as its `method_userdata`.
 ///
 /// Erasure for per-method code: `varcall_callback()` and `ptrcall_callback()` are instantiated once per `(Params, Ret)` pair, instead of once
 /// per registered function.
+#[repr(C)]
 pub struct MethodUserdata<Params, Ret> {
+    header: MethodHeader,
+    func: fn(sys::GDExtensionClassInstancePtr, Params) -> Ret,
+}
+
+/// The part of [`MethodUserdata`] that does not mention `Params`/`Ret`.
+///
+/// `MethodUserdata` is `#[repr(C)]` and starts with this, so code that only has an untyped pointer can still read these fields --
+/// no accessor generated per signature.
+struct MethodHeader {
     class_name: &'static str,
     method_name: &'static str,
-    func: fn(sys::GDExtensionClassInstancePtr, Params) -> Ret,
     default_arguments: MethodDefaults,
+}
+
+impl MethodHeader {
+    /// # Safety
+    /// `ptr` must come from [`MethodUserdata::into_raw()`] and point to a live allocation.
+    unsafe fn from_userdata_ptr<'a>(ptr: *mut c_void) -> &'a MethodHeader {
+        // SAFETY: guaranteed by the caller; `MethodUserdata` is `#[repr(C)]` with this type as its first field, so it lies at offset 0.
+        unsafe { &*ptr.cast::<MethodHeader>() }
+    }
 }
 
 impl<Params, Ret> MethodUserdata<Params, Ret> {
@@ -258,34 +325,24 @@ impl<Params, Ret> MethodUserdata<Params, Ret> {
         default_arguments: Vec<Variant>,
     ) -> Self {
         Self {
-            class_name,
-            method_name,
+            header: MethodHeader {
+                class_name,
+                method_name,
+                default_arguments: MethodDefaults(default_arguments),
+            },
             func,
-            default_arguments: MethodDefaults(default_arguments),
         }
     }
 
-    /// Moves `self` to the heap and registers the allocation with the class registry under `class_id`.
-    ///
-    /// Dropped when class is unregistered (hot reload or library shutdown). GDExtension has no `free` callback for method userdata, so
-    /// godot-rust owns it rather than Godot.
-    ///
-    /// Returns the raw pointer, passed to Godot as `method_userdata`.
-    fn store_in_registry(self, class_id: ClassId) -> *mut c_void {
-        let ptr = Box::into_raw(Box::new(self)).cast::<c_void>();
-        let erased = ErasedMethodUserdata {
-            ptr,
-            drop_fn: Self::drop_raw,
-        };
-
-        crate::registry::class::store_method_userdata(class_id, erased);
-        ptr
+    /// Moves `self` to the heap, returning the pointer passed to Godot as `method_userdata` and reclaimed via [`Self::drop_raw()`].
+    fn into_raw(self) -> *mut c_void {
+        Box::into_raw(Box::new(self)).cast::<c_void>()
     }
 
     /// Reconstructs [`ErasedMethodUserdata`] box and drops it. Instantiated once per `(Params, Ret)` pair, not per `#[func]`.
     ///
     /// # Safety
-    /// `ptr` must come from `Box::into_raw()` of a `MethodUserdata<Params, Ret>` that is no longer aliased.
+    /// `ptr` must come from [`Self::into_raw()`] and be no longer aliased.
     unsafe fn drop_raw(ptr: *mut c_void) {
         let method_userdata_ptr = ptr.cast::<Self>();
 
@@ -294,7 +351,16 @@ impl<Params, Ret> MethodUserdata<Params, Ret> {
     }
 }
 
-/// Non-generic part of [`ClassMethodInfo::from_signature()`]: avoid monomorphizing iterator chain once per `#[func]` signature.
+impl<Params: InParamTuple, Ret: EngineToGodot> MethodUserdata<Params, Ret> {
+    const VTABLE: &'static MethodVTable = &MethodVTable {
+        call_func: Some(varcall_callback::<Params, Ret>),
+        ptrcall_func: Some(ptrcall_callback::<Params, Ret>),
+        drop_fn: Self::drop_raw,
+        param_info_fn: sig_params::<Params>,
+        return_info_fn: MethodParamOrReturnInfo::for_return::<Ret>,
+    };
+}
+
 fn default_argument_ptrs(defaults: &[Variant]) -> Vec<sys::GDExtensionVariantPtr> {
     defaults
         .iter()
@@ -346,7 +412,7 @@ impl std::ops::Deref for MethodDefaults {
 /// [`ptrcall_callback()`]. Godot picks the convention per call, based on the type information available at the call site.
 ///
 /// # Safety
-/// `method_data` must point to a `MethodUserdata<Params, Ret>` stored by [`MethodUserdata::store_in_registry()`]; the remaining parameters must
+/// `method_data` must point to a `MethodUserdata<Params, Ret>` stored by [`ClassMethodInfo::from_signature()`]; the remaining parameters must
 /// follow the varcall convention for that signature.
 unsafe extern "C" fn varcall_callback<Params: InParamTuple, Ret: EngineToGodot>(
     method_data: *mut c_void,
@@ -359,7 +425,7 @@ unsafe extern "C" fn varcall_callback<Params: InParamTuple, Ret: EngineToGodot>(
     // SAFETY: `method_data` is the pointer registered together with this function, and the data behind it is never mutated, nor freed while
     // the method stays registered.
     let data = unsafe { &*method_data.cast::<MethodUserdata<Params, Ret>>() };
-    let call_ctx = CallContext::func(data.class_name, data.method_name);
+    let call_ctx = CallContext::func(data.header.class_name, data.header.method_name);
 
     let code = || {
         // SAFETY: guaranteed by this function's caller.
@@ -369,7 +435,7 @@ unsafe extern "C" fn varcall_callback<Params: InParamTuple, Ret: EngineToGodot>(
                 &call_ctx,
                 args_ptr,
                 arg_count,
-                &data.default_arguments,
+                &data.header.default_arguments,
                 ret,
                 err,
                 data.func,
@@ -387,7 +453,7 @@ unsafe extern "C" fn varcall_callback<Params: InParamTuple, Ret: EngineToGodot>(
 /// those declaring `#[opt]` defaults; see [`varcall_callback()`].
 ///
 /// # Safety
-/// `method_data` must point to a `MethodUserdata<Params, Ret>` stored by [`MethodUserdata::store_in_registry()`]; the remaining parameters must
+/// `method_data` must point to a `MethodUserdata<Params, Ret>` stored by [`ClassMethodInfo::from_signature()`]; the remaining parameters must
 /// follow the ptrcall convention for that signature.
 unsafe extern "C" fn ptrcall_callback<Params: InParamTuple, Ret: EngineToGodot>(
     method_data: *mut c_void,
@@ -398,7 +464,7 @@ unsafe extern "C" fn ptrcall_callback<Params: InParamTuple, Ret: EngineToGodot>(
     // SAFETY: `method_data` is the pointer registered together with this function, and the data behind it is never mutated, nor freed while
     // the method stays registered.
     let data = unsafe { &*method_data.cast::<MethodUserdata<Params, Ret>>() };
-    let call_ctx = CallContext::func(data.class_name, data.method_name);
+    let call_ctx = CallContext::func(data.header.class_name, data.header.method_name);
 
     let code = || {
         // SAFETY: guaranteed by this function's caller.

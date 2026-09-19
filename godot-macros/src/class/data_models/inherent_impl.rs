@@ -152,6 +152,8 @@ pub fn transform_inherent_impl(
                 let mut guard = #class_name::__registration_storage().lock().unwrap();
 
                 guard.0.push(|| {
+                    // Outside per-method registration; would otherwise emit this call once per #[func].
+                    let __godot_class_id = <#class_name as ::godot::obj::GodotClass>::class_id();
                     #( #method_registrations )*
                     #( #signal_registrations )*
                 });
