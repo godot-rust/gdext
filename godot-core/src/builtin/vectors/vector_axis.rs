@@ -79,6 +79,7 @@ macro_rules! impl_vector_axis_enum {
 
         impl ToGodot for $AxisEnum {
             type Pass = crate::meta::ByValue;
+            type Threads = $crate::meta::ThreadSafeArg;
 
             fn to_godot(&self) -> Self::Via {
                 self.ord()
