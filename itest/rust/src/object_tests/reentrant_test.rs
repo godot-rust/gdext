@@ -39,20 +39,29 @@ impl ReentrantClass {
     }
 
     #[func]
+    fn first_calls_reentrant(&mut self) {
+        self.first_called_pre = true;
+        self.reentrant(|base| {
+            base.call("second", &[]);
+        });
+        self.first_called_post = true;
+    }
+
+    #[func]
     fn second(&mut self) {
         self.second_called = true;
     }
 }
 
-#[itest]
-fn reentrant_call_succeeds() {
+fn check_reentrant(method: &str, setup: impl FnOnce(&mut Gd<ReentrantClass>)) {
     let mut class = ReentrantClass::new_alloc();
+    setup(&mut class);
 
     assert!(!class.bind().first_called_pre);
     assert!(!class.bind().first_called_post);
     assert!(!class.bind().second_called);
 
-    class.call("first_calls", &[]);
+    class.call(method, &[]);
 
     assert!(class.bind().first_called_pre);
     assert!(class.bind().first_called_post);
@@ -62,21 +71,19 @@ fn reentrant_call_succeeds() {
 }
 
 #[itest]
+fn reentrant_call_succeeds() {
+    check_reentrant("first_calls", |_| {});
+}
+
+#[itest]
 fn reentrant_emit_succeeds() {
-    let mut class = ReentrantClass::new_alloc();
+    check_reentrant("first_signal", |class| {
+        let callable = class.callable("second");
+        class.connect("some_signal", &callable);
+    });
+}
 
-    let callable = class.callable("second");
-    class.connect("some_signal", &callable);
-
-    assert!(!class.bind().first_called_pre);
-    assert!(!class.bind().first_called_post);
-    assert!(!class.bind().second_called);
-
-    class.call("first_signal", &[]);
-
-    assert!(class.bind().first_called_pre);
-    assert!(class.bind().first_called_post);
-    assert!(class.bind().second_called);
-
-    class.free()
+#[itest]
+fn reentrant_closure_call_succeeds() {
+    check_reentrant("first_calls_reentrant", |_| {});
 }

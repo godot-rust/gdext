@@ -515,6 +515,8 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// Holding a mutable guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
     ///
+    /// If you need an entire scope where `&mut self` can be accessed from outside, use [`reentrant()`][Self::reentrant].
+    ///
     /// ```no_run
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
@@ -570,6 +572,14 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
         let borrowed_gd = self.base_ref.to_script_borrowed();
 
         ScriptBaseMut::new(borrowed_gd, guard)
+    }
+
+    /// Runs `f` while `self` is released, so Godot can call back into this script instance.
+    ///
+    /// Same as [`base_mut()`][Self::base_mut], but scoped to a closure.
+    /// See also [`WithBaseField::reentrant()`](crate::obj::WithBaseField::reentrant).
+    pub fn reentrant<R>(&mut self, f: impl FnOnce(&mut Gd<T::Base>) -> R) -> R {
+        f(&mut self.base_mut())
     }
 }
 

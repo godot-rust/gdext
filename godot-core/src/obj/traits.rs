@@ -430,6 +430,8 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// Holding an exclusive guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
     ///
+    /// If you need an entire scope where `&mut self` can be accessed from outside, use [`reentrant()`][Self::reentrant].
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -528,6 +530,64 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         let borrowed_gd = unsafe { BorrowedGd::from_obj_sys(base_ptr) };
 
         BaseMut::new(borrowed_gd, guard)
+    }
+
+    /// Runs `f` while `self` is released, so Godot can call back into this object.
+    ///
+    /// Same as [`base_mut()`][Self::base_mut], but scoped to a closure instead of a guard. Useful when the call back into `self`
+    /// doesn't go through the base object, so a `base_mut()` guard would sit unused.
+    ///
+    /// Calling a group that this node is part of:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct Guard {
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl Guard {
+    ///     #[func]
+    ///     fn raise_alarm(&mut self) {
+    ///         let mut tree = self.base().get_tree();
+    ///
+    ///         // Calls on_alarm() on every guard, including this one.
+    ///         self.reentrant(|_| tree.call_group("guards", "on_alarm", &[]));
+    ///     }
+    ///
+    ///     #[func]
+    ///     fn on_alarm(&mut self) {}
+    /// }
+    /// ```
+    ///
+    /// Emitting another object's signal, which is connected to a method on `self`:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// # #[derive(GodotClass)]
+    /// # #[class(init, base = Node)]
+    /// # struct Enemy { base: Base<Node> }
+    /// # #[godot_api]
+    /// # impl Enemy { #[signal] fn hit(damage: i32); }
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct Player {
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl Player {
+    ///     // Enemy's hit signal is connected to on_enemy_hit().
+    ///     fn attack(&mut self, enemy: Gd<Enemy>) {
+    ///         self.reentrant(|_| enemy.signals().hit().emit(10));
+    ///     }
+    ///
+    ///     #[func]
+    ///     fn on_enemy_hit(&mut self, _damage: i32) {}
+    /// }
+    /// ```
+    fn reentrant<R>(&mut self, f: impl FnOnce(&mut Gd<Self::Base>) -> R) -> R {
+        f(&mut self.base_mut())
     }
 
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).

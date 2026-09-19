@@ -123,6 +123,19 @@ func test_script_instance_re_entering_call():
 	language.free()
 
 
+func test_script_instance_reentrant():
+	var tuple := create_script_instance()
+	var object: RefCounted = tuple[0]
+	var language: TestScriptLanguage = tuple[1]
+	var before = object.script_property_b
+
+	var result = object.script_method_reentrant()
+
+	assert(result)
+	assert_eq(object.script_property_b, !before)
+	language.free()
+
+
 func test_object_script_instance():
 	var object = Node.new()
 	var language: TestScriptLanguage = TestScriptLanguage.new()

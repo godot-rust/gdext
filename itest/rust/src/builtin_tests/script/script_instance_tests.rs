@@ -203,6 +203,10 @@ impl ScriptInstance for TestScriptInstance {
                 Ok(result)
             }
 
+            "script_method_reentrant" => {
+                Ok(this.reentrant(|base| base.call("script_method_toggle_property_b", &[])))
+            }
+
             _ => Err(CallErrorType::InvalidMethod),
         }
     }
