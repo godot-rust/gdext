@@ -30,9 +30,13 @@ macro_rules! shard_execute_pre_main {
             #[used]
             // Windows:
             #[cfg_attr(target_os = "windows", unsafe(link_section = ".CRT$XCU"))]
-            // macOS + iOS:
+            // macOS + iOS + visionOS:
             #[cfg_attr(target_os = "ios", unsafe(link_section = "__DATA,__mod_init_func"))]
             #[cfg_attr(target_os = "macos", unsafe(link_section = "__DATA,__mod_init_func"))]
+            #[cfg_attr(
+                target_os = "visionos",
+                unsafe(link_section = "__DATA,__mod_init_func")
+            )]
             // Linux, Android, BSD:
             #[cfg_attr(target_os = "android", unsafe(link_section = ".init_array"))]
             #[cfg_attr(target_os = "dragonfly", unsafe(link_section = ".init_array"))]

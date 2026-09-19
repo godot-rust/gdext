@@ -153,12 +153,12 @@ pub(super) fn is_godot_type_deleted(godot_ty: &str) -> bool {
 
     // OpenXR has not been available for "macos" before 4.2 (now no longer supported by godot-rust).
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
-    // OpenXR is also not available on iOS and Web: https://github.com/godotengine/godot/blob/13ba673c42951fd7cfa6fd8a7f25ede7e9ad92bb/modules/openxr/config.py#L2
+    // OpenXR is also not available on iOS, visionOS and Web: https://github.com/godotengine/godot/blob/13ba673c42951fd7cfa6fd8a7f25ede7e9ad92bb/modules/openxr/config.py#L2
     // Do not hardcode a list of OpenXR classes, as more may be added in future Godot versions; instead use prefix.
     if godot_ty.starts_with("OpenXR") {
         let target_os = std::env::var("CARGO_CFG_TARGET_OS");
         match target_os.as_deref() {
-            Ok("ios") | Ok("emscripten") => return true,
+            Ok("ios") | Ok("visionos") | Ok("emscripten") => return true,
             _ => {}
         }
     }
