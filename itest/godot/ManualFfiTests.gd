@@ -25,7 +25,7 @@ func test_init_defaults():
 
 func test_to_string():
 	var ffi = VirtualMethodTest.new()
-	
+
 	assert_eq(str(ffi), "VirtualMethodTest[integer=0]")
 
 func test_var_accessors():
@@ -183,6 +183,34 @@ func test_ffi_relaxed_conversions_in_varcall_ptrcall():
 
 	# If we reach this point, all conversions succeeded.
 	assert_eq(ConversionTest.successful_calls(), 4, "all calls should succeed with relaxed conversion")
+	mark_test_succeeded()
+
+
+func test_ffi_dictionary_conversion():
+	mark_test_pending()
+
+	var conv = ConversionTest.new()
+
+	# Test hash_to_btree: HashMap<u8, Vector2i> -> BTreeMap<u8, Vector2i>
+	var input_hash = {1: Vector2i(10, 20), 2: Vector2i(30, 40), 3: Vector2i(50, 60)}
+	var result_btree = conv.hash_to_btree(input_hash)
+	assert_eq(result_btree.size(), 3, "hash_to_btree should preserve size")
+	assert_eq(result_btree[1], Vector2i(10, 20), "hash_to_btree should preserve value for key 1")
+	assert_eq(result_btree[2], Vector2i(30, 40), "hash_to_btree should preserve value for key 2")
+	assert_eq(result_btree[3], Vector2i(50, 60), "hash_to_btree should preserve value for key 3")
+
+	# Test btree_to_hash: BTreeMap<GString, Gd<RefCounted>> -> HashMap<GString, Gd<RefCounted>>
+	var obj_a = RefCounted.new()
+	var obj_b = RefCounted.new()
+	var input_btree = {"alpha": obj_a, "beta": obj_b}
+	var result_hash = conv.btree_to_hash(input_btree)
+	assert_eq(result_hash.size(), 2, "btree_to_hash should preserve size")
+	assert_eq(result_hash["alpha"], obj_a, "btree_to_hash should preserve value for key 'alpha'")
+	assert_eq(result_hash["beta"], obj_b, "btree_to_hash should preserve value for key 'beta'")
+
+	# Test with empty dictionary
+	assert_eq(conv.hash_to_btree({}).size(), 0, "hash_to_btree should handle empty dictionary")
+	assert_eq(conv.btree_to_hash({}).size(), 0, "btree_to_hash should handle empty dictionary")
 	mark_test_succeeded()
 
 
@@ -477,7 +505,7 @@ func update_self_reference(value):
 #	# Create the gd_self_obj and connect its signal to a gdscript method that calls back into it.
 #	gd_self_obj = GdSelfObj.new()
 #	gd_self_obj.update_internal_signal.connect(update_self_reference)
-#	
+#
 #	# The returned value will still be 0 because update_internal can't be called in update_self_reference due to a borrowing issue.
 #	assert_eq(gd_self_obj.fail_to_update_internal_value_due_to_conflicting_borrow(10), 0)
 
@@ -535,11 +563,11 @@ func test_renamed_func_shape():
 	var node_props = base_node.get_property_list().map(func(p): return p.name)
 	var node_methods = base_node.get_method_list().map(func(m): return m.name)
 	base_node.free()
-	
+
 	# Get our object's properties and methods
 	var obj_props = obj.get_property_list().map(func(p): return p.name)
 	var obj_methods = obj.get_method_list().map(func(m): return m.name)
-	
+
 	# Get only the new properties and methods (not in Node)
 	var gdext_props = obj_props.filter(func(name): return not node_props.has(name))
 	var gdext_methods = obj_methods.filter(func(name): return not node_methods.has(name))
@@ -547,7 +575,7 @@ func test_renamed_func_shape():
 	# Assert counts
 	assert_eq(gdext_props.size(), 2, "number of properties should be 2")
 	assert_eq(gdext_methods.size(), 2, "number of methods should be 2")
-	
+
 	# Assert specific names
 	assert(gdext_props.has("int_val"), "should have a property named 'int_val'")
 	# Godot automatically adds a property of the class name (acts as the top-level category in the inspector UI).
@@ -567,12 +595,12 @@ func test_renamed_func_get_set():
 	assert_eq(obj.f1(), 0)
 
 	obj.int_val = 42;
-	
+
 	assert_eq(obj.int_val, 42)
 	assert_eq(obj.f1(), 42)
 
 	obj.f2(84)
-	
+
 	assert_eq(obj.int_val, 84)
 	assert_eq(obj.f1(), 84)
 
