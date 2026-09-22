@@ -122,8 +122,12 @@ where
         }
     }
 
+    #[allow(clippy::manual_map)] // No map(): fn pointers + closures don't forward #[track_caller] -> panic location would point here.
     fn from_godot(via: Self::Via) -> Self {
-        via.map(T::from_godot)
+        match via {
+            Some(via) => Some(T::from_godot(via)),
+            None => None,
+        }
     }
 
     fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
