@@ -20,6 +20,7 @@ pub struct Enum {
     pub godot_name: String,
     pub surrounding_class: Option<TyName>,
     pub is_bitfield: bool,
+    pub override_default: Option<TokenStream>,
     pub is_private: bool,
     pub is_exhaustive: bool,
     pub enumerators: Vec<Enumerator>,
@@ -33,7 +34,7 @@ impl Enum {
         // Debug is implemented manually, using enumerator name. This can be derived once we use proper enums.
         let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Hash"];
 
-        if self.is_bitfield {
+        if self.is_bitfield && self.override_default.is_none() {
             derives.push("Default");
         }
 
