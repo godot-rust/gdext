@@ -23,7 +23,7 @@ pub fn make_fromgodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -
     } = convert;
 
     match data {
-        ConvertType::NewType { field } => make_fromgodot_for_newtype_struct(convert, field),
+        ConvertType::NewType { field, .. } => make_fromgodot_for_newtype_struct(convert, field),
 
         ConvertType::Enum {
             variants,
