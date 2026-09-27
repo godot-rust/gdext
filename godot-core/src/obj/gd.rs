@@ -206,6 +206,7 @@ where
     /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdRef` or `GdMut` guard bound.
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&T` or `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
+    ///   To avoid this, the inner method can call [`self.unbind()`][crate::obj::WithBaseField::unbind].
     /// * If the object is a placeholder instance with no Rust part. See [`bind()`][Self::bind] for details.
     pub fn bind_mut(&mut self) -> GdMut<'_, T> {
         self.raw.bind_mut()

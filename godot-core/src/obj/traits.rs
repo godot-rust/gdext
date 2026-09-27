@@ -430,6 +430,8 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// Holding an exclusive guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
     ///
+    /// If you need an entire scope where `&mut self` can be accessed from outside, use [`unbind()`][Self::unbind].
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -528,6 +530,112 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         let borrowed_gd = unsafe { BorrowedGd::from_obj_sys(base_ptr) };
 
         BaseMut::new(borrowed_gd, guard)
+    }
+
+    /// Release exclusive `self` borrow during `scope`, for reentrant access to `&mut self`.
+    ///
+    /// Opposite of [`Gd::bind_mut()`][crate::obj::Gd::bind_mut]: trades an exclusive borrow (`&mut self`) for a `Gd` pointer + the option to
+    /// reentrantly access the Rust object (through Godot). As `unbind` takes `&mut self`, the Rust compiler guarantees no other borrow can exist.
+    ///
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// # use godot::obj::WithBaseField;
+    /// # fn code<T: GodotClass>(_this: &mut Gd<T>) {}
+    /// # trait Example: WithBaseField { fn f(&mut self) {
+    /// // This code:
+    /// self.unbind(|this| code(this));
+    ///
+    /// // is equivalent to:
+    /// {
+    ///     let mut guard = self.base_mut();
+    ///     code(&mut guard); // DerefMut to &mut Gd<Self::Base>.
+    /// } // guard dropped here.
+    /// # }}
+    /// ```
+    ///
+    /// # Example: reentrant signal
+    /// A `Player` owns a `Weapon`. If that weapon is out of ammo, an `out_of_ammo` signal is emitted, which links back to the `Player::reload`
+    /// method. Now if `Player::shoot(&mut self)` causes the weapon to be empty, that callback needs to access `&mut self` again. This wouldn't
+    /// normally work since it's already borrowed, but `unbind()` explicitly allows it.
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// # #[derive(GodotClass)] #[class(init, base = Node)]
+    /// # struct Weapon { base: Base<Node> }
+    /// # #[godot_api] impl Weapon {
+    /// #     #[signal] fn out_of_ammo();
+    /// #     fn fire(&mut self) { self.signals().out_of_ammo().emit(); }
+    /// # }
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct Player {
+    ///     #[init(node = "Weapon")]
+    ///     weapon: OnReady<Gd<Weapon>>,
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode for Player {
+    ///     fn ready(&mut self) {
+    ///         self.weapon.signals()
+    ///             .out_of_ammo()
+    ///             .connect_other(&*self, Self::reload);
+    ///     }
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl Player {
+    ///     fn reload(&mut self) { /* ... */ }
+    ///
+    ///     fn shoot(&mut self) {
+    ///         // Copy Gd<Weapon> which isn't tied to `self` (no borrows).
+    ///         let mut weapon = self.weapon.clone();
+    ///
+    ///         // Weapon::fire() can trigger Player::reload(). We already
+    ///         // borrow &mut self here, so without unbind() this panics.
+    ///         self.unbind(|_| weapon.bind_mut().fire());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Example: dynamic calls through Godot VM
+    /// Hidden turrets pop up when an alarm is raised. `Turret::raise_alarm()` notifies all turrets in the group via `call_group()`, which
+    /// re-enters `on_alarm()` on `self`. Then `set_visible()` synchronously sends the `VISIBILITY_CHANGED` notification, again reentrantly.
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// # use godot::classes::notify::CanvasItemNotification;
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node2D)]
+    /// struct Turret {
+    ///     base: Base<Node2D>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl Turret {
+    ///     #[func]
+    ///     fn on_alarm(&mut self) {}
+    ///
+    ///     fn raise_alarm(&mut self) {
+    ///         self.unbind(|base| {
+    ///             base.get_tree().call_group("turrets", "on_alarm", &[]); // calls self.on_alarm().
+    ///             base.set_visible(true); // calls self.on_notification().
+    ///         });
+    ///     }
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode2D for Turret {
+    ///     fn on_notification(&mut self, what: CanvasItemNotification) {
+    ///         if what == CanvasItemNotification::VISIBILITY_CHANGED {
+    ///             // Refresh visuals.
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    fn unbind<R, F>(&mut self, scope: F) -> R
+    where
+        F: FnOnce(&mut Gd<Self::Base>) -> R,
+    {
+        scope(&mut self.base_mut())
     }
 
     /// Defers the given closure to run during [idle time](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-call-deferred).
