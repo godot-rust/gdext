@@ -7,6 +7,7 @@
 
 use godot::builtin::math::assert_eq_approx;
 use godot::builtin::{Quaternion, Vector3};
+use godot::init::GdextBuild;
 
 use crate::framework::{expect_panic, itest};
 
@@ -115,8 +116,12 @@ fn quaternion_spherical_cubic_interpolate() {
     let outcome =
         a.spherical_cubic_interpolate(b.normalized(), pre_a.normalized(), post_b.normalized(), 0.5);
 
-    // Taken from doing this in GDScript.
-    let expected = Quaternion::new(-0.072151, 0.176298, -0.072151, 0.979034);
+    // Taken from doing this in GDScript. Godot 4.8 changed the blending: https://github.com/godotengine/godot/pull/123942.
+    let expected = if GdextBuild::since_api("4.8") {
+        Quaternion::new(-0.073757, 0.177022, -0.073757, 0.978664)
+    } else {
+        Quaternion::new(-0.072151, 0.176298, -0.072151, 0.979034)
+    };
     assert_eq_approx!(outcome, expected);
 
     // 2. Should panic on quaternions that are not normalized.
@@ -155,8 +160,12 @@ fn quaternion_spherical_cubic_interpolate_in_time() {
         0.1,
     );
 
-    // Taken from doing this in GDScript.
-    let expected = Quaternion::new(0.280511, 0.355936, 0.280511, 0.84613);
+    // Taken from doing this in GDScript. Godot 4.8 changed blending: https://github.com/godotengine/godot/pull/123942.
+    let expected = if GdextBuild::since_api("4.8") {
+        Quaternion::new(0.281207, 0.367184, 0.281207, 0.840845)
+    } else {
+        Quaternion::new(0.280511, 0.355936, 0.280511, 0.84613)
+    };
     assert_eq_approx!(outcome, expected);
 
     // 2. Should panic on quaternions that are not normalized.
