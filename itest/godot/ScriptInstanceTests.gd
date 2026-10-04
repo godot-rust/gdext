@@ -97,26 +97,26 @@ func test_script_instance_to_string():
 	language.free()
 
 
-func test_script_instance_mut_call():
+func test_script_instance_direct_call():
+	check_toggle_property_b("script_method_toggle_property_b")
+
+
+func test_script_instance_reentrant_base_mut():
+	check_toggle_property_b("script_method_reentrant_base_mut")
+
+
+func test_script_instance_reentrant_unbind():
+	check_toggle_property_b("script_method_reentrant_unbind")
+
+
+# Calls `method`, which is expected to toggle `script_property_b` and return true.
+func check_toggle_property_b(method: StringName):
 	var tuple := create_script_instance()
 	var object: RefCounted = tuple[0]
 	var language: TestScriptLanguage = tuple[1]
 	var before = object.script_property_b
-	
-	var result = object.script_method_toggle_property_b()
 
-	assert(result)
-	assert_eq(object.script_property_b, !before)
-	language.free()
-
-
-func test_script_instance_re_entering_call():
-	var tuple := create_script_instance()
-	var object: RefCounted = tuple[0]
-	var language: TestScriptLanguage = tuple[1]
-	var before = object.script_property_b
-	
-	var result = object.script_method_re_entering()
+	var result = object.call(method)
 
 	assert(result)
 	assert_eq(object.script_property_b, !before)
@@ -130,7 +130,7 @@ func test_object_script_instance():
 
 	object.script = script
 
-	var result = object.script_method_re_entering()
+	var result = object.script_method_reentrant_base_mut()
 
 	assert(result)
 	object.free()

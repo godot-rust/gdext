@@ -196,11 +196,15 @@ impl ScriptInstance for TestScriptInstance {
                 Ok(result.to_variant())
             }
 
-            "script_method_re_entering" => {
+            "script_method_reentrant_base_mut" => {
                 let mut base = this.base_mut();
                 let result = base.call("script_method_toggle_property_b", &[]);
 
                 Ok(result)
+            }
+
+            "script_method_reentrant_unbind" => {
+                Ok(this.unbind(|base| base.call("script_method_toggle_property_b", &[])))
             }
 
             _ => Err(CallErrorType::InvalidMethod),

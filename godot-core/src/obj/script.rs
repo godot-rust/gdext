@@ -515,6 +515,8 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// Holding a mutable guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
     /// guard as soon as you no longer need it.
     ///
+    /// If you need an entire scope where `&mut self` can be accessed from outside, use [`unbind()`][Self::unbind].
+    ///
     /// ```no_run
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
@@ -570,6 +572,16 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
         let borrowed_gd = self.base_ref.to_script_borrowed();
 
         ScriptBaseMut::new(borrowed_gd, guard)
+    }
+
+    /// Runs `scope` while `self` is unbound, so Godot can call back into this script instance.
+    ///
+    /// See [`WithBaseField::unbind()`](crate::obj::WithBaseField::unbind).
+    pub fn unbind<R, F>(&mut self, scope: F) -> R
+    where
+        F: FnOnce(&mut Gd<T::Base>) -> R,
+    {
+        scope(&mut self.base_mut())
     }
 }
 
