@@ -22,7 +22,9 @@ pub fn make_togodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -> 
     } = convert;
 
     match data {
-        ConvertType::NewType { field } => make_togodot_for_newtype_struct(convert, field),
+        ConvertType::NewType { field, is_send } => {
+            make_togodot_for_newtype_struct(convert, field, *is_send)
+        }
 
         ConvertType::Enum {
             variants,
@@ -37,7 +39,11 @@ pub fn make_togodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -> 
 }
 
 /// Derives `ToGodot` for newtype structs.
-fn make_togodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStruct) -> TokenStream {
+fn make_togodot_for_newtype_struct(
+    convert: &GodotConvert,
+    field: &NewtypeStruct,
+    is_send: bool,
+) -> TokenStream {
     let GodotConvert {
         ty_name: name,
         generic_params,
@@ -48,10 +54,16 @@ fn make_togodot_for_newtype_struct(convert: &GodotConvert, field: &NewtypeStruct
     let generic_args = convert.generic_args();
     let field_name = &field.sized.ident;
     let via_type = &field.sized.ty;
+    let thread_safe_ty = if is_send {
+        quote! { :: godot::meta::ThreadSafeArg }
+    } else {
+        quote! { :: godot::meta::NonThreadSafeArg }
+    };
 
     quote! {
         impl #generic_params ::godot::meta::ToGodot for #name #generic_args #where_clause {
             type Pass = <#via_type as ::godot::meta::ToGodot>::Pass;
+            type Threads = #thread_safe_ty;
 
             fn to_godot(&self) -> ::godot::meta::ToArg<'_, Self::Via, Self::Pass> {
                 ::godot::meta::ToGodot::to_godot(&self.#field_name)
@@ -75,6 +87,7 @@ fn make_togodot_for_int_enum(
     quote! {
         impl ::godot::meta::ToGodot for #name {
             type Pass = ::godot::meta::conv::ByValue;
+            type Threads = ::godot::meta::ThreadSafeArg;
 
             #[allow(unused_parens)] // Error "unnecessary parentheses around block return value"; comes from ord expressions like (1 + 2).
             fn to_godot(&self) -> Self::Via {
@@ -96,6 +109,7 @@ fn make_togodot_for_string_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStream
     quote! {
         impl ::godot::meta::ToGodot for #name {
             type Pass = ::godot::meta::conv::ByValue;
+            type Threads = ::godot::meta::ThreadSafeArg;
 
             fn to_godot(&self) -> Self::Via {
                 match self {

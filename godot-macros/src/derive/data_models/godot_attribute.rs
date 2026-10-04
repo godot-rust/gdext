@@ -14,9 +14,13 @@ use crate::util::{KvParser, bail};
 /// Stores data related to the `#[godot(...)]` attribute.
 pub enum GodotAttribute {
     /// `#[godot(transparent)]`
-    Transparent { span: Span },
+    Transparent { span: Span, send: bool },
     /// `#[godot(via = via_type)]`
-    Via { span: Span, via_type: ViaType },
+    Via {
+        span: Span,
+        via_type: ViaType,
+        send: bool,
+    },
 }
 
 impl GodotAttribute {
@@ -30,15 +34,17 @@ impl GodotAttribute {
 
     fn parse(parser: &mut KvParser) -> ParseResult<Self> {
         let span = parser.span();
+        let send = parser.handle_alone("send")?;
 
         if parser.handle_alone("transparent")? {
-            return Ok(Self::Transparent { span });
+            return Ok(Self::Transparent { span, send });
         }
 
         if let Some(via_type) = parser.handle_ident("via")? {
             return Ok(Self::Via {
                 span,
                 via_type: ViaType::parse_ident(via_type)?,
+                send,
             });
         }
 
@@ -53,7 +59,7 @@ impl GodotAttribute {
     /// Specifically this is the span of the `[ ]` group from a `#[godot(...)]` attribute.
     pub fn span(&self) -> Span {
         match self {
-            GodotAttribute::Transparent { span } => *span,
+            GodotAttribute::Transparent { span, .. } => *span,
             GodotAttribute::Via { span, .. } => *span,
         }
     }

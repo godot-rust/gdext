@@ -34,6 +34,7 @@ impl GodotConvert for &str {
 
 impl ToGodot for &str {
     type Pass = meta::ByValue;
+    type Threads = meta::ThreadSafeArg;
 
     fn to_godot(&self) -> Self::Via {
         GString::from(*self)
@@ -50,6 +51,7 @@ impl GodotConvert for String {
 
 impl ToGodot for String {
     type Pass = meta::ByValue;
+    type Threads = meta::ThreadSafeArg;
 
     fn to_godot(&self) -> Self::Via {
         GString::from(self)

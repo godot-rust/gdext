@@ -20,6 +20,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
     let godot_type_name_method = make_godot_type_name_method(api);
     let inplace_variant_method = make_is_inplace_variant_method(api);
+    let is_thread_safe_method = make_is_thread_safe_method();
 
     quote! {
         #[cfg(target_pointer_width = "32")]
@@ -51,6 +52,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
 
             #godot_type_name_method
             #inplace_variant_method
+            #is_thread_safe_method
         }
     }
 }
@@ -323,6 +325,40 @@ fn make_godot_type_name_method(api: &ExtensionApi) -> TokenStream {
                 #( #ordinals => #names, )*
                 _ => "Unknown",
             }
+        }
+    }
+}
+
+fn make_is_thread_safe_method() -> TokenStream {
+    quote! {
+        /// Returns whether the variant type is thread-safe.
+        pub fn is_thread_safe(self) -> bool {
+            matches!(
+                self,
+                VariantType::NIL
+                | VariantType::BOOL
+                | VariantType::INT
+                | VariantType::FLOAT
+                | VariantType::STRING
+                | VariantType::VECTOR2
+                | VariantType::VECTOR2I
+                | VariantType::RECT2
+                | VariantType::RECT2I
+                | VariantType::VECTOR3
+                | VariantType::VECTOR3I
+                | VariantType::TRANSFORM2D
+                | VariantType::VECTOR4
+                | VariantType::VECTOR4I
+                | VariantType::PLANE
+                | VariantType::QUATERNION
+                | VariantType::AABB
+                | VariantType::BASIS
+                | VariantType::TRANSFORM3D
+                | VariantType::PROJECTION
+                | VariantType::COLOR
+                | VariantType::STRING_NAME
+                | VariantType::RID
+            )
         }
     }
 }

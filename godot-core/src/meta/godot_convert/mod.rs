@@ -11,7 +11,7 @@ use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::shape::GodotShape;
 use crate::meta::traits::GodotFfiVariant;
-use crate::meta::{ArgPassing, GodotType, ToArg};
+use crate::meta::{ArgPassing, GodotType, ThreadSafety, ToArg};
 
 /// Indicates that a type can be passed to/from Godot, either directly or through an intermediate "via" type.
 ///
@@ -88,6 +88,20 @@ pub trait ToGodot: Sized + GodotConvert {
     /// This has an influence on contexts such as [`Array::push()`][crate::builtin::Array::push], the [`array![...]`][crate::builtin::array]
     /// macro or generated signal `emit()` signatures.
     type Pass: ArgPassing;
+
+    /// Whether arguments of this type are thread-safe or not.
+    ///
+    /// Can be either [`ThreadSafeArg`](crate::meta::ThreadSafeArg) or [`NonThreadSafeArg`](crate::meta::NonThreadSafeArg).
+    /// All user defined types which derive [`GodotConvert`] are `NonThreadSafeArg` by default. To use `ThreadSafeArg` add the `#[godot(send)]`
+    /// attribute to the type. When manually implementing this trait Specify either `ThreadSafeArg` or `NonThreadSafeArg`. The use of
+    /// `ThreadSafeArg` also requires the type to be [`Send`].
+    ///
+    /// There are currently no thread-safety constraints being enforced on values returned by the engine, but when such a value is passed to
+    /// an engine API it might fail thread-safety checks.
+    //
+    // There is a third possible option `ManualThreadSafeArg` that can only be used by internal types. This type requires a manual
+    // implementation of `ThreadSafeArgContext`.
+    type Threads: ThreadSafety;
 
     /// Converts this type to Godot representation, optimizing for zero-copy when possible.
     ///
@@ -280,6 +294,10 @@ impl<T: FromGodot> EngineFromGodot for T {
 #[macro_export]
 macro_rules! impl_godot_as_self {
     ($T:ty: $Passing:ident) => {
+        $crate::impl_godot_as_self!($T: $Passing, ThreadSafeArg);
+    };
+
+    ($T:ty: $Passing:ident, $Threads:ident) => {
         impl $crate::meta::GodotConvert for $T {
             type Via = $T;
 
@@ -288,7 +306,7 @@ macro_rules! impl_godot_as_self {
             }
         }
 
-        $crate::impl_godot_as_self!(@to_godot $T: $Passing);
+        $crate::impl_godot_as_self!(@to_godot $T: $Passing, $Threads);
 
         impl $crate::meta::FromGodot for $T {
             #[inline]
@@ -298,9 +316,10 @@ macro_rules! impl_godot_as_self {
         }
     };
 
-    (@to_godot $T:ty: ByValue) => {
+    (@to_godot $T:ty: ByValue, $Threads:ident) => {
         impl $crate::meta::ToGodot for $T {
             type Pass = $crate::meta::ByValue;
+            type Threads = $crate::meta::$Threads;
 
             #[inline]
             fn to_godot(&self) -> Self::Via {
@@ -309,9 +328,10 @@ macro_rules! impl_godot_as_self {
         }
     };
 
-    (@to_godot $T:ty: ByRef) => {
+    (@to_godot $T:ty: ByRef, $Threads:ident) => {
         impl $crate::meta::ToGodot for $T {
             type Pass = $crate::meta::ByRef;
+            type Threads = $crate::meta::$Threads;
 
             #[inline]
             fn to_godot(&self) -> &Self::Via {
@@ -320,9 +340,10 @@ macro_rules! impl_godot_as_self {
         }
     };
 
-    (@to_godot $T:ty: ByVariant) => {
+    (@to_godot $T:ty: ByVariant, $Threads:ident) => {
         impl $crate::meta::ToGodot for $T {
             type Pass = $crate::meta::ByVariant;
+            type Threads = $crate::meta::$Threads;
 
             #[inline]
             fn to_godot(&self) -> &Self::Via {
