@@ -843,6 +843,31 @@ impl<K: Element, V: Element> FromIterator<(K, V)> for Dictionary<K, V> {
     }
 }
 
+/// Insert iterator of references into dictionary.
+///
+/// Inserts all key-value pairs from the iterator into the dictionary. Previous values for keys appearing
+/// in `iter` will be overwritten.
+impl<'k, 'v, K: Element, V: Element> Extend<(&'k K, &'v V)> for Dictionary<K, V> {
+    fn extend<I: IntoIterator<Item = (&'k K, &'v V)>>(&mut self, iter: I) {
+        for (k, v) in iter.into_iter() {
+            // Inline set logic to avoid generic owned_into_arg() (which can't resolve T::Pass).
+            self.balanced_ensure_mutable();
+
+            // SAFETY: K and V strongly typed.
+            unsafe { self.set_variant(k.to_variant(), v.to_variant()) };
+        }
+    }
+}
+
+/// Creates a `Dictionary` from an iterator over reference key-value pairs.
+impl<'k, 'v, K: Element, V: Element> FromIterator<(&'k K, &'v V)> for Dictionary<K, V> {
+    fn from_iter<I: IntoIterator<Item = (&'k K, &'v V)>>(iter: I) -> Self {
+        let mut dict = Dictionary::new();
+        dict.extend(iter);
+        dict
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // GodotConvert/ToGodot/FromGodot for Dictionary<K, V>
 
