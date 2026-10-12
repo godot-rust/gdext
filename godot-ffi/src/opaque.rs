@@ -26,3 +26,11 @@ pub struct Opaque<const N: usize> {
     storage: [u8; N],
     marker: std::marker::PhantomData<*const u8>, // disable Send/Sync
 }
+
+/// Like [`Opaque`], but 8-byte aligned on every target: Godot's `Variant` declares its data union `alignas(8)`, also on wasm32.
+#[repr(C, align(8))]
+#[derive(Copy, Clone)]
+pub struct OpaqueAlign8<const N: usize> {
+    storage: [u8; N],
+    marker: std::marker::PhantomData<*const u8>, // disable Send/Sync
+}

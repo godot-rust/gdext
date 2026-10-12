@@ -157,8 +157,13 @@ fn make_opaque_type(godot_original_name: &str, size: usize) -> TokenStream {
 
     // Capitalize: "int" -> "Int".
     let ident = format_ident!("Opaque{}{}", first.to_ascii_uppercase(), rest);
+    let opaque = if godot_original_name == "Variant" {
+        quote! { OpaqueAlign8 }
+    } else {
+        quote! { Opaque }
+    };
     quote! {
-        pub type #ident = crate::opaque::Opaque<#size>;
+        pub type #ident = crate::opaque::#opaque<#size>;
     }
 }
 
