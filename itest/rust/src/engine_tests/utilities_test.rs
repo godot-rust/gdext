@@ -43,6 +43,7 @@ fn utilities_str() {
 
     assert_eq!(concat, "12 is a true number");
     assert_eq!(concat, godot_str!("{a}{b}{c}{d}"));
+    assert_eq!(godot_str!("{x}|{y:>4}", x = a + 1, y = a), "13|  12");
     assert_eq!(empty, GString::new());
 }
 
