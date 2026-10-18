@@ -11,6 +11,10 @@
 //
 // Credits to fasterthanlime for discovering the very helpful workaround.
 // See: https://fasterthanli.me/articles/so-you-want-to-live-reload-rust#what-can-prevent-dlclose-from-unloading-a-library
+//
+// We do not export `__cxa_thread_atexit_impl`: Godot loads extensions with `RTLD_DEEPBIND`, so their dependencies (e.g. libstdc++) calling it
+// would run our instead of glibc's fn definition. glibc then keeps the extension loaded as long as libstdc++, which is never unloaded
+// (`STB_GNU_UNIQUE`) -> hot reload would encounter stale statics. Not exporting it only affects other libraries; Rust std still links to it.
 
 use std::ffi::c_void;
 use std::sync::OnceLock;
@@ -22,28 +26,50 @@ pub fn default_set_hot_reload() {
     // By default, we enable hot reloading for debug builds, as it's likely that the user may want hot reloading in debug builds.
     // Release builds however should avoid leaking memory, so we disable hot reloading support by default.
     // In the future, this might consider the .gdextension `is_reloadable` flag, or whether Godot is using an editor or export build.
-    if cfg!(debug_assertions) {
-        enable_hot_reload()
-    } else {
-        disable_hot_reload()
+    let enabled = cfg!(debug_assertions);
+
+    // Already set -> `dlclose` did not unmap the library; continuing would re-initialize stale statics.
+    if HOT_RELOADING_ENABLED.set(enabled).is_err() {
+        panic!(
+            "GDExtension library was re-initialized without being unloaded first. Hot-reload is not possible, restart Godot.\n\
+            Something keeps the library loaded after `dlclose`, e.g. thread-local destructors or a library binding to its symbols."
+        );
     }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Publicly accessible
 
+// Hidden symbol needs asm: stable Rust `#[no_mangle]` always exports, visibility control is nightly-only, and a dependency crate cannot pass
+// a `--version-script` to the user's cdylib. Other architectures don't define the symbol -> TLS destructors block hot reload.
 #[macro_export]
 macro_rules! register_hot_reload_workaround {
     () => {
-        #[unsafe(no_mangle)]
-        #[doc(hidden)]
-        pub unsafe extern "C" fn __cxa_thread_atexit_impl(
-            func: *mut ::std::ffi::c_void,
-            obj: *mut ::std::ffi::c_void,
-            dso_symbol: *mut ::std::ffi::c_void,
-        ) {
-            $crate::linux_reload_workaround::thread_atexit(func, obj, dso_symbol);
+        // Module, as `global_asm!` cannot be in statement position (e.g. doctests with `#[gdextension]` inside `fn main`).
+        mod __godot_rust_hot_reload {
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            $crate::__thread_atexit_trampoline!("jmp {f}");
+            #[cfg(target_arch = "aarch64")]
+            $crate::__thread_atexit_trampoline!("b {f}");
+            #[cfg(target_arch = "riscv64")]
+            $crate::__thread_atexit_trampoline!("tail {f}");
         }
+    };
+}
+
+#[macro_export]
+macro_rules! __thread_atexit_trampoline {
+    ($jump:literal) => {
+        ::std::arch::global_asm!(
+            ".pushsection .text",
+            ".globl __cxa_thread_atexit_impl",
+            ".hidden __cxa_thread_atexit_impl",
+            ".type __cxa_thread_atexit_impl, %function",
+            "__cxa_thread_atexit_impl:",
+            $jump,
+            ".popsection",
+            f = sym $crate::linux_reload_workaround::thread_atexit,
+        );
     };
 }
 
@@ -63,7 +89,7 @@ pub fn is_hot_reload_enabled() -> bool {
     // that set hot reloading to be enabled or disabled.
     //
     // Do *not* eagerly initialize here. Our `__cxa_thread_atexit_impl` replaces the one from glibc, so any thread can call `thread_atexit`
-    // (and thus this function) before `__gdext_load_library` runs. If we stored `false` on that first read, the later `enable_hot_reload()`
+    // (and thus this function) before `__gdext_load_library` runs. If we stored `false` on that first read, the later `default_set_hot_reload()`
     // would try to set the value a second time and panic. See https://github.com/godot-rust/gdext/issues/1209.
     HOT_RELOADING_ENABLED.get().copied().unwrap_or(false)
 }
@@ -72,9 +98,12 @@ pub fn is_hot_reload_enabled() -> bool {
 /// into a no-op if hot reloading is enabled.
 ///
 /// # Safety
-/// This needs to be public for symbol visibility reasons, but you should
-/// never need to call this yourself
-pub unsafe fn thread_atexit(func: *mut c_void, obj: *mut c_void, dso_symbol: *mut c_void) {
+/// This needs to be public for symbol visibility reasons, but you should never need to call this yourself.
+pub unsafe extern "C" fn thread_atexit(
+    func: *mut c_void,
+    obj: *mut c_void,
+    dso_symbol: *mut c_void,
+) {
     if is_hot_reload_enabled() {
         // Avoid registering TLS destructors on purpose, to avoid
         // double-frees and general crashiness
@@ -89,29 +118,14 @@ pub unsafe fn thread_atexit(func: *mut c_void, obj: *mut c_void, dso_symbol: *mu
     }
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Implementation
-
-fn enable_hot_reload() {
-    // If hot reloading is enabled then we should properly unload the library, so this will only be called once.
-    HOT_RELOADING_ENABLED
-        .set(true)
-        .expect("hot reloading should only be set once")
-}
-
-fn disable_hot_reload() {
-    // If hot reloading is disabled then we may call this method multiple times.
-    _ = HOT_RELOADING_ENABLED.set(false)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // An early read (before init) must not store a default value, otherwise the later `enable_hot_reload()` panics.
+    // Single test, as the OnceLock is global: early read must not block init + second init (no unload) panics.
     // See https://github.com/godot-rust/gdext/issues/1209.
     #[test]
-    fn early_read_does_not_block_enable() {
+    fn hot_reload_setting_lifecycle() {
         // Simulates `thread_atexit` firing before `__gdext_load_library` runs.
         let early = is_hot_reload_enabled();
         assert!(!early, "default must be false before any enable/disable");
@@ -121,5 +135,12 @@ mod tests {
 
         // `default_set_hot_reload()` enables only under `debug_assertions`; release-mode test runs disable instead.
         assert_eq!(is_hot_reload_enabled(), cfg!(debug_assertions));
+
+        // Re-init of a library that was not unloaded.
+        let reinit = std::panic::catch_unwind(default_set_hot_reload);
+        assert!(
+            reinit.is_err(),
+            "re-initialization with stale statics must panic"
+        );
     }
 }

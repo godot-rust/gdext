@@ -73,7 +73,7 @@ enum Planet {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Simulates a C++ dependency: libstdc++ is never unloaded and pins the extension if it binds any of its symbols.
+// Simulates a C++ dependency: libstdc++ is never unloaded. If any of its imports resolves into the extension, glibc keeps the extension loaded.
 // Regression test for https://github.com/godot-rust/gdext/issues/1209.
 
 #[cfg(all(feature = "cpp-dependency", target_os = "linux"))]
@@ -83,7 +83,7 @@ mod cpp_dependency {
         fn __cxa_thread_atexit();
     }
 
-    // Prevents `--as-needed` from dropping the otherwise unused library.
+    // Referencing a symbol keeps libstdc++ in `DT_NEEDED`. rustc links with `--as-needed`, which removes unreferenced libraries.
     #[used]
     static KEEP_LINKED: unsafe extern "C" fn() = __cxa_thread_atexit;
 }
