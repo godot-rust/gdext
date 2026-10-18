@@ -18,9 +18,10 @@ else
   exit 1
 fi
 
-if [[ $2 == "signal-test" ]]; then
-    cargoArgs="${cargoArgs} --features signal-test"
-fi
+# Remaining arguments are crate features, e.g. 'signal-test', 'cpp-dependency'.
+for feature in "${@:2}"; do
+  cargoArgs="${cargoArgs} --features ${feature}"
+done
 
 # Restore un-reloaded files on exit (for local testing).
 cleanedUp=0 # avoid recursion if cleanup fails

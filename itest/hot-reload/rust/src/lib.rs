@@ -73,6 +73,22 @@ enum Planet {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Simulates a C++ dependency: libstdc++ is never unloaded and pins the extension if it binds any of its symbols.
+// Regression test for https://github.com/godot-rust/gdext/issues/1209.
+
+#[cfg(all(feature = "cpp-dependency", target_os = "linux"))]
+mod cpp_dependency {
+    #[link(name = "libstdc++.so.6", kind = "dylib", modifiers = "+verbatim")]
+    unsafe extern "C" {
+        fn __cxa_thread_atexit();
+    }
+
+    // Prevents `--as-needed` from dropping the otherwise unused library.
+    #[used]
+    static KEEP_LINKED: unsafe extern "C" fn() = __cxa_thread_atexit;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Signal soundness: https://github.com/godot-rust/gdext/pull/1512.
 
 #[cfg(feature = "signal-test")]
