@@ -210,7 +210,7 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features itest/codegen-full,itest/test-gdextension-dependency
             rust-extra-env: GDRUST_MAIN_EXTENSION=IntegrationTests
-            hot-reload: stable signal-test
+            hot-reload: stable signal-test cpp-dependency
 
           # JSON-based codegen path is kept in minimal CI, as it has surfaced config errors several times in the past.
           - name: linux-custom-api-json
