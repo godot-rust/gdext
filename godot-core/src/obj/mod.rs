@@ -22,6 +22,7 @@ mod on_editor;
 mod on_ready;
 mod raw_gd;
 mod traits;
+mod unique;
 
 mod base_init;
 #[cfg(since_api = "4.7")]
@@ -54,6 +55,7 @@ pub use on_editor::*;
 pub use on_ready::*;
 pub use raw_gd::*;
 pub use traits::*;
+pub use unique::{Unique, UniqueType};
 
 pub mod bounds;
 pub mod script;

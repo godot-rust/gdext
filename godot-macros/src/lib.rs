@@ -1519,6 +1519,31 @@ pub fn godot_dyn(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// assert_eq!(MyEnum::B.to_godot(), 10);
 /// assert_eq!(MyEnum::C.to_godot(), 11);
 /// ```
+///
+///
+/// # Thread-Safety
+///
+/// If you additionally specify `#[godot(send)]` the type will be considered thread-safe and must implement the `Send` trait. Thread-safe
+/// types can be passed to engine APIs outside the main-thread.
+///
+/// ## Example
+///
+/// Specify `send` to mark the type thread-safe, this requires the type to implement `Send`.
+///
+///
+/// ```no_run
+/// use godot::prelude::*;
+/// use std::marker::PhantomData;
+///
+/// #[derive(GodotConvert)]
+/// #[godot(transparent, send)]
+/// struct Key<T: Send> {
+///     id: u32,
+///     #[godot(skip)]
+///     _marker: PhantomData<T>,
+/// }
+/// ```
+///
 #[proc_macro_derive(GodotConvert, attributes(godot))]
 pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_godot_convert)
