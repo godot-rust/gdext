@@ -56,9 +56,9 @@ macro_rules! inner_function {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! inner_godot_msg {
-    ($level:expr; $fmt:literal $(, $args:expr)* $(,)?) => {
+    ($level:expr; $($args:tt)*) => {
         {
-            let description = format!($fmt $(, $args)*);
+            let description = format!($($args)*);
             $crate::global::print_custom($crate::global::PrintRecord {
                 level: $level,
                 message: &description,
@@ -316,8 +316,8 @@ pub fn __threadsafe_print(message: String, rich: bool) {
 /// _Godot equivalent: [`@GlobalScope.push_warning()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-warning)_.
 #[macro_export]
 macro_rules! godot_warn {
-    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::inner_godot_msg!($crate::global::PrintLevel::Warn; $fmt $(, $args)*)
+    ($($args:tt)*) => {
+        $crate::inner_godot_msg!($crate::global::PrintLevel::Warn; $($args)*)
     };
 }
 
@@ -332,8 +332,8 @@ macro_rules! godot_warn {
 /// _Godot equivalent: [`@GlobalScope.push_error()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-error)_.
 #[macro_export]
 macro_rules! godot_error {
-    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::inner_godot_msg!($crate::global::PrintLevel::Error; $fmt $(, $args)*)
+    ($($args:tt)*) => {
+        $crate::inner_godot_msg!($crate::global::PrintLevel::Error; $($args)*)
     };
 }
 
@@ -347,8 +347,8 @@ macro_rules! godot_error {
 ///
 #[macro_export]
 macro_rules! godot_script_error {
-    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::inner_godot_msg!($crate::global::PrintLevel::ScriptError; $fmt $(, $args)*)
+    ($($args:tt)*) => {
+        $crate::inner_godot_msg!($crate::global::PrintLevel::ScriptError; $($args)*)
     };
 }
 
@@ -373,8 +373,8 @@ macro_rules! godot_script_error {
 /// _Godot equivalent: [`@GlobalScope.print()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print)_.
 #[macro_export]
 macro_rules! godot_print {
-    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::global::__threadsafe_print(format!($fmt $(, $args)*), false)
+    ($($args:tt)*) => {
+        $crate::global::__threadsafe_print(format!($($args)*), false)
     };
 }
 
@@ -385,8 +385,8 @@ macro_rules! godot_print {
 /// _Godot equivalent: [`@GlobalScope.print_rich()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print-rich)_.
 #[macro_export]
 macro_rules! godot_print_rich {
-    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
-        $crate::global::__threadsafe_print(format!($fmt $(, $args)*), true)
+    ($($args:tt)*) => {
+        $crate::global::__threadsafe_print(format!($($args)*), true)
     };
 }
 
@@ -410,10 +410,10 @@ macro_rules! godot_print_rich {
 /// _Godot equivalent: [`@GlobalScope.str()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-str)_.
 #[macro_export]
 macro_rules! godot_str {
-    ($fmt:literal $(, $args:expr_2021)* $(,)?) => {
+    ($($args:tt)*) => {
         $crate::global::str(&[
             $crate::builtin::Variant::from(
-                format!($fmt $(, $args)*)
+                format!($($args)*)
             )
         ])
     };
