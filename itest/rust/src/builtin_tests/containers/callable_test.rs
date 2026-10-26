@@ -461,7 +461,7 @@ pub mod custom_callable {
                 || {
                     quick_thread(|| {
                         let callable = unsafe { crosser.extract() };
-                        callable.callv(&varray![5]);
+                        callable.call(vslice![5]);
                     });
                 },
             );
@@ -469,7 +469,7 @@ pub mod custom_callable {
             // Multi-threaded OR safeguards disengaged: No FFI panic, but callable may or may not execute.
             quick_thread(|| {
                 let callable = unsafe { crosser.extract() };
-                callable.callv(&varray![5]);
+                callable.call(vslice![5]);
             });
         }
 

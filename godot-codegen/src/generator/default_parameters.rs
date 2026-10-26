@@ -11,10 +11,12 @@ use quote::{format_ident, quote};
 
 use crate::context::Context;
 use crate::generator::functions_common::{
-    FnArgExpr, FnCode, FnKind, FnMeta, FnParamDecl, make_arg_expr, make_param_or_field_type,
+    self, FnArgExpr, FnCode, FnKind, FnMeta, FnParamDecl, make_arg_expr,
+    make_arg_thread_validator_expr, make_param_or_field_type,
 };
-use crate::generator::{functions_common, import_docs};
+use crate::generator::import_docs;
 use crate::models::domain::{ApiView, FnParam, FnQualifier, Function, RustTy, TyName};
+use crate::special_cases::is_method_threadsafe_return;
 use crate::util::{ident, safe_ident};
 use crate::{conv, special_cases};
 
@@ -65,7 +67,14 @@ pub fn make_function_definition_with_defaults(
         &default_fn_params,
     );
 
-    let return_decl = &sig.return_value().decl;
+    let return_decl = if let Some(class_name) = sig.surrounding_class()
+        && is_method_threadsafe_return(class_name, sig.godot_name())
+    {
+        sig.return_value().thread_safe_decl()
+    } else {
+        sig.return_value().decl.clone()
+    };
+
     let (maybe_deprecated, maybe_expect_deprecated) = fns::make_deprecation_attribute(sig);
 
     // The _ex() function and builder always get an explicit lifetime (see make_extender()); adjust &self -> &'ex self.
@@ -74,6 +83,14 @@ pub fn make_function_definition_with_defaults(
     let extended_receiver_param = &code.receiver.param_lifetime_ex;
     let cfg_attributes = &meta.cfg_attributes;
     let maybe_specific_docs = &meta.specific_docs;
+    let required_arg_thread_verifiers = if !sig.is_private() {
+        required_fn_params
+            .iter()
+            .filter_map(|param| make_arg_thread_validator_expr(&param.name, &param.type_))
+            .collect()
+    } else {
+        Vec::with_capacity(0)
+    };
 
     let mut maybe_godot_doc = TokenStream::new();
     if let Some(doc) = import_docs::import_function_docs(sig, ctx, view) {
@@ -146,6 +163,7 @@ pub fn make_function_definition_with_defaults(
             #extended_receiver_param
             #( #class_method_required_params_lifetimed, )*
         ) -> #builder_ty<'ex> {
+            #(#required_arg_thread_verifiers)*
             #builder_ty::new(
                 #object_arg
                 #( #class_method_required_args, )*
@@ -331,10 +349,13 @@ fn make_extender(
             make_param_or_field_type(name, type_, param_decl, &mut dummy_lifetime_gen);
 
         let arg_expr = make_arg_expr(name, type_, FnArgExpr::StoreInField);
+        let arg_thread_verifier = make_arg_thread_validator_expr(name, type_);
 
         let method = quote! {
             #[inline]
             pub fn #name(self, #param_decl) -> Self {
+                #arg_thread_verifier
+
                 // Currently not testing whether the parameter was already set.
                 Self {
                     #name: #arg_expr,
