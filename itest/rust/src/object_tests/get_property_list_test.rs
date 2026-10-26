@@ -8,11 +8,13 @@
 use std::collections::HashMap;
 
 use godot::builtin::{GString, StringName, VarDictionary, VariantType, Vector2, Vector3};
-use godot::classes::{IObject, Node};
-use godot::obj::{Gd, NewAlloc};
+use godot::classes::{IObject, Node, Object};
+use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
 use godot::register::info::{PropertyHint, PropertyInfo, PropertyUsageFlags};
 use godot::register::{GodotClass, godot_api};
 use godot::test::itest;
+
+use crate::framework::suppress_panic_log;
 
 #[derive(GodotClass)]
 #[class(base = Object, init)]
@@ -73,6 +75,80 @@ fn get_property_list_returns() {
         properties_missing.is_empty(),
         "missing properties: {:?}",
         properties_missing.keys().collect::<Vec<_>>()
+    );
+
+    obj.free();
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Panics inside the callback must not unwind across the FFI boundary.
+
+#[derive(GodotClass)]
+#[class(base = Object, init)]
+struct GetPropertyListPanic {}
+
+#[godot_api]
+impl IObject for GetPropertyListPanic {
+    fn on_get_property_list(&mut self) -> Vec<PropertyInfo> {
+        panic!("intentional panic in on_get_property_list");
+    }
+}
+
+#[derive(GodotClass)]
+#[class(base = Object, init)]
+struct GetPropertyListReentrant {
+    base: Base<Object>,
+}
+
+#[godot_api]
+impl IObject for GetPropertyListReentrant {
+    fn on_get_property_list(&mut self) -> Vec<PropertyInfo> {
+        // Re-enters the same callback through the engine, while `&mut self` is still borrowed. The inner call fails to bind and panics;
+        // that panic must be caught inside the inner callback. Godot calls this virtual from its resource-preview thread, where the same
+        // borrow conflict occurs against the main thread; see https://github.com/godot-rust/gdext/issues/1668.
+        let inner = self.to_gd().get_property_list();
+        // Inner call reports an empty extension part; base properties remain.
+        let inner_names: Vec<String> = inner
+            .iter_shared()
+            .map(|dict| dict.at("name").to::<GString>().to_string())
+            .collect();
+        assert!(
+            !inner_names.contains(&"outer_property".to_string()),
+            "inner: {inner_names:?}"
+        );
+
+        vec![PropertyInfo::new_var::<bool>("outer_property")]
+    }
+}
+
+fn property_names(obj: &Gd<Object>) -> Vec<String> {
+    obj.get_property_list()
+        .iter_shared()
+        .map(|dict| dict.at("name").to::<GString>().to_string())
+        .collect()
+}
+
+#[itest]
+fn get_property_list_panic_is_caught() {
+    let obj = GetPropertyListPanic::new_alloc();
+
+    let names = suppress_panic_log(|| property_names(&obj.clone().upcast()));
+
+    // Extension part is reported as empty, base properties remain.
+    assert!(names.contains(&"script".to_string()), "names: {names:?}");
+
+    obj.free();
+}
+
+#[itest]
+fn get_property_list_reentrant_borrow_is_caught() {
+    let obj = GetPropertyListReentrant::new_alloc();
+
+    let names = suppress_panic_log(|| property_names(&obj.clone().upcast()));
+
+    assert!(
+        names.contains(&"outer_property".to_string()),
+        "names: {names:?}"
     );
 
     obj.free();

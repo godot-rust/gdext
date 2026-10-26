@@ -740,3 +740,19 @@ func _trigger_varcall_error(obj: Variant) -> void:
 	# In debug builds, this function is aborted here by the GDScript VM.
 	# In release builds, execution continues (error code ignored).
 	Engine.print_error_messages = true
+
+# Godot invokes extension callbacks from non-main threads, e.g. when saving resources in a WorkerThreadPool task.
+# godot-rust cannot support that, but must report an error instead of aborting the process.
+# Regression test for https://github.com/godot-rust/gdext/issues/1668.
+var _worker_thread_instance: Variant = null
+
+func test_instantiate_on_worker_thread():
+	Engine.print_error_messages = false
+	var task := WorkerThreadPool.add_task(_instantiate_on_worker_thread)
+	WorkerThreadPool.wait_for_task_completion(task)
+	Engine.print_error_messages = true
+
+	assert_eq(_worker_thread_instance, null, "instantiation outside main thread returns null")
+
+func _instantiate_on_worker_thread() -> void:
+	_worker_thread_instance = ClassDB.instantiate("WithInitDefaults")

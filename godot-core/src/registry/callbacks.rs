@@ -67,6 +67,18 @@ fn handle_method_panic_bool<T: GodotClass>(
     sys::conv::bool_to_sys(succeeded)
 }
 
+/// Same as [`handle_method_panic()`], for the constructor callbacks that report failure as a null pointer.
+///
+/// Guards the entire callback body, not just user code: FFI calls around it can panic too, e.g. on the main-thread check.
+fn null_on_panic<T: GodotClass, P>(
+    code: impl FnOnce() -> Result<*mut P, PanicPayload> + std::panic::UnwindSafe,
+) -> *mut P {
+    match handle_method_panic::<T, _>("init", code) {
+        Ok(Ok(ptr)) => ptr,
+        _ => std::ptr::null_mut(),
+    }
+}
+
 /// Godot FFI default constructor.
 ///
 /// If the `init()` constructor panics, null is returned.
@@ -77,11 +89,14 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
 ) -> sys::GDExtensionObjectPtr {
-    create_custom(
-        T::__godot_user_init,
-        sys::conv::bool_from_sys(_notify_postinitialize),
-    )
-    .unwrap_or(std::ptr::null_mut())
+    let code = || {
+        create_custom(
+            T::__godot_user_init,
+            sys::conv::bool_from_sys(_notify_postinitialize),
+        )
+    };
+
+    null_on_panic::<T, _>(code)
 }
 
 #[cfg(before_api = "4.4")]
@@ -89,7 +104,7 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
     // `notify_postinitialize` doesn't matter before 4.4, it's sent by Godot when constructing object and we don't send it.
-    create_custom(T::__godot_user_init, true).unwrap_or(std::ptr::null_mut())
+    null_on_panic::<T, _>(|| create_custom(T::__godot_user_init, true))
 }
 
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
@@ -117,8 +132,9 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     object: sys::GDExtensionObjectPtr,
 ) -> sys::GDExtensionClassInstancePtr {
-    create_rust_part_for_existing_godot_part(T::__godot_user_init, object, false)
-        .unwrap_or(std::ptr::null_mut())
+    null_on_panic::<T, _>(|| {
+        create_rust_part_for_existing_godot_part(T::__godot_user_init, object, false)
+    })
 }
 
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
