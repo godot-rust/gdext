@@ -32,6 +32,7 @@ pub mod rpc;
 pub(crate) mod rtti;
 // TODO(v0.6): godot::obj::signal was accidentally public; kept for SemVer -> remove in next minor. Canonical is godot::signal.
 #[doc(hidden)]
+#[deprecated = "Use `godot::signal` instead; `godot::obj::signal` will be removed in v0.6."]
 pub mod signal {
     pub mod re_export {
         pub use crate::signal::{
