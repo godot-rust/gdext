@@ -1000,7 +1000,6 @@ pub mod cap {
         }
     }
 
-    // TODO Evaluate whether we want this public or not
     #[doc(hidden)]
     pub trait GodotToString: GodotClass {
         #[doc(hidden)]
@@ -1010,14 +1009,12 @@ pub mod cap {
         fn __godot_to_string(this: VirtualMethodReceiver<Self>) -> GString;
     }
 
-    // TODO Evaluate whether we want this public or not
     #[doc(hidden)]
     pub trait GodotNotification: GodotClass {
         #[doc(hidden)]
         fn __godot_on_notification(&mut self, what: i32);
     }
 
-    // TODO Evaluate whether we want this public or not
     #[doc(hidden)]
     pub trait GodotRegisterClass: GodotClass {
         #[doc(hidden)]
