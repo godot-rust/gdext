@@ -49,22 +49,18 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
         TokenStream::new()
     };
 
-    let entry_point = entry_symbol
-        .or(entry_point)
-        .unwrap_or_else(|| ident("godot_rust_init"));
-
     let impl_ty = &impl_decl.self_ty;
 
-    // Backwards compatibility for older name.
-    let legacy_entry_point = (entry_point == "gdext_rust_init").then(|| {
+    // Also export the old default name, so existing `.gdextension` files keep loading. Godot resolves it at runtime -> warn there.
+    let legacy_entry_point = (entry_symbol.is_none() && entry_point.is_none()).then(|| {
         quote! {
             #[unsafe(no_mangle)]
-            unsafe extern "C" fn #entry_point(
+            unsafe extern "C" fn gdext_rust_init(
                 get_proc_address: ::godot::sys::GDExtensionInterfaceGetProcAddress,
                 library: ::godot::sys::GDExtensionClassLibraryPtr,
                 init: *mut ::godot::sys::GDExtensionInitialization,
             ) -> ::godot::sys::GDExtensionBool {
-                ::godot::init::__godot_rust_load_library::<#impl_ty>(
+                ::godot::init::__godot_rust_load_library_legacy::<#impl_ty>(
                     get_proc_address,
                     library,
                     init
@@ -72,6 +68,10 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             }
         }
     });
+
+    let entry_point = entry_symbol
+        .or(entry_point)
+        .unwrap_or_else(|| ident("godot_rust_init"));
 
     Ok(quote! {
         #deprecation

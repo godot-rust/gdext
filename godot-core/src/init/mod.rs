@@ -218,6 +218,27 @@ pub unsafe fn __godot_rust_load_library<E: ExtensionLibrary>(
     is_success.unwrap_or(0)
 }
 
+/// Entry point exported under the old default symbol `gdext_rust_init`.
+#[doc(hidden)]
+pub unsafe fn __godot_rust_load_library_legacy<E: ExtensionLibrary>(
+    get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
+    library: sys::GDExtensionClassLibraryPtr,
+    init: *mut sys::GDExtensionInitialization,
+) -> sys::GDExtensionBool {
+    // SAFETY: same contract as caller.
+    let result = unsafe { __godot_rust_load_library::<E>(get_proc_address, library, init) };
+
+    // Only print if initialization succeeded, otherwise the print functions are not loaded.
+    if result != 0 {
+        crate::godot_warn!(
+            "`entry_symbol = \"gdext_rust_init\"` in the .gdextension file is deprecated; use `\"godot_rust_init\"` instead.\n\
+            The old name will stop working in godot-rust v0.6."
+        );
+    }
+
+    result
+}
+
 static LEVEL_SERVERS_CORE_LOADED: AtomicBool = AtomicBool::new(false);
 
 unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
