@@ -32,27 +32,19 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
     }
 
     let mut parser = KvParser::parse_required(&drained_attributes, "gdextension", &impl_decl)?;
-    let entry_point = parser.handle_ident("entry_point")?;
     let entry_symbol = parser.handle_ident("entry_symbol")?;
-    parser.finish()?;
-
-    if entry_point.is_some() && entry_symbol.is_some() {
+    if let Some((key, _)) = parser.handle_any_entry("entry_point") {
         return bail!(
-            impl_decl.tk_impl,
-            "Cannot specify both `entry_point` and `entry_symbol` in #[gdextension] attribute",
+            key,
+            "#[gdextension]: key `entry_point` has been renamed to `entry_symbol`",
         );
     }
-
-    let deprecation = if entry_point.is_some() {
-        quote! { ::godot::__deprecated::emit_deprecated_warning!(gdextension_entry_point); }
-    } else {
-        TokenStream::new()
-    };
+    parser.finish()?;
 
     let impl_ty = &impl_decl.self_ty;
 
     // Also export the old default name, so existing `.gdextension` files keep loading. Godot resolves it at runtime -> warn there.
-    let legacy_entry_point = (entry_symbol.is_none() && entry_point.is_none()).then(|| {
+    let legacy_entry_point = entry_symbol.is_none().then(|| {
         quote! {
             #[unsafe(no_mangle)]
             unsafe extern "C" fn gdext_rust_init(
@@ -69,12 +61,9 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
         }
     });
 
-    let entry_point = entry_symbol
-        .or(entry_point)
-        .unwrap_or_else(|| ident("godot_rust_init"));
+    let entry_point = entry_symbol.unwrap_or_else(|| ident("godot_rust_init"));
 
     Ok(quote! {
-        #deprecation
         #impl_decl
         #legacy_entry_point
 
