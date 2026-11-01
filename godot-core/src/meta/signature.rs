@@ -107,12 +107,12 @@ where
         #[cfg(feature = "itest")]
         trace::push(true, false, call_ctx);
 
-        // SAFETY: TODO.
+        // SAFETY: Godot's varcall passes `arg_count` valid `Variant` pointers; count is in range, checked above.
         let args =
             unsafe { Params::from_varcall_args(args_ptr, arg_count, default_values, call_ctx)? };
 
         let rust_result = unsafe { func(instance_ptr, args) };
-        // SAFETY: TODO.
+        // SAFETY: `ret` (initialized `Variant`) and `err` are Godot's varcall out-params, written once each.
         unsafe { varcall_return::<Ret>(rust_result, ret, err, call_ctx)? };
         Ok(())
     }
@@ -136,12 +136,10 @@ where
         #[cfg(feature = "itest")]
         trace::push(true, true, call_ctx);
 
-        // SAFETY: TODO.
+        // SAFETY: Godot's ptrcall passes `Params::LEN` type pointers matching `Params`.
         let args = unsafe { Params::from_ptrcall_args(args_ptr, call_type, call_ctx)? };
 
-        // SAFETY:
-        // `ret` is always a pointer to an initialized value of type $R
-        // TODO: double-check the above
+        // SAFETY: Godot's ptrcall passes `ret` as initialized type pointer of `Ret`.
         unsafe { ptrcall_return::<Ret>(func(instance_ptr, args), ret, call_ctx, call_type)? };
 
         Ok(())
@@ -273,7 +271,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
                 finish_ptrcall(&call_ctx, false, &mut |return_ptr| {
                     let type_ptrs = concat_varargs_ptrs(explicit_args, arg_count, varargs);
                     // Important: this calls from_sys_init_default().
-                    // SAFETY: TODO.
+                    // SAFETY: caller guarantees the signature; `type_ptrs` outlives the call.
                     utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
                 })
             })
@@ -543,8 +541,8 @@ pub(crate) unsafe fn varcall_return_checked<R: ToGodot>(
 /// `strat::Unexpected`) can't abort the calling GDScript function. Instead, this results in a Godot error print + default value.
 ///
 /// # Safety
-/// `ret_val`, `ret`, and `call_type` must follow the safety requirements as laid out in
-/// [`GodotFuncMarshal::try_return`](sys::GodotFuncMarshal::try_return).
+/// `ret` must be a valid type pointer for `R`, initialized according to `call_type`; see
+/// [`GodotFfi::move_return_ptr`](sys::GodotFfi::move_return_ptr).
 unsafe fn ptrcall_return<R: EngineToGodot>(
     ret_val: R,
     ret: sys::GDExtensionTypePtr,

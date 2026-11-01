@@ -276,10 +276,9 @@ pub type UtilityFunctionBind = unsafe extern "C" fn(
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
 
-// TODO: Most of these should be `unsafe` since the caller passes an `unsafe extern "C"` function pointer which it must be legal to call.
-// But for now we can just rely on knowing that these aren't called in the wrong context.
-
-pub(crate) fn load_class_method(
+/// # Safety
+/// `get_method_bind` must be Godot's `classdb_get_method_bind` interface function.
+pub(crate) unsafe fn load_class_method(
     get_method_bind: GetClassMethod,
     string_names: &mut sys::StringCache,
     class_sname_ptr: Option<sys::GDExtensionStringNamePtr>,
@@ -297,7 +296,7 @@ pub(crate) fn load_class_method(
     let method_sname_ptr: sys::GDExtensionStringNamePtr = string_names.fetch(method_name);
     let class_sname_ptr = class_sname_ptr.unwrap_or_else(|| string_names.fetch(class_name));
 
-    // SAFETY: function pointers provided by Godot. We have no way to validate them.
+    // SAFETY: caller guarantees function pointer is from Godot.
     let method: sys::GDExtensionMethodBindPtr =
         unsafe { get_method_bind(class_sname_ptr, method_sname_ptr, hash) };
 
@@ -308,7 +307,9 @@ pub(crate) fn load_class_method(
     ClassMethodBind(method)
 }
 
-pub(crate) fn load_builtin_method(
+/// # Safety
+/// `get_builtin_method` must be Godot's `variant_get_ptr_builtin_method` interface function.
+pub(crate) unsafe fn load_builtin_method(
     get_builtin_method: GetBuiltinMethod,
     string_names: &mut sys::StringCache,
     variant_type: sys::GDExtensionVariantType,
@@ -324,7 +325,7 @@ pub(crate) fn load_builtin_method(
     );*/
 
     let method_sname = string_names.fetch(method_name);
-    // SAFETY: function pointers provided by Godot. We have no way to validate them.
+    // SAFETY: caller guarantees function pointer is from Godot.
     let method = unsafe { get_builtin_method(variant_type, method_sname, hash) };
 
     method.unwrap_or_else(|| {
@@ -340,13 +341,15 @@ pub(crate) fn validate_builtin_lifecycle<T>(function: Option<T>, description: &s
     })
 }
 
-pub(crate) fn load_utility_function(
+/// # Safety
+/// `get_utility_fn` must be Godot's `variant_get_ptr_utility_function` interface function.
+pub(crate) unsafe fn load_utility_function(
     get_utility_fn: GetUtilityFunction,
     string_names: &mut sys::StringCache,
     fn_name_str: &'static str,
     hash: i64,
 ) -> UtilityFunctionBind {
-    // SAFETY: function pointers provided by Godot. We have no way to validate them.
+    // SAFETY: caller guarantees function pointer is from Godot.
     let utility_fn = unsafe { get_utility_fn(string_names.fetch(fn_name_str), hash) };
 
     utility_fn.unwrap_or_else(|| {

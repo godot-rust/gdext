@@ -77,14 +77,17 @@ pub fn make_class_method_table(
         lazy_key_type: quote! { crate::lazy_keys::ClassMethodKey },
         lazy_method_init: quote! {
             let get_method_bind = crate::interface_fn!(classdb_get_method_bind);
-            crate::load_class_method(
-                get_method_bind,
-                &mut inner.string_cache,
-                None,
-                key.class_name,
-                key.method_name,
-                key.hash
-            )
+            // SAFETY: function pointer is from Godot.
+            unsafe {
+                crate::load_class_method(
+                    get_method_bind,
+                    &mut inner.string_cache,
+                    None,
+                    key.class_name,
+                    key.method_name,
+                    key.hash
+                )
+            }
         },
         named_accessors: vec![],
         class_count: 0,
@@ -116,14 +119,17 @@ pub fn make_builtin_method_table(api: &ExtensionApi, ctx: &mut Context) -> Token
         lazy_key_type: quote! { crate::lazy_keys::BuiltinMethodKey },
         lazy_method_init: quote! {
             let fetch_fptr = crate::interface_fn!(variant_get_ptr_builtin_method);
-            crate::load_builtin_method(
-                fetch_fptr,
-                &mut inner.string_cache,
-                key.variant_type.sys(),
-                key.variant_type_str,
-                key.method_name,
-                key.hash
-            )
+            // SAFETY: function pointer is from Godot.
+            unsafe {
+                crate::load_builtin_method(
+                    fetch_fptr,
+                    &mut inner.string_cache,
+                    key.variant_type.sys(),
+                    key.variant_type_str,
+                    key.method_name,
+                    key.hash
+                )
+            }
         },
         named_accessors: vec![],
         class_count: 0,
@@ -339,8 +345,9 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
         let method_inits = &group.method_inits;
         let class_var_init = &group.class_var_init;
 
+        // Generated module allows `unsafe_op_in_unsafe_fn`.
         quote! {
-            fn #func(
+            unsafe fn #func(
                 function_pointers: &mut Vec<#fptr_type>,
                 string_names: &mut crate::StringCache,
                 fetch_fptr: FetchFn,
