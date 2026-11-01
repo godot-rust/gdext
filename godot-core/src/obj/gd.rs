@@ -394,7 +394,8 @@ impl<T: GodotClass> Gd<T> {
     /// Must be destroyed with [`drop_weak()`][Self::drop_weak]; regular `Drop` will cause use-after-free.
     pub(crate) unsafe fn clone_weak(&self) -> Self {
         Self {
-            raw: self.raw.clone_weak(),
+            // SAFETY: delegated to caller.
+            raw: unsafe { self.raw.clone_weak() },
         }
     }
 
