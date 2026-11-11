@@ -63,7 +63,7 @@ impl<T: GodotClass> Base<T> {
         );
 
         // SAFETY: See method docs.
-        let obj = unsafe { Gd::from_obj_sys_weak(base.obj.obj_sys()) };
+        let obj = unsafe { base.obj.clone_weak() };
 
         Self {
             obj: ManuallyDrop::new(obj),
@@ -123,7 +123,7 @@ impl<T: GodotClass> Base<T> {
         sys::balanced_assert!(gd.is_instance_valid());
 
         // SAFETY: pointer is valid and remains alive while in use.
-        let obj = unsafe { Gd::from_obj_sys_weak(gd.obj_sys()) };
+        let obj = unsafe { gd.clone_weak() };
 
         base_from_obj!(obj, InitState::Script)
     }

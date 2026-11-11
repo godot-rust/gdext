@@ -933,6 +933,8 @@ impl<T: Element> Array<T> {
     /// - Values written to array must match runtime type.
     /// - Values read must be convertible to type `U`.
     /// - If runtime type matches `U`, both conditions hold automatically.
+    // TODO: fragile manual field move + mem::forget; if a field is added, it must be moved here too.
+    // Consider transmute (requires #[repr(C)]) or ManuallyDrop + ptr::read.
     pub(super) unsafe fn assume_type<U: Element>(self) -> Array<U> {
         let result = Array::<U> {
             opaque: self.opaque,

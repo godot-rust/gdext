@@ -111,8 +111,9 @@ where
         let args =
             unsafe { Params::from_varcall_args(args_ptr, arg_count, default_values, call_ctx)? };
 
+        // SAFETY: `instance_ptr` is Godot's instance pointer for this call, as required by `func`.
         let rust_result = unsafe { func(instance_ptr, args) };
-        // SAFETY: `ret` (initialized `Variant`) and `err` are Godot's varcall out-params, written once each.
+        // SAFETY: `ret` (initialized `Variant`) and `err` are Godot's varcall out-params.
         unsafe { varcall_return::<Ret>(rust_result, ret, err, call_ctx)? };
         Ok(())
     }
@@ -139,7 +140,7 @@ where
         // SAFETY: Godot's ptrcall passes `Params::LEN` type pointers matching `Params`.
         let args = unsafe { Params::from_ptrcall_args(args_ptr, call_type, call_ctx)? };
 
-        // SAFETY: Godot's ptrcall passes `ret` as initialized type pointer of `Ret`.
+        // SAFETY: Godot's ptrcall passes `ret` as type pointer of `Ret`, initialized according to `call_type`.
         unsafe { ptrcall_return::<Ret>(func(instance_ptr, args), ret, call_ctx, call_type)? };
 
         Ok(())
