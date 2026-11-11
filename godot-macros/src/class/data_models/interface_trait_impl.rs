@@ -233,7 +233,7 @@ impl<'a> InterfaceBuilder<'a> {
         let class_name = self.class_name;
         let trait_path = self.trait_path;
 
-        self.decls.register_class_impl.extend(quote! {
+        self.decls.impls.extend(quote! {
             #(#cfg_attrs)*
             impl ::godot::obj::cap::GodotRegisterClass for #class_name {
                 fn __godot_register_class(builder: &mut ::godot::builder::GodotBuilder<Self>) {
@@ -251,7 +251,7 @@ impl<'a> InterfaceBuilder<'a> {
         let trait_path = self.trait_path;
         let deny_manual_init_macro = util::format_class_deny_manual_init_macro(class_name);
 
-        self.decls.init_impl.extend(quote! {
+        self.decls.impls.extend(quote! {
             #deny_manual_init_macro!();
 
             #(#cfg_attrs)*
@@ -282,7 +282,7 @@ impl<'a> InterfaceBuilder<'a> {
             },
         );
 
-        self.decls.to_string_impl.extend(new_impl);
+        self.decls.impls.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "to_string");
     }
 
@@ -290,7 +290,7 @@ impl<'a> InterfaceBuilder<'a> {
         let class_name = self.class_name;
         let trait_path = self.trait_path;
         let inactive_check = make_inactive_class_check(TokenStream::new());
-        self.decls.on_notification_impl.extend(quote! {
+        self.decls.impls.extend(quote! {
             #(#cfg_attrs)*
             impl ::godot::obj::cap::GodotNotification for #class_name {
                 fn __godot_on_notification(&mut self, what: i32) {
@@ -318,7 +318,7 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             });
 
-        self.decls.on_get_impl.extend(new_impl);
+        self.decls.impls.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_get");
     }
 
@@ -338,7 +338,7 @@ impl<'a> InterfaceBuilder<'a> {
                 }
             });
 
-        self.decls.on_set_impl.extend(new_impl);
+        self.decls.impls.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_set");
     }
 
@@ -366,7 +366,7 @@ impl<'a> InterfaceBuilder<'a> {
             },
         );
 
-        self.decls.on_validate_property_impl.extend(new_impl);
+        self.decls.impls.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_validate_property");
     }
 
@@ -376,7 +376,7 @@ impl<'a> InterfaceBuilder<'a> {
         cfg_attrs: Vec<&'a venial::Attribute>,
         _is_gd_self: bool,
     ) {
-        self.decls.on_get_property_list_impl.extend(quote! {
+        self.decls.impls.extend(quote! {
             #(#cfg_attrs)*
             compile_error!("`on_get_property_list` is only supported for Godot versions of at least 4.3");
         });
@@ -404,7 +404,7 @@ impl<'a> InterfaceBuilder<'a> {
             },
         );
 
-        self.decls.on_get_property_list_impl.extend(new_impl);
+        self.decls.impls.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_get_property_list");
     }
 
@@ -432,7 +432,7 @@ impl<'a> InterfaceBuilder<'a> {
             },
         );
 
-        self.decls.on_property_get_revert_impl.extend(new_impl);
+        self.decls.impls.extend(new_impl);
         self.decls.add_modifier(cfg_attrs, "on_property_get_revert");
     }
 
@@ -679,19 +679,10 @@ impl OverriddenVirtualFn<'_> {
 
 /// Accumulates various symbols defined inside a `#[godot_api]` macro.
 ///
-/// Each `*_impl` field collects all impls: a method can be declared repeatedly under exclusive `#[cfg]`s, and keeping only the last one
-/// would drop the impl if an earlier branch is active.
+/// `impls` collects all trait impls. A method can be declared repeatedly under exclusive `#[cfg]`s; each declaration gets its own impl.
 #[derive(Default)]
 struct IDecls<'a> {
-    init_impl: TokenStream,
-    to_string_impl: TokenStream,
-    register_class_impl: TokenStream,
-    on_notification_impl: TokenStream,
-    on_get_impl: TokenStream,
-    on_set_impl: TokenStream,
-    on_get_property_list_impl: TokenStream,
-    on_property_get_revert_impl: TokenStream,
-    on_validate_property_impl: TokenStream,
+    impls: TokenStream,
 
     modifiers: Vec<(Vec<&'a venial::Attribute>, Ident)>,
     overridden_virtuals: Vec<OverriddenVirtualFn<'a>>,
@@ -734,14 +725,6 @@ impl<'a> IDecls<'a> {
 
 impl ToTokens for IDecls<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.init_impl.to_tokens(tokens);
-        self.to_string_impl.to_tokens(tokens);
-        self.on_notification_impl.to_tokens(tokens);
-        self.register_class_impl.to_tokens(tokens);
-        self.on_get_impl.to_tokens(tokens);
-        self.on_set_impl.to_tokens(tokens);
-        self.on_get_property_list_impl.to_tokens(tokens);
-        self.on_property_get_revert_impl.to_tokens(tokens);
-        self.on_validate_property_impl.to_tokens(tokens);
+        self.impls.to_tokens(tokens);
     }
 }
