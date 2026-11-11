@@ -93,7 +93,9 @@ pub unsafe trait Storage {
     where
         Self::Instance: Inherits<<Self::Instance as GodotClass>::Base>,
     {
-        self.base().__derived_gd::<Self::Instance>()
+        // SAFETY: storage only exists once init() has returned, so the instance is linked to the Godot object.
+        // No class check: during destruction, Godot no longer reports the derived class.
+        unsafe { self.base().derived_gd_unchecked::<Self::Instance>() }
     }
 
     /// Puts self onto the heap and returns a pointer to this new heap-allocation.

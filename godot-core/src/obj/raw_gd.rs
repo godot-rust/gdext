@@ -163,7 +163,7 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// # Safety
     /// Caller must guarantee that the underlying object is a valid instance of `U`.
-    unsafe fn into_reinterpreted<U: GodotClass>(self) -> RawGd<U> {
+    pub(super) unsafe fn into_reinterpreted<U: GodotClass>(self) -> RawGd<U> {
         let this = std::mem::ManuallyDrop::new(self);
         let cached_rtti = this
             .cached_rtti

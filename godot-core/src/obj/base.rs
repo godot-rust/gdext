@@ -192,10 +192,10 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
-    /// Returns a [`Gd`] to the *derived* (user) object, assuming it is fully constructed.
+    /// Returns a [`Gd`] to the *derived* (user) object, after checking its dynamic class with Godot.
     ///
     /// # Panics
-    /// If the Rust object is not yet linked to the Godot object, i.e. during `init()`.
+    /// If Godot does not report the object as `Derived`: during `init()` (not yet linked) and during destruction (type identity reset).
     #[doc(hidden)]
     pub fn __derived_gd<Derived>(&self) -> Gd<Derived>
     where
@@ -203,20 +203,36 @@ impl<T: GodotClass> Base<T> {
     {
         self.init_state.assert_constructed();
 
-        // Check the dynamic class *before* cloning: during init(), the Godot object is not yet promoted to the derived class (Godot's
-        // object_set_instance() only runs after init() returns). Cloning + dropping a strong ref of a not-yet-initialized ref-counted
-        // object would be problematic, so the error path must not create one.
+        // Check before cloning: before Godot 4.7, clone + drop of a ref-counted object in init() moves its count 0 -> 1 -> 0 and destroys it.
         if !self.obj.raw.is_dynamic_class(Derived::class_id()) {
             panic!(
-                "cannot obtain Gd<{derived}> from base object {obj:?}; the Rust object is not yet registered with Godot.\n\
-                 This typically happens when calling to_gd() or base_mut() inside init(); at that point, only the base object exists.\n\
-                 Use Base::to_init_gd() to access the base object during initialization, or move the logic to ready().",
+                "cannot obtain Gd<{derived}> from base object {obj:?}; Godot does not report the object as {derived}.\n\
+                 This happens when calling to_gd() or base_mut() inside init() (only the base object exists) or inside Drop \
+                 (Godot already reset the object's class).\n\
+                 During initialization, use Base::to_init_gd() or move the logic to ready().",
                 derived = Derived::class_id(),
                 obj = *self.obj,
             );
         }
 
-        (*self.obj).clone().cast()
+        // SAFETY: is_class() confirmed the object is a `Derived`.
+        unsafe { self.derived_gd_unchecked() }
+    }
+
+    /// Returns a [`Gd`] to the *derived* (user) object, without asking Godot for its class.
+    ///
+    /// # Safety
+    /// The Rust instance must be linked to the Godot object, i.e. `init()` has returned.
+    pub(crate) unsafe fn derived_gd_unchecked<Derived>(&self) -> Gd<Derived>
+    where
+        Derived: Inherits<T>,
+    {
+        let raw = (*self.obj).raw.clone();
+
+        // SAFETY: caller guarantees the object is a `Derived`.
+        Gd {
+            raw: unsafe { raw.into_reinterpreted() },
+        }
     }
 
     /// Returns a [`BorrowedGd`] referencing the base object, assuming the derived object is fully constructed.

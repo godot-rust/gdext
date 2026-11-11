@@ -102,7 +102,7 @@ fn base_init_to_gd() {
         let _obj = Gd::<Based>::from_init_fn(|base| {
             let temp_obj = Based { base, i: 999 };
 
-            let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
+            let _gd = temp_obj.to_gd();
 
             temp_obj
         });
@@ -120,7 +120,7 @@ fn base_init_to_gd_refcounted() {
 
         let result = suppress_panic_log(|| {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let _gd = godot::obj::WithBaseField::to_gd(&temp_obj);
+                let _gd = temp_obj.to_gd();
             }))
         });
         panicked = result.is_err();
