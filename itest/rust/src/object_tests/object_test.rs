@@ -27,7 +27,7 @@ use godot::sys::{self, GodotFfi, interface_fn};
 
 use crate::framework::{
     TestContext, assert_debug_eq, create_gdscript, expect_panic, expect_panic_or_ub, itest,
-    suppress_godot_print,
+    suppress_godot_print, suppress_panic_log,
 };
 
 // TODO:
@@ -1325,16 +1325,13 @@ impl Drop for AccessGdOnDrop {
     }
 }
 
-// `to_gd()` during destruction panics, since the downcast to `RefCounted` no longer works -- see `RawGd::try_with_ref_counted()`. That panic
-// originates in a C callback, so it must be caught in `callbacks::free()`; otherwise it unwinds into Godot and aborts the process.
-//
-// The panic is reported and swallowed, so this test passes by returning at all: reaching the assertion means the process survived.
+// `to_gd()` panics during destruction. `callbacks::free()` must catch it; unwinding into Godot aborts the process.
 #[itest]
 fn object_to_gd_during_drop() {
     let obj = AccessGdOnDrop::new_gd();
     let id = obj.instance_id();
 
-    suppress_godot_print(|| drop(obj));
+    suppress_godot_print(|| suppress_panic_log(|| drop(obj)));
 
     assert!(
         !id.lookup_validity(),

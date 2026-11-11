@@ -747,6 +747,10 @@ func _trigger_varcall_error(obj: Variant) -> void:
 var _worker_thread_instance: Variant = null
 
 func test_instantiate_on_worker_thread():
+	# Without the check, instantiation from another thread succeeds (experimental-threads) or is UB (disengaged).
+	if not IntegrationTests.has_main_thread_check():
+		return
+
 	Engine.print_error_messages = false
 	var task := WorkerThreadPool.add_task(_instantiate_on_worker_thread)
 	WorkerThreadPool.wait_for_task_completion(task)

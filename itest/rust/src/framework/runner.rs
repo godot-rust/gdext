@@ -149,6 +149,15 @@ impl IntegrationTests {
         cfg!(feature = "codegen-full")
     }
 
+    /// Whether FFI calls outside the main thread panic. Queried by `.gd` tests that call into Rust from other threads.
+    #[func]
+    fn has_main_thread_check() -> bool {
+        cfg!(all(
+            safeguards_balanced,
+            not(feature = "experimental-threads")
+        ))
+    }
+
     /// Returns whether all benchmarks completed without error.
     #[allow(clippy::uninlined_format_args)]
     #[func]

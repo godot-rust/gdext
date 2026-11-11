@@ -260,12 +260,8 @@ pub unsafe extern "C" fn free<T: GodotClass>(
     _class_user_data: *mut std::ffi::c_void,
     instance: sys::GDExtensionClassInstancePtr,
 ) {
-    // A user `Drop` impl runs inside release_godot_claim() and may panic. Unlike other callbacks, there is no return value to degrade -- the
-    // object is destroyed either way. Without this guard the panic unwinds into Godot's C++ destructor and aborts the whole process, which
-    // makes a small mistake in Drop indistinguishable from a hard crash.
-    //
-    // Catching is sound: if the user's drop() panics, Rust still drops the remaining fields and frees the Box while unwinding, so the
-    // storage is gone by the time we get here -- there is nothing left to clean up and nothing to leak.
+    // User `Drop` runs inside release_godot_claim() and may panic; unwinding into Godot's destructor would abort the process.
+    // Catching is sound: unwinding still drops the remaining fields and frees the Box, so nothing leaks.
     let code = || {
         // SAFETY: Pointer valid for callback duration (Godot contract).
         unsafe {

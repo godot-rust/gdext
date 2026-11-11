@@ -106,12 +106,8 @@ impl IObject for GetPropertyListReentrant {
         // Re-enters the same callback through the engine, while `&mut self` is still borrowed. The inner call fails to bind and panics;
         // that panic must be caught inside the inner callback. Godot calls this virtual from its resource-preview thread, where the same
         // borrow conflict occurs against the main thread; see https://github.com/godot-rust/gdext/issues/1668.
-        let inner = self.to_gd().get_property_list();
         // Inner call reports an empty extension part; base properties remain.
-        let inner_names: Vec<String> = inner
-            .iter_shared()
-            .map(|dict| dict.at("name").to::<GString>().to_string())
-            .collect();
+        let inner_names = property_names(self.to_gd().upcast_ref());
         assert!(
             !inner_names.contains(&"outer_property".to_string()),
             "inner: {inner_names:?}"
@@ -121,7 +117,7 @@ impl IObject for GetPropertyListReentrant {
     }
 }
 
-fn property_names(obj: &Gd<Object>) -> Vec<String> {
+fn property_names(obj: &Object) -> Vec<String> {
     obj.get_property_list()
         .iter_shared()
         .map(|dict| dict.at("name").to::<GString>().to_string())
@@ -132,7 +128,7 @@ fn property_names(obj: &Gd<Object>) -> Vec<String> {
 fn get_property_list_panic_is_caught() {
     let obj = GetPropertyListPanic::new_alloc();
 
-    let names = suppress_panic_log(|| property_names(&obj.clone().upcast()));
+    let names = suppress_panic_log(|| property_names(obj.upcast_ref()));
 
     // Extension part is reported as empty, base properties remain.
     assert!(names.contains(&"script".to_string()), "names: {names:?}");
@@ -144,7 +140,7 @@ fn get_property_list_panic_is_caught() {
 fn get_property_list_reentrant_borrow_is_caught() {
     let obj = GetPropertyListReentrant::new_alloc();
 
-    let names = suppress_panic_log(|| property_names(&obj.clone().upcast()));
+    let names = suppress_panic_log(|| property_names(obj.upcast_ref()));
 
     assert!(
         names.contains(&"outer_property".to_string()),
