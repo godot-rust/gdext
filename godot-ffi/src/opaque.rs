@@ -27,7 +27,7 @@ pub struct Opaque<const N: usize> {
     marker: std::marker::PhantomData<*const u8>, // disable Send/Sync
 }
 
-/// Like [`Opaque`], but 8-byte aligned on every target: Godot's `Variant` declares its data union `alignas(8)`, also on 32-bit targets.
+/// Like [`Opaque`], but 8-byte aligned on every target: Godot declares `Variant`, `Callable` and `Signal` `alignas(8)`.
 #[repr(C, align(8))]
 #[derive(Copy, Clone)]
 pub struct OpaqueAlign8<const N: usize> {

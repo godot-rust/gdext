@@ -157,13 +157,22 @@ fn make_opaque_type(godot_original_name: &str, size: usize) -> TokenStream {
 
     // Capitalize: "int" -> "Int".
     let ident = format_ident!("Opaque{}{}", first.to_ascii_uppercase(), rest);
-    let opaque = if godot_original_name == "Variant" {
+
+    // Godot forces 8-byte alignment (`alignas(8)`) on these, also on 32-bit targets. Other builtins have natural alignment.
+    let force_align8 = matches!(godot_original_name, "Variant" | "Callable" | "Signal");
+    let opaque = if force_align8 {
         quote! { OpaqueAlign8 }
     } else {
         quote! { Opaque }
     };
+
+    let align_assert = force_align8.then(|| {
+        quote! { const _: () = assert!(std::mem::align_of::<#ident>() == 8); }
+    });
+
     quote! {
         pub type #ident = crate::opaque::#opaque<#size>;
+        #align_assert
     }
 }
 
