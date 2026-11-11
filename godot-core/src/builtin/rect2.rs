@@ -103,6 +103,9 @@ impl Rect2 {
     /// Whether `self` covers at least the entire area of `b` (and possibly more).
     #[inline]
     pub fn encloses(self, b: Rect2) -> bool {
+        self.assert_nonnegative();
+        b.assert_nonnegative();
+
         let end = self.end();
         let b_end = b.end();
 
@@ -250,6 +253,9 @@ impl Rect2 {
     /// _Godot equivalent: `Rect2.intersects(AABB b, bool include_borders = false)`_
     #[inline]
     pub fn intersects_exclude_borders(self, b: Self) -> bool {
+        self.assert_nonnegative();
+        b.assert_nonnegative();
+
         let end = self.end();
         let end_b = b.end();
 
@@ -353,6 +359,18 @@ mod test {
     #[should_panic(expected = "negative")]
     fn intersects_other_negative_panics() {
         positive().intersects(negative());
+    }
+
+    #[test]
+    #[should_panic(expected = "negative")]
+    fn encloses_other_negative_panics() {
+        positive().encloses(negative());
+    }
+
+    #[test]
+    #[should_panic(expected = "negative")]
+    fn intersects_exclude_borders_self_negative_panics() {
+        negative().intersects_exclude_borders(positive());
     }
 
     #[test]
