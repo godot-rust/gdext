@@ -12,7 +12,7 @@ use std::ops::{Deref, DerefMut};
 use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node};
 use godot::obj::{Gd, NewAlloc, OnReady};
-use godot::prelude::{Base, ToGodot};
+use godot::prelude::{Base, FromNode, ToGodot};
 use godot::register::{GodotClass, godot_api};
 
 use crate::framework::{expect_panic, itest};
