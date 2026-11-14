@@ -11,6 +11,7 @@ mod classdb_test;
 mod codegen_enums_test;
 mod codegen_test;
 mod engine_enum_test;
+mod feature_tag_test;
 mod gfile_test;
 mod match_class_test;
 mod native_st_niche_audio_test;

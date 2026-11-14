@@ -11,11 +11,13 @@
 //! or better integrated with Rust.
 
 mod autoload;
+mod feature_tag;
 mod gfile;
 mod save_load;
 mod translate;
 
 pub use autoload::*;
+pub use feature_tag::*;
 pub use gfile::*;
 pub use save_load::*;
 pub use translate::*;
