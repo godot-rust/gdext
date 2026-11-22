@@ -536,6 +536,7 @@ fn enums_as_signal_args() {
 
     impl ToGodot for EventType {
         type Pass = godot::meta::conv::ByValue;
+        type Threads = godot::meta::ThreadSafeArg;
 
         fn to_godot(&self) -> Self::Via {
             match self {

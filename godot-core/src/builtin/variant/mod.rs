@@ -567,7 +567,7 @@ unsafe impl GodotFfi for Variant {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-crate::meta::impl_godot_as_self!(Variant: ByVariant);
+crate::meta::impl_godot_as_self!(Variant: ByVariant, ManualThreadSafeArg);
 
 // TODO(v0.6): Variant lifecycle stays on the main-thread accessor because a Variant can hold a reference type (Object), whose refcount/free is
 // not safe off the main thread. `RustVariant::has_inplace_type()` classifies the inner type, so value-type cases could opt into thread-safe

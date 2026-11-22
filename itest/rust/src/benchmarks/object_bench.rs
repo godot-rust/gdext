@@ -119,3 +119,54 @@ fn class_user_property_set() -> BenchResult {
 fn class_singleton_access() -> Gd<Os> {
     Os::singleton()
 }
+
+#[cfg(feature = "codegen-full")]
+#[bench]
+fn unique_material_verify() -> BenchResult {
+    use godot::classes::StandardMaterial3D;
+
+    crate::framework::bench_measure_batched(
+        |_index| {
+            let mut material = StandardMaterial3D::new_gd();
+            let mut second_pass = StandardMaterial3D::new_gd();
+            let third_pass = StandardMaterial3D::new_gd();
+
+            material.set_next_pass(&second_pass);
+            second_pass.set_next_pass(&third_pass);
+
+            material
+        },
+        |material| {
+            godot::obj::Unique::try_from_ref_counted(material).expect("material must be unique")
+        },
+    )
+}
+
+#[cfg(feature = "codegen-full")]
+#[bench]
+fn unique_texture2d_verify() -> BenchResult {
+    use godot::classes::Texture2D;
+
+    crate::framework::bench_measure_batched(
+        |_index| Texture2D::new_gd(),
+        |texture| {
+            godot::obj::Unique::try_from_ref_counted(texture).expect("texture must be unique")
+        },
+    )
+}
+
+#[cfg(feature = "codegen-full")]
+#[bench]
+fn unique_gradient_verify() -> BenchResult {
+    use godot::classes::{Gradient, GradientTexture2D};
+
+    crate::framework::bench_measure_batched(
+        |_index| {
+            let mut tex = GradientTexture2D::new_gd();
+
+            tex.set_gradient(&Gradient::new_gd());
+            tex
+        },
+        godot::obj::Unique::try_from_ref_counted,
+    )
+}

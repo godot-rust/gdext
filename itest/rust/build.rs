@@ -92,6 +92,7 @@ macro_rules! push_newtype {
 
             impl godot::meta::ToGodot for $name {
                 type Pass = godot::meta::conv::ByValue;
+                type Threads = godot::meta::ThreadSafeArg;
 
                 #[allow(clippy::clone_on_copy)]
                 fn to_godot(&self) -> Self::Via {

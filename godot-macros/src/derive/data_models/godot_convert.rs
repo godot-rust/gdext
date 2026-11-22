@@ -100,7 +100,7 @@ impl GodotConvert {
 /// Stores what kind of `GodotConvert` derive we're doing.
 pub enum ConvertType {
     /// Deriving for a newtype struct.
-    NewType { field: NewtypeStruct },
+    NewType { field: NewtypeStruct, is_send: bool },
     /// Deriving for an enum.
     Enum { variants: CStyleEnum, via: ViaType },
 }
@@ -111,7 +111,7 @@ impl ConvertType {
 
         match item {
             venial::Item::Struct(struct_) => {
-                let GodotAttribute::Transparent { .. } = attribute else {
+                let GodotAttribute::Transparent { send, .. } = attribute else {
                     return bail!(
                         attribute.span(),
                         "#[derive(GodotConvert)] on structs currently only works with #[godot(transparent)]"
@@ -120,15 +120,28 @@ impl ConvertType {
 
                 Ok(Self::NewType {
                     field: NewtypeStruct::parse_struct(struct_)?,
+                    is_send: send,
                 })
             }
             venial::Item::Enum(enum_) => {
-                let GodotAttribute::Via { via_type, .. } = attribute else {
+                let GodotAttribute::Via {
+                    via_type,
+                    send,
+                    span,
+                } = attribute
+                else {
                     return bail!(
                         attribute.span(),
                         "#[derive(GodotConvert)] on enums requires #[godot(via = ...)]"
                     );
                 };
+
+                if send {
+                    return bail!(
+                        span,
+                        "#[derive(GodotConvert)] on enums does not support the #[godot(send)] attribute. All enums are Send."
+                    );
+                }
 
                 Ok(Self::Enum {
                     variants: CStyleEnum::parse_enum(enum_)?,
@@ -142,7 +155,7 @@ impl ConvertType {
     /// Returns the type for use in `type Via = <type>;` in `GodotConvert` implementations.
     pub fn via_type(&self) -> TokenStream {
         match self {
-            ConvertType::NewType { field } => field.sized.ty.to_token_stream(),
+            ConvertType::NewType { field, .. } => field.sized.ty.to_token_stream(),
             ConvertType::Enum { via, .. } => via.to_token_stream(),
         }
     }

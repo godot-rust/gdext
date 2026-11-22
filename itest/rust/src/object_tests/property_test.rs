@@ -451,6 +451,8 @@ impl GodotConvert for ManualEnumShape {
 
 impl ToGodot for ManualEnumShape {
     type Pass = godot::meta::conv::ByValue;
+    type Threads = godot::meta::ThreadSafeArg;
+
     fn to_godot(&self) -> i64 {
         *self as i64
     }
