@@ -10,11 +10,56 @@ Cutting-edge API docs of the `master` branch are available [here](https://godot-
 
 ## Quick navigation
 
-- [v0.5.0](#v050), [v0.5.1](#v051), [v0.5.2](#v052), [v0.5.3](#v053), [v0.5.4](#v054)
+- [v0.5.0](#v050), [v0.5.1](#v051), [v0.5.2](#v052), [v0.5.3](#v053), [v0.5.4](#v054), [v0.5.5](#v055), [v0.5.6](#v056)
 - [v0.4.0](#v040), [v0.4.1](#v041), [v0.4.2](#v042), [v0.4.3](#v043), [v0.4.4](#v044), [v0.4.5](#v045)
 - [v0.3.0](#v030), [v0.3.1](#v031), [v0.3.2](#v032), [v0.3.3](#v033), [v0.3.4](#v034), [v0.3.5](#v035)
 - [v0.2.0](#v020), [v0.2.1](#v021), [v0.2.2](#v022), [v0.2.3](#v023), [v0.2.4](#v024)
 - [v0.1.1](#v011), [v0.1.2](#v012), [v0.1.3](#v013)
+
+
+## [v0.5.6](https://docs.rs/godot/0.5.6)
+
+_22 November 2026_
+
+### 🌻 Features
+
+- Add `Array::resize_default()` ([#1675](https://github.com/godot-rust/gdext/pull/1675))
+- Add: visionOS platform support #1695 ([#1696](https://github.com/godot-rust/gdext/pull/1696))
+- Add `unbind()` for reentrant scope ([#1708](https://github.com/godot-rust/gdext/pull/1708))
+
+### 📈 Performance
+
+- Compile-time changes due to monomorphization ([#1677](https://github.com/godot-rust/gdext/pull/1677), [#1684](https://github.com/godot-rust/gdext/pull/1684), [#1688](https://github.com/godot-rust/gdext/pull/1688), [#1706](https://github.com/godot-rust/gdext/pull/1706))
+- Rust-side `Variant` marshalling ([#1600](https://github.com/godot-rust/gdext/pull/1600))
+- Cheaper main-thread checks ([#1689](https://github.com/godot-rust/gdext/pull/1689))
+
+### 🧹 Quality of life
+
+- Add `track_caller` to variant conversions ([#1698](https://github.com/godot-rust/gdext/pull/1698))
+- Mark GodotInstance as a Core type ([#1709](https://github.com/godot-rust/gdext/pull/1709))
+- Allow prints of the form `godot_print!("Text {var}", var = 2)` ([#1716](https://github.com/godot-rust/gdext/pull/1716))
+
+### 🛠️ Bugfixes
+
+- Handle object destruction during Godot->Rust call ([#1671](https://github.com/godot-rust/gdext/pull/1671))
+- `Debug` for scripts: fix class, show script name ([#1701](https://github.com/godot-rust/gdext/pull/1701))
+- Fix hot reload with `libstdc++` involved ([#1715](https://github.com/godot-rust/gdext/pull/1715))
+
+### 🏗️ Maintenance
+
+- Harden `godot-ffi` crate ([#1676](https://github.com/godot-rust/gdext/pull/1676))
+- Various cleanups ([#1678](https://github.com/godot-rust/gdext/pull/1678))
+- Restructure and extend benchmarks ([#1681](https://github.com/godot-rust/gdext/pull/1681))
+- Improve benchmark methodology ([#1683](https://github.com/godot-rust/gdext/pull/1683))
+- Adapt `#[var(no_get)]` test to GDScript 4.8 abort-on-error ([#1685](https://github.com/godot-rust/gdext/pull/1685))
+- Benchmarks: run separately from itest, reduce noise ([#1687](https://github.com/godot-rust/gdext/pull/1687))
+- Delete removed stub methods on GDScriptTextDocument ([#1700](https://github.com/godot-rust/gdext/pull/1700))
+- CI: test `codegen-full` against latest stable ([#1702](https://github.com/godot-rust/gdext/pull/1702))
+- Update Quaternion tests for Godot 4.8 ([#1710](https://github.com/godot-rust/gdext/pull/1710))
+
+### 📚 Documentation
+
+- Fix minor documentation in `connect_builder.rs` ([#1703](https://github.com/godot-rust/gdext/pull/1703))
 
 
 ## [v0.5.5](https://docs.rs/godot/0.5.5)
