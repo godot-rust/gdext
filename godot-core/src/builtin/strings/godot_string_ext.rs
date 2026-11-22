@@ -111,9 +111,9 @@ impl GodotStringExt for str {
         // SAFETY: string is UTF-8 encoded and len-bounded. Godot takes byte length, not character count.
         unsafe {
             GString::new_with_string_uninit(|string_ptr| {
-                #[cfg(before_api = "4.3")]
+                #[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
                 let ctor = sys::thread_safe().string_new_with_utf8_chars_and_len;
-                #[cfg(since_api = "4.3")]
+                #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
                 let ctor = sys::thread_safe().string_new_with_utf8_chars_and_len2;
 
                 ctor(

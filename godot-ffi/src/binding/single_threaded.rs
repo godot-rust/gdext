@@ -106,7 +106,7 @@ impl BindingStorage {
 
         // Live check: passes in ~100% of real calls. Compiled out under the disengaged safety profile, recovering unchecked speed for users who
         // promise the invariant. The actual check lives in a standalone function so it can be unit-tested without a real binding.
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         super::assert_binding_live(&storage.initialized);
 
         // SAFETY: Per the safety contract the binding is initialized, so the cell holds a value.
@@ -126,7 +126,7 @@ impl BindingStorage {
     /// Only enabled with balanced+ safeguards and for threaded Wasm. In `wasm_nothreads` there's only one thread -> no check needed.
     #[inline(always)] // Runs on every FFI call. Failure path now outlined -> remaining body = load + predicted branch.
     pub(super) fn ensure_main_thread() {
-        #[cfg(all(safeguards_balanced, not(wasm_nothreads)))]
+        #[cfg(all(safeguards_balanced, not(wasm_nothreads)))] #[cfg_attr(published_docs, doc(cfg(all(safeguards_balanced, not(wasm_nothreads)))))]
         if !crate::is_main_thread() {
             #[cold]
             #[inline(never)] // Outlined error path.

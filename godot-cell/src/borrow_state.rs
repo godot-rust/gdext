@@ -298,7 +298,7 @@ impl From<String> for BorrowStateErr {
     }
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use std::collections::HashSet;
 

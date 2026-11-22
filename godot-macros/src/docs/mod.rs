@@ -4,16 +4,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-#[cfg(all(feature = "register-docs", since_api = "4.3"))]
+#[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
 mod extract_docs;
-#[cfg(all(feature = "register-docs", since_api = "4.3"))]
+#[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
 mod markdown_converter;
 
 use proc_macro2::{Ident, TokenStream};
 
 use crate::class::{ConstDefinition, Field, FuncDefinition, SignalDefinition};
 
-#[cfg(all(feature = "register-docs", since_api = "4.3"))]
+#[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
 mod docs_generators {
     use quote::quote;
 
@@ -75,10 +75,10 @@ mod docs_generators {
     }
 }
 
-#[cfg(all(feature = "register-docs", since_api = "4.3"))]
+#[cfg(all(feature = "register-docs", since_api = "4.3"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "register-docs", since_api = "4.3"))))]
 pub use docs_generators::*;
 
-#[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
+#[cfg(not(all(feature = "register-docs", since_api = "4.3")))] #[cfg_attr(published_docs, doc(cfg(not(all(feature = "register-docs", since_api = "4.3")))))]
 mod placeholders {
     use super::*;
 
@@ -111,5 +111,5 @@ mod placeholders {
     }
 }
 
-#[cfg(not(all(feature = "register-docs", since_api = "4.3")))]
+#[cfg(not(all(feature = "register-docs", since_api = "4.3")))] #[cfg_attr(published_docs, doc(cfg(not(all(feature = "register-docs", since_api = "4.3")))))]
 pub use placeholders::*;

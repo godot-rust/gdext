@@ -11,7 +11,7 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ExtVariantType, GodotFfi, ffi_methods};
 
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 use crate::builtin::inner;
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::{RVec4, Vector4Axis, Vector4i, real};
@@ -74,7 +74,7 @@ impl_vector_fns!(Vector4, RVec4, real, (x, y, z, w));
 
 /// # Specialized `Vector4` functions
 impl Vector4 {
-    #[cfg(feature = "itest")]
+    #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
     #[doc(hidden)]
     #[inline]
     pub fn as_inner(&self) -> inner::InnerVector4<'_> {
@@ -121,7 +121,7 @@ impl GlamConv for Vector4 {
     type Glam = RVec4;
 }
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod test {
     use super::*;
     use crate::builtin::math::assert_eq_approx;
@@ -140,7 +140,7 @@ mod test {
         assert_eq!(vector.sign(), Vector4::new(1., -1., 0., 1.));
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde")] #[cfg_attr(published_docs, doc(cfg(feature = "serde")))]
     #[test]
     fn serde_roundtrip() {
         let vector = Vector4::default();

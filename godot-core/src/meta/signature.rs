@@ -104,7 +104,7 @@ where
         let arg_count = arg_count as usize;
         CallError::check_arg_count(call_ctx, arg_count, default_values.len(), Params::LEN)?;
 
-        #[cfg(feature = "itest")]
+        #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
         trace::push(true, false, call_ctx);
 
         // SAFETY: TODO.
@@ -133,7 +133,7 @@ where
     ) -> CallResult<()> {
         // $crate::out!("in_ptrcall: {call_ctx}");
 
-        #[cfg(feature = "itest")]
+        #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
         trace::push(true, true, call_ctx);
 
         // SAFETY: TODO.
@@ -193,7 +193,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     /// # Safety
     /// - `object_ptr` must be a live instance of a class with a method named `method_sname_ptr`
     /// - The method must expect args `args`, and return a value of type `Ret`
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     #[inline]
     pub unsafe fn out_script_virtual_call(
         // Separate parameters to reduce tokens in macro-generated API.
@@ -229,7 +229,7 @@ impl<Params: OutParamTuple, Ret: EngineFromGodot> Signature<Params, Ret> {
     ///
     /// # Safety
     /// Same as [`out_script_virtual_call`](Self::out_script_virtual_call).
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     pub unsafe fn out_script_virtual_call_async(
         // Separate parameters to reduce tokens in macro-generated API.
         class_name: &'static str,
@@ -571,7 +571,7 @@ enum OutVarcall {
         object_ptr: sys::GDExtensionObjectPtr,
     },
     /// Script-virtual override.
-    #[cfg(since_api = "4.3")]
+    #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
     ScriptMethod {
         object_ptr: sys::GDExtensionObjectPtr,
         method_sname_ptr: sys::GDExtensionConstStringNamePtr,
@@ -609,7 +609,7 @@ impl OutVarcall {
                     err,
                 ),
 
-                #[cfg(since_api = "4.3")]
+                #[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
                 Self::ScriptMethod {
                     object_ptr,
                     method_sname_ptr,
@@ -666,7 +666,7 @@ fn return_error_dyn(call_ctx: &CallContext, return_ty: &'static str, err: Conver
 ///
 /// # Safety
 /// `object_ptr` must be a live object with virtual method `method_sname_ptr`, and `args` must match that method's signature.
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 unsafe fn out_script_virtual_call_inner<Params: OutParamTuple>(
     call_ctx: &CallContext,
     method_sname_ptr: sys::GDExtensionConstStringNamePtr,
@@ -763,7 +763,7 @@ impl fmt::Display for CallContext<'_> {
     }
 }
 
-#[cfg(feature = "itest")]
+#[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
 pub mod trace {
     use std::cell::Cell;
 

@@ -72,7 +72,7 @@ fn handle_method_panic_bool<T: GodotClass>(
 /// If the `init()` constructor panics, null is returned.
 ///
 /// Creation callback has `p_notify_postinitialize` parameter since 4.4: <https://github.com/godotengine/godot/pull/91018>.
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     .unwrap_or(std::ptr::null_mut())
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
@@ -95,7 +95,7 @@ pub unsafe extern "C" fn create<T: cap::GodotDefault>(
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
 ///
 /// Godot expects a creator function, but doesn't require an actual object to be instantiated.
-#[cfg(all(since_api = "4.4", before_api = "4.5"))]
+#[cfg(all(since_api = "4.4", before_api = "4.5"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.4", before_api = "4.5"))))]
 pub unsafe extern "C" fn create_null<T>(
     _class_userdata: *mut std::ffi::c_void,
     _notify_postinitialize: sys::GDExtensionBool,
@@ -103,7 +103,7 @@ pub unsafe extern "C" fn create_null<T>(
     std::ptr::null_mut()
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn create_null<T>(
     _class_userdata: *mut std::ffi::c_void,
 ) -> sys::GDExtensionObjectPtr {
@@ -124,7 +124,7 @@ pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
 /// Workaround for <https://github.com/godot-rust/gdext/issues/874> before Godot 4.5.
 ///
 /// Godot expects a creator function, but doesn't require an actual object to be instantiated.
-#[cfg(before_api = "4.5")]
+#[cfg(before_api = "4.5")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.5")))]
 pub unsafe extern "C" fn recreate_null<T>(
     _class_userdata: *mut std::ffi::c_void,
     _object: sys::GDExtensionObjectPtr,
@@ -190,9 +190,9 @@ where
     // Print shouldn't be necessary as panic itself is printed. If this changes, re-enable in error case:
     // godot_error!("failed to create instance of {class_id}; Rust init() panicked");
 
-    #[cfg(before_api = "4.7")]
+    #[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
     let mut base_copy = unsafe { Base::from_base(&base) };
-    #[cfg(all(since_api = "4.7", safeguards_balanced))]
+    #[cfg(all(since_api = "4.7", safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.7", safeguards_balanced))))]
     sys::balanced_assert!(
         Base::is_valid(&base),
         "Unable to construct instance – Base was freed during initialization"
@@ -214,26 +214,26 @@ where
     }
 
     // Before Godot 4.4, the engine sends this notification itself.
-    #[cfg(before_api = "4.4")]
+    #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
     let _ = notify_postinitialize;
 
-    #[cfg(since_api = "4.4")]
+    #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
     if notify_postinitialize {
         // Notify through a weak pointer: during `NOTIFICATION_POSTINITIALIZE`, a ref-counted object is not yet fully initialized.
-        #[cfg(before_api = "4.7")]
+        #[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
         let mut obj = unsafe { Gd::<Object>::from_obj_sys_weak(base_ptr) };
 
         // Since 4.7 base comes in fully initialized.
-        #[cfg(since_api = "4.7")]
+        #[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
         let mut obj = unsafe { Gd::<Object>::from_obj_sys(base_ptr) };
 
         obj.notify(crate::classes::notify::ObjectNotification::POSTINITIALIZE);
-        #[cfg(before_api = "4.7")]
+        #[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
         obj.drop_weak();
     }
 
     // Mark initialization as complete, now that user constructor has finished.
-    #[cfg(before_api = "4.7")]
+    #[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
     base_copy.mark_initialized();
 
     // No std::mem::forget(base_copy) here, since Base may stores other fields that need deallocation.
@@ -255,7 +255,7 @@ pub unsafe extern "C" fn free<T: GodotClass>(
     }
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -270,7 +270,7 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     }
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -282,7 +282,7 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     T::__virtual_call(method_name.as_str())
 }
 
-#[cfg(since_api = "4.4")]
+#[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
 pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,
@@ -297,7 +297,7 @@ pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     }
 }
 
-#[cfg(before_api = "4.4")]
+#[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
 pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     _class_user_data: *mut std::ffi::c_void,
     name: sys::GDExtensionConstStringNamePtr,

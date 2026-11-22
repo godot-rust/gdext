@@ -48,7 +48,7 @@ fn make_virtual_hashes_for_class(class: &Class, ctx: &mut Context) -> TokenStrea
 
     let constants = class.methods.iter().filter_map(|method| {
         let FnDirection::Virtual {
-            #[cfg(since_api = "4.4")]
+            #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
             hash,
         } = method.direction()
         else {
@@ -70,12 +70,12 @@ fn make_virtual_hashes_for_class(class: &Class, ctx: &mut Context) -> TokenStrea
             pub type #rust_sig_name = ( #(#param_types,)* );
         };
 
-        #[cfg(since_api = "4.4")]
+        #[cfg(since_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.4")))]
         let constant = quote! {
             pub const #rust_name: (&str, u32) = (#godot_name_str, #hash);
             #sig_decl
         };
-        #[cfg(before_api = "4.4")]
+        #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
         let constant = quote! {
             pub const #rust_name: &str = #godot_name_str;
             #sig_decl

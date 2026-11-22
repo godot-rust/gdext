@@ -13,14 +13,14 @@ use crate::{
     GdextRuntimeMetadata, ManualInitCell, UtilityFunctionTable,
 };
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 mod multi_threaded;
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 mod single_threaded;
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 use multi_threaded::BindingStorage;
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 use single_threaded::BindingStorage;
 
 pub struct GdextConfig {
@@ -37,7 +37,7 @@ impl GdextConfig {
 }
 
 /// Panics if the binding is not currently live. Shared by both binding storages for a consistent live check.
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 #[inline(always)]
 pub(super) fn assert_binding_live(initialized: &std::sync::atomic::AtomicBool) {
     if !initialized.load(std::sync::atomic::Ordering::Acquire) {
@@ -46,7 +46,7 @@ pub(super) fn assert_binding_live(initialized: &std::sync::atomic::AtomicBool) {
 }
 
 /// Cold failure path, so the hot check stays a predicted-not-taken branch.
-#[cfg(safeguards_balanced)]
+#[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
 #[cold]
 #[inline(never)]
 fn not_live_panic() -> ! {
@@ -57,7 +57,7 @@ fn not_live_panic() -> ! {
     )
 }
 
-#[cfg(all(test, safeguards_balanced))]
+#[cfg(all(test, safeguards_balanced))] #[cfg_attr(published_docs, doc(cfg(all(test, safeguards_balanced))))]
 mod tests {
     use std::sync::atomic::AtomicBool;
 

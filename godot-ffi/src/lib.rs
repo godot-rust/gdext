@@ -1,3 +1,4 @@
+#![cfg_attr(published_docs, feature(doc_cfg))]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -42,7 +43,7 @@
 
 // More validations in godot crate. #[cfg]s are checked in godot-core.
 
-#[cfg(all(feature = "codegen-lazy-fptrs", feature = "experimental-threads"))]
+#[cfg(all(feature = "codegen-lazy-fptrs", feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(all(feature = "codegen-lazy-fptrs", feature = "experimental-threads"))))]
 compile_error!(
     "Cannot combine `lazy-function-tables` and `experimental-threads` features;\n\
     thread safety for lazy-loaded function pointers is not yet implemented."
@@ -78,7 +79,7 @@ mod extras;
 mod global;
 mod godot_ffi;
 mod interface_init;
-#[cfg(target_os = "linux")]
+#[cfg(target_os = "linux")] #[cfg_attr(published_docs, doc(cfg(target_os = "linux")))]
 pub mod linux_reload_workaround;
 mod opaque;
 mod shard_registry;
@@ -117,17 +118,17 @@ use binding::{
     initialize_class_editor_method_table, initialize_class_scene_method_table,
     initialize_class_servers_method_table, runtime_metadata,
 };
-#[cfg(not(wasm_nothreads))]
+#[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
 use thread_ids::MAIN_THREAD_ID;
 pub use thread_ids::current_thread_id;
 
 mod thread_ids {
     use std::thread::{self, ThreadId};
 
-    #[cfg(not(wasm_nothreads))]
+    #[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
     use crate::ManualInitCell;
 
-    #[cfg(not(wasm_nothreads))]
+    #[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
     pub(super) static MAIN_THREAD_ID: ManualInitCell<ThreadId> = ManualInitCell::new();
 
     // Cache thread ID for perf reasons, comparison:
@@ -251,7 +252,7 @@ pub unsafe fn initialize(
     // We want to initialize the main thread ID as early as possible.
     //
     // SAFETY: We set the main thread ID exactly once here and never again.
-    #[cfg(not(wasm_nothreads))]
+    #[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
     unsafe {
         MAIN_THREAD_ID.set(current_thread_id())
     };
@@ -529,9 +530,9 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
         InitLevel::Core => {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
             unsafe {
-                #[cfg(feature = "codegen-lazy-fptrs")]
+                #[cfg(feature = "codegen-lazy-fptrs")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-lazy-fptrs")))]
                 initialize_class_core_method_table(ClassCoreMethodTable::load());
-                #[cfg(not(feature = "codegen-lazy-fptrs"))]
+                #[cfg(not(feature = "codegen-lazy-fptrs"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-lazy-fptrs"))))]
                 initialize_class_core_method_table(ClassCoreMethodTable::load(
                     interface,
                     &mut string_names,
@@ -543,9 +544,9 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
         InitLevel::Servers => {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
             unsafe {
-                #[cfg(feature = "codegen-lazy-fptrs")]
+                #[cfg(feature = "codegen-lazy-fptrs")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-lazy-fptrs")))]
                 initialize_class_servers_method_table(ClassServersMethodTable::load());
-                #[cfg(not(feature = "codegen-lazy-fptrs"))]
+                #[cfg(not(feature = "codegen-lazy-fptrs"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-lazy-fptrs"))))]
                 initialize_class_servers_method_table(ClassServersMethodTable::load(
                     interface,
                     &mut string_names,
@@ -557,9 +558,9 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
         InitLevel::Scene => {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
             unsafe {
-                #[cfg(feature = "codegen-lazy-fptrs")]
+                #[cfg(feature = "codegen-lazy-fptrs")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-lazy-fptrs")))]
                 initialize_class_scene_method_table(ClassSceneMethodTable::load());
-                #[cfg(not(feature = "codegen-lazy-fptrs"))]
+                #[cfg(not(feature = "codegen-lazy-fptrs"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-lazy-fptrs"))))]
                 initialize_class_scene_method_table(ClassSceneMethodTable::load(
                     interface,
                     &mut string_names,
@@ -585,9 +586,9 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
         InitLevel::Editor => {
             // SAFETY: The interface has been initialized and this function hasn't been called before.
             unsafe {
-                #[cfg(feature = "codegen-lazy-fptrs")]
+                #[cfg(feature = "codegen-lazy-fptrs")] #[cfg_attr(published_docs, doc(cfg(feature = "codegen-lazy-fptrs")))]
                 initialize_class_editor_method_table(ClassEditorMethodTable::load());
-                #[cfg(not(feature = "codegen-lazy-fptrs"))]
+                #[cfg(not(feature = "codegen-lazy-fptrs"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "codegen-lazy-fptrs"))))]
                 initialize_class_editor_method_table(ClassEditorMethodTable::load(
                     interface,
                     &mut string_names,
@@ -655,7 +656,7 @@ pub unsafe fn godot_has_feature(
 ///
 /// # Panics
 /// - If it is called before the engine bindings have been initialized.
-#[cfg(not(wasm_nothreads))]
+#[cfg(not(wasm_nothreads))] #[cfg_attr(published_docs, doc(cfg(not(wasm_nothreads))))]
 #[inline(always)] // Called on every FFI call through is_main_thread(). The assert's panic path stays outlined.
 pub fn main_thread_id() -> std::thread::ThreadId {
     assert!(
@@ -807,13 +808,13 @@ pub unsafe fn discover_main_thread() {
 pub unsafe fn classdb_construct_object(
     class_name: GDExtensionConstStringNamePtr,
 ) -> GDExtensionObjectPtr {
-    #[cfg(before_api = "4.4")]
+    #[cfg(before_api = "4.4")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.4")))]
     let f = interface_fn!(classdb_construct_object);
 
-    #[cfg(all(since_api = "4.4", before_api = "4.7"))]
+    #[cfg(all(since_api = "4.4", before_api = "4.7"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.4", before_api = "4.7"))))]
     let f = interface_fn!(classdb_construct_object2);
 
-    #[cfg(since_api = "4.7")]
+    #[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
     let f = interface_fn!(classdb_construct_object3);
 
     // SAFETY: function pointer is valid since binding is initialized; class_name validity is upheld by caller.

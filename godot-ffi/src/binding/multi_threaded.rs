@@ -89,7 +89,7 @@ impl BindingStorage {
         let storage = Self::storage();
 
         // Live check: see single-threaded storage for rationale.
-        #[cfg(safeguards_balanced)]
+        #[cfg(safeguards_balanced)] #[cfg_attr(published_docs, doc(cfg(safeguards_balanced)))]
         super::assert_binding_live(&storage.initialized);
 
         // SAFETY: The binding has been initialized before calling this method.

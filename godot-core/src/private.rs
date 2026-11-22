@@ -6,7 +6,7 @@
  */
 
 use std::cell::Cell;
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::io::Write;
@@ -25,12 +25,12 @@ use crate::{classes, sys};
 mod reexport_pub {
     pub use crate::arg_into_owned;
     pub use crate::classes::SingletonCache;
-    #[cfg(all(since_api = "4.3", feature = "register-docs"))]
+    #[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
     pub use crate::docs::{DocsItem, DocsShard, InherentImplDocs, StructDocs};
     pub use crate::r#gen::classes::class_macros;
     pub use crate::r#gen::virtuals; // virtual fn names, hashes, signatures
     pub use crate::meta::private_reexport::*;
-    #[cfg(feature = "itest")]
+    #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
     pub use crate::meta::{CowArg, FfiArg, trace};
     pub use crate::obj::rpc::priv_re_export::*;
     pub use crate::obj::rtti::ObjectRtti;
@@ -67,7 +67,7 @@ sys::atomic_enum! {
 static ERROR_PRINT_LEVEL: sys::AtomicEnum<ErrorPrintLevel> = sys::AtomicEnum::default();
 
 sys::shard_registry!(pub __GODOT_SHARD_REGISTRY: ClassShard);
-#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+#[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
 sys::shard_registry!(pub __GODOT_DOCS_REGISTRY: DocsShard);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -135,7 +135,7 @@ pub(crate) fn iterate_shards(mut visitor: impl FnMut(&ClassShard)) {
     sys::shard_foreach!(__GODOT_SHARD_REGISTRY; visitor);
 }
 
-#[cfg(all(since_api = "4.3", feature = "register-docs"))]
+#[cfg(all(since_api = "4.3", feature = "register-docs"))] #[cfg_attr(published_docs, doc(cfg(all(since_api = "4.3", feature = "register-docs"))))]
 pub(crate) fn iterate_docs_shards(mut visitor: impl FnMut(&DocsShard)) {
     sys::shard_foreach!(__GODOT_DOCS_REGISTRY; visitor);
 }
@@ -187,7 +187,7 @@ pub fn auto_init<T>(l: &mut crate::obj::OnReady<T>, base: &Gd<classes::Node>) {
     l.init_auto(base);
 }
 
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub unsafe fn has_virtual_script_method(
     object_ptr: sys::GDExtensionObjectPtr,
     method_sname: sys::GDExtensionConstStringNamePtr,
@@ -202,7 +202,7 @@ pub unsafe fn has_virtual_script_method(
 pub const fn is_editor_plugin<T: crate::obj::Inherits<classes::EditorPlugin>>() {}
 
 // Starting from 4.3, Godot has "runtime classes"; this emulation is no longer needed.
-#[cfg(before_api = "4.3")]
+#[cfg(before_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.3")))]
 pub fn is_class_inactive(is_tool: bool) -> bool {
     if is_tool {
         return false;
@@ -218,7 +218,7 @@ pub fn is_class_inactive(is_tool: bool) -> bool {
 
 // Starting from 4.3, Godot has "runtime classes"; we only need to check whether editor is running.
 // Runtime classes only get placeholder instances in the editor (no Rust constructor is called). `bind()` panics if called on placeholders.
-#[cfg(since_api = "4.3")]
+#[cfg(since_api = "4.3")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.3")))]
 pub fn is_class_runtime(is_tool: bool) -> bool {
     if is_tool {
         return false;
@@ -289,7 +289,7 @@ pub fn format_panic_message(panic_info: &std::panic::PanicHookInfo) -> String {
 }
 
 // Macro instead of function, to avoid 1 extra frame in backtrace.
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 #[macro_export]
 macro_rules! format_backtrace {
     ($prefix:expr_2021, $backtrace:expr_2021) => {{
@@ -315,7 +315,7 @@ macro_rules! format_backtrace {
     };
 }
 
-#[cfg(not(safeguards_strict))]
+#[cfg(not(safeguards_strict))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_strict))))]
 #[macro_export]
 macro_rules! format_backtrace {
     ($prefix:expr $(, $backtrace:expr)? ) => {
@@ -349,12 +349,12 @@ pub(crate) fn has_error_print_level(level: ErrorPrintLevel) -> bool {
 /// Internal type used to store context information for debug purposes. Debug context is stored on the thread-local
 /// ERROR_CONTEXT_STACK, which can later be used to retrieve the current context in the event of a panic. This value
 /// probably shouldn't be used directly; use [`fetch_last_panic_context()`] instead.
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 struct ScopedContextStack {
     contexts: Vec<*const dyn Display>,
 }
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 impl ScopedContextStack {
     /// # Safety
     /// Context must be removed (using [`Self::pop_context()`]) before lifetime is invalidated.
@@ -385,7 +385,7 @@ impl ScopedContextStack {
     }
 }
 
-#[cfg(safeguards_strict)]
+#[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
 thread_local! {
     static ERROR_CONTEXT_STACK: RefCell<ScopedContextStack> = const {
         RefCell::new(ScopedContextStack { contexts: Vec::new() })
@@ -396,10 +396,10 @@ thread_local! {
 /// # Safety
 /// Context must be removed (using [`pop_panic_context()`]) before its lifetime is invalidated.
 unsafe fn push_panic_context(error_context: &dyn Display) {
-    #[cfg(not(safeguards_strict))]
+    #[cfg(not(safeguards_strict))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_strict))))]
     let _ = error_context; // Unused in Release.
 
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     ERROR_CONTEXT_STACK.with(|cell| {
         let mut stack = cell.borrow_mut();
         // SAFETY: caller promises to pop error_context before its lifetime is invalidated.
@@ -409,16 +409,16 @@ unsafe fn push_panic_context(error_context: &dyn Display) {
 
 /// Pops a context from the current thread's error context stack.
 fn pop_panic_context() {
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     ERROR_CONTEXT_STACK.with(|cell| cell.borrow_mut().pop_context());
 }
 
 // Value may return `None`, even from panic hook, if called from a non-Godot thread.
 pub fn fetch_last_panic_context() -> Option<String> {
-    #[cfg(safeguards_strict)]
+    #[cfg(safeguards_strict)] #[cfg_attr(published_docs, doc(cfg(safeguards_strict)))]
     return ERROR_CONTEXT_STACK.with(|cell| cell.borrow().get_last());
 
-    #[cfg(not(safeguards_strict))]
+    #[cfg(not(safeguards_strict))] #[cfg_attr(published_docs, doc(cfg(not(safeguards_strict))))]
     None
 }
 
@@ -619,7 +619,7 @@ pub fn rebuild_gd(object_ref: &classes::Object) -> Gd<classes::Object> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[cfg(test)]
+#[cfg(test)] #[cfg_attr(published_docs, doc(cfg(test)))]
 mod tests {
     use super::{CallError, PanicPayload, call_error_store, call_error_take};
     use crate::meta::CallContext;

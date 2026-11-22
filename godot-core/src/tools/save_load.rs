@@ -92,7 +92,7 @@ where
 /// # Panics
 /// If the resource cannot be loaded, is not of type `T` or inherited or the global `MainLoop` is not a `SceneTree`.
 #[inline]
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 pub async fn load_threaded<T>(path: impl AsArg<GString>) -> Gd<T>
 where
     T: Inherits<Resource>,
@@ -128,7 +128,7 @@ where
 /// });
 /// ```
 #[inline]
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 pub async fn try_load_threaded<T>(path: impl AsArg<GString>) -> Result<Gd<T>, IoError>
 where
     T: Inherits<Resource>,
@@ -233,7 +233,7 @@ where
 
 // Separate function, to avoid constructing string twice
 // Note that more optimizations than that likely make no sense, as loading is quite expensive
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 async fn load_threaded_impl<T>(path: &GString) -> Result<Gd<T>, IoError>
 where
     T: Inherits<Resource>,

@@ -17,10 +17,10 @@ use crate::builtin::{Variant, VariantType, Vector3};
 // Variant data size depends on precision:
 // - Single precision (real_t=float): 16 bytes data, 24 bytes total
 // - Double precision (real_t=double): 32 bytes data, 40 bytes total
-#[cfg(not(feature = "double-precision"))]
+#[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
 pub(crate) const VARIANT_DATA_SIZE: usize = 16;
 
-#[cfg(feature = "double-precision")]
+#[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
 pub(crate) const VARIANT_DATA_SIZE: usize = 32;
 
 // Compile-time size/alignment checks for the layout itself. Per-type size checks (`size_of::<T>() <= VARIANT_DATA_SIZE`) live at the
@@ -36,10 +36,10 @@ const _: () = {
 
     // Size depends on precision feature.
     // Note: Use `assert!` instead of `assert_eq!` in const contexts (`assert_eq!` is not yet const-compatible).
-    #[cfg(not(feature = "double-precision"))]
+    #[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
     assert!(size_of::<RustVariant>() == 24);
 
-    #[cfg(feature = "double-precision")]
+    #[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
     assert!(size_of::<RustVariant>() == 40);
 };
 

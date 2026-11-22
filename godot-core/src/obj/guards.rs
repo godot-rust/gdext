@@ -8,9 +8,9 @@
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-#[cfg(feature = "experimental-threads")]
+#[cfg(feature = "experimental-threads")] #[cfg_attr(published_docs, doc(cfg(feature = "experimental-threads")))]
 use godot_cell::blocking::{InaccessibleGuard, MutGuard, RefGuard};
-#[cfg(not(feature = "experimental-threads"))]
+#[cfg(not(feature = "experimental-threads"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "experimental-threads"))))]
 use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 use godot_ffi::out;
 

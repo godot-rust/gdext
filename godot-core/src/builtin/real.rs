@@ -27,7 +27,7 @@ pub trait RealConv {
     fn from_f64(f: f64) -> Self;
 }
 
-#[cfg(not(feature = "double-precision"))]
+#[cfg(not(feature = "double-precision"))] #[cfg_attr(published_docs, doc(cfg(not(feature = "double-precision"))))]
 mod real_mod {
     /// Floating point type used for many structs and functions in Godot.
     ///
@@ -95,7 +95,7 @@ mod real_mod {
     pub type RAffine3 = glam::Affine3A;
 }
 
-#[cfg(feature = "double-precision")]
+#[cfg(feature = "double-precision")] #[cfg_attr(published_docs, doc(cfg(feature = "double-precision")))]
 mod real_mod {
     /// Floating point type used for many structs and functions in Godot.
     ///

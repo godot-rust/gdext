@@ -51,7 +51,7 @@ pub mod __prelude_reexport {
 
     pub use super::math::XformInv;
     pub use super::{EulerOrder, VariantOperator, VariantType};
-    #[cfg(feature = "itest")]
+    #[cfg(feature = "itest")] #[cfg_attr(published_docs, doc(cfg(feature = "itest")))]
     pub use crate::static_sname;
     pub use crate::{array, dict, iarray, idict, real, reals, varray, vdict, vslice};
 }
@@ -144,7 +144,7 @@ pub(crate) fn to_usize(i: i64) -> usize {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // #[test] utils for serde
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(all(test, feature = "serde"))] #[cfg_attr(published_docs, doc(cfg(all(test, feature = "serde"))))]
 pub(crate) mod test_utils {
     use serde::{Deserialize, Serialize};
 

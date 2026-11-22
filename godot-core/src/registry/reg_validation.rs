@@ -25,12 +25,12 @@
 //! - A property registered with neither getter nor setter (`#[var]`/`#[export]` always emit at least one).
 // TODO(v0.6): promote shadowing warnings to hard errors, possibly with `#[var(override)] escape hatch if true use-case found.
 
-#[cfg(not(all(safeguards_strict, since_api = "4.5")))]
+#[cfg(not(all(safeguards_strict, since_api = "4.5")))] #[cfg_attr(published_docs, doc(cfg(not(all(safeguards_strict, since_api = "4.5")))))]
 pub use noop::*;
-#[cfg(all(safeguards_strict, since_api = "4.5"))]
+#[cfg(all(safeguards_strict, since_api = "4.5"))] #[cfg_attr(published_docs, doc(cfg(all(safeguards_strict, since_api = "4.5"))))]
 pub use strict::*;
 
-#[cfg(all(safeguards_strict, since_api = "4.5"))]
+#[cfg(all(safeguards_strict, since_api = "4.5"))] #[cfg_attr(published_docs, doc(cfg(all(safeguards_strict, since_api = "4.5"))))]
 mod strict {
     use crate::builtin::{GString, StringName};
     use crate::classes::ClassDb;
@@ -45,7 +45,7 @@ mod strict {
     /// Early-returns from a `validate_*` function when the `ClassDB` singleton cannot be queried at the current init level.
     ///
     /// Godot 4.6 and earlier add the singleton only after `Core`-level extension init, so its presence must be checked at runtime.
-    #[cfg(before_api = "4.7")]
+    #[cfg(before_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(before_api = "4.7")))]
     macro_rules! return_if_unavailable {
         () => {
             if !crate::init::is_singleton_available::<ClassDb>() {
@@ -55,7 +55,7 @@ mod strict {
     }
 
     /// Godot 4.7+ adds `ClassDB` before `Core`-level extension init, so it is available at every level.
-    #[cfg(since_api = "4.7")]
+    #[cfg(since_api = "4.7")] #[cfg_attr(published_docs, doc(cfg(since_api = "4.7")))]
     macro_rules! return_if_unavailable {
         () => {};
     }
@@ -253,7 +253,7 @@ mod strict {
     }
 }
 
-#[cfg(not(all(safeguards_strict, since_api = "4.5")))]
+#[cfg(not(all(safeguards_strict, since_api = "4.5")))] #[cfg_attr(published_docs, doc(cfg(not(all(safeguards_strict, since_api = "4.5")))))]
 mod noop {
     use crate::builtin::StringName;
     use crate::meta::ClassId;
