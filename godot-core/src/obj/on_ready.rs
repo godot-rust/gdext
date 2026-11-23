@@ -12,7 +12,8 @@ use crate::builtin::{GString, NodePath};
 use crate::classes::{Node, Resource};
 use crate::meta::shape::GodotShape;
 use crate::meta::{AsArg, FromGodot, GodotConvert, arg_into_owned};
-use crate::obj::{Gd, Inherits};
+use crate::obj::bounds::{Declarer, DeclEngine, DeclUser};
+use crate::obj::{AsDyn, Bounds, DynGd, FromNode, FromNodeDeclarer, Gd, GodotClass, Inherits};
 use crate::registry::property::Var;
 
 /// Ergonomic late-initialization container with `ready()` support.
@@ -129,7 +130,7 @@ pub struct OnReady<T> {
     state: InitState<T>,
 }
 
-impl<T: Inherits<Node>> OnReady<Gd<T>> {
+impl<T: Inherits<Node>> FromNode for OnReady<Gd<T>> {
     /// Variant of [`OnReady::new()`], fetching the node located at `path` before `ready()`.
     ///
     /// This is the functional equivalent of:
@@ -143,10 +144,51 @@ impl<T: Inherits<Node>> OnReady<Gd<T>> {
     ///
     /// Note that the panic will only happen if and when the node enters the SceneTree for the first time
     /// (i.e. it receives the `READY` notification).
-    pub fn from_node(path: impl AsArg<NodePath>) -> Self {
+    fn from_node(path: impl AsArg<NodePath>) -> Self {
         arg_into_owned!(path);
 
         Self::from_base_fn(move |base| base.get_node_as(&path))
+    }
+}
+
+impl<T: Inherits<Node>, D> FromNode for OnReady<DynGd<T, D>>
+where
+    D: 'static + ?Sized, 
+	OnReady<DynGd<T, D>>: FromNodeDeclarer<<T as Bounds>::Declarer>,
+{
+    fn from_node(path: impl AsArg<NodePath>) -> Self {
+		Self::from_node_declarer(path)
+	}
+}
+
+impl<T: Inherits<Node>, D> FromNodeDeclarer<DeclEngine> for OnReady<DynGd<T, D>>
+where
+    T: GodotClass<Declarer = DeclEngine> + Bounds,
+    D: 'static + ?Sized,
+{
+    fn from_node_declarer(path: impl AsArg<NodePath>) -> Self {
+        arg_into_owned!(path);
+
+        Self::from_base_fn(move |base| {
+			base.get_node_as::<T>(&path).try_dynify::<D>().unwrap_or_else(|_| {
+				panic!(
+					"AsDyn<{dt}> is not implemented by the type of the node at path `{path}`",
+					dt = std::any::type_name::<D>()
+				)
+			})
+		})
+    }
+}
+
+impl<T: Inherits<Node>, D> FromNodeDeclarer<DeclUser> for OnReady<DynGd<T, D>>
+where
+    T: AsDyn<D, Declarer = DeclUser> + Bounds,
+    D: 'static + ?Sized,
+{
+    fn from_node_declarer(path: impl AsArg<NodePath>) -> Self {
+        arg_into_owned!(path);
+
+        Self::from_base_fn(move |base| base.get_node_as::<T>(&path).into_dyn::<D>())
     }
 }
 

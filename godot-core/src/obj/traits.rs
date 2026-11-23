@@ -8,10 +8,10 @@
 use godot_ffi as sys;
 
 use crate::builder::ClassBuilder;
-use crate::builtin::GString;
+use crate::builtin::{GString, NodePath};
 use crate::init::InitLevel;
-use crate::meta::ClassId;
 use crate::meta::inspect::EnumConstant;
+use crate::meta::{AsArg, ClassId};
 use crate::obj::{Base, BaseMut, BaseRef, BorrowedGd, Bounds, Gd, bounds};
 use crate::signal::SignalObject;
 use crate::storage::Storage;
@@ -1112,4 +1112,12 @@ pub mod cap {
         #[doc(hidden)]
         fn __virtual_call(name: &str, hash: u32) -> sys::GDExtensionClassCallVirtual;
     }
+}
+
+pub trait FromNode {
+    fn from_node(path: impl AsArg<NodePath>) -> Self;
+}
+
+pub trait FromNodeDeclarer<Decl> {
+    fn from_node_declarer(path: impl AsArg<NodePath>) -> Self;
 }

@@ -17,8 +17,8 @@ pub use super::init::{ExtensionLibrary, InitLevel, InitStage, gdextension};
 pub use super::meta::error::{ConvertError, func_bail, strat};
 pub use super::meta::{FromGodot, GodotConvert, ToGodot};
 pub use super::obj::{
-    AsDyn, Base, DynGd, DynGdMut, DynGdRef, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId,
-    OnEditor, OnReady, UserSingleton,
+    AsDyn, Base, DynGd, DynGdMut, DynGdRef, FromNode, Gd, GdMut, GdRef, GodotClass, Inherits,
+    InstanceId, OnEditor, OnReady, UserSingleton,
 };
 pub use super::register::property::{Export, PhantomVar, Var};
 // Re-export macros.
